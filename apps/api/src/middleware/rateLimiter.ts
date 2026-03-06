@@ -27,6 +27,15 @@ export const analyzeLimiter = rateLimit({
   legacyHeaders: false,
 })
 
+export const reportsLimiter = rateLimit({
+  windowMs: RATE_LIMITS.reports.windowMs,
+  max: RATE_LIMITS.reports.max,
+  keyGenerator: (req: any) => req.user?.email || req.ip || 'unknown',
+  message: { error: 'Share limit reached. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 export const globalLimiter = rateLimit({
   windowMs: RATE_LIMITS.global.windowMs,
   max: RATE_LIMITS.global.max,

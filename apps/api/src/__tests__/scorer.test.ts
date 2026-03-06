@@ -310,22 +310,24 @@ describe('weight renormalization', () => {
     const result = scoreDocument(qpdf, pdfjs)
 
     // text_extractability = 100, title_language = 100, heading_structure = 0 (F),
-    // alt_text = null, bookmarks = null, table_markup = null, link_quality = null,
-    // form_accessibility = null, reading_order = 100
-    // Applicable: text_extractability(0.20), title_language(0.15), heading_structure(0.15), reading_order(0.05)
-    // Total weight = 0.55, weighted sum = (100*0.20 + 100*0.15 + 0*0.15 + 100*0.05) / 0.55
+    // alt_text = null (no images), bookmarks = null, table_markup = null,
+    // link_quality = null, form_accessibility = null, reading_order = 100
+    // Applicable: text(0.20), title(0.15), heading(0.15), reading(0.05)
+    // Total weight = 0.55
     const text = findCategory(result, 'text_extractability')
     const title = findCategory(result, 'title_language')
     const heading = findCategory(result, 'heading_structure')
+    const alt = findCategory(result, 'alt_text')
     const reading = findCategory(result, 'reading_order')
 
     expect(text.score).toBe(100)
     expect(title.score).toBe(100)
     expect(heading.score).toBe(0) // no headings -> F
+    expect(alt.score).toBeNull() // no images -> N/A
     expect(reading.score).toBe(100)
 
-    // Expected: (100*0.20 + 100*0.15 + 0*0.15 + 100*0.05) / (0.20+0.15+0.15+0.05)
-    // = (20 + 15 + 0 + 5) / 0.55 = 40 / 0.55 = 72.727... ≈ 73
+    // Expected: (100*0.20 + 100*0.15 + 0*0.15 + 100*0.05) / 0.55
+    // = (20 + 15 + 0 + 5) / 0.55 = 40 / 0.55 = 72.72... ≈ 73
     expect(result.overallScore).toBe(73)
   })
 

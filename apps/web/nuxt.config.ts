@@ -35,7 +35,7 @@ export default defineNuxtConfig({
   // Proxy API requests in development; in production nginx handles this
   routeRules: {
     '/api/**': {
-      proxy: `${apiBase}/**`,
+      proxy: { to: `${apiBase}/api/**` },
     },
   },
 

@@ -43,6 +43,17 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes(email);
+
+  CREATE TABLE IF NOT EXISTS shared_reports (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    report_json TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_shared_reports_expires ON shared_reports(expires_at);
 `)
 
 export default db

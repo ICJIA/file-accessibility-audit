@@ -7,6 +7,11 @@ import {
 import type { QpdfResult } from './qpdfService.js'
 import type { PdfjsResult } from './pdfjsService.js'
 
+export interface HelpLink {
+  label: string
+  url: string
+}
+
 export interface CategoryResult {
   id: string
   label: string
@@ -15,6 +20,8 @@ export interface CategoryResult {
   grade: string | null
   severity: string | null
   findings: string[]
+  explanation: string
+  helpLinks: HelpLink[]
 }
 
 export interface ScoringResult {
@@ -107,19 +114,23 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     score = 100
     findings.push('PDF contains extractable text')
     findings.push('Document is tagged (StructTreeRoot present)')
+    if (pdfjs.textLength) findings.push(`Extracted ${pdfjs.textLength.toLocaleString()} characters of text content`)
   } else if (pdfjs.hasText && !qpdf.hasStructTree) {
     score = 50
     findings.push('PDF contains extractable text')
-    findings.push('Document is NOT tagged — no StructTreeRoot found. Add tags in Adobe Acrobat (Accessibility → Add Tags to Document).')
+    findings.push('Document is NOT tagged — no StructTreeRoot found')
+    findings.push('How to fix: In Adobe Acrobat, go to Accessibility → Add Tags to Document. Tags create a hidden structure that tells screen readers the reading order, headings, and other elements.')
   } else if (!pdfjs.hasText && qpdf.hasStructTree) {
     score = 25
     findings.push('No extractable text found, but document has tag structure')
-    findings.push('This may be a partially tagged scanned document. Run OCR to add a text layer.')
+    findings.push('This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.')
+    findings.push('How to fix: In Adobe Acrobat, go to Scan & OCR → Recognize Text → In This File.')
   } else {
     score = 0
     findings.push('No extractable text found')
     findings.push('No tag structure found')
-    findings.push('This PDF appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.')
+    findings.push('This PDF appears to be a scanned image — it is essentially a photograph of text. Screen readers cannot read it at all.')
+    findings.push('How to fix: (1) Run OCR in Adobe Acrobat: Scan & OCR → Recognize Text. (2) Then add tags: Accessibility → Add Tags to Document.')
   }
 
   return {
@@ -130,6 +141,12 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
+    explanation: 'Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with.',
+    helpLinks: [
+      { label: 'Adobe: Add Tags to a PDF', url: 'https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html' },
+      { label: 'Adobe: OCR a Scanned Document', url: 'https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html' },
+      { label: 'WebAIM: PDF Accessibility', url: 'https://webaim.org/techniques/acrobat/' },
+    ],
   }
 }
 
@@ -142,7 +159,9 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     score += 50
     findings.push(`Document title: "${pdfjs.title}"`)
   } else {
-    findings.push('No document title found in metadata. Set in Adobe Acrobat: File → Properties → Description → Title.')
+    findings.push('No document title found in metadata')
+    findings.push('How to fix: In Adobe Acrobat, go to File → Properties → Description tab → enter a descriptive Title.')
+    findings.push('The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., "report_v3_final.pdf").')
   }
 
   // Language check (50 points)
@@ -151,8 +170,12 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     score += 50
     findings.push(`Language declared: ${qpdf.lang || pdfjs.lang}`)
   } else {
-    findings.push('No language declaration (/Lang) present. Set in Adobe Acrobat: File → Properties → Advanced → Language.')
+    findings.push('No language declaration found')
+    findings.push('How to fix: In Adobe Acrobat, go to File → Properties → Advanced tab → set the Language dropdown.')
+    findings.push('The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.')
   }
+
+  if (pdfjs.author) findings.push(`Author: ${pdfjs.author}`)
 
   return {
     id: 'title_language',
@@ -162,11 +185,23 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
+    explanation: 'This category checks two metadata fields: the document title and the language declaration. The title appears in the browser tab and is the first thing a screen reader announces. The language tag tells assistive technology how to pronounce the text correctly.',
+    helpLinks: [
+      { label: 'Adobe: Set Document Title', url: 'https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html' },
+      { label: 'WCAG 3.1.1: Language of Page', url: 'https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html' },
+      { label: 'WebAIM: Document Properties', url: 'https://webaim.org/techniques/acrobat/acrobat#document' },
+    ],
   }
 }
 
 function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
   const findings: string[] = []
+  const headingExplanation = 'Headings (H1–H6) create a navigable outline of the document. Screen reader users rely on headings to skim and jump between sections — similar to how sighted users scan bold section titles. Headings must follow a logical hierarchy: H1 for the main title, H2 for major sections, H3 for subsections, and so on. Skipping levels (e.g., H1 → H3) confuses assistive technology.'
+  const headingLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Add Headings to a PDF', url: 'https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html' },
+    { label: 'WCAG 1.3.1: Info and Relationships', url: 'https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html' },
+    { label: 'WebAIM: Headings in PDFs', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
+  ]
 
   if (qpdf.headings.length === 0) {
     return {
@@ -176,14 +211,24 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
       score: 0,
       grade: 'F',
       severity: 'Critical',
-      findings: ['No heading tags found in the document structure. Add headings using the Tags panel in Adobe Acrobat.'],
+      findings: [
+        'No heading tags found in the document structure',
+        'How to fix: In Adobe Acrobat, open the Tags panel (View → Show/Hide → Navigation Panes → Tags). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.',
+      ],
+      explanation: headingExplanation,
+      helpLinks: headingLinks,
     }
   }
+
+  // Show the heading outline
+  const headingSummary = qpdf.headings.map(h => h.level).join(', ')
+  findings.push(`Heading outline: ${headingSummary}`)
 
   const hasNumberedHeadings = qpdf.headings.some(h => /^H[1-6]$/.test(h.level))
 
   if (!hasNumberedHeadings) {
-    findings.push('Only generic /H tags found (not H1–H6). Use specific heading levels for proper hierarchy.')
+    findings.push('Only generic /H tags found (not H1–H6). Generic heading tags don\'t convey hierarchy.')
+    findings.push('How to fix: In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.')
     return {
       id: 'heading_structure',
       label: 'Heading Structure',
@@ -192,6 +237,8 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
       grade: getGrade(40),
       severity: getSeverity(40),
       findings,
+      explanation: headingExplanation,
+      helpLinks: headingLinks,
     }
   }
 
@@ -210,6 +257,7 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
 
   if (hierarchyBroken) {
     findings.unshift(`Found ${levels.length} heading tags, but hierarchy has gaps`)
+    findings.push('Heading levels should not skip — e.g., don\'t jump from H1 to H3 without an H2 in between.')
     return {
       id: 'heading_structure',
       label: 'Heading Structure',
@@ -218,6 +266,8 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
       grade: getGrade(60),
       severity: getSeverity(60),
       findings,
+      explanation: headingExplanation,
+      helpLinks: headingLinks,
     }
   }
 
@@ -230,33 +280,53 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
     grade: 'A',
     severity: 'Pass',
     findings,
+    explanation: headingExplanation,
+    helpLinks: headingLinks,
   }
 }
 
 function scoreAltText(qpdf: QpdfResult): CategoryResult {
-  const figures = qpdf.images.filter(img => img.ref) // All detected figures/images
+  const altLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Add Alt Text to Images', url: 'https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html#add_alternate_text_to_links_and_figures' },
+    { label: 'WCAG 1.1.1: Non-text Content', url: 'https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html' },
+    { label: 'WebAIM: Alt Text in PDFs', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
+  ]
+  const altExplanation = 'Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.'
+
+  const figures = qpdf.images.filter(img => img.ref)
 
   if (figures.length === 0) {
     return {
       id: 'alt_text',
       label: 'Alt Text on Images',
       weight: SCORING_WEIGHTS.alt_text,
-      score: null, // N/A
+      score: null,
       grade: null,
       severity: null,
-      findings: ['No images found in this document'],
+      findings: [
+        'No images detected in this document — this category does not affect the score',
+        'If this document does contain images, they may not be properly tagged as <Figure> elements. Verify manually in Adobe Acrobat\'s Tags panel.',
+      ],
+      explanation: altExplanation,
+      helpLinks: altLinks,
     }
   }
 
   const withAlt = figures.filter(f => f.hasAlt).length
-  const score = Math.round((withAlt / figures.length) * 100)
+  const score = withAlt === 0 ? 0 : Math.round((withAlt / figures.length) * 100)
   const findings: string[] = []
 
   if (withAlt === figures.length) {
     findings.push(`All ${figures.length} image(s) have alternative text`)
+    for (const fig of figures) {
+      if (fig.altText) findings.push(`Image alt text: "${fig.altText}"`)
+    }
   } else {
     findings.push(`${withAlt} of ${figures.length} image(s) have alternative text`)
-    findings.push('Add alt text in Adobe Acrobat: right-click image in Tags panel → Properties → Alternate Text')
+    const missing = figures.filter(f => !f.hasAlt).length
+    findings.push(`${missing} image(s) are missing alt text`)
+    findings.push('How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the "Alternate Text" field.')
+    findings.push('Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".')
   }
 
   return {
@@ -267,19 +337,33 @@ function scoreAltText(qpdf: QpdfResult): CategoryResult {
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
+    explanation: altExplanation,
+    helpLinks: altLinks,
   }
 }
 
 function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
+  const bookmarkLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Create Bookmarks', url: 'https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html#create_a_bookmark' },
+    { label: 'Adobe: Auto-generate Bookmarks from Headings', url: 'https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html' },
+    { label: 'WebAIM: PDF Navigation', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
+  ]
+  const bookmarkExplanation = 'Bookmarks (also called outlines) create a clickable table of contents in the PDF sidebar. They let all users — including those using screen readers — jump directly to any section. For documents longer than a few pages, bookmarks are essential for navigation. In Adobe Acrobat, bookmarks can be generated automatically from heading tags.'
+
   if (pdfjs.pageCount < ANALYSIS.BOOKMARKS_PAGE_THRESHOLD) {
     return {
       id: 'bookmarks',
       label: 'Bookmarks / Navigation',
       weight: SCORING_WEIGHTS.bookmarks,
-      score: null, // N/A for short docs
+      score: null,
       grade: null,
       severity: null,
-      findings: [`Document has ${pdfjs.pageCount} page(s) — bookmarks not required for documents under ${ANALYSIS.BOOKMARKS_PAGE_THRESHOLD} pages`],
+      findings: [
+        `Document has ${pdfjs.pageCount} page(s) — bookmarks are not required for documents under ${ANALYSIS.BOOKMARKS_PAGE_THRESHOLD} pages`,
+        'This category does not affect the score',
+      ],
+      explanation: bookmarkExplanation,
+      helpLinks: bookmarkLinks,
     }
   }
 
@@ -287,6 +371,16 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const outlineCount = Math.max(qpdf.outlineCount, pdfjs.outlineCount)
 
   if (hasOutlines && outlineCount > 0) {
+    const findings = [`${outlineCount} bookmark(s) found`]
+    if (qpdf.outlineTitles?.length > 0) {
+      findings.push('Bookmark outline:')
+      for (const title of qpdf.outlineTitles.slice(0, 20)) {
+        findings.push(`  ${title}`)
+      }
+      if (qpdf.outlineTitles.length > 20) {
+        findings.push(`  … and ${qpdf.outlineTitles.length - 20} more`)
+      }
+    }
     return {
       id: 'bookmarks',
       label: 'Bookmarks / Navigation',
@@ -294,7 +388,9 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       score: 100,
       grade: 'A',
       severity: 'Pass',
-      findings: [`${outlineCount} bookmark(s) found`],
+      findings,
+      explanation: bookmarkExplanation,
+      helpLinks: bookmarkLinks,
     }
   }
 
@@ -306,7 +402,12 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       score: 25,
       grade: getGrade(25),
       severity: getSeverity(25),
-      findings: ['Outline structure present but contains no entries. Add bookmarks in Adobe Acrobat.'],
+      findings: [
+        'Outline structure present but contains no entries',
+        'How to fix: In Adobe Acrobat, go to the Bookmarks panel (View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks from Structure).',
+      ],
+      explanation: bookmarkExplanation,
+      helpLinks: bookmarkLinks,
     }
   }
 
@@ -317,20 +418,36 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     score: 0,
     grade: 'F',
     severity: 'Critical',
-    findings: [`Document has ${pdfjs.pageCount} pages but no bookmarks. Add bookmarks in Adobe Acrobat for navigation.`],
+    findings: [
+      `Document has ${pdfjs.pageCount} pages but no bookmarks`,
+      'How to fix: In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks from Structure).',
+    ],
+    explanation: bookmarkExplanation,
+    helpLinks: bookmarkLinks,
   }
 }
 
 function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
+  const tableLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Make Tables Accessible', url: 'https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html' },
+    { label: 'WCAG 1.3.1: Info and Relationships', url: 'https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html' },
+    { label: 'WebAIM: Table Accessibility in PDFs', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
+  ]
+  const tableExplanation = 'Table markup tells screen readers which cells are headers and which are data. Without proper header tags (TH), a screen reader reads table cells in a flat stream — the user has no way to know which column or row a value belongs to. Each table should have header cells tagged as <TH> and data cells tagged as <TD>.'
+
   if (qpdf.tables.length === 0) {
     return {
       id: 'table_markup',
       label: 'Table Markup',
       weight: SCORING_WEIGHTS.table_markup,
-      score: null, // N/A
+      score: null,
       grade: null,
       severity: null,
-      findings: ['No tables detected in this document'],
+      findings: [
+        'No tables detected in this document — this category does not affect the score',
+      ],
+      explanation: tableExplanation,
+      helpLinks: tableLinks,
     }
   }
 
@@ -347,37 +464,40 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       grade: 'A',
       severity: 'Pass',
       findings,
+      explanation: tableExplanation,
+      helpLinks: tableLinks,
     }
   }
 
   if (withHeaders > 0) {
     findings.push(`${withHeaders} of ${qpdf.tables.length} table(s) have header tags`)
-    findings.push('Add TH tags to table headers in Adobe Acrobat\'s Tags panel')
-    return {
-      id: 'table_markup',
-      label: 'Table Markup',
-      weight: SCORING_WEIGHTS.table_markup,
-      score: 40,
-      grade: getGrade(40),
-      severity: getSeverity(40),
-      findings,
-    }
+    findings.push(`${qpdf.tables.length - withHeaders} table(s) are missing header cell tags`)
+  } else {
+    findings.push(`${qpdf.tables.length} table(s) found but none have header tags (TH)`)
   }
+  findings.push('How to fix: In Adobe Acrobat, open the Tags panel → expand each <Table> tag → find the header row → change the cell tags from <TD> to <TH>. This tells screen readers "this cell is a column/row header" so they can announce it with each data cell.')
 
-  findings.push(`${qpdf.tables.length} table(s) found but none have header tags (TH)`)
-  findings.push('Add TH tags to table headers in Adobe Acrobat\'s Tags panel')
   return {
     id: 'table_markup',
     label: 'Table Markup',
     weight: SCORING_WEIGHTS.table_markup,
-    score: 40,
+    score: withHeaders > 0 ? 40 : 40,
     grade: getGrade(40),
     severity: getSeverity(40),
     findings,
+    explanation: tableExplanation,
+    helpLinks: tableLinks,
   }
 }
 
 function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
+  const linkLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Create and Edit Links', url: 'https://helpx.adobe.com/acrobat/using/accessibility-features-pdfs.html' },
+    { label: 'WCAG 2.4.4: Link Purpose', url: 'https://www.w3.org/WAI/WCAG21/Understanding/link-purpose-in-context.html' },
+    { label: 'WebAIM: Links and Hypertext', url: 'https://webaim.org/techniques/hypertext/' },
+  ]
+  const linkExplanation = 'Screen reader users often navigate by tabbing through links or pulling up a list of all links on the page. If a link says "https://www.example.com/reports/2024/q3/data.pdf", that\'s not useful. A descriptive label like "Q3 2024 Data Report" tells the user where the link goes without needing to see the URL.'
+
   if (pdfjs.links.length === 0) {
     return {
       id: 'link_quality',
@@ -386,7 +506,9 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
-      findings: ['No links found in this document'],
+      findings: ['No links found in this document — this category does not affect the score'],
+      explanation: linkExplanation,
+      helpLinks: linkLinks,
     }
   }
 
@@ -397,10 +519,18 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
 
   if (descriptive.length === pdfjs.links.length) {
     findings.push(`All ${pdfjs.links.length} link(s) use descriptive text`)
+    for (const link of pdfjs.links.slice(0, 10)) {
+      findings.push(`Link: "${link.text.trim()}"`)
+    }
+    if (pdfjs.links.length > 10) findings.push(`… and ${pdfjs.links.length - 10} more`)
   } else {
     const rawCount = pdfjs.links.length - descriptive.length
     findings.push(`${rawCount} of ${pdfjs.links.length} link(s) display raw URLs instead of descriptive text`)
-    findings.push('Replace raw URLs with descriptive link text (e.g., "View the full report" instead of "https://...")')
+    const rawLinks = pdfjs.links.filter(l => rawUrlPattern.test(l.text.trim()))
+    for (const link of rawLinks.slice(0, 5)) {
+      findings.push(`Raw URL link: "${link.text.trim().substring(0, 80)}"`)
+    }
+    findings.push('How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.')
   }
 
   return {
@@ -411,10 +541,19 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
+    explanation: linkExplanation,
+    helpLinks: linkLinks,
   }
 }
 
 function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
+  const formLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Create Accessible Forms', url: 'https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html' },
+    { label: 'WCAG 1.3.1: Labels for Form Fields', url: 'https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html' },
+    { label: 'WebAIM: Accessible PDF Forms', url: 'https://webaim.org/techniques/acrobat/forms' },
+  ]
+  const formExplanation = 'Form fields (text boxes, checkboxes, dropdowns) need a "tooltip" label (called TU in the PDF spec) so screen readers can announce what each field is for. Without a tooltip, a screen reader user encounters a text box with no indication of what to type — they hear "text field" instead of "First Name".'
+
   if (!qpdf.hasAcroForm || qpdf.formFields.length === 0) {
     return {
       id: 'form_accessibility',
@@ -423,7 +562,9 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
-      findings: ['No form fields found in this document'],
+      findings: ['No form fields found in this document — this category does not affect the score'],
+      explanation: formExplanation,
+      helpLinks: formLinks,
     }
   }
 
@@ -431,11 +572,18 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   const score = Math.round((withLabels / qpdf.formFields.length) * 100)
   const findings: string[] = []
 
+  findings.push(`${qpdf.formFields.length} form field(s) detected`)
+
   if (withLabels === qpdf.formFields.length) {
-    findings.push(`All ${qpdf.formFields.length} form field(s) have accessible labels (TU)`)
+    findings.push(`All fields have accessible tooltip labels (TU)`)
   } else {
-    findings.push(`${withLabels} of ${qpdf.formFields.length} form field(s) have accessible labels`)
-    findings.push('Add tooltip text to form fields in Adobe Acrobat: right-click field → Properties → General → Tooltip')
+    findings.push(`${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`)
+    const unlabeled = qpdf.formFields.filter(f => !f.hasTU)
+    for (const field of unlabeled.slice(0, 5)) {
+      findings.push(`Unlabeled field${field.name ? `: "${field.name}"` : ''}`)
+    }
+    if (unlabeled.length > 5) findings.push(`… and ${unlabeled.length - 5} more unlabeled fields`)
+    findings.push('How to fix: In Adobe Acrobat, right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.')
   }
 
   return {
@@ -446,10 +594,19 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
+    explanation: formExplanation,
+    helpLinks: formLinks,
   }
 }
 
 function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
+  const readingLinks: CategoryResult['helpLinks'] = [
+    { label: 'Adobe: Fix Reading Order', url: 'https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html' },
+    { label: 'WCAG 1.3.2: Meaningful Sequence', url: 'https://www.w3.org/WAI/WCAG21/Understanding/meaningful-sequence.html' },
+    { label: 'WebAIM: Reading Order', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
+  ]
+  const readingExplanation = 'Reading order determines the sequence in which a screen reader announces content. In a visual layout, humans naturally read left-to-right, top-to-bottom. But PDFs store content in drawing order, which may not match the visual order — for example, a sidebar might be read before the main content. The tag structure tree overrides the drawing order, ensuring assistive technology reads content in the correct logical sequence.'
+
   if (!qpdf.hasStructTree) {
     return {
       id: 'reading_order',
@@ -458,15 +615,24 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
       score: 0,
       grade: 'F',
       severity: 'Critical',
-      findings: ['No structure tree present — reading order cannot be determined'],
+      findings: [
+        'No structure tree present — reading order cannot be determined',
+        'Without a tag structure, screen readers fall back to the raw drawing order, which may not match the visual layout at all.',
+        'How to fix: First add tags (Accessibility → Add Tags to Document), then use the Reading Order tool (Accessibility → Reading Order) to verify and correct the sequence.',
+      ],
+      explanation: readingExplanation,
+      helpLinks: readingLinks,
     }
   }
 
   const findings: string[] = []
+  findings.push(`Structure tree depth: ${qpdf.structTreeDepth} level(s)`)
+  findings.push(`Content items tracked: ${qpdf.contentOrder.length}`)
 
   // Check tree depth (flat = bad)
   if (qpdf.structTreeDepth <= 1) {
-    findings.push('Structure tree is flat (no meaningful nesting). Content may not have a logical reading order.')
+    findings.push('Structure tree is flat (no meaningful nesting) — the document has tags but they don\'t define a nested hierarchy.')
+    findings.push('How to fix: Use the Reading Order tool in Adobe Acrobat (Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.')
     return {
       id: 'reading_order',
       label: 'Reading Order',
@@ -475,6 +641,8 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
       grade: getGrade(30),
       severity: getSeverity(30),
       findings,
+      explanation: readingExplanation,
+      helpLinks: readingLinks,
     }
   }
 
@@ -490,6 +658,8 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
 
     if (disorderRatio > ANALYSIS.READING_ORDER_DISORDER_THRESHOLD) {
       findings.push(`Content order has significant deviations (${Math.round(disorderRatio * 100)}% of items out of sequence)`)
+      findings.push('This means the tag order doesn\'t match the page content order — a screen reader may announce content in a confusing sequence.')
+      findings.push('How to fix: Use the Reading Order tool in Adobe Acrobat (Accessibility → Reading Order) to reorder elements.')
       return {
         id: 'reading_order',
         label: 'Reading Order',
@@ -498,6 +668,8 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
         grade: getGrade(50),
         severity: getSeverity(50),
         findings,
+        explanation: readingExplanation,
+        helpLinks: readingLinks,
       }
     }
   }
@@ -511,6 +683,8 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
     grade: 'A',
     severity: 'Pass',
     findings,
+    explanation: readingExplanation,
+    helpLinks: readingLinks,
   }
 }
 

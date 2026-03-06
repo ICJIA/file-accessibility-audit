@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser'
 import { globalLimiter } from './middleware/rateLimiter.js'
 import authRoutes from './routes/auth.js'
 import analyzeRoutes from './routes/analyze.js'
+import reportsRoutes from './routes/reports.js'
 import logsRoutes from './routes/logs.js'
 
 // Import db to trigger table creation on startup
@@ -18,10 +19,8 @@ const app = express()
 const PORT = Number(process.env.PORT) || 5103
 const isProduction = process.env.NODE_ENV === 'production'
 
-// Trust proxy when behind nginx
-if (isProduction) {
-  app.set('trust proxy', 1)
-}
+// Trust proxy — behind nginx in production, behind Nuxt proxy in development
+app.set('trust proxy', 1)
 
 // Security headers
 app.use(helmet())
@@ -42,15 +41,30 @@ app.use(globalLimiter)
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api', analyzeRoutes)
+app.use('/api', reportsRoutes)
 app.use('/api', logsRoutes)
 
 // Health check — also serves as the root API response
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', name: 'File Accessibility Audit API', env: process.env.NODE_ENV || 'development' })
-})
-app.get('/api', (_req, res) => {
-  res.json({ status: 'ok', name: 'File Accessibility Audit API', env: process.env.NODE_ENV || 'development' })
-})
+const startedAt = new Date()
+
+function healthPayload() {
+  const uptimeSec = Math.floor((Date.now() - startedAt.getTime()) / 1000)
+  const days = Math.floor(uptimeSec / 86400)
+  const hours = Math.floor((uptimeSec % 86400) / 3600)
+  const minutes = Math.floor((uptimeSec % 3600) / 60)
+  const seconds = uptimeSec % 60
+  const uptime = days > 0
+    ? `${days}d ${hours}h ${minutes}m ${seconds}s`
+    : hours > 0
+      ? `${hours}h ${minutes}m ${seconds}s`
+      : `${minutes}m ${seconds}s`
+
+  return { status: 'ok', uptime }
+}
+
+app.get('/', (_req, res) => res.json(healthPayload()))
+app.get('/api', (_req, res) => res.json(healthPayload()))
+app.get('/api/health', (_req, res) => res.json(healthPayload()))
 
 // Global error handler — never leak internals
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

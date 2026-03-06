@@ -17,9 +17,10 @@ export interface QpdfResult {
   lang: string | null
   hasOutlines: boolean
   outlineCount: number
+  outlineTitles: string[]
   hasAcroForm: boolean
-  formFields: Array<{ hasTU: boolean }>
-  images: Array<{ ref: string; hasAlt: boolean }>
+  formFields: Array<{ hasTU: boolean; name?: string }>
+  images: Array<{ ref: string; hasAlt: boolean; altText?: string }>
   headings: Array<{ level: string; tag: string }>
   tables: Array<{ hasHeaders: boolean }>
   structTreeDepth: number
@@ -60,6 +61,7 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
       lang: null,
       hasOutlines: false,
       outlineCount: 0,
+      outlineTitles: [],
       hasAcroForm: false,
       formFields: [],
       images: [],
@@ -81,6 +83,7 @@ function parseQpdfJson(json: any): QpdfResult {
     lang: null,
     hasOutlines: false,
     outlineCount: 0,
+    outlineTitles: [],
     hasAcroForm: false,
     formFields: [],
     images: [],
@@ -92,7 +95,15 @@ function parseQpdfJson(json: any): QpdfResult {
   }
 
   try {
-    const objects = json.objects || json.qpdf?.[1] || {}
+    const rawObjects = json.objects || json.qpdf?.[1] || {}
+
+    // QPDF v2 JSON wraps objects as { value: {...}, stream?: {...} }
+    // Normalize so we always work with the inner value.
+    const objects: Record<string, any> = {}
+    for (const [ref, raw] of Object.entries(rawObjects)) {
+      if (!raw || typeof raw !== 'object') continue
+      objects[ref] = (raw as any).value ?? raw
+    }
 
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
@@ -109,15 +120,19 @@ function parseQpdfJson(json: any): QpdfResult {
         if (o['/StructTreeRoot']) result.hasStructTree = true
         if (o['/Lang']) {
           result.hasLang = true
-          result.lang = typeof o['/Lang'] === 'string' ? o['/Lang'] : null
+          // Strip QPDF "u:" Unicode prefix (e.g., "u:EN-US" → "EN-US")
+          const rawLang = typeof o['/Lang'] === 'string' ? o['/Lang'] : null
+          result.lang = rawLang?.replace(/^u:/, '') ?? null
         }
         if (o['/Outlines']) result.hasOutlines = true
         if (o['/AcroForm']) result.hasAcroForm = true
       }
 
-      // Count outline entries
+      // Count outline entries and collect titles
       if (o['/Type'] === '/Outlines' || (o['/First'] && o['/Last'] && !o['/Parent'])) {
-        result.outlineCount = countOutlineEntries(o, objects)
+        const titles: string[] = []
+        result.outlineCount = countOutlineEntries(o, objects, titles)
+        result.outlineTitles = titles
       }
 
       // Image XObjects
@@ -142,19 +157,20 @@ function parseQpdfJson(json: any): QpdfResult {
         }
         // Figures with alt text
         if (tag === '/Figure') {
-          const alt = o['/Alt']
-          const hasAlt = alt !== undefined && alt !== null && alt !== ''
+          const rawAlt = o['/Alt']
+          const altText = typeof rawAlt === 'string' ? rawAlt.replace(/^u:/, '') : undefined
+          const hasAlt = altText !== undefined && altText !== ''
           // Try to match to an image
           if (result.images.length > 0) {
-            // Mark the most recent unmatched image as having alt
             const unmatched = result.images.find(img => !img.hasAlt)
             if (unmatched && hasAlt) {
               unmatched.hasAlt = true
+              unmatched.altText = altText
             }
           }
           // Also add as a standalone figure check
           if (!result.images.some(img => img.ref === ref)) {
-            result.images.push({ ref, hasAlt })
+            result.images.push({ ref, hasAlt, altText })
           }
         }
 
@@ -164,7 +180,8 @@ function parseQpdfJson(json: any): QpdfResult {
 
       // Form fields
       if (o['/Type'] === '/Annot' && o['/Subtype'] === '/Widget') {
-        result.formFields.push({ hasTU: !!o['/TU'] })
+        const name = typeof o['/T'] === 'string' ? o['/T'].replace(/^u:/, '') : undefined
+        result.formFields.push({ hasTU: !!o['/TU'], name })
       }
     }
 
@@ -203,17 +220,34 @@ function parseQpdfJson(json: any): QpdfResult {
   return result
 }
 
-function countOutlineEntries(outline: any, objects: any): number {
+// Resolve a ref like "9 0 R" to its object, trying both "obj:9 0 R" and "9 0 R" key formats
+function resolveRef(ref: string, objects: any): any {
+  if (!ref || typeof ref !== 'string') return null
+  return objects[ref] ?? objects[`obj:${ref}`] ?? null
+}
+
+function countOutlineEntries(outline: any, objects: any, titles: string[]): number {
   let count = 0
-  let current = outline['/First']
   const visited = new Set<string>()
-  while (current && typeof current === 'string' && !visited.has(current)) {
-    visited.add(current)
-    count++
-    const entry = objects[current] as any
-    if (!entry) break
-    current = entry['/Next']
+
+  const walk = (node: any, depth: number) => {
+    let current = node['/First']
+    while (current && typeof current === 'string' && !visited.has(current)) {
+      visited.add(current)
+      count++
+      const entry = resolveRef(current, objects)
+      if (!entry) break
+      const title = typeof entry['/Title'] === 'string' ? entry['/Title'].replace(/^u:/, '') : ''
+      if (title && titles.length < 50) {
+        titles.push('  '.repeat(depth) + title)
+      }
+      // Count nested children recursively
+      if (entry['/First']) walk(entry, depth + 1)
+      current = entry['/Next']
+    }
   }
+
+  walk(outline, 0)
   return count
 }
 
@@ -228,7 +262,7 @@ function hasTableHeaders(tableObj: any, objects: any): boolean {
       return node.some(n => checkForTH(n, depth + 1))
     }
     if (typeof node === 'string') {
-      const obj = objects[node] as any
+      const obj = resolveRef(node, objects)
       if (obj?.['/S'] === '/TH') return true
       return checkForTH(obj?.['/K'], depth + 1)
     }
@@ -274,11 +308,15 @@ function calculateTreeDepth(objects: any): number {
     if (Array.isArray(kids)) {
       for (const kid of kids) {
         if (typeof kid === 'string') {
-          measure(objects[kid] as any, depth + 1)
+          const child = resolveRef(kid, objects)
+          if (child) measure(child, depth + 1)
         } else if (kid && typeof kid === 'object') {
           measure(kid, depth + 1)
         }
       }
+    } else if (typeof kids === 'string') {
+      const child = resolveRef(kids, objects)
+      if (child) measure(child, depth + 1)
     }
   }
 

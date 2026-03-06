@@ -115,8 +115,11 @@ router.post('/verify', authVerifyLimiter, async (req: Request, res: Response) =>
     // Increment attempts
     db.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').run(row.id)
 
+    // In development, accept 000000 as a universal bypass code
+    const isDevBypass = !isProduction && otp === '000000'
+
     // Verify OTP
-    const isValid = await bcrypt.compare(otp, row.otp_hash)
+    const isValid = isDevBypass || await bcrypt.compare(otp, row.otp_hash)
     if (!isValid) {
       const remaining = maxAttempts - row.attempts - 1
       res.status(400).json({

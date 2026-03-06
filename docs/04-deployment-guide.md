@@ -142,59 +142,103 @@ Forge handles SSL (Let's Encrypt) automatically. You just point your DNS at the 
 
 ---
 
-## 5. Deployment Workflow
+## 5. Connecting Forge to GitHub (Auto-Deploy on Push)
 
-### First Deploy
+### Step 1: Create a Site in Forge
+
+1. In Forge, go to your server → **Sites** → **New Site**
+2. Set the domain to `audit.icjia.app`
+3. Set the project type to **Static HTML / Proxy** (Forge won't serve files directly — nginx proxies to PM2)
+4. Set the web directory to `/public` (unused, but Forge requires it)
+
+### Step 2: Connect the GitHub Repository
+
+1. On the site page, go to the **Git Repository** section
+2. Select **GitHub** and authorize if needed
+3. Enter the repository: `ICJIA/file-accessibility-audit`
+4. Branch: `main`
+5. Check **"Install Composer Dependencies"**: **No** (this is a Node project)
+6. Click **Install Repository** — Forge clones to `/home/forge/audit.icjia.app`
+
+### Step 3: Set the Deploy Script
+
+In the site's **Deploy Script** box (Apps tab → Deploy Script), paste:
 
 ```bash
-# On the droplet (after Forge provisions it)
+cd /home/forge/audit.icjia.app
+
+# Pull latest code
+git pull origin main
+
+# Install dependencies
+pnpm install --frozen-lockfile
+
+# Build both apps
+pnpm --filter api build
+pnpm --filter web build
+
+# Start or restart PM2 processes
+# "reload" does a zero-downtime restart; "start" is for first deploy
+if pm2 describe file-audit-api > /dev/null 2>&1; then
+    pm2 reload ecosystem.config.cjs --update-env
+else
+    pm2 start ecosystem.config.cjs
+    pm2 save
+fi
+```
+
+### Step 4: Enable Auto-Deploy
+
+1. On the site page, toggle **"Quick Deploy"** → **ON**
+2. This installs a GitHub webhook so every push to `main` triggers the deploy script automatically
+
+Now every `git push origin main` will:
+1. GitHub sends a webhook to Forge
+2. Forge SSHs into the droplet and runs the deploy script
+3. Code is pulled, rebuilt, and PM2 processes are reloaded
+
+### First Deploy (One-Time Server Setup)
+
+Before the first deploy script runs, SSH into the droplet and do the one-time setup:
+
+```bash
+# Install system dependencies
 sudo apt update && sudo apt install -y qpdf
 npm install -g pnpm
 
-# Clone repo
-git clone <repo-url> /home/forge/file-accessibility-audit
-cd /home/forge/file-accessibility-audit
+# Go to the site directory (Forge cloned the repo here)
+cd /home/forge/audit.icjia.app
 
-# Install dependencies
-pnpm install
-
-# Build
-pnpm --filter web build
-pnpm --filter api build
-
-# Copy production .env files
+# Create .env files from production templates
 cp apps/api/.env.example.production apps/api/.env
 cp apps/web/.env.example.production apps/web/.env
-# (edit .env files with real credentials)
 
-# Start with PM2
+# Edit .env files with real credentials
+nano apps/api/.env
+# → Set JWT_SECRET (generate with: openssl rand -hex 32)
+# → Set SMTP_USER and SMTP_PASS
+# → Set ADMIN_EMAILS
+
+# Create data directory for SQLite
+mkdir -p apps/api/data
+
+# Install, build, and start
+pnpm install
+pnpm --filter api build
+pnpm --filter web build
 pm2 start ecosystem.config.cjs
 pm2 save
+pm2 startup  # ensures PM2 restarts on server reboot
 ```
 
-### Subsequent Deploys
+After this, all subsequent deploys are automatic via the deploy script.
 
-```bash
-cd /home/forge/file-accessibility-audit
-git pull
-pnpm install
-pnpm --filter web build
-pnpm --filter api build
-pm2 restart all
-```
+### Manual Deploy (if needed)
 
-Or use Forge's deployment scripts to automate this on git push.
+You can also trigger a deploy manually from the Forge UI:
+- Go to the site → click **"Deploy Now"**
 
-### Forge Deploy Script (paste into Forge UI)
-
-```bash
-cd /home/forge/file-accessibility-audit
-git pull origin main
-pnpm install --frozen-lockfile
-pnpm --filter api build
-pnpm --filter web build
-pm2 restart ecosystem.config.cjs --update-env
-```
+Or SSH in and run the deploy script commands directly.
 
 ---
 
