@@ -1,3 +1,5 @@
+const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:5102'
+
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
 
@@ -10,12 +12,13 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Automated PDF accessibility scoring across 9 WCAG-aligned categories. Upload a PDF, get an instant grade with remediation guidance.' },
         { property: 'og:title', content: 'File Accessibility Audit' },
         { property: 'og:description', content: 'Automated PDF accessibility scoring across 9 WCAG-aligned categories.' },
-        { property: 'og:image', content: '/og-image.png' },
+        { property: 'og:image', content: `${siteUrl}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
+        { property: 'og:url', content: siteUrl },
         { property: 'og:type', content: 'website' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: '/og-image.png' },
+        { name: 'twitter:image', content: `${siteUrl}/og-image.png` },
       ],
     },
   },
@@ -23,6 +26,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       appName: process.env.NUXT_PUBLIC_APP_NAME || 'File Accessibility Audit',
+      siteUrl,
     },
   },
 
