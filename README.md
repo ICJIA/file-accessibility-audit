@@ -143,13 +143,26 @@ Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
 
 ## Tests
 
-**208 tests** across 7 test files. Run all with:
+**208 tests** across 7 test files. Run all with a summary at the end:
 
 ```bash
-pnpm test                # All tests (API + Web) in parallel
+pnpm test                # All tests (API + Web) with summary
 pnpm test:api            # API tests only
 pnpm test:web            # Web tests only
 pnpm test:scoring        # Scoring model tests only
+```
+
+`pnpm test` prints a summary after all suites complete:
+
+```
+════════════════════════════════════════════════════════════
+  TEST SUMMARY
+════════════════════════════════════════════════════════════
+  ✔ API      141 passed (4 files)
+  ✔ Web      67 passed (3 files)
+────────────────────────────────────────────────────────────
+  ✔ 208 tests passed across 7 files
+════════════════════════════════════════════════════════════
 ```
 
 ### API Tests (141 tests)

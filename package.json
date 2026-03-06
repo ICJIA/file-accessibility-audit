@@ -7,7 +7,7 @@
     "dev:api": "kill-port 5103 && pnpm --filter api dev",
     "dev:web": "kill-port 5102 && pnpm --filter web dev",
     "build": "pnpm --filter api build && pnpm --filter web build",
-    "test": "pnpm -r test",
+    "test": "tsx scripts/test.ts",
     "test:api": "pnpm --filter api test",
     "test:web": "pnpm --filter web test",
     "test:scoring": "pnpm --filter api test:scoring"
