@@ -1,4 +1,6 @@
-const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:5102'
+const isProd = process.env.NODE_ENV === 'production'
+const siteUrl = isProd ? 'https://audit.icjia.app' : 'http://localhost:5102'
+const apiBase = isProd ? 'https://audit.icjia.app' : 'http://localhost:5103'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
@@ -30,12 +32,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // Proxy API requests in development
+  // Proxy API requests in development; in production nginx handles this
   routeRules: {
     '/api/**': {
-      proxy: process.env.NUXT_API_BASE
-        ? `${process.env.NUXT_API_BASE}/**`
-        : 'http://localhost:5103/**',
+      proxy: `${apiBase}/**`,
     },
   },
 

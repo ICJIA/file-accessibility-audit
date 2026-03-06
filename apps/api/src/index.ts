@@ -24,7 +24,7 @@ app.use(helmet())
 
 // CORS
 app.use(cors({
-  origin: isProduction ? false : (process.env.CORS_ORIGIN || 'http://localhost:5102'),
+  origin: isProduction ? 'https://audit.icjia.app' : 'http://localhost:5102',
   credentials: true,
 }))
 
