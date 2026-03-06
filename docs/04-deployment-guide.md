@@ -14,7 +14,7 @@
 | **Plan** | Basic — Regular Intel | |
 | **Size** | 2 vCPU / 4GB RAM / 80GB SSD | `$24/mo` — headroom for QPDF subprocess + pdfjs |
 | **Minimum** | 1 vCPU / 2GB RAM / 50GB SSD | `$12/mo` — adequate for low traffic, tight on memory |
-| **OS** | Ubuntu 22.04 LTS | Forge-supported, LTS through 2027 |
+| **OS** | Ubuntu 24.04 LTS | Forge-supported, LTS through 2029 |
 | **Region** | Chicago (ORD1) | Closest to ICJIA |
 
 ### Why 4GB?
@@ -24,7 +24,7 @@ QPDF runs as a subprocess and can spike memory on complex PDFs. pdfjs-dist loads
 ### Software Stack on Droplet (Forge-managed)
 
 - **nginx** — Forge installs and manages; you configure a proxy rule
-- **Node.js 20 LTS** — Forge installs
+- **Node.js 22 LTS** — Forge installs (project requires 22+, see `.nvmrc`)
 - **PM2** — Forge installs; you provide `ecosystem.config.cjs`
 - **QPDF** — `sudo apt install qpdf` (one command post-provision)
 - **pnpm** — `npm install -g pnpm` (one command post-provision)
@@ -162,10 +162,10 @@ pnpm install
 pnpm --filter web build
 pnpm --filter api build
 
-# Copy .env files
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-# (edit .env files with real values)
+# Copy production .env files
+cp apps/api/.env.example.production apps/api/.env
+cp apps/web/.env.example.production apps/web/.env
+# (edit .env files with real credentials)
 
 # Start with PM2
 pm2 start ecosystem.config.cjs
@@ -209,34 +209,20 @@ NODE_ENV=production
 PORT=5103
 JWT_SECRET=<random-256-bit-hex>
 # Generate with: openssl rand -hex 32
-JWT_EXPIRY_HOURS=72
-OTP_EXPIRY_MINUTES=15
-OTP_MAX_ATTEMPTS=5
-DB_PATH=./data/audit.db
-SMTP_HOST=mail.smtp2go.com
-SMTP_PORT=2525
-SMTP_USER=<smtp2go-username>
-SMTP_PASS=<smtp2go-password>
-SMTP_FROM=noreply@<your-verified-domain>
-MAX_FILE_SIZE_MB=100
-TMP_DIR=/tmp
+SMTP_USER=<your-smtp-login>
+SMTP_PASS=<your-smtp-password>
 ADMIN_EMAILS=chris@icjia.illinois.gov
 ```
 
-**SMTP2GO setup:**
-1. Create a free account at smtp2go.com (no credit card required)
-2. In the dashboard, go to Sending → Verified Senders and verify your sender domain
-3. Go to Sending → SMTP Users and create an SMTP user — this gives you the username and password
-4. Port 2525 is recommended (avoids ISP blocks on port 25); port 587 also works
-5. Verify the domain to get SPF/DKIM alignment and remove the 25/hour unverified throttle
-6. Free plan: 1,000 emails/month, 200/day — more than sufficient for OTP delivery
+> **Email provider** (Mailgun or SMTP2GO) is selected in `audit.config.ts` → `EMAIL.PROVIDER`. Host and port are resolved automatically per provider. Only credentials go in `.env`. See the README Email Setup section and [docs/07-mailgun-integration.md](07-mailgun-integration.md) for details.
 
 ### `apps/web/.env`
 
 ```env
 NUXT_PUBLIC_APP_NAME=File Accessibility Audit
-NUXT_API_BASE=http://localhost:5103
 ```
+
+> URLs switch automatically based on `NODE_ENV` — no URL configuration needed in `.env`.
 
 ### Important: `.env` files must be in `.gitignore`
 
@@ -246,7 +232,7 @@ apps/api/.env
 apps/web/.env
 ```
 
-On the droplet, `.env` files should be `chmod 600` and owned by the `forge` user. Secrets (JWT_SECRET, SMTP_PASS) must never be committed to the repository. Commit a `.env.example` with placeholder values for documentation.
+On the droplet, `.env` files should be `chmod 600` and owned by the `forge` user. Secrets (JWT_SECRET, SMTP_PASS) must never be committed to the repository. Use `.env.example.production` as a template.
 
 ---
 

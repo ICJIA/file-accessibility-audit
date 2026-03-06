@@ -184,7 +184,9 @@ pnpm test:scoring        # Scoring model tests only
 
 ## Deployment
 
-See [docs/04-deployment-guide.md](docs/04-deployment-guide.md) for full deployment instructions. Short version:
+**Target:** DigitalOcean droplet (2 vCPU / 4GB RAM, ~$24/mo) → Laravel Forge → PM2 → nginx
+
+See [docs/04-deployment-guide.md](docs/04-deployment-guide.md) for full instructions (server setup, nginx config, firewall, SSL). Short version:
 
 ```bash
 pnpm install --frozen-lockfile
