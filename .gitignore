@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+apps/web/.output/
+apps/web/.nuxt/
+apps/api/dist/
+audit.config.js
+audit.config.js.map
+audit.config.d.ts
+
+# Environment (allow .env.example, ignore actual .env files)
+.env
+apps/api/.env
+apps/web/.env
+
+# SQLite databases
+apps/api/data/*.db
+apps/api/data/*.db-wal
+apps/api/data/*.db-shm
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+pm2-*.json
+
+# Test coverage
+coverage/
+
+# Temp files
+tmp/
+*.tmp

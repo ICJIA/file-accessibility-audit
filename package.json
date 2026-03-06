@@ -1,0 +1,26 @@
+{
+  "name": "file-accessibility-audit",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "dev:api": "kill-port 5103 && pnpm --filter api dev",
+    "dev:web": "kill-port 5102 && pnpm --filter web dev",
+    "build": "pnpm --filter api build && pnpm --filter web build",
+    "test": "pnpm --filter api test && pnpm --filter web test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "@parcel/watcher",
+      "vue-demi"
+    ]
+  },
+  "devDependencies": {
+    "kill-port": "^2.0.1"
+  }
+}
