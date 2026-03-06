@@ -32,31 +32,42 @@ npm install -g pnpm
 pnpm install
 
 # Set up environment files
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-# Edit both .env files with your values
+cp apps/api/.env.example.local apps/api/.env
+cp apps/web/.env.example.local apps/web/.env
 
-# Start API (Terminal 1)
-cd apps/api && pnpm dev
+# Add your SMTP credentials to apps/api/.env:
+#   SMTP_USER=postmaster@icjia.cloud
+#   SMTP_PASS=your-password
 
-# Start frontend (Terminal 2)
-cd apps/web && pnpm dev
+# Start both servers (kills stale ports automatically)
+pnpm dev
 ```
 
 - **Frontend:** http://localhost:5102
 - **API:** http://localhost:5103
-- **Mailpit (dev email):** http://localhost:8025 (if running)
+- **Dev note:** OTP codes are printed to the API console — no email credentials needed locally
 
-### Local Email Testing
+### Email Setup
 
-Use [Mailpit](https://mailpit.axllent.org/) to capture OTP emails locally:
+Email provider is controlled in `audit.config.ts` → `EMAIL.PROVIDER`. Credentials go in `apps/api/.env`.
 
-```bash
-brew install mailpit   # macOS
-mailpit                # starts SMTP on :1025, web UI on :8025
+**To switch providers**, change one line in `audit.config.ts`:
+
+```ts
+PROVIDER: 'mailgun'   // ← change to 'smtp2go' to switch
 ```
 
-Set `SMTP_HOST=localhost` and `SMTP_PORT=1025` in `apps/api/.env`.
+Host and port are set automatically per provider. You only need two env vars:
+
+```env
+SMTP_USER=your-smtp-login
+SMTP_PASS=your-smtp-password
+```
+
+| Provider | Docs |
+|----------|------|
+| Mailgun (default) | [docs/07-mailgun-integration.md](docs/07-mailgun-integration.md) |
+| SMTP2GO | [docs/06-smtp2go-integration.md](docs/06-smtp2go-integration.md) |
 
 ## Project Structure
 
@@ -108,7 +119,14 @@ See **docs/00-master-design.md, Section 5** for the full scoring rubric.
 
 ## Configuration
 
-All magic numbers, thresholds, weights, and limits are in **`audit.config.ts`** at the project root. This is the single source of truth — the API imports it directly, and the docs reference it. When changing a scoring weight or rate limit, change it in `audit.config.ts`, not in code scattered across services.
+All magic numbers, thresholds, weights, limits, and email provider settings are in **`audit.config.ts`** at the project root. This is the single source of truth — the API imports it directly, and the docs reference it.
+
+- **Scoring weights** → `SCORING_WEIGHTS`
+- **Email provider** → `EMAIL.PROVIDER` (`'mailgun'` or `'smtp2go'`)
+- **Rate limits** → `RATE_LIMITS`
+- **Dev/prod URLs** → automatic based on `NODE_ENV`
+
+Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
 
 ## Design Documents
 

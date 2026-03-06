@@ -51,6 +51,49 @@ export const DEPLOY = {
 } as const
 
 // ---------------------------------------------------------------------------
+// EMAIL PROVIDER
+// ---------------------------------------------------------------------------
+// Controls which SMTP relay is used for OTP delivery. Credentials (user,
+// pass) stay in .env — only non-secret connection details live here.
+//
+// To switch providers: change PROVIDER below. Both sets of SMTP settings
+// are defined here; the mailer picks the active one automatically.
+// Credentials for whichever provider you choose must be in .env as
+// SMTP_USER and SMTP_PASS.
+//
+// SAFE TO CHANGE: Yes — swap PROVIDER any time. No code changes needed.
+// ---------------------------------------------------------------------------
+
+export const EMAIL = {
+  /**
+   * Active email provider. Determines which SMTP settings are used.
+   *
+   * SAFE TO CHANGE: Yes — set to 'mailgun' or 'smtp2go'.
+   */
+  PROVIDER: 'mailgun' as 'mailgun' | 'smtp2go',
+
+  /**
+   * Default sender address for OTP emails.
+   *
+   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.
+   * Can be overridden in .env with SMTP_FROM.
+   */
+  DEFAULT_FROM: 'admin@icjia.cloud',
+
+  /** Mailgun SMTP connection details (no secrets). */
+  mailgun: {
+    host: 'smtp.mailgun.org',
+    port: 587,
+  },
+
+  /** SMTP2GO SMTP connection details (no secrets). */
+  smtp2go: {
+    host: 'mail.smtp2go.com',
+    port: 2525,
+  },
+} as const
+
+// ---------------------------------------------------------------------------
 // SCORING WEIGHTS
 // ---------------------------------------------------------------------------
 // These weights control how much each accessibility category contributes to
