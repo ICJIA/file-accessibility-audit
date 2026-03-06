@@ -1,5 +1,7 @@
 # File Accessibility Audit
 
+![File Accessibility Audit](apps/web/public/og-image.png)
+
 **Production URL:** https://audit.icjia.app
 
 A private, internal web tool for ICJIA staff that scores PDF accessibility readiness. Upload a PDF, get an instant grade (A–F) with category-by-category findings and remediation guidance.
@@ -10,7 +12,7 @@ A private, internal web tool for ICJIA staff that scores PDF accessibility readi
 
 ### Prerequisites
 
-- **Node.js 20+** (see `.nvmrc`)
+- **Node.js 22+** (see `.nvmrc`)
 - **pnpm 9+**
 - **QPDF 11+**
 
@@ -81,7 +83,7 @@ file-accessibility-audit/
 | PDF Analysis | QPDF (structure tree) + pdfjs-dist (text/metadata) |
 | Database | SQLite via better-sqlite3 (audit logs only) |
 | Auth | Email OTP → JWT (httpOnly cookie) |
-| Email | SMTP2GO (free plan) / Nodemailer |
+| Email | Mailgun (default) / SMTP2GO (alternative) / Nodemailer |
 | Deployment | DigitalOcean → Laravel Forge → PM2 → nginx |
 
 ## Scoring
@@ -119,6 +121,7 @@ All magic numbers, thresholds, weights, and limits are in **`audit.config.ts`** 
 | [04 — Deployment Guide](docs/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
 | [05 — Use Cases](docs/05-use-cases.md) | End-user scenarios and workflows |
 | [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md) | Email provider setup and gotchas |
+| [07 — Mailgun Integration](docs/07-mailgun-integration.md) | Mailgun setup (default provider) |
 
 ## Tests
 

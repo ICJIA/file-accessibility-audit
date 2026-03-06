@@ -21,6 +21,7 @@
     ]
   },
   "devDependencies": {
-    "kill-port": "^2.0.1"
+    "kill-port": "^2.0.1",
+    "sharp": "^0.34.5"
   }
 }
