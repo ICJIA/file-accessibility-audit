@@ -20,11 +20,40 @@ const transporter = nodemailer.createTransport({
     : undefined,
 })
 
+/**
+ * Validates that email is configured. Call before starting the server.
+ * In production, SMTP_USER and SMTP_PASS are required.
+ * In development, they're optional (OTPs are logged to console).
+ */
+export function validateMailConfig(): void {
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    if (isProduction) {
+      console.error('\n✖ Email provider is not configured.')
+      console.error(`  Provider: ${EMAIL.PROVIDER} (${host}:${port})`)
+      console.error('  Missing: SMTP_USER and/or SMTP_PASS in .env')
+      console.error('  See: docs/07-mailgun-integration.md or docs/06-smtp2go-integration.md\n')
+      process.exit(1)
+    } else {
+      console.warn(`[WARN] SMTP credentials not set — OTP codes will only be logged to console.`)
+      console.warn(`[WARN] To send real emails, add SMTP_USER and SMTP_PASS to apps/api/.env\n`)
+    }
+  } else {
+    console.log(`[API] Email provider: ${EMAIL.PROVIDER} (${host}:${port})`)
+  }
+}
+
 export async function sendOTP(to: string, otp: string): Promise<void> {
   const isProduction = process.env.NODE_ENV === 'production'
 
   if (!isProduction) {
     console.log(`[DEV] OTP for ${to}: ${otp}`)
+  }
+
+  // In dev without credentials, skip actual sending
+  if (!process.env.SMTP_USER) {
+    return
   }
 
   await transporter.sendMail({

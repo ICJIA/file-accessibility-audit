@@ -9,6 +9,10 @@ import logsRoutes from './routes/logs.js'
 
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
+import { validateMailConfig } from './mailer.js'
+
+// Validate email config before starting — exits if misconfigured in production
+validateMailConfig()
 
 const app = express()
 const PORT = Number(process.env.PORT) || 5103
@@ -40,9 +44,12 @@ app.use('/api/auth', authRoutes)
 app.use('/api', analyzeRoutes)
 app.use('/api', logsRoutes)
 
-// Health check
+// Health check — also serves as the root API response
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' })
+  res.json({ status: 'ok', name: 'File Accessibility Audit API', env: process.env.NODE_ENV || 'development' })
+})
+app.get('/api', (_req, res) => {
+  res.json({ status: 'ok', name: 'File Accessibility Audit API', env: process.env.NODE_ENV || 'development' })
 })
 
 // Global error handler — never leak internals

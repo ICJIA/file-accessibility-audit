@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { createConnection } from 'node:net'
 
 const API_PORT = 5103
@@ -6,10 +6,7 @@ const WEB_PORT = 5102
 
 function killPort(port: number): Promise<void> {
   return new Promise((resolve) => {
-    const proc = spawn('npx', ['kill-port', String(port)], {
-      stdio: 'ignore',
-      shell: true,
-    })
+    const proc = spawn('npx', ['kill-port', String(port)], { stdio: 'ignore', shell: true })
     proc.on('close', () => resolve())
     proc.on('error', () => resolve())
   })
@@ -31,60 +28,61 @@ function waitForPort(port: number, timeoutMs = 30_000): Promise<void> {
   })
 }
 
+function prefix(name: string, data: Buffer) {
+  const lines = data.toString().split('\n')
+  for (const line of lines) {
+    if (line.trim()) process.stdout.write(`\x1b[90m[${name}]\x1b[0m ${line}\n`)
+  }
+}
+
 async function main() {
-  console.log(`Killing ports ${API_PORT} and ${WEB_PORT}...`)
+  console.log('Killing ports...')
   await Promise.all([killPort(API_PORT), killPort(WEB_PORT)])
 
   console.log('Starting API and Web servers...\n')
+
+  const procs: ChildProcess[] = []
 
   const api = spawn('pnpm', ['--filter', 'api', 'dev'], {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
   })
+  procs.push(api)
 
   const web = spawn('pnpm', ['--filter', 'web', 'dev'], {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
   })
+  procs.push(web)
 
-  api.stdout!.on('data', (d) => process.stdout.write(`[api] ${d}`))
-  api.stderr!.on('data', (d) => process.stderr.write(`[api] ${d}`))
-  web.stdout!.on('data', (d) => process.stdout.write(`[web] ${d}`))
-  web.stderr!.on('data', (d) => process.stderr.write(`[web] ${d}`))
+  api.stdout!.on('data', (d) => prefix('api', d))
+  api.stderr!.on('data', (d) => prefix('api', d))
+  web.stdout!.on('data', (d) => prefix('web', d))
+  web.stderr!.on('data', (d) => prefix('web', d))
 
   const cleanup = () => {
-    api.kill('SIGTERM')
-    web.kill('SIGTERM')
+    for (const p of procs) p.kill('SIGTERM')
+    setTimeout(() => process.exit(0), 500)
   }
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
 
-  // Fail fast if either process exits unexpectedly
-  const exitPromise = new Promise<never>((_, reject) => {
-    api.on('close', (code) => {
-      if (code !== null && code !== 0) {
-        web.kill('SIGTERM')
-        reject(new Error(`API exited with code ${code}`))
+  // Check if either exits with an error before ports are ready
+  let earlyExit = false
+  for (const [proc, name] of [[api, 'API'], [web, 'Web']] as const) {
+    proc.on('close', (code) => {
+      if (code && code !== 0 && !earlyExit) {
+        earlyExit = true
+        console.error(`\n✖ ${name} exited with code ${code}`)
+        cleanup()
       }
     })
-    web.on('close', (code) => {
-      if (code !== null && code !== 0) {
-        api.kill('SIGTERM')
-        reject(new Error(`Web exited with code ${code}`))
-      }
-    })
-  })
+  }
 
   try {
-    await Promise.race([
-      Promise.all([
-        waitForPort(API_PORT),
-        waitForPort(WEB_PORT),
-      ]),
-      exitPromise,
-    ])
+    await Promise.all([waitForPort(API_PORT), waitForPort(WEB_PORT)])
     console.log(`\n✔ API running on http://localhost:${API_PORT}`)
     console.log(`✔ Web running on http://localhost:${WEB_PORT}\n`)
   } catch (err: any) {
@@ -93,8 +91,11 @@ async function main() {
     process.exit(1)
   }
 
-  // Keep alive until killed or a child exits
-  await exitPromise.catch(() => process.exit(1))
+  // Keep alive — wait for either process to exit
+  await new Promise<void>((resolve) => {
+    api.on('close', resolve)
+    web.on('close', resolve)
+  })
 }
 
 main()

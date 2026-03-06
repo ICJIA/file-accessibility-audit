@@ -143,11 +143,31 @@ Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
 
 ## Tests
 
+**208 tests** across 7 test files. Run all with:
+
 ```bash
-pnpm --filter api test          # API unit + integration tests
-pnpm --filter api test:scoring  # Scoring model against fixture PDFs
-pnpm --filter web test          # Frontend component tests
+pnpm test                # All tests (API + Web) in parallel
+pnpm test:api            # API tests only
+pnpm test:web            # Web tests only
+pnpm test:scoring        # Scoring model tests only
 ```
+
+### API Tests (141 tests)
+
+| File | Tests | What it covers |
+|------|------:|----------------|
+| `scorer.test.ts` | 76 | All 9 scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases (scanned PDFs, mixed results, hierarchy skips, partial alt text, disorder ratio) |
+| `qpdfParser.test.ts` | 34 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table TH header detection, figure alt text, MCID content ordering, outline counting, tree depth, malformed JSON |
+| `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override) |
+| `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
+
+### Web Tests (67 tests)
+
+| File | Tests | What it covers |
+|------|------:|----------------|
+| `components.test.ts` | 33 | DropZone (drag/drop, PDF validation, file size limits), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages) |
+| `login.test.ts` | 13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation |
+| `scoring-display.test.ts` | 21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical) |
 
 ## Deployment
 

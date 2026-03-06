@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* Dark mode only — no light mode */
 body {
   background-color: #0a0a0a;
