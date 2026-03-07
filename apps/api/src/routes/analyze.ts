@@ -4,7 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter } from '../middleware/rateLimiter.js'
 import { uploadMiddleware } from '../middleware/uploadMiddleware.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
-import { FILENAME } from '#config'
+import { AUTH, FILENAME } from '#config'
 import db from '../db/sqlite.js'
 
 const router: IRouter = Router()
@@ -51,8 +51,10 @@ router.post(
 
       const result = await analyzePDF(file.buffer, filename)
 
-      // Log the analysis
-      logAnalyze(req.user!.email, filename, result.overallScore, result.grade, req)
+      // Log the analysis (skip when auth is off — no meaningful user to record)
+      if (AUTH.REQUIRE_LOGIN) {
+        logAnalyze(req.user!.email, filename, result.overallScore, result.grade, req)
+      }
 
       res.json(result)
     } catch (err: any) {

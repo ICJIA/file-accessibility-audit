@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import { AUTH } from '#config'
 
 export interface AuthRequest extends Request {
   user?: { email: string }
@@ -8,6 +9,13 @@ export interface AuthRequest extends Request {
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-do-not-use-in-production'
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
+  // When auth is disabled, allow all requests with an anonymous user
+  if (!AUTH.REQUIRE_LOGIN) {
+    req.user = { email: 'anonymous' }
+    next()
+    return
+  }
+
   const token = req.cookies?.token
 
   if (!token) {

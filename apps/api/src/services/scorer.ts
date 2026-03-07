@@ -705,9 +705,22 @@ function generateSummary(score: number, grade: string, isScanned: boolean, categ
     return `This PDF is in good shape with minor issues. ${passing.length} of ${applicable.length} categories pass. Review the findings below for remaining improvements.`
   }
 
+  const moderate = categories.filter(c => c.severity === 'Moderate')
+
+  if (critical.length > 0 && moderate.length > 0) {
+    const criticalNames = critical.map(c => c.label).join(', ')
+    const moderateNames = moderate.map(c => c.label).join(', ')
+    return `This PDF has ${critical.length} critical issue${critical.length > 1 ? 's' : ''} (${criticalNames}) and ${moderate.length} moderate issue${moderate.length > 1 ? 's' : ''} (${moderateNames}). Critical issues must be fixed before publishing, and moderate issues should also be addressed.`
+  }
+
   if (critical.length > 0) {
     const criticalNames = critical.map(c => c.label).join(', ')
     return `This PDF has ${critical.length} critical accessibility issue${critical.length > 1 ? 's' : ''}: ${criticalNames}. These must be addressed before publishing.`
+  }
+
+  if (moderate.length > 0) {
+    const moderateNames = moderate.map(c => c.label).join(', ')
+    return `This PDF has ${moderate.length} moderate accessibility issue${moderate.length > 1 ? 's' : ''}: ${moderateNames}. These should be addressed to improve accessibility.`
   }
 
   return `This PDF has accessibility issues in ${applicable.length - passing.length} of ${applicable.length} categories. Review the findings below and remediate in Adobe Acrobat.`

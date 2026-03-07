@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import jwt from 'jsonwebtoken'
 import type { Response, NextFunction } from 'express'
-import { authMiddleware, adminMiddleware, type AuthRequest } from '../middleware/authMiddleware.js'
+
+// Force auth-enabled mode for these tests
+vi.mock('#config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('#config')>()
+  return { ...actual, AUTH: { ...actual.AUTH, REQUIRE_LOGIN: true } }
+})
+
+const { authMiddleware, adminMiddleware } = await import('../middleware/authMiddleware.js')
+import type { AuthRequest } from '../middleware/authMiddleware.js'
 
 // ---------------------------------------------------------------------------
 // Helpers: mock Express req / res / next

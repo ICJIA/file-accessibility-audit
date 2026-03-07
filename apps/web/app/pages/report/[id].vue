@@ -86,13 +86,13 @@
             </thead>
             <tbody>
               <tr
-                v-for="cat in data.report.categories"
+                v-for="cat in scoredCategories"
                 :key="cat.id"
                 class="border-b border-[#1a1a1a] last:border-0"
               >
                 <td class="px-5 py-2.5 text-neutral-300">{{ cat.label }}</td>
                 <td class="text-center px-3 py-2.5 font-mono" :style="{ color: catColor(cat) }">
-                  {{ cat.score !== null ? cat.score : 'N/A' }}
+                  {{ cat.score }}
                 </td>
                 <td class="text-center px-3 py-2.5">
                   <span
@@ -108,8 +108,25 @@
                     class="text-xs px-2 py-0.5 rounded-full"
                     :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
                   >{{ cat.severity }}</span>
-                  <span v-else class="text-neutral-600 text-xs">N/A</span>
+                  <span v-else class="text-neutral-600 text-xs">—</span>
                 </td>
+              </tr>
+            </tbody>
+            <tbody v-if="naCategories.length">
+              <tr class="border-t border-[#222222]">
+                <td colspan="4" class="px-5 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wide bg-[#0d0d0d]">
+                  Not Included in Scoring
+                </td>
+              </tr>
+              <tr
+                v-for="cat in naCategories"
+                :key="cat.id"
+                class="border-b border-[#1a1a1a] last:border-0 opacity-60"
+              >
+                <td class="px-5 py-2.5 text-neutral-400">{{ cat.label }}</td>
+                <td class="text-center px-3 py-2.5 font-mono text-neutral-600">N/A</td>
+                <td class="text-center px-3 py-2.5 text-neutral-600">—</td>
+                <td class="text-center px-3 py-2.5 text-neutral-600 text-xs">N/A</td>
               </tr>
             </tbody>
           </table>
@@ -120,7 +137,7 @@
 
         <div class="space-y-4">
           <div
-            v-for="cat in data.report.categories"
+            v-for="cat in scoredCategories"
             :key="cat.id"
             class="rounded-xl border border-[#222222] bg-[#111111] p-5"
           >
@@ -149,8 +166,8 @@
               >
                 <span
                   class="flex-shrink-0 mt-0.5 font-bold"
-                  :class="findingIconColor(cat, finding)"
-                >{{ findingIcon(cat, finding) }}</span>
+                  :class="findingIconColor(cat)"
+                >{{ findingIcon(cat) }}</span>
                 <span>{{ finding }}</span>
               </li>
             </ul>
@@ -171,6 +188,59 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                   </svg>
                 </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Not Included in Scoring -->
+        <div v-if="naCategories.length">
+          <h2 class="text-lg font-semibold mb-4 mt-8 text-neutral-500">Not Included in Scoring</h2>
+
+          <div class="space-y-4">
+            <div
+              v-for="cat in naCategories"
+              :key="cat.id"
+              class="rounded-xl border border-[#1a1a1a] bg-[#111111] p-5 opacity-70"
+            >
+              <div class="flex items-center gap-3 mb-3">
+                <h3 class="font-semibold text-neutral-400">{{ cat.label }}</h3>
+                <span class="text-sm font-mono text-neutral-600">N/A</span>
+              </div>
+
+              <p v-if="cat.explanation" class="text-sm text-neutral-500 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
+                <span class="text-neutral-400 font-medium">What this checks:</span>
+                {{ cat.explanation }}
+              </p>
+
+              <ul class="space-y-1.5">
+                <li
+                  v-for="(finding, i) in cat.findings"
+                  :key="i"
+                  class="text-sm text-neutral-500 flex gap-2"
+                >
+                  <span class="flex-shrink-0 mt-0.5 font-bold text-yellow-500">–</span>
+                  <span>{{ finding }}</span>
+                </li>
+              </ul>
+
+              <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
+                <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Learn more</span>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <a
+                    v-for="link in cat.helpLinks"
+                    :key="link.url"
+                    :href="link.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+                  >
+                    {{ link.label }}
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -215,6 +285,13 @@ const gradeColor = computed(() => {
   return gradeColors[(data.value as any)?.report?.grade] || '#666'
 })
 
+const scoredCategories = computed(() =>
+  (data.value as any)?.report?.categories?.filter((c: any) => c.score !== null) || []
+)
+const naCategories = computed(() =>
+  (data.value as any)?.report?.categories?.filter((c: any) => c.score === null) || []
+)
+
 function catColor(cat: any): string {
   if (cat.grade) return gradeColors[cat.grade] || '#666'
   return '#555'
@@ -227,29 +304,19 @@ function sevColor(severity: string): string {
   return map[severity] || '#999'
 }
 
-function isFail(cat: any, finding: string): boolean {
-  if (cat.score === null) return false
-  const f = finding.toLowerCase()
-  return f.includes('not found') || f.includes('no ') || f.includes('missing') || f.includes('not tagged') || f.includes('no extractable') || f.includes('unlabeled')
-}
-
-function isPass(finding: string): boolean {
-  const f = finding.toLowerCase()
-  return f.includes('found') || f.includes('present') || f.includes('all ') || f.includes('declared') || f.includes('title:') || f.includes('author:')
-}
-
-function findingIcon(cat: any, finding: string): string {
-  if (isFail(cat, finding)) return '✗'
-  if (isPass(finding)) return '✓'
+function findingIcon(cat: any): string {
   if (cat.score === null) return '–'
-  return '•'
+  if (cat.score >= 90) return '✓'
+  if (cat.score >= 70) return '•'
+  return '✗'
 }
 
-function findingIconColor(cat: any, finding: string): string {
-  if (isFail(cat, finding)) return 'text-red-500'
-  if (isPass(finding)) return 'text-green-500'
+function findingIconColor(cat: any): string {
   if (cat.score === null) return 'text-yellow-500'
-  return 'text-neutral-500'
+  if (cat.score >= 90) return 'text-green-500'
+  if (cat.score >= 70) return 'text-blue-400'
+  if (cat.score >= 40) return 'text-yellow-500'
+  return 'text-red-500'
 }
 
 function formatDate(dateStr: string): string {

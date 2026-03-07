@@ -180,4 +180,9 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
   res.json({ email: req.user!.email, isAdmin })
 })
 
+// GET /api/auth/config — public endpoint for frontend to check auth mode
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({ requireLogin: AUTH.REQUIRE_LOGIN })
+})
+
 export default router

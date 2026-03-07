@@ -283,6 +283,25 @@ export const ANALYSIS = {
 
 export const AUTH = {
   /**
+   * Master switch for OTP-based authentication.
+   *
+   * When false:
+   * - No login page is required; users go straight to the upload page.
+   * - The API accepts requests without a JWT (authMiddleware passes through).
+   * - No audit history is recorded (no email to associate with analyses).
+   * - Email configuration (SMTP_USER/SMTP_PASS) is not required at startup.
+   *
+   * When true:
+   * - Full OTP auth flow is enforced (email → OTP → JWT session).
+   * - All analyses are logged with the authenticated user's email.
+   * - Valid email provider credentials must be configured.
+   *
+   * SAFE TO CHANGE: Yes — flip to true once email delivery is configured
+   * and you want to gate access behind OTP authentication.
+   */
+  REQUIRE_LOGIN: false,
+
+  /**
    * How long a JWT session lasts, in hours.
    * After this, the user must re-authenticate via OTP.
    *

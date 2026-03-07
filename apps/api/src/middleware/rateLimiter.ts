@@ -1,5 +1,12 @@
 import rateLimit from 'express-rate-limit'
-import { RATE_LIMITS } from '#config'
+import { AUTH, RATE_LIMITS } from '#config'
+
+// When auth is off, all users are "anonymous" — key by IP instead so
+// multiple testers don't share a single rate-limit bucket.
+function userOrIpKey(req: any): string {
+  if (!AUTH.REQUIRE_LOGIN) return req.ip || 'unknown'
+  return req.user?.email || req.ip || 'unknown'
+}
 
 export const authRequestLimiter = rateLimit({
   windowMs: RATE_LIMITS.authRequest.windowMs,
@@ -21,7 +28,7 @@ export const authVerifyLimiter = rateLimit({
 export const analyzeLimiter = rateLimit({
   windowMs: RATE_LIMITS.analyze.windowMs,
   max: RATE_LIMITS.analyze.max,
-  keyGenerator: (req: any) => req.user?.email || req.ip || 'unknown',
+  keyGenerator: userOrIpKey,
   message: { error: 'Upload limit reached. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -30,7 +37,7 @@ export const analyzeLimiter = rateLimit({
 export const reportsLimiter = rateLimit({
   windowMs: RATE_LIMITS.reports.windowMs,
   max: RATE_LIMITS.reports.max,
-  keyGenerator: (req: any) => req.user?.email || req.ip || 'unknown',
+  keyGenerator: userOrIpKey,
   message: { error: 'Share limit reached. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

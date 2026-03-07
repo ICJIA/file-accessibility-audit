@@ -5,8 +5,9 @@
       :class="dragging
         ? 'border-green-400 bg-green-400/5 scale-[1.01]'
         : 'border-[#333333] hover:border-[#555555] bg-[#111111]/50'"
-      @dragover.prevent="dragging = true"
-      @dragleave.prevent="dragging = false"
+      @dragover.prevent
+      @dragenter.prevent="onDragEnter"
+      @dragleave.prevent="onDragLeave"
       @drop.prevent="handleDrop"
       @click="openPicker"
     >
@@ -42,11 +43,25 @@ const emit = defineEmits<{
 }>()
 
 const dragging = ref(false)
+const dragCounter = ref(0)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// Prevent browser from opening dropped files in a new tab
+function onDragEnter() {
+  dragCounter.value++
+  dragging.value = true
+}
+
+function onDragLeave() {
+  dragCounter.value--
+  if (dragCounter.value <= 0) {
+    dragCounter.value = 0
+    dragging.value = false
+  }
+}
+
+// Prevent browser from opening dropped files anywhere on the page
 onMounted(() => {
-  const prevent = (e: Event) => e.preventDefault()
+  const prevent = (e: DragEvent) => e.preventDefault()
   document.addEventListener('dragover', prevent)
   document.addEventListener('drop', prevent)
   onUnmounted(() => {
@@ -60,6 +75,7 @@ function openPicker() {
 }
 
 function handleDrop(e: DragEvent) {
+  dragCounter.value = 0
   dragging.value = false
   const file = e.dataTransfer?.files?.[0]
   if (file) processFile(file)

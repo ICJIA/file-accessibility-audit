@@ -113,9 +113,14 @@ const otpSent = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-// If already authenticated, skip login and go straight to upload
+// If auth is disabled or already authenticated, skip login
 onMounted(async () => {
   try {
+    const config = await $fetch<{ requireLogin: boolean }>('/api/auth/config')
+    if (!config.requireLogin) {
+      navigateTo('/', { replace: true })
+      return
+    }
     await $fetch('/api/auth/me', { credentials: 'include' })
     navigateTo('/', { replace: true })
     return

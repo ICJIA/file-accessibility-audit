@@ -11,9 +11,12 @@ import logsRoutes from './routes/logs.js'
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
 import { validateMailConfig } from './mailer.js'
+import { AUTH } from '#config'
 
-// Validate email config before starting — exits if misconfigured in production
-validateMailConfig()
+// Validate email config before starting — only needed when auth requires OTP emails
+if (AUTH.REQUIRE_LOGIN) {
+  validateMailConfig()
+}
 
 const app = express()
 const PORT = Number(process.env.PORT) || 5103
