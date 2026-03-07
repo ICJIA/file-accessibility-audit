@@ -11,8 +11,9 @@ const fetchMock = vi.fn()
 describe('Login Page', () => {
   beforeEach(() => {
     fetchMock.mockReset()
-    // Default: auth check fails (not logged in), other calls succeed.
+    // Default: auth enabled, auth check fails (not logged in), other calls succeed.
     fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
       if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
       return Promise.resolve({})
     })
@@ -22,6 +23,7 @@ describe('Login Page', () => {
   function mockNextFetch(result: any, reject = false) {
     let overridden = false
     fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
       if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
       if (!overridden) {
         overridden = true
@@ -159,6 +161,7 @@ describe('Login Page', () => {
   it('submits the OTP to /api/auth/verify', async () => {
     let callCount = 0
     fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
       if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
       callCount++
       return Promise.resolve({})
@@ -190,6 +193,7 @@ describe('Login Page', () => {
   it('shows error when OTP verification fails', async () => {
     let callCount = 0
     fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
       if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
       callCount++
       if (callCount === 1) return Promise.resolve({})
