@@ -1,8 +1,8 @@
-# File Accessibility Audit
+# ICJIA File Accessibility Audit
 
-![File Accessibility Audit](apps/web/public/og-image.png)
+![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
-**Production URL:** https://audit.icjia.app
+**Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
 A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload a PDF, get an instant grade (A–F) with category-by-category findings and remediation guidance.
 
@@ -43,6 +43,14 @@ pnpm dev
 - **API:** http://localhost:5103
 
 That's it — the app works immediately with authentication disabled (the default). No email provider or credentials needed.
+
+### Utility Scripts
+
+```bash
+pnpm clean    # Remove .nuxt, .output, Vite cache, and build artifacts
+pnpm test     # Run all tests with summary
+pnpm dev      # Start API + Web dev servers
+```
 
 ## Authentication (Optional)
 
@@ -102,17 +110,17 @@ Each PDF is scored across **9 accessibility categories** based on [WCAG 2.1](htt
 
 ### Categories & Weights
 
-| Category | Weight | Why It Matters |
-|----------|:------:|----------------|
-| Text Extractability | 20% | **WCAG 1.3.1** — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved. |
-| Title & Language | 15% | **WCAG 2.4.2 & 3.1.1** — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II. |
-| Heading Structure | 15% | **WCAG 1.3.1 & 2.4.6** — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles. |
-| Alt Text on Images | 15% | **WCAG 1.1.1** — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. |
-| Bookmarks | 10% | **WCAG 2.4.5** — For documents over 10 pages, bookmarks provide a navigable table of contents. Required under Title II for longer documents. |
-| Table Markup | 10% | **WCAG 1.3.1** — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to. |
-| Link Quality | 5% | **WCAG 2.4.4** — Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes without needing to see the URL. |
-| Form Fields | 5% | **WCAG 1.3.1 & 4.1.2** — Unlabeled form fields are unusable with assistive technology. Users hear "text field" with no indication of what to enter. |
-| Reading Order | 5% | **WCAG 1.3.2** — The tag structure must define a logical reading sequence. Without it, screen readers may announce sidebar content before the main body. |
+| Category | Weight | WCAG Criteria | Why It Matters |
+|----------|:------:|---------------|----------------|
+| Text Extractability | 20% | 1.3.1, 1.4.5 | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. |
+| Title & Language | 15% | 2.4.2, 3.1.1 | The document title is the first thing a screen reader announces. The language tag controls pronunciation. |
+| Heading Structure | 15% | 1.3.1, 2.4.6 | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. |
+| Alt Text on Images | 15% | 1.1.1 | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. |
+| Bookmarks | 10% | 2.4.5 | For documents over 10 pages, bookmarks provide a navigable table of contents. |
+| Table Markup | 10% | 1.3.1 | Without header cells (TH), screen readers read table data in a flat stream with no context. |
+| Link Quality | 5% | 2.4.4 | Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes. |
+| Form Fields | 5% | 1.3.1, 4.1.2 | Unlabeled form fields are unusable with assistive technology. |
+| Reading Order | 5% | 1.3.2 | The tag structure must define a logical reading sequence. |
 
 ### Grade Scale
 
@@ -144,17 +152,79 @@ Each category receives a severity based on its individual score:
 
 Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. All scoring constants live in `audit.config.ts`.
 
+## Report Exports
+
+Reports can be downloaded in four formats, all with links back to [audit.icjia.app](https://audit.icjia.app):
+
+| Format | Contents |
+|--------|----------|
+| **Word (.docx)** | Formatted report with score table, detailed findings, help links, and grade colors |
+| **HTML (.html)** | Standalone dark-themed page with full report — works offline, printable |
+| **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform |
+| **JSON (.json)** | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
+
+Reports can also be shared via **shareable links** that expire after 30 days. When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
+
+## SEO
+
+The app uses **[@nuxtjs/seo](https://nuxtseo.com/)** for comprehensive search engine optimization:
+
+| Feature | Implementation |
+|---------|---------------|
+| **Sitemap** | Auto-generated at `/sitemap.xml` — includes public pages, excludes auth/admin routes |
+| **Robots** | Auto-generated at `/robots.txt` — blocks `/api/`, `/login`, `/my-history`, `/history` |
+| **Schema.org** | `Organization` identity (ICJIA) via module + `WebApplication` JSON-LD in page head |
+| **Open Graph** | Full OG tags with 1200x630 image, alt text, site name, locale |
+| **Twitter Cards** | `summary_large_image` with title, description, image, and alt text |
+| **Favicons** | `favicon.ico`, `favicon.png` (32px), `apple-touch-icon.png` (180px), PWA icons (192/512px) |
+| **Web Manifest** | `site.webmanifest` for PWA install and app metadata |
+| **Canonical URL** | `https://audit.icjia.app` |
+| **Meta** | `description`, `keywords`, `author`, `theme-color`, `lang="en"` |
+
+## AI Readiness
+
+The app is structured for discovery and consumption by LLMs, AI agents, and automated tools:
+
+### LLM Discovery Files
+
+| File | Purpose |
+|------|---------|
+| [`/llms.txt`](https://audit.icjia.app/llms.txt) | Concise summary: what the app does, scoring categories, grade scale, API endpoints |
+| [`/llms-full.txt`](https://audit.icjia.app/llms-full.txt) | Full documentation: per-category scoring logic, remediation steps, JSON export schema |
+
+These follow the emerging [`llms.txt` convention](https://llmstxt.org/) — a plain-text file at the site root that tells AI crawlers what the site does and how to use it.
+
+### JSON Export (Schema v2.0)
+
+The JSON export is designed for machine consumption. Beyond the basic report data, it includes:
+
+| Section | What it provides |
+|---------|-----------------|
+| `categories[].status` | Machine-readable `"pass"`, `"minor"`, `"moderate"`, `"fail"`, or `"not-applicable"` |
+| `categories[].wcag` | WCAG 2.1 success criteria IDs, principle name, and tool-specific remediation steps |
+| `remediationPlan` | Prioritized fix steps sorted by severity — each with category, score, WCAG criteria, and action |
+| `llmContext.prompt` | Pre-built prompt summarizing the audit, ready to paste into any LLM |
+| `llmContext.standards` | Array of applicable standards (WCAG 2.1 AA, ADA Title II, Section 508, PDF/UA) |
+| `llmContext.scoringScale` | Score range definitions for pass/minor/moderate/fail |
+
+### Structured Data
+
+- **WebApplication JSON-LD** in `<head>` — identifies the app type, features, author, and pricing (free) for search engines and AI agents
+- **Schema.org Organization** — links ICJIA as the publisher via `@nuxtjs/seo`
+
 ## Project Structure
 
 ```
 file-accessibility-audit/
 ├── apps/
 │   ├── web/            # Nuxt 4 frontend
+│   │   ├── public/     # Static assets (og-image, favicons, llms.txt, manifest)
+│   │   └── app/        # Pages, components, composables, layouts
 │   └── api/            # Express API server
+│       └── src/        # Routes, services, middleware, database
 ├── docs/               # Design documents (see below)
-├── tests/
-│   └── fixtures/       # Known test PDFs for scoring validation
 ├── audit.config.ts     # Single source of truth for all constants
+├── og-image.svg        # OG image source (convert to PNG with sharp)
 ├── ecosystem.config.cjs # PM2 config (production)
 ├── pnpm-workspace.yaml
 └── .nvmrc              # Node.js version
@@ -165,9 +235,10 @@ file-accessibility-audit/
 | Layer | Technology |
 |-------|-----------|
 | Frontend | Nuxt 4 / Nuxt UI 4 / Dark mode only |
-| API | Express / TypeScript |
+| SEO | @nuxtjs/seo (sitemap, robots, Schema.org, OG) |
+| API | Express / TypeScript / tsx (no build step in dev) |
 | PDF Analysis | QPDF (structure tree) + pdfjs-dist (text/metadata) |
-| Database | SQLite via better-sqlite3 (audit logs only) |
+| Database | SQLite via better-sqlite3 (audit logs, shared reports) |
 | Auth | Optional email OTP → JWT (httpOnly cookie) |
 | Email | Mailgun (default) / SMTP2GO (alternative) / Nodemailer |
 | Deployment | DigitalOcean → Laravel Forge → PM2 → nginx |
@@ -179,6 +250,7 @@ All magic numbers, thresholds, weights, limits, and email provider settings are 
 - **Auth toggle** → `AUTH.REQUIRE_LOGIN` (`true` or `false`)
 - **Scoring weights** → `SCORING_WEIGHTS`
 - **Email provider** → `EMAIL.PROVIDER` (`'mailgun'` or `'smtp2go'`)
+- **Share link expiry** → `SHARING.EXPIRY_DAYS` (default: 30)
 - **Rate limits** → `RATE_LIMITS`
 - **Dev/prod URLs** → automatic based on `NODE_ENV`
 
