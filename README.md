@@ -212,6 +212,35 @@ The JSON export is designed for machine consumption. Beyond the basic report dat
 - **WebApplication JSON-LD** in `<head>` — identifies the app type, features, author, and pricing (free) for search engines and AI agents
 - **Schema.org Organization** — links ICJIA as the publisher via `@nuxtjs/seo`
 
+## CLI Tool
+
+The monorepo includes `a11y-audit`, a command-line PDF accessibility analyzer that uses the same scoring engine as the web app.
+
+```bash
+# Build the CLI
+pnpm --filter @icjia/a11y-audit build
+
+# Analyze a PDF
+node apps/cli/dist/index.js report.pdf
+
+# JSON output (pipe to jq, etc.)
+node apps/cli/dist/index.js report.pdf --json
+
+# CI gate — exit 1 if any file scores below 80
+node apps/cli/dist/index.js docs/*.pdf --threshold 80
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output results as JSON |
+| `--threshold <n>` | Minimum passing score (0–100) — exits with code 1 if any file fails |
+| `--help` | Show usage |
+| `--version` | Show version |
+
+The CLI produces a colored terminal table with grades, scores, and severity for each category. Requires QPDF installed on the system.
+
 ## Project Structure
 
 ```
@@ -220,8 +249,10 @@ file-accessibility-audit/
 │   ├── web/            # Nuxt 4 frontend
 │   │   ├── public/     # Static assets (og-image, favicons, llms.txt, manifest)
 │   │   └── app/        # Pages, components, composables, layouts
-│   └── api/            # Express API server
-│       └── src/        # Routes, services, middleware, database
+│   ├── api/            # Express API server
+│   │   └── src/        # Routes, services, middleware, database
+│   └── cli/            # a11y-audit CLI tool
+│       └── src/        # CLI entry point (bundles via tsup)
 ├── docs/               # Design documents (see below)
 ├── audit.config.ts     # Single source of truth for all constants
 ├── og-image.svg        # OG image source (convert to PNG with sharp)
@@ -241,6 +272,7 @@ file-accessibility-audit/
 | Database | SQLite via better-sqlite3 (audit logs, shared reports) |
 | Auth | Optional email OTP → JWT (httpOnly cookie) |
 | Email | Mailgun (default) / SMTP2GO (alternative) / Nodemailer |
+| CLI | tsup → single ESM bundle, QPDF + pdfjs-dist |
 | Deployment | DigitalOcean → Laravel Forge → PM2 → nginx |
 
 ## Configuration
@@ -271,7 +303,7 @@ Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
 
 ## Tests
 
-**208 tests** across 7 test files. Run all with a summary at the end:
+**235 tests** across 8 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -286,14 +318,14 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      141 passed (4 files)
+  ✔ API      168 passed (5 files)
   ✔ Web      67 passed (3 files)
 ────────────────────────────────────────────────────────────
-  ✔ 208 tests passed across 7 files
+  ✔ 235 tests passed across 8 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (141 tests)
+### API Tests (168 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
@@ -301,6 +333,7 @@ pnpm test:scoring        # Scoring model tests only
 | `qpdfParser.test.ts` | 34 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table TH header detection, figure alt text, MCID content ordering, outline counting, tree depth, malformed JSON |
 | `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override) |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
+| `integration.test.ts` | 27 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents |
 
 ### Web Tests (67 tests)
 

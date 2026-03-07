@@ -1,0 +1,26 @@
+{
+  "name": "@icjia/a11y-audit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#config": "../../audit.config.ts"
+  },
+  "bin": {
+    "a11y-audit": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "tsup": "^8.4.0"
+  }
+}
