@@ -1,13 +1,40 @@
 # 04 — Deployment Guide
 
 **Project:** `file-accessibility-audit`
+**Production URL:** https://audit.icjia.app
 **Target:** DigitalOcean droplet → Laravel Forge → PM2 → nginx reverse proxy
 
 ---
 
-## 1. Infrastructure Specification
+## Quick Reference
 
-### Recommended DigitalOcean Droplet
+If you've deployed before and just need the commands:
+
+```bash
+# SSH into the server
+ssh forge@<droplet-ip>
+cd /home/forge/audit.icjia.app
+
+# Pull, install, build, restart
+git pull origin main
+pnpm install --frozen-lockfile
+pnpm --filter api build
+pnpm --filter web build
+pm2 reload ecosystem.config.cjs --update-env
+
+# Verify
+pm2 status
+curl -s http://localhost:5103/api/health | jq
+curl -s http://localhost:5102 | head -5
+```
+
+Or just push to `main` — Forge auto-deploys via webhook if Quick Deploy is enabled.
+
+---
+
+## 1. Infrastructure
+
+### DigitalOcean Droplet
 
 | Spec | Recommendation | Notes |
 |------|---------------|-------|
@@ -19,130 +46,263 @@
 
 ### Why 4GB?
 
-QPDF runs as a subprocess and can spike memory on complex PDFs. pdfjs-dist loads the full PDF into memory for parsing. With Node.js overhead and Nuxt SSR, 2GB is genuinely tight. 4GB gives comfortable headroom and allows future batch processing.
+QPDF runs as a subprocess and can spike memory on complex PDFs. pdfjs-dist loads the full PDF into memory for parsing. With Node.js overhead and Nuxt SSR, 2GB is genuinely tight. 4GB gives comfortable headroom.
 
-### Software Stack on Droplet (Forge-managed)
+### Architecture Overview
 
-- **nginx** — Forge installs and manages; you configure a proxy rule
-- **Node.js 22 LTS** — Forge installs (project requires 22+, see `.nvmrc`)
-- **PM2** — Forge installs; you provide `ecosystem.config.cjs`
-- **QPDF** — `sudo apt install qpdf` (one command post-provision)
-- **pnpm** — `npm install -g pnpm` (one command post-provision)
+```
+Internet → nginx (443) → Nuxt SSR (5102) → serves pages
+                       → Express API (5103) → PDF analysis, auth, reports
+
+PM2 manages both Node processes
+Forge manages nginx, SSL, deploys
+SQLite stores audit logs + shared reports
+```
 
 ---
 
-## 2. Post-Provision Setup
+## 2. First-Time Server Setup
 
-After Forge creates the server, SSH in and run:
+After Forge creates the server and provisions Node.js, SSH in once:
 
 ```bash
+# 1. Install system dependencies
 sudo apt update && sudo apt install -y qpdf
 npm install -g pnpm
 
-# Create data directory for SQLite
-mkdir -p /home/forge/file-accessibility-audit/apps/api/data
+# 2. Verify versions
+node -v    # Must be 22+
+qpdf --version
+pnpm -v
+
+# 3. Create the site in Forge (see Section 5 below)
+# Forge clones the repo to /home/forge/audit.icjia.app
+
+# 4. Go to the project directory
+cd /home/forge/audit.icjia.app
+
+# 5. Create .env files from production templates
+cp apps/api/.env.example.production apps/api/.env
+cp apps/web/.env.example.production apps/web/.env
+
+# 6. Edit API .env with real credentials
+nano apps/api/.env
 ```
 
-That's it. Everything else is handled by Forge and PM2.
+### Required values in `apps/api/.env`:
+
+```env
+NODE_ENV=production
+PORT=5103
+JWT_SECRET=<generate-with: openssl rand -hex 32>
+DB_PATH=./data/audit.db
+SMTP_USER=postmaster@icjia.cloud
+SMTP_PASS=<your-mailgun-smtp-password>
+ADMIN_EMAILS=admin@icjia.illinois.gov
+ALLOWED_DOMAINS=
+MAX_FILE_SIZE_MB=100
+TMP_DIR=/tmp
+```
+
+### Required values in `apps/web/.env`:
+
+```env
+NUXT_PUBLIC_APP_NAME=ICJIA File Accessibility Audit
+NODE_ENV=production
+```
+
+> **Note:** Auth is off by default (`REQUIRE_LOGIN: false` in `audit.config.ts`). If auth is disabled, `JWT_SECRET`, `SMTP_USER`, and `SMTP_PASS` are not needed. The app works without any email provider.
+
+```bash
+# 7. Create data directory for SQLite
+mkdir -p apps/api/data
+
+# 8. Install, build, and start
+pnpm install --frozen-lockfile
+pnpm --filter api build
+pnpm --filter web build
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup   # ensures PM2 restarts on server reboot
+```
 
 ---
 
 ## 3. PM2 Configuration
 
+The `ecosystem.config.cjs` in the project root manages both processes:
+
 ```javascript
-// ecosystem.config.cjs (root of monorepo)
 module.exports = {
   apps: [
     {
       name: 'file-audit-api',
       cwd: './apps/api',
       script: 'pnpm',
-      args: 'start',
+      args: 'start',           // runs: node --import tsx src/index.ts
       interpreter: 'none',
       env: {
         NODE_ENV: 'production',
-        PORT: 5103
+        PORT: 5103,
       },
       watch: false,
       max_memory_restart: '512M',
       restart_delay: 3000,
-      exp_backoff_restart_delay: 100
+      exp_backoff_restart_delay: 100,
     },
     {
       name: 'file-audit-web',
       cwd: './apps/web',
       script: 'pnpm',
-      args: 'start',
+      args: 'start',           // runs: node .output/server/index.mjs
       interpreter: 'none',
       env: {
         NODE_ENV: 'production',
         PORT: 5102,
-        NUXT_API_BASE: 'http://localhost:5103'
       },
       watch: false,
       max_memory_restart: '512M',
       restart_delay: 3000,
-      exp_backoff_restart_delay: 100
-    }
-  ]
+      exp_backoff_restart_delay: 100,
+    },
+  ],
 }
 ```
 
 ### Ports
 
-| Service | Port |
-|---------|------|
-| Nuxt frontend | 5102 |
-| Express API | 5103 |
-| nginx (public) | 80 / 443 |
+| Service | Port | Listens on |
+|---------|------|------------|
+| Nuxt frontend (SSR) | 5102 | localhost only |
+| Express API | 5103 | localhost only |
+| nginx (public) | 80 / 443 | 0.0.0.0 |
+
+Both Node processes listen on localhost only — nginx proxies all public traffic.
+
+### What each `start` script runs
+
+| App | `pnpm start` runs | Notes |
+|-----|-------------------|-------|
+| API | `node --import tsx src/index.ts` | tsx runs TypeScript directly — no build output needed at runtime |
+| Web | `node .output/server/index.mjs` | Nuxt builds to `.output/` — this is the production SSR server |
+
+The `pnpm --filter api build` step runs `tsc --noEmit` (type check only). The API runs from source via tsx in production. The `pnpm --filter web build` step runs `nuxt build` which generates the `.output/` directory.
 
 ---
 
-## 4. nginx / Laravel Forge Configuration
+## 4. nginx Configuration
 
-In Forge, create a new site and use a custom nginx config. The key block:
+In Forge, edit the nginx config for the site. Replace the default `location` blocks with:
 
 ```nginx
-# In Forge: Edit Nginx Configuration for the site
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name audit.icjia.app;
 
-# Hide nginx version
-server_tokens off;
+    # Forge manages these SSL paths — do not change
+    ssl_certificate /etc/nginx/ssl/audit.icjia.app/xxx/server.crt;
+    ssl_certificate_key /etc/nginx/ssl/audit.icjia.app/xxx/server.key;
 
-# Security headers
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-Frame-Options "DENY" always;
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    # Security
+    server_tokens off;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
-location / {
-    proxy_pass http://127.0.0.1:5102;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_cache_bypass $http_upgrade;
+    # API — proxy to Express on port 5103
+    # Must come BEFORE the catch-all / block
+    location /api/ {
+        proxy_pass http://127.0.0.1:5103;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 110M;    # PDF upload limit (100MB + overhead)
+        proxy_read_timeout 60s;       # PDF analysis can take time
+    }
+
+    # SEO static files — serve directly for crawlers
+    location = /robots.txt {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_set_header Host $host;
+        expires 1d;
+    }
+
+    location = /sitemap.xml {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_set_header Host $host;
+        expires 1d;
+    }
+
+    location = /llms.txt {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_set_header Host $host;
+        expires 1d;
+    }
+
+    location = /llms-full.txt {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_set_header Host $host;
+        expires 1d;
+    }
+
+    # Frontend — proxy everything else to Nuxt SSR on port 5102
+    location / {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Static assets cache
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|webmanifest)$ {
+        proxy_pass http://127.0.0.1:5102;
+        proxy_set_header Host $host;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
 }
 
-location /api/ {
-    proxy_pass http://127.0.0.1:5103;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    client_max_body_size 110M;
-    proxy_read_timeout 60s;
+# HTTP → HTTPS redirect (Forge usually handles this, but just in case)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name audit.icjia.app;
+    return 301 https://$host$request_uri;
 }
 ```
 
-Forge handles SSL (Let's Encrypt) automatically. You just point your DNS at the droplet.
+### What each proxy does
+
+| Location | Target | Purpose |
+|----------|--------|---------|
+| `/api/` | `127.0.0.1:5103` | Express API — PDF analysis, auth, reports, health check |
+| `/robots.txt` | `127.0.0.1:5102` | Auto-generated by @nuxtjs/seo (robots module) |
+| `/sitemap.xml` | `127.0.0.1:5102` | Auto-generated by @nuxtjs/seo (sitemap module) |
+| `/llms.txt` | `127.0.0.1:5102` | AI discoverability file (static in `public/`) |
+| `/llms-full.txt` | `127.0.0.1:5102` | Full AI documentation (static in `public/`) |
+| `/` | `127.0.0.1:5102` | Nuxt SSR — all pages, components, client JS |
+| Static assets | `127.0.0.1:5102` | JS/CSS/images with 30-day cache |
+
+### Important nginx notes
+
+- The `/api/` block **must come before** the `/` catch-all block
+- `client_max_body_size 110M` allows PDF uploads up to 100MB (with HTTP overhead)
+- `proxy_read_timeout 60s` prevents nginx from killing long-running PDF analyses
+- The `Upgrade` headers on `/` are needed for Nuxt HMR in development (harmless in production)
+- Forge manages SSL certificate paths — keep whatever Forge generated for `ssl_certificate` and `ssl_certificate_key`
 
 ---
 
-## 5. Connecting Forge to GitHub (Auto-Deploy on Push)
+## 5. Connecting Forge to GitHub
 
 ### Step 1: Create a Site in Forge
 
@@ -174,11 +334,10 @@ git pull origin main
 pnpm install --frozen-lockfile
 
 # Build both apps
-pnpm --filter api build
-pnpm --filter web build
+pnpm --filter api build    # Type check only (API runs via tsx)
+pnpm --filter web build    # Nuxt builds to .output/
 
 # Start or restart PM2 processes
-# "reload" does a zero-downtime restart; "start" is for first deploy
 if pm2 describe file-audit-api > /dev/null 2>&1; then
     pm2 reload ecosystem.config.cjs --update-env
 else
@@ -195,94 +354,40 @@ fi
 Now every `git push origin main` will:
 1. GitHub sends a webhook to Forge
 2. Forge SSHs into the droplet and runs the deploy script
-3. Code is pulled, rebuilt, and PM2 processes are reloaded
-
-### First Deploy (One-Time Server Setup)
-
-Before the first deploy script runs, SSH into the droplet and do the one-time setup:
-
-```bash
-# Install system dependencies
-sudo apt update && sudo apt install -y qpdf
-npm install -g pnpm
-
-# Go to the site directory (Forge cloned the repo here)
-cd /home/forge/audit.icjia.app
-
-# Create .env files from production templates
-cp apps/api/.env.example.production apps/api/.env
-cp apps/web/.env.example.production apps/web/.env
-
-# Edit .env files with real credentials
-nano apps/api/.env
-# → Set JWT_SECRET (generate with: openssl rand -hex 32)
-# → Set SMTP_USER and SMTP_PASS
-# → Set ADMIN_EMAILS
-
-# Create data directory for SQLite
-mkdir -p apps/api/data
-
-# Install, build, and start
-pnpm install
-pnpm --filter api build
-pnpm --filter web build
-pm2 start ecosystem.config.cjs
-pm2 save
-pm2 startup  # ensures PM2 restarts on server reboot
-```
-
-After this, all subsequent deploys are automatic via the deploy script.
+3. Code is pulled, rebuilt, and PM2 processes are reloaded with zero downtime
 
 ### Manual Deploy (if needed)
 
-You can also trigger a deploy manually from the Forge UI:
+You can trigger a deploy manually from the Forge UI:
 - Go to the site → click **"Deploy Now"**
 
 Or SSH in and run the deploy script commands directly.
 
 ---
 
-## 6. Environment Variables
+## 6. Verification Checklist
 
-This section is the canonical reference for all environment variables. The master design document (00) references this section.
+After deploying, verify everything works:
 
-### `apps/api/.env`
+```bash
+# On the server:
+pm2 status                                  # Both processes "online"
+curl -s http://localhost:5103/api/health    # { "status": "ok", ... }
+curl -s http://localhost:5102 | head -20    # HTML output from Nuxt
 
-```env
-NODE_ENV=production
-PORT=5103
-JWT_SECRET=<random-256-bit-hex>
-# Generate with: openssl rand -hex 32
-SMTP_USER=<your-smtp-login>
-SMTP_PASS=<your-smtp-password>
-ADMIN_EMAILS=chris@icjia.illinois.gov
+# From your browser:
+# https://audit.icjia.app                  → landing page with dropzone
+# https://audit.icjia.app/api/health       → JSON health response
+# https://audit.icjia.app/robots.txt       → robots directives
+# https://audit.icjia.app/sitemap.xml      → sitemap
+# https://audit.icjia.app/llms.txt         → AI discoverability file
+# https://audit.icjia.app/og-image.png     → 1200x630 OG image
+# https://audit.icjia.app/favicon.png      → favicon
 ```
-
-> **Email provider** (Mailgun or SMTP2GO) is selected in `audit.config.ts` → `EMAIL.PROVIDER`. Host and port are resolved automatically per provider. Only credentials go in `.env`. See the README Email Setup section and [docs/07-mailgun-integration.md](07-mailgun-integration.md) for details.
-
-### `apps/web/.env`
-
-```env
-NUXT_PUBLIC_APP_NAME=File Accessibility Audit
-```
-
-> URLs switch automatically based on `NODE_ENV` — no URL configuration needed in `.env`.
-
-### Important: `.env` files must be in `.gitignore`
-
-```gitignore
-# In project root .gitignore
-apps/api/.env
-apps/web/.env
-```
-
-On the droplet, `.env` files should be `chmod 600` and owned by the `forge` user. Secrets (JWT_SECRET, SMTP_PASS) must never be committed to the repository. Use `.env.example.production` as a template.
 
 ---
 
 ## 7. Firewall
-
-This section is the canonical reference for firewall configuration. The master design document (00) references this section.
 
 Configure the DigitalOcean firewall (or `ufw` on the droplet) to allow only:
 
@@ -321,9 +426,11 @@ sudo ufw enable
 ```bash
 pm2 status                    # Check process status
 pm2 logs                      # Tail all logs
-pm2 logs file-audit-api      # Tail API logs only
+pm2 logs file-audit-api       # Tail API logs only
+pm2 logs file-audit-web       # Tail web logs only
 pm2 monit                     # Real-time resource monitoring
 pm2 restart all               # Restart both processes
+pm2 reload ecosystem.config.cjs --update-env  # Zero-downtime restart
 ```
 
 ### Log Rotation
@@ -347,15 +454,69 @@ The app cleans up temp files in its `finally` block, but as a safety net, add a 
 
 ### SQLite Backup
 
-The audit log database at `apps/api/data/audit.db` should be backed up periodically:
+The database at `apps/api/data/audit.db` stores audit logs and shared report links. Back it up:
 
 ```bash
 # Crontab: daily backup
-0 2 * * * cp /home/forge/file-accessibility-audit/apps/api/data/audit.db /home/forge/backups/audit-$(date +\%Y\%m\%d).db
+0 2 * * * cp /home/forge/audit.icjia.app/apps/api/data/audit.db /home/forge/backups/audit-$(date +\%Y\%m\%d).db
 ```
-
-Note: In Phase 2, the database also contains the `shared_reports` table for shareable report URLs. The same backup strategy covers both tables.
 
 ---
 
-*End of Deployment Guide — v1.5*
+## 10. Troubleshooting
+
+### PM2 processes won't start
+
+```bash
+# Check logs for errors
+pm2 logs --lines 50
+
+# Common issues:
+# - Missing .env file → copy from .env.example.production
+# - QPDF not installed → sudo apt install qpdf
+# - Wrong Node version → node -v (must be 22+)
+# - Port already in use → kill-port 5102 5103 or lsof -i :5102
+```
+
+### nginx returns 502 Bad Gateway
+
+The Node process isn't running or crashed:
+
+```bash
+pm2 status        # Check if processes are online
+pm2 restart all   # Restart them
+pm2 logs          # Check for crash reasons
+```
+
+### PDF upload returns 413 (Entity Too Large)
+
+nginx is rejecting the upload before it reaches Express:
+
+```bash
+# Check that nginx config has:
+# client_max_body_size 110M;  (in the /api/ location block)
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Nuxt build fails
+
+```bash
+cd /home/forge/audit.icjia.app
+pnpm clean                    # Clear caches
+pnpm install --frozen-lockfile
+pnpm --filter web build       # Retry
+```
+
+### Shared report links return 404
+
+The SQLite database might be missing or in the wrong location:
+
+```bash
+ls -la apps/api/data/audit.db
+# If missing, the app creates it on first start — restart PM2:
+pm2 restart file-audit-api
+```
+
+---
+
+*End of Deployment Guide — v2.0*
