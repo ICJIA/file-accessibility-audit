@@ -9,6 +9,19 @@
 
 <script setup lang="ts">
 const config = useRuntimeConfig()
+const appConfig = useAppConfig()
+
+// Inject WebApplication JSON-LD structured data
+if (appConfig.jsonLd) {
+  useHead({
+    script: [
+      {
+        type: 'application/ld+json',
+        innerHTML: JSON.stringify(appConfig.jsonLd),
+      },
+    ],
+  })
+}
 
 // Forward browser cookies during SSR so the API can validate the JWT
 const reqHeaders = import.meta.server ? useRequestHeaders(['cookie']) : {}

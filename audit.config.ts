@@ -400,9 +400,9 @@ export const SHARED_REPORTS = {
    * for cleanup.
    *
    * SAFE TO CHANGE: Yes. Longer = more useful for recipients but more
-   * database storage. 90 days balances utility with data hygiene.
+   * database storage. 30 days balances utility with data hygiene.
    */
-  EXPIRY_DAYS: 90,
+  EXPIRY_DAYS: 30,
 
   /**
    * Maximum size of the report JSON payload in bytes.

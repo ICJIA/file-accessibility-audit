@@ -2,7 +2,7 @@
   <div>
     <header class="border-b border-[#222222] px-6 py-4">
       <div class="mx-auto max-w-4xl flex items-center justify-between">
-        <h1 class="text-lg font-semibold tracking-tight">
+        <h1 class="text-lg font-semibold tracking-tight cursor-pointer hover:text-neutral-300 transition-colors" @click="goAnalyze">
           ICJIA File Accessibility Audit
         </h1>
         <nav v-if="user" class="flex items-center gap-4">

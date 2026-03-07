@@ -205,11 +205,11 @@
       </div>
 
       <!-- Export & Share -->
-      <div class="mt-8 rounded-xl border border-[#222222] bg-[#111111] p-5">
+      <div class="mt-8 rounded-xl border border-[#222222] bg-[#111111] p-5 report-actions">
         <!-- Download row -->
-        <p class="text-sm font-medium text-neutral-400 mb-3">Download Report</p>
-        <div class="flex flex-wrap gap-2">
-          <UButton variant="soft" color="primary" size="sm" @click="exportDocx(result)" :loading="exporting">
+        <p class="text-sm font-medium text-neutral-400 mb-3 text-center">Download Report</p>
+        <div class="flex flex-wrap gap-2 justify-center">
+          <UButton variant="soft" color="neutral" size="sm" @click="exportDocx(result)" :loading="exporting">
             <template #leading>
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
             </template>
@@ -239,13 +239,13 @@
         <div class="border-t border-[#222222] my-4" />
 
         <!-- Share row -->
-        <p class="text-sm font-medium text-neutral-400 mb-3">Share Report</p>
+        <p class="text-sm font-medium text-neutral-400 mb-3 text-center">Share Report</p>
 
         <div v-if="!shareUrl">
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2 justify-center">
             <UButton
               variant="soft"
-              color="success"
+              color="neutral"
               size="sm"
               @click="handleShare"
               :loading="sharing"
@@ -256,7 +256,7 @@
               Create Shareable Link
             </UButton>
           </div>
-          <p class="text-xs text-neutral-600 mt-2">Creates a public link anyone can view — no login required. Expires in 90 days.</p>
+          <p class="text-xs text-neutral-600 mt-2 text-center">Creates a public link anyone can view. Expires in 30 days.</p>
           <p v-if="shareError" class="text-xs text-red-400 mt-1">{{ shareError }}</p>
         </div>
 
@@ -288,7 +288,7 @@
         </div>
       </div>
 
-      <div class="mt-4">
+      <div class="mt-4 text-center">
         <UButton variant="outline" color="neutral" @click="clearResults">
           Analyze Another File
         </UButton>
@@ -299,7 +299,35 @@
     <ProcessingOverlay v-else-if="processing" :stage="processingStage" />
 
     <!-- Drop zone (idle state) -->
-    <DropZone v-else @file-selected="analyzeFile" />
+    <div v-else>
+      <div class="mb-8 text-center">
+        <h2 class="text-2xl font-bold tracking-tight mb-3 text-green-400">Check your PDFs for accessibility</h2>
+        <p class="text-neutral-300 font-medium max-w-xl mx-auto leading-relaxed">
+          Upload a PDF to get an instant accessibility score based on
+          <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-300 font-semibold">WCAG 2.1</a>
+          and
+          <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-300 font-semibold">ADA Title II</a>
+          requirements. The audit checks nine categories — text extractability, heading structure, alt text, table markup, and more — and returns a detailed report with actionable findings.
+        </p>
+      </div>
+
+      <DropZone @file-selected="analyzeFile" />
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+        <div class="rounded-xl border border-[#222222] bg-[#111111] p-5">
+          <div class="text-3xl font-black text-green-400 mb-2">9 Categories</div>
+          <p class="text-sm text-neutral-400">Accessibility categories scored across structure, navigation, and content</p>
+        </div>
+        <div class="rounded-xl border border-[#222222] bg-[#111111] p-5">
+          <div class="text-3xl font-black text-green-400 mb-2">Accessibility Readiness</div>
+          <p class="text-sm text-neutral-400">Letter grade with severity levels so you know what to fix first</p>
+        </div>
+        <div class="rounded-xl border border-[#222222] bg-[#111111] p-5">
+          <div class="text-3xl font-black text-green-400 mb-2">Export & Share</div>
+          <p class="text-sm text-neutral-400">Download reports as Word, HTML, Markdown, or JSON and share via link</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -420,7 +448,7 @@ function emailShareUrl() {
     `Here is the accessibility report for "${result.value.filename}":\n\n` +
     `Score: ${result.value.overallScore}/100 (Grade ${result.value.grade})\n\n` +
     `View the full report:\n${shareUrl.value}\n\n` +
-    `This link expires in 90 days.`
+    `This link expires in 30 days.`
   )
   window.open(`mailto:?subject=${subject}&body=${body}`, '_self')
 }

@@ -1,0 +1,221 @@
+# ICJIA File Accessibility Audit — Full Documentation
+
+> Comprehensive reference for LLMs, AI agents, and automated tools.
+
+## Overview
+
+The ICJIA File Accessibility Audit is a web application that analyzes PDF documents for accessibility compliance. It extracts structural data from PDFs using two complementary parsers (QPDF for tag structure, PDF.js for content extraction), scores the document across 9 weighted categories aligned to WCAG 2.1 Level AA and ADA Title II, and produces a detailed report with findings, remediation guidance, and standards references.
+
+Website: https://audit.icjia.app
+Source: https://github.com/ICJIA/file-accessibility-audit
+Organization: Illinois Criminal Justice Information Authority (https://icjia.illinois.gov)
+
+---
+
+## Category Details
+
+### 1. Text Extractability (20% weight)
+WCAG: 1.3.1 Info and Relationships (Level A), 1.4.5 Images of Text (Level AA)
+Principle: Perceivable
+
+Checks whether the PDF contains real selectable text and a tag structure (StructTreeRoot). This is the most fundamental requirement — if a PDF is a scanned image with no real text, screen readers have nothing to read.
+
+Scoring:
+- 100: Has extractable text AND tag structure
+- 50: Has extractable text but NO tags
+- 25: No text but has tag structure (partially tagged scan)
+- 0: No text and no tags (pure scanned image)
+
+Remediation: Run OCR (Adobe Acrobat: Scan & OCR > Recognize Text), then add tags (Accessibility > Add Tags to Document).
+
+### 2. Document Title & Language (15% weight)
+WCAG: 2.4.2 Page Titled (Level A), 3.1.1 Language of Page (Level A)
+Principle: Operable / Understandable
+
+Checks for a document title in metadata and a language declaration. The title is the first thing a screen reader announces. The language tag controls pronunciation rules.
+
+Scoring:
+- 50 points for title present
+- 50 points for language declared
+
+Remediation: Set title in File > Properties > Description. Set language in File > Properties > Advanced > Language.
+
+### 3. Heading Structure (15% weight)
+WCAG: 1.3.1 Info and Relationships (Level A), 2.4.6 Headings and Labels (Level AA)
+Principle: Perceivable / Operable
+
+Checks for H1-H6 heading tags and validates the hierarchy (no skipped levels).
+
+Scoring:
+- 100: Has headings with logical hierarchy
+- 60: Has headings but hierarchy has gaps
+- 40: Only generic /H tags (no numbered levels)
+- 0: No heading tags at all
+
+Remediation: In the Tags panel, change text that serves as headings to H1-H6 tags in logical order.
+
+### 4. Alt Text on Images (15% weight)
+WCAG: 1.1.1 Non-text Content (Level A)
+Principle: Perceivable
+
+Checks whether Figure tags have alternative text descriptions. N/A if no images detected.
+
+Scoring: Percentage of images with alt text (0-100)
+
+Remediation: In Tags panel, find <Figure> tags, right-click > Properties > enter Alternate Text.
+
+### 5. Bookmarks / Navigation (10% weight)
+WCAG: 2.4.5 Multiple Ways (Level AA)
+Principle: Operable
+
+Checks for bookmarks/outlines in documents with 10+ pages. N/A for shorter documents.
+
+Scoring:
+- 100: Has bookmarks with entries
+- 25: Outline structure present but empty
+- 0: No bookmarks
+
+Remediation: Open Bookmarks panel, create manually or auto-generate from heading tags.
+
+### 6. Table Markup (10% weight)
+WCAG: 1.3.1 Info and Relationships (Level A)
+Principle: Perceivable
+
+Checks whether tables have header cells tagged as TH. N/A if no tables detected.
+
+Scoring:
+- 100: All tables have header tags
+- 40: Some or no tables have headers
+
+Remediation: In Tags panel, change header cell tags from <TD> to <TH>.
+
+### 7. Link & URL Quality (5% weight)
+WCAG: 2.4.4 Link Purpose in Context (Level A)
+Principle: Operable
+
+Checks whether links use descriptive text instead of raw URLs. N/A if no links.
+
+Scoring: Percentage of links with descriptive text (0-100)
+
+Remediation: Replace raw URLs with descriptive link text in the source document.
+
+### 8. Form Accessibility (5% weight)
+WCAG: 1.3.1 Info and Relationships (Level A), 4.1.2 Name, Role, Value (Level A)
+Principle: Perceivable / Robust
+
+Checks whether form fields have tooltip labels (TU attribute). N/A if no forms.
+
+Scoring: Percentage of fields with labels (0-100)
+
+Remediation: Right-click each form field > Properties > General > enter a Tooltip.
+
+### 9. Reading Order (5% weight)
+WCAG: 1.3.2 Meaningful Sequence (Level A)
+Principle: Perceivable
+
+Checks tag structure depth and content ordering via MCID sequences.
+
+Scoring:
+- 100: Logical reading order with nested structure
+- 50: Content order has significant deviations
+- 30: Flat tag structure (no meaningful nesting)
+- 0: No structure tree at all
+
+Remediation: Use the Reading Order tool (Accessibility > Reading Order) to verify and reorder elements.
+
+---
+
+## JSON Export Schema (v2.0)
+
+The JSON export includes machine-readable data designed for LLM consumption:
+
+```json
+{
+  "reportMeta": {
+    "generatedAt": "ISO 8601 timestamp",
+    "generatedAtFormatted": "human-readable date",
+    "tool": "ICJIA File Accessibility Audit",
+    "toolUrl": "https://audit.icjia.app",
+    "schemaVersion": "2.0"
+  },
+  "file": {
+    "name": "filename.pdf",
+    "pages": 12,
+    "isScanned": false
+  },
+  "score": {
+    "overall": 85,
+    "grade": "B",
+    "gradeLabel": "Good"
+  },
+  "executiveSummary": "Human-readable summary of findings",
+  "warnings": [],
+  "categories": [
+    {
+      "id": "text_extractability",
+      "label": "Text Extractability",
+      "score": 100,
+      "grade": "A",
+      "severity": "Pass",
+      "status": "pass | minor | moderate | fail | not-applicable",
+      "findings": ["Human-readable finding strings"],
+      "explanation": "What this category checks",
+      "helpLinks": [{ "label": "...", "url": "..." }],
+      "wcag": {
+        "successCriteria": ["1.3.1 Info and Relationships (Level A)"],
+        "principle": "Perceivable",
+        "remediation": "Step-by-step fix instructions"
+      }
+    }
+  ],
+  "remediationPlan": {
+    "summary": "N categories need remediation",
+    "prioritizedSteps": [
+      {
+        "priority": 1,
+        "category": "Category Name",
+        "currentScore": 0,
+        "severity": "Critical",
+        "wcagCriteria": ["1.3.1 ..."],
+        "action": "Specific remediation steps"
+      }
+    ]
+  },
+  "llmContext": {
+    "description": "Structured context for LLMs",
+    "prompt": "Pre-built prompt summarizing the audit",
+    "standards": ["WCAG 2.1 Level AA", "ADA Title II", "Section 508", "PDF/UA"],
+    "scoringScale": {
+      "pass": "90-100",
+      "minor": "70-89",
+      "moderate": "40-69",
+      "fail": "0-39"
+    }
+  }
+}
+```
+
+---
+
+## API Reference
+
+### POST /api/analyze
+Upload a PDF for accessibility analysis.
+- Content-Type: multipart/form-data
+- Field: "file" (PDF, max 100 MB)
+- Returns: Full analysis result JSON
+
+### POST /api/reports
+Create a shareable report link.
+- Content-Type: application/json
+- Body: { "report": <analysis result object> }
+- Returns: { "id": "uuid" }
+
+### GET /api/reports/:id
+Retrieve a shared report.
+- Returns: { "report": <analysis result>, "sharedBy": "email or anonymous", "createdAt": "ISO date", "expiresAt": "ISO date" }
+- 404 if not found, 410 if expired
+
+### GET /api/health
+Health check.
+- Returns: { "status": "ok", "version": "...", "uptime": ... }
