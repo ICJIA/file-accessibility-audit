@@ -83,7 +83,7 @@ describe('DropZone', () => {
     const wrapper = mount(DropZone)
     // The dragover handler is on the inner div (the dashed-border drop area)
     const dropArea = wrapper.findAll('div').find(d => d.classes().some(c => c.includes('border-dashed')))!
-    await dropArea.trigger('dragover')
+    await dropArea.trigger('dragenter')
     expect(wrapper.text()).toContain('Drop your PDF here')
   })
 })
