@@ -11,7 +11,7 @@ import logsRoutes from './routes/logs.js'
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
 import { validateMailConfig } from './mailer.js'
-import { AUTH } from '#config'
+import { AUTH, DEPLOY } from '#config'
 
 // Validate email config before starting — only needed when auth requires OTP emails
 if (AUTH.REQUIRE_LOGIN) {
@@ -30,7 +30,7 @@ app.use(helmet())
 
 // CORS
 app.use(cors({
-  origin: isProduction ? 'https://audit.icjia.app' : 'http://localhost:5102',
+  origin: isProduction ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL,
   credentials: true,
 }))
 

@@ -3,7 +3,7 @@
     <header class="border-b border-[#222222] px-6 py-4">
       <div class="mx-auto max-w-4xl flex items-center justify-between">
         <h1 class="text-lg font-semibold tracking-tight cursor-pointer hover:text-neutral-300 transition-colors" @click="goAnalyze">
-          ICJIA File Accessibility Audit
+          {{ config.public.appName }}
         </h1>
         <nav v-if="user" class="flex items-center gap-4">
           <a href="/" class="text-sm text-neutral-400 hover:text-white transition-colors cursor-pointer" @click.prevent="goAnalyze">
@@ -95,7 +95,7 @@
               </div>
             </template>
           </UModal>
-          <a href="https://accessibility.icjia.app" target="_blank" rel="noopener noreferrer" class="text-sm text-neutral-400 hover:text-white transition-colors">
+          <a v-if="config.public.faqsUrl" :href="config.public.faqsUrl" target="_blank" rel="noopener noreferrer" class="text-sm text-neutral-400 hover:text-white transition-colors">
             FAQs
           </a>
           <template v-if="user.email !== 'anonymous'">
@@ -121,7 +121,8 @@
     <footer class="border-t border-[#222222] px-6 py-4">
       <div class="mx-auto max-w-4xl flex items-center justify-center gap-4">
         <a
-          href="https://github.com/ICJIA/file-accessibility-audit"
+          v-if="config.public.githubUrl"
+          :href="config.public.githubUrl"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"

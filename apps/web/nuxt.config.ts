@@ -1,6 +1,14 @@
+import { BRANDING, DEPLOY } from '../../audit.config'
+
 const isProd = process.env.NODE_ENV === 'production'
-const siteUrl = isProd ? 'https://audit.icjia.app' : 'http://localhost:5102'
-const apiBase = isProd ? 'https://audit.icjia.app' : 'http://localhost:5103'
+const siteUrl = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.WEB_PORT}`
+const apiBase = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.API_PORT}`
+const appName = BRANDING.APP_NAME
+const orgName = BRANDING.ORG_NAME
+const orgUrl = BRANDING.ORG_URL
+const appDesc = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A–F grade with detailed findings and remediation guidance.'
+const appDescShort = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.'
+const ogAlt = `${appName} — automated PDF scoring across 9 WCAG-aligned categories`
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/seo'],
@@ -9,8 +17,8 @@ export default defineNuxtConfig({
 
   site: {
     url: siteUrl,
-    name: 'ICJIA File Accessibility Audit',
-    description: 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A–F grade with detailed findings and remediation guidance.',
+    name: appName,
+    description: appDesc,
     defaultLocale: 'en',
   },
 
@@ -36,8 +44,8 @@ export default defineNuxtConfig({
   schemaOrg: {
     identity: {
       type: 'Organization',
-      name: 'Illinois Criminal Justice Information Authority',
-      url: 'https://icjia.illinois.gov',
+      name: orgName,
+      url: orgUrl,
       logo: `${siteUrl}/og-image.png`,
     },
   },
@@ -48,9 +56,9 @@ export default defineNuxtConfig({
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      name: 'ICJIA File Accessibility Audit',
+      name: appName,
       url: siteUrl,
-      description: 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A-F grade with detailed findings and remediation guidance.',
+      description: appDesc.replace('–', '-'), // JSON-LD uses ASCII dash
       applicationCategory: 'UtilityApplication',
       operatingSystem: 'Any',
       browserRequirements: 'Requires a modern web browser',
@@ -61,8 +69,8 @@ export default defineNuxtConfig({
       },
       author: {
         '@type': 'Organization',
-        name: 'Illinois Criminal Justice Information Authority',
-        url: 'https://icjia.illinois.gov',
+        name: orgName,
+        url: orgUrl,
       },
       featureList: [
         'PDF accessibility scoring across 9 WCAG 2.1 categories',
@@ -80,27 +88,27 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'en' },
-      title: 'ICJIA File Accessibility Audit',
-      titleTemplate: '%s | ICJIA File Accessibility Audit',
+      title: appName,
+      titleTemplate: `%s | ${appName}`,
       meta: [
-        { name: 'description', content: 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A–F grade with detailed findings and remediation guidance.' },
-        { property: 'og:title', content: 'ICJIA File Accessibility Audit' },
-        { property: 'og:description', content: 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.' },
+        { name: 'description', content: appDesc },
+        { property: 'og:title', content: appName },
+        { property: 'og:description', content: appDescShort },
         { property: 'og:image', content: `${siteUrl}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: 'ICJIA File Accessibility Audit — automated PDF scoring across 9 WCAG-aligned categories' },
+        { property: 'og:image:alt', content: ogAlt },
         { property: 'og:url', content: siteUrl },
         { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: 'ICJIA File Accessibility Audit' },
+        { property: 'og:site_name', content: appName },
         { property: 'og:locale', content: 'en_US' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: 'ICJIA File Accessibility Audit' },
-        { name: 'twitter:description', content: 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.' },
+        { name: 'twitter:title', content: appName },
+        { name: 'twitter:description', content: appDescShort },
         { name: 'twitter:image', content: `${siteUrl}/og-image.png` },
-        { name: 'twitter:image:alt', content: 'ICJIA File Accessibility Audit — automated PDF scoring across 9 WCAG-aligned categories' },
+        { name: 'twitter:image:alt', content: ogAlt },
         { name: 'theme-color', content: '#0a0a0a' },
-        { name: 'author', content: 'Illinois Criminal Justice Information Authority' },
+        { name: 'author', content: orgName },
         { name: 'keywords', content: 'PDF accessibility, WCAG 2.1, ADA Title II, Section 508, accessibility audit, PDF checker, screen reader, accessibility score, document remediation' },
       ],
       link: [
@@ -115,8 +123,12 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      appName: process.env.NUXT_PUBLIC_APP_NAME || 'ICJIA File Accessibility Audit',
+      appName,
       siteUrl,
+      orgName,
+      orgUrl,
+      faqsUrl: BRANDING.FAQS_URL,
+      githubUrl: BRANDING.GITHUB_URL,
     },
   },
 

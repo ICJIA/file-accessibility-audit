@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-> Automated PDF accessibility scoring tool built by the Illinois Criminal Justice Information Authority (ICJIA).
+> Automated PDF accessibility scoring tool built by Illinois Criminal Justice Information Authority.
 
 This web application analyzes PDF documents for accessibility compliance and produces a detailed audit report scored against WCAG 2.1 Level AA and ADA Title II requirements.
 

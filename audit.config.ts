@@ -17,6 +17,41 @@
  */
 
 // ---------------------------------------------------------------------------
+// BRANDING
+// ---------------------------------------------------------------------------
+// All organization-specific branding lives here. Override these values to
+// white-label the tool for a different organization. The defaults are ICJIA.
+//
+// SAFE TO CHANGE: Yes — all values are purely cosmetic or used in URLs.
+// After changing, also update these static files manually:
+//   - apps/web/public/site.webmanifest  (name, short_name)
+//   - apps/web/public/llms.txt          (title, organization, URLs)
+//   - apps/web/public/llms-full.txt     (title, organization, URLs)
+//   - og-image.svg → regenerate og-image.png
+//   - apps/cli/package.json             (package name, if forking)
+// ---------------------------------------------------------------------------
+
+export const BRANDING = {
+  /** Application name displayed in headers, page titles, exports, and emails. */
+  APP_NAME: 'ICJIA File Accessibility Audit',
+
+  /** Short app name (for PWA manifest, browser tabs when space is limited). */
+  APP_SHORT_NAME: 'Accessibility Audit',
+
+  /** Organization name shown in Schema.org, meta tags, and export footers. */
+  ORG_NAME: 'Illinois Criminal Justice Information Authority',
+
+  /** Organization website URL (used in Schema.org identity and JSON-LD author). */
+  ORG_URL: 'https://icjia.illinois.gov',
+
+  /** FAQs / documentation URL shown in the navbar. Set to '' to hide the link. */
+  FAQS_URL: 'https://accessibility.icjia.app',
+
+  /** GitHub repository URL shown in the footer. Set to '' to hide the link. */
+  GITHUB_URL: 'https://github.com/ICJIA/file-accessibility-audit',
+} as const
+
+// ---------------------------------------------------------------------------
 // DEPLOYMENT
 // ---------------------------------------------------------------------------
 
@@ -500,14 +535,6 @@ export const FILENAME = {
 // ---------------------------------------------------------------------------
 
 export const UI = {
-  /**
-   * Application name displayed in the header, page titles, and emails.
-   *
-   * SAFE TO CHANGE: Yes — purely cosmetic. Also update NUXT_PUBLIC_APP_NAME
-   * in apps/web/.env if you want the frontend to pick it up at build time.
-   */
-  APP_NAME: 'File Accessibility Audit',
-
   /**
    * Dark mode color palette. The app is dark-mode-only by design.
    *
