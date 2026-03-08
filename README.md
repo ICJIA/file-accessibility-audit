@@ -370,6 +370,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 | [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md) | Email provider setup and gotchas |
 | [07 — Mailgun Integration](docs/07-mailgun-integration.md) | Mailgun setup (default provider) |
 | [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md) | DOCX accessibility analysis via jszip + XML parsing |
+| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script |
 
 ## Tests
 
