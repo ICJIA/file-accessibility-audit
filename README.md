@@ -411,6 +411,28 @@ pnpm test:scoring        # Scoring model tests only
 | `login.test.ts` | 13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation |
 | `scoring-display.test.ts` | 21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical) |
 
+### Accessibility Compliance (WCAG 2.1 AA)
+
+The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main audit page and shared report pages score **95+** on Lighthouse accessibility audits.
+
+**What's enforced:**
+
+| Requirement | Implementation |
+|-------------|---------------|
+| **Color contrast** | All text meets 4.5:1 minimum ratio against dark backgrounds. Only `text-neutral-300`, `text-neutral-400`, and `text-white` are used — `text-neutral-500` and `text-neutral-600` are banned. |
+| **Semantic landmarks** | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages. |
+| **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`. |
+| **Keyboard accessibility** | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers. |
+| **Click targets** | Expand/collapse buttons span full width (WCAG 2.5.8). |
+| **Heading order** | Valid heading hierarchy (h1 → h2 → h3) on all pages. |
+
+The `accessibility.test.ts` suite (36 tests) guards against regressions:
+
+- **Contrast math** — verifies WCAG luminance ratios for every text color + background combination used in the UI
+- **Source scanning** — reads `.vue` template sections and fails if `text-neutral-500` or `text-neutral-600` appear
+- **Landmark verification** — confirms `<main>`, `<header>`, `<footer>`, `<nav>` exist in layouts and pages
+- **Component-level checks** — keyboard-accessible controls, caveat text, link attributes, no low-opacity text
+
 ## Deployment
 
 **Target:** DigitalOcean droplet (2 vCPU / 4GB RAM, ~$24/mo) → Laravel Forge → PM2 → nginx
@@ -428,29 +450,6 @@ For local production testing (without PM2):
 ```bash
 pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ```
-
-## Accessibility (WCAG 2.1)
-
-The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main audit page and shared report pages score **100** on Lighthouse accessibility audits.
-
-### What's enforced
-
-| Requirement | Implementation |
-|-------------|---------------|
-| **Color contrast** | All text meets 4.5:1 minimum ratio against dark backgrounds. Only `text-neutral-300`, `text-neutral-400`, and `text-white` are used — `text-neutral-500` and `text-neutral-600` are banned. |
-| **Semantic landmarks** | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages. |
-| **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`. |
-| **Keyboard accessibility** | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers. |
-| **Click targets** | Expand/collapse buttons span full width (WCAG 2.5.8). |
-
-### Accessibility tests
-
-The `accessibility.test.ts` suite (36 tests) runs as part of `pnpm test` and guards against regressions:
-
-- **Contrast math** — verifies WCAG luminance ratios for every text color + background combination used in the UI
-- **Source scanning** — reads `.vue` template sections and fails if `text-neutral-500` or `text-neutral-600` appear
-- **Landmark verification** — confirms `<main>`, `<header>`, `<footer>`, `<nav>` exist in layouts and pages
-- **Component-level checks** — keyboard-accessible controls, caveat text, link attributes, no low-opacity text
 
 ## Security
 
