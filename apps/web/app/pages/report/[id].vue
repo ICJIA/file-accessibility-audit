@@ -56,9 +56,7 @@
           <p class="text-sm font-medium mt-1" :style="{ color: gradeColor }">
             {{ gradeLabels[data.report.grade] || '' }}
           </p>
-          <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed mt-4">
-            {{ data.report.executiveSummary }}
-          </p>
+          <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed mt-4" v-html="highlightedSummary" />
           <div class="max-w-lg mx-auto mt-5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] px-5 py-4">
             <p class="text-xs text-neutral-300 leading-relaxed">
               This automated audit provides a reliable initial assessment, but it cannot catch every issue. For the most thorough evaluation, test your PDF directly in
@@ -78,6 +76,36 @@
         <!-- Warnings -->
         <div v-if="data.report.warnings?.length" class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4">
           <p v-for="w in data.report.warnings" :key="w" class="text-yellow-300 text-sm">{{ w }}</p>
+        </div>
+
+        <!-- Methodology -->
+        <div class="mb-8 rounded-xl border border-[#2a2a2a] bg-[#141414] px-6 py-5">
+          <h3 class="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h3>
+          <p class="text-xs text-neutral-400 leading-relaxed mb-4 text-center">
+            This tool uses established open-source libraries to extract and analyze PDF structure. Scores are calculated against
+            <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">WCAG 2.1 Level AA</a>
+            success criteria and
+            <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ADA Title II</a>
+            digital accessibility requirements.
+          </p>
+          <div class="flex flex-wrap justify-center gap-2 mb-4">
+            <a href="https://qpdf.readthedocs.io/" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs text-neutral-300 bg-[#1a1a1a] hover:bg-[#222222] border border-[#222222] rounded-lg px-3 py-1.5 transition-colors">
+              <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
+              QPDF
+              <span class="text-neutral-400">— PDF structure &amp; tag extraction</span>
+            </a>
+            <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs text-neutral-300 bg-[#1a1a1a] hover:bg-[#222222] border border-[#222222] rounded-lg px-3 py-1.5 transition-colors">
+              <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
+              PDF.js <span class="text-neutral-400">(Mozilla)</span>
+              <span class="text-neutral-400">— content &amp; metadata analysis</span>
+            </a>
+          </div>
+          <p class="text-xs text-neutral-400 leading-relaxed text-center">
+            Nine categories are weighted by impact — from text extractability (the most fundamental barrier) to reading order. Categories that don't apply are excluded and weights renormalized.
+            <a :href="auditUrl" class="text-blue-400 hover:text-blue-300">View the full scoring rubric</a> on the audit tool.
+          </p>
         </div>
 
         <!-- Score Table -->
@@ -256,19 +284,9 @@
           </div>
         </div>
 
-        <!-- Download JSON + Bottom CTA -->
+        <!-- Downloads + CTA -->
         <div class="mt-8 text-center rounded-xl border border-[#222222] bg-[#111111] p-6">
-          <p class="text-sm text-neutral-400 mb-4">Want to audit your own PDF?</p>
-          <a
-            :href="auditUrl"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
-          >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-            Audit Your PDF
-          </a>
-          <div class="mt-4 pt-4 border-t border-[#1a1a1a] flex flex-col items-center gap-3">
+          <div class="flex flex-col items-center gap-3">
             <p class="text-xs text-neutral-300 uppercase tracking-wide font-medium">Download Report</p>
             <div class="flex flex-wrap justify-center gap-3">
               <button
@@ -303,10 +321,22 @@
               Word and Markdown for reading, JSON for LLMs (includes WCAG mappings and remediation plan)
             </p>
           </div>
+          <div class="mt-4 pt-4 border-t border-[#1a1a1a]">
+            <p class="text-sm text-neutral-400 mb-3">Want to audit your own PDF?</p>
+            <a
+              :href="auditUrl"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+              Audit Your PDF
+            </a>
+          </div>
         </div>
 
         <!-- Footer -->
-        <div class="mt-10 pt-6 border-t border-[#222222] text-center">
+        <div class="mt-6 pt-6 border-t border-[#222222] text-center">
           <p class="text-xs text-neutral-400">
             Report generated by <a :href="auditUrl" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">{{ appName }}</a> — {{ formatDate(data.createdAt) }}
           </p>
@@ -328,6 +358,27 @@ const appName = config.public.appName as string
 const { data, pending, error } = await useFetch(`/api/reports/${id}`)
 
 const { exportJSON, exportMarkdown, exportDocx } = useReportExport()
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function highlightSeverities(raw: string): string {
+  let text = escapeHtml(raw)
+  text = text.replace(
+    /(\d+ critical(?: accessibility)? issues?)/gi,
+    '<span style="color: #ef4444; font-weight: 600;">$1</span>'
+  )
+  text = text.replace(
+    /(\d+ moderate(?: accessibility)? issues?)/gi,
+    '<span style="color: #eab308; font-weight: 600;">$1</span>'
+  )
+  return text
+}
+
+const highlightedSummary = computed(() => {
+  return highlightSeverities((data.value as any)?.report?.executiveSummary || '')
+})
 
 function downloadJson() {
   if (data.value) {

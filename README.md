@@ -47,10 +47,12 @@ That's it — the app works immediately with authentication disabled (the defaul
 ### Utility Scripts
 
 ```bash
-pnpm clean    # Remove .nuxt, .output, Vite cache, and build artifacts
-pnpm test     # Run all tests with summary
-pnpm dev      # Start API + Web dev servers
-pnpm rebrand  # Regenerate static files after changing BRANDING in audit.config.ts
+pnpm clean      # Remove .nuxt, .output, Vite cache, and build artifacts
+pnpm test       # Run all tests with summary
+pnpm dev        # Start API + Web dev servers
+pnpm build      # Type-check API + build Nuxt frontend
+pnpm start:all  # Start both production servers (kills stale ports, API :5103, Web :5102)
+pnpm rebrand    # Regenerate static files after changing BRANDING in audit.config.ts
 ```
 
 ## Authentication (Optional)
@@ -167,7 +169,9 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 Reports can also be shared via **shareable links** that expire after 30 days. Shared report pages include:
 
 - **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
-- **CTA to audit tool** — prominent link back to the live audit tool (environment-aware: localhost in dev, production URL in prod)
+- **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
+- **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.1 and ADA Title II references, and a link to the full scoring rubric
+- **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — recommendation to verify with Adobe Acrobat and make source documents accessible before PDF export
 
 When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
@@ -274,7 +278,7 @@ file-accessibility-audit/
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Nuxt 4 / Nuxt UI 4 / Dark mode only |
+| Frontend | Nuxt 4 / Nuxt UI 4 / Dark mode only / WCAG 2.1 AA compliant |
 | SEO | @nuxtjs/seo (sitemap, robots, Schema.org, OG) |
 | API | Express / TypeScript / tsx (no build step in dev) |
 | PDF Analysis | QPDF (structure tree) + pdfjs-dist (text/metadata) |
@@ -415,9 +419,14 @@ See [docs/04-deployment-guide.md](docs/04-deployment-guide.md) for full instruct
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter api build
-pnpm --filter web build
-pm2 restart ecosystem.config.cjs --update-env
+pnpm build                                    # Type-check API + build Nuxt
+pm2 restart ecosystem.config.cjs --update-env  # PM2 sets PORT and NODE_ENV
+```
+
+For local production testing (without PM2):
+
+```bash
+pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ```
 
 ## Accessibility (WCAG 2.1)

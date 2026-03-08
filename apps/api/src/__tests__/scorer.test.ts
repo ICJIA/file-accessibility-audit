@@ -14,6 +14,7 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     lang: null,
     hasOutlines: false,
     outlineCount: 0,
+    outlineTitles: [],
     hasAcroForm: false,
     formFields: [],
     images: [],
@@ -371,7 +372,7 @@ describe('grade thresholds', () => {
     // Verify grade based on the score produced
     if (result.overallScore >= 90) expect(result.grade).toBe('A')
     else if (result.overallScore >= 80) expect(result.grade).toBe('B')
-    else fail(`Unexpected score: ${result.overallScore}`)
+    else expect.fail(`Unexpected score: ${result.overallScore}`)
   })
 
   it('score in 80-89 → grade B', () => {

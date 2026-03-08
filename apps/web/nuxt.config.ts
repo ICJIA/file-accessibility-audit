@@ -132,10 +132,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // Proxy API requests in development; in production nginx handles this
+  // Proxy API requests to the local API server; in production nginx handles this
   routeRules: {
     '/api/**': {
-      proxy: { to: `${apiBase}/api/**` },
+      proxy: { to: `http://localhost:${DEPLOY.API_PORT}/api/**` },
     },
   },
 

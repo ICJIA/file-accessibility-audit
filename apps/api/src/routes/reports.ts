@@ -42,7 +42,7 @@ router.get('/reports/:id', (req: Request, res: Response) => {
   try {
     const { id } = req.params
 
-    if (!/^[a-f0-9]{32}$/.test(id)) {
+    if (typeof id !== 'string' || !/^[a-f0-9]{32}$/.test(id)) {
       res.status(400).json({ error: 'Invalid report ID' })
       return
     }

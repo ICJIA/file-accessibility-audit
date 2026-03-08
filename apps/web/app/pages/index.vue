@@ -28,6 +28,35 @@
         <ScoreCard :result="result" />
       </div>
 
+      <!-- Methodology -->
+      <div class="mb-8 rounded-xl border border-[#2a2a2a] bg-[#141414] px-6 py-5">
+        <h3 class="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h3>
+        <p class="text-xs text-neutral-400 leading-relaxed mb-4 text-center">
+          This tool uses established open-source libraries to extract and analyze PDF structure. Scores are calculated against
+          <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">WCAG 2.1 Level AA</a>
+          success criteria and
+          <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ADA Title II</a>
+          digital accessibility requirements.
+        </p>
+        <div class="flex flex-wrap justify-center gap-2 mb-4">
+          <a href="https://qpdf.readthedocs.io/" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 text-xs text-neutral-300 bg-[#1a1a1a] hover:bg-[#222222] border border-[#222222] rounded-lg px-3 py-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
+            QPDF
+            <span class="text-neutral-400">— PDF structure &amp; tag extraction</span>
+          </a>
+          <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 text-xs text-neutral-300 bg-[#1a1a1a] hover:bg-[#222222] border border-[#222222] rounded-lg px-3 py-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
+            PDF.js <span class="text-neutral-400">(Mozilla)</span>
+            <span class="text-neutral-400">— content &amp; metadata analysis</span>
+          </a>
+        </div>
+        <p class="text-xs text-neutral-400 leading-relaxed text-center">
+          Nine categories are weighted by impact — from text extractability (the most fundamental barrier) to reading order. Categories that don't apply are excluded and weights renormalized.
+        </p>
+      </div>
+
       <!-- Score Table -->
       <div class="mb-8 rounded-xl border border-[#222222] bg-[#111111] overflow-hidden">
         <div class="px-5 py-3 border-b border-[#222222]">

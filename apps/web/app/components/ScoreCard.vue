@@ -30,9 +30,7 @@
     </p>
 
     <!-- Summary -->
-    <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed">
-      {{ result.executiveSummary }}
-    </p>
+    <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed" v-html="highlightedSummary" />
 
     <!-- Caveat -->
     <div class="max-w-lg mx-auto mt-5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] px-5 py-4">
@@ -66,4 +64,25 @@ const gradeMap: Record<string, { color: string; label: string }> = {
 
 const gradeColor = computed(() => gradeMap[props.result.grade]?.color || '#666')
 const gradeLabel = computed(() => gradeMap[props.result.grade]?.label || '')
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function highlightSeverities(raw: string): string {
+  let text = escapeHtml(raw)
+  // Highlight "critical" phrases in red
+  text = text.replace(
+    /(\d+ critical(?: accessibility)? issues?)/gi,
+    '<span style="color: #ef4444; font-weight: 600;">$1</span>'
+  )
+  // Highlight "moderate" phrases in yellow
+  text = text.replace(
+    /(\d+ moderate(?: accessibility)? issues?)/gi,
+    '<span style="color: #eab308; font-weight: 600;">$1</span>'
+  )
+  return text
+}
+
+const highlightedSummary = computed(() => highlightSeverities(props.result.executiveSummary))
 </script>
