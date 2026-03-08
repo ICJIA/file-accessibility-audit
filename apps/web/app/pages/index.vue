@@ -30,7 +30,7 @@
 
       <!-- Methodology -->
       <div class="mb-8 rounded-xl border border-[#2a2a2a] bg-[#141414] px-6 py-5">
-        <h3 class="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h3>
+        <h2 class="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h2>
         <p class="text-xs text-neutral-400 leading-relaxed mb-4 text-center">
           This tool uses established open-source libraries to extract and analyze PDF structure. Scores are calculated against
           <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">WCAG 2.1 Level AA</a>
