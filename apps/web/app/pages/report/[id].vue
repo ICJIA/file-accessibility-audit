@@ -30,6 +30,20 @@
           </p>
         </div>
 
+        <!-- Top CTA -->
+        <div class="mb-8 text-center rounded-xl border border-[#222222] bg-[#111111] p-5">
+          <p class="text-sm text-neutral-400 mb-3">Want to audit your own PDF?</p>
+          <a
+            :href="auditUrl"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+            Audit Your PDF
+          </a>
+        </div>
+
         <!-- Score Hero -->
         <div class="text-center mb-8 rounded-xl border border-[#222222] bg-[#111111] p-8">
           <p class="text-sm text-neutral-400 mb-4">
@@ -246,26 +260,59 @@
           </div>
         </div>
 
-        <!-- Download JSON for LLMs -->
-        <div class="mt-8 text-center">
-          <button
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#111] text-sm text-neutral-300 hover:bg-[rgba(34,197,94,0.15)] hover:text-green-400 hover:border-[rgba(34,197,94,0.3)] transition-colors"
-            @click="downloadJson"
+        <!-- Download JSON + Bottom CTA -->
+        <div class="mt-8 text-center rounded-xl border border-[#222222] bg-[#111111] p-6">
+          <p class="text-sm text-neutral-400 mb-4">Want to audit your own PDF?</p>
+          <a
+            :href="auditUrl"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition-colors"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
             </svg>
-            Download JSON Report
-          </button>
-          <p class="text-xs text-neutral-600 mt-2">
-            Machine-readable report with WCAG mappings, remediation plan, and LLM context
-          </p>
+            Audit Your PDF
+          </a>
+          <div class="mt-4 pt-4 border-t border-[#1a1a1a] flex flex-col items-center gap-3">
+            <p class="text-xs text-neutral-500 uppercase tracking-wide font-medium">Download Report</p>
+            <div class="flex flex-wrap justify-center gap-3">
+              <button
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#0a0a0a] text-sm text-neutral-400 hover:bg-[rgba(34,197,94,0.15)] hover:text-green-400 hover:border-[rgba(34,197,94,0.3)] transition-colors"
+                @click="downloadDocx"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Word
+              </button>
+              <button
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#0a0a0a] text-sm text-neutral-400 hover:bg-[rgba(34,197,94,0.15)] hover:text-green-400 hover:border-[rgba(34,197,94,0.3)] transition-colors"
+                @click="downloadMarkdown"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Markdown
+              </button>
+              <button
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#0a0a0a] text-sm text-neutral-400 hover:bg-[rgba(34,197,94,0.15)] hover:text-green-400 hover:border-[rgba(34,197,94,0.3)] transition-colors"
+                @click="downloadJson"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                JSON
+              </button>
+            </div>
+            <p class="text-xs text-neutral-600">
+              Word and Markdown for reading, JSON for LLMs (includes WCAG mappings and remediation plan)
+            </p>
+          </div>
         </div>
 
         <!-- Footer -->
         <div class="mt-10 pt-6 border-t border-[#222222] text-center">
           <p class="text-xs text-neutral-600">
-            Report generated by <a href="https://audit.icjia.app" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ICJIA File Accessibility Audit</a> — {{ formatDate(data.createdAt) }}
+            Report generated by <a :href="auditUrl" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ICJIA File Accessibility Audit</a> — {{ formatDate(data.createdAt) }}
           </p>
         </div>
       </div>
@@ -278,14 +325,28 @@ definePageMeta({ layout: false })
 
 const route = useRoute()
 const id = route.params.id as string
+const config = useRuntimeConfig()
+const auditUrl = config.public.siteUrl as string
 
 const { data, pending, error } = await useFetch(`/api/reports/${id}`)
 
-const { exportJSON } = useReportExport()
+const { exportJSON, exportMarkdown, exportDocx } = useReportExport()
 
 function downloadJson() {
   if (data.value) {
     exportJSON((data.value as any).report)
+  }
+}
+
+function downloadMarkdown() {
+  if (data.value) {
+    exportMarkdown((data.value as any).report)
+  }
+}
+
+function downloadDocx() {
+  if (data.value) {
+    exportDocx((data.value as any).report)
   }
 }
 
