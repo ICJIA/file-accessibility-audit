@@ -37,6 +37,7 @@ export default defineNuxtConfig({
   },
 
   robots: {
+    debug: false,
     groups: [
       {
         userAgent: '*',

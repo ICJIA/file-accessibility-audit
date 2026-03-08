@@ -465,7 +465,19 @@ async function handleShare() {
 
 async function copyShareUrl() {
   if (!shareUrl.value) return
-  await navigator.clipboard.writeText(shareUrl.value)
+  try {
+    await navigator.clipboard.writeText(shareUrl.value)
+  } catch {
+    // Fallback for non-secure contexts or denied permissions
+    const textarea = document.createElement('textarea')
+    textarea.value = shareUrl.value
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
   copied.value = true
   setTimeout(() => { copied.value = false }, 2000)
 }
