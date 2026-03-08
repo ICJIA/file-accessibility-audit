@@ -145,6 +145,14 @@ export default defineNuxtConfig({
     },
   },
 
+  nitro: {
+    esbuild: {
+      options: {
+        target: 'es2022',
+      },
+    },
+  },
+
   devtools: { enabled: false },
   compatibilityDate: '2025-03-06',
 })
