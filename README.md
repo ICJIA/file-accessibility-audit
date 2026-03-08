@@ -464,4 +464,4 @@ The `accessibility.test.ts` suite (36 tests) runs as part of `pnpm test` and gua
 
 ## License
 
-Internal ICJIA tool. Not licensed for external use.
+MIT License. Copyright (c) 2026 Christopher Schweda. See [LICENSE](LICENSE) for details.
