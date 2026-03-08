@@ -433,6 +433,8 @@ The `accessibility.test.ts` suite (36 tests) guards against regressions:
 - **Landmark verification** — confirms `<main>`, `<header>`, `<footer>`, `<nav>` exist in layouts and pages
 - **Component-level checks** — keyboard-accessible controls, caveat text, link attributes, no low-opacity text
 
+**Manual audits:** Full browser-based accessibility audits (axe-core, Lighthouse) are not part of the automated test suite. Run these manually against a running dev or production build using the [axe DevTools extension](https://www.deque.com/axe/devtools/) or Chrome DevTools Lighthouse panel.
+
 ## Deployment
 
 **Target:** DigitalOcean droplet (2 vCPU / 4GB RAM, ~$24/mo) → Laravel Forge → PM2 → nginx
