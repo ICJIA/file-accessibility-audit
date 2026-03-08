@@ -41,45 +41,50 @@ function contrastRatio(fg: string, bg: string): number {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
-// Tailwind neutral scale colors (used in the project)
-const tailwindNeutral: Record<string, string> = {
-  'neutral-300': '#d4d4d4',
-  'neutral-400': '#a3a3a3',
-  'neutral-500': '#737373',
-  'neutral-600': '#525252',
-}
-
-// Background colors used in the dark theme
+// Dark mode CSS variable values (from main.css :root)
 const darkBg = {
   primary: '#0a0a0a',
   card: '#111111',
   cardAlt: '#0d0d0d',
 }
 
+// Light mode CSS variable values (from main.css html.light)
+const lightBg = {
+  primary: '#f9fafb',
+  card: '#ffffff',
+  cardAlt: '#f9fafb',
+}
+
+// Dark mode text colors
+const darkText = {
+  secondary: '#d4d4d4',
+  muted: '#a3a3a3',
+}
+
+// Light mode text colors
+const lightText = {
+  secondary: '#374151',
+  muted: '#4b5563',
+}
+
 // ---------------------------------------------------------------------------
 // WCAG 2.1 Color Contrast Tests (SC 1.4.3 — Level AA: 4.5:1 for normal text)
 // ---------------------------------------------------------------------------
-describe('WCAG 2.1 Color Contrast', () => {
-  it('text-neutral-300 meets 4.5:1 contrast on all dark backgrounds', () => {
-    const fg = tailwindNeutral['neutral-300']
+describe('WCAG 2.1 Color Contrast — Dark Mode', () => {
+  it('dark textSecondary meets 4.5:1 contrast on all dark backgrounds', () => {
+    const fg = darkText.secondary
     for (const [name, bg] of Object.entries(darkBg)) {
       const ratio = contrastRatio(fg, bg)
-      expect(ratio, `neutral-300 on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      expect(ratio, `textSecondary on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
-  it('text-neutral-400 meets 4.5:1 contrast on all dark backgrounds', () => {
-    const fg = tailwindNeutral['neutral-400']
+  it('dark textMuted meets 4.5:1 contrast on all dark backgrounds', () => {
+    const fg = darkText.muted
     for (const [name, bg] of Object.entries(darkBg)) {
       const ratio = contrastRatio(fg, bg)
-      expect(ratio, `neutral-400 on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      expect(ratio, `textMuted on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
     }
-  })
-
-  it('text-neutral-500 does NOT meet 4.5:1 on dark backgrounds (regression guard)', () => {
-    const fg = tailwindNeutral['neutral-500']
-    const ratio = contrastRatio(fg, darkBg.primary)
-    expect(ratio).toBeLessThan(4.5) // Confirms we should never use neutral-500
   })
 
   it('white text meets 4.5:1 on all dark backgrounds', () => {
@@ -97,7 +102,7 @@ describe('WCAG 2.1 Color Contrast', () => {
     }
   })
 
-  it('blue-400 link color meets 4.5:1 on dark backgrounds', () => {
+  it('dark link color (blue-400) meets 4.5:1 on dark backgrounds', () => {
     const blue400 = '#60a5fa'
     for (const [name, bg] of Object.entries(darkBg)) {
       const ratio = contrastRatio(blue400, bg)
@@ -112,8 +117,34 @@ describe('WCAG 2.1 Color Contrast', () => {
   })
 })
 
+describe('WCAG 2.1 Color Contrast — Light Mode', () => {
+  it('light textSecondary meets 4.5:1 contrast on all light backgrounds', () => {
+    const fg = lightText.secondary
+    for (const [name, bg] of Object.entries(lightBg)) {
+      const ratio = contrastRatio(fg, bg)
+      expect(ratio, `textSecondary on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('light textMuted meets 4.5:1 contrast on all light backgrounds', () => {
+    const fg = lightText.muted
+    for (const [name, bg] of Object.entries(lightBg)) {
+      const ratio = contrastRatio(fg, bg)
+      expect(ratio, `textMuted on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('light link color (blue-600) meets 4.5:1 on light backgrounds', () => {
+    const blue600 = '#2563eb'
+    for (const [name, bg] of Object.entries(lightBg)) {
+      const ratio = contrastRatio(blue600, bg)
+      expect(ratio, `blue-600 on ${name}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
+
 // ---------------------------------------------------------------------------
-// Source file contrast regression tests — ensure no text-neutral-500/600 usage
+// Source file contrast regression tests — ensure no hardcoded low-contrast classes
 // ---------------------------------------------------------------------------
 describe('Contrast Regression (no low-contrast classes in source)', () => {
   const sourceFiles = [

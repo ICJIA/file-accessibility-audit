@@ -49,6 +49,12 @@ export const BRANDING = {
 
   /** GitHub repository URL shown in the footer. Set to '' to hide the link. */
   GITHUB_URL: 'https://github.com/ICJIA/file-accessibility-audit',
+
+  /** Default color mode for the UI. Users can toggle between light and dark via the nav.
+   *  Set to 'dark' for a dark-first experience, or 'light' if your agency's branding
+   *  requires a light default. Users can always switch modes via the toggle in the nav bar.
+   *  SAFE TO CHANGE: 'light' | 'dark' */
+  DEFAULT_COLOR_MODE: 'dark' as 'light' | 'dark',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -536,14 +542,13 @@ export const FILENAME = {
 
 export const UI = {
   /**
-   * Dark mode color palette. The app is dark-mode-only by design.
+   * Dark mode color palette (used as CSS variable defaults in :root).
+   * Light mode overrides are defined in apps/web/app/assets/css/main.css
+   * under the html.light selector. The default mode is set by
+   * BRANDING.DEFAULT_COLOR_MODE above.
    *
    * SAFE TO CHANGE: Yes — these are CSS hex colors. Update to match
    * your agency's brand guidelines if needed.
-   *
-   * DO NOT add a "light mode" palette — the design spec (doc 00) explicitly
-   * mandates dark mode only. If you need light mode, that's a design decision
-   * requiring frontend layout changes, not just a config toggle.
    */
   COLORS: {
     background: '#0a0a0a',

@@ -13,6 +13,11 @@ const ogAlt = `${appName} — automated PDF scoring across 9 WCAG-aligned catego
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/seo'],
 
+  colorMode: {
+    preference: BRANDING.DEFAULT_COLOR_MODE,
+    fallback: BRANDING.DEFAULT_COLOR_MODE,
+  },
+
   css: ['~/assets/css/main.css'],
 
   site: {

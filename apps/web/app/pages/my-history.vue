@@ -2,16 +2,16 @@
   <div>
     <h2 class="text-xl font-semibold mb-6">My Analysis History</h2>
 
-    <div v-if="pending" class="text-neutral-400">Loading…</div>
+    <div v-if="pending" class="text-[var(--text-muted)]">Loading…</div>
 
-    <div v-else-if="!data?.data?.length" class="text-neutral-400">
-      No analyses yet. <NuxtLink to="/" class="text-green-400 hover:underline">Analyze a PDF</NuxtLink> to get started.
+    <div v-else-if="!data?.data?.length" class="text-[var(--text-muted)]">
+      No analyses yet. <NuxtLink to="/" class="text-[var(--accent-green)] hover:underline">Analyze a PDF</NuxtLink> to get started.
     </div>
 
     <div v-else>
-      <div class="rounded-xl border border-[#222222] overflow-hidden">
+      <div class="rounded-xl border border-[var(--border)] overflow-hidden">
         <table class="w-full text-sm">
-          <thead class="bg-[#111111] text-neutral-400">
+          <thead class="bg-[var(--surface-card)] text-[var(--text-muted)]">
             <tr>
               <th class="text-left px-4 py-3 font-medium">Filename</th>
               <th class="text-center px-4 py-3 font-medium">Score</th>
@@ -19,9 +19,9 @@
               <th class="text-right px-4 py-3 font-medium">Date</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-[#222222]">
-            <tr v-for="row in data.data" :key="row.id" class="hover:bg-[#111111]/50 transition-colors">
-              <td class="px-4 py-3 text-white">{{ row.filename }}</td>
+          <tbody class="divide-y divide-[var(--border)]">
+            <tr v-for="row in data.data" :key="row.id" class="hover:bg-[var(--surface-card-50)] transition-colors">
+              <td class="px-4 py-3 text-[var(--text-heading)]">{{ row.filename }}</td>
               <td class="text-center px-4 py-3">{{ row.score ?? '—' }}</td>
               <td class="text-center px-4 py-3">
                 <span
@@ -32,7 +32,7 @@
                   {{ row.grade }}
                 </span>
               </td>
-              <td class="text-right px-4 py-3 text-neutral-400">{{ formatDate(row.created_at) }}</td>
+              <td class="text-right px-4 py-3 text-[var(--text-muted)]">{{ formatDate(row.created_at) }}</td>
             </tr>
           </tbody>
         </table>

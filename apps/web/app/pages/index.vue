@@ -2,8 +2,8 @@
   <div>
     <!-- Error state -->
     <div v-if="analysisError" class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6">
-      <h3 class="font-semibold text-red-400 mb-2">{{ analysisError.error }}</h3>
-      <p v-if="analysisError.details" class="text-sm text-neutral-400">{{ analysisError.details }}</p>
+      <h3 class="font-semibold text-[var(--status-error)] mb-2">{{ analysisError.error }}</h3>
+      <p v-if="analysisError.details" class="text-sm text-[var(--text-muted)]">{{ analysisError.details }}</p>
       <UButton class="mt-4" variant="outline" color="neutral" @click="clearResults">
         Try Another File
       </UButton>
@@ -13,58 +13,58 @@
     <div v-else-if="result">
       <!-- Scanned warning banner -->
       <div v-if="result.isScanned" class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4">
-        <p class="text-orange-300 font-medium text-sm">
+        <p class="text-[var(--status-warning-orange)] font-medium text-sm">
           This PDF appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.
         </p>
       </div>
 
       <!-- Warnings -->
       <div v-if="result.warnings?.length" class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4">
-        <p v-for="w in result.warnings" :key="w" class="text-yellow-300 text-sm">{{ w }}</p>
+        <p v-for="w in result.warnings" :key="w" class="text-[var(--status-warning-yellow)] text-sm">{{ w }}</p>
       </div>
 
       <!-- Score Hero -->
-      <div class="text-center mb-8 rounded-xl border border-[#222222] bg-[#111111] p-8">
+      <div class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-8">
         <ScoreCard :result="result" />
       </div>
 
       <!-- Methodology -->
-      <div class="mb-8 rounded-xl border border-[#2a2a2a] bg-[#141414] px-6 py-5">
-        <h2 class="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h2>
-        <p class="text-xs text-neutral-400 leading-relaxed mb-4 text-center">
+      <div class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-6 py-5">
+        <h2 class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h2>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center">
           This tool uses established open-source libraries to extract and analyze PDF structure. Scores are calculated against
-          <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">WCAG 2.1 Level AA</a>
+          <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.1 Level AA</a>
           success criteria and
-          <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ADA Title II</a>
+          <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">ADA Title II</a>
           digital accessibility requirements.
         </p>
         <div class="flex flex-wrap justify-center gap-2 mb-4">
           <a href="https://qpdf.readthedocs.io/" target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 text-xs text-neutral-300 bg-[#1a1a1a] hover:bg-[#222222] border border-[#222222] rounded-lg px-3 py-1.5 transition-colors">
-            <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
+            class="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-icon)] border border-[var(--border)] rounded-lg px-3 py-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
             QPDF
-            <span class="text-neutral-400">— PDF structure &amp; tag extraction</span>
+            <span class="text-[var(--text-muted)]">— PDF structure &amp; tag extraction</span>
           </a>
           <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 text-xs text-neutral-300 bg-[#1a1a1a] hover:bg-[#222222] border border-[#222222] rounded-lg px-3 py-1.5 transition-colors">
-            <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
-            PDF.js <span class="text-neutral-400">(Mozilla)</span>
-            <span class="text-neutral-400">— content &amp; metadata analysis</span>
+            class="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-icon)] border border-[var(--border)] rounded-lg px-3 py-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>
+            PDF.js <span class="text-[var(--text-muted)]">(Mozilla)</span>
+            <span class="text-[var(--text-muted)]">— content &amp; metadata analysis</span>
           </a>
         </div>
-        <p class="text-xs text-neutral-400 leading-relaxed text-center">
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed text-center">
           Nine categories are weighted by impact — from text extractability (the most fundamental barrier) to reading order. Categories that don't apply are excluded and weights renormalized.
         </p>
       </div>
 
       <!-- Score Table -->
-      <div class="mb-8 rounded-xl border border-[#222222] bg-[#111111] overflow-hidden">
-        <div class="px-5 py-3 border-b border-[#222222]">
-          <h2 class="text-sm font-semibold text-neutral-300">Category Scores</h2>
+      <div class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden">
+        <div class="px-5 py-3 border-b border-[var(--border)]">
+          <h2 class="text-sm font-semibold text-[var(--text-secondary)]">Category Scores</h2>
         </div>
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-[#222222] text-neutral-300 text-xs uppercase tracking-wide">
+            <tr class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide">
               <th class="text-left px-5 py-2 font-medium">Category</th>
               <th class="text-center px-3 py-2 font-medium">Score</th>
               <th class="text-center px-3 py-2 font-medium">Grade</th>
@@ -75,9 +75,9 @@
             <tr
               v-for="cat in scoredCategories"
               :key="cat.id"
-              class="border-b border-[#1a1a1a] last:border-0"
+              class="border-b border-[var(--border-subtle)] last:border-0"
             >
-              <td class="px-5 py-2.5 text-neutral-300">{{ cat.label }}</td>
+              <td class="px-5 py-2.5 text-[var(--text-secondary)]">{{ cat.label }}</td>
               <td class="text-center px-3 py-2.5 font-mono" :style="{ color: catColor(cat) }">
                 {{ cat.score }}
               </td>
@@ -87,7 +87,7 @@
                   class="inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
                   :style="{ backgroundColor: catColor(cat) + '20', color: catColor(cat) }"
                 >{{ cat.grade }}</span>
-                <span v-else class="text-neutral-400">—</span>
+                <span v-else class="text-[var(--text-muted)]">—</span>
               </td>
               <td class="text-center px-3 py-2.5">
                 <span
@@ -95,25 +95,25 @@
                   class="text-xs px-2 py-0.5 rounded-full"
                   :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
                 >{{ cat.severity }}</span>
-                <span v-else class="text-neutral-400 text-xs">—</span>
+                <span v-else class="text-[var(--text-muted)] text-xs">—</span>
               </td>
             </tr>
           </tbody>
           <tbody v-if="naCategories.length">
-            <tr class="border-t border-[#222222]">
-              <td colspan="4" class="px-5 py-2 text-xs font-medium text-neutral-300 uppercase tracking-wide bg-[#0d0d0d]">
+            <tr class="border-t border-[var(--border)]">
+              <td colspan="4" class="px-5 py-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide bg-[var(--surface-deep)]">
                 Not Included in Scoring
               </td>
             </tr>
             <tr
               v-for="cat in naCategories"
               :key="cat.id"
-              class="border-b border-[#1a1a1a] last:border-0"
+              class="border-b border-[var(--border-subtle)] last:border-0"
             >
-              <td class="px-5 py-2.5 text-neutral-400">{{ cat.label }}</td>
-              <td class="text-center px-3 py-2.5 font-mono text-neutral-400">N/A</td>
-              <td class="text-center px-3 py-2.5 text-neutral-400">—</td>
-              <td class="text-center px-3 py-2.5 text-neutral-400 text-xs">N/A</td>
+              <td class="px-5 py-2.5 text-[var(--text-muted)]">{{ cat.label }}</td>
+              <td class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]">N/A</td>
+              <td class="text-center px-3 py-2.5 text-[var(--text-muted)]">—</td>
+              <td class="text-center px-3 py-2.5 text-[var(--text-muted)] text-xs">N/A</td>
             </tr>
           </tbody>
         </table>
@@ -126,10 +126,10 @@
         <div
           v-for="cat in scoredCategories"
           :key="cat.id"
-          class="rounded-xl border border-[#222222] bg-[#111111] p-5"
+          class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5"
         >
           <div class="flex items-center gap-3 mb-3">
-            <h3 class="font-semibold text-white">{{ cat.label }}</h3>
+            <h3 class="font-semibold text-[var(--text-heading)]">{{ cat.label }}</h3>
             <span class="text-sm font-mono" :style="{ color: catColor(cat) }">
               {{ cat.score !== null ? `${cat.score}/100` : 'N/A' }}
             </span>
@@ -140,8 +140,8 @@
             >{{ cat.severity }}</span>
           </div>
 
-          <p v-if="cat.explanation" class="text-sm text-neutral-300 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
-            <span class="text-neutral-400 font-medium">What this checks:</span>
+          <p v-if="cat.explanation" class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3">
+            <span class="text-[var(--text-muted)] font-medium">What this checks:</span>
             {{ cat.explanation }}
           </p>
 
@@ -149,18 +149,18 @@
             <li
               v-for="(finding, i) in cat.findings"
               :key="i"
-              class="text-sm text-neutral-400 flex gap-2"
+              class="text-sm text-[var(--text-muted)] flex gap-2"
             >
               <span
                 class="flex-shrink-0 mt-0.5 font-bold"
-                :class="findingIconColor(cat)"
+                :style="findingIconStyle(cat)"
               >{{ findingIcon(cat) }}</span>
               <span>{{ finding }}</span>
             </li>
           </ul>
 
-          <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
-            <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
+          <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+            <span class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Learn more</span>
             <div class="mt-2 flex flex-wrap gap-2">
               <a
                 v-for="link in cat.helpLinks"
@@ -168,7 +168,7 @@
                 :href="link.url"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+                class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
               >
                 {{ link.label }}
                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -182,21 +182,21 @@
 
       <!-- Not Included in Scoring -->
       <div v-if="naCategories.length">
-        <h2 class="text-lg font-semibold mb-4 mt-8 text-neutral-300">Not Included in Scoring</h2>
+        <h2 class="text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]">Not Included in Scoring</h2>
 
         <div class="space-y-4">
           <div
             v-for="cat in naCategories"
             :key="cat.id"
-            class="rounded-xl border border-[#1a1a1a] bg-[#111111] p-5"
+            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5"
           >
             <div class="flex items-center gap-3 mb-3">
-              <h3 class="font-semibold text-neutral-400">{{ cat.label }}</h3>
-              <span class="text-sm font-mono text-neutral-400">N/A</span>
+              <h3 class="font-semibold text-[var(--text-muted)]">{{ cat.label }}</h3>
+              <span class="text-sm font-mono text-[var(--text-muted)]">N/A</span>
             </div>
 
-            <p v-if="cat.explanation" class="text-sm text-neutral-300 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
-              <span class="text-neutral-400 font-medium">What this checks:</span>
+            <p v-if="cat.explanation" class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3">
+              <span class="text-[var(--text-muted)] font-medium">What this checks:</span>
               {{ cat.explanation }}
             </p>
 
@@ -204,15 +204,15 @@
               <li
                 v-for="(finding, i) in cat.findings"
                 :key="i"
-                class="text-sm text-neutral-400 flex gap-2"
+                class="text-sm text-[var(--text-muted)] flex gap-2"
               >
-                <span class="flex-shrink-0 mt-0.5 font-bold text-yellow-500">–</span>
+                <span class="flex-shrink-0 mt-0.5 font-bold" :style="{ color: 'var(--icon-na)' }">–</span>
                 <span>{{ finding }}</span>
               </li>
             </ul>
 
-            <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
-              <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
+            <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+              <span class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Learn more</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 <a
                   v-for="link in cat.helpLinks"
@@ -220,7 +220,7 @@
                   :href="link.url"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+                  class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
                 >
                   {{ link.label }}
                   <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -234,9 +234,9 @@
       </div>
 
       <!-- Export & Share -->
-      <div class="mt-8 rounded-xl border border-[#222222] bg-[#111111] p-5 report-actions">
+      <div class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 report-actions">
         <!-- Download row -->
-        <p class="text-sm font-medium text-neutral-400 mb-3 text-center">Download Report</p>
+        <p class="text-sm font-medium text-[var(--text-muted)] mb-3 text-center">Download Report</p>
         <div class="flex flex-wrap gap-2 justify-center">
           <UButton variant="soft" color="neutral" size="sm" @click="exportDocx(result)" :loading="exporting">
             <template #leading>
@@ -265,10 +265,10 @@
         </div>
 
         <!-- Share divider -->
-        <div class="border-t border-[#222222] my-4" />
+        <div class="border-t border-[var(--border)] my-4" />
 
         <!-- Share row -->
-        <p class="text-sm font-medium text-neutral-400 mb-3 text-center">Share Report</p>
+        <p class="text-sm font-medium text-[var(--text-muted)] mb-3 text-center">Share Report</p>
 
         <div v-if="!shareUrl">
           <div class="flex flex-wrap gap-2 justify-center">
@@ -285,8 +285,8 @@
               Create Shareable Link
             </UButton>
           </div>
-          <p class="text-xs text-neutral-400 mt-2 text-center">Creates a public link anyone can view. Expires in 30 days.</p>
-          <p v-if="shareError" class="text-xs text-red-400 mt-1">{{ shareError }}</p>
+          <p class="text-xs text-[var(--text-muted)] mt-2 text-center">Creates a public link anyone can view. Expires in 30 days.</p>
+          <p v-if="shareError" class="text-xs text-[var(--status-error)] mt-1">{{ shareError }}</p>
         </div>
 
         <!-- Share URL display -->
@@ -296,7 +296,7 @@
               type="text"
               :value="shareUrl"
               readonly
-              class="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-neutral-300 font-mono select-all"
+              class="flex-1 bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] font-mono select-all"
               @focus="($event.target as HTMLInputElement).select()"
             >
             <UButton variant="soft" color="neutral" size="sm" @click="copyShareUrl">
@@ -330,12 +330,12 @@
     <!-- Drop zone (idle state) -->
     <div v-else>
       <div class="mb-8 text-center">
-        <h2 class="text-2xl font-bold tracking-tight mb-3 text-green-400">Check your PDFs for accessibility</h2>
-        <p class="text-neutral-300 font-medium max-w-xl mx-auto leading-relaxed">
+        <h2 class="text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]">Check your PDFs for accessibility</h2>
+        <p class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed">
           Upload a PDF to get an instant accessibility score based on
-          <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-300 font-semibold">WCAG 2.1</a>
+          <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold">WCAG 2.1</a>
           and
-          <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-300 font-semibold">ADA Title II</a>
+          <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold">ADA Title II</a>
           requirements. The audit checks nine categories — text extractability, heading structure, alt text, table markup, and more — and returns a detailed report with actionable findings.
         </p>
       </div>
@@ -343,17 +343,17 @@
       <DropZone @file-selected="analyzeFile" />
 
       <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-        <div class="rounded-xl border border-[#222222] bg-[#111111] p-5">
-          <div class="text-3xl font-black text-green-400 mb-2">9 Categories</div>
-          <p class="text-sm text-neutral-400">Accessibility categories scored across structure, navigation, and content</p>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
+          <div class="text-3xl font-black text-[var(--accent-green)] mb-2">9 Categories</div>
+          <p class="text-sm text-[var(--text-muted)]">Accessibility categories scored across structure, navigation, and content</p>
         </div>
-        <div class="rounded-xl border border-[#222222] bg-[#111111] p-5">
-          <div class="text-3xl font-black text-green-400 mb-2">Accessibility Readiness</div>
-          <p class="text-sm text-neutral-400">Letter grade with severity levels so you know what to fix first</p>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
+          <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Accessibility Readiness</div>
+          <p class="text-sm text-[var(--text-muted)]">Letter grade with severity levels so you know what to fix first</p>
         </div>
-        <div class="rounded-xl border border-[#222222] bg-[#111111] p-5">
-          <div class="text-3xl font-black text-green-400 mb-2">Export & Share</div>
-          <p class="text-sm text-neutral-400">Download reports as Word, HTML, Markdown, or JSON and share via link</p>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
+          <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Export & Share</div>
+          <p class="text-sm text-[var(--text-muted)]">Download reports as Word, HTML, Markdown, or JSON and share via link</p>
         </div>
       </div>
     </div>
@@ -448,12 +448,12 @@ function findingIcon(cat: any): string {
   return '✗'
 }
 
-function findingIconColor(cat: any): string {
-  if (cat.score === null) return 'text-yellow-500'
-  if (cat.score >= 90) return 'text-green-500'
-  if (cat.score >= 70) return 'text-blue-400'
-  if (cat.score >= 40) return 'text-yellow-500'
-  return 'text-red-500'
+function findingIconStyle(cat: any): Record<string, string> {
+  if (cat.score === null) return { color: 'var(--icon-na)' }
+  if (cat.score >= 90) return { color: 'var(--icon-pass)' }
+  if (cat.score >= 70) return { color: 'var(--icon-info)' }
+  if (cat.score >= 40) return { color: 'var(--icon-na)' }
+  return { color: 'var(--icon-fail)' }
 }
 
 const copied = ref(false)

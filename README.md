@@ -278,7 +278,7 @@ file-accessibility-audit/
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Nuxt 4 / Nuxt UI 4 / Dark mode only / WCAG 2.1 AA compliant |
+| Frontend | Nuxt 4 / Nuxt UI 4 / Light & dark mode / WCAG 2.1 AA compliant |
 | SEO | @nuxtjs/seo (sitemap, robots, Schema.org, OG) |
 | API | Express / TypeScript / tsx (no build step in dev) |
 | PDF Analysis | QPDF (structure tree) + pdfjs-dist (text/metadata) |
@@ -313,6 +313,7 @@ export const BRANDING = {
   ORG_URL: 'https://icjia.illinois.gov',        // Schema.org identity link
   FAQS_URL: 'https://accessibility.icjia.app',  // Navbar FAQs link ('' to hide)
   GITHUB_URL: 'https://github.com/ICJIA/...',   // Footer GitHub link ('' to hide)
+  DEFAULT_COLOR_MODE: 'dark',                    // 'light' or 'dark' — user can toggle
 }
 ```
 
@@ -322,6 +323,7 @@ These values flow automatically into:
 |-------|-------------|
 | **Header** | App name in the top-left |
 | **Page titles & SEO** | `<title>`, Open Graph, Twitter Cards, Schema.org |
+| **Color mode** | Default light or dark mode preference |
 | **Shared report pages** | Report title, footer attribution, CTA link |
 | **Report exports** | Markdown footer, JSON `reportMeta`, DOCX footer, HTML footer |
 | **Navbar** | FAQs link (hidden when `FAQS_URL` is `''`) |
@@ -371,7 +373,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**271 tests** across 9 test files. Run all with a summary at the end:
+**324 tests** across 10 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -387,9 +389,9 @@ pnpm test:scoring        # Scoring model tests only
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      168 passed (5 files)
-  ✔ Web      103 passed (4 files)
+  ✔ Web      156 passed (5 files)
 ────────────────────────────────────────────────────────────
-  ✔ 271 tests passed across 9 files
+  ✔ 324 tests passed across 10 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -403,11 +405,12 @@ pnpm test:scoring        # Scoring model tests only
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
 | `integration.test.ts` | 27 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents |
 
-### Web Tests (103 tests)
+### Web Tests (156 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
-| `accessibility.test.ts` | 36 | WCAG 2.1 color contrast verification (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
+| `accessibility.test.ts` | 38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
+| `color-mode.test.ts` | 51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks |
 | `components.test.ts` | 33 | DropZone (drag/drop, PDF validation, file size limits), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages) |
 | `login.test.ts` | 13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation |
 | `scoring-display.test.ts` | 21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical) |
@@ -420,14 +423,14 @@ The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main au
 
 | Requirement | Implementation |
 |-------------|---------------|
-| **Color contrast** | All text meets 4.5:1 minimum ratio against dark backgrounds. Only `text-neutral-300`, `text-neutral-400`, and `text-white` are used — `text-neutral-500` and `text-neutral-600` are banned. |
+| **Color contrast** | All text meets 4.5:1 minimum ratio in both dark and light modes. CSS custom properties ensure correct contrast for every theme. `text-neutral-500` and `text-neutral-600` are banned. |
 | **Semantic landmarks** | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages. |
 | **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`. |
 | **Keyboard accessibility** | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers. |
 | **Click targets** | Expand/collapse buttons span full width (WCAG 2.5.8). |
 | **Heading order** | Valid heading hierarchy (h1 → h2 → h3) on all pages. |
 
-The `accessibility.test.ts` suite (36 tests) guards against regressions:
+The `accessibility.test.ts` (38 tests) and `color-mode.test.ts` (51 tests) suites guard against regressions:
 
 - **Contrast math** — verifies WCAG luminance ratios for every text color + background combination used in the UI
 - **Source scanning** — reads `.vue` template sections and fails if `text-neutral-500` or `text-neutral-600` appear

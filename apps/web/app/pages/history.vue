@@ -2,16 +2,16 @@
   <div>
     <h2 class="text-xl font-semibold mb-6">Admin — Audit Log</h2>
 
-    <div v-if="pending" class="text-neutral-400">Loading…</div>
+    <div v-if="pending" class="text-[var(--text-muted)]">Loading…</div>
 
-    <div v-else-if="error" class="text-red-400">
+    <div v-else-if="error" class="text-[var(--status-error)]">
       {{ error.data?.error || 'Failed to load audit logs' }}
     </div>
 
     <div v-else-if="data">
-      <div class="rounded-xl border border-[#222222] overflow-hidden">
+      <div class="rounded-xl border border-[var(--border)] overflow-hidden">
         <table class="w-full text-sm">
-          <thead class="bg-[#111111] text-neutral-400">
+          <thead class="bg-[var(--surface-card)] text-[var(--text-muted)]">
             <tr>
               <th class="text-left px-4 py-3 font-medium">Event</th>
               <th class="text-left px-4 py-3 font-medium">Email</th>
@@ -20,8 +20,8 @@
               <th class="text-right px-4 py-3 font-medium">Date</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-[#222222]">
-            <tr v-for="row in data.data" :key="row.id" class="hover:bg-[#111111]/50 transition-colors">
+          <tbody class="divide-y divide-[var(--border)]">
+            <tr v-for="row in data.data" :key="row.id" class="hover:bg-[var(--surface-card-50)] transition-colors">
               <td class="px-4 py-3">
                 <UBadge
                   :color="eventColor(row.event_type)"
@@ -31,10 +31,10 @@
                   {{ row.event_type }}
                 </UBadge>
               </td>
-              <td class="px-4 py-3 text-neutral-300">{{ row.email }}</td>
-              <td class="px-4 py-3 text-white">{{ row.filename || '—' }}</td>
+              <td class="px-4 py-3 text-[var(--text-secondary)]">{{ row.email }}</td>
+              <td class="px-4 py-3 text-[var(--text-heading)]">{{ row.filename || '—' }}</td>
               <td class="text-center px-4 py-3">{{ row.grade || '—' }}</td>
-              <td class="text-right px-4 py-3 text-neutral-400">
+              <td class="text-right px-4 py-3 text-[var(--text-muted)]">
                 {{ new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }}
               </td>
             </tr>

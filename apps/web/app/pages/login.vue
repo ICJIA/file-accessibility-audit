@@ -2,7 +2,7 @@
   <div class="flex items-center justify-center min-h-[80vh]">
     <div v-if="ready" class="w-full max-w-md">
       <!-- Card -->
-      <div class="rounded-2xl border border-[#2a2a2a] bg-[#111111] shadow-2xl shadow-black/50 overflow-hidden">
+      <div class="rounded-2xl border border-[var(--border-alt)] bg-[var(--surface-card)] shadow-2xl shadow-black/50 overflow-hidden">
         <!-- Card header with accent bar -->
         <div class="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-green-500" />
 
@@ -12,8 +12,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-bold text-white">Sign In</h2>
-          <p class="mt-2 text-sm text-neutral-400">
+          <h2 class="text-2xl font-bold text-[var(--text-heading)]">Sign In</h2>
+          <p class="mt-2 text-sm text-[var(--text-muted)]">
             {{ otpSent ? 'Enter the code we sent you' : 'Enter your @illinois.gov email to get started' }}
           </p>
         </div>
@@ -33,7 +33,7 @@
               />
             </UFormField>
 
-            <div v-if="error" class="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+            <div v-if="error" class="text-sm text-[var(--status-error)] bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
               {{ error }}
             </div>
 
@@ -47,15 +47,15 @@
               Send Verification Code
             </UButton>
 
-            <p class="text-xs text-center text-neutral-400">
-              Only <span class="text-neutral-400">@illinois.gov</span> emails are accepted
+            <p class="text-xs text-center text-[var(--text-muted)]">
+              Only <span class="text-[var(--text-muted)]">@illinois.gov</span> emails are accepted
             </p>
           </form>
 
           <!-- Step 2: OTP -->
           <form v-else @submit.prevent="verifyOTP" class="space-y-5">
-            <div class="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-sm text-green-400">
-              Code sent to <strong class="text-green-300">{{ email }}</strong>
+            <div class="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-sm text-[var(--status-success)]">
+              Code sent to <strong class="text-[var(--status-success)]">{{ email }}</strong>
             </div>
 
             <UFormField label="Verification code">
@@ -73,7 +73,7 @@
               />
             </UFormField>
 
-            <div v-if="error" class="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+            <div v-if="error" class="text-sm text-[var(--status-error)] bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
               {{ error }}
             </div>
 
@@ -89,10 +89,10 @@
 
             <button
               type="button"
-              class="w-full text-sm text-neutral-400 hover:text-orange-400 transition-colors cursor-pointer"
+              class="w-full text-sm text-[var(--text-muted)] hover:text-[var(--accent-orange)] transition-colors cursor-pointer"
               @click="reset"
             >
-              ← Use a different email
+              &larr; Use a different email
             </button>
           </form>
         </div>

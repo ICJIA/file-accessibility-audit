@@ -1,116 +1,131 @@
 <template>
   <div>
-    <header class="border-b border-[#222222] px-6 py-4">
+    <header class="border-b border-[var(--border)] px-6 py-4">
       <div class="mx-auto max-w-4xl flex items-center justify-between">
-        <h1 class="text-lg font-semibold tracking-tight cursor-pointer hover:text-neutral-300 transition-colors" @click="goAnalyze">
+        <h1 class="text-lg font-semibold tracking-tight cursor-pointer hover:text-[var(--text-secondary)] transition-colors" @click="goAnalyze">
           {{ config.public.appName }}
         </h1>
-        <nav v-if="user" class="flex items-center gap-4">
-          <a href="/" class="text-sm text-neutral-400 hover:text-white transition-colors cursor-pointer" @click.prevent="goAnalyze">
-            Analyze
-          </a>
-          <UModal title="Scoring Rubric" description="How accessibility scores are calculated for PDFs">
-            <button class="text-sm text-neutral-400 hover:text-white transition-colors cursor-pointer">
-              Scoring
-            </button>
-            <template #content="{ close }">
-              <div class="max-w-2xl mx-auto">
-                <div class="flex items-center justify-between px-6 pt-5 pb-3">
-                  <div>
-                    <h2 class="text-lg font-semibold text-white">Scoring Rubric</h2>
-                    <p class="text-sm text-neutral-400">How accessibility scores are calculated for PDFs</p>
+        <div class="flex items-center gap-4">
+          <nav v-if="user" class="flex items-center gap-4">
+            <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer" @click.prevent="goAnalyze">
+              Analyze
+            </a>
+            <UModal title="Scoring Rubric" description="How accessibility scores are calculated for PDFs">
+              <button class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer">
+                Scoring
+              </button>
+              <template #content="{ close }">
+                <div class="max-w-2xl mx-auto">
+                  <div class="flex items-center justify-between px-6 pt-5 pb-3">
+                    <div>
+                      <h2 class="text-lg font-semibold text-[var(--text-heading)]">Scoring Rubric</h2>
+                      <p class="text-sm text-[var(--text-muted)]">How accessibility scores are calculated for PDFs</p>
+                    </div>
+                    <button class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors" @click="close">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
-                  <button class="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-[#222222] transition-colors" @click="close">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div class="px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
-                  <p class="text-neutral-400 leading-relaxed">
-                    Each PDF is scored across nine accessibility categories based on
-                    <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">WCAG 2.1</a>
-                    and
-                    <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ADA Title II</a>
-                    requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
-                  </p>
+                  <div class="px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
+                    <p class="text-[var(--text-muted)] leading-relaxed">
+                      Each PDF is scored across nine accessibility categories based on
+                      <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.1</a>
+                      and
+                      <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">ADA Title II</a>
+                      requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
+                    </p>
 
-                  <div class="rounded-lg border border-[#222222] overflow-hidden">
-                    <table class="w-full text-sm">
-                      <thead>
-                        <tr class="border-b border-[#222222] text-neutral-300 text-xs uppercase tracking-wide">
-                          <th class="text-left px-4 py-2 font-medium">Category</th>
-                          <th class="text-center px-3 py-2 font-medium">Weight</th>
-                          <th class="text-left px-4 py-2 font-medium">Why It Matters</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="cat in rubricCategories" :key="cat.id" class="border-b border-[#1a1a1a] last:border-0">
-                          <td class="px-4 py-2.5 text-neutral-300 font-medium whitespace-nowrap">{{ cat.label }}</td>
-                          <td class="text-center px-3 py-2.5 font-mono text-neutral-400">{{ cat.weight }}%</td>
-                          <td class="px-4 py-2.5 text-neutral-400 leading-relaxed">{{ cat.rationale }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                    <div class="rounded-lg border border-[var(--border)] overflow-hidden">
+                      <table class="w-full text-sm">
+                        <thead>
+                          <tr class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide">
+                            <th class="text-left px-4 py-2 font-medium">Category</th>
+                            <th class="text-center px-3 py-2 font-medium">Weight</th>
+                            <th class="text-left px-4 py-2 font-medium">Why It Matters</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="cat in rubricCategories" :key="cat.id" class="border-b border-[var(--border-subtle)] last:border-0">
+                            <td class="px-4 py-2.5 text-[var(--text-secondary)] font-medium whitespace-nowrap">{{ cat.label }}</td>
+                            <td class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]">{{ cat.weight }}%</td>
+                            <td class="px-4 py-2.5 text-[var(--text-muted)] leading-relaxed">{{ cat.rationale }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
-                  <div>
-                    <h3 class="font-semibold text-neutral-300 mb-3">Grade Scale</h3>
-                    <div class="grid grid-cols-5 gap-2">
-                      <div v-for="g in grades" :key="g.grade" class="text-center rounded-lg border border-[#222222] bg-[#0d0d0d] py-2.5">
-                        <span class="text-lg font-black block" :style="{ color: g.color }">{{ g.grade }}</span>
-                        <span class="text-xs text-neutral-400">{{ g.min }}–{{ g.max }}</span>
+                    <div>
+                      <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Grade Scale</h3>
+                      <div class="grid grid-cols-5 gap-2">
+                        <div v-for="g in grades" :key="g.grade" class="text-center rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] py-2.5">
+                          <span class="text-lg font-black block" :style="{ color: g.color }">{{ g.grade }}</span>
+                          <span class="text-xs text-[var(--text-muted)]">{{ g.min }}–{{ g.max }}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h3 class="font-semibold text-neutral-300 mb-3">Severity Levels</h3>
-                    <div class="space-y-2">
-                      <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
-                        <span class="text-xs px-2 py-0.5 rounded-full w-20 text-center" :style="{ backgroundColor: s.color + '15', color: s.color }">{{ s.label }}</span>
-                        <span class="text-neutral-400">{{ s.description }}</span>
+                    <div>
+                      <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Severity Levels</h3>
+                      <div class="space-y-2">
+                        <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
+                          <span class="text-xs px-2 py-0.5 rounded-full w-20 text-center" :style="{ backgroundColor: s.color + '15', color: s.color }">{{ s.label }}</span>
+                          <span class="text-[var(--text-muted)]">{{ s.description }}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h3 class="font-semibold text-neutral-300 mb-3">Reference Documents</h3>
-                    <div class="flex flex-wrap gap-2">
-                      <a v-for="link in referenceLinks" :key="link.url" :href="link.url" target="_blank" rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
-                      >
-                        {{ link.label }}
-                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
-                      </a>
+                    <div>
+                      <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Reference Documents</h3>
+                      <div class="flex flex-wrap gap-2">
+                        <a v-for="link in referenceLinks" :key="link.url" :href="link.url" target="_blank" rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+                        >
+                          {{ link.label }}
+                          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                          </svg>
+                        </a>
+                      </div>
                     </div>
-                  </div>
 
-                  <p class="text-neutral-400 text-xs leading-relaxed">
-                    Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. The highest-weighted categories reflect the most fundamental barriers to access — if a document has no extractable text, no other accessibility feature can compensate.
-                  </p>
+                    <p class="text-[var(--text-muted)] text-xs leading-relaxed">
+                      Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. The highest-weighted categories reflect the most fundamental barriers to access — if a document has no extractable text, no other accessibility feature can compensate.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </template>
+            </UModal>
+            <a v-if="config.public.faqsUrl" :href="config.public.faqsUrl" target="_blank" rel="noopener noreferrer" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors">
+              FAQs
+            </a>
+            <template v-if="user.email !== 'anonymous'">
+              <NuxtLink to="/my-history" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors">
+                My History
+              </NuxtLink>
+              <NuxtLink v-if="user.isAdmin" to="/history" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors">
+                Admin Logs
+              </NuxtLink>
+              <span class="text-xs text-[var(--text-muted)]">{{ user.email }}</span>
+              <UButton size="xs" variant="ghost" color="neutral" @click="logout">
+                Logout
+              </UButton>
             </template>
-          </UModal>
-          <a v-if="config.public.faqsUrl" :href="config.public.faqsUrl" target="_blank" rel="noopener noreferrer" class="text-sm text-neutral-400 hover:text-white transition-colors">
-            FAQs
-          </a>
-          <template v-if="user.email !== 'anonymous'">
-            <NuxtLink to="/my-history" class="text-sm text-neutral-400 hover:text-white transition-colors">
-              My History
-            </NuxtLink>
-            <NuxtLink v-if="user.isAdmin" to="/history" class="text-sm text-neutral-400 hover:text-white transition-colors">
-              Admin Logs
-            </NuxtLink>
-            <span class="text-xs text-neutral-400">{{ user.email }}</span>
-            <UButton size="xs" variant="ghost" color="neutral" @click="logout">
-              Logout
-            </UButton>
-          </template>
-        </nav>
+          </nav>
+          <!-- Color mode toggle -->
+          <button
+            class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+            :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+            @click="toggleColorMode"
+          >
+            <svg v-if="colorMode.value === 'dark'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -118,7 +133,7 @@
       <slot />
     </main>
 
-    <footer class="border-t border-[#222222] px-6 py-4">
+    <footer class="border-t border-[var(--border)] px-6 py-4">
       <div class="mx-auto max-w-4xl">
 
         <!-- GitHub link -->
@@ -128,7 +143,7 @@
             :href="config.public.githubUrl"
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+            class="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
           >
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
             GitHub
@@ -145,6 +160,12 @@ const config = useRuntimeConfig()
 const user = inject<Ref<any>>('user')
 const goAnalyze = inject<() => void>('goAnalyze')
 const logout = inject<() => void>('logout')
+
+const colorMode = useColorMode()
+
+function toggleColorMode() {
+  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
+}
 
 const rubricCategories = [
   { id: 'text_extractability', label: 'Text Extractability', weight: 20, rationale: 'WCAG 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.' },

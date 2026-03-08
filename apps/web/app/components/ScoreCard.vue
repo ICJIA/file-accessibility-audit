@@ -1,6 +1,6 @@
 <template>
   <div class="text-center space-y-4">
-    <p class="text-sm text-neutral-400">
+    <p class="text-sm text-[var(--text-muted)]">
       {{ result.filename }} — {{ result.pageCount }} page{{ result.pageCount !== 1 ? 's' : '' }}
     </p>
 
@@ -21,7 +21,7 @@
 
     <!-- Score -->
     <p class="text-3xl font-bold">
-      {{ result.overallScore }}<span class="text-lg text-neutral-300">/100</span>
+      {{ result.overallScore }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
     </p>
 
     <!-- Label -->
@@ -30,13 +30,13 @@
     </p>
 
     <!-- Summary -->
-    <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed" v-html="highlightedSummary" />
+    <p class="text-sm text-[var(--text-muted)] max-w-lg mx-auto leading-relaxed" v-html="highlightedSummary" />
 
     <!-- Caveat -->
-    <div class="max-w-lg mx-auto mt-5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] px-5 py-4">
-      <p class="text-xs text-neutral-300 leading-relaxed">
+    <div class="max-w-lg mx-auto mt-5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border-alt)] px-5 py-4">
+      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
         This automated audit provides a reliable initial assessment, but it cannot catch every issue. For the most thorough evaluation, test your PDF directly in
-        <a href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">Adobe Acrobat's Accessibility Checker</a>.
+        <a href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)] underline">Adobe Acrobat's Accessibility Checker</a>.
         Whenever possible, ensure your source document (Word, InDesign, etc.) is accessible before generating the PDF — retrofitting accessibility after export is more difficult and less reliable.
       </p>
     </div>
@@ -74,12 +74,12 @@ function highlightSeverities(raw: string): string {
   // Highlight "critical" phrases in red
   text = text.replace(
     /(\d+ critical(?: accessibility)? issues?)/gi,
-    '<span style="color: #ef4444; font-weight: 600;">$1</span>'
+    '<span style="color: var(--icon-fail); font-weight: 600;">$1</span>'
   )
   // Highlight "moderate" phrases in yellow
   text = text.replace(
     /(\d+ moderate(?: accessibility)? issues?)/gi,
-    '<span style="color: #eab308; font-weight: 600;">$1</span>'
+    '<span style="color: var(--icon-na); font-weight: 600;">$1</span>'
   )
   return text
 }
