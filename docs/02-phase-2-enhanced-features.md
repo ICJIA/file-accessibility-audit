@@ -48,11 +48,11 @@ Replace the original client-side URL encoding approach (which hits browser URL l
 - After analysis, a "Share" button sends the report data to `POST /api/reports`
 - Server stores the report in the `shared_reports` SQLite table (schema in 00-master-design.md, Section 8)
 - Server returns a short, shareable URL: `https://audit.icjia.app/report/<uuid>` (base URL from `audit.config.ts → DEPLOY.PRODUCTION_URL`)
-- Shared reports expire after `SHARED_REPORTS.EXPIRY_DAYS` days (default **90**) — a cleanup job purges expired rows
+- Shared reports expire after `SHARED_REPORTS.EXPIRY_DAYS` days (default **30**) — a cleanup job purges expired rows
 - The `/report/:id` page fetches `GET /api/reports/:id` and renders a read-only report view
 - **No authentication required** to view a shared report — the UUID is the access token
 - Shared view includes a disclaimer: *"This report was generated on [date] and reflects the document's accessibility at that time. This link expires on [expiry date]."*
-- If a shared report has expired, the page shows: *"This report has expired. Reports are available for 90 days after creation."*
+- If a shared report has expired, the page shows: *"This report has expired. Reports are available for 30 days after creation."*
 - **Rate limit**: `POST /api/reports` is rate-limited per `audit.config.ts → RATE_LIMITS.reports` (default 10/user/hour) to prevent database fill attacks (see 00-master-design.md, Section 9)
 - **Report UUID security**: report IDs use `crypto.randomUUID()` (122 bits of entropy). The API returns 404 for both expired and non-existent IDs to prevent enumeration.
 - **Payload size limit**: the `reportData` JSON body is limited per `audit.config.ts → SHARED_REPORTS.MAX_PAYLOAD_BYTES` (default 1MB). Reports exceeding this are rejected with 413.
@@ -87,7 +87,7 @@ Build checklist:
 - [ ] Share button: stores report and generates short URL
 - [ ] Shared report: renders read-only report without authentication
 - [ ] Shared report: expired report shows expiry message
-- [ ] Shared report: report data persists in SQLite for 90 days
+- [ ] Shared report: report data persists in SQLite for 30 days
 - [ ] Shared report: cleanup job removes expired reports
 - [ ] Report creation: 11th report in 1 hour returns 429
 - [ ] Report ID: cannot enumerate reports by incrementing IDs
@@ -104,7 +104,7 @@ Phase 2 is complete when:
 1. Users can upload and score both PDF and DOCX files
 2. Users can upload up to 10 files in a single batch and view a summary table
 3. Users can export batch results as CSV
-4. Users can share a report via a short URL that renders without auth and expires after 90 days
+4. Users can share a report via a short URL that renders without auth and expires after 30 days
 
 ---
 

@@ -492,7 +492,7 @@ If pdfjs-dist returns zero extractable text AND QPDF shows no StructTreeRoot:
 }
 ```
 
-**Purpose:** Stores a report in SQLite for sharing. Reports expire after `SHARED_REPORTS.EXPIRY_DAYS` days (default 90).
+**Purpose:** Stores a report in SQLite for sharing. Reports expire after `SHARED_REPORTS.EXPIRY_DAYS` days (default 30).
 
 ### `GET /api/reports/:id`
 
@@ -624,7 +624,7 @@ CREATE TABLE shared_reports (
   filename TEXT NOT NULL,
   report_json TEXT NOT NULL,        -- full analysis response as JSON string
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  expires_at DATETIME NOT NULL      -- created_at + 90 days
+  expires_at DATETIME NOT NULL      -- created_at + 30 days
 );
 CREATE INDEX idx_reports_expires ON shared_reports(expires_at);
 ```
@@ -632,7 +632,7 @@ CREATE INDEX idx_reports_expires ON shared_reports(expires_at);
 - Reports are stored when a user clicks "Share" (Phase 2)
 - A cleanup job deletes expired reports: `DELETE FROM shared_reports WHERE expires_at < datetime('now')`
 - Run cleanup on every `POST /api/reports` call or via a daily cron job
-- The 90-day expiry ensures shared links don't persist indefinitely while giving recipients reasonable time to view them
+- The 30-day expiry ensures shared links don't persist indefinitely while giving recipients reasonable time to view them
 
 ### Log Retention
 

@@ -107,11 +107,11 @@ The coordinator can triage a batch of documents efficiently, focusing remediatio
 5. Recipient opens the URL in their browser.
 6. System renders a read-only version of the report — no authentication required.
 7. Report includes a disclaimer: *"This report was generated on [date] and reflects the document's accessibility at that time. This link expires on [expiry date]."*
-8. After 90 days, the shared link expires. Visitors see: *"This report has expired. Reports are available for 90 days after creation."*
+8. After 30 days, the shared link expires. Visitors see: *"This report has expired. Reports are available for 30 days after creation."*
 
 ### Outcome
 
-Report sharing works without requiring the recipient to create an account. Reports are stored server-side with a 90-day expiry for auditing purposes, and short URLs avoid browser length limitations.
+Report sharing works without requiring the recipient to create an account. Reports are stored server-side with a 30-day expiry for auditing purposes, and short URLs avoid browser length limitations.
 
 ---
 

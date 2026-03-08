@@ -18,8 +18,7 @@ cd /home/forge/audit.icjia.app
 # Pull, install, build, restart
 git pull origin main
 pnpm install --frozen-lockfile
-pnpm --filter api build
-pnpm --filter web build
+pnpm build                                     # Type-check API + build Nuxt
 pm2 reload ecosystem.config.cjs --update-env
 
 # Verify
@@ -333,9 +332,8 @@ git pull origin main
 # Install dependencies
 pnpm install --frozen-lockfile
 
-# Build both apps
-pnpm --filter api build    # Type check only (API runs via tsx)
-pnpm --filter web build    # Nuxt builds to .output/
+# Build both apps (type-check API + build Nuxt to .output/)
+pnpm build
 
 # Start or restart PM2 processes
 if pm2 describe file-audit-api > /dev/null 2>&1; then
