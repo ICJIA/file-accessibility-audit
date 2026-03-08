@@ -31,7 +31,7 @@
       >
         {{ category.grade }}
       </span>
-      <span v-else class="w-7 h-7 flex items-center justify-center text-xs text-neutral-500 flex-shrink-0">
+      <span v-else class="w-7 h-7 flex items-center justify-center text-xs text-neutral-400 flex-shrink-0">
         —
       </span>
 
@@ -45,11 +45,11 @@
       >
         {{ category.severity }}
       </UBadge>
-      <span v-else class="w-20 text-center text-xs text-neutral-500 flex-shrink-0">N/A</span>
+      <span v-else class="w-20 text-center text-xs text-neutral-400 flex-shrink-0">N/A</span>
 
       <!-- Chevron -->
       <svg
-        class="w-4 h-4 text-neutral-500 transition-transform flex-shrink-0"
+        class="w-4 h-4 text-neutral-400 transition-transform flex-shrink-0"
         :class="expanded ? 'rotate-180' : ''"
         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
       >
@@ -60,7 +60,7 @@
     <!-- Findings -->
     <div v-if="expanded" class="px-5 pb-5 border-t border-[#222222]">
       <!-- Explanation -->
-      <div v-if="category.explanation" class="mt-4 mb-4 text-sm text-neutral-500 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a]">
+      <div v-if="category.explanation" class="mt-4 mb-4 text-sm text-neutral-400 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a]">
         <span class="text-neutral-400 font-medium">What this checks:</span>
         {{ category.explanation }}
       </div>
@@ -83,7 +83,7 @@
 
       <!-- Help links -->
       <div v-if="category.helpLinks?.length" class="mt-4 pt-3 border-t border-[#1a1a1a]">
-        <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Learn more</span>
+        <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
         <div class="mt-2 flex flex-wrap gap-2">
           <a
             v-for="link in category.helpLinks"
@@ -164,6 +164,6 @@ function findingIconColor(finding: string): string {
   if (isFail(finding)) return 'text-red-500'
   if (isPass(finding)) return 'text-green-500'
   if (isNa()) return 'text-yellow-500'
-  return 'text-neutral-500'
+  return 'text-neutral-400'
 }
 </script>

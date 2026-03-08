@@ -47,7 +47,7 @@
               Send Verification Code
             </UButton>
 
-            <p class="text-xs text-center text-neutral-500">
+            <p class="text-xs text-center text-neutral-400">
               Only <span class="text-neutral-400">@illinois.gov</span> emails are accepted
             </p>
           </form>
@@ -89,7 +89,7 @@
 
             <button
               type="button"
-              class="w-full text-sm text-neutral-500 hover:text-orange-400 transition-colors cursor-pointer"
+              class="w-full text-sm text-neutral-400 hover:text-orange-400 transition-colors cursor-pointer"
               @click="reset"
             >
               ← Use a different email

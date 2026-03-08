@@ -2,7 +2,7 @@
   <div>
     <h2 class="text-xl font-semibold mb-6">Admin — Audit Log</h2>
 
-    <div v-if="pending" class="text-neutral-500">Loading…</div>
+    <div v-if="pending" class="text-neutral-400">Loading…</div>
 
     <div v-else-if="error" class="text-red-400">
       {{ error.data?.error || 'Failed to load audit logs' }}

@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-[#0a0a0a] text-white">
-    <div class="max-w-4xl mx-auto px-6 py-10">
+    <main class="max-w-4xl mx-auto px-6 py-10">
 
       <!-- Loading -->
       <div v-if="pending" class="text-center py-20">
@@ -21,27 +21,16 @@
       <div v-else-if="data">
         <!-- Header -->
         <div class="text-center mb-8">
-          <h1 class="text-2xl font-bold mb-1">PDF Accessibility Report</h1>
-          <p class="text-sm text-neutral-500">
+          <h1 class="text-2xl font-bold mb-1">ICJIA PDF Accessibility Report</h1>
+          <p class="text-sm text-neutral-300 mt-2">
+            <a :href="auditUrl" class="text-blue-400 hover:text-blue-300 underline transition-colors">ICJIA File Accessibility Audit</a>
+          </p>
+          <p class="text-sm text-neutral-300 mt-2">
             {{ data.sharedBy && data.sharedBy !== 'anonymous' ? `Shared by ${data.sharedBy} on` : 'Shared on' }} {{ formatDate(data.createdAt) }}
           </p>
-          <p class="text-xs text-neutral-600 mt-1">
+          <p class="text-xs text-neutral-400 mt-1">
             Link expires {{ formatDate(data.expiresAt) }}
           </p>
-        </div>
-
-        <!-- Top CTA -->
-        <div class="mb-8 text-center rounded-xl border border-[#222222] bg-[#111111] p-5">
-          <p class="text-sm text-neutral-400 mb-3">Want to audit your own PDF?</p>
-          <a
-            :href="auditUrl"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition-colors"
-          >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-            Audit Your PDF
-          </a>
         </div>
 
         <!-- Score Hero -->
@@ -62,13 +51,18 @@
           </div>
 
           <p class="text-2xl font-bold">
-            {{ data.report.overallScore }}<span class="text-base text-neutral-500">/100</span>
+            {{ data.report.overallScore }}<span class="text-base text-neutral-300">/100</span>
           </p>
           <p class="text-sm font-medium mt-1" :style="{ color: gradeColor }">
             {{ gradeLabels[data.report.grade] || '' }}
           </p>
           <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed mt-4">
             {{ data.report.executiveSummary }}
+          </p>
+          <p class="text-xs text-neutral-400 max-w-lg mx-auto leading-relaxed mt-4 border-t border-[#222222] pt-4">
+            This automated audit provides a reliable initial assessment, but it cannot catch every issue. For the most thorough evaluation, test your PDF directly in
+            <a href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">Adobe Acrobat's Accessibility Checker</a>.
+            Whenever possible, ensure your source document (Word, InDesign, etc.) is accessible before generating the PDF — retrofitting accessibility after export is more difficult and less reliable.
           </p>
         </div>
 
@@ -91,7 +85,7 @@
           </div>
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-[#222222] text-neutral-500 text-xs uppercase tracking-wide">
+              <tr class="border-b border-[#222222] text-neutral-300 text-xs uppercase tracking-wide">
                 <th class="text-left px-5 py-2 font-medium">Category</th>
                 <th class="text-center px-3 py-2 font-medium">Score</th>
                 <th class="text-center px-3 py-2 font-medium">Grade</th>
@@ -114,7 +108,7 @@
                     class="inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
                     :style="{ backgroundColor: catColor(cat) + '20', color: catColor(cat) }"
                   >{{ cat.grade }}</span>
-                  <span v-else class="text-neutral-600">—</span>
+                  <span v-else class="text-neutral-400">—</span>
                 </td>
                 <td class="text-center px-3 py-2.5">
                   <span
@@ -122,25 +116,25 @@
                     class="text-xs px-2 py-0.5 rounded-full"
                     :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
                   >{{ cat.severity }}</span>
-                  <span v-else class="text-neutral-600 text-xs">—</span>
+                  <span v-else class="text-neutral-400 text-xs">—</span>
                 </td>
               </tr>
             </tbody>
             <tbody v-if="naCategories.length">
               <tr class="border-t border-[#222222]">
-                <td colspan="4" class="px-5 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wide bg-[#0d0d0d]">
+                <td colspan="4" class="px-5 py-2 text-xs font-medium text-neutral-300 uppercase tracking-wide bg-[#0d0d0d]">
                   Not Included in Scoring
                 </td>
               </tr>
               <tr
                 v-for="cat in naCategories"
                 :key="cat.id"
-                class="border-b border-[#1a1a1a] last:border-0 opacity-60"
+                class="border-b border-[#1a1a1a] last:border-0"
               >
                 <td class="px-5 py-2.5 text-neutral-400">{{ cat.label }}</td>
-                <td class="text-center px-3 py-2.5 font-mono text-neutral-600">N/A</td>
-                <td class="text-center px-3 py-2.5 text-neutral-600">—</td>
-                <td class="text-center px-3 py-2.5 text-neutral-600 text-xs">N/A</td>
+                <td class="text-center px-3 py-2.5 font-mono text-neutral-400">N/A</td>
+                <td class="text-center px-3 py-2.5 text-neutral-400">—</td>
+                <td class="text-center px-3 py-2.5 text-neutral-400 text-xs">N/A</td>
               </tr>
             </tbody>
           </table>
@@ -167,7 +161,7 @@
               >{{ cat.severity }}</span>
             </div>
 
-            <p v-if="cat.explanation" class="text-sm text-neutral-500 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
+            <p v-if="cat.explanation" class="text-sm text-neutral-300 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
               <span class="text-neutral-400 font-medium">What this checks:</span>
               {{ cat.explanation }}
             </p>
@@ -187,7 +181,7 @@
             </ul>
 
             <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
-              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Learn more</span>
+              <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 <a
                   v-for="link in cat.helpLinks"
@@ -209,20 +203,20 @@
 
         <!-- Not Included in Scoring -->
         <div v-if="naCategories.length">
-          <h2 class="text-lg font-semibold mb-4 mt-8 text-neutral-500">Not Included in Scoring</h2>
+          <h2 class="text-lg font-semibold mb-4 mt-8 text-neutral-300">Not Included in Scoring</h2>
 
           <div class="space-y-4">
             <div
               v-for="cat in naCategories"
               :key="cat.id"
-              class="rounded-xl border border-[#1a1a1a] bg-[#111111] p-5 opacity-70"
+              class="rounded-xl border border-[#1a1a1a] bg-[#111111] p-5"
             >
               <div class="flex items-center gap-3 mb-3">
                 <h3 class="font-semibold text-neutral-400">{{ cat.label }}</h3>
-                <span class="text-sm font-mono text-neutral-600">N/A</span>
+                <span class="text-sm font-mono text-neutral-400">N/A</span>
               </div>
 
-              <p v-if="cat.explanation" class="text-sm text-neutral-500 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
+              <p v-if="cat.explanation" class="text-sm text-neutral-300 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
                 <span class="text-neutral-400 font-medium">What this checks:</span>
                 {{ cat.explanation }}
               </p>
@@ -231,7 +225,7 @@
                 <li
                   v-for="(finding, i) in cat.findings"
                   :key="i"
-                  class="text-sm text-neutral-500 flex gap-2"
+                  class="text-sm text-neutral-400 flex gap-2"
                 >
                   <span class="flex-shrink-0 mt-0.5 font-bold text-yellow-500">–</span>
                   <span>{{ finding }}</span>
@@ -239,7 +233,7 @@
               </ul>
 
               <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
-                <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Learn more</span>
+                <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
                 <div class="mt-2 flex flex-wrap gap-2">
                   <a
                     v-for="link in cat.helpLinks"
@@ -265,7 +259,7 @@
           <p class="text-sm text-neutral-400 mb-4">Want to audit your own PDF?</p>
           <a
             :href="auditUrl"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-semibold transition-colors"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
@@ -273,7 +267,7 @@
             Audit Your PDF
           </a>
           <div class="mt-4 pt-4 border-t border-[#1a1a1a] flex flex-col items-center gap-3">
-            <p class="text-xs text-neutral-500 uppercase tracking-wide font-medium">Download Report</p>
+            <p class="text-xs text-neutral-300 uppercase tracking-wide font-medium">Download Report</p>
             <div class="flex flex-wrap justify-center gap-3">
               <button
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#0a0a0a] text-sm text-neutral-400 hover:bg-[rgba(34,197,94,0.15)] hover:text-green-400 hover:border-[rgba(34,197,94,0.3)] transition-colors"
@@ -303,7 +297,7 @@
                 JSON
               </button>
             </div>
-            <p class="text-xs text-neutral-600">
+            <p class="text-xs text-neutral-400">
               Word and Markdown for reading, JSON for LLMs (includes WCAG mappings and remediation plan)
             </p>
           </div>
@@ -311,12 +305,12 @@
 
         <!-- Footer -->
         <div class="mt-10 pt-6 border-t border-[#222222] text-center">
-          <p class="text-xs text-neutral-600">
-            Report generated by <a :href="auditUrl" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300">ICJIA File Accessibility Audit</a> — {{ formatDate(data.createdAt) }}
+          <p class="text-xs text-neutral-400">
+            Report generated by <a :href="auditUrl" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">ICJIA File Accessibility Audit</a> — {{ formatDate(data.createdAt) }}
           </p>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 

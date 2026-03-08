@@ -21,7 +21,7 @@
 
     <!-- Score -->
     <p class="text-3xl font-bold">
-      {{ result.overallScore }}<span class="text-lg text-neutral-500">/100</span>
+      {{ result.overallScore }}<span class="text-lg text-neutral-300">/100</span>
     </p>
 
     <!-- Label -->
@@ -32,6 +32,13 @@
     <!-- Summary -->
     <p class="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed">
       {{ result.executiveSummary }}
+    </p>
+
+    <!-- Caveat -->
+    <p class="text-xs text-neutral-400 max-w-lg mx-auto leading-relaxed mt-4 border-t border-[#222222] pt-4">
+      This automated audit provides a reliable initial assessment, but it cannot catch every issue. For the most thorough evaluation, test your PDF directly in
+      <a href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">Adobe Acrobat's Accessibility Checker</a>.
+      Whenever possible, ensure your source document (Word, InDesign, etc.) is accessible before generating the PDF — retrofitting accessibility after export is more difficult and less reliable.
     </p>
   </div>
 </template>

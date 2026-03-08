@@ -2,9 +2,9 @@
   <div>
     <h2 class="text-xl font-semibold mb-6">My Analysis History</h2>
 
-    <div v-if="pending" class="text-neutral-500">Loading…</div>
+    <div v-if="pending" class="text-neutral-400">Loading…</div>
 
-    <div v-else-if="!data?.data?.length" class="text-neutral-500">
+    <div v-else-if="!data?.data?.length" class="text-neutral-400">
       No analyses yet. <NuxtLink to="/" class="text-green-400 hover:underline">Analyze a PDF</NuxtLink> to get started.
     </div>
 

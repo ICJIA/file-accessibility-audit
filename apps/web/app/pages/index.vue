@@ -35,7 +35,7 @@
         </div>
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-[#222222] text-neutral-500 text-xs uppercase tracking-wide">
+            <tr class="border-b border-[#222222] text-neutral-300 text-xs uppercase tracking-wide">
               <th class="text-left px-5 py-2 font-medium">Category</th>
               <th class="text-center px-3 py-2 font-medium">Score</th>
               <th class="text-center px-3 py-2 font-medium">Grade</th>
@@ -58,7 +58,7 @@
                   class="inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
                   :style="{ backgroundColor: catColor(cat) + '20', color: catColor(cat) }"
                 >{{ cat.grade }}</span>
-                <span v-else class="text-neutral-600">—</span>
+                <span v-else class="text-neutral-400">—</span>
               </td>
               <td class="text-center px-3 py-2.5">
                 <span
@@ -66,25 +66,25 @@
                   class="text-xs px-2 py-0.5 rounded-full"
                   :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
                 >{{ cat.severity }}</span>
-                <span v-else class="text-neutral-600 text-xs">—</span>
+                <span v-else class="text-neutral-400 text-xs">—</span>
               </td>
             </tr>
           </tbody>
           <tbody v-if="naCategories.length">
             <tr class="border-t border-[#222222]">
-              <td colspan="4" class="px-5 py-2 text-xs font-medium text-neutral-500 uppercase tracking-wide bg-[#0d0d0d]">
+              <td colspan="4" class="px-5 py-2 text-xs font-medium text-neutral-300 uppercase tracking-wide bg-[#0d0d0d]">
                 Not Included in Scoring
               </td>
             </tr>
             <tr
               v-for="cat in naCategories"
               :key="cat.id"
-              class="border-b border-[#1a1a1a] last:border-0 opacity-60"
+              class="border-b border-[#1a1a1a] last:border-0"
             >
               <td class="px-5 py-2.5 text-neutral-400">{{ cat.label }}</td>
-              <td class="text-center px-3 py-2.5 font-mono text-neutral-600">N/A</td>
-              <td class="text-center px-3 py-2.5 text-neutral-600">—</td>
-              <td class="text-center px-3 py-2.5 text-neutral-600 text-xs">N/A</td>
+              <td class="text-center px-3 py-2.5 font-mono text-neutral-400">N/A</td>
+              <td class="text-center px-3 py-2.5 text-neutral-400">—</td>
+              <td class="text-center px-3 py-2.5 text-neutral-400 text-xs">N/A</td>
             </tr>
           </tbody>
         </table>
@@ -111,7 +111,7 @@
             >{{ cat.severity }}</span>
           </div>
 
-          <p v-if="cat.explanation" class="text-sm text-neutral-500 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
+          <p v-if="cat.explanation" class="text-sm text-neutral-300 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
             <span class="text-neutral-400 font-medium">What this checks:</span>
             {{ cat.explanation }}
           </p>
@@ -131,7 +131,7 @@
           </ul>
 
           <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
-            <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Learn more</span>
+            <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
             <div class="mt-2 flex flex-wrap gap-2">
               <a
                 v-for="link in cat.helpLinks"
@@ -153,20 +153,20 @@
 
       <!-- Not Included in Scoring -->
       <div v-if="naCategories.length">
-        <h2 class="text-lg font-semibold mb-4 mt-8 text-neutral-500">Not Included in Scoring</h2>
+        <h2 class="text-lg font-semibold mb-4 mt-8 text-neutral-300">Not Included in Scoring</h2>
 
         <div class="space-y-4">
           <div
             v-for="cat in naCategories"
             :key="cat.id"
-            class="rounded-xl border border-[#1a1a1a] bg-[#111111] p-5 opacity-70"
+            class="rounded-xl border border-[#1a1a1a] bg-[#111111] p-5"
           >
             <div class="flex items-center gap-3 mb-3">
               <h3 class="font-semibold text-neutral-400">{{ cat.label }}</h3>
-              <span class="text-sm font-mono text-neutral-600">N/A</span>
+              <span class="text-sm font-mono text-neutral-400">N/A</span>
             </div>
 
-            <p v-if="cat.explanation" class="text-sm text-neutral-500 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
+            <p v-if="cat.explanation" class="text-sm text-neutral-300 bg-[#0d0d0d] rounded-lg px-4 py-3 border border-[#1a1a1a] mb-3">
               <span class="text-neutral-400 font-medium">What this checks:</span>
               {{ cat.explanation }}
             </p>
@@ -175,7 +175,7 @@
               <li
                 v-for="(finding, i) in cat.findings"
                 :key="i"
-                class="text-sm text-neutral-500 flex gap-2"
+                class="text-sm text-neutral-400 flex gap-2"
               >
                 <span class="flex-shrink-0 mt-0.5 font-bold text-yellow-500">–</span>
                 <span>{{ finding }}</span>
@@ -183,7 +183,7 @@
             </ul>
 
             <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[#1a1a1a]">
-              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Learn more</span>
+              <span class="text-xs font-medium text-neutral-400 uppercase tracking-wide">Learn more</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 <a
                   v-for="link in cat.helpLinks"
@@ -256,7 +256,7 @@
               Create Shareable Link
             </UButton>
           </div>
-          <p class="text-xs text-neutral-600 mt-2 text-center">Creates a public link anyone can view. Expires in 30 days.</p>
+          <p class="text-xs text-neutral-400 mt-2 text-center">Creates a public link anyone can view. Expires in 30 days.</p>
           <p v-if="shareError" class="text-xs text-red-400 mt-1">{{ shareError }}</p>
         </div>
 

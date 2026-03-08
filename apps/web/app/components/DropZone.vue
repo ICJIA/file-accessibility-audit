@@ -22,7 +22,7 @@
           <p class="text-lg font-medium" :class="dragging ? 'text-green-400' : 'text-white'">
             {{ dragging ? 'Drop your PDF here' : 'Drop a PDF file here' }}
           </p>
-          <p class="text-sm text-neutral-500 mt-1">or click to browse — max 100 MB</p>
+          <p class="text-sm text-neutral-400 mt-1">or click to browse — max 100 MB</p>
         </div>
       </div>
     </div>

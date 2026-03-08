@@ -163,7 +163,13 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 | **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform |
 | **JSON (.json)** | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
-Reports can also be shared via **shareable links** that expire after 30 days. When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
+Reports can also be shared via **shareable links** that expire after 30 days. Shared report pages include:
+
+- **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
+- **CTA to audit tool** — prominent link back to the live audit tool (environment-aware: localhost in dev, production URL in prod)
+- **Caveat notice** — recommendation to verify with Adobe Acrobat and make source documents accessible before PDF export
+
+When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
 
 ## SEO
 
@@ -303,7 +309,7 @@ Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
 
 ## Tests
 
-**235 tests** across 8 test files. Run all with a summary at the end:
+**271 tests** across 9 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -319,9 +325,9 @@ pnpm test:scoring        # Scoring model tests only
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      168 passed (5 files)
-  ✔ Web      67 passed (3 files)
+  ✔ Web      103 passed (4 files)
 ────────────────────────────────────────────────────────────
-  ✔ 235 tests passed across 8 files
+  ✔ 271 tests passed across 9 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -335,10 +341,11 @@ pnpm test:scoring        # Scoring model tests only
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
 | `integration.test.ts` | 27 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents |
 
-### Web Tests (67 tests)
+### Web Tests (103 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
+| `accessibility.test.ts` | 36 | WCAG 2.1 color contrast verification (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
 | `components.test.ts` | 33 | DropZone (drag/drop, PDF validation, file size limits), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages) |
 | `login.test.ts` | 13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation |
 | `scoring-display.test.ts` | 21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical) |
@@ -355,6 +362,29 @@ pnpm --filter api build
 pnpm --filter web build
 pm2 restart ecosystem.config.cjs --update-env
 ```
+
+## Accessibility (WCAG 2.1)
+
+The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main audit page and shared report pages score **100** on Lighthouse accessibility audits.
+
+### What's enforced
+
+| Requirement | Implementation |
+|-------------|---------------|
+| **Color contrast** | All text meets 4.5:1 minimum ratio against dark backgrounds. Only `text-neutral-300`, `text-neutral-400`, and `text-white` are used — `text-neutral-500` and `text-neutral-600` are banned. |
+| **Semantic landmarks** | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages. |
+| **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`. |
+| **Keyboard accessibility** | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers. |
+| **Click targets** | Expand/collapse buttons span full width (WCAG 2.5.8). |
+
+### Accessibility tests
+
+The `accessibility.test.ts` suite (36 tests) runs as part of `pnpm test` and guards against regressions:
+
+- **Contrast math** — verifies WCAG luminance ratios for every text color + background combination used in the UI
+- **Source scanning** — reads `.vue` template sections and fails if `text-neutral-500` or `text-neutral-600` appear
+- **Landmark verification** — confirms `<main>`, `<header>`, `<footer>`, `<nav>` exist in layouts and pages
+- **Component-level checks** — keyboard-accessible controls, caveat text, link attributes, no low-opacity text
 
 ## Security
 

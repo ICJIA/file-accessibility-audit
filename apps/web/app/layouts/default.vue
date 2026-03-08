@@ -18,7 +18,7 @@
                 <div class="flex items-center justify-between px-6 pt-5 pb-3">
                   <div>
                     <h2 class="text-lg font-semibold text-white">Scoring Rubric</h2>
-                    <p class="text-sm text-neutral-500">How accessibility scores are calculated for PDFs</p>
+                    <p class="text-sm text-neutral-400">How accessibility scores are calculated for PDFs</p>
                   </div>
                   <button class="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-[#222222] transition-colors" @click="close">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -38,7 +38,7 @@
                   <div class="rounded-lg border border-[#222222] overflow-hidden">
                     <table class="w-full text-sm">
                       <thead>
-                        <tr class="border-b border-[#222222] text-neutral-500 text-xs uppercase tracking-wide">
+                        <tr class="border-b border-[#222222] text-neutral-300 text-xs uppercase tracking-wide">
                           <th class="text-left px-4 py-2 font-medium">Category</th>
                           <th class="text-center px-3 py-2 font-medium">Weight</th>
                           <th class="text-left px-4 py-2 font-medium">Why It Matters</th>
@@ -48,7 +48,7 @@
                         <tr v-for="cat in rubricCategories" :key="cat.id" class="border-b border-[#1a1a1a] last:border-0">
                           <td class="px-4 py-2.5 text-neutral-300 font-medium whitespace-nowrap">{{ cat.label }}</td>
                           <td class="text-center px-3 py-2.5 font-mono text-neutral-400">{{ cat.weight }}%</td>
-                          <td class="px-4 py-2.5 text-neutral-500 leading-relaxed">{{ cat.rationale }}</td>
+                          <td class="px-4 py-2.5 text-neutral-400 leading-relaxed">{{ cat.rationale }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -59,7 +59,7 @@
                     <div class="grid grid-cols-5 gap-2">
                       <div v-for="g in grades" :key="g.grade" class="text-center rounded-lg border border-[#222222] bg-[#0d0d0d] py-2.5">
                         <span class="text-lg font-black block" :style="{ color: g.color }">{{ g.grade }}</span>
-                        <span class="text-xs text-neutral-500">{{ g.min }}–{{ g.max }}</span>
+                        <span class="text-xs text-neutral-400">{{ g.min }}–{{ g.max }}</span>
                       </div>
                     </div>
                   </div>
@@ -69,7 +69,7 @@
                     <div class="space-y-2">
                       <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
                         <span class="text-xs px-2 py-0.5 rounded-full w-20 text-center" :style="{ backgroundColor: s.color + '15', color: s.color }">{{ s.label }}</span>
-                        <span class="text-neutral-500">{{ s.description }}</span>
+                        <span class="text-neutral-400">{{ s.description }}</span>
                       </div>
                     </div>
                   </div>
@@ -88,7 +88,7 @@
                     </div>
                   </div>
 
-                  <p class="text-neutral-600 text-xs leading-relaxed">
+                  <p class="text-neutral-400 text-xs leading-relaxed">
                     Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. The highest-weighted categories reflect the most fundamental barriers to access — if a document has no extractable text, no other accessibility feature can compensate.
                   </p>
                 </div>
@@ -105,7 +105,7 @@
             <NuxtLink v-if="user.isAdmin" to="/history" class="text-sm text-neutral-400 hover:text-white transition-colors">
               Admin Logs
             </NuxtLink>
-            <span class="text-xs text-neutral-500">{{ user.email }}</span>
+            <span class="text-xs text-neutral-400">{{ user.email }}</span>
             <UButton size="xs" variant="ghost" color="neutral" @click="logout">
               Logout
             </UButton>
@@ -124,7 +124,7 @@
           href="https://github.com/ICJIA/file-accessibility-audit"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          class="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
         >
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
           GitHub
