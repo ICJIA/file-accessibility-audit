@@ -6,7 +6,7 @@ const apiBase = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.API_
 const appName = BRANDING.APP_NAME
 const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
-const appDesc = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A–F grade with detailed findings and remediation guidance.'
+const appDesc = 'Score PDF accessibility across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A–F grade with findings and fixes.'
 const appDescShort = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.'
 const ogAlt = `${appName} — automated PDF scoring across 9 WCAG-aligned categories`
 
@@ -95,7 +95,7 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'en' },
       title: appName,
-      titleTemplate: `%s | ${appName}`,
+      titleTemplate: '%s',
       meta: [
         { name: 'description', content: appDesc },
         { property: 'og:title', content: appName },
