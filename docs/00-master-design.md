@@ -1008,11 +1008,13 @@ See **04-deployment-guide.md, Section 6** for the complete environment variable 
 |-------|-------|-------------|
 | 00 | Master Design (this document) | Architecture, scoring model, API, auth, security — single source of truth |
 | 01 | Phase 1 — Core Grader | Phase 1 deliverables checklist and testing criteria |
-| 02 | Phase 2 — Enhanced Features | Phase 2 deliverables: DOCX, batch upload, shareable reports via SQLite |
+| 02 | Phase 2 — Enhanced Features | Phase 2 deliverables: batch upload, shareable reports via SQLite |
 | 03 | Phase 3 — Admin & Monitoring | Phase 3 deliverables: admin dashboard, scheduled re-checks with SSRF mitigation |
 | 04 | Deployment Guide | Infrastructure, env vars, Forge, PM2, nginx, firewall, deploy workflow |
 | 05 | Use Cases | End-user scenarios and workflows |
 | 06 | SMTP2GO Integration Guide | SMTP2GO registration, setup, Nodemailer config, gotchas |
+| 07 | Mailgun Integration Guide | Mailgun registration, DNS, Nodemailer config |
+| 08 | Phase 4 — DOCX Support | Phase 4 deliverables: DOCX accessibility analysis via jszip + XML parsing |
 
 ---
 

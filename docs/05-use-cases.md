@@ -115,7 +115,7 @@ Report sharing works without requiring the recipient to create an account. Repor
 
 ---
 
-## 6. DOCX Accessibility Check (Phase 2)
+## 6. DOCX Accessibility Check (Phase 4)
 
 **Actor:** ICJIA staff member
 **Trigger:** User has a Word document they plan to export as PDF for publication.

@@ -361,12 +361,13 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 |-----|-------------|
 | [00 — Master Design](docs/00-master-design.md) | Architecture, scoring model, API, auth, security |
 | [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md) | Phase 1 deliverables and testing checklist |
-| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md) | DOCX, batch upload, shareable reports |
+| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md) | Batch upload, shareable reports |
 | [03 — Phase 3: Admin & Monitoring](docs/03-phase-3-admin-monitoring.md) | Admin dashboard, scheduled re-checks |
 | [04 — Deployment Guide](docs/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
 | [05 — Use Cases](docs/05-use-cases.md) | End-user scenarios and workflows |
 | [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md) | Email provider setup and gotchas |
 | [07 — Mailgun Integration](docs/07-mailgun-integration.md) | Mailgun setup (default provider) |
+| [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md) | DOCX accessibility analysis via jszip + XML parsing |
 
 ## Tests
 

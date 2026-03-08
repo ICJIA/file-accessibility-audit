@@ -1,7 +1,7 @@
 # 03 — Phase 3: Admin & Monitoring
 
 **Project:** `file-accessibility-audit`
-**Phase:** 3 of 3
+**Phase:** 3 of 4
 **Depends on:** Phase 2 complete
 **Goal:** Add an admin dashboard with usage analytics, richer log viewing, and scheduled re-checks of published PDFs.
 

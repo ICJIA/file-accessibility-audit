@@ -1,7 +1,7 @@
 # 01 — Phase 1: Core Grader
 
 **Project:** `file-accessibility-audit`
-**Phase:** 1 of 3
+**Phase:** 1 of 4
 **Goal:** Ship a working PDF accessibility grader with auth, analysis engine, scoring, and score card UI.
 
 ---
