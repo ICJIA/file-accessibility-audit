@@ -246,6 +246,22 @@
           </div>
         </div>
 
+        <!-- Download JSON for LLMs -->
+        <div class="mt-8 text-center">
+          <button
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#111] text-sm text-neutral-300 hover:bg-[rgba(34,197,94,0.15)] hover:text-green-400 hover:border-[rgba(34,197,94,0.3)] transition-colors"
+            @click="downloadJson"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Download JSON Report
+          </button>
+          <p class="text-xs text-neutral-600 mt-2">
+            Machine-readable report with WCAG mappings, remediation plan, and LLM context
+          </p>
+        </div>
+
         <!-- Footer -->
         <div class="mt-10 pt-6 border-t border-[#222222] text-center">
           <p class="text-xs text-neutral-600">
@@ -264,6 +280,14 @@ const route = useRoute()
 const id = route.params.id as string
 
 const { data, pending, error } = await useFetch(`/api/reports/${id}`)
+
+const { exportJSON } = useReportExport()
+
+function downloadJson() {
+  if (data.value) {
+    exportJSON((data.value as any).report)
+  }
+}
 
 const errorMessage = computed(() => {
   if (!error.value) return ''

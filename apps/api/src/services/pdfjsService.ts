@@ -32,7 +32,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
 
   try {
     const data = new Uint8Array(buffer)
-    const doc = await pdfjsLib.getDocument({ data, useSystemFonts: true }).promise
+    const doc = await pdfjsLib.getDocument({
+      data,
+      useSystemFonts: true,
+      verbosity: 0, // Suppress harmless TrueType font warnings
+    }).promise
 
     result.pageCount = doc.numPages
 
