@@ -2,13 +2,11 @@ import { BRANDING, DEPLOY } from '../../audit.config'
 
 const isProd = process.env.NODE_ENV === 'production'
 const siteUrl = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.WEB_PORT}`
-const apiBase = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.API_PORT}`
-const appName = BRANDING.APP_NAME
+const appName = BRANDING.APP_SHORT_NAME
 const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
-const appDesc = 'Score PDF accessibility across 9 WCAG 2.1 and ADA Title II categories. Upload a PDF, get an instant A–F grade with findings and fixes.'
-const appDescShort = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.'
-const ogAlt = `${appName} — automated PDF scoring across 9 WCAG-aligned categories`
+const appDesc = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.'
+const ogAlt = `${appName} — PDF accessibility scoring`
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/seo'],
@@ -64,7 +62,7 @@ export default defineNuxtConfig({
       '@type': 'WebApplication',
       name: appName,
       url: siteUrl,
-      description: appDesc.replace('–', '-'), // JSON-LD uses ASCII dash
+      description: appDesc,
       applicationCategory: 'UtilityApplication',
       operatingSystem: 'Any',
       browserRequirements: 'Requires a modern web browser',
@@ -93,26 +91,15 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      htmlAttrs: { lang: 'en' },
-      title: appName,
-      titleTemplate: '%s',
       meta: [
-        { name: 'description', content: appDesc },
-        { property: 'og:title', content: appName },
-        { property: 'og:description', content: appDescShort },
+        // OG image (ogImage module is disabled — we use a static file)
         { property: 'og:image', content: `${siteUrl}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
         { property: 'og:image:alt', content: ogAlt },
-        { property: 'og:url', content: siteUrl },
-        { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: appName },
-        { property: 'og:locale', content: 'en_US' },
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: appName },
-        { name: 'twitter:description', content: appDescShort },
         { name: 'twitter:image', content: `${siteUrl}/og-image.png` },
         { name: 'twitter:image:alt', content: ogAlt },
+        // Extras not covered by @nuxtjs/seo
         { name: 'theme-color', content: '#0a0a0a' },
         { name: 'author', content: orgName },
         { name: 'keywords', content: 'PDF accessibility, WCAG 2.1, ADA Title II, Section 508, accessibility audit, PDF checker, screen reader, accessibility score, document remediation' },
@@ -121,7 +108,6 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-        { rel: 'canonical', href: siteUrl },
         { rel: 'manifest', href: '/site.webmanifest' },
       ],
     },
