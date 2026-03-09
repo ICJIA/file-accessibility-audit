@@ -6,6 +6,8 @@ const appName = BRANDING.APP_SHORT_NAME
 const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
 const appDesc = 'Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with detailed findings and remediation guidance.'
+const datePublished = '2025-03-06'
+const dateModified = '2026-03-09'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
@@ -48,6 +50,8 @@ export default defineNuxtConfig({
         'Machine-readable JSON with WCAG mappings for LLM consumption',
       ],
       screenshot: `${siteUrl}/og-image.png`,
+      datePublished,
+      dateModified,
     },
   },
 
@@ -69,6 +73,8 @@ export default defineNuxtConfig({
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: appName },
         { property: 'og:locale', content: 'en_US' },
+        { property: 'article:published_time', content: datePublished },
+        { property: 'article:modified_time', content: dateModified },
         // Twitter
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: appName },
