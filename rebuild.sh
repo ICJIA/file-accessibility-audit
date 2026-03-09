@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd /home/forge/audit.icjia.app
+cd "$(dirname "$0")"
 
 echo "Pulling latest changes..."
 git pull origin main
