@@ -6,10 +6,9 @@ const appName = BRANDING.APP_SHORT_NAME
 const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
 const appDesc = 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories.'
-const ogAlt = `${appName} — PDF accessibility scoring`
 
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui', '@nuxtjs/seo'],
+  modules: ['@nuxt/ui'],
 
   colorMode: {
     preference: BRANDING.DEFAULT_COLOR_MODE,
@@ -18,44 +17,7 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  site: {
-    url: siteUrl,
-    name: appName,
-    description: appDesc,
-    defaultLocale: 'en',
-  },
-
-  ogImage: {
-    enabled: false, // We use a static og-image.png
-  },
-
-  sitemap: {
-    urls: ['/'],
-    exclude: ['/login', '/my-history', '/history', '/report/**'],
-  },
-
-  robots: {
-    debug: false,
-    groups: [
-      {
-        userAgent: '*',
-        allow: '/',
-        disallow: ['/api/', '/login', '/my-history', '/history'],
-      },
-    ],
-  },
-
-  schemaOrg: {
-    identity: {
-      type: 'Organization',
-      name: orgName,
-      url: orgUrl,
-      logo: `${siteUrl}/og-image.png`,
-    },
-  },
-
-  // Additional JSON-LD structured data injected via app head
-  // WebApplication schema for rich search results
+  // JSON-LD structured data injected via app.vue useHead()
   appConfig: {
     jsonLd: {
       '@context': 'https://schema.org',
@@ -91,15 +53,29 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      htmlAttrs: { lang: 'en' },
+      title: appName,
+      titleTemplate: '%s',
       meta: [
-        // OG image (ogImage module is disabled — we use a static file)
+        { name: 'description', content: appDesc },
+        // Open Graph
+        { property: 'og:title', content: appName },
+        { property: 'og:description', content: appDesc },
         { property: 'og:image', content: `${siteUrl}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: ogAlt },
+        { property: 'og:image:alt', content: appDesc },
+        { property: 'og:url', content: siteUrl },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: appName },
+        { property: 'og:locale', content: 'en_US' },
+        // Twitter
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: appName },
+        { name: 'twitter:description', content: appDesc },
         { name: 'twitter:image', content: `${siteUrl}/og-image.png` },
-        { name: 'twitter:image:alt', content: ogAlt },
-        // Extras not covered by @nuxtjs/seo
+        { name: 'twitter:image:alt', content: appDesc },
+        // Misc
         { name: 'theme-color', content: '#0a0a0a' },
         { name: 'author', content: orgName },
         { name: 'keywords', content: 'PDF accessibility, WCAG 2.1, ADA Title II, Section 508, accessibility audit, PDF checker, screen reader, accessibility score, document remediation' },
@@ -108,6 +84,7 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'canonical', href: siteUrl },
         { rel: 'manifest', href: '/site.webmanifest' },
       ],
     },
