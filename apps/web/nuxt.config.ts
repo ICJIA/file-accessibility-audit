@@ -5,7 +5,7 @@ const siteUrl = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.WEB_
 const appName = BRANDING.APP_SHORT_NAME
 const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
-const appDesc = 'Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with findings and fixes.'
+const appDesc = 'Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with detailed findings and remediation guidance.'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],

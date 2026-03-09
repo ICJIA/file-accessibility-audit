@@ -1,7 +1,7 @@
 {
   "name": "ICJIA File Accessibility Audit",
   "short_name": "Accessibility Audit",
-  "description": "Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with findings and fixes.",
+  "description": "Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with detailed findings and remediation guidance.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
