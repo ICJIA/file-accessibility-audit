@@ -238,7 +238,6 @@ From your browser:
 - `https://audit.icjia.app` → landing page with PDF dropzone
 - `https://audit.icjia.app/api/health` → `{ "status": "ok" }`
 - `https://audit.icjia.app/robots.txt` → robots directives
-- `https://audit.icjia.app/sitemap.xml` → sitemap
 - `https://audit.icjia.app/og-image.png` → OG image
 
 Upload a test PDF and verify the full analysis flow works.
@@ -252,8 +251,10 @@ pm2 status                    # Check both processes
 pm2 logs                      # Tail all logs
 pm2 logs file-audit-api       # API logs only
 pm2 logs file-audit-web       # Web logs only
-pm2 restart all               # Hard restart
-pm2 reload ecosystem.config.cjs --update-env   # Zero-downtime restart
+pm2 restart ecosystem.config.cjs              # Restart all services at once
+pm2 reload ecosystem.config.cjs --update-env  # Zero-downtime restart (picks up env changes)
+pm2 restart file-audit-api    # Restart API only
+pm2 restart file-audit-web    # Restart web only
 pm2 monit                     # Real-time CPU/memory
 ```
 
@@ -264,7 +265,7 @@ cd /home/forge/audit.icjia.app
 git pull origin main
 pnpm install --frozen-lockfile
 pnpm build
-pm2 reload ecosystem.config.cjs --update-env
+pm2 restart ecosystem.config.cjs   # Restart all services
 ```
 
 ---
