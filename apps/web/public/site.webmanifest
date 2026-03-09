@@ -1,7 +1,7 @@
 {
   "name": "ICJIA File Accessibility Audit",
   "short_name": "Accessibility Audit",
-  "description": "Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories",
+  "description": "Automated PDF accessibility scoring for WCAG 2.1",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
