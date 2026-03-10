@@ -340,6 +340,13 @@
         </p>
       </div>
 
+      <!-- Drop hint banner -->
+      <Transition name="fade">
+        <div v-if="showDropHint" class="mb-4 rounded-xl bg-blue-500/10 border border-blue-500/25 px-5 py-3 text-center">
+          <p class="text-sm text-blue-400 font-medium">Drop a PDF file on the area below, or click it to browse your files.</p>
+        </div>
+      </Transition>
+
       <DropZone @file-selected="analyzeFile" />
 
       <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
@@ -357,6 +364,336 @@
         </div>
       </div>
     </div>
+
+    <!-- Technical Details (always visible, expandable) -->
+    <details class="mt-12 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden group">
+      <summary class="px-6 py-4 cursor-pointer text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors select-none flex items-center gap-2">
+        <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+        Technical Details: How This Tool Analyzes PDFs
+      </summary>
+      <div class="px-6 pb-6 space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border)]">
+
+        <!-- Overview -->
+        <div class="pt-5">
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Overview: What This Tool Does</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            This tool checks whether a PDF document can be read by people who use <strong>assistive technology</strong> — screen readers, braille displays, and other tools used by people with disabilities. It does this by examining the internal structure of the PDF file, not just its visual appearance. A PDF that looks fine on screen may be completely unreadable to a screen reader if it lacks the right internal markup.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            The tool evaluates PDFs against <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.1 Level AA</a> (the international standard for web content accessibility) and <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">ADA Title II</a> digital accessibility requirements (U.S. federal law requiring state and local government digital content to be accessible, effective April 2026).
+          </p>
+
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">How It Works</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            When you upload a PDF, the server runs two independent, open-source analysis tools <strong>in parallel</strong> — one reads the PDF's internal structure (tags, bookmarks, form fields), the other extracts text and metadata from every page. Their combined output feeds a scorer that evaluates nine accessibility categories and produces a weighted overall score. No data is sent to third-party services or AI models — all processing happens locally on the server.
+          </p>
+          <div class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)]">
+            PDF → [validate file type &amp; size] → parallel { QPDF (structure), PDF.js (content) } → Scorer (9 categories) → Weighted Score → Report
+          </div>
+        </div>
+
+        <!-- QPDF -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Tool 1: QPDF (PDF Structure Extraction)</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            <a href="https://qpdf.readthedocs.io/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">QPDF</a>
+            is an open-source C++ command-line program for inspecting and transforming PDF files. It is maintained by Jay Berkenbilt and is widely used in PDF archival libraries, digital preservation projects, and accessibility workflows. Think of QPDF as a tool that can "open up" a PDF and read its internal blueprint — not just the words on the page, but the hidden structural information that tells assistive technology how the document is organized.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>How it's called:</strong> The server invokes QPDF as a subprocess with the <code class="text-xs bg-[var(--surface-deep)] px-1.5 py-0.5 rounded">--json</code> flag, which outputs the PDF's complete internal object graph as machine-readable JSON. The server writes the uploaded PDF to a temporary file, runs <code class="text-xs bg-[var(--surface-deep)] px-1.5 py-0.5 rounded">qpdf --json /tmp/&lt;uuid&gt;.pdf</code>, parses the resulting JSON, and immediately deletes the temp file. The subprocess has a 30-second timeout and a 50 MB output buffer to handle complex documents safely.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>Why QPDF?</strong> A PDF file is not a simple document — internally, it is a collection of numbered "objects" (text streams, images, fonts, bookmarks, form fields, tags) connected by cross-references. QPDF can decode and dump this entire object graph as structured data, which lets the tool inspect every accessibility-relevant feature without relying on visual rendering. No other open-source tool provides this level of structural access to PDFs.
+          </p>
+          <h4 class="font-medium text-[var(--text-secondary)] mb-2 text-xs uppercase tracking-wide">What QPDF extracts</h4>
+          <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-[var(--border)] text-[var(--text-muted)] uppercase tracking-wide">
+                  <th class="text-left px-4 py-2 font-medium">Data</th>
+                  <th class="text-left px-4 py-2 font-medium">PDF Source</th>
+                  <th class="text-left px-4 py-2 font-medium">Used For</th>
+                </tr>
+              </thead>
+              <tbody class="text-[var(--text-muted)]">
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">StructTreeRoot</td>
+                  <td class="px-4 py-2">Catalog <code>/StructTreeRoot</code></td>
+                  <td class="px-4 py-2">Whether the PDF is "tagged" (has a semantic structure tree)</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Language declaration</td>
+                  <td class="px-4 py-2">Catalog <code>/Lang</code></td>
+                  <td class="px-4 py-2">Language accessibility (screen reader pronunciation)</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Headings (H1–H6)</td>
+                  <td class="px-4 py-2">Structure elements with <code>/S</code> = <code>/H</code>, <code>/H1</code>…<code>/H6</code></td>
+                  <td class="px-4 py-2">Heading presence, hierarchy validation, level-skip detection</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Outlines / Bookmarks</td>
+                  <td class="px-4 py-2"><code>/Outlines</code> → <code>/First</code>/<code>/Next</code> chain</td>
+                  <td class="px-4 py-2">Bookmark count for navigation scoring</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Tables &amp; headers</td>
+                  <td class="px-4 py-2">Structure elements <code>/Table</code>, <code>/TH</code>, <code>/TD</code></td>
+                  <td class="px-4 py-2">Whether data tables have accessible header markup</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Images &amp; figures</td>
+                  <td class="px-4 py-2">XObjects (<code>/Image</code>) + structure elements (<code>/Figure</code> with <code>/Alt</code>)</td>
+                  <td class="px-4 py-2">Image detection and alt text presence</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Form fields</td>
+                  <td class="px-4 py-2">Widget annotations + <code>/AcroForm</code> <code>/Fields</code> + <code>/TU</code> tooltip</td>
+                  <td class="px-4 py-2">Whether form fields have accessible labels</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">Reading order MCIDs</td>
+                  <td class="px-4 py-2">Numeric <code>/K</code> values (Marked Content IDs) in structure tree</td>
+                  <td class="px-4 py-2">Content sequence validation — detects out-of-order reading</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PDF.js -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Tool 2: PDF.js (Content &amp; Metadata Extraction)</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">PDF.js</a>
+            is Mozilla's open-source JavaScript PDF renderer — the same library that powers Firefox's built-in PDF viewer, used by hundreds of millions of people. While QPDF reads the internal blueprint, PDF.js reads the PDF the way a human would: it renders each page and extracts the actual text content, metadata (title, author, language), and interactive elements like links. It runs server-side via Node.js, processing every page of the uploaded document.
+          </p>
+          <h4 class="font-medium text-[var(--text-secondary)] mb-2 text-xs uppercase tracking-wide">What PDF.js extracts</h4>
+          <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-[var(--border)] text-[var(--text-muted)] uppercase tracking-wide">
+                  <th class="text-left px-4 py-2 font-medium">Data</th>
+                  <th class="text-left px-4 py-2 font-medium">Method</th>
+                  <th class="text-left px-4 py-2 font-medium">Used For</th>
+                </tr>
+              </thead>
+              <tbody class="text-[var(--text-muted)]">
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Text content</td>
+                  <td class="px-4 py-2"><code>page.getTextContent()</code> per page</td>
+                  <td class="px-4 py-2">Text extractability (minimum 50 chars = "has text")</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Title, Author, Language</td>
+                  <td class="px-4 py-2"><code>doc.getMetadata()</code></td>
+                  <td class="px-4 py-2">Title/language scoring (filename-like titles are rejected)</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Links &amp; link text</td>
+                  <td class="px-4 py-2"><code>page.getAnnotations()</code> + spatial text matching</td>
+                  <td class="px-4 py-2">Link quality — detects raw URLs vs. descriptive text</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">Outlines</td>
+                  <td class="px-4 py-2"><code>doc.getOutline()</code></td>
+                  <td class="px-4 py-2">Bookmark detection (cross-referenced with QPDF)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-[var(--text-muted)] mt-3">
+            <strong>Link text extraction</strong> uses a spatial matching algorithm: for each link annotation, PDF.js finds text items whose coordinates fall within the link's bounding rectangle (±5px tolerance), then joins them to determine the visible link text. This is how the tool distinguishes descriptive links ("View the full report") from raw URLs ("https://example.com/report.pdf").
+          </p>
+        </div>
+
+        <!-- Why two tools -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Why Two Tools?</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            No single open-source library can extract both the low-level PDF structure (tag trees, object references, XObjects) <em>and</em> the rendered text content. Each tool sees a different layer of the document:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1 text-xs">QPDF sees:</p>
+              <p class="text-xs text-[var(--text-muted)]">Structure tags, heading hierarchy, table markup, image objects, form field labels, bookmark chains, reading order markers — the "skeleton" of the document.</p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1 text-xs">PDF.js sees:</p>
+              <p class="text-xs text-[var(--text-muted)]">Rendered text content, document title and metadata, link URLs and their visible text, page count — the "surface" of the document as a user would read it.</p>
+            </div>
+          </div>
+          <p class="text-[var(--text-muted)] mt-3">
+            By cross-referencing both outputs, the scorer can answer questions that neither tool could answer alone. For example: "Does this image have alt text?" requires QPDF to find the image object and its Figure tag, while "Is there any readable text on this page at all?" requires PDF.js to attempt text extraction. Running both tools in parallel hides their individual processing time.
+          </p>
+        </div>
+
+        <!-- Scoring -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">How Scores Are Calculated</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            The scorer evaluates nine accessibility categories. Each category receives a score from 0 to 100 (or N/A if the category doesn't apply to the document). The overall score is a <strong>weighted average</strong> of applicable categories, with weights renormalized to exclude N/A categories.
+          </p>
+
+          <h4 class="font-medium text-[var(--text-secondary)] mb-2 text-xs uppercase tracking-wide">Category scoring logic</h4>
+          <div class="space-y-3">
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Text Extractability (20% weight — highest)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> Can a screen reader actually read the words in this PDF? Some PDFs are just pictures of text (scanned documents) — they look normal on screen but are completely invisible to assistive technology.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>100</strong> = extractable text + structure tags (a properly tagged PDF). <strong>50</strong> = text is present but no tags (an untagged PDF — readable but poorly structured). <strong>25</strong> = tags are present but no extractable text (a scanned document that has been partially remediated with OCR). <strong>0</strong> = no text and no tags (an unremediated scanned image — completely inaccessible). This category carries the highest weight because if text can't be extracted, nothing else matters.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Title &amp; Language (15%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> The document title is the first thing a screen reader announces when a user opens the PDF. The language tag controls how the screen reader pronounces words — without it, an English document might be read with a French accent, making it incomprehensible.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> 50 points for a meaningful document title (filenames like "report_final.pdf" are automatically rejected as non-meaningful), plus 50 points for a declared language tag. Both are checked in QPDF's catalog <code>/Lang</code> and PDF.js metadata.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Heading Structure (15%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> Headings (H1, H2, H3, etc.) are how screen reader users navigate and skim documents — the same way sighted users scan bold section titles. Without headings, a blind user must listen to the entire document from start to finish to find the section they need.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>100</strong> = H1–H6 tags present with logical hierarchy (no level skips). <strong>60</strong> = numbered headings present but hierarchy is broken (e.g., jumps from H1 to H3 with no H2). <strong>40</strong> = only generic <code>/H</code> tags (not properly numbered H1–H6). <strong>0</strong> = no heading tags at all.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Alt Text on Images (15%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> Every informative image in a PDF must have "alternative text" — a short description that a screen reader reads aloud. Without alt text, a blind user hears nothing when they encounter a chart, photo, or diagram.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> The percentage of detected images that have alt text. QPDF identifies image objects (<code>/Image</code> XObjects) and matches them to their <code>/Figure</code> structure elements, then checks whether each Figure has an <code>/Alt</code> attribute. <strong>N/A</strong> if the document contains no images.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Bookmarks / Navigation (10%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> Bookmarks act as a clickable table of contents in the PDF viewer's sidebar. For longer documents, they're essential for all users — and required by ADA Title II for documents over a certain length.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>N/A</strong> for documents under 10 pages (short documents don't require bookmarks). For longer documents: <strong>100</strong> = outline entries present and populated. <strong>25</strong> = outline structure exists but is empty. <strong>0</strong> = no outlines at all. Checked in both QPDF's <code>/Outlines</code> object chain and PDF.js's <code>getOutline()</code>.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Table Markup (10%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> When a sighted user looks at a data table, they can glance at the column headers to understand what each number means. Screen readers need explicit <code>/TH</code> (table header) tags to provide the same context — without them, a screen reader just reads a flat stream of numbers with no structure.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected. <strong>100</strong> = all <code>/Table</code> elements contain <code>/TH</code> header tags. <strong>40</strong> = tables exist but lack proper header markup.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Link Quality (5%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> Screen reader users often navigate by tabbing through links. Hearing "https://www.example.com/documents/2024/report-final-v3.pdf" read aloud character by character is unusable. Descriptive link text like "Download the 2024 Annual Report" tells users where the link goes.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>N/A</strong> if no links. Percentage of links with descriptive text. A link is flagged as non-descriptive if its visible text starts with <code>http://</code>, <code>https://</code>, or <code>www.</code>. PDF.js extracts the visible text overlapping each link annotation using spatial coordinate matching.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Form Accessibility (5%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> If a PDF contains fillable form fields (text boxes, checkboxes, dropdowns), each field needs a label that assistive technology can read. Without labels, a screen reader user hears "edit text" or "checkbox" with no indication of what the field is for.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>N/A</strong> if no form fields. Percentage of widget annotations (form fields) that have a <code>/TU</code> (tooltip) attribute, which serves as the accessible label. QPDF checks both the widget annotation and the <code>/AcroForm</code> fields array.
+              </p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1">Reading Order (5%)</p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> PDFs with multi-column layouts, sidebars, or callout boxes can confuse screen readers if the reading order isn't explicitly defined. A sighted user can see that a sidebar is separate from the main text, but a screen reader reads content in the order defined by the structure tree — if that order is wrong, the document becomes a jumble of unrelated sentences.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>100</strong> = structure tree has depth &gt;1 and fewer than 20% of Marked Content IDs (MCIDs) are out of sequence. <strong>50</strong> = more than 20% of MCIDs are out of order. <strong>30</strong> = structure tree is flat (depth ≤1, indicating minimal structure). <strong>0</strong> = no structure tree at all. MCIDs are numeric identifiers that link content on each page to its position in the tag tree; when they're out of order relative to the page content stream, it indicates a reading order problem.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weight renormalization -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Weight Renormalization</h3>
+          <p class="text-[var(--text-muted)]">
+            When a category scores N/A (e.g., a text-only document has no images, tables, links, or forms), its weight is redistributed proportionally to the remaining categories. For example, if Alt Text (15%), Table Markup (10%), and Form Fields (5%) are all N/A, the remaining 70% of weights are renormalized to sum to 100%. This ensures documents are only scored on criteria that actually apply to them.
+          </p>
+        </div>
+
+        <!-- Scanned detection -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Scanned Document Detection</h3>
+          <p class="text-[var(--text-muted)]">
+            A PDF is flagged as a scanned image when <strong>both</strong> conditions are true: PDF.js extracts fewer than 50 characters of text content (indicating no real text layer) and QPDF finds no StructTreeRoot (indicating no semantic tags). This combination means the document is an unremediated scanned image that screen readers cannot access at all.
+          </p>
+        </div>
+
+        <!-- Limitations -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Limitations &amp; What This Tool Cannot Do</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            This tool provides a thorough <em>automated</em> assessment, but no automated tool can fully replace manual accessibility testing. Important limitations:
+          </p>
+          <ul class="space-y-2 text-xs text-[var(--text-muted)]">
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">1.</span><span><strong>Alt text quality:</strong> The tool can detect <em>whether</em> alt text exists, but not whether it's <em>meaningful</em>. An image tagged with alt text "image1.png" technically passes the automated check, but it's useless to a screen reader user. Human review is still needed to assess alt text quality.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">2.</span><span><strong>Color contrast:</strong> PDF color contrast analysis requires rendering each page as an image and analyzing pixel colors. This tool focuses on structural accessibility (tags, metadata, markup) and does not currently assess color contrast.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">3.</span><span><strong>Natural language clarity:</strong> The tool cannot evaluate whether the text itself is written clearly. WCAG 3.1.5 recommends content be written at a lower secondary education reading level — this requires human judgment.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">4.</span><span><strong>Decorative images:</strong> Not all images need alt text — decorative images should be marked as artifacts. The tool cannot distinguish informative images from decorative ones; it reports all images without alt text as a potential issue.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">5.</span><span><strong>Complex layouts:</strong> While reading order is assessed via MCID sequence analysis, extremely complex layouts (e.g., multi-column magazine spreads, nested pull quotes) may have subtle ordering issues that the 20% disorder threshold doesn't catch.</span></li>
+          </ul>
+          <p class="text-[var(--text-muted)] mt-3">
+            For a complete accessibility evaluation, this tool's automated analysis should be supplemented with manual testing using an actual screen reader (e.g., NVDA, JAWS, or VoiceOver) and the <a href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">Adobe Acrobat Accessibility Checker</a>.
+          </p>
+        </div>
+
+        <!-- Security / privacy -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Privacy &amp; Security</h3>
+          <p class="text-[var(--text-muted)]">
+            Uploaded files are written to a temporary directory, analyzed, and immediately deleted — they are never stored on the server after analysis completes. The file is held in memory only for the duration of the analysis (typically under 10 seconds). A concurrency semaphore limits the server to two simultaneous analyses to prevent resource exhaustion. Encrypted (password-protected) PDFs are rejected with a clear error before analysis begins. The entire process runs server-side; no PDF data is transmitted to external APIs, cloud services, or AI models.
+          </p>
+        </div>
+
+        <!-- Source code -->
+        <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+          <p class="text-[var(--text-muted)]">
+            <strong class="text-[var(--text-secondary)]">Verify for yourself:</strong> The complete source code for the analysis pipeline is open source.
+          </p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <a href="https://github.com/ICJIA/file-accessibility-audit/tree/main/apps/api/src/services" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
+              Analysis Services (scorer, QPDF, PDF.js)
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+            </a>
+            <a href="https://github.com/ICJIA/file-accessibility-audit/blob/main/audit.config.ts" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
+              Configuration &amp; Weights (audit.config.ts)
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+            </a>
+            <a href="https://github.com/ICJIA/file-accessibility-audit" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"/></svg>
+              Full Repository
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </details>
   </div>
 </template>
 
@@ -375,7 +712,17 @@ const processingStage = ref('')
 const result = ref<any>(null)
 const analysisError = ref<any>(null)
 
+const showDropHint = ref(false)
+let dropHintTimer: ReturnType<typeof setTimeout> | null = null
+
 watch(() => resetSignal?.value, () => {
+  // If already in default/idle state, show a hint to use the drop zone
+  if (!result.value && !processing.value && !analysisError.value) {
+    showDropHint.value = true
+    if (dropHintTimer) clearTimeout(dropHintTimer)
+    dropHintTimer = setTimeout(() => { showDropHint.value = false }, 4000)
+    return
+  }
   clearResults()
 })
 
@@ -494,3 +841,14 @@ function emailShareUrl() {
   window.open(`mailto:?subject=${subject}&body=${body}`, '_self')
 }
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
