@@ -1,3 +1,16 @@
+export interface PdfMetadata {
+  creator: string | null
+  producer: string | null
+  creationDate: string | null
+  modDate: string | null
+  pdfVersion: string | null
+  isEncrypted: boolean
+  keywords: string | null
+  author: string | null
+  subject: string | null
+  pageCount: number
+}
+
 export interface PdfjsResult {
   pageCount: number
   hasText: boolean
@@ -10,6 +23,7 @@ export interface PdfjsResult {
   outlineCount: number
   links: Array<{ url: string; text: string }>
   imageCount: number
+  metadata: PdfMetadata
   error: string | null
 }
 
@@ -29,6 +43,18 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     outlineCount: 0,
     links: [],
     imageCount: 0,
+    metadata: {
+      creator: null,
+      producer: null,
+      creationDate: null,
+      modDate: null,
+      pdfVersion: null,
+      isEncrypted: false,
+      keywords: null,
+      author: null,
+      subject: null,
+      pageCount: 0,
+    },
     error: null,
   }
 
@@ -50,7 +76,17 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       result.author = info.Author || null
       result.subject = info.Subject || null
       result.lang = info.Language || null
+      result.metadata.creator = info.Creator || null
+      result.metadata.producer = info.Producer || null
+      result.metadata.creationDate = parsePdfDate(info.CreationDate) || null
+      result.metadata.modDate = parsePdfDate(info.ModDate) || null
+      result.metadata.pdfVersion = info.PDFFormatVersion || null
+      result.metadata.isEncrypted = !!info.IsEncrypted
+      result.metadata.keywords = info.Keywords || null
+      result.metadata.author = info.Author || null
+      result.metadata.subject = info.Subject || null
     }
+    result.metadata.pageCount = doc.numPages
 
     // Check if title looks like a filename (not useful for accessibility)
     if (result.title) {
@@ -139,4 +175,21 @@ function findLinkText(annot: any, textItems: any[]): string {
   }
 
   return matchingTexts.join(' ')
+}
+
+/** Parse PDF date strings like "D:20240115120000+05'30'" into ISO format */
+function parsePdfDate(raw: string | undefined): string | null {
+  if (!raw) return null
+  // Strip the "D:" prefix and quotes
+  const cleaned = raw.replace(/^D:/, '').replace(/'/g, '')
+  // Format: YYYYMMDDHHmmSS(+|-)HH'mm'
+  const match = cleaned.match(/^(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?/)
+  if (!match) return raw // Return raw string if we can't parse
+  const [, y, m = '01', d = '01', h = '00', min = '00', s = '00'] = match
+  try {
+    const date = new Date(`${y}-${m}-${d}T${h}:${min}:${s}Z`)
+    return date.toISOString()
+  } catch {
+    return raw
+  }
 }

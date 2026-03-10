@@ -40,6 +40,18 @@ function makePdfjs(overrides: Partial<PdfjsResult> = {}): PdfjsResult {
     outlineCount: 0,
     links: [],
     imageCount: 0,
+    metadata: {
+      creator: null,
+      producer: null,
+      creationDate: null,
+      modDate: null,
+      pdfVersion: null,
+      isEncrypted: false,
+      keywords: null,
+      author: null,
+      subject: null,
+      pageCount: 1,
+    },
     error: null,
     ...overrides,
   }

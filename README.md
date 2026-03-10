@@ -176,6 +176,23 @@ Reports can also be shared via **shareable links** that expire after 30 days. Sh
 
 When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
 
+## Document Metadata
+
+Every report includes a **Document Metadata** section that surfaces embedded PDF properties. This metadata is **informational only** — it is not scored or factored into the accessibility grade. Fields that are missing from the PDF display as "Not set," which itself is useful for identifying incomplete metadata.
+
+| Field | Source | What it tells you |
+|-------|--------|-------------------|
+| Source Application | `Creator` | The authoring tool (e.g., Microsoft Word, Adobe InDesign, LibreOffice) |
+| PDF Producer | `Producer` | The PDF generation engine (e.g., macOS Quartz, Adobe PDF Library) |
+| PDF Version | `PDFFormatVersion` | PDF spec version (e.g., 1.4, 1.7, 2.0) — tagged PDF requires 1.4+ |
+| Page Count | Document | Total number of pages |
+| Author | `Author` | Document author metadata |
+| Subject | `Subject` | Document subject/description |
+| Keywords | `Keywords` | Embedded keywords for search and classification |
+| Created | `CreationDate` | When the PDF was originally generated |
+| Last Modified | `ModDate` | When the PDF was last modified |
+| Encrypted | `IsEncrypted` | Whether the PDF has password protection or permission restrictions |
+
 ## SEO
 
 The app uses **[@nuxtjs/seo](https://nuxtseo.com/)** for comprehensive search engine optimization:

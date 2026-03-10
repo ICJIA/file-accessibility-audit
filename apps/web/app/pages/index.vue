@@ -119,6 +119,22 @@
         </table>
       </div>
 
+      <!-- PDF Metadata -->
+      <div v-if="result.pdfMetadata" class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden">
+        <div class="px-5 py-3 border-b border-[var(--border)]">
+          <h2 class="text-sm font-semibold text-[var(--text-secondary)]">Document Metadata</h2>
+          <p class="text-xs text-[var(--text-muted)] mt-0.5">Informational only — not included in the accessibility score</p>
+        </div>
+        <div class="divide-y divide-[var(--border-subtle)]">
+          <div v-for="item in metadataItems" :key="item.label" class="flex px-5 py-2.5 text-sm">
+            <span class="w-40 flex-shrink-0 text-[var(--text-muted)]">{{ item.label }}</span>
+            <span :class="item.value ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic'">
+              {{ item.value || 'Not set' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Detailed Findings -->
       <h2 class="text-lg font-semibold mb-4">Detailed Findings</h2>
 
@@ -776,6 +792,31 @@ const scoredCategories = computed(() =>
 const naCategories = computed(() =>
   result.value?.categories?.filter((c: any) => c.score === null) || []
 )
+
+function formatMetaDate(iso: string | null): string | null {
+  if (!iso) return null
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  } catch { return iso }
+}
+
+const metadataItems = computed(() => {
+  const m = result.value?.pdfMetadata
+  if (!m) return []
+  return [
+    { label: 'Source Application', value: m.creator },
+    { label: 'PDF Producer', value: m.producer },
+    { label: 'PDF Version', value: m.pdfVersion },
+    { label: 'Page Count', value: m.pageCount?.toString() },
+    { label: 'Author', value: m.author },
+    { label: 'Subject', value: m.subject },
+    { label: 'Keywords', value: m.keywords },
+    { label: 'Created', value: formatMetaDate(m.creationDate) },
+    { label: 'Last Modified', value: formatMetaDate(m.modDate) },
+    { label: 'Encrypted', value: m.isEncrypted ? 'Yes' : 'No' },
+  ]
+})
 
 const gradeColors: Record<string, string> = {
   A: '#22c55e', B: '#14b8a6', C: '#eab308', D: '#f97316', F: '#ef4444',

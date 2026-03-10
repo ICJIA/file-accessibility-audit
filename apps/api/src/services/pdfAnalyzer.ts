@@ -1,5 +1,5 @@
 import { analyzeWithQpdf } from './qpdfService.js'
-import { analyzeWithPdfjs } from './pdfjsService.js'
+import { analyzeWithPdfjs, PdfMetadata } from './pdfjsService.js'
 import { scoreDocument, ScoringResult } from './scorer.js'
 import { ANALYSIS } from '#config'
 
@@ -30,6 +30,7 @@ export interface AnalysisResult extends ScoringResult {
   filename: string
   pageCount: number
   fileType: 'pdf'
+  pdfMetadata: PdfMetadata
 }
 
 export async function analyzePDF(buffer: Buffer, filename: string): Promise<AnalysisResult> {
@@ -49,6 +50,7 @@ export async function analyzePDF(buffer: Buffer, filename: string): Promise<Anal
       filename,
       pageCount: pdfjsResult.pageCount,
       fileType: 'pdf',
+      pdfMetadata: pdfjsResult.metadata,
       ...scoringResult,
     }
   } finally {
