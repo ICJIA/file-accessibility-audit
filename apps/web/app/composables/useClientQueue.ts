@@ -358,6 +358,23 @@ export function useClientQueue() {
     return item.uploadProgress
   }
 
+  function itemOverallProgress(item: QueueItem): number {
+    if (item.state === 'complete') return 100
+    if (item.state === 'queued') return 0
+    if (item.state === 'uploading') {
+      return Math.round(itemUploadProgress(item) * 0.35)
+    }
+    if (item.state === 'processing') {
+      return Math.round(35 + (item.processingProgress * 0.65))
+    }
+    if (item.state === 'failed' || item.state === 'cancelled') {
+      const uploadWeighted = Math.round(itemUploadProgress(item) * 0.35)
+      const processingWeighted = Math.round(35 + (item.processingProgress * 0.65))
+      return Math.max(uploadWeighted, processingWeighted, 0)
+    }
+    return Math.round(item.processingProgress * 0.65)
+  }
+
   onMounted(() => {
     void init()
   })
@@ -388,6 +405,6 @@ export function useClientQueue() {
     clearNotices,
     loadMoreHistory: () => loadHistory(historyPage.value + 1, true),
     downloadItem,
-    itemUploadProgress,
+    itemOverallProgress,
   }
 }

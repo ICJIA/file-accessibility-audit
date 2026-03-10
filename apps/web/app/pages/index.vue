@@ -75,7 +75,7 @@
           :key="item.id"
           :item="item"
           :selected="selectedIds.includes(item.id)"
-          :upload-progress="itemUploadProgress(item)"
+          :overall-progress="itemOverallProgress(item)"
           @toggle-selected="toggleSelected"
           @cancel="cancelItem"
           @delete="deleteItems([$event])"
@@ -103,7 +103,7 @@
           :key="item.id"
           :item="item"
           :selected="selectedIds.includes(item.id)"
-          :upload-progress="itemUploadProgress(item)"
+          :overall-progress="itemOverallProgress(item)"
           @toggle-selected="toggleSelected"
           @cancel="cancelItem"
           @delete="deleteItems([$event])"
@@ -140,7 +140,7 @@ const {
   clearNotices,
   loadMoreHistory,
   downloadItem,
-  itemUploadProgress,
+  itemOverallProgress,
 } = useClientQueue()
 
 const historySentinel = ref<HTMLElement | null>(null)

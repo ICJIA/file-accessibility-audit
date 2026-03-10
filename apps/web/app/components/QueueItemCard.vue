@@ -12,7 +12,7 @@
         <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-2">
             <p class="font-medium text-[var(--text-heading)] break-all">{{ item.filename }}</p>
-            <span class="text-xs px-2 py-0.5 rounded-full capitalize" :class="statusClass">
+            <span v-if="showStatusChip" class="text-xs px-2 py-0.5 rounded-full capitalize" :class="statusClass">
               {{ item.state }}
             </span>
             <span v-if="item.grade" class="text-xs px-2 py-0.5 rounded-full" :style="{ backgroundColor: gradeColor + '20', color: gradeColor }">
@@ -31,42 +31,87 @@
           <UButton v-if="item.canCancel" size="xs" variant="soft" color="neutral" @click="$emit('cancel', item.id)">
             Cancel
           </UButton>
-          <UButton v-if="item.canDownload" size="xs" variant="soft" color="neutral" @click="$emit('download', item.id)">
-            Download PDF
+          <UButton
+            v-if="item.canDownload"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            square
+            title="Download PDF"
+            aria-label="Download PDF"
+            @click="$emit('download', item.id)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="m7 10 5 5 5-5" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 21h14" />
+            </svg>
           </UButton>
-          <UButton size="xs" variant="ghost" color="neutral" @click="$emit('delete', item.id)">
-            Delete
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="error"
+            square
+            title="Delete"
+            aria-label="Delete"
+            @click="$emit('delete', item.id)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 11v6" />
+            </svg>
           </UButton>
           <UButton
             v-if="item.result"
             size="xs"
             variant="ghost"
             color="neutral"
+            square
+            :title="expanded ? 'Hide Details' : 'Show Details'"
+            :aria-label="expanded ? 'Hide Details' : 'Show Details'"
             @click="expanded = !expanded"
           >
-            {{ expanded ? 'Hide Details' : 'Show Details' }}
+            <svg
+              v-if="expanded"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              class="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-4.4" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.9 5.2A10.7 10.7 0 0 1 12 5c5 0 9.3 3 10 7-.3 1.7-1.3 3.2-2.8 4.4" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.2 6.2C4 7.5 2.5 9.6 2 12c.7 4 5 7 10 7 1.5 0 3-.3 4.2-.8" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              class="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
           </UButton>
         </div>
       </div>
 
-      <div class="grid gap-3 mt-4 md:grid-cols-2">
+      <div class="mt-4">
         <div>
           <div class="flex items-center justify-between text-xs text-[var(--text-muted)] mb-1">
-            <span>Upload</span>
-            <span>{{ uploadProgress }}%</span>
+            <span>{{ progressLabel }}</span>
+            <span>{{ overallProgress }}%</span>
           </div>
           <div class="h-2 rounded-full bg-[var(--surface-icon)] overflow-hidden">
-            <div class="h-full rounded-full bg-blue-500 transition-all" :style="{ width: `${uploadProgress}%` }" />
-          </div>
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between text-xs text-[var(--text-muted)] mb-1">
-            <span>{{ item.processingStage || 'Processing' }}</span>
-            <span>{{ item.processingProgress }}%</span>
-          </div>
-          <div class="h-2 rounded-full bg-[var(--surface-icon)] overflow-hidden">
-            <div class="h-full rounded-full bg-green-500 transition-all" :style="{ width: `${item.processingProgress}%` }" />
+            <div class="h-full rounded-full bg-blue-500 transition-all" :style="{ width: `${overallProgress}%` }" />
           </div>
         </div>
       </div>
@@ -98,7 +143,7 @@ import type { QueueItem } from '../composables/useClientQueue'
 const props = defineProps<{
   item: QueueItem
   selected: boolean
-  uploadProgress: number
+  overallProgress: number
 }>()
 
 defineEmits<{
@@ -110,6 +155,8 @@ defineEmits<{
 }>()
 
 const expanded = ref(false)
+
+const showStatusChip = computed(() => props.item.state !== 'complete')
 
 const gradeColors: Record<string, string> = {
   A: '#22c55e',
@@ -131,6 +178,15 @@ const statusClass = computed(() => {
     cancelled: 'bg-slate-500/15 text-slate-300',
   }
   return map[props.item.state] || 'bg-slate-500/15 text-slate-300'
+})
+
+const progressLabel = computed(() => {
+  if (props.item.state === 'uploading') return 'Uploading'
+  if (props.item.state === 'queued') return 'Queued'
+  if (props.item.state === 'processing') return props.item.processingStage || 'Processing'
+  if (props.item.state === 'failed') return 'Failed'
+  if (props.item.state === 'cancelled') return 'Cancelled'
+  return 'Complete'
 })
 
 function formatDate(value: string): string {
