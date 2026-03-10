@@ -95,8 +95,8 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     }
 
     // Count images via operator list (fallback when QPDF can't detect them)
-    const OPS = pdfjsLib.OPS
-    const imageOps = new Set([OPS.paintImageXObject, OPS.paintJpegXObject, OPS.paintImageXObjectRepeat])
+    const OPS = pdfjsLib.OPS as Record<string, number>
+    const imageOps = new Set([OPS.paintImageXObject, OPS.paintJpegXObject, OPS.paintImageXObjectRepeat].filter(v => v !== undefined))
     let imageCount = 0
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
