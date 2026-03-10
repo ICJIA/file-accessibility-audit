@@ -393,11 +393,8 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     const findings = [`${outlineCount} bookmark(s) found`]
     if (qpdf.outlineTitles?.length > 0) {
       findings.push('Bookmark outline:')
-      for (const title of qpdf.outlineTitles.slice(0, 20)) {
+      for (const title of qpdf.outlineTitles) {
         findings.push(`  ${title}`)
-      }
-      if (qpdf.outlineTitles.length > 20) {
-        findings.push(`  … and ${qpdf.outlineTitles.length - 20} more`)
       }
     }
     return {
@@ -538,16 +535,15 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
 
   if (descriptive.length === pdfjs.links.length) {
     findings.push(`All ${pdfjs.links.length} link(s) use descriptive text`)
-    for (const link of pdfjs.links.slice(0, 10)) {
+    for (const link of pdfjs.links) {
       findings.push(`Link: "${link.text.trim()}"`)
     }
-    if (pdfjs.links.length > 10) findings.push(`… and ${pdfjs.links.length - 10} more`)
   } else {
     const rawCount = pdfjs.links.length - descriptive.length
     findings.push(`${rawCount} of ${pdfjs.links.length} link(s) display raw URLs instead of descriptive text`)
     const rawLinks = pdfjs.links.filter(l => rawUrlPattern.test(l.text.trim()))
-    for (const link of rawLinks.slice(0, 5)) {
-      findings.push(`Raw URL link: "${link.text.trim().substring(0, 80)}"`)
+    for (const link of rawLinks) {
+      findings.push(`Raw URL link: "${link.text.trim()}"`)
     }
     findings.push('How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.')
   }
@@ -598,10 +594,9 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   } else {
     findings.push(`${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`)
     const unlabeled = qpdf.formFields.filter(f => !f.hasTU)
-    for (const field of unlabeled.slice(0, 5)) {
+    for (const field of unlabeled) {
       findings.push(`Unlabeled field${field.name ? `: "${field.name}"` : ''}`)
     }
-    if (unlabeled.length > 5) findings.push(`… and ${unlabeled.length - 5} more unlabeled fields`)
     findings.push('How to fix: In Adobe Acrobat, right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.')
   }
 

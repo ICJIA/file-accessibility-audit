@@ -210,7 +210,7 @@
               {{ cat.explanation }}
             </p>
 
-            <ul class="space-y-1.5">
+            <ul class="space-y-1.5 max-h-96 overflow-y-auto">
               <li
                 v-for="(finding, i) in cat.findings"
                 :key="i"
@@ -265,7 +265,7 @@
                 {{ cat.explanation }}
               </p>
 
-              <ul class="space-y-1.5">
+              <ul class="space-y-1.5 max-h-96 overflow-y-auto">
                 <li
                   v-for="(finding, i) in cat.findings"
                   :key="i"
