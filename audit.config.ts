@@ -457,6 +457,42 @@ export const SHARED_REPORTS = {
 } as const
 
 // ---------------------------------------------------------------------------
+// BATCH QUEUE
+// ---------------------------------------------------------------------------
+
+export const BATCH_QUEUE = {
+  /**
+   * How long uploaded PDFs and queue items are retained.
+   */
+  RETENTION_DAYS: 30,
+
+  /**
+   * Initial number of history items loaded by the infinite-scroll UI.
+   */
+  INITIAL_PAGE_SIZE: 25,
+
+  /**
+   * Maximum number of active processing jobs for a single browser client.
+   */
+  MAX_PARALLEL_PER_CLIENT: 5,
+
+  /**
+   * Long-lived browser session duration in days.
+   */
+  SESSION_DAYS: 180,
+
+  /**
+   * Auto-renew threshold for browser sessions in days.
+   */
+  AUTO_RENEW_THRESHOLD_DAYS: 30,
+
+  /**
+   * Time after which an unfinished upload placeholder is treated as stale.
+   */
+  STALE_UPLOAD_MINUTES: 60,
+} as const
+
+// ---------------------------------------------------------------------------
 // BATCH UPLOAD (Phase 2)
 // ---------------------------------------------------------------------------
 

@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js'
 import analyzeRoutes from './routes/analyze.js'
 import reportsRoutes from './routes/reports.js'
 import logsRoutes from './routes/logs.js'
+import queueRoutes from './routes/queue.js'
 
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
@@ -43,6 +44,7 @@ app.use(globalLimiter)
 
 // Routes
 app.use('/api/auth', authRoutes)
+app.use('/api', queueRoutes)
 app.use('/api', analyzeRoutes)
 app.use('/api', reportsRoutes)
 app.use('/api', logsRoutes)

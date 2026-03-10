@@ -27,7 +27,13 @@ export interface PdfjsResult {
   error: string | null
 }
 
-export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
+export async function analyzeWithPdfjs(
+  buffer: Buffer,
+  options?: {
+    signal?: AbortSignal
+    onProgress?: (progress: { stage: string; percent: number }) => void
+  },
+): Promise<PdfjsResult> {
   // Dynamic import since pdfjs-dist is ESM-heavy
   const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
 
@@ -108,6 +114,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     // Extract text and links from all pages
     let totalText = ''
     for (let i = 1; i <= doc.numPages; i++) {
+      if (options?.signal?.aborted) {
+        const error = new Error('PDF.js cancelled') as any
+        error.aborted = true
+        throw error
+      }
       const page = await doc.getPage(i)
 
       // Text content
@@ -128,6 +139,14 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           }
         }
       } catch {}
+
+      if (doc.numPages > 0) {
+        const percent = Math.max(0, Math.min(100, Math.round((i / doc.numPages) * 100)))
+        options?.onProgress?.({
+          stage: `Extracting page ${i} of ${doc.numPages}`,
+          percent,
+        })
+      }
     }
 
     // Count images via operator list (fallback when QPDF can't detect them)
@@ -135,6 +154,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     const imageOps = new Set([OPS.paintImageXObject, OPS.paintJpegXObject, OPS.paintImageXObjectRepeat].filter(v => v !== undefined))
     let imageCount = 0
     for (let i = 1; i <= doc.numPages; i++) {
+      if (options?.signal?.aborted) {
+        const error = new Error('PDF.js cancelled') as any
+        error.aborted = true
+        throw error
+      }
       const page = await doc.getPage(i)
       const ops = await page.getOperatorList()
       for (const fn of ops.fnArray) {

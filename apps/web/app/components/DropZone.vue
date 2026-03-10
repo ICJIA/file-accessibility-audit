@@ -20,9 +20,9 @@
 
         <div>
           <p class="text-lg font-medium" :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'">
-            {{ dragging ? 'Drop your PDF here' : 'Drop a PDF file here' }}
+            {{ dragging ? 'Drop your PDFs or folder here' : 'Drop PDFs or a folder here' }}
           </p>
-          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — max 100 MB</p>
+          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse - PDF only, max 100 MB each</p>
         </div>
       </div>
     </div>
@@ -30,6 +30,7 @@
     <input
       ref="fileInput"
       type="file"
+      multiple
       accept=".pdf,application/pdf"
       class="hidden"
       @change="handleFileInput"
@@ -39,7 +40,7 @@
 
 <script setup lang="ts">
 const emit = defineEmits<{
-  'file-selected': [file: File]
+  'files-selected': [files: File[]]
 }>()
 
 const dragging = ref(false)
@@ -59,7 +60,6 @@ function onDragLeave() {
   }
 }
 
-// Prevent browser from opening dropped files anywhere on the page
 onMounted(() => {
   const prevent = (e: DragEvent) => e.preventDefault()
   document.addEventListener('dragover', prevent)
@@ -74,29 +74,64 @@ function openPicker() {
   fileInput.value?.click()
 }
 
-function handleDrop(e: DragEvent) {
+async function handleDrop(e: DragEvent) {
   dragCounter.value = 0
   dragging.value = false
-  const file = e.dataTransfer?.files?.[0]
-  if (file) processFile(file)
+  const files = await extractDroppedPdfFiles(e.dataTransfer)
+  processFiles(files)
 }
 
 function handleFileInput(e: Event) {
   const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) processFile(file)
-  input.value = '' // Reset so same file can be re-selected
+  processFiles(Array.from(input.files || []))
+  input.value = ''
 }
 
-function processFile(file: File) {
-  if (!file.name.toLowerCase().endsWith('.pdf')) {
-    alert('Please select a PDF file')
+function processFiles(files: File[]) {
+  const valid = files.filter(file => file.name.toLowerCase().endsWith('.pdf') && file.size <= 100 * 1024 * 1024)
+  if (!valid.length) {
+    alert('Please select at least one PDF under the 100 MB limit')
     return
   }
-  if (file.size > 100 * 1024 * 1024) {
-    alert('File exceeds the 100 MB limit')
-    return
+  emit('files-selected', valid)
+}
+
+async function extractDroppedPdfFiles(dataTransfer?: DataTransfer | null): Promise<File[]> {
+  if (!dataTransfer) return []
+  const items = Array.from(dataTransfer.items || [])
+  const supportsEntries = items.some(item => typeof (item as any).webkitGetAsEntry === 'function')
+
+  if (!supportsEntries) {
+    return Array.from(dataTransfer.files || []).filter(file => file.name.toLowerCase().endsWith('.pdf'))
   }
-  emit('file-selected', file)
+
+  const nested = await Promise.all(items.map(item => walkEntry((item as any).webkitGetAsEntry?.())))
+  return nested.flat()
+}
+
+async function walkEntry(entry: any): Promise<File[]> {
+  if (!entry) return []
+
+  if (entry.isFile) {
+    const file = await new Promise<File | null>(resolve => entry.file((value: File) => resolve(value), () => resolve(null)))
+    return file && file.name.toLowerCase().endsWith('.pdf') ? [file] : []
+  }
+
+  if (!entry.isDirectory) return []
+
+  const reader = entry.createReader()
+  const children = await readAllEntries(reader)
+  const nested = await Promise.all(children.map((child: any) => walkEntry(child)))
+  return nested.flat()
+}
+
+async function readAllEntries(reader: any): Promise<any[]> {
+  const all: any[] = []
+  while (true) {
+    const batch = await new Promise<any[]>((resolve, reject) => reader.readEntries(resolve, reject))
+    if (!batch.length) break
+    all.push(...batch)
+  }
+  return all
 }
 </script>

@@ -19,9 +19,21 @@ _global.watchEffect = watchEffect
 _global.nextTick = nextTick
 _global.onMounted = onMounted
 _global.onUnmounted = onUnmounted
+_global.useState = (_key: string, init: () => any) => ref(init())
 _global.definePageMeta = () => {}
 _global.navigateTo = () => {}
 _global.$fetch = async () => ({})
+
+;(globalThis as any).IntersectionObserver = class {
+  observe() {}
+  disconnect() {}
+  unobserve() {}
+}
+
+;(globalThis as any).EventSource = class {
+  onmessage: ((event: any) => void) | null = null
+  close() {}
+}
 
 // Stub Nuxt/UI components globally so every mount picks them up.
 config.global.stubs = {

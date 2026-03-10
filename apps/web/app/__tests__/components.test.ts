@@ -13,8 +13,8 @@ import ProcessingOverlay from '../components/ProcessingOverlay.vue'
 describe('DropZone', () => {
   it('renders the drop area with prompt text', () => {
     const wrapper = mount(DropZone)
-    expect(wrapper.text()).toContain('Drop a PDF file here')
-    expect(wrapper.text()).toContain('max 100 MB')
+    expect(wrapper.text()).toContain('Drop PDFs or a folder here')
+    expect(wrapper.text()).toContain('PDF only, max 100 MB each')
   })
 
   it('contains a hidden file input that accepts PDF', () => {
@@ -23,33 +23,23 @@ describe('DropZone', () => {
     expect(input.exists()).toBe(true)
     expect(input.attributes('accept')).toContain('pdf')
     expect(input.classes()).toContain('hidden')
+    expect(input.attributes('multiple')).toBeDefined()
   })
 
-  it('emits file-selected when a valid PDF is dropped', async () => {
+  it('emits files-selected when valid PDFs are selected', async () => {
     const wrapper = mount(DropZone)
-    const file = new File(['dummy'], 'report.pdf', { type: 'application/pdf' })
-    const dropEvent = new Event('drop') as any
-    Object.defineProperty(dropEvent, 'dataTransfer', {
-      value: { files: [file] },
-    })
-    Object.defineProperty(dropEvent, 'preventDefault', { value: () => {} })
+    const first = new File(['dummy'], 'report.pdf', { type: 'application/pdf' })
+    const second = new File(['dummy'], 'other.pdf', { type: 'application/pdf' })
 
-    await wrapper.find('div').trigger('drop', { dataTransfer: { files: [file] } })
-    // Since trigger does not pass dataTransfer through, call the handler manually
-    // via the component's exposed method through the wrapper vm:
-    const vm = wrapper.vm as any
-    // processFile is internal, but we can simulate via handleDrop-like logic
-    // Instead, use the input change approach:
     const input = wrapper.find('input[type="file"]')
-    // Create a mock change event
-    Object.defineProperty(input.element, 'files', { value: [file], writable: true })
+    Object.defineProperty(input.element, 'files', { value: [first, second], writable: true })
     await input.trigger('change')
 
-    expect(wrapper.emitted('file-selected')).toBeTruthy()
-    expect(wrapper.emitted('file-selected')![0][0]).toEqual(file)
+    expect(wrapper.emitted('files-selected')).toBeTruthy()
+    expect(wrapper.emitted('files-selected')![0][0]).toEqual([first, second])
   })
 
-  it('does NOT emit file-selected for a non-PDF file', async () => {
+  it('does NOT emit files-selected for a non-PDF selection', async () => {
     const wrapper = mount(DropZone)
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
     const file = new File(['img'], 'photo.png', { type: 'image/png' })
@@ -58,15 +48,14 @@ describe('DropZone', () => {
     Object.defineProperty(input.element, 'files', { value: [file], writable: true })
     await input.trigger('change')
 
-    expect(wrapper.emitted('file-selected')).toBeFalsy()
-    expect(alertSpy).toHaveBeenCalledWith('Please select a PDF file')
+    expect(wrapper.emitted('files-selected')).toBeFalsy()
+    expect(alertSpy).toHaveBeenCalledWith('Please select at least one PDF under the 100 MB limit')
     alertSpy.mockRestore()
   })
 
-  it('does NOT emit file-selected if file exceeds 100 MB', async () => {
+  it('filters oversized files and alerts if none remain', async () => {
     const wrapper = mount(DropZone)
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    // Create a "file" whose size is over 100 MB
     const bigFile = new File(['x'], 'huge.pdf', { type: 'application/pdf' })
     Object.defineProperty(bigFile, 'size', { value: 101 * 1024 * 1024 })
 
@@ -74,17 +63,16 @@ describe('DropZone', () => {
     Object.defineProperty(input.element, 'files', { value: [bigFile], writable: true })
     await input.trigger('change')
 
-    expect(wrapper.emitted('file-selected')).toBeFalsy()
-    expect(alertSpy).toHaveBeenCalledWith('File exceeds the 100 MB limit')
+    expect(wrapper.emitted('files-selected')).toBeFalsy()
+    expect(alertSpy).toHaveBeenCalledWith('Please select at least one PDF under the 100 MB limit')
     alertSpy.mockRestore()
   })
 
   it('shows drag-active text when dragging over', async () => {
     const wrapper = mount(DropZone)
-    // The dragover handler is on the inner div (the dashed-border drop area)
     const dropArea = wrapper.findAll('div').find(d => d.classes().some(c => c.includes('border-dashed')))!
     await dropArea.trigger('dragenter')
-    expect(wrapper.text()).toContain('Drop your PDF here')
+    expect(wrapper.text()).toContain('Drop your PDFs or folder here')
   })
 })
 

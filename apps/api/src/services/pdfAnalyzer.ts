@@ -33,18 +33,42 @@ export interface AnalysisResult extends ScoringResult {
   pdfMetadata: PdfMetadata
 }
 
-export async function analyzePDF(buffer: Buffer, filename: string): Promise<AnalysisResult> {
+export async function analyzePDF(
+  buffer: Buffer,
+  filename: string,
+  options?: {
+    signal?: AbortSignal
+    onProgress?: (progress: { stage: string; percent: number }) => void
+  },
+): Promise<AnalysisResult> {
   await acquireSemaphore()
 
   try {
-    // Run QPDF and pdfjs-dist in parallel
-    const [qpdfResult, pdfjsResult] = await Promise.all([
-      Promise.resolve(analyzeWithQpdf(buffer)),
-      analyzeWithPdfjs(buffer),
-    ])
+    options?.onProgress?.({ stage: 'Inspecting PDF structure', percent: 10 })
+    const qpdfResult = await analyzeWithQpdf(buffer, { signal: options?.signal })
+
+    if (options?.signal?.aborted) {
+      const error = new Error('Analysis cancelled') as any
+      error.aborted = true
+      throw error
+    }
+
+    options?.onProgress?.({ stage: 'Extracting text and metadata', percent: 20 })
+    const pdfjsResult = await analyzeWithPdfjs(buffer, {
+      signal: options?.signal,
+      onProgress(progress) {
+        const scaled = 20 + Math.round(progress.percent * 0.65)
+        options?.onProgress?.({
+          stage: progress.stage,
+          percent: Math.min(85, scaled),
+        })
+      },
+    })
 
     // Score the document
+    options?.onProgress?.({ stage: 'Scoring accessibility findings', percent: 92 })
     const scoringResult = scoreDocument(qpdfResult, pdfjsResult)
+    options?.onProgress?.({ stage: 'Finalizing report', percent: 100 })
 
     return {
       filename,

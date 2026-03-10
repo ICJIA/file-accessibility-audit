@@ -1,14 +1,19 @@
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import { ANALYSIS } from '#config'
 
+const execFileAsync = promisify(execFile)
 const QPDF_BIN = process.env.QPDF_PATH || (() => {
-  try { execFileSync('qpdf', ['--version'], { stdio: 'ignore' }); return 'qpdf' } catch {}
-  try { execFileSync('/opt/homebrew/bin/qpdf', ['--version'], { stdio: 'ignore' }); return '/opt/homebrew/bin/qpdf' } catch {}
-  try { execFileSync('/usr/local/bin/qpdf', ['--version'], { stdio: 'ignore' }); return '/usr/local/bin/qpdf' } catch {}
-  return 'qpdf'
+  const candidates = [
+    'C:/Program Files/qpdf 12.3.2/bin/qpdf.exe',
+    '/opt/homebrew/bin/qpdf',
+    '/usr/local/bin/qpdf',
+  ]
+  return candidates.find(candidate => fs.existsSync(candidate)) || 'qpdf'
 })()
 
 export interface QpdfResult {
@@ -28,17 +33,18 @@ export interface QpdfResult {
   error: string | null
 }
 
-export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
-  const tmpDir = process.env.TMP_DIR || '/tmp'
+export async function analyzeWithQpdf(buffer: Buffer, options?: { signal?: AbortSignal }): Promise<QpdfResult> {
+  const tmpDir = process.env.TMP_DIR || os.tmpdir()
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`)
 
   try {
     fs.writeFileSync(tmpPath, buffer)
 
-    const stdout = execFileSync(QPDF_BIN, ['--json', tmpPath], {
+    const { stdout } = await execFileAsync(QPDF_BIN, ['--json', tmpPath], {
       timeout: ANALYSIS.QPDF_TIMEOUT_MS,
       maxBuffer: ANALYSIS.QPDF_MAX_BUFFER,
       encoding: 'utf-8',
+      signal: options?.signal,
     })
 
     const json = JSON.parse(stdout)
@@ -52,6 +58,11 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
     if (err.killed || err.signal === 'SIGTERM') {
       const error = new Error('QPDF timeout') as any
       error.killed = true
+      throw error
+    }
+    if (err.name === 'AbortError') {
+      const error = new Error('QPDF cancelled') as any
+      error.aborted = true
       throw error
     }
     // Return partial result with error

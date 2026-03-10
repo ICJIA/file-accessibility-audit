@@ -54,6 +54,57 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_shared_reports_expires ON shared_reports(expires_at);
+
+  CREATE TABLE IF NOT EXISTS browser_clients (
+    client_id TEXT PRIMARY KEY,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS browser_sessions (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES browser_clients(client_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_browser_sessions_client ON browser_sessions(client_id);
+  CREATE INDEX IF NOT EXISTS idx_browser_sessions_expires ON browser_sessions(expires_at);
+
+  CREATE TABLE IF NOT EXISTS queue_items (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    md5 TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    mime_type TEXT,
+    state TEXT NOT NULL,
+    storage_path TEXT,
+    upload_progress INTEGER NOT NULL DEFAULT 0,
+    processing_progress INTEGER NOT NULL DEFAULT 0,
+    processing_stage TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    result_json TEXT,
+    error_json TEXT,
+    page_count INTEGER,
+    overall_score INTEGER,
+    grade TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    upload_started_at DATETIME,
+    upload_completed_at DATETIME,
+    processing_started_at DATETIME,
+    completed_at DATETIME,
+    expires_at DATETIME NOT NULL,
+    FOREIGN KEY (client_id) REFERENCES browser_clients(client_id) ON DELETE CASCADE,
+    UNIQUE(client_id, md5)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_queue_items_client ON queue_items(client_id);
+  CREATE INDEX IF NOT EXISTS idx_queue_items_client_state ON queue_items(client_id, state);
+  CREATE INDEX IF NOT EXISTS idx_queue_items_expires ON queue_items(expires_at);
 `)
 
 export default db
