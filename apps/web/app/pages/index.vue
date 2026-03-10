@@ -496,6 +496,11 @@
                   <td class="px-4 py-2"><code>page.getAnnotations()</code> + spatial text matching</td>
                   <td class="px-4 py-2">Link quality — detects raw URLs vs. descriptive text</td>
                 </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Image count</td>
+                  <td class="px-4 py-2"><code>page.getOperatorList()</code> per page</td>
+                  <td class="px-4 py-2">Fallback image detection — counts paint operations when QPDF can't find tagged images</td>
+                </tr>
                 <tr>
                   <td class="px-4 py-2">Outlines</td>
                   <td class="px-4 py-2"><code>doc.getOutline()</code></td>
@@ -522,7 +527,7 @@
             </div>
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
               <p class="font-medium text-[var(--text-secondary)] mb-1 text-xs">PDF.js sees:</p>
-              <p class="text-xs text-[var(--text-muted)]">Rendered text content, document title and metadata, link URLs and their visible text, page count — the "surface" of the document as a user would read it.</p>
+              <p class="text-xs text-[var(--text-muted)]">Rendered text content, document title and metadata, link URLs and their visible text, page count, image rendering operations — the "surface" of the document as a user would read it.</p>
             </div>
           </div>
           <p class="text-[var(--text-muted)] mt-3">
@@ -572,7 +577,7 @@
                 <em>What it means:</em> Every informative image in a PDF must have "alternative text" — a short description that a screen reader reads aloud. Without alt text, a blind user hears nothing when they encounter a chart, photo, or diagram.
               </p>
               <p class="text-xs text-[var(--text-muted)]">
-                <em>How it's scored:</em> The percentage of detected images that have alt text. QPDF identifies image objects (<code>/Image</code> XObjects) and matches them to their <code>/Figure</code> structure elements, then checks whether each Figure has an <code>/Alt</code> attribute. <strong>N/A</strong> if the document contains no images.
+                <em>How it's scored:</em> The percentage of detected images that have alt text. QPDF identifies image objects (<code>/Image</code> XObjects) and matches them to their <code>/Figure</code> structure elements, then checks whether each Figure has an <code>/Alt</code> attribute. If QPDF finds no tagged images, PDF.js provides a fallback by counting image rendering operations — if images exist but aren't tagged, the category scores <strong>0</strong> (Critical) instead of N/A. <strong>N/A</strong> only if no images are detected by either tool.
               </p>
             </div>
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">

@@ -118,7 +118,7 @@ Each PDF is scored across **9 accessibility categories** based on [WCAG 2.1](htt
 | Text Extractability | 20% | 1.3.1, 1.4.5 | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. |
 | Title & Language | 15% | 2.4.2, 3.1.1 | The document title is the first thing a screen reader announces. The language tag controls pronunciation. |
 | Heading Structure | 15% | 1.3.1, 2.4.6 | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. |
-| Alt Text on Images | 15% | 1.1.1 | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. |
+| Alt Text on Images | 15% | 1.1.1 | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. Images are detected via QPDF tags; pdfjs-dist provides a fallback for untagged PDFs. |
 | Bookmarks | 10% | 2.4.5 | For documents over 10 pages, bookmarks provide a navigable table of contents. |
 | Table Markup | 10% | 1.3.1 | Without header cells (TH), screen readers read table data in a flat stream with no context. |
 | Link Quality | 5% | 2.4.4 | Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes. |
@@ -281,7 +281,7 @@ file-accessibility-audit/
 | Frontend | Nuxt 4 / Nuxt UI 4 / Light & dark mode / WCAG 2.1 AA compliant |
 | SEO | @nuxtjs/seo (sitemap, robots, Schema.org, OG) |
 | API | Express / TypeScript / tsx (no build step in dev) |
-| PDF Analysis | QPDF (structure tree) + pdfjs-dist (text/metadata) |
+| PDF Analysis | QPDF (structure tree, tags) + pdfjs-dist (text/metadata, image detection fallback) |
 | Database | SQLite via better-sqlite3 (audit logs, shared reports) |
 | Auth | Optional email OTP → JWT (httpOnly cookie) |
 | Email | Mailgun (default) / SMTP2GO (alternative) / Nodemailer |
@@ -374,7 +374,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**324 tests** across 10 test files. Run all with a summary at the end:
+**326 tests** across 10 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -389,18 +389,18 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      168 passed (5 files)
+  ✔ API      170 passed (5 files)
   ✔ Web      156 passed (5 files)
 ────────────────────────────────────────────────────────────
-  ✔ 324 tests passed across 10 files
+  ✔ 326 tests passed across 10 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (168 tests)
+### API Tests (170 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
-| `scorer.test.ts` | 76 | All 9 scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases (scanned PDFs, mixed results, hierarchy skips, partial alt text, disorder ratio) |
+| `scorer.test.ts` | 78 | All 9 scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases (scanned PDFs, mixed results, hierarchy skips, partial alt text, disorder ratio), pdfjs image detection fallback for untagged PDFs |
 | `qpdfParser.test.ts` | 34 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table TH header detection, figure alt text, MCID content ordering, outline counting, tree depth, malformed JSON |
 | `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override) |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
