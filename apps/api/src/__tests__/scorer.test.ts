@@ -39,6 +39,7 @@ function makePdfjs(overrides: Partial<PdfjsResult> = {}): PdfjsResult {
     hasOutlines: false,
     outlineCount: 0,
     links: [],
+    imageCount: 0,
     error: null,
     ...overrides,
   }
@@ -585,6 +586,27 @@ describe('scoreHeadingStructure edge cases', () => {
     const result = scoreDocument(qpdf, pdfjs)
     // Going from H2 back to H1 is not a skip (only checks if next > prev + 1)
     expect(findCategory(result, 'heading_structure').score).toBe(100)
+  })
+})
+
+describe('scoreAltText pdfjs fallback', () => {
+  it('qpdf finds no images but pdfjs detects images → score 0 (Critical)', () => {
+    const qpdf = makeQpdf({ images: [] })
+    const pdfjs = makePdfjs({ imageCount: 3 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const cat = findCategory(result, 'alt_text')
+    expect(cat.score).toBe(0)
+    expect(cat.severity).toBe('Critical')
+    expect(cat.findings.some(f => f.includes('3 image(s) detected'))).toBe(true)
+    expect(cat.findings.some(f => f.includes('not tagged'))).toBe(true)
+  })
+
+  it('qpdf finds no images and pdfjs finds none either → N/A', () => {
+    const qpdf = makeQpdf({ images: [] })
+    const pdfjs = makePdfjs({ imageCount: 0 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const cat = findCategory(result, 'alt_text')
+    expect(cat.score).toBeNull()
   })
 })
 

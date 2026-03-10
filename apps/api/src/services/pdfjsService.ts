@@ -9,6 +9,7 @@ export interface PdfjsResult {
   hasOutlines: boolean
   outlineCount: number
   links: Array<{ url: string; text: string }>
+  imageCount: number
   error: string | null
 }
 
@@ -27,6 +28,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     hasOutlines: false,
     outlineCount: 0,
     links: [],
+    imageCount: 0,
     error: null,
   }
 
@@ -91,6 +93,19 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         }
       } catch {}
     }
+
+    // Count images via operator list (fallback when QPDF can't detect them)
+    const OPS = pdfjsLib.OPS
+    const imageOps = new Set([OPS.paintImageXObject, OPS.paintJpegXObject, OPS.paintImageXObjectRepeat])
+    let imageCount = 0
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i)
+      const ops = await page.getOperatorList()
+      for (const fn of ops.fnArray) {
+        if (imageOps.has(fn)) imageCount++
+      }
+    }
+    result.imageCount = imageCount
 
     result.textLength = totalText.trim().length
     result.hasText = result.textLength > 50 // Minimum meaningful text

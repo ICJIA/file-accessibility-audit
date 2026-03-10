@@ -69,7 +69,7 @@ export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResu
   categories.push(scoreHeadingStructure(qpdf))
 
   // 4. Alt Text on Images (15%)
-  categories.push(scoreAltText(qpdf))
+  categories.push(scoreAltText(qpdf, pdfjs))
 
   // 5. Bookmarks / Navigation (10%)
   categories.push(scoreBookmarks(qpdf, pdfjs))
@@ -285,7 +285,7 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
   }
 }
 
-function scoreAltText(qpdf: QpdfResult): CategoryResult {
+function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const altLinks: CategoryResult['helpLinks'] = [
     { label: 'Adobe: Add Alt Text to Images', url: 'https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html#add_alternate_text_to_links_and_figures' },
     { label: 'WCAG 1.1.1: Non-text Content', url: 'https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html' },
@@ -294,6 +294,25 @@ function scoreAltText(qpdf: QpdfResult): CategoryResult {
   const altExplanation = 'Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.'
 
   const figures = qpdf.images.filter(img => img.ref)
+
+  // QPDF found no tagged images, but pdfjs detected image rendering operations
+  if (figures.length === 0 && pdfjs.imageCount > 0) {
+    return {
+      id: 'alt_text',
+      label: 'Alt Text on Images',
+      weight: SCORING_WEIGHTS.alt_text,
+      score: 0,
+      grade: 'F',
+      severity: 'Critical',
+      findings: [
+        `${pdfjs.imageCount} image(s) detected in the document, but none have accessibility tags`,
+        'The images exist in the PDF but are not tagged as <Figure> elements, so screen readers cannot identify them or read any alternative text.',
+        'How to fix: In Adobe Acrobat, open the Tags panel → use the Reading Order tool (Accessibility → Reading Order) to identify images → tag each image as a Figure → right-click the <Figure> tag → Properties → add descriptive alt text.',
+      ],
+      explanation: altExplanation,
+      helpLinks: altLinks,
+    }
+  }
 
   if (figures.length === 0) {
     return {
