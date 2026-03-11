@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.4.0] - 2026-03-11
+
+### Added
+- **Enhanced table accessibility analysis** — six sub-checks replace the old binary header detection:
+  - Header cells (TH tags) — 30 points
+  - Scope attributes (/Column or /Row) — 20 points
+  - Row structure (TR tags, handles THead/TBody/TFoot) — 15 points
+  - Nested table detection — 10 points
+  - Caption elements — 10 points
+  - Column consistency across rows — 10 points
+  - Header-data association bonus (/Headers attribute) — 5 points
+- `TableAnalysis` interface with 12 fields for detailed table structure data
+- 13 new QPDF parser tests and 7 new scorer tests (340 total)
+- Changelog link and dynamic version display in footer
+- `CHANGELOG.md` with historical entries for v1.0.0–v1.3.0
+
+### Changed
+- Table markup scoring now uses multi-factor weighted scoring instead of binary pass/fail
+- Each table sub-check produces actionable findings with Adobe Acrobat fix instructions
+- Technical details section updated with full table scoring methodology
+
 ## [1.3.0] - 2026-03-11
 
 ### Added
@@ -71,6 +92,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Environment-specific configuration with `.env` examples
 - Deployment documentation for DigitalOcean/Forge/PM2/nginx
 
+[1.4.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.0.0...v1.1.0
