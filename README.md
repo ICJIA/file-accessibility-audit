@@ -4,7 +4,7 @@
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
-A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload a PDF, get an instant grade (A–F) with category-by-category findings and remediation guidance.
+A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload one or more PDFs (up to 10), get instant grades (A–F) with category-by-category findings and remediation guidance.
 
 **This tool is diagnostic only** — it identifies accessibility issues but does not fix them. The intended workflow is: upload → review findings → fix in Adobe Acrobat → re-upload to verify.
 
@@ -155,6 +155,29 @@ Each category receives a severity based on its individual score:
 
 Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. All scoring constants live in `audit.config.ts`.
 
+## Batch Upload
+
+Upload up to **10 PDF files** at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
+
+### How it works
+
+- **Drop or select multiple PDFs** — the drop zone accepts multiple files. Files are staged with a preview list before analysis begins.
+- **Frontend-only orchestration** — no new API endpoints, no server-side queue. The browser calls the existing `/api/analyze` endpoint once per file with a client-side concurrency limit of 2 (matching the server's `MAX_CONCURRENT_ANALYSES`).
+- **Per-file progress** — a progress view shows each file's status (queued, processing, done, error) with grade badges as they complete.
+- **Tab-based results** — after processing, a horizontal tab bar lets you switch between reports. Export and share work on the active tab's result.
+- **Single file unchanged** — dropping a single file works exactly as before (no tab bar, no staging step).
+
+### Limits
+
+| Constraint | Value | Enforced by |
+|-----------|-------|-------------|
+| Max files per batch | 10 | Frontend (`DropZone.vue`) |
+| Max file size | 100 MB each | Frontend + multer + nginx |
+| Concurrent uploads | 2 | Frontend semaphore + server semaphore |
+| Rate limit | 30 analyses/hour | Server (`analyzeLimiter`) |
+
+**Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 10). The frontend DropZone also enforces this limit client-side.
+
 ## Report Exports
 
 Reports can be downloaded in four formats, all with links back to [audit.icjia.app](https://audit.icjia.app):
@@ -276,7 +299,7 @@ file-accessibility-audit/
 ├── apps/
 │   ├── web/            # Nuxt 4 frontend
 │   │   ├── public/     # Static assets (og-image, favicons, llms.txt, manifest)
-│   │   └── app/        # Pages, components, composables, layouts
+│   │   └── app/        # Pages, components (DropZone, BatchProgress, AppTooltip, ScoreCard), composables, layouts
 │   ├── api/            # Express API server
 │   │   └── src/        # Routes, services, middleware, database
 │   └── cli/            # a11y-audit CLI tool
@@ -429,7 +452,7 @@ pnpm test:scoring        # Scoring model tests only
 |------|------:|----------------|
 | `accessibility.test.ts` | 38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
 | `color-mode.test.ts` | 51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks |
-| `components.test.ts` | 33 | DropZone (drag/drop, PDF validation, file size limits), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages) |
+| `components.test.ts` | 33 | DropZone (drag/drop, multi-file PDF validation, file size limits, batch staging), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages) |
 | `login.test.ts` | 13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation |
 | `scoring-display.test.ts` | 21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical) |
 
@@ -484,6 +507,19 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 - Helmet + nginx security headers
 - CORS locked to same origin in production
 - See **docs/00-master-design.md, Section 9** for the full security model
+
+### Batch upload security
+
+Batch processing adds **no new server-side attack surface**. Each file in a batch is an independent HTTP request to the existing `/api/analyze` endpoint, subject to all existing protections:
+
+| Threat | Mitigation |
+|--------|-----------|
+| **Bypassing the 10-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (30/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
+| **Memory exhaustion** | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 100 MB = 200 MB (unchanged from single-file mode). |
+| **Filename XSS** | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage. |
+| **Race conditions** | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue. |
+| **Auth bypass during batch** | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items. |
+| **Concurrent upload flood** | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP. |
 
 ## License
 

@@ -58,9 +58,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     error: null,
   }
 
+  let doc: any = null
   try {
     const data = new Uint8Array(buffer)
-    const doc = await pdfjsLib.getDocument({
+    doc = await pdfjsLib.getDocument({
       data,
       useSystemFonts: true,
       verbosity: 0, // Suppress harmless TrueType font warnings
@@ -145,11 +146,13 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
 
     result.textLength = totalText.trim().length
     result.hasText = result.textLength > 50 // Minimum meaningful text
-
-    await doc.destroy()
   } catch (err) {
     console.error('pdfjs-dist error:', err)
     result.error = 'pdfjs-dist parsing failed'
+  } finally {
+    if (doc) {
+      try { await doc.destroy() } catch {}
+    }
   }
 
   return result

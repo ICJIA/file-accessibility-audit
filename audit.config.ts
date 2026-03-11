@@ -418,8 +418,10 @@ export const RATE_LIMITS = {
   authVerify: { max: 10, windowMs: 15 * 60 * 1000 },       // 10 per 15 min
 
   /** POST /api/analyze — keyed by email (from JWT).
-   *  Prevents a single user from monopolizing analysis resources. */
-  analyze: { max: 30, windowMs: 60 * 60 * 1000 },           // 30 per hour
+   *  Prevents a single user from monopolizing analysis resources.
+   *  Sized for 3 full batches of BATCH.MAX_FILES (10) plus headroom
+   *  for retries, errors, and cancelled-then-restarted sessions. */
+  analyze: { max: 35, windowMs: 60 * 60 * 1000 },           // 35 per hour
 
   /** POST /api/reports — keyed by email (from JWT).
    *  Prevents a single user from filling the shared_reports table. */
@@ -470,7 +472,7 @@ export const BATCH = {
    * sequential processing. Don't exceed 20 without also implementing
    * a background job queue.
    */
-  MAX_FILES: 5,
+  MAX_FILES: 10,
 } as const
 
 // ---------------------------------------------------------------------------
