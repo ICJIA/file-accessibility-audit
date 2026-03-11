@@ -1,5 +1,59 @@
 <template>
   <div>
+    <!-- Validation error (shown even without staged files) -->
+    <div v-if="validationError && stagedFiles.length === 0" class="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+      <p class="text-xs text-[var(--status-error)]">{{ validationError }}</p>
+    </div>
+
+    <!-- Staged file list (shown when multiple files selected but not yet submitted) -->
+    <div v-if="stagedFiles.length > 0" class="mb-4">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-sm font-medium text-[var(--text-heading)]">
+            {{ stagedFiles.length }} {{ stagedFiles.length === 1 ? 'file' : 'files' }} selected
+          </p>
+          <button
+            class="text-xs text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors"
+            @click="clearStaged"
+          >Clear all</button>
+        </div>
+        <ul class="space-y-2">
+          <li
+            v-for="(f, i) in stagedFiles"
+            :key="i"
+            class="flex items-center justify-between rounded-lg bg-[var(--surface-deep)] px-3 py-2 text-sm"
+          >
+            <span class="text-[var(--text-secondary)] truncate mr-3">{{ f.name }}</span>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs text-[var(--text-muted)]">{{ formatSize(f.size) }}</span>
+              <button
+                class="text-[var(--text-muted)] hover:text-[var(--status-error)] transition-colors"
+                @click="removeStaged(i)"
+                title="Remove file"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </li>
+        </ul>
+        <div v-if="validationError" class="mt-3 text-xs text-[var(--status-error)]">{{ validationError }}</div>
+        <div class="mt-3 flex gap-2 justify-center">
+          <button
+            class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
+            @click="submitStaged"
+          >
+            Analyze {{ stagedFiles.length }} {{ stagedFiles.length === 1 ? 'File' : 'Files' }}
+          </button>
+          <button
+            class="px-4 py-2 rounded-lg border border-[var(--border-input)] text-[var(--text-secondary)] text-sm hover:bg-[var(--surface-hover)] transition-colors"
+            @click="openPicker"
+          >Add More</button>
+        </div>
+      </div>
+    </div>
+
     <div
       class="flex flex-col items-center justify-center min-h-[50vh] border-2 border-dashed rounded-2xl transition-all cursor-pointer"
       :class="dragging
@@ -20,9 +74,9 @@
 
         <div>
           <p class="text-lg font-medium" :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'">
-            {{ dragging ? 'Drop your PDF here' : 'Drop a PDF file here' }}
+            {{ dragging ? 'Drop your PDFs here' : 'Drop PDF files here' }}
           </p>
-          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — max 100 MB</p>
+          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — up to 5 files, max 100 MB each</p>
         </div>
       </div>
     </div>
@@ -31,6 +85,7 @@
       ref="fileInput"
       type="file"
       accept=".pdf,application/pdf"
+      multiple
       class="hidden"
       @change="handleFileInput"
     />
@@ -38,13 +93,30 @@
 </template>
 
 <script setup lang="ts">
+const MAX_FILES = 5
+const MAX_SIZE = 100 * 1024 * 1024
+
 const emit = defineEmits<{
   'file-selected': [file: File]
+  'files-selected': [files: File[]]
 }>()
 
 const dragging = ref(false)
 const dragCounter = ref(0)
 const fileInput = ref<HTMLInputElement | null>(null)
+const stagedFiles = ref<File[]>([])
+const validationError = ref('')
+
+// Prevent browser from opening dropped files anywhere on the page
+onMounted(() => {
+  const prevent = (e: DragEvent) => e.preventDefault()
+  document.addEventListener('dragover', prevent)
+  document.addEventListener('drop', prevent)
+  onUnmounted(() => {
+    document.removeEventListener('dragover', prevent)
+    document.removeEventListener('drop', prevent)
+  })
+})
 
 function onDragEnter() {
   dragCounter.value++
@@ -59,17 +131,6 @@ function onDragLeave() {
   }
 }
 
-// Prevent browser from opening dropped files anywhere on the page
-onMounted(() => {
-  const prevent = (e: DragEvent) => e.preventDefault()
-  document.addEventListener('dragover', prevent)
-  document.addEventListener('drop', prevent)
-  onUnmounted(() => {
-    document.removeEventListener('dragover', prevent)
-    document.removeEventListener('drop', prevent)
-  })
-})
-
 function openPicker() {
   fileInput.value?.click()
 }
@@ -77,26 +138,71 @@ function openPicker() {
 function handleDrop(e: DragEvent) {
   dragCounter.value = 0
   dragging.value = false
-  const file = e.dataTransfer?.files?.[0]
-  if (file) processFile(file)
+  const files = Array.from(e.dataTransfer?.files || [])
+  processFiles(files)
 }
 
 function handleFileInput(e: Event) {
   const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) processFile(file)
-  input.value = '' // Reset so same file can be re-selected
+  const files = Array.from(input.files || [])
+  processFiles(files)
+  input.value = '' // Reset so same files can be re-selected
 }
 
-function processFile(file: File) {
-  if (!file.name.toLowerCase().endsWith('.pdf')) {
-    alert('Please select a PDF file')
+function processFiles(files: File[]) {
+  validationError.value = ''
+
+  const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'))
+  if (pdfs.length === 0) {
+    validationError.value = 'Please select PDF files'
     return
   }
-  if (file.size > 100 * 1024 * 1024) {
-    alert('File exceeds the 100 MB limit')
+
+  const oversized = pdfs.filter(f => f.size > MAX_SIZE)
+  if (oversized.length) {
+    validationError.value = `${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 100 MB limit`
     return
   }
-  emit('file-selected', file)
+
+  const combined = [...stagedFiles.value, ...pdfs]
+  if (combined.length > MAX_FILES) {
+    validationError.value = `Maximum ${MAX_FILES} files allowed (you have ${combined.length})`
+    return
+  }
+
+  // Single file with nothing staged → emit immediately (original behavior)
+  if (pdfs.length === 1 && stagedFiles.value.length === 0) {
+    emit('file-selected', pdfs[0])
+    return
+  }
+
+  // Multiple files or adding to existing staged → stage them
+  stagedFiles.value = combined
+}
+
+function removeStaged(index: number) {
+  stagedFiles.value.splice(index, 1)
+  validationError.value = ''
+}
+
+function clearStaged() {
+  stagedFiles.value = []
+  validationError.value = ''
+}
+
+function submitStaged() {
+  if (stagedFiles.value.length === 0) return
+  if (stagedFiles.value.length === 1) {
+    emit('file-selected', stagedFiles.value[0])
+  } else {
+    emit('files-selected', [...stagedFiles.value])
+  }
+  stagedFiles.value = []
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 </script>

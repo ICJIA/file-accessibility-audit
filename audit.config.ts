@@ -470,7 +470,7 @@ export const BATCH = {
    * sequential processing. Don't exceed 20 without also implementing
    * a background job queue.
    */
-  MAX_FILES: 10,
+  MAX_FILES: 5,
 } as const
 
 // ---------------------------------------------------------------------------
