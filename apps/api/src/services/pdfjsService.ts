@@ -23,6 +23,7 @@ export interface PdfjsResult {
   outlineCount: number
   links: Array<{ url: string; text: string }>
   imageCount: number
+  emptyPages: number[]
   metadata: PdfMetadata
   error: string | null
 }
@@ -43,6 +44,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     outlineCount: 0,
     links: [],
     imageCount: 0,
+    emptyPages: [],
     metadata: {
       creator: null,
       producer: null,
@@ -117,6 +119,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         .map((item: any) => item.str || '')
         .join(' ')
       totalText += pageText + ' '
+
+      // Track empty pages (pages with negligible text content)
+      if (pageText.trim().length < 10) {
+        result.emptyPages.push(i)
+      }
 
       // Link annotations
       try {

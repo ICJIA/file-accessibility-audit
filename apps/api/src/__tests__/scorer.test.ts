@@ -20,6 +20,16 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     images: [],
     headings: [],
     tables: [],
+    lists: [],
+    paragraphCount: 0,
+    hasMarkInfo: false,
+    isMarkedContent: false,
+    hasRoleMap: false,
+    roleMapEntries: [],
+    tabOrderPages: 0,
+    totalPageCount: 0,
+    langSpans: [],
+    fonts: [],
     structTreeDepth: 0,
     contentOrder: [],
     error: null,
@@ -58,6 +68,7 @@ function makePdfjs(overrides: Partial<PdfjsResult> = {}): PdfjsResult {
     outlineCount: 0,
     links: [],
     imageCount: 0,
+    emptyPages: [],
     metadata: {
       creator: null,
       producer: null,
@@ -793,6 +804,152 @@ describe('scoreTableMarkup edge cases', () => {
     const result = scoreDocument(qpdf, pdfjs)
     // 30 + 20 + 15 + 10 + 10 + 0 (inconsistent) = 85
     expect(findCategory(result, 'table_markup').score).toBe(85)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Supplementary findings (informational, no scoring impact)
+// ---------------------------------------------------------------------------
+
+describe('supplementary findings — list markup', () => {
+  it('reports well-formed lists in table_markup findings', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      lists: [{ itemCount: 3, hasLabels: true, hasBodies: true, isWellFormed: true, nestingDepth: 0 }],
+    })
+    const pdfjs = makePdfjs()
+    const result = scoreDocument(qpdf, pdfjs)
+    const tableCat = findCategory(result, 'table_markup')
+    expect(tableCat.findings.some(f => f.includes('1 list(s) detected'))).toBe(true)
+    expect(tableCat.findings.some(f => f.includes('well-formed'))).toBe(true)
+  })
+
+  it('reports malformed lists', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      lists: [{ itemCount: 2, hasLabels: false, hasBodies: true, isWellFormed: false, nestingDepth: 0 }],
+    })
+    const pdfjs = makePdfjs()
+    const result = scoreDocument(qpdf, pdfjs)
+    const tableCat = findCategory(result, 'table_markup')
+    expect(tableCat.findings.some(f => f.includes('missing label'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — marked content & artifacts', () => {
+  it('reports marked content when /MarkInfo /Marked true', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, hasMarkInfo: true, isMarkedContent: true, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('Marked Content'))).toBe(true)
+  })
+
+  it('reports missing MarkInfo on tagged documents', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, hasMarkInfo: false, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('No MarkInfo'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — font embedding', () => {
+  it('reports all fonts embedded', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      fonts: [{ name: 'Arial', embedded: true }, { name: 'TimesNewRoman', embedded: true }],
+      structTreeDepth: 3, contentOrder: [0, 1],
+    })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('All fonts are embedded'))).toBe(true)
+  })
+
+  it('reports non-embedded fonts', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      fonts: [{ name: 'Arial', embedded: true }, { name: 'Comic Sans', embedded: false }],
+      structTreeDepth: 3, contentOrder: [0, 1],
+    })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('Non-embedded'))).toBe(true)
+    expect(textCat.findings.some(f => f.includes('Comic Sans'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — empty pages', () => {
+  it('reports empty pages', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500, emptyPages: [3, 7] })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('2 empty'))).toBe(true)
+    expect(textCat.findings.some(f => f.includes('page(s) 3, 7'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — role mapping & tab order', () => {
+  it('reports role mapping in reading_order', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true, hasRoleMap: true,
+      roleMapEntries: ['Heading1 → H1', 'Normal → P'],
+      structTreeDepth: 3, contentOrder: [0, 1],
+    })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('Role mapping present'))).toBe(true)
+  })
+
+  it('reports tab order status', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true, tabOrderPages: 5, totalPageCount: 5,
+      structTreeDepth: 3, contentOrder: [0, 1],
+    })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('Tab order is set on all'))).toBe(true)
+  })
+
+  it('reports missing tab order', () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true, tabOrderPages: 0, totalPageCount: 10,
+      structTreeDepth: 3, contentOrder: [0, 1],
+    })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('No tab order'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — language spans', () => {
+  it('reports foreign language spans', () => {
+    const qpdf = makeQpdf({
+      hasLang: true, lang: 'en-US',
+      langSpans: [{ lang: 'es', tag: 'Span' }, { lang: 'es', tag: 'P' }, { lang: 'fr', tag: 'Span' }],
+    })
+    const pdfjs = makePdfjs({ title: 'Test', hasText: true, textLength: 100 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const langCat = findCategory(result, 'title_language')
+    expect(langCat.findings.some(f => f.includes('Language Span Analysis'))).toBe(true)
+    expect(langCat.findings.some(f => f.includes('es: 2'))).toBe(true)
+    expect(langCat.findings.some(f => f.includes('fr: 1'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — paragraph count', () => {
+  it('reports paragraph tag count', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 15, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('15 paragraph tag(s)'))).toBe(true)
   })
 })
 

@@ -86,6 +86,9 @@ export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResu
   // 9. Reading Order (5%)
   categories.push(scoreReadingOrder(qpdf))
 
+  // 10. Supplementary Analysis (informational — no scoring impact)
+  appendSupplementaryFindings(qpdf, pdfjs, categories)
+
   // Calculate weighted average (N/A categories excluded, weights renormalized)
   const applicable = categories.filter(c => c.score !== null)
   const totalWeight = applicable.reduce((sum, c) => sum + c.weight, 0)
@@ -770,6 +773,140 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
     findings,
     explanation: readingExplanation,
     helpLinks: readingLinks,
+  }
+}
+
+function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categories: CategoryResult[]): void {
+  const findCat = (id: string) => categories.find(c => c.id === id)
+
+  // --- List Markup → appended to table_markup category ---
+  const tableCat = findCat('table_markup')
+  if (tableCat && qpdf.lists.length > 0) {
+    const totalItems = qpdf.lists.reduce((sum, l) => sum + l.itemCount, 0)
+    const wellFormed = qpdf.lists.filter(l => l.isWellFormed).length
+    tableCat.findings.push(`--- List Structure Analysis ---`)
+    tableCat.findings.push(`${qpdf.lists.length} list(s) detected with ${totalItems} total item(s)`)
+    if (wellFormed === qpdf.lists.length) {
+      tableCat.findings.push(`All lists are well-formed (each item has label and body elements)`)
+    } else {
+      const malformed = qpdf.lists.length - wellFormed
+      tableCat.findings.push(`${malformed} list(s) are missing label (/Lbl) or body (/LBody) elements — screen readers may not announce list items correctly`)
+      tableCat.findings.push('Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains both <Lbl> (bullet/number) and <LBody> (text content)')
+    }
+    const nested = qpdf.lists.filter(l => l.nestingDepth > 0)
+    if (nested.length > 0) {
+      tableCat.findings.push(`${nested.length} list(s) contain nested sub-lists (max depth: ${Math.max(...nested.map(l => l.nestingDepth))})`)
+    }
+  } else if (tableCat && qpdf.lists.length === 0 && qpdf.hasStructTree) {
+    tableCat.findings.push(`--- List Structure Analysis ---`)
+    tableCat.findings.push('No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements')
+  }
+
+  // --- Marked Content & Artifacts → appended to text_extractability ---
+  const textCat = findCat('text_extractability')
+  if (textCat) {
+    textCat.findings.push(`--- Document Structure Signals ---`)
+    if (qpdf.hasMarkInfo) {
+      if (qpdf.isMarkedContent) {
+        textCat.findings.push('Document is marked as "Marked Content" (/MarkInfo /Marked true) — content is properly distinguished from artifacts (decorative elements)')
+      } else {
+        textCat.findings.push('MarkInfo present but /Marked is not true — the document may not properly distinguish content from artifacts')
+        textCat.findings.push('Fix: In Adobe Acrobat, run Accessibility → Full Check, then use the Reading Order tool to mark decorative elements as artifacts')
+      }
+    } else if (qpdf.hasStructTree) {
+      textCat.findings.push('No MarkInfo dictionary found — artifacts (headers, footers, page numbers, watermarks) may be read aloud by screen readers')
+      textCat.findings.push('Fix: In Adobe Acrobat, use Accessibility → Reading Order tool → select decorative elements → click "Background/Artifact"')
+    }
+
+    // Paragraph structure
+    if (qpdf.paragraphCount > 0) {
+      textCat.findings.push(`${qpdf.paragraphCount} paragraph tag(s) (/P) found — text is structurally organized`)
+    } else if (qpdf.hasStructTree) {
+      textCat.findings.push('No paragraph tags (/P) found — body text may not be properly tagged for screen reader navigation')
+    }
+
+    // Empty pages
+    if (pdfjs.emptyPages.length > 0) {
+      if (pdfjs.emptyPages.length <= 5) {
+        textCat.findings.push(`${pdfjs.emptyPages.length} empty/near-empty page(s) detected: page(s) ${pdfjs.emptyPages.join(', ')}`)
+      } else {
+        textCat.findings.push(`${pdfjs.emptyPages.length} empty/near-empty page(s) detected (first 5: pages ${pdfjs.emptyPages.slice(0, 5).join(', ')}...)`)
+      }
+      textCat.findings.push('Empty pages may indicate scanned images without OCR, blank separator pages, or content stored only as images')
+    }
+  }
+
+  // --- Font Embedding → appended to text_extractability ---
+  if (textCat && qpdf.fonts.length > 0) {
+    const embedded = qpdf.fonts.filter(f => f.embedded).length
+    const notEmbedded = qpdf.fonts.filter(f => !f.embedded)
+    textCat.findings.push(`--- Font Analysis ---`)
+    textCat.findings.push(`${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`)
+    if (notEmbedded.length > 0) {
+      const names = notEmbedded.slice(0, 5).map(f => f.name).join(', ')
+      textCat.findings.push(`Non-embedded font(s): ${names}${notEmbedded.length > 5 ? ` (+${notEmbedded.length - 5} more)` : ''}`)
+      textCat.findings.push('Non-embedded fonts may display incorrectly on systems that lack the font, and can cause garbled text extraction for screen readers')
+    } else {
+      textCat.findings.push('All fonts are embedded — text will render correctly regardless of the user\'s installed fonts')
+    }
+  }
+
+  // --- Role Mapping → appended to reading_order ---
+  const readingCat = findCat('reading_order')
+  if (readingCat) {
+    readingCat.findings.push(`--- Additional Structure Signals ---`)
+    if (qpdf.hasRoleMap) {
+      readingCat.findings.push(`Role mapping present — ${qpdf.roleMapEntries.length} custom tag(s) mapped to standard PDF roles`)
+      if (qpdf.roleMapEntries.length <= 10) {
+        for (const entry of qpdf.roleMapEntries) {
+          readingCat.findings.push(`  ${entry}`)
+        }
+      } else {
+        for (const entry of qpdf.roleMapEntries.slice(0, 8)) {
+          readingCat.findings.push(`  ${entry}`)
+        }
+        readingCat.findings.push(`  ... and ${qpdf.roleMapEntries.length - 8} more`)
+      }
+    } else if (qpdf.hasStructTree) {
+      readingCat.findings.push('No role mapping (/RoleMap) found — all tags use standard PDF roles (this is normal for most documents)')
+    }
+
+    // Tab order
+    if (qpdf.totalPageCount > 0) {
+      if (qpdf.tabOrderPages === qpdf.totalPageCount) {
+        readingCat.findings.push(`Tab order is set on all ${qpdf.totalPageCount} page(s) — keyboard navigation follows the structure tree`)
+      } else if (qpdf.tabOrderPages > 0) {
+        readingCat.findings.push(`Tab order set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s) — some pages may have inconsistent keyboard navigation`)
+        readingCat.findings.push('Fix: In Adobe Acrobat, go to each page\'s properties and set Tab Order to "Use Document Structure"')
+      } else if (qpdf.hasStructTree) {
+        readingCat.findings.push('No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order')
+        readingCat.findings.push('Fix: In Adobe Acrobat, select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"')
+      }
+    }
+  }
+
+  // --- Natural Language Spans → appended to title_language ---
+  const langCat = findCat('title_language')
+  if (langCat && qpdf.langSpans.length > 0) {
+    langCat.findings.push(`--- Language Span Analysis ---`)
+    // Deduplicate by language
+    const langCounts = new Map<string, number>()
+    for (const span of qpdf.langSpans) {
+      langCounts.set(span.lang, (langCounts.get(span.lang) || 0) + 1)
+    }
+    const docLang = qpdf.lang || ''
+    const foreignSpans = [...langCounts.entries()].filter(([lang]) =>
+      lang.toLowerCase() !== docLang.toLowerCase()
+    )
+    if (foreignSpans.length > 0) {
+      langCat.findings.push(`${qpdf.langSpans.length} element(s) have explicit language declarations:`)
+      for (const [lang, count] of foreignSpans) {
+        langCat.findings.push(`  ${lang}: ${count} element(s)`)
+      }
+      langCat.findings.push('Language spans help screen readers switch pronunciation rules for foreign-language content')
+    } else {
+      langCat.findings.push(`${qpdf.langSpans.length} element(s) have language declarations matching the document language`)
+    }
   }
 }
 

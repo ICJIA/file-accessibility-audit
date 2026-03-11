@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.5.0] - 2026-03-11
+
+### Added
+- **Comprehensive supplementary analysis** — 10 new detection checks appended as informational findings to existing scoring categories:
+  - **List markup analysis** — detects `/L`, `/LI`, `/Lbl`, `/LBody` tags; reports well-formed vs malformed lists and nesting depth
+  - **Marked content & artifact detection** — checks `/MarkInfo` dictionary for proper content/artifact distinction
+  - **Font embedding analysis** — identifies embedded vs non-embedded fonts from `/FontDescriptor` objects
+  - **Paragraph structure** — counts `/P` tags to assess body text tagging
+  - **Role mapping** — detects `/RoleMap` on StructTreeRoot for custom-to-standard tag mappings
+  - **Tab order** — checks `/Tabs /S` on page objects for keyboard navigation
+  - **Natural language spans** — identifies structure elements with explicit `/Lang` attributes for multilingual content
+  - **Empty page detection** — flags pages with < 10 characters of text content
+- `ListAnalysis` interface with 5 fields for list structure data
+- New QpdfResult fields: `lists`, `paragraphCount`, `hasMarkInfo`, `isMarkedContent`, `hasRoleMap`, `roleMapEntries`, `tabOrderPages`, `totalPageCount`, `langSpans`, `fonts`
+- New PdfjsResult field: `emptyPages`
+- 23 new tests (363 total): list detection, MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, and scorer supplementary findings
+
+### Changed
+- Supplementary findings appear as grouped sections (e.g., "--- Font Analysis ---") within existing scored categories, preserving scoring stability
+- All new checks are **informational only** — no scoring weight changes, ensuring existing document grades remain consistent
+
 ## [1.4.0] - 2026-03-11
 
 ### Added
@@ -92,6 +113,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Environment-specific configuration with `.env` examples
 - Deployment documentation for DigitalOcean/Forge/PM2/nginx
 
+[1.5.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.1.0...v1.2.0

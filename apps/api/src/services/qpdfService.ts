@@ -11,6 +11,14 @@ const QPDF_BIN = process.env.QPDF_PATH || (() => {
   return 'qpdf'
 })()
 
+export interface ListAnalysis {
+  itemCount: number
+  hasLabels: boolean
+  hasBodies: boolean
+  isWellFormed: boolean
+  nestingDepth: number
+}
+
 export interface TableAnalysis {
   hasHeaders: boolean
   headerCount: number
@@ -38,6 +46,16 @@ export interface QpdfResult {
   images: Array<{ ref: string; hasAlt: boolean; altText?: string }>
   headings: Array<{ level: string; tag: string }>
   tables: TableAnalysis[]
+  lists: ListAnalysis[]
+  paragraphCount: number
+  hasMarkInfo: boolean
+  isMarkedContent: boolean
+  hasRoleMap: boolean
+  roleMapEntries: string[]
+  tabOrderPages: number
+  totalPageCount: number
+  langSpans: Array<{ lang: string; tag: string }>
+  fonts: Array<{ name: string; embedded: boolean }>
   structTreeDepth: number
   contentOrder: number[] // MCIDs in structure tree order
   error: string | null
@@ -82,6 +100,16 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
       images: [],
       headings: [],
       tables: [],
+      lists: [],
+      paragraphCount: 0,
+      hasMarkInfo: false,
+      isMarkedContent: false,
+      hasRoleMap: false,
+      roleMapEntries: [],
+      tabOrderPages: 0,
+      totalPageCount: 0,
+      langSpans: [],
+      fonts: [],
       structTreeDepth: 0,
       contentOrder: [],
       error: 'QPDF parsing failed',
@@ -104,6 +132,16 @@ function parseQpdfJson(json: any): QpdfResult {
     images: [],
     headings: [],
     tables: [],
+    lists: [],
+    paragraphCount: 0,
+    hasMarkInfo: false,
+    isMarkedContent: false,
+    hasRoleMap: false,
+    roleMapEntries: [],
+    tabOrderPages: 0,
+    totalPageCount: 0,
+    langSpans: [],
+    fonts: [],
     structTreeDepth: 0,
     contentOrder: [],
     error: null,
@@ -130,7 +168,7 @@ function parseQpdfJson(json: any): QpdfResult {
         result.hasStructTree = true
       }
 
-      // Check catalog for StructTreeRoot, Lang, Outlines
+      // Check catalog for StructTreeRoot, Lang, Outlines, MarkInfo, RoleMap
       if (o['/Type'] === '/Catalog') {
         if (o['/StructTreeRoot']) result.hasStructTree = true
         if (o['/Lang']) {
@@ -141,6 +179,53 @@ function parseQpdfJson(json: any): QpdfResult {
         }
         if (o['/Outlines']) result.hasOutlines = true
         if (o['/AcroForm']) result.hasAcroForm = true
+        // MarkInfo — indicates document distinguishes marked content from artifacts
+        if (o['/MarkInfo']) {
+          result.hasMarkInfo = true
+          const markInfo = typeof o['/MarkInfo'] === 'string'
+            ? resolveRef(o['/MarkInfo'], objects) : o['/MarkInfo']
+          if (markInfo?.['/Marked'] === true) {
+            result.isMarkedContent = true
+          }
+        }
+        // RoleMap — custom tag role mappings to standard PDF tags
+        if (o['/RoleMap'] || (o['/StructTreeRoot'] && typeof o['/StructTreeRoot'] === 'string')) {
+          // RoleMap may be on catalog or on StructTreeRoot
+          const roleMap = o['/RoleMap']
+          if (roleMap && typeof roleMap === 'object') {
+            result.hasRoleMap = true
+            result.roleMapEntries = Object.keys(roleMap)
+              .filter(k => k.startsWith('/'))
+              .map(k => `${k.slice(1)} → ${typeof roleMap[k] === 'string' ? roleMap[k].slice(1) : '?'}`)
+          }
+        }
+      }
+
+      // Check StructTreeRoot for RoleMap (often lives here rather than catalog)
+      if (o['/Type'] === '/StructTreeRoot' && o['/RoleMap']) {
+        const roleMap = o['/RoleMap']
+        if (typeof roleMap === 'object' && !result.hasRoleMap) {
+          result.hasRoleMap = true
+          result.roleMapEntries = Object.keys(roleMap)
+            .filter(k => k.startsWith('/'))
+            .map(k => `${k.slice(1)} → ${typeof roleMap[k] === 'string' ? roleMap[k].slice(1) : '?'}`)
+        }
+      }
+
+      // Page objects — check for /Tabs (tab order) and count pages
+      if (o['/Type'] === '/Page') {
+        result.totalPageCount++
+        if (o['/Tabs']) {
+          result.tabOrderPages++
+        }
+      }
+
+      // Font descriptors — check embedding
+      if (o['/Type'] === '/FontDescriptor') {
+        const fontName = typeof o['/FontName'] === 'string'
+          ? o['/FontName'].replace(/^\//, '').replace(/^u:/, '') : 'Unknown'
+        const embedded = !!(o['/FontFile'] || o['/FontFile2'] || o['/FontFile3'])
+        result.fonts.push({ name: fontName, embedded })
       }
 
       // Count outline entries and collect titles
@@ -168,6 +253,21 @@ function parseQpdfJson(json: any): QpdfResult {
         // Tables
         if (tag === '/Table') {
           result.tables.push(analyzeTable(o, objects))
+        }
+        // Lists
+        if (tag === '/L') {
+          result.lists.push(analyzeList(o, objects))
+        }
+        // Paragraphs
+        if (tag === '/P') {
+          result.paragraphCount++
+        }
+        // Language spans — structure elements with their own /Lang
+        if (o['/Lang'] && tag !== '/Document') {
+          const spanLang = typeof o['/Lang'] === 'string' ? o['/Lang'].replace(/^u:/, '') : null
+          if (spanLang) {
+            result.langSpans.push({ lang: spanLang, tag: tag.slice(1) })
+          }
         }
         // Figures with alt text
         if (tag === '/Figure') {
@@ -439,6 +539,68 @@ function analyzeTable(tableObj: any, objects: any): TableAnalysis {
     const first = result.columnCounts[0]
     result.hasConsistentColumns = result.columnCounts.every(c => c === first)
   }
+
+  return result
+}
+
+function analyzeList(listObj: any, objects: any): ListAnalysis {
+  const result: ListAnalysis = {
+    itemCount: 0,
+    hasLabels: false,
+    hasBodies: false,
+    isWellFormed: false,
+    nestingDepth: 0,
+  }
+
+  const resolve = (node: any): any => {
+    if (typeof node === 'string') return resolveRef(node, objects)
+    return node && typeof node === 'object' ? node : null
+  }
+
+  let maxNesting = 0
+  let itemsWithLabel = 0
+  let itemsWithBody = 0
+
+  const walk = (node: any, depth: number, isCountingNesting: boolean): void => {
+    if (depth > 15 || !node) return
+    const resolved = resolve(node)
+    if (!resolved) return
+    const tag = resolved['/S']
+
+    if (tag === '/LI') {
+      result.itemCount++
+      // Check children for /Lbl and /LBody
+      let hasLbl = false
+      let hasLBody = false
+      const kids = resolved['/K']
+      if (kids) {
+        const items = Array.isArray(kids) ? kids : [kids]
+        for (const kid of items) {
+          const kidResolved = resolve(kid)
+          if (kidResolved?.['/S'] === '/Lbl') { hasLbl = true; result.hasLabels = true }
+          if (kidResolved?.['/S'] === '/LBody') { hasLBody = true; result.hasBodies = true }
+        }
+      }
+      if (hasLbl) itemsWithLabel++
+      if (hasLBody) itemsWithBody++
+    }
+
+    if (tag === '/L' && isCountingNesting) {
+      maxNesting = Math.max(maxNesting, depth)
+    }
+
+    const childKids = resolved['/K']
+    if (!childKids) return
+    const items = Array.isArray(childKids) ? childKids : [childKids]
+    for (const item of items) {
+      if (typeof item === 'number' || (item && typeof item === 'object' && item['/MCID'] !== undefined)) continue
+      walk(item, depth + 1, true)
+    }
+  }
+
+  walk(listObj, 0, false)
+  result.nestingDepth = maxNesting
+  result.isWellFormed = result.itemCount > 0 && itemsWithLabel === result.itemCount && itemsWithBody === result.itemCount
 
   return result
 }

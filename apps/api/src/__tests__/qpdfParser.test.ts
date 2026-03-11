@@ -360,6 +360,168 @@ describe('table detection', () => {
 })
 
 // ---------------------------------------------------------------------------
+// List detection
+// ---------------------------------------------------------------------------
+
+describe('list detection', () => {
+  it('detects well-formed list with LI, Lbl, LBody', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/L', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/LI', '/K': ['4 0 R', '5 0 R'] },
+        '4 0 R': { '/S': '/Lbl' },
+        '5 0 R': { '/S': '/LBody' },
+      }],
+    })
+    expect(result.lists).toHaveLength(1)
+    expect(result.lists[0].itemCount).toBe(1)
+    expect(result.lists[0].hasLabels).toBe(true)
+    expect(result.lists[0].hasBodies).toBe(true)
+    expect(result.lists[0].isWellFormed).toBe(true)
+  })
+
+  it('detects list without labels as not well-formed', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/L', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/LI', '/K': ['4 0 R'] },
+        '4 0 R': { '/S': '/LBody' },
+      }],
+    })
+    expect(result.lists[0].isWellFormed).toBe(false)
+    expect(result.lists[0].hasLabels).toBe(false)
+    expect(result.lists[0].hasBodies).toBe(true)
+  })
+
+  it('detects multiple list items', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/L', '/K': ['3 0 R', '6 0 R'] },
+        '3 0 R': { '/S': '/LI', '/K': ['4 0 R', '5 0 R'] },
+        '4 0 R': { '/S': '/Lbl' },
+        '5 0 R': { '/S': '/LBody' },
+        '6 0 R': { '/S': '/LI', '/K': ['7 0 R', '8 0 R'] },
+        '7 0 R': { '/S': '/Lbl' },
+        '8 0 R': { '/S': '/LBody' },
+      }],
+    })
+    expect(result.lists[0].itemCount).toBe(2)
+    expect(result.lists[0].isWellFormed).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// MarkInfo, RoleMap, TabOrder, Font detection
+// ---------------------------------------------------------------------------
+
+describe('MarkInfo detection', () => {
+  it('detects /MarkInfo /Marked true', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog', '/MarkInfo': { '/Marked': true } },
+      }],
+    })
+    expect(result.hasMarkInfo).toBe(true)
+    expect(result.isMarkedContent).toBe(true)
+  })
+
+  it('detects /MarkInfo without /Marked', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog', '/MarkInfo': {} },
+      }],
+    })
+    expect(result.hasMarkInfo).toBe(true)
+    expect(result.isMarkedContent).toBe(false)
+  })
+})
+
+describe('RoleMap detection', () => {
+  it('detects RoleMap on StructTreeRoot', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog', '/StructTreeRoot': '2 0 R' },
+        '2 0 R': { '/Type': '/StructTreeRoot', '/RoleMap': { '/Heading1': '/H1', '/Normal': '/P' } },
+      }],
+    })
+    expect(result.hasRoleMap).toBe(true)
+    expect(result.roleMapEntries).toHaveLength(2)
+    expect(result.roleMapEntries[0]).toContain('Heading1')
+  })
+})
+
+describe('Tab order detection', () => {
+  it('counts pages with /Tabs attribute', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/Type': '/Page', '/Tabs': '/S' },
+        '3 0 R': { '/Type': '/Page' },
+        '4 0 R': { '/Type': '/Page', '/Tabs': '/S' },
+      }],
+    })
+    expect(result.tabOrderPages).toBe(2)
+    expect(result.totalPageCount).toBe(3)
+  })
+})
+
+describe('font embedding detection', () => {
+  it('detects embedded fonts via /FontFile2', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/Type': '/FontDescriptor', '/FontName': '/Arial', '/FontFile2': '3 0 R' },
+      }],
+    })
+    expect(result.fonts).toHaveLength(1)
+    expect(result.fonts[0].name).toBe('Arial')
+    expect(result.fonts[0].embedded).toBe(true)
+  })
+
+  it('detects non-embedded fonts', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/Type': '/FontDescriptor', '/FontName': '/ComicSans' },
+      }],
+    })
+    expect(result.fonts).toHaveLength(1)
+    expect(result.fonts[0].name).toBe('ComicSans')
+    expect(result.fonts[0].embedded).toBe(false)
+  })
+})
+
+describe('paragraph and language span detection', () => {
+  it('counts paragraph tags', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/P' },
+        '3 0 R': { '/S': '/P' },
+        '4 0 R': { '/S': '/P' },
+      }],
+    })
+    expect(result.paragraphCount).toBe(3)
+  })
+
+  it('detects language spans on structure elements', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog', '/Lang': 'en-US' },
+        '2 0 R': { '/S': '/Span', '/Lang': 'es' },
+        '3 0 R': { '/S': '/P', '/Lang': 'fr' },
+      }],
+    })
+    expect(result.langSpans).toHaveLength(2)
+    expect(result.langSpans[0]).toEqual({ lang: 'es', tag: 'Span' })
+    expect(result.langSpans[1]).toEqual({ lang: 'fr', tag: 'P' })
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Figure/image alt text detection
 // ---------------------------------------------------------------------------
 
