@@ -521,6 +521,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | **Auth bypass during batch** | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items. |
 | **Concurrent upload flood** | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP. |
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a full list of changes by version, or view [releases on GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
+
 ## License
 
 MIT License. Copyright (c) 2026 Christopher Schweda. See [LICENSE](LICENSE) for details.
