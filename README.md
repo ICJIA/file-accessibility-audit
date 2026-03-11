@@ -4,7 +4,7 @@
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
-A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload one or more PDFs (up to 10), get instant grades (A–F) with category-by-category findings and remediation guidance.
+A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload one or more PDFs (up to 5), get instant grades (A–F) with category-by-category findings and remediation guidance.
 
 **This tool is diagnostic only** — it identifies accessibility issues but does not fix them. The intended workflow is: upload → review findings → fix in Adobe Acrobat → re-upload to verify.
 
@@ -157,7 +157,7 @@ Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital 
 
 ## Batch Upload
 
-Upload up to **10 PDF files** at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
+Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
 
 ### How it works
 
@@ -171,12 +171,12 @@ Upload up to **10 PDF files** at once. Files are analyzed in parallel (2 at a ti
 
 | Constraint | Value | Enforced by |
 |-----------|-------|-------------|
-| Max files per batch | 10 | Frontend (`DropZone.vue`) |
+| Max files per batch | 5 | Frontend (`DropZone.vue`) |
 | Max file size | 100 MB each | Frontend + multer + nginx |
 | Concurrent uploads | 2 | Frontend semaphore + server semaphore |
 | Rate limit | 30 analyses/hour | Server (`analyzeLimiter`) |
 
-**Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 10). The frontend DropZone also enforces this limit client-side.
+**Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
 
 ## Report Exports
 
@@ -514,7 +514,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 | Threat | Mitigation |
 |--------|-----------|
-| **Bypassing the 10-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (30/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
+| **Bypassing the 5-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
 | **Memory exhaustion** | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 100 MB = 200 MB (unchanged from single-file mode). |
 | **Filename XSS** | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage. |
 | **Race conditions** | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue. |

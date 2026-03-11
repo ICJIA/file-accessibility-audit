@@ -24,7 +24,7 @@ Phase 2 builds on the working Phase 1 grader by adding multi-file batch processi
 - Progress UI: list of files with individual status indicators (queued -> processing -> complete/error)
 - Results view: summary table showing filename, page count, grade, and overall score for each file
 - **CSV export**: button to download results as CSV with columns: `filename`, `fileType`, `pageCount`, `overallScore`, `grade`, plus one column per scoring category
-- Upload limit: max `BATCH.MAX_FILES` (default 10) files per batch, each file max `ANALYSIS.MAX_FILE_SIZE_MB` (default 100MB) — both from `audit.config.ts`
+- Upload limit: max `BATCH.MAX_FILES` (default 5) files per batch, each file max `ANALYSIS.MAX_FILE_SIZE_MB` (default 100MB) — both from `audit.config.ts`
 - Audit log: one `analyze` event per file in the batch
 
 ### 2. Shareable Reports
@@ -62,7 +62,7 @@ Build checklist:
 ## Testing Checklist
 
 - [ ] Batch upload: 5 files processed sequentially, all return results
-- [ ] Batch upload: 11th file rejected (max 10 per batch)
+- [ ] Batch upload: 6th file rejected (max 5 per batch)
 - [ ] Batch progress UI: each file shows queued -> processing -> complete
 - [ ] Batch results: summary table renders correctly with all columns
 - [ ] CSV export: downloads valid CSV with correct data
@@ -83,7 +83,7 @@ Build checklist:
 
 Phase 2 is complete when:
 
-1. Users can upload up to 10 files in a single batch and view a summary table
+1. Users can upload up to 5 files in a single batch and view a summary table
 2. Users can export batch results as CSV
 3. Users can share a report via a short URL that renders without auth and expires after 30 days
 
