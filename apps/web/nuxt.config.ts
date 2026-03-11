@@ -1,4 +1,5 @@
 import { BRANDING, DEPLOY } from '../../audit.config'
+import { version } from './package.json'
 
 const isProd = process.env.NODE_ENV === 'production'
 const siteUrl = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.WEB_PORT}`
@@ -104,6 +105,7 @@ export default defineNuxtConfig({
       orgUrl,
       faqsUrl: BRANDING.FAQS_URL,
       githubUrl: BRANDING.GITHUB_URL,
+      appVersion: version,
     },
   },
 
