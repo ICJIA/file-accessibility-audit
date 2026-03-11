@@ -9,10 +9,10 @@
       </UButton>
     </div>
 
-    <!-- Results state (batch with any completed items, or single result) -->
-    <div v-else-if="hasAnyResult">
+    <!-- Results state (show only after all batch items finish, or single result) -->
+    <div v-else-if="hasAnyResult && !batchProcessing">
       <!-- Batch tab bar -->
-      <div v-if="batchItems.length > 1" class="mb-6 grid gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-1.5" :class="batchItems.length <= 5 ? 'grid-cols-' + batchItems.length : 'grid-cols-5'" role="tablist" :aria-label="`${batchItems.length} file results`" :style="batchItems.length <= 5 ? `grid-template-columns: repeat(${batchItems.length}, minmax(0, 1fr))` : 'grid-template-columns: repeat(5, minmax(0, 1fr))'">
+      <div v-if="batchItems.length > 1" class="mb-6 grid gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-1.5" role="tablist" :aria-label="`${batchItems.length} file results`" :style="`grid-template-columns: repeat(${batchItems.length}, minmax(0, 1fr))`">
         <AppTooltip v-for="(item, idx) in batchItems" :key="item.id" :text="item.filename" v-slot="{ tooltipId }">
           <button
             role="tab"
