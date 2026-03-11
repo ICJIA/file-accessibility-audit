@@ -12,19 +12,19 @@
     <!-- Results state (batch with any completed items, or single result) -->
     <div v-else-if="hasAnyResult">
       <!-- Batch tab bar -->
-      <div v-if="batchItems.length > 1" class="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-1.5" role="tablist" :aria-label="`${batchItems.length} file results`">
+      <div v-if="batchItems.length > 1" class="mb-6 grid gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-1.5" :class="batchItems.length <= 5 ? 'grid-cols-' + batchItems.length : 'grid-cols-5'" role="tablist" :aria-label="`${batchItems.length} file results`" :style="batchItems.length <= 5 ? `grid-template-columns: repeat(${batchItems.length}, minmax(0, 1fr))` : 'grid-template-columns: repeat(5, minmax(0, 1fr))'">
         <AppTooltip v-for="(item, idx) in batchItems" :key="item.id" :text="item.filename" v-slot="{ tooltipId }">
           <button
             role="tab"
             :aria-selected="activeTabIndex === idx"
             :aria-describedby="tooltipId"
-            class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors"
+            class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors w-full min-w-0"
             :class="activeTabIndex === idx
               ? 'bg-[var(--surface-hover)] text-[var(--text-heading)] font-medium'
               : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-deep)]'"
             @click="switchTab(idx)"
           >
-            <span class="truncate max-w-[140px]" :aria-label="item.filename">{{ item.filename }}</span>
+            <span class="truncate min-w-0" :aria-label="item.filename">{{ item.filename }}</span>
             <span
               v-if="item.status === 'done' && item.result?.grade"
               class="flex-shrink-0 inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center"
