@@ -11,6 +11,21 @@ const QPDF_BIN = process.env.QPDF_PATH || (() => {
   return 'qpdf'
 })()
 
+export interface TableAnalysis {
+  hasHeaders: boolean
+  headerCount: number
+  dataCellCount: number
+  hasScope: boolean
+  scopeMissingCount: number
+  hasRowStructure: boolean
+  rowCount: number
+  hasNestedTable: boolean
+  hasCaption: boolean
+  hasConsistentColumns: boolean | null
+  columnCounts: number[]
+  hasHeaderAssociation: boolean
+}
+
 export interface QpdfResult {
   hasStructTree: boolean
   hasLang: boolean
@@ -22,7 +37,7 @@ export interface QpdfResult {
   formFields: Array<{ hasTU: boolean; name?: string }>
   images: Array<{ ref: string; hasAlt: boolean; altText?: string }>
   headings: Array<{ level: string; tag: string }>
-  tables: Array<{ hasHeaders: boolean }>
+  tables: TableAnalysis[]
   structTreeDepth: number
   contentOrder: number[] // MCIDs in structure tree order
   error: string | null
@@ -152,8 +167,7 @@ function parseQpdfJson(json: any): QpdfResult {
         }
         // Tables
         if (tag === '/Table') {
-          const hasHeaders = hasTableHeaders(o, objects)
-          result.tables.push({ hasHeaders })
+          result.tables.push(analyzeTable(o, objects))
         }
         // Figures with alt text
         if (tag === '/Figure') {
@@ -251,29 +265,182 @@ function countOutlineEntries(outline: any, objects: any, titles: string[]): numb
   return count
 }
 
-function hasTableHeaders(tableObj: any, objects: any): boolean {
-  // Look through children for /TH tags
-  const kids = tableObj['/K']
-  if (!kids) return false
-
-  const checkForTH = (node: any, depth: number): boolean => {
-    if (depth > 10) return false
-    if (Array.isArray(node)) {
-      return node.some(n => checkForTH(n, depth + 1))
-    }
-    if (typeof node === 'string') {
-      const obj = resolveRef(node, objects)
-      if (obj?.['/S'] === '/TH') return true
-      return checkForTH(obj?.['/K'], depth + 1)
-    }
-    if (node && typeof node === 'object') {
-      if (node['/S'] === '/TH') return true
-      return checkForTH(node['/K'], depth + 1)
-    }
-    return false
+function analyzeTable(tableObj: any, objects: any): TableAnalysis {
+  const result: TableAnalysis = {
+    hasHeaders: false,
+    headerCount: 0,
+    dataCellCount: 0,
+    hasScope: false,
+    scopeMissingCount: 0,
+    hasRowStructure: false,
+    rowCount: 0,
+    hasNestedTable: false,
+    hasCaption: false,
+    hasConsistentColumns: null,
+    columnCounts: [],
+    hasHeaderAssociation: false,
   }
 
-  return checkForTH(kids, 0)
+  const kids = tableObj['/K']
+  if (!kids) return result
+
+  // Resolve a node that may be a ref string or inline object
+  const resolve = (node: any): any => {
+    if (typeof node === 'string') return resolveRef(node, objects)
+    return node && typeof node === 'object' ? node : null
+  }
+
+  // Get the tag of a node
+  const getTag = (node: any): string | null => {
+    const resolved = resolve(node)
+    return resolved?.['/S'] || null
+  }
+
+  // Check if a TH node has a /Scope attribute
+  const hasNodeScope = (node: any): boolean => {
+    const resolved = resolve(node)
+    if (!resolved) return false
+    const attrs = resolved['/A']
+    if (!attrs) return false
+    // /A can be a single dict, a ref, or an array
+    const checkAttr = (a: any): boolean => {
+      const r = resolve(a)
+      return r?.['/Scope'] === '/Column' || r?.['/Scope'] === '/Row'
+    }
+    if (Array.isArray(attrs)) return attrs.some(checkAttr)
+    return checkAttr(attrs)
+  }
+
+  // Check if a TD node has /Headers association
+  const hasNodeHeaders = (node: any): boolean => {
+    const resolved = resolve(node)
+    if (!resolved) return false
+    if (resolved['/Headers']) return true
+    const attrs = resolved['/A']
+    if (!attrs) return false
+    const checkAttr = (a: any): boolean => {
+      const r = resolve(a)
+      return !!r?.['/Headers']
+    }
+    if (Array.isArray(attrs)) return attrs.some(checkAttr)
+    return checkAttr(attrs)
+  }
+
+  // Count cells in a TR row
+  const countRowCells = (trNode: any): number => {
+    const resolved = resolve(trNode)
+    const rowKids = resolved?.['/K']
+    if (!rowKids) return 0
+    const items = Array.isArray(rowKids) ? rowKids : [rowKids]
+    let count = 0
+    for (const item of items) {
+      const tag = getTag(item)
+      if (tag === '/TH' || tag === '/TD') count++
+    }
+    return count
+  }
+
+  // Walk the table subtree collecting all signals in a single pass
+  const walk = (node: any, depth: number): void => {
+    if (depth > 15 || !node) return
+    const resolved = resolve(node)
+    if (!resolved) return
+    const tag = resolved['/S']
+
+    if (tag === '/TH') {
+      result.headerCount++
+      if (hasNodeScope(resolved)) {
+        result.hasScope = true
+      } else {
+        result.scopeMissingCount++
+      }
+    }
+    if (tag === '/TD') {
+      result.dataCellCount++
+      if (hasNodeHeaders(resolved)) {
+        result.hasHeaderAssociation = true
+      }
+    }
+    if (tag === '/Table' && depth > 0) {
+      result.hasNestedTable = true
+    }
+    if (tag === '/Caption') {
+      result.hasCaption = true
+    }
+
+    // Recurse into children
+    const childKids = resolved['/K']
+    if (!childKids) return
+    const items = Array.isArray(childKids) ? childKids : [childKids]
+    for (const item of items) {
+      if (typeof item === 'number' || (item && typeof item === 'object' && item['/MCID'] !== undefined)) continue
+      walk(item, depth + 1)
+    }
+  }
+
+  // Walk the entire table subtree
+  walk(tableObj, 0)
+
+  result.hasHeaders = result.headerCount > 0
+  // hasScope is true only when ALL TH have scope
+  if (result.headerCount > 0 && result.scopeMissingCount === 0) {
+    result.hasScope = true
+  } else {
+    result.hasScope = false
+    if (result.headerCount === 0) result.scopeMissingCount = 0
+  }
+
+  // Check row structure: direct children of table should be TR (or THead/TBody/TFoot containing TR)
+  const directKids = Array.isArray(kids) ? kids : [kids]
+  let trCount = 0
+  let sectionCount = 0
+  for (const kid of directKids) {
+    const tag = getTag(kid)
+    if (tag === '/TR') trCount++
+    if (tag === '/THead' || tag === '/TBody' || tag === '/TFoot') {
+      sectionCount++
+      // Check for TR inside section
+      const sectionResolved = resolve(kid)
+      const sectionKids = sectionResolved?.['/K']
+      if (sectionKids) {
+        const sItems = Array.isArray(sectionKids) ? sectionKids : [sectionKids]
+        for (const s of sItems) {
+          if (getTag(s) === '/TR') trCount++
+        }
+      }
+    }
+  }
+  result.rowCount = trCount
+  result.hasRowStructure = trCount > 0
+
+  // Column consistency: count cells per TR
+  const countTRCells = (trNode: any): void => {
+    result.columnCounts.push(countRowCells(trNode))
+  }
+
+  // Gather all TRs (from direct children or inside THead/TBody/TFoot)
+  for (const kid of directKids) {
+    const tag = getTag(kid)
+    if (tag === '/TR') {
+      countTRCells(kid)
+    } else if (tag === '/THead' || tag === '/TBody' || tag === '/TFoot') {
+      const sectionResolved = resolve(kid)
+      const sectionKids = sectionResolved?.['/K']
+      if (sectionKids) {
+        const sItems = Array.isArray(sectionKids) ? sectionKids : [sectionKids]
+        for (const s of sItems) {
+          if (getTag(s) === '/TR') countTRCells(s)
+        }
+      }
+    }
+  }
+
+  if (result.columnCounts.length > 0) {
+    const first = result.columnCounts[0]
+    result.hasConsistentColumns = result.columnCounts.every(c => c === first)
+  }
+
+  return result
 }
 
 function collectMCIDs(obj: any, mcids: number[]): void {

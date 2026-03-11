@@ -448,8 +448,9 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     { label: 'Adobe: Make Tables Accessible', url: 'https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html' },
     { label: 'WCAG 1.3.1: Info and Relationships', url: 'https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html' },
     { label: 'WebAIM: Table Accessibility in PDFs', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
+    { label: 'PAC 2024: Table Structure', url: 'https://pac.pdf-accessibility.org/' },
   ]
-  const tableExplanation = 'Table markup tells screen readers which cells are headers and which are data. Without proper header tags (TH), a screen reader reads table cells in a flat stream — the user has no way to know which column or row a value belongs to. Each table should have header cells tagged as <TH> and data cells tagged as <TD>.'
+  const tableExplanation = 'Table markup tells screen readers how to navigate data tables. This checks six aspects of table accessibility: header cells (TH tags), scope attributes that link headers to columns or rows, proper row structure (TR tags), whether tables contain nested sub-tables (which confuse screen readers), caption elements that describe the table\'s purpose, and consistent column counts across rows. Each sub-check contributes to the overall table score.'
 
   if (qpdf.tables.length === 0) {
     return {
@@ -467,39 +468,109 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     }
   }
 
-  const withHeaders = qpdf.tables.filter(t => t.hasHeaders).length
+  const n = qpdf.tables.length
   const findings: string[] = []
+  let score = 0
 
-  if (withHeaders === qpdf.tables.length) {
-    findings.push(`All ${qpdf.tables.length} table(s) have proper header tags (TH)`)
-    return {
-      id: 'table_markup',
-      label: 'Table Markup',
-      weight: SCORING_WEIGHTS.table_markup,
-      score: 100,
-      grade: 'A',
-      severity: 'Pass',
-      findings,
-      explanation: tableExplanation,
-      helpLinks: tableLinks,
-    }
-  }
-
-  if (withHeaders > 0) {
-    findings.push(`${withHeaders} of ${qpdf.tables.length} table(s) have header tags`)
-    findings.push(`${qpdf.tables.length - withHeaders} table(s) are missing header cell tags`)
+  // 1. Header presence (30 points)
+  const withHeaders = qpdf.tables.filter(t => t.hasHeaders).length
+  if (withHeaders === n) {
+    score += 30
+    const totalTH = qpdf.tables.reduce((sum, t) => sum + t.headerCount, 0)
+    findings.push(`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`)
+  } else if (withHeaders > 0) {
+    score += 15
+    findings.push(`${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing TH tags`)
+    findings.push('Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find header rows → change <TD> to <TH>')
   } else {
-    findings.push(`${qpdf.tables.length} table(s) found but none have header tags (TH)`)
+    findings.push(`${n} table(s) found but none have header cells (TH) — screen readers cannot identify column or row headers`)
+    findings.push('Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>')
   }
-  findings.push('How to fix: In Adobe Acrobat, open the Tags panel → expand each <Table> tag → find the header row → change the cell tags from <TD> to <TH>. This tells screen readers "this cell is a column/row header" so they can announce it with each data cell.')
+
+  // 2. Scope attributes (20 points)
+  const withScope = qpdf.tables.filter(t => t.hasHeaders && t.hasScope).length
+  const tablesWithHeaders = qpdf.tables.filter(t => t.hasHeaders)
+  if (tablesWithHeaders.length === 0) {
+    findings.push('Scope attributes: N/A (no header cells to check)')
+  } else if (withScope === tablesWithHeaders.length) {
+    score += 20
+    findings.push('All header cells have Scope attributes (/Column or /Row) — screen readers can associate headers with data cells')
+  } else {
+    const totalMissing = qpdf.tables.reduce((sum, t) => sum + t.scopeMissingCount, 0)
+    if (withScope > 0) score += 10
+    findings.push(`${totalMissing} header cell(s) are missing Scope attributes — screen readers may not correctly associate headers with data`)
+    findings.push('Fix: In Adobe Acrobat, select each <TH> tag → Properties → Scope → set to "Column" or "Row"')
+  }
+
+  // 3. Row structure (15 points)
+  const withRows = qpdf.tables.filter(t => t.hasRowStructure).length
+  if (withRows === n) {
+    score += 15
+    const totalRows = qpdf.tables.reduce((sum, t) => sum + t.rowCount, 0)
+    findings.push(`All ${n} table(s) have proper row structure (TR tags) — ${totalRows} row(s) total`)
+  } else if (withRows > 0) {
+    score += 7
+    findings.push(`${n - withRows} of ${n} table(s) are missing row structure (TR tags) — cells are directly under <Table> instead of grouped in <TR> rows`)
+  } else {
+    findings.push('No tables have row structure (TR tags) — cells are not grouped into rows, which breaks screen reader table navigation')
+    findings.push('Fix: In Adobe Acrobat, restructure each table so cells are wrapped in <TR> (Table Row) tags')
+  }
+
+  // 4. No nested tables (10 points)
+  const withNesting = qpdf.tables.filter(t => t.hasNestedTable).length
+  if (withNesting === 0) {
+    score += 10
+    findings.push('No nested tables detected')
+  } else {
+    findings.push(`${withNesting} table(s) contain nested sub-tables — nested tables are extremely difficult for screen readers to navigate and should be flattened`)
+    findings.push('Fix: Restructure nested tables into a single flat table, or split into separate independent tables')
+  }
+
+  // 5. Caption (10 points)
+  const withCaption = qpdf.tables.filter(t => t.hasCaption).length
+  if (withCaption === n) {
+    score += 10
+    findings.push(`All ${n} table(s) have caption elements describing their purpose`)
+  } else if (withCaption > 0) {
+    score += 5
+    findings.push(`${withCaption} of ${n} table(s) have caption elements — ${n - withCaption} table(s) are missing captions`)
+    findings.push('Fix: In Adobe Acrobat, add a <Caption> tag as the first child of each <Table> tag with a brief description of the table\'s content')
+  } else {
+    findings.push('No tables have caption elements — screen readers cannot announce what each table contains before the user enters it')
+    findings.push('Fix: Add a <Caption> tag as the first child of each <Table> in the Tags panel')
+  }
+
+  // 6. Consistent columns (10 points)
+  const withConsistent = qpdf.tables.filter(t => t.hasConsistentColumns === true).length
+  const checkable = qpdf.tables.filter(t => t.hasConsistentColumns !== null).length
+  if (checkable === 0) {
+    findings.push('Column consistency: could not be checked (no row structure)')
+  } else if (withConsistent === checkable) {
+    score += 10
+    findings.push('All tables have consistent column counts across rows')
+  } else {
+    const inconsistent = qpdf.tables.filter(t => t.hasConsistentColumns === false)
+    for (const t of inconsistent) {
+      const unique = [...new Set(t.columnCounts)]
+      findings.push(`Table has inconsistent column counts: rows have ${unique.join(', ')} cells — this can confuse screen reader table navigation`)
+    }
+    findings.push('Fix: Ensure all rows in each table have the same number of cells. Use empty cells or colspan/rowspan attributes where needed.')
+  }
+
+  // 7. Header association bonus (5 points)
+  const withAssoc = qpdf.tables.filter(t => t.hasHeaderAssociation).length
+  if (withAssoc > 0) {
+    score += 5
+    findings.push(`${withAssoc} table(s) use explicit header-cell associations (/Headers attribute) for complex table navigation`)
+  }
 
   return {
     id: 'table_markup',
     label: 'Table Markup',
     weight: SCORING_WEIGHTS.table_markup,
-    score: withHeaders > 0 ? 40 : 40,
-    grade: getGrade(40),
-    severity: getSeverity(40),
+    score,
+    grade: getGrade(score),
+    severity: getSeverity(score),
     findings,
     explanation: tableExplanation,
     helpLinks: tableLinks,

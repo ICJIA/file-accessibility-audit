@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { scoreDocument, type CategoryResult, type ScoringResult } from '../services/scorer.js'
-import type { QpdfResult } from '../services/qpdfService.js'
+import type { QpdfResult, TableAnalysis } from '../services/qpdfService.js'
 import type { PdfjsResult } from '../services/pdfjsService.js'
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,24 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     structTreeDepth: 0,
     contentOrder: [],
     error: null,
+    ...overrides,
+  }
+}
+
+function makeTable(overrides: Partial<TableAnalysis> = {}): TableAnalysis {
+  return {
+    hasHeaders: false,
+    headerCount: 0,
+    dataCellCount: 0,
+    hasScope: false,
+    scopeMissingCount: 0,
+    hasRowStructure: false,
+    rowCount: 0,
+    hasNestedTable: false,
+    hasCaption: false,
+    hasConsistentColumns: null,
+    columnCounts: [],
+    hasHeaderAssociation: false,
     ...overrides,
   }
 }
@@ -75,7 +93,7 @@ function fullyAccessible(): { qpdf: QpdfResult; pdfjs: PdfjsResult } {
         { ref: '10 0 R', hasAlt: true },
         { ref: '11 0 R', hasAlt: true },
       ],
-      tables: [{ hasHeaders: true }],
+      tables: [makeTable({ hasHeaders: true, headerCount: 3, dataCellCount: 9, hasScope: true, scopeMissingCount: 0, hasRowStructure: true, rowCount: 4, hasCaption: true, hasConsistentColumns: true, columnCounts: [3, 3, 3, 3], hasHeaderAssociation: true })],
       hasAcroForm: true,
       formFields: [{ hasTU: true }, { hasTU: true }],
       structTreeDepth: 4,
@@ -701,31 +719,80 @@ describe('scoreBookmarks edge cases', () => {
 })
 
 describe('scoreTableMarkup edge cases', () => {
-  it('2 tables, all with headers → score 100', () => {
-    const qpdf = makeQpdf({
-      tables: [{ hasHeaders: true }, { hasHeaders: true }],
-    })
+  const perfectTable = () => makeTable({
+    hasHeaders: true, headerCount: 3, dataCellCount: 9,
+    hasScope: true, scopeMissingCount: 0,
+    hasRowStructure: true, rowCount: 4,
+    hasCaption: true,
+    hasConsistentColumns: true, columnCounts: [3, 3, 3, 3],
+    hasHeaderAssociation: true,
+  })
+
+  it('2 perfect tables → score 100', () => {
+    const qpdf = makeQpdf({ tables: [perfectTable(), perfectTable()] })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
     expect(findCategory(result, 'table_markup').score).toBe(100)
   })
 
-  it('2 tables, 1 with headers → score 40', () => {
+  it('headers only, no scope or caption → partial score', () => {
     const qpdf = makeQpdf({
-      tables: [{ hasHeaders: true }, { hasHeaders: false }],
+      tables: [makeTable({ hasHeaders: true, headerCount: 2, dataCellCount: 6, hasRowStructure: true, rowCount: 3, hasConsistentColumns: true, columnCounts: [2, 2, 2], scopeMissingCount: 2 })],
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    expect(findCategory(result, 'table_markup').score).toBe(40)
+    // 30 (headers) + 0 (no scope) + 15 (rows) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 65
+    expect(findCategory(result, 'table_markup').score).toBe(65)
   })
 
-  it('tables with no headers → score 40', () => {
+  it('no headers at all → low score, can still earn structure points', () => {
     const qpdf = makeQpdf({
-      tables: [{ hasHeaders: false }, { hasHeaders: false }],
+      tables: [makeTable({ hasRowStructure: true, rowCount: 3, dataCellCount: 9, hasConsistentColumns: true, columnCounts: [3, 3, 3] })],
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    expect(findCategory(result, 'table_markup').score).toBe(40)
+    // 0 (no headers) + 0 (no scope, N/A) + 15 (rows) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 35
+    expect(findCategory(result, 'table_markup').score).toBe(35)
+  })
+
+  it('nested table costs 10 points', () => {
+    const qpdf = makeQpdf({
+      tables: [makeTable({ hasHeaders: true, headerCount: 2, hasScope: true, hasRowStructure: true, rowCount: 3, hasCaption: true, hasConsistentColumns: true, columnCounts: [2, 2, 2], hasNestedTable: true, hasHeaderAssociation: true })],
+    })
+    const pdfjs = makePdfjs()
+    const result = scoreDocument(qpdf, pdfjs)
+    // 30 + 20 + 15 + 0 (nested) + 10 + 10 + 5 = 90
+    expect(findCategory(result, 'table_markup').score).toBe(90)
+  })
+
+  it('no tables → score null (N/A)', () => {
+    const qpdf = makeQpdf({ tables: [] })
+    const pdfjs = makePdfjs()
+    const result = scoreDocument(qpdf, pdfjs)
+    expect(findCategory(result, 'table_markup').score).toBeNull()
+  })
+
+  it('mixed quality across multiple tables', () => {
+    const qpdf = makeQpdf({
+      tables: [
+        perfectTable(),
+        makeTable({ hasRowStructure: true, rowCount: 2, dataCellCount: 4, hasConsistentColumns: true, columnCounts: [2, 2] }),
+      ],
+    })
+    const pdfjs = makePdfjs()
+    const result = scoreDocument(qpdf, pdfjs)
+    // 15 (some headers) + 20 (all TH-bearing tables have scope) + 15 (all rows) + 10 (no nesting) + 5 (some caption) + 10 (all consistent) + 5 (some assoc) = 80
+    expect(findCategory(result, 'table_markup').score).toBe(80)
+  })
+
+  it('inconsistent columns reduces score', () => {
+    const qpdf = makeQpdf({
+      tables: [makeTable({ hasHeaders: true, headerCount: 3, hasScope: true, hasRowStructure: true, rowCount: 3, hasCaption: true, hasConsistentColumns: false, columnCounts: [3, 4, 3] })],
+    })
+    const pdfjs = makePdfjs()
+    const result = scoreDocument(qpdf, pdfjs)
+    // 30 + 20 + 15 + 10 + 10 + 0 (inconsistent) = 85
+    expect(findCategory(result, 'table_markup').score).toBe(85)
   })
 })
 

@@ -518,9 +518,9 @@
                   <td class="px-4 py-2">Bookmark count for navigation scoring</td>
                 </tr>
                 <tr class="border-b border-[var(--border-subtle)]">
-                  <td class="px-4 py-2">Tables &amp; headers</td>
-                  <td class="px-4 py-2">Structure elements <code>/Table</code>, <code>/TH</code>, <code>/TD</code></td>
-                  <td class="px-4 py-2">Whether data tables have accessible header markup</td>
+                  <td class="px-4 py-2">Tables &amp; structure</td>
+                  <td class="px-4 py-2">Structure elements <code>/Table</code>, <code>/TR</code>, <code>/TH</code>, <code>/TD</code>, <code>/Caption</code>, <code>/Scope</code>, <code>/Headers</code></td>
+                  <td class="px-4 py-2">Header cells, scope attributes, row structure, nesting, captions, column consistency, header-data associations</td>
                 </tr>
                 <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Images &amp; figures</td>
@@ -671,10 +671,10 @@
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
               <p class="font-medium text-[var(--text-secondary)] mb-1">Table Markup (10%)</p>
               <p class="text-xs text-[var(--text-muted)] mb-2">
-                <em>What it means:</em> When a sighted user looks at a data table, they can glance at the column headers to understand what each number means. Screen readers need explicit <code>/TH</code> (table header) tags to provide the same context — without them, a screen reader just reads a flat stream of numbers with no structure.
+                <em>What it means:</em> When a sighted user looks at a data table, they can glance at the column headers to understand what each number means. Screen readers need explicit markup to provide the same context — without it, a screen reader reads a flat stream of numbers with no structure. This category checks six aspects of table accessibility.
               </p>
               <p class="text-xs text-[var(--text-muted)]">
-                <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected. <strong>100</strong> = all <code>/Table</code> elements contain <code>/TH</code> header tags. <strong>40</strong> = tables exist but lack proper header markup.
+                <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected. Six sub-checks contribute to the score: <strong>Header cells</strong> (30 pts) — <code>/TH</code> tags present on header cells. <strong>Scope attributes</strong> (20 pts) — each <code>/TH</code> has a <code>/Scope</code> (/Column or /Row) so screen readers know which axis the header applies to. <strong>Row structure</strong> (15 pts) — cells are grouped in <code>/TR</code> rows. <strong>No nested tables</strong> (10 pts) — nested tables confuse screen reader navigation. <strong>Caption</strong> (10 pts) — <code>/Caption</code> element describes the table's purpose. <strong>Column consistency</strong> (10 pts) — all rows have the same number of cells. <strong>Bonus</strong>: explicit <code>/Headers</code> associations on data cells (+5 pts).
               </p>
             </div>
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">

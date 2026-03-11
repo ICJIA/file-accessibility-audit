@@ -178,6 +178,7 @@ describe('table detection', () => {
     })
     expect(result.tables).toHaveLength(1)
     expect(result.tables[0].hasHeaders).toBe(false)
+    expect(result.tables[0].dataCellCount).toBe(1)
   })
 
   it('detects table with TH headers', () => {
@@ -185,12 +186,15 @@ describe('table detection', () => {
       qpdf: [null, {
         '1 0 R': { '/Type': '/Catalog' },
         '2 0 R': { '/S': '/Table', '/K': ['3 0 R'] },
-        '3 0 R': { '/S': '/TR', '/K': ['4 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': ['4 0 R', '5 0 R'] },
         '4 0 R': { '/S': '/TH' },
+        '5 0 R': { '/S': '/TD' },
       }],
     })
     expect(result.tables).toHaveLength(1)
     expect(result.tables[0].hasHeaders).toBe(true)
+    expect(result.tables[0].headerCount).toBe(1)
+    expect(result.tables[0].dataCellCount).toBe(1)
   })
 
   it('detects TH in inline child objects (not refs)', () => {
@@ -215,6 +219,143 @@ describe('table detection', () => {
     })
     expect(result.tables).toHaveLength(1)
     expect(result.tables[0].hasHeaders).toBe(false)
+  })
+
+  it('detects scope attributes on TH cells', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': ['4 0 R', '5 0 R'] },
+        '4 0 R': { '/S': '/TH', '/A': { '/Scope': '/Column' } },
+        '5 0 R': { '/S': '/TH' }, // missing scope
+      }],
+    })
+    expect(result.tables[0].hasScope).toBe(false)
+    expect(result.tables[0].scopeMissingCount).toBe(1)
+  })
+
+  it('detects all TH with scope → hasScope true', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': ['4 0 R'] },
+        '4 0 R': { '/S': '/TH', '/A': { '/Scope': '/Row' } },
+      }],
+    })
+    expect(result.tables[0].hasScope).toBe(true)
+    expect(result.tables[0].scopeMissingCount).toBe(0)
+  })
+
+  it('detects row structure (TR tags)', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R', '4 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': ['5 0 R'] },
+        '4 0 R': { '/S': '/TR', '/K': ['6 0 R'] },
+        '5 0 R': { '/S': '/TD' },
+        '6 0 R': { '/S': '/TD' },
+      }],
+    })
+    expect(result.tables[0].hasRowStructure).toBe(true)
+    expect(result.tables[0].rowCount).toBe(2)
+  })
+
+  it('detects missing row structure', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/TD' }, // TD directly under Table, no TR
+      }],
+    })
+    expect(result.tables[0].hasRowStructure).toBe(false)
+    expect(result.tables[0].rowCount).toBe(0)
+  })
+
+  it('detects nested tables', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': ['4 0 R'] },
+        '4 0 R': { '/S': '/TD', '/K': ['5 0 R'] },
+        '5 0 R': { '/S': '/Table', '/K': [] }, // nested table
+      }],
+    })
+    expect(result.tables[0].hasNestedTable).toBe(true)
+  })
+
+  it('detects caption element', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R', '4 0 R'] },
+        '3 0 R': { '/S': '/Caption' },
+        '4 0 R': { '/S': '/TR', '/K': ['5 0 R'] },
+        '5 0 R': { '/S': '/TD' },
+      }],
+    })
+    expect(result.tables[0].hasCaption).toBe(true)
+  })
+
+  it('detects consistent column counts', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R', '4 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': [{ '/S': '/TH' }, { '/S': '/TH' }] },
+        '4 0 R': { '/S': '/TR', '/K': [{ '/S': '/TD' }, { '/S': '/TD' }] },
+      }],
+    })
+    expect(result.tables[0].hasConsistentColumns).toBe(true)
+    expect(result.tables[0].columnCounts).toEqual([2, 2])
+  })
+
+  it('detects inconsistent column counts', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R', '4 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': [{ '/S': '/TH' }, { '/S': '/TH' }, { '/S': '/TH' }] },
+        '4 0 R': { '/S': '/TR', '/K': [{ '/S': '/TD' }, { '/S': '/TD' }] },
+      }],
+    })
+    expect(result.tables[0].hasConsistentColumns).toBe(false)
+    expect(result.tables[0].columnCounts).toEqual([3, 2])
+  })
+
+  it('detects header association on TD cells', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R'] },
+        '3 0 R': { '/S': '/TR', '/K': ['4 0 R'] },
+        '4 0 R': { '/S': '/TD', '/Headers': '5 0 R' },
+      }],
+    })
+    expect(result.tables[0].hasHeaderAssociation).toBe(true)
+  })
+
+  it('handles THead/TBody wrappers for row detection', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { '/Type': '/Catalog' },
+        '2 0 R': { '/S': '/Table', '/K': ['3 0 R', '6 0 R'] },
+        '3 0 R': { '/S': '/THead', '/K': ['4 0 R'] },
+        '4 0 R': { '/S': '/TR', '/K': ['5 0 R'] },
+        '5 0 R': { '/S': '/TH', '/A': { '/Scope': '/Column' } },
+        '6 0 R': { '/S': '/TBody', '/K': ['7 0 R'] },
+        '7 0 R': { '/S': '/TR', '/K': ['8 0 R'] },
+        '8 0 R': { '/S': '/TD' },
+      }],
+    })
+    expect(result.tables[0].hasRowStructure).toBe(true)
+    expect(result.tables[0].rowCount).toBe(2)
+    expect(result.tables[0].hasHeaders).toBe(true)
+    expect(result.tables[0].hasScope).toBe(true)
   })
 })
 
