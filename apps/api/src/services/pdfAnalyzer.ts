@@ -3,17 +3,25 @@ import { analyzeWithPdfjs, PdfMetadata } from './pdfjsService.js'
 import { scoreDocument, ScoringResult } from './scorer.js'
 import { ANALYSIS } from '#config'
 
-// Simple semaphore for concurrency limiting
+// Simple semaphore for concurrency limiting with timeout
+const SEMAPHORE_TIMEOUT_MS = 60_000 // 60 seconds max wait
 let activeAnalyses = 0
-const waitQueue: Array<() => void> = []
+const waitQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> = []
 
 async function acquireSemaphore(): Promise<void> {
   if (activeAnalyses < ANALYSIS.MAX_CONCURRENT_ANALYSES) {
     activeAnalyses++
     return
   }
-  return new Promise(resolve => {
-    waitQueue.push(resolve)
+  return new Promise((resolve, reject) => {
+    const entry = { resolve, reject }
+    const timer = setTimeout(() => {
+      const idx = waitQueue.indexOf(entry)
+      if (idx >= 0) waitQueue.splice(idx, 1)
+      reject(Object.assign(new Error('Server busy — too many analyses queued. Please try again shortly.'), { status: 503 }))
+    }, SEMAPHORE_TIMEOUT_MS)
+    entry.resolve = () => { clearTimeout(timer); resolve() }
+    waitQueue.push(entry)
   })
 }
 
@@ -22,7 +30,7 @@ function releaseSemaphore(): void {
   const next = waitQueue.shift()
   if (next) {
     activeAnalyses++
-    next()
+    next.resolve()
   }
 }
 

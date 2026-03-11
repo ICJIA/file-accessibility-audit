@@ -76,7 +76,7 @@
           <p class="text-lg font-medium" :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'">
             {{ dragging ? 'Drop your PDFs here' : 'Drop PDF files here' }}
           </p>
-          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — up to 5 files, max 100 MB each</p>
+          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — up to 10 files, max 100 MB each</p>
         </div>
       </div>
     </div>
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-const MAX_FILES = 5
+const MAX_FILES = 10
 const MAX_SIZE = 100 * 1024 * 1024
 
 const emit = defineEmits<{

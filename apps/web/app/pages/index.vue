@@ -9,8 +9,8 @@
       </UButton>
     </div>
 
-    <!-- Results state -->
-    <div v-else-if="result">
+    <!-- Results state (batch with any completed items, or single result) -->
+    <div v-else-if="hasAnyResult">
       <!-- Batch tab bar -->
       <div v-if="batchItems.length > 1" class="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-1.5" role="tablist" :aria-label="`${batchItems.length} file results`">
         <AppTooltip v-for="(item, idx) in batchItems" :key="item.id" :text="item.filename" v-slot="{ tooltipId }">
@@ -34,6 +34,9 @@
             <svg v-else-if="item.status === 'error'" class="w-4 h-4 text-red-500 flex-shrink-0" aria-label="Error" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
+            <svg v-else-if="item.status === 'cancelled'" class="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" aria-label="Cancelled" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
           </button>
         </AppTooltip>
       </div>
@@ -42,6 +45,11 @@
       <div v-if="activeItem?.status === 'error'" class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6">
         <h3 class="font-semibold text-[var(--status-error)] mb-2">{{ activeItem.error?.error || 'Analysis failed' }}</h3>
         <p v-if="activeItem.error?.details" class="text-sm text-[var(--text-muted)]">{{ activeItem.error.details }}</p>
+      </div>
+
+      <!-- Active tab cancelled -->
+      <div v-else-if="activeItem?.status === 'cancelled'" class="mb-6 rounded-xl bg-[var(--surface-card)] border border-[var(--border)] p-6 text-center">
+        <p class="text-[var(--text-muted)]">Analysis was cancelled for this file.</p>
       </div>
 
       <!-- Active tab result -->
@@ -374,10 +382,17 @@
           </UButton>
         </div>
       </template>
+
+      <!-- Always show reset button on error/cancelled tabs -->
+      <div v-if="!result && (activeItem?.status === 'error' || activeItem?.status === 'cancelled')" class="mt-4 text-center">
+        <UButton variant="outline" color="neutral" @click="clearResults">
+          Analyze More Files
+        </UButton>
+      </div>
     </div>
 
     <!-- Batch processing progress -->
-    <BatchProgress v-else-if="isBatchMode && batchProcessing" :items="batchItems" />
+    <BatchProgress v-else-if="isBatchMode && batchProcessing" :items="batchItems" @cancel="cancelBatch" />
 
     <!-- Processing overlay (single file) -->
     <ProcessingOverlay v-else-if="processing" :stage="processingStage" />
@@ -764,10 +779,13 @@ interface BatchItem {
   id: string
   filename: string
   file: File
-  status: 'queued' | 'processing' | 'done' | 'error'
+  status: 'queued' | 'processing' | 'done' | 'error' | 'cancelled'
   result: any | null
   error: any | null
 }
+
+// Abort controller for batch cancellation
+let batchAbortController: AbortController | null = null
 
 const resetSignal = inject<Ref<number>>('resetSignal')
 const {
@@ -795,6 +813,14 @@ const result = computed(() => {
     return activeItem.value?.result || null
   }
   return singleResult.value
+})
+
+// True when any batch item finished (done, error, or cancelled) or single result exists
+const hasAnyResult = computed(() => {
+  if (isBatchMode.value) {
+    return batchItems.value.some(i => i.status === 'done' || i.status === 'error' || i.status === 'cancelled')
+  }
+  return !!singleResult.value
 })
 
 const showDropHint = ref(false)
@@ -853,6 +879,9 @@ async function analyzeBatch(files: File[]) {
   batchProcessing.value = true
   activeTabIndex.value = 0
 
+  batchAbortController = new AbortController()
+  const { signal } = batchAbortController
+
   batchItems.value = files.map((file, i) => ({
     id: `batch-${i}-${Date.now()}`,
     filename: file.name,
@@ -868,6 +897,8 @@ async function analyzeBatch(files: File[]) {
 
   async function processNext(): Promise<void> {
     while (nextIndex < batchItems.value.length) {
+      if (signal.aborted) return
+
       const idx = nextIndex++
       const item = batchItems.value[idx]
       item.status = 'processing'
@@ -880,17 +911,25 @@ async function analyzeBatch(files: File[]) {
           method: 'POST',
           body: formData,
           credentials: 'include',
+          signal,
         })
 
         item.result = response
         item.status = 'done'
+        item.file = null as any // Free browser memory
       } catch (err: any) {
+        if (signal.aborted) {
+          item.status = 'cancelled'
+          item.file = null as any
+          return
+        }
         if (err.status === 401) {
           navigateTo('/login')
           return
         }
         item.error = err.data || { error: 'Analysis failed.' }
         item.status = 'error'
+        item.file = null as any // Free browser memory
       }
     }
   }
@@ -899,11 +938,26 @@ async function analyzeBatch(files: File[]) {
   const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => processNext())
   await Promise.all(workers)
 
+  // Mark remaining queued items as cancelled
+  for (const item of batchItems.value) {
+    if (item.status === 'queued') {
+      item.status = 'cancelled'
+      item.file = null as any
+    }
+  }
+
   batchProcessing.value = false
+  batchAbortController = null
 
   // Auto-select first successful result
   const firstDone = batchItems.value.findIndex(i => i.status === 'done')
   if (firstDone >= 0) activeTabIndex.value = firstDone
+}
+
+function cancelBatch() {
+  if (batchAbortController) {
+    batchAbortController.abort()
+  }
 }
 
 function switchTab(idx: number) {

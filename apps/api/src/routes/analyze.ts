@@ -60,6 +60,15 @@ router.post(
     } catch (err: any) {
       console.error('Analysis error:', err)
 
+      // Server busy (semaphore timeout)
+      if (err.status === 503) {
+        res.status(503).json({
+          error: 'The server is busy processing other files.',
+          details: 'Please wait a moment and try again. The server can analyze two files at a time — your request will be processed as soon as a slot opens.',
+        })
+        return
+      }
+
       // Password-protected PDF
       if (err.message?.includes('encrypted') || err.message?.includes('password')) {
         res.status(422).json({

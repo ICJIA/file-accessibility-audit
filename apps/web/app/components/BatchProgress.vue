@@ -24,11 +24,14 @@
           <svg v-else-if="item.status === 'error'" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
           </svg>
+          <svg v-else-if="item.status === 'cancelled'" class="w-5 h-5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
           <div v-else class="w-3 h-3 rounded-full bg-[var(--border)]" />
         </div>
 
         <!-- Filename -->
-        <span class="flex-1 text-sm truncate" :class="item.status === 'queued' ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)]'">
+        <span class="flex-1 text-sm truncate" :class="item.status === 'queued' ? 'text-[var(--text-muted)]' : item.status === 'cancelled' ? 'text-[var(--text-muted)] line-through' : 'text-[var(--text-secondary)]'">
           {{ item.filename }}
         </span>
 
@@ -38,8 +41,16 @@
           class="flex-shrink-0 inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
           :style="{ backgroundColor: gradeColor(item.result.grade) + '20', color: gradeColor(item.result.grade) }"
         >{{ item.result.grade }}</span>
+
+        <!-- Cancelled label -->
+        <span v-if="item.status === 'cancelled'" class="flex-shrink-0 text-xs text-[var(--text-muted)]">Cancelled</span>
       </div>
     </div>
+
+    <!-- Cancel button -->
+    <UButton v-if="hasActive" variant="outline" color="neutral" size="sm" @click="$emit('cancel')">
+      Cancel Remaining
+    </UButton>
   </div>
 </template>
 
@@ -48,7 +59,7 @@ interface BatchItem {
   id: string
   filename: string
   file: File
-  status: 'queued' | 'processing' | 'done' | 'error'
+  status: 'queued' | 'processing' | 'done' | 'error' | 'cancelled'
   result: any | null
   error: any | null
 }
@@ -57,8 +68,16 @@ const props = defineProps<{
   items: BatchItem[]
 }>()
 
+defineEmits<{
+  cancel: []
+}>()
+
 const doneCount = computed(() =>
-  props.items.filter(i => i.status === 'done' || i.status === 'error').length
+  props.items.filter(i => i.status === 'done' || i.status === 'error' || i.status === 'cancelled').length
+)
+
+const hasActive = computed(() =>
+  props.items.some(i => i.status === 'queued' || i.status === 'processing')
 )
 
 const gradeColors: Record<string, string> = {
