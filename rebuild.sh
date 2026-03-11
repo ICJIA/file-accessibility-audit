@@ -19,6 +19,7 @@ if ! command -v pnpm &> /dev/null; then
 fi
 
 echo "Pulling latest changes..."
+git checkout -- .
 git pull origin main
 
 echo "Installing dependencies..."
