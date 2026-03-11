@@ -752,8 +752,8 @@ describe('scoreTableMarkup edge cases', () => {
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    // 30 (headers) + 0 (no scope) + 15 (rows) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 65
-    expect(findCategory(result, 'table_markup').score).toBe(65)
+    // 40 (headers) + 20 (rows) + 0 (no scope) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 80
+    expect(findCategory(result, 'table_markup').score).toBe(80)
   })
 
   it('no headers at all → low score, can still earn structure points', () => {
@@ -762,8 +762,8 @@ describe('scoreTableMarkup edge cases', () => {
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    // 0 (no headers) + 0 (no scope, N/A) + 15 (rows) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 35
-    expect(findCategory(result, 'table_markup').score).toBe(35)
+    // 0 (no headers) + 20 (rows) + 0 (no scope, N/A) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 40
+    expect(findCategory(result, 'table_markup').score).toBe(40)
   })
 
   it('nested table costs 10 points', () => {
@@ -772,7 +772,7 @@ describe('scoreTableMarkup edge cases', () => {
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    // 30 + 20 + 15 + 0 (nested) + 10 + 10 + 5 = 90
+    // 40 + 20 + 10 + 0 (nested) + 5 + 10 + 5 = 90
     expect(findCategory(result, 'table_markup').score).toBe(90)
   })
 
@@ -792,8 +792,8 @@ describe('scoreTableMarkup edge cases', () => {
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    // 15 (some headers) + 20 (all TH-bearing tables have scope) + 15 (all rows) + 10 (no nesting) + 5 (some caption) + 10 (all consistent) + 5 (some assoc) = 80
-    expect(findCategory(result, 'table_markup').score).toBe(80)
+    // 20 (some headers) + 20 (all rows) + 10 (all TH-bearing tables have scope) + 10 (no nesting) + 2 (some caption) + 10 (all consistent) + 5 (some assoc) = 77
+    expect(findCategory(result, 'table_markup').score).toBe(77)
   })
 
   it('inconsistent columns reduces score', () => {
@@ -802,7 +802,7 @@ describe('scoreTableMarkup edge cases', () => {
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    // 30 + 20 + 15 + 10 + 10 + 0 (inconsistent) = 85
+    // 40 + 20 + 10 + 10 + 5 + 0 (inconsistent) = 85
     expect(findCategory(result, 'table_markup').score).toBe(85)
   })
 })

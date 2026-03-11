@@ -453,7 +453,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     { label: 'WebAIM: Table Accessibility in PDFs', url: 'https://webaim.org/techniques/acrobat/acrobat#702' },
     { label: 'PAC 2024: Table Structure', url: 'https://pac.pdf-accessibility.org/' },
   ]
-  const tableExplanation = 'Table markup tells screen readers how to navigate data tables. This checks six aspects of table accessibility: header cells (TH tags), scope attributes that link headers to columns or rows, proper row structure (TR tags), whether tables contain nested sub-tables (which confuse screen readers), caption elements that describe the table\'s purpose, and consistent column counts across rows. Each sub-check contributes to the overall table score.'
+  const tableExplanation = 'Table markup tells screen readers how to navigate data tables. This checks seven aspects of table accessibility, weighted by importance: header cells (TH tags, 40 pts), row structure (TR tags, 20 pts), scope attributes linking headers to columns/rows (10 pts), nested table detection (10 pts), consistent column counts (10 pts), caption elements (5 pts), and header-cell associations (5 pts). Headers and row structure are the foundation; scope and captions are enhancements.'
 
   if (qpdf.tables.length === 0) {
     return {
@@ -475,14 +475,14 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   const findings: string[] = []
   let score = 0
 
-  // 1. Header presence (30 points)
+  // 1. Header presence (40 points) — most critical for screen reader navigation
   const withHeaders = qpdf.tables.filter(t => t.hasHeaders).length
   if (withHeaders === n) {
-    score += 30
+    score += 40
     const totalTH = qpdf.tables.reduce((sum, t) => sum + t.headerCount, 0)
     findings.push(`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`)
   } else if (withHeaders > 0) {
-    score += 15
+    score += 20
     findings.push(`${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing TH tags`)
     findings.push('Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find header rows → change <TD> to <TH>')
   } else {
@@ -490,33 +490,33 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     findings.push('Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>')
   }
 
-  // 2. Scope attributes (20 points)
+  // 2. Row structure (20 points) — second most important structural requirement
+  const withRows = qpdf.tables.filter(t => t.hasRowStructure).length
+  if (withRows === n) {
+    score += 20
+    const totalRows = qpdf.tables.reduce((sum, t) => sum + t.rowCount, 0)
+    findings.push(`All ${n} table(s) have proper row structure (TR tags) — ${totalRows} row(s) total`)
+  } else if (withRows > 0) {
+    score += 10
+    findings.push(`${n - withRows} of ${n} table(s) are missing row structure (TR tags) — cells are directly under <Table> instead of grouped in <TR> rows`)
+  } else {
+    findings.push('No tables have row structure (TR tags) — cells are not grouped into rows, which breaks screen reader table navigation')
+    findings.push('Fix: In Adobe Acrobat, restructure each table so cells are wrapped in <TR> (Table Row) tags')
+  }
+
+  // 3. Scope attributes (10 points) — enhancement for complex tables
   const withScope = qpdf.tables.filter(t => t.hasHeaders && t.hasScope).length
   const tablesWithHeaders = qpdf.tables.filter(t => t.hasHeaders)
   if (tablesWithHeaders.length === 0) {
     findings.push('Scope attributes: N/A (no header cells to check)')
   } else if (withScope === tablesWithHeaders.length) {
-    score += 20
+    score += 10
     findings.push('All header cells have Scope attributes (/Column or /Row) — screen readers can associate headers with data cells')
   } else {
     const totalMissing = qpdf.tables.reduce((sum, t) => sum + t.scopeMissingCount, 0)
-    if (withScope > 0) score += 10
+    if (withScope > 0) score += 5
     findings.push(`${totalMissing} header cell(s) are missing Scope attributes — screen readers may not correctly associate headers with data`)
     findings.push('Fix: In Adobe Acrobat, select each <TH> tag → Properties → Scope → set to "Column" or "Row"')
-  }
-
-  // 3. Row structure (15 points)
-  const withRows = qpdf.tables.filter(t => t.hasRowStructure).length
-  if (withRows === n) {
-    score += 15
-    const totalRows = qpdf.tables.reduce((sum, t) => sum + t.rowCount, 0)
-    findings.push(`All ${n} table(s) have proper row structure (TR tags) — ${totalRows} row(s) total`)
-  } else if (withRows > 0) {
-    score += 7
-    findings.push(`${n - withRows} of ${n} table(s) are missing row structure (TR tags) — cells are directly under <Table> instead of grouped in <TR> rows`)
-  } else {
-    findings.push('No tables have row structure (TR tags) — cells are not grouped into rows, which breaks screen reader table navigation')
-    findings.push('Fix: In Adobe Acrobat, restructure each table so cells are wrapped in <TR> (Table Row) tags')
   }
 
   // 4. No nested tables (10 points)
@@ -529,17 +529,17 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     findings.push('Fix: Restructure nested tables into a single flat table, or split into separate independent tables')
   }
 
-  // 5. Caption (10 points)
+  // 5. Caption (5 points) — nice to have, not a WCAG requirement
   const withCaption = qpdf.tables.filter(t => t.hasCaption).length
   if (withCaption === n) {
-    score += 10
+    score += 5
     findings.push(`All ${n} table(s) have caption elements describing their purpose`)
   } else if (withCaption > 0) {
-    score += 5
+    score += 2
     findings.push(`${withCaption} of ${n} table(s) have caption elements — ${n - withCaption} table(s) are missing captions`)
     findings.push('Fix: In Adobe Acrobat, add a <Caption> tag as the first child of each <Table> tag with a brief description of the table\'s content')
   } else {
-    findings.push('No tables have caption elements — screen readers cannot announce what each table contains before the user enters it')
+    findings.push('No tables have caption elements — adding a caption helps screen readers announce what each table contains')
     findings.push('Fix: Add a <Caption> tag as the first child of each <Table> in the Tags panel')
   }
 
