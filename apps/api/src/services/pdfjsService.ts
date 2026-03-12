@@ -138,18 +138,29 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       } catch {}
     }
 
-    // Count images via operator list (fallback when QPDF can't detect them)
+    // Count unique images via operator list (fallback when QPDF can't detect them)
+    // Tracks image object names to avoid counting the same image multiple times
+    // (e.g., a header logo repeated on every page)
     const OPS = pdfjsLib.OPS as Record<string, number>
     const imageOps = new Set([OPS.paintImageXObject, OPS.paintJpegXObject, OPS.paintImageXObjectRepeat].filter(v => v !== undefined))
-    let imageCount = 0
+    const uniqueImages = new Set<string>()
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
       const ops = await page.getOperatorList()
-      for (const fn of ops.fnArray) {
-        if (imageOps.has(fn)) imageCount++
+      for (let j = 0; j < ops.fnArray.length; j++) {
+        if (imageOps.has(ops.fnArray[j])) {
+          // argsArray[j][0] is the image object name (e.g., "img_p0_1")
+          const imgName = ops.argsArray[j]?.[0]
+          if (typeof imgName === 'string') {
+            uniqueImages.add(imgName)
+          } else {
+            // Fallback: count unnamed operations by page+index
+            uniqueImages.add(`page${i}_op${j}`)
+          }
+        }
       }
     }
-    result.imageCount = imageCount
+    result.imageCount = uniqueImages.size
 
     result.textLength = totalText.trim().length
     result.hasText = result.textLength > 50 // Minimum meaningful text
