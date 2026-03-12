@@ -378,16 +378,19 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
 
   // QPDF found no tagged images, but pdfjs detected image rendering operations
   if (figures.length === 0 && pdfjs.imageCount > 0) {
+    const imgLabel = pdfjs.imageCount > 50
+      ? `50+ image(s) detected in the document (${pdfjs.imageCount} raw), but none have accessibility tags`
+      : `${pdfjs.imageCount} image(s) detected in the document, but none have accessibility tags`
     const untaggedFindings: string[] = [
-      `Approximately ${pdfjs.imageCount} image(s) detected in the document, but none have accessibility tags`,
+      imgLabel,
       'The images exist in the PDF but are not tagged as <Figure> elements, so screen readers cannot identify them or read any alternative text.',
       'How to fix: In Adobe Acrobat, open the Tags panel → use the Reading Order tool (Accessibility → Reading Order) to identify images → tag each image as a Figure → right-click the <Figure> tag → Properties → add descriptive alt text.',
       `--- Untagged Images Detail ---`,
-      `  ~${pdfjs.imageCount} image(s) detected by PDF.js content analysis (approximate — may include decorative graphics)`,
+      `  ${pdfjs.imageCount} image rendering operation(s) found — this count includes decorative graphics (backgrounds, colored boxes, gradients) that should be tagged as Artifacts rather than Figures`,
       `  None of these images have a <Figure> structure element in the tag tree`,
-      `  Each image needs: (1) a <Figure> tag in the Tags panel, and (2) an /Alt attribute with descriptive text`,
-      `  Decorative images (borders, backgrounds, spacers) should be tagged as Artifacts instead of Figures`,
-      `  Note: Open the PDF in Acrobat and use the Reading Order tool to see the exact image count and locations`,
+      `  Use Acrobat's Reading Order tool to see the actual content images and their locations`,
+      `  Each content image needs: (1) a <Figure> tag in the Tags panel, and (2) an /Alt attribute with descriptive text`,
+      `  Decorative images should be marked as Artifacts (right-click tag → Properties → check "Artifact")`,
     ]
     return {
       id: 'alt_text',
