@@ -138,29 +138,43 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       } catch {}
     }
 
-    // Count unique images via operator list (fallback when QPDF can't detect them)
-    // Tracks image object names to avoid counting the same image multiple times
-    // (e.g., a header logo repeated on every page)
+    // Count meaningful images via operator list (fallback when QPDF can't detect them)
+    // Filters out tiny/decorative images (< 50px in either dimension) and deduplicates
+    // by image name within each page. This is an approximate count — it includes
+    // decorative graphics that may not need alt text.
     const OPS = pdfjsLib.OPS as Record<string, number>
     const imageOps = new Set([OPS.paintImageXObject, OPS.paintJpegXObject, OPS.paintImageXObjectRepeat].filter(v => v !== undefined))
-    const uniqueImages = new Set<string>()
+    const MIN_IMAGE_DIM = 50 // pixels — skip spacers, borders, tiny decorative elements
+    const seenPerPage = new Set<string>()
+    let imageCount = 0
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
       const ops = await page.getOperatorList()
+      seenPerPage.clear()
       for (let j = 0; j < ops.fnArray.length; j++) {
-        if (imageOps.has(ops.fnArray[j])) {
-          // argsArray[j][0] is the image object name (e.g., "img_p0_1")
-          const imgName = ops.argsArray[j]?.[0]
-          if (typeof imgName === 'string') {
-            uniqueImages.add(imgName)
-          } else {
-            // Fallback: count unnamed operations by page+index
-            uniqueImages.add(`page${i}_op${j}`)
+        if (!imageOps.has(ops.fnArray[j])) continue
+        const imgName = ops.argsArray[j]?.[0]
+        if (typeof imgName !== 'string') continue
+        if (seenPerPage.has(imgName)) continue // same image painted twice on same page
+        seenPerPage.add(imgName)
+        try {
+          const imgData = page.objs.has(imgName)
+            ? page.objs.get(imgName)
+            : page.commonObjs.has(imgName)
+              ? page.commonObjs.get(imgName)
+              : null
+          if (imgData && typeof imgData === 'object' && 'width' in imgData && 'height' in imgData) {
+            const w = (imgData as any).width as number
+            const h = (imgData as any).height as number
+            if (w < MIN_IMAGE_DIM || h < MIN_IMAGE_DIM) continue // skip tiny images
           }
+        } catch {
+          // If we can't resolve the image, count it conservatively
         }
+        imageCount++
       }
     }
-    result.imageCount = uniqueImages.size
+    result.imageCount = imageCount
 
     result.textLength = totalText.trim().length
     result.hasText = result.textLength > 50 // Minimum meaningful text
