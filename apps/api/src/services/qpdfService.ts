@@ -76,14 +76,15 @@ function decodeQpdfString(raw: string): string {
       const bytes = Buffer.from(hex, 'hex')
       // Check for UTF-16BE BOM (fe ff)
       if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-        return bytes.slice(2).toString('utf16le')
-          // UTF-16BE needs byte-swapping for Node's utf16le decoder
-          ? Buffer.from(
-              Uint8Array.from(bytes.slice(2), (_, i, arr) =>
-                i % 2 === 0 ? arr[i + 1] : arr[i - 1]
-              ).buffer
-            ).toString('utf16le').replace(/\0+$/, '')
-          : raw
+        // UTF-16BE needs byte-swapping for Node's utf16le decoder
+        const content = bytes.slice(2)
+        const swapped = Buffer.alloc(content.length)
+        for (let i = 0; i < content.length - 1; i += 2) {
+          swapped[i] = content[i + 1]
+          swapped[i + 1] = content[i]
+        }
+        const decoded = swapped.toString('utf16le').replace(/\0+$/, '')
+        return decoded || raw
       }
       // Try plain UTF-8
       const decoded = bytes.toString('utf8')
