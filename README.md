@@ -414,7 +414,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**326 tests** across 10 test files. Run all with a summary at the end:
+**363 tests** across 10 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -429,10 +429,10 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      170 passed (5 files)
+  ✔ API      207 passed (5 files)
   ✔ Web      156 passed (5 files)
 ────────────────────────────────────────────────────────────
-  ✔ 326 tests passed across 10 files
+  ✔ 363 tests passed across 10 files
 ════════════════════════════════════════════════════════════
 ```
 

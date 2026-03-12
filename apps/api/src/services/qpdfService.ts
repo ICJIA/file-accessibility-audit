@@ -61,6 +61,45 @@ export interface QpdfResult {
   error: string | null
 }
 
+/**
+ * Decode a QPDF-encoded string.  QPDF prefixes Unicode strings with "u:" and
+ * byte strings with "b:" (hex-encoded).  For "b:" strings we attempt to decode
+ * the hex as UTF-16BE (common PDF encoding for /Alt values), falling back to
+ * the raw hex if decoding fails.
+ */
+function decodeQpdfString(raw: string): string {
+  if (raw.startsWith('u:')) return raw.slice(2)
+  if (raw.startsWith('b:')) {
+    const hex = raw.slice(2)
+    try {
+      // Convert hex to bytes
+      const bytes = Buffer.from(hex, 'hex')
+      // Check for UTF-16BE BOM (fe ff)
+      if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+        return bytes.slice(2).toString('utf16le')
+          // UTF-16BE needs byte-swapping for Node's utf16le decoder
+          ? Buffer.from(
+              Uint8Array.from(bytes.slice(2), (_, i, arr) =>
+                i % 2 === 0 ? arr[i + 1] : arr[i - 1]
+              ).buffer
+            ).toString('utf16le').replace(/\0+$/, '')
+          : raw
+      }
+      // Try plain UTF-8
+      const decoded = bytes.toString('utf8')
+      // If most chars are printable, use it
+      const printable = decoded.replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, '').length
+      if (decoded.length > 0 && printable / decoded.length > 0.5) {
+        return decoded.replace(/\0+$/, '')
+      }
+    } catch {
+      // Fall through to return raw
+    }
+    return raw // Keep "b:..." so detectSuspiciousAltText can flag it
+  }
+  return raw
+}
+
 export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
   const tmpDir = process.env.TMP_DIR || '/tmp'
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`)
@@ -272,7 +311,7 @@ function parseQpdfJson(json: any): QpdfResult {
         // Figures with alt text
         if (tag === '/Figure') {
           const rawAlt = o['/Alt']
-          const altText = typeof rawAlt === 'string' ? rawAlt.replace(/^u:/, '') : undefined
+          const altText = typeof rawAlt === 'string' ? decodeQpdfString(rawAlt) : undefined
           const hasAlt = altText !== undefined && altText !== ''
           // Try to match to an image
           if (result.images.length > 0) {

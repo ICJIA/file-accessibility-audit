@@ -832,7 +832,7 @@ describe('supplementary findings — list markup', () => {
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
     const tableCat = findCategory(result, 'table_markup')
-    expect(tableCat.findings.some(f => f.includes('missing label'))).toBe(true)
+    expect(tableCat.findings.some(f => f.includes('missing <Lbl>'))).toBe(true)
   })
 })
 

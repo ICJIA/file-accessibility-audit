@@ -223,9 +223,9 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
     }
   }
 
-  // Show the heading outline
-  const headingSummary = qpdf.headings.map(h => h.level).join(', ')
-  findings.push(`Heading outline: ${headingSummary}`)
+  // Show the heading outline as a compact flow
+  findings.push(`--- Heading Tree ---`)
+  findings.push(`  ${qpdf.headings.map(h => h.level).join(' → ')}`)
 
   const hasNumberedHeadings = qpdf.headings.some(h => /^H[1-6]$/.test(h.level))
 
@@ -288,6 +288,46 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
   }
 }
 
+/**
+ * Heuristic check for alt text that is likely machine-generated, encoded,
+ * or otherwise not human-readable. Returns a reason string if suspicious,
+ * or null if the text looks plausible.
+ */
+function detectSuspiciousAltText(text: string): string | null {
+  if (!text || text.trim().length === 0) return null
+  const t = text.trim()
+
+  // Hex-encoded / binary-looking: long run of hex chars (possibly with "b:" prefix)
+  const hexCleaned = t.replace(/^b:/, '')
+  if (hexCleaned.length > 20 && /^[0-9a-fA-F]+$/.test(hexCleaned)) {
+    return 'appears to be hex-encoded data, not a human-readable description'
+  }
+
+  // Very long string with no spaces — likely encoded or a hash
+  if (t.length > 30 && !t.includes(' ')) {
+    return 'very long string with no spaces — may be encoded or auto-generated'
+  }
+
+  // Mostly non-ASCII or control characters
+  const nonAscii = t.replace(/[\x20-\x7E]/g, '').length
+  if (t.length > 5 && nonAscii / t.length > 0.5) {
+    return 'contains mostly non-printable or non-ASCII characters'
+  }
+
+  // Common filename patterns used as alt text
+  if (/^(IMG_?\d|DSC_?\d|image\d|photo\d|picture\d|screenshot|untitled)/i.test(t) &&
+      /\.(jpe?g|png|gif|bmp|tiff?|webp|svg|pdf)$/i.test(t)) {
+    return 'appears to be a filename rather than a description'
+  }
+
+  // Single word that is just "image", "photo", "picture", "graphic", "icon", "figure"
+  if (/^(image|photo|picture|graphic|icon|figure|img|pic|logo)$/i.test(t)) {
+    return 'generic placeholder — does not describe the image content'
+  }
+
+  return null
+}
+
 function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const altLinks: CategoryResult['helpLinks'] = [
     { label: 'Adobe: Add Alt Text to Images', url: 'https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html#add_alternate_text_to_links_and_figures' },
@@ -340,15 +380,66 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
 
   if (withAlt === figures.length) {
     findings.push(`All ${figures.length} image(s) have alternative text`)
-    for (const fig of figures) {
-      if (fig.altText) findings.push(`Image alt text: "${fig.altText}"`)
+    findings.push(`--- Image Alt Text Details ---`)
+    for (let fi = 0; fi < figures.length && fi < 20; fi++) {
+      const fig = figures[fi]
+      const label = figures.length > 1 ? `Image ${fi + 1}` : 'Image'
+      findings.push(`  ${label}: "${fig.altText || '(empty alt)'}"`)
+    }
+    if (figures.length > 20) {
+      findings.push(`  ... and ${figures.length - 20} more image(s)`)
     }
   } else {
     findings.push(`${withAlt} of ${figures.length} image(s) have alternative text`)
-    const missing = figures.filter(f => !f.hasAlt).length
-    findings.push(`${missing} image(s) are missing alt text`)
+    findings.push(`--- Images Missing Alt Text ---`)
+    let missingCount = 0
+    for (let fi = 0; fi < figures.length && missingCount < 15; fi++) {
+      if (!figures[fi].hasAlt) {
+        missingCount++
+        findings.push(`  Image ${fi + 1}: <Figure> tag — no /Alt attribute`)
+      }
+    }
+    const totalMissing = figures.filter(f => !f.hasAlt).length
+    if (totalMissing > 15) {
+      findings.push(`  ... and ${totalMissing - 15} more image(s) without alt text`)
+    }
+    if (withAlt > 0) {
+      findings.push(`--- Images With Alt Text ---`)
+      let shownCount = 0
+      for (let fi = 0; fi < figures.length && shownCount < 10; fi++) {
+        if (figures[fi].hasAlt) {
+          shownCount++
+          findings.push(`  Image ${fi + 1}: "${figures[fi].altText}"`)
+        }
+      }
+      if (withAlt > 10) {
+        findings.push(`  ... and ${withAlt - 10} more image(s) with alt text`)
+      }
+    }
     findings.push('How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the "Alternate Text" field.')
     findings.push('Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".')
+  }
+
+  // Check for suspicious / non-human-readable alt text (no score penalty)
+  const suspicious: Array<{ index: number; alt: string; reason: string }> = []
+  for (let fi = 0; fi < figures.length; fi++) {
+    const fig = figures[fi]
+    if (fig.hasAlt && fig.altText) {
+      const reason = detectSuspiciousAltText(fig.altText)
+      if (reason) suspicious.push({ index: fi + 1, alt: fig.altText, reason })
+    }
+  }
+  if (suspicious.length > 0) {
+    findings.push(`--- ⚠ Alt Text Quality Warning ---`)
+    findings.push(`  ${suspicious.length} image(s) have alt text that may not be human-readable (no score penalty):`)
+    for (const s of suspicious.slice(0, 15)) {
+      const preview = s.alt.length > 60 ? s.alt.slice(0, 60) + '…' : s.alt
+      findings.push(`  Image ${s.index}: "${preview}" — ${s.reason}`)
+    }
+    if (suspicious.length > 15) {
+      findings.push(`  ... and ${suspicious.length - 15} more suspicious alt text value(s)`)
+    }
+    findings.push(`  Review these images and replace auto-generated or encoded alt text with meaningful descriptions.`)
   }
 
   return {
@@ -395,7 +486,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   if (hasOutlines && outlineCount > 0) {
     const findings = [`${outlineCount} bookmark(s) found`]
     if (qpdf.outlineTitles?.length > 0) {
-      findings.push('Bookmark outline:')
+      findings.push('--- Bookmark Outline ---')
       for (const title of qpdf.outlineTitles) {
         findings.push(`  ${title}`)
       }
@@ -475,6 +566,28 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   const findings: string[] = []
   let score = 0
 
+  // Per-table structural summary
+  findings.push(`--- Table Structure Overview ---`)
+  for (let ti = 0; ti < n; ti++) {
+    const t = qpdf.tables[ti]
+    const label = n > 1 ? `Table ${ti + 1}` : 'Table'
+    const cols = t.columnCounts.length > 0 ? `${t.columnCounts[0]} cols` : 'no col data'
+    const parts: string[] = [
+      `${t.rowCount} rows × ${cols}`,
+      `${t.headerCount} <TH>, ${t.dataCellCount} <TD>`,
+    ]
+    if (t.hasScope) parts.push('scope: present')
+    else if (t.headerCount > 0) parts.push(`scope: missing on ${t.scopeMissingCount} header(s)`)
+    if (t.hasCaption) parts.push('caption: yes')
+    if (t.hasNestedTable) parts.push('NESTED TABLE')
+    if (t.hasConsistentColumns === false) {
+      const unique = [...new Set(t.columnCounts)]
+      parts.push(`inconsistent cols: [${unique.join(', ')}]`)
+    }
+    if (t.hasHeaderAssociation) parts.push('/Headers assoc: yes')
+    findings.push(`  ${label}: ${parts.join(' | ')}`)
+  }
+
   // 1. Header presence (40 points) — most critical for screen reader navigation
   const withHeaders = qpdf.tables.filter(t => t.hasHeaders).length
   if (withHeaders === n) {
@@ -483,10 +596,18 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     findings.push(`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`)
   } else if (withHeaders > 0) {
     score += 20
-    findings.push(`${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing TH tags`)
+    findings.push(`${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing <TH> tags`)
+    for (let ti = 0; ti < n; ti++) {
+      if (!qpdf.tables[ti].hasHeaders) {
+        findings.push(`  Table ${ti + 1}: 0 <TH> found — all ${qpdf.tables[ti].dataCellCount} cells are <TD>`)
+      }
+    }
     findings.push('Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find header rows → change <TD> to <TH>')
   } else {
-    findings.push(`${n} table(s) found but none have header cells (TH) — screen readers cannot identify column or row headers`)
+    findings.push(`${n} table(s) found but none have header cells — screen readers cannot identify column or row headers`)
+    for (let ti = 0; ti < n; ti++) {
+      findings.push(`  Table ${ti + 1}: ${qpdf.tables[ti].dataCellCount} <TD> cells, 0 <TH> cells`)
+    }
     findings.push('Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>')
   }
 
@@ -495,12 +616,16 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   if (withRows === n) {
     score += 20
     const totalRows = qpdf.tables.reduce((sum, t) => sum + t.rowCount, 0)
-    findings.push(`All ${n} table(s) have proper row structure (TR tags) — ${totalRows} row(s) total`)
+    findings.push(`All ${n} table(s) have proper row structure — ${totalRows} <TR> row(s) total`)
   } else if (withRows > 0) {
     score += 10
-    findings.push(`${n - withRows} of ${n} table(s) are missing row structure (TR tags) — cells are directly under <Table> instead of grouped in <TR> rows`)
+    for (let ti = 0; ti < n; ti++) {
+      if (!qpdf.tables[ti].hasRowStructure) {
+        findings.push(`  Table ${ti + 1}: missing <TR> row structure — cells are directly under <Table>`)
+      }
+    }
   } else {
-    findings.push('No tables have row structure (TR tags) — cells are not grouped into rows, which breaks screen reader table navigation')
+    findings.push('No tables have <TR> row structure — cells are not grouped into rows, which breaks screen reader table navigation')
     findings.push('Fix: In Adobe Acrobat, restructure each table so cells are wrapped in <TR> (Table Row) tags')
   }
 
@@ -511,11 +636,17 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     findings.push('Scope attributes: N/A (no header cells to check)')
   } else if (withScope === tablesWithHeaders.length) {
     score += 10
-    findings.push('All header cells have Scope attributes (/Column or /Row) — screen readers can associate headers with data cells')
+    findings.push('All <TH> cells have Scope attributes (/Column or /Row)')
   } else {
     const totalMissing = qpdf.tables.reduce((sum, t) => sum + t.scopeMissingCount, 0)
     if (withScope > 0) score += 5
-    findings.push(`${totalMissing} header cell(s) are missing Scope attributes — screen readers may not correctly associate headers with data`)
+    findings.push(`${totalMissing} <TH> cell(s) missing Scope attribute — screen readers may not correctly associate headers with data`)
+    for (let ti = 0; ti < n; ti++) {
+      const t = qpdf.tables[ti]
+      if (t.headerCount > 0 && t.scopeMissingCount > 0) {
+        findings.push(`  Table ${ti + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`)
+      }
+    }
     findings.push('Fix: In Adobe Acrobat, select each <TH> tag → Properties → Scope → set to "Column" or "Row"')
   }
 
@@ -525,7 +656,11 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     score += 10
     findings.push('No nested tables detected')
   } else {
-    findings.push(`${withNesting} table(s) contain nested sub-tables — nested tables are extremely difficult for screen readers to navigate and should be flattened`)
+    for (let ti = 0; ti < n; ti++) {
+      if (qpdf.tables[ti].hasNestedTable) {
+        findings.push(`  Table ${ti + 1}: contains nested <Table> — extremely difficult for screen readers to navigate`)
+      }
+    }
     findings.push('Fix: Restructure nested tables into a single flat table, or split into separate independent tables')
   }
 
@@ -533,13 +668,13 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   const withCaption = qpdf.tables.filter(t => t.hasCaption).length
   if (withCaption === n) {
     score += 5
-    findings.push(`All ${n} table(s) have caption elements describing their purpose`)
+    findings.push(`All ${n} table(s) have <Caption> elements`)
   } else if (withCaption > 0) {
     score += 2
-    findings.push(`${withCaption} of ${n} table(s) have caption elements — ${n - withCaption} table(s) are missing captions`)
-    findings.push('Fix: In Adobe Acrobat, add a <Caption> tag as the first child of each <Table> tag with a brief description of the table\'s content')
+    findings.push(`${withCaption} of ${n} table(s) have <Caption> — ${n - withCaption} missing`)
+    findings.push('Fix: Add a <Caption> tag as the first child of each <Table> with a brief description')
   } else {
-    findings.push('No tables have caption elements — adding a caption helps screen readers announce what each table contains')
+    findings.push('No tables have <Caption> elements — adding a caption helps screen readers announce table purpose')
     findings.push('Fix: Add a <Caption> tag as the first child of each <Table> in the Tags panel')
   }
 
@@ -552,19 +687,21 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     score += 10
     findings.push('All tables have consistent column counts across rows')
   } else {
-    const inconsistent = qpdf.tables.filter(t => t.hasConsistentColumns === false)
-    for (const t of inconsistent) {
-      const unique = [...new Set(t.columnCounts)]
-      findings.push(`Table has inconsistent column counts: rows have ${unique.join(', ')} cells — this can confuse screen reader table navigation`)
+    for (let ti = 0; ti < n; ti++) {
+      const t = qpdf.tables[ti]
+      if (t.hasConsistentColumns === false) {
+        const unique = [...new Set(t.columnCounts)]
+        findings.push(`  Table ${ti + 1}: inconsistent column counts — rows have [${t.columnCounts.join(', ')}] cells (expected uniform ${unique[0]})`)
+      }
     }
-    findings.push('Fix: Ensure all rows in each table have the same number of cells. Use empty cells or colspan/rowspan attributes where needed.')
+    findings.push('Fix: Ensure all rows have the same number of cells. Use empty cells or colspan/rowspan where needed.')
   }
 
   // 7. Header association bonus (5 points)
   const withAssoc = qpdf.tables.filter(t => t.hasHeaderAssociation).length
   if (withAssoc > 0) {
     score += 5
-    findings.push(`${withAssoc} table(s) use explicit header-cell associations (/Headers attribute) for complex table navigation`)
+    findings.push(`${withAssoc} table(s) use explicit header-cell associations (/Headers attribute)`)
   }
 
   return {
@@ -609,15 +746,32 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
 
   if (descriptive.length === pdfjs.links.length) {
     findings.push(`All ${pdfjs.links.length} link(s) use descriptive text`)
-    for (const link of pdfjs.links) {
-      findings.push(`Link: "${link.text.trim()}"`)
+    findings.push(`--- Link Details ---`)
+    for (const link of pdfjs.links.slice(0, 20)) {
+      findings.push(`  "${link.text.trim()}" → ${link.url}`)
+    }
+    if (pdfjs.links.length > 20) {
+      findings.push(`  ... and ${pdfjs.links.length - 20} more link(s)`)
     }
   } else {
     const rawCount = pdfjs.links.length - descriptive.length
     findings.push(`${rawCount} of ${pdfjs.links.length} link(s) display raw URLs instead of descriptive text`)
+    findings.push(`--- Links Using Raw URLs ---`)
     const rawLinks = pdfjs.links.filter(l => rawUrlPattern.test(l.text.trim()))
-    for (const link of rawLinks) {
-      findings.push(`Raw URL link: "${link.text.trim()}"`)
+    for (const link of rawLinks.slice(0, 15)) {
+      findings.push(`  "${link.text.trim()}" — raw URL displayed as link text`)
+    }
+    if (rawLinks.length > 15) {
+      findings.push(`  ... and ${rawLinks.length - 15} more raw URL link(s)`)
+    }
+    if (descriptive.length > 0) {
+      findings.push(`--- Links With Descriptive Text ---`)
+      for (const link of descriptive.slice(0, 10)) {
+        findings.push(`  "${link.text.trim()}" → ${link.url}`)
+      }
+      if (descriptive.length > 10) {
+        findings.push(`  ... and ${descriptive.length - 10} more descriptive link(s)`)
+      }
     }
     findings.push('How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.')
   }
@@ -665,11 +819,32 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
 
   if (withLabels === qpdf.formFields.length) {
     findings.push(`All fields have accessible tooltip labels (TU)`)
+    findings.push(`--- Form Field Details ---`)
+    for (const field of qpdf.formFields.slice(0, 20)) {
+      findings.push(`  ${field.name ? `"${field.name}"` : '(unnamed)'} — has /TU label ✓`)
+    }
+    if (qpdf.formFields.length > 20) {
+      findings.push(`  ... and ${qpdf.formFields.length - 20} more field(s)`)
+    }
   } else {
     findings.push(`${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`)
+    findings.push(`--- Unlabeled Form Fields ---`)
     const unlabeled = qpdf.formFields.filter(f => !f.hasTU)
-    for (const field of unlabeled) {
-      findings.push(`Unlabeled field${field.name ? `: "${field.name}"` : ''}`)
+    for (const field of unlabeled.slice(0, 20)) {
+      findings.push(`  ${field.name ? `"${field.name}"` : '(unnamed)'} — missing /TU tooltip label`)
+    }
+    if (unlabeled.length > 20) {
+      findings.push(`  ... and ${unlabeled.length - 20} more unlabeled field(s)`)
+    }
+    if (withLabels > 0) {
+      findings.push(`--- Labeled Form Fields ---`)
+      const labeled = qpdf.formFields.filter(f => f.hasTU)
+      for (const field of labeled.slice(0, 10)) {
+        findings.push(`  ${field.name ? `"${field.name}"` : '(unnamed)'} — has /TU label ✓`)
+      }
+      if (labeled.length > 10) {
+        findings.push(`  ... and ${labeled.length - 10} more labeled field(s)`)
+      }
     }
     findings.push('How to fix: In Adobe Acrobat, right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.')
   }
@@ -715,7 +890,8 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
 
   const findings: string[] = []
   findings.push(`Structure tree depth: ${qpdf.structTreeDepth} level(s)`)
-  findings.push(`Content items tracked: ${qpdf.contentOrder.length}`)
+  findings.push(`Content items (MCIDs): ${qpdf.contentOrder.length}`)
+  findings.push(`Pages: ${qpdf.totalPageCount} | Paragraphs: ${qpdf.paragraphCount} | Headings: ${qpdf.headings.length}`)
 
   // Check tree depth (flat = bad)
   if (qpdf.structTreeDepth <= 1) {
@@ -786,16 +962,24 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
     const wellFormed = qpdf.lists.filter(l => l.isWellFormed).length
     tableCat.findings.push(`--- List Structure Analysis ---`)
     tableCat.findings.push(`${qpdf.lists.length} list(s) detected with ${totalItems} total item(s)`)
+    for (let li = 0; li < qpdf.lists.length; li++) {
+      const l = qpdf.lists[li]
+      const label = qpdf.lists.length > 1 ? `List ${li + 1}` : 'List'
+      const parts: string[] = [
+        `${l.itemCount} <LI>`,
+        l.hasLabels ? '<Lbl> ✓' : '<Lbl> ✗',
+        l.hasBodies ? '<LBody> ✓' : '<LBody> ✗',
+      ]
+      if (l.nestingDepth > 0) parts.push(`nested depth: ${l.nestingDepth}`)
+      parts.push(l.isWellFormed ? 'well-formed' : 'incomplete structure')
+      tableCat.findings.push(`  ${label}: ${parts.join(' | ')}`)
+    }
     if (wellFormed === qpdf.lists.length) {
-      tableCat.findings.push(`All lists are well-formed (each item has label and body elements)`)
+      tableCat.findings.push(`All lists are well-formed (each <LI> has <Lbl> and <LBody>)`)
     } else {
       const malformed = qpdf.lists.length - wellFormed
-      tableCat.findings.push(`${malformed} list(s) are missing label (/Lbl) or body (/LBody) elements — screen readers may not announce list items correctly`)
+      tableCat.findings.push(`${malformed} list(s) are missing <Lbl> or <LBody> elements — screen readers may not announce list items correctly`)
       tableCat.findings.push('Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains both <Lbl> (bullet/number) and <LBody> (text content)')
-    }
-    const nested = qpdf.lists.filter(l => l.nestingDepth > 0)
-    if (nested.length > 0) {
-      tableCat.findings.push(`${nested.length} list(s) contain nested sub-lists (max depth: ${Math.max(...nested.map(l => l.nestingDepth))})`)
     }
   } else if (tableCat && qpdf.lists.length === 0 && qpdf.hasStructTree) {
     tableCat.findings.push(`--- List Structure Analysis ---`)
@@ -808,31 +992,31 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
     textCat.findings.push(`--- Document Structure Signals ---`)
     if (qpdf.hasMarkInfo) {
       if (qpdf.isMarkedContent) {
-        textCat.findings.push('Document is marked as "Marked Content" (/MarkInfo /Marked true) — content is properly distinguished from artifacts (decorative elements)')
+        textCat.findings.push('  Document is marked as "Marked Content" (/MarkInfo /Marked true) — content is properly distinguished from artifacts')
       } else {
-        textCat.findings.push('MarkInfo present but /Marked is not true — the document may not properly distinguish content from artifacts')
-        textCat.findings.push('Fix: In Adobe Acrobat, run Accessibility → Full Check, then use the Reading Order tool to mark decorative elements as artifacts')
+        textCat.findings.push('  MarkInfo present but /Marked is not true — the document may not properly distinguish content from artifacts')
+        textCat.findings.push('  Fix: In Adobe Acrobat, run Accessibility → Full Check, then use the Reading Order tool to mark decorative elements as artifacts')
       }
     } else if (qpdf.hasStructTree) {
-      textCat.findings.push('No MarkInfo dictionary found — artifacts (headers, footers, page numbers, watermarks) may be read aloud by screen readers')
-      textCat.findings.push('Fix: In Adobe Acrobat, use Accessibility → Reading Order tool → select decorative elements → click "Background/Artifact"')
+      textCat.findings.push('  No MarkInfo dictionary found — artifacts (headers, footers, page numbers, watermarks) may be read aloud by screen readers')
+      textCat.findings.push('  Fix: In Adobe Acrobat, use Accessibility → Reading Order tool → select decorative elements → click "Background/Artifact"')
     }
 
     // Paragraph structure
     if (qpdf.paragraphCount > 0) {
-      textCat.findings.push(`${qpdf.paragraphCount} paragraph tag(s) (/P) found — text is structurally organized`)
+      textCat.findings.push(`  ${qpdf.paragraphCount} paragraph tag(s) (/P) found — text is structurally organized`)
     } else if (qpdf.hasStructTree) {
-      textCat.findings.push('No paragraph tags (/P) found — body text may not be properly tagged for screen reader navigation')
+      textCat.findings.push('  No paragraph tags (/P) found — body text may not be properly tagged for screen reader navigation')
     }
 
     // Empty pages
     if (pdfjs.emptyPages.length > 0) {
       if (pdfjs.emptyPages.length <= 5) {
-        textCat.findings.push(`${pdfjs.emptyPages.length} empty/near-empty page(s) detected: page(s) ${pdfjs.emptyPages.join(', ')}`)
+        textCat.findings.push(`  ${pdfjs.emptyPages.length} empty/near-empty page(s) detected: page(s) ${pdfjs.emptyPages.join(', ')}`)
       } else {
-        textCat.findings.push(`${pdfjs.emptyPages.length} empty/near-empty page(s) detected (first 5: pages ${pdfjs.emptyPages.slice(0, 5).join(', ')}...)`)
+        textCat.findings.push(`  ${pdfjs.emptyPages.length} empty/near-empty page(s) detected (first 5: pages ${pdfjs.emptyPages.slice(0, 5).join(', ')}...)`)
       }
-      textCat.findings.push('Empty pages may indicate scanned images without OCR, blank separator pages, or content stored only as images')
+      textCat.findings.push('  Empty pages may indicate scanned images without OCR, blank separator pages, or content stored only as images')
     }
   }
 
@@ -841,13 +1025,17 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
     const embedded = qpdf.fonts.filter(f => f.embedded).length
     const notEmbedded = qpdf.fonts.filter(f => !f.embedded)
     textCat.findings.push(`--- Font Analysis ---`)
-    textCat.findings.push(`${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`)
+    textCat.findings.push(`  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`)
+    for (const font of qpdf.fonts.slice(0, 25)) {
+      textCat.findings.push(`  ${font.name} — ${font.embedded ? 'embedded ✓' : 'NOT embedded ✗'}`)
+    }
+    if (qpdf.fonts.length > 25) {
+      textCat.findings.push(`  ... and ${qpdf.fonts.length - 25} more font(s)`)
+    }
     if (notEmbedded.length > 0) {
-      const names = notEmbedded.slice(0, 5).map(f => f.name).join(', ')
-      textCat.findings.push(`Non-embedded font(s): ${names}${notEmbedded.length > 5 ? ` (+${notEmbedded.length - 5} more)` : ''}`)
-      textCat.findings.push('Non-embedded fonts may display incorrectly on systems that lack the font, and can cause garbled text extraction for screen readers')
+      textCat.findings.push('  Non-embedded fonts may display incorrectly on systems that lack the font, and can cause garbled text extraction')
     } else {
-      textCat.findings.push('All fonts are embedded — text will render correctly regardless of the user\'s installed fonts')
+      textCat.findings.push('  All fonts are embedded — text will render correctly regardless of the user\'s installed fonts')
     }
   }
 
@@ -856,7 +1044,7 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
   if (readingCat) {
     readingCat.findings.push(`--- Additional Structure Signals ---`)
     if (qpdf.hasRoleMap) {
-      readingCat.findings.push(`Role mapping present — ${qpdf.roleMapEntries.length} custom tag(s) mapped to standard PDF roles`)
+      readingCat.findings.push(`  Role mapping present — ${qpdf.roleMapEntries.length} custom tag(s) mapped to standard PDF roles`)
       if (qpdf.roleMapEntries.length <= 10) {
         for (const entry of qpdf.roleMapEntries) {
           readingCat.findings.push(`  ${entry}`)
@@ -868,19 +1056,19 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
         readingCat.findings.push(`  ... and ${qpdf.roleMapEntries.length - 8} more`)
       }
     } else if (qpdf.hasStructTree) {
-      readingCat.findings.push('No role mapping (/RoleMap) found — all tags use standard PDF roles (this is normal for most documents)')
+      readingCat.findings.push('  No role mapping (/RoleMap) found — all tags use standard PDF roles (this is normal for most documents)')
     }
 
     // Tab order
     if (qpdf.totalPageCount > 0) {
       if (qpdf.tabOrderPages === qpdf.totalPageCount) {
-        readingCat.findings.push(`Tab order is set on all ${qpdf.totalPageCount} page(s) — keyboard navigation follows the structure tree`)
+        readingCat.findings.push(`  Tab order is set on all ${qpdf.totalPageCount} page(s) — keyboard navigation follows the structure tree`)
       } else if (qpdf.tabOrderPages > 0) {
-        readingCat.findings.push(`Tab order set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s) — some pages may have inconsistent keyboard navigation`)
-        readingCat.findings.push('Fix: In Adobe Acrobat, go to each page\'s properties and set Tab Order to "Use Document Structure"')
+        readingCat.findings.push(`  Tab order set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s) — some pages may have inconsistent keyboard navigation`)
+        readingCat.findings.push('  Fix: In Adobe Acrobat, go to each page\'s properties and set Tab Order to "Use Document Structure"')
       } else if (qpdf.hasStructTree) {
-        readingCat.findings.push('No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order')
-        readingCat.findings.push('Fix: In Adobe Acrobat, select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"')
+        readingCat.findings.push('  No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order')
+        readingCat.findings.push('  Fix: In Adobe Acrobat, select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"')
       }
     }
   }
@@ -899,13 +1087,13 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
       lang.toLowerCase() !== docLang.toLowerCase()
     )
     if (foreignSpans.length > 0) {
-      langCat.findings.push(`${qpdf.langSpans.length} element(s) have explicit language declarations:`)
+      langCat.findings.push(`  ${qpdf.langSpans.length} element(s) have explicit language declarations:`)
       for (const [lang, count] of foreignSpans) {
         langCat.findings.push(`  ${lang}: ${count} element(s)`)
       }
-      langCat.findings.push('Language spans help screen readers switch pronunciation rules for foreign-language content')
+      langCat.findings.push('  Language spans help screen readers switch pronunciation rules for foreign-language content')
     } else {
-      langCat.findings.push(`${qpdf.langSpans.length} element(s) have language declarations matching the document language`)
+      langCat.findings.push(`  ${qpdf.langSpans.length} element(s) have language declarations matching the document language`)
     }
   }
 }

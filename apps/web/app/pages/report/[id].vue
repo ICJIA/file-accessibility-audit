@@ -216,9 +216,28 @@
               </span>
               <span
                 v-if="cat.severity"
-                class="text-xs px-2 py-0.5 rounded-full ml-auto"
+                class="text-xs px-2 py-0.5 rounded-full"
                 :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
               >{{ cat.severity }}</span>
+              <button
+                v-if="hasAdvancedFindings(cat.findings)"
+                class="flex items-center gap-2 text-xs cursor-pointer select-none ml-auto rounded-full px-2.5 py-1 border transition-colors duration-200"
+                :class="advancedCards[cat.id]
+                  ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
+                  : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'"
+                @click="toggleAdvanced(cat.id)"
+              >
+                <span class="font-medium">{{ advancedCards[cat.id] ? 'Advanced' : 'Basic' }}</span>
+                <span
+                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200"
+                  :class="advancedCards[cat.id] ? 'bg-blue-500' : 'bg-emerald-500'"
+                >
+                  <span
+                    class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200"
+                    :class="advancedCards[cat.id] ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+                  />
+                </span>
+              </button>
             </div>
 
             <p v-if="cat.explanation" class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3">
@@ -226,17 +245,33 @@
               {{ cat.explanation }}
             </p>
 
-            <ul class="space-y-1.5 max-h-96 overflow-y-auto">
+            <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
               <li
-                v-for="(finding, i) in cat.findings"
+                v-for="(finding, i) in filteredFindings(cat.findings, cat.id)"
                 :key="i"
-                class="text-sm text-[var(--text-muted)] flex gap-2"
+                :class="finding.startsWith('---')
+                  ? 'text-sm text-[var(--text-secondary)] font-semibold mt-2 pt-2 border-t border-[var(--border-subtle)]'
+                  : finding.startsWith('  ')
+                    ? 'text-xs font-mono text-[var(--text-muted)] pl-6 opacity-80'
+                    : 'text-sm text-[var(--text-muted)] flex gap-2'"
               >
-                <span
-                  class="flex-shrink-0 mt-0.5 font-bold"
-                  :style="findingIconStyle(cat)"
-                >{{ findingIcon(cat) }}</span>
-                <span>{{ finding }}</span>
+                <template v-if="finding.startsWith('---')">
+                  {{ finding.replace(/^-{3}\s*/, '').replace(/\s*-{3}$/, '') }}
+                </template>
+                <template v-else-if="finding.startsWith('  ')">
+                  {{ finding }}
+                </template>
+                <template v-else-if="isGuidanceFinding(finding)">
+                  <span class="flex-shrink-0 mt-0.5 text-[var(--text-muted)]">›</span>
+                  <span>{{ finding }}</span>
+                </template>
+                <template v-else>
+                  <span
+                    class="flex-shrink-0 mt-0.5 font-bold"
+                    :style="findingIconStyle(cat)"
+                  >{{ findingIcon(cat) }}</span>
+                  <span>{{ finding }}</span>
+                </template>
               </li>
             </ul>
 
@@ -390,6 +425,8 @@ function toggleColorMode() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 
+const advancedCards = reactive<Record<string, boolean>>({})
+
 const { data, pending, error } = await useFetch(`/api/reports/${id}`)
 
 const { exportJSON, exportMarkdown, exportDocx } = useReportExport()
@@ -495,6 +532,28 @@ function sevColor(severity: string): string {
     Pass: '#22c55e', Minor: '#3b82f6', Moderate: '#eab308', Critical: '#ef4444',
   }
   return map[severity] || '#999'
+}
+
+function isAdvancedFinding(finding: string): boolean {
+  return finding.startsWith('---') || finding.startsWith('  ')
+}
+
+function hasAdvancedFindings(findings: string[]): boolean {
+  return findings.some(f => isAdvancedFinding(f))
+}
+
+function toggleAdvanced(catId: string): void {
+  advancedCards[catId] = !advancedCards[catId]
+}
+
+function filteredFindings(findings: string[], catId: string): string[] {
+  if (advancedCards[catId]) return findings
+  return findings.filter(f => !isAdvancedFinding(f))
+}
+
+function isGuidanceFinding(finding: string): boolean {
+  const f = finding.toLowerCase()
+  return f.startsWith('how to fix:') || f.startsWith('tip:') || f.startsWith('fix:') || f.startsWith('note:') || f.startsWith('review these')
 }
 
 function findingIcon(cat: any): string {

@@ -573,4 +573,5 @@ export const UI = {
    * SAFE TO CHANGE: Yes — but keep it reasonable (100–200 max).
    */
   MAX_PAGE_SIZE: 100,
+
 } as const

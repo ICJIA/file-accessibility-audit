@@ -203,9 +203,28 @@
               </span>
               <span
                 v-if="cat.severity"
-                class="text-xs px-2 py-0.5 rounded-full ml-auto"
+                class="text-xs px-2 py-0.5 rounded-full"
                 :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
               >{{ cat.severity }}</span>
+              <button
+                v-if="hasAdvancedFindings(cat.findings)"
+                class="flex items-center gap-2 text-xs cursor-pointer select-none ml-auto rounded-full px-2.5 py-1 border transition-colors duration-200"
+                :class="advancedCards[cat.id]
+                  ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
+                  : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'"
+                @click="toggleAdvanced(cat.id)"
+              >
+                <span class="font-medium">{{ advancedCards[cat.id] ? 'Advanced' : 'Basic' }}</span>
+                <span
+                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200"
+                  :class="advancedCards[cat.id] ? 'bg-blue-500' : 'bg-emerald-500'"
+                >
+                  <span
+                    class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200"
+                    :class="advancedCards[cat.id] ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+                  />
+                </span>
+              </button>
             </div>
 
             <p v-if="cat.explanation" class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3">
@@ -213,17 +232,33 @@
               {{ cat.explanation }}
             </p>
 
-            <ul class="space-y-1.5 max-h-96 overflow-y-auto">
+            <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
               <li
-                v-for="(finding, i) in cat.findings"
+                v-for="(finding, i) in filteredFindings(cat.findings, cat.id)"
                 :key="i"
-                class="text-sm text-[var(--text-muted)] flex gap-2"
+                :class="finding.startsWith('---')
+                  ? 'text-sm text-[var(--text-secondary)] font-semibold mt-2 pt-2 border-t border-[var(--border-subtle)]'
+                  : finding.startsWith('  ')
+                    ? 'text-xs font-mono text-[var(--text-muted)] pl-6 opacity-80'
+                    : 'text-sm text-[var(--text-muted)] flex gap-2'"
               >
-                <span
-                  class="flex-shrink-0 mt-0.5 font-bold"
-                  :style="findingIconStyle(cat)"
-                >{{ findingIcon(cat) }}</span>
-                <span>{{ finding }}</span>
+                <template v-if="finding.startsWith('---')">
+                  {{ finding.replace(/^-{3}\s*/, '').replace(/\s*-{3}$/, '') }}
+                </template>
+                <template v-else-if="finding.startsWith('  ')">
+                  {{ finding }}
+                </template>
+                <template v-else-if="isGuidanceFinding(finding)">
+                  <span class="flex-shrink-0 mt-0.5 text-[var(--text-muted)]">›</span>
+                  <span>{{ finding }}</span>
+                </template>
+                <template v-else>
+                  <span
+                    class="flex-shrink-0 mt-0.5 font-bold"
+                    :style="findingIconStyle(cat)"
+                  >{{ findingIcon(cat) }}</span>
+                  <span>{{ finding }}</span>
+                </template>
               </li>
             </ul>
 
@@ -427,21 +462,6 @@
       </Transition>
 
       <DropZone @file-selected="analyzeFile" @files-selected="analyzeBatch" />
-
-      <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
-          <div class="text-3xl font-black text-[var(--accent-green)] mb-2">9 Categories</div>
-          <p class="text-sm text-[var(--text-muted)]">Accessibility categories scored across structure, navigation, and content</p>
-        </div>
-        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
-          <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Accessibility Readiness</div>
-          <p class="text-sm text-[var(--text-muted)]">Letter grade with severity levels so you know what to fix first</p>
-        </div>
-        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
-          <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Export & Share</div>
-          <p class="text-sm text-[var(--text-muted)]">Download reports as Word, HTML, Markdown, or JSON and share via link</p>
-        </div>
-      </div>
     </div>
 
     <!-- Technical Details (always visible, expandable) -->
@@ -532,10 +552,45 @@
                   <td class="px-4 py-2">Widget annotations + <code>/AcroForm</code> <code>/Fields</code> + <code>/TU</code> tooltip</td>
                   <td class="px-4 py-2">Whether form fields have accessible labels</td>
                 </tr>
-                <tr>
+                <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Reading order MCIDs</td>
                   <td class="px-4 py-2">Numeric <code>/K</code> values (Marked Content IDs) in structure tree</td>
                   <td class="px-4 py-2">Content sequence validation — detects out-of-order reading</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Lists</td>
+                  <td class="px-4 py-2">Structure elements <code>/L</code>, <code>/LI</code>, <code>/Lbl</code>, <code>/LBody</code></td>
+                  <td class="px-4 py-2">List detection, well-formedness (label + body per item), nesting depth</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Paragraphs</td>
+                  <td class="px-4 py-2">Structure elements with <code>/S</code> = <code>/P</code></td>
+                  <td class="px-4 py-2">Text organization — whether body text is structurally tagged</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">MarkInfo &amp; artifacts</td>
+                  <td class="px-4 py-2">Catalog <code>/MarkInfo</code> → <code>/Marked</code></td>
+                  <td class="px-4 py-2">Whether content is distinguished from artifacts (headers, footers, watermarks)</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Role mapping</td>
+                  <td class="px-4 py-2"><code>/RoleMap</code> on Catalog or StructTreeRoot</td>
+                  <td class="px-4 py-2">Custom tag mappings to standard PDF roles (e.g., <code>Title → H1</code>)</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Tab order</td>
+                  <td class="px-4 py-2">Page objects <code>/Tabs</code></td>
+                  <td class="px-4 py-2">Whether keyboard navigation follows the structure tree</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Font embedding</td>
+                  <td class="px-4 py-2">FontDescriptor <code>/FontFile</code>, <code>/FontFile2</code>, <code>/FontFile3</code></td>
+                  <td class="px-4 py-2">Whether fonts are embedded (non-embedded fonts can cause garbled text)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">Language spans</td>
+                  <td class="px-4 py-2">Structure elements with their own <code>/Lang</code></td>
+                  <td class="px-4 py-2">Inline language declarations for foreign-language content</td>
                 </tr>
               </tbody>
             </table>
@@ -580,10 +635,15 @@
                   <td class="px-4 py-2"><code>page.getOperatorList()</code> per page</td>
                   <td class="px-4 py-2">Fallback image detection — counts paint operations when QPDF can't find tagged images</td>
                 </tr>
-                <tr>
+                <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Outlines</td>
                   <td class="px-4 py-2"><code>doc.getOutline()</code></td>
                   <td class="px-4 py-2">Bookmark detection (cross-referenced with QPDF)</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">Empty pages</td>
+                  <td class="px-4 py-2">Per-page text length &lt; 10 chars</td>
+                  <td class="px-4 py-2">Detects blank pages or pages with content only as images (may need OCR)</td>
                 </tr>
               </tbody>
             </table>
@@ -671,10 +731,10 @@
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
               <p class="font-medium text-[var(--text-secondary)] mb-1">Table Markup (10%)</p>
               <p class="text-xs text-[var(--text-muted)] mb-2">
-                <em>What it means:</em> When a sighted user looks at a data table, they can glance at the column headers to understand what each number means. Screen readers need explicit markup to provide the same context — without it, a screen reader reads a flat stream of numbers with no structure. This category checks six aspects of table accessibility.
+                <em>What it means:</em> When a sighted user looks at a data table, they can glance at the column headers to understand what each number means. Screen readers need explicit markup to provide the same context — without it, a screen reader reads a flat stream of numbers with no structure. This category checks seven aspects of table accessibility.
               </p>
               <p class="text-xs text-[var(--text-muted)]">
-                <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected. Six sub-checks contribute to the score: <strong>Header cells</strong> (30 pts) — <code>/TH</code> tags present on header cells. <strong>Scope attributes</strong> (20 pts) — each <code>/TH</code> has a <code>/Scope</code> (/Column or /Row) so screen readers know which axis the header applies to. <strong>Row structure</strong> (15 pts) — cells are grouped in <code>/TR</code> rows. <strong>No nested tables</strong> (10 pts) — nested tables confuse screen reader navigation. <strong>Caption</strong> (10 pts) — <code>/Caption</code> element describes the table's purpose. <strong>Column consistency</strong> (10 pts) — all rows have the same number of cells. <strong>Bonus</strong>: explicit <code>/Headers</code> associations on data cells (+5 pts).
+                <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected. Seven sub-checks contribute to the score: <strong>Header cells</strong> (40 pts) — <code>/TH</code> tags present on header cells (most critical). <strong>Row structure</strong> (20 pts) — cells are grouped in <code>/TR</code> rows. <strong>Scope attributes</strong> (10 pts) — each <code>/TH</code> has a <code>/Scope</code> (/Column or /Row) so screen readers know which axis the header applies to. <strong>No nested tables</strong> (10 pts) — nested tables confuse screen reader navigation. <strong>Column consistency</strong> (10 pts) — all rows have the same number of cells. <strong>Caption</strong> (5 pts) — <code>/Caption</code> element describes the table's purpose. <strong>Header associations</strong> (5 pts) — explicit <code>/Headers</code> attributes on data cells for complex table navigation.
               </p>
             </div>
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
@@ -704,6 +764,54 @@
                 <em>How it's scored:</em> <strong>100</strong> = structure tree has depth &gt;1 and fewer than 20% of Marked Content IDs (MCIDs) are out of sequence. <strong>50</strong> = more than 20% of MCIDs are out of order. <strong>30</strong> = structure tree is flat (depth ≤1, indicating minimal structure). <strong>0</strong> = no structure tree at all. MCIDs are numeric identifiers that link content on each page to its position in the tag tree; when they're out of order relative to the page content stream, it indicates a reading order problem.
               </p>
             </div>
+          </div>
+
+          <h4 class="font-medium text-[var(--text-secondary)] mb-2 mt-4 text-xs uppercase tracking-wide">Supplementary analysis (informational — no scoring impact)</h4>
+          <p class="text-xs text-[var(--text-muted)] mb-3">
+            In addition to the nine scored categories, the tool appends informational findings to relevant categories. These do not affect the score but provide deeper insight into the document's accessibility posture.
+          </p>
+          <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-[var(--border)] text-[var(--text-muted)] uppercase tracking-wide">
+                  <th class="text-left px-4 py-2 font-medium">Check</th>
+                  <th class="text-left px-4 py-2 font-medium">Appended To</th>
+                  <th class="text-left px-4 py-2 font-medium">What It Reports</th>
+                </tr>
+              </thead>
+              <tbody class="text-[var(--text-muted)]">
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">List structure</td>
+                  <td class="px-4 py-2">Table Markup</td>
+                  <td class="px-4 py-2">Per-list breakdown of <code>&lt;LI&gt;</code>, <code>&lt;Lbl&gt;</code>, <code>&lt;LBody&gt;</code> presence and nesting depth</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Marked content &amp; artifacts</td>
+                  <td class="px-4 py-2">Text Extractability</td>
+                  <td class="px-4 py-2"><code>/MarkInfo</code> status, paragraph tag count, empty page detection</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Font embedding</td>
+                  <td class="px-4 py-2">Text Extractability</td>
+                  <td class="px-4 py-2">Per-font embedded/not-embedded listing with font names</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Role mapping &amp; tab order</td>
+                  <td class="px-4 py-2">Reading Order</td>
+                  <td class="px-4 py-2">Custom tag role mappings, per-page tab order configuration</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Language spans</td>
+                  <td class="px-4 py-2">Title &amp; Language</td>
+                  <td class="px-4 py-2">Inline language declarations for foreign-language content within the document</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">Alt text quality</td>
+                  <td class="px-4 py-2">Alt Text on Images</td>
+                  <td class="px-4 py-2">Heuristic check for non-human-readable alt text: hex-encoded data, filenames, generic placeholders, long strings without spaces</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -778,6 +886,22 @@
 
       </div>
     </details>
+
+    <!-- Info cards -->
+    <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
+        <div class="text-3xl font-black text-[var(--accent-green)] mb-2">9 Categories</div>
+        <p class="text-sm text-[var(--text-muted)]">Accessibility categories scored across structure, navigation, and content</p>
+      </div>
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
+        <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Accessibility Readiness</div>
+        <p class="text-sm text-[var(--text-muted)]">Letter grade with severity levels so you know what to fix first</p>
+      </div>
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
+        <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Export & Share</div>
+        <p class="text-sm text-[var(--text-muted)]">Download reports as Word, HTML, Markdown, or JSON and share via link</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -804,6 +928,7 @@ const {
 } = useReportExport()
 
 // --- Single file state (preserved for single-file UX) ---
+const advancedCards = reactive<Record<string, boolean>>({})
 const processing = ref(false)
 const processingStage = ref('')
 const singleResult = ref<any>(null)
@@ -1032,6 +1157,28 @@ function sevColor(severity: string): string {
     Pass: '#22c55e', Minor: '#3b82f6', Moderate: '#eab308', Critical: '#ef4444',
   }
   return map[severity] || '#999'
+}
+
+function isAdvancedFinding(finding: string): boolean {
+  return finding.startsWith('---') || finding.startsWith('  ')
+}
+
+function hasAdvancedFindings(findings: string[]): boolean {
+  return findings.some(f => isAdvancedFinding(f))
+}
+
+function toggleAdvanced(catId: string): void {
+  advancedCards[catId] = !advancedCards[catId]
+}
+
+function filteredFindings(findings: string[], catId: string): string[] {
+  if (advancedCards[catId]) return findings
+  return findings.filter(f => !isAdvancedFinding(f))
+}
+
+function isGuidanceFinding(finding: string): boolean {
+  const f = finding.toLowerCase()
+  return f.startsWith('how to fix:') || f.startsWith('tip:') || f.startsWith('fix:') || f.startsWith('note:') || f.startsWith('review these')
 }
 
 function findingIcon(cat: any): string {

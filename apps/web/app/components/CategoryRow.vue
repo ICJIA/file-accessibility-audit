@@ -65,19 +65,35 @@
         {{ category.explanation }}
       </div>
 
-      <ul class="space-y-2">
+      <ul class="space-y-2 max-h-[32rem] overflow-y-auto">
         <li
-          v-for="(finding, i) in category.findings"
+          v-for="(finding, i) in filteredFindings(category.findings)"
           :key="i"
-          class="text-sm text-[var(--text-muted)] flex gap-2"
+          :class="finding.startsWith('---')
+            ? 'text-sm text-[var(--text-secondary)] font-semibold mt-2 pt-2 border-t border-[var(--border-subtle)]'
+            : finding.startsWith('  ')
+              ? 'text-xs font-mono text-[var(--text-muted)] pl-6 opacity-80'
+              : 'text-sm text-[var(--text-muted)] flex gap-2'"
         >
-          <span
-            class="flex-shrink-0 mt-0.5 font-bold"
-            :style="findingIconStyle(finding)"
-          >
-            {{ findingIcon(finding) }}
-          </span>
-          <span>{{ finding }}</span>
+          <template v-if="finding.startsWith('---')">
+            {{ finding.replace(/^-{3}\s*/, '').replace(/\s*-{3}$/, '') }}
+          </template>
+          <template v-else-if="finding.startsWith('  ')">
+            {{ finding }}
+          </template>
+          <template v-else-if="isGuidanceFinding(finding)">
+            <span class="flex-shrink-0 mt-0.5 text-[var(--text-muted)]">›</span>
+            <span>{{ finding }}</span>
+          </template>
+          <template v-else>
+            <span
+              class="flex-shrink-0 mt-0.5 font-bold"
+              :style="findingIconStyle(finding)"
+            >
+              {{ findingIcon(finding) }}
+            </span>
+            <span>{{ finding }}</span>
+          </template>
         </li>
       </ul>
 
@@ -137,6 +153,26 @@ const severityColorMap: Record<string, string> = {
 }
 
 const severityColor = computed(() => severityColorMap[props.category.severity || ''] || 'neutral')
+
+const showAdvanced = ref(false)
+
+function isAdvancedFinding(finding: string): boolean {
+  return finding.startsWith('---') || finding.startsWith('  ')
+}
+
+function hasAdvancedFindings(findings: string[]): boolean {
+  return findings.some(f => isAdvancedFinding(f))
+}
+
+function filteredFindings(findings: string[]): string[] {
+  if (showAdvanced.value) return findings
+  return findings.filter(f => !isAdvancedFinding(f))
+}
+
+function isGuidanceFinding(finding: string): boolean {
+  const f = finding.toLowerCase()
+  return f.startsWith('how to fix:') || f.startsWith('tip:') || f.startsWith('fix:') || f.startsWith('note:') || f.startsWith('review these')
+}
 
 function isNa(): boolean {
   return props.category.score === null
