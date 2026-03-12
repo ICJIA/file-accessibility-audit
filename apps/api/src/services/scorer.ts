@@ -250,7 +250,10 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
     .filter(h => /^H[1-6]$/.test(h.level))
     .map(h => parseInt(h.level.replace('H', '')))
 
+  const h1Count = levels.filter(l => l === 1).length
   let hierarchyBroken = false
+  let hasMultipleH1 = h1Count > 1
+
   for (let i = 1; i < levels.length; i++) {
     if (levels[i] > levels[i - 1] + 1) {
       hierarchyBroken = true
@@ -258,16 +261,27 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
     }
   }
 
-  if (hierarchyBroken) {
-    findings.unshift(`Found ${levels.length} heading tags, but hierarchy has gaps`)
-    findings.push('Heading levels should not skip — e.g., don\'t jump from H1 to H3 without an H2 in between.')
+  if (hasMultipleH1) {
+    findings.push(`Found ${h1Count} H1 headings — a document should have exactly one H1 (the document title)`)
+    findings.push('Fix: Change extra H1 tags to H2 or lower so there is a single top-level heading')
+  }
+
+  if (hierarchyBroken || hasMultipleH1) {
+    const issues: string[] = []
+    if (hierarchyBroken) issues.push('hierarchy has gaps')
+    if (hasMultipleH1) issues.push(`${h1Count} H1 headings instead of one`)
+    findings.unshift(`Found ${levels.length} heading tags, but ${issues.join(' and ')}`)
+    if (hierarchyBroken) {
+      findings.push('Heading levels should not skip — e.g., don\'t jump from H1 to H3 without an H2 in between.')
+    }
+    const score = hierarchyBroken && hasMultipleH1 ? 55 : hasMultipleH1 ? 75 : 60
     return {
       id: 'heading_structure',
       label: 'Heading Structure',
       weight: SCORING_WEIGHTS.heading_structure,
-      score: 60,
-      grade: getGrade(60),
-      severity: getSeverity(60),
+      score,
+      grade: getGrade(score),
+      severity: getSeverity(score),
       findings,
       explanation: headingExplanation,
       helpLinks: headingLinks,
@@ -1161,6 +1175,7 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
       'Open the Tags panel: View → Show/Hide → Navigation Panes → Tags',
       'To tag a heading: select text with Reading Order tool → click H1, H2, H3, etc.',
       'To fix heading level: right-click the tag in Tags panel → Properties → Type → select correct heading level (H1–H6)',
+      'Multiple H1s: keep only the document title as H1 — right-click each extra H1 tag → Properties → change Type to H2 (or appropriate level)',
       'Correct hierarchy: H1 (document title) → H2 (sections) → H3 (subsections) — don\'t skip levels',
     ],
     alt_text: [

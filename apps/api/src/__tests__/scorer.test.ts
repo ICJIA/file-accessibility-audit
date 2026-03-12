@@ -619,7 +619,7 @@ describe('scoreHeadingStructure edge cases', () => {
     expect(findCategory(result, 'heading_structure').score).toBe(100)
   })
 
-  it('H1→H2→H2→H1 (no skips) → score 100', () => {
+  it('H1→H2→H2→H1 (multiple H1s) → score 75 with warning', () => {
     const qpdf = makeQpdf({
       headings: [
         { level: 'H1', tag: '/H1' },
@@ -630,8 +630,11 @@ describe('scoreHeadingStructure edge cases', () => {
     })
     const pdfjs = makePdfjs()
     const result = scoreDocument(qpdf, pdfjs)
-    // Going from H2 back to H1 is not a skip (only checks if next > prev + 1)
-    expect(findCategory(result, 'heading_structure').score).toBe(100)
+    // No hierarchy skip, but 2 H1s → minor ding (75)
+    expect(findCategory(result, 'heading_structure').score).toBe(75)
+    expect(findCategory(result, 'heading_structure').findings.some(
+      (f: string) => f.includes('H1 headings') && f.includes('exactly one')
+    )).toBe(true)
   })
 })
 
