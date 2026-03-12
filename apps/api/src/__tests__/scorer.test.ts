@@ -817,27 +817,31 @@ describe('scoreTableMarkup edge cases', () => {
 // ---------------------------------------------------------------------------
 
 describe('supplementary findings — list markup', () => {
-  it('reports well-formed lists in table_markup findings', () => {
+  it('reports well-formed lists in reading_order findings', () => {
     const qpdf = makeQpdf({
       hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1],
       lists: [{ itemCount: 3, hasLabels: true, hasBodies: true, isWellFormed: true, nestingDepth: 0 }],
     })
-    const pdfjs = makePdfjs()
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
     const result = scoreDocument(qpdf, pdfjs)
-    const tableCat = findCategory(result, 'table_markup')
-    expect(tableCat.findings.some(f => f.includes('1 list(s) detected'))).toBe(true)
-    expect(tableCat.findings.some(f => f.includes('well-formed'))).toBe(true)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('1 list(s) detected'))).toBe(true)
+    expect(readingCat.findings.some(f => f.includes('well-formed'))).toBe(true)
   })
 
   it('reports malformed lists', () => {
     const qpdf = makeQpdf({
       hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1],
       lists: [{ itemCount: 2, hasLabels: false, hasBodies: true, isWellFormed: false, nestingDepth: 0 }],
     })
-    const pdfjs = makePdfjs()
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
     const result = scoreDocument(qpdf, pdfjs)
-    const tableCat = findCategory(result, 'table_markup')
-    expect(tableCat.findings.some(f => f.includes('missing <Lbl>'))).toBe(true)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('missing <Lbl>'))).toBe(true)
   })
 })
 

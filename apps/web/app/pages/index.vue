@@ -797,7 +797,7 @@
               <tbody class="text-[var(--text-muted)]">
                 <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">List structure</td>
-                  <td class="px-4 py-2">Table Markup</td>
+                  <td class="px-4 py-2">Reading Order</td>
                   <td class="px-4 py-2">Per-list breakdown of <code>&lt;LI&gt;</code>, <code>&lt;Lbl&gt;</code>, <code>&lt;LBody&gt;</code> presence and nesting depth</td>
                 </tr>
                 <tr class="border-b border-[var(--border-subtle)]">

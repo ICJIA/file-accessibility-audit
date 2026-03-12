@@ -955,13 +955,14 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
 function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categories: CategoryResult[]): void {
   const findCat = (id: string) => categories.find(c => c.id === id)
 
-  // --- List Markup → appended to table_markup category ---
-  const tableCat = findCat('table_markup')
-  if (tableCat && qpdf.lists.length > 0) {
+  // --- List Markup → appended to reading_order category (not table_markup, since
+  //     tables may be N/A and lists are a structural/navigation concern) ---
+  const readingCatForLists = findCat('reading_order')
+  if (readingCatForLists && qpdf.lists.length > 0) {
     const totalItems = qpdf.lists.reduce((sum, l) => sum + l.itemCount, 0)
     const wellFormed = qpdf.lists.filter(l => l.isWellFormed).length
-    tableCat.findings.push(`--- List Structure Analysis ---`)
-    tableCat.findings.push(`${qpdf.lists.length} list(s) detected with ${totalItems} total item(s)`)
+    readingCatForLists.findings.push(`--- List Structure Analysis ---`)
+    readingCatForLists.findings.push(`${qpdf.lists.length} list(s) detected with ${totalItems} total item(s)`)
     for (let li = 0; li < qpdf.lists.length; li++) {
       const l = qpdf.lists[li]
       const label = qpdf.lists.length > 1 ? `List ${li + 1}` : 'List'
@@ -972,18 +973,18 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
       ]
       if (l.nestingDepth > 0) parts.push(`nested depth: ${l.nestingDepth}`)
       parts.push(l.isWellFormed ? 'well-formed' : 'incomplete structure')
-      tableCat.findings.push(`  ${label}: ${parts.join(' | ')}`)
+      readingCatForLists.findings.push(`  ${label}: ${parts.join(' | ')}`)
     }
     if (wellFormed === qpdf.lists.length) {
-      tableCat.findings.push(`All lists are well-formed (each <LI> has <Lbl> and <LBody>)`)
+      readingCatForLists.findings.push(`All lists are well-formed (each <LI> has <Lbl> and <LBody>)`)
     } else {
       const malformed = qpdf.lists.length - wellFormed
-      tableCat.findings.push(`${malformed} list(s) are missing <Lbl> or <LBody> elements — screen readers may not announce list items correctly`)
-      tableCat.findings.push('Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains both <Lbl> (bullet/number) and <LBody> (text content)')
+      readingCatForLists.findings.push(`${malformed} list(s) are missing <Lbl> or <LBody> elements — screen readers may not announce list items correctly`)
+      readingCatForLists.findings.push('Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains both <Lbl> (bullet/number) and <LBody> (text content)')
     }
-  } else if (tableCat && qpdf.lists.length === 0 && qpdf.hasStructTree) {
-    tableCat.findings.push(`--- List Structure Analysis ---`)
-    tableCat.findings.push('No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements')
+  } else if (readingCatForLists && qpdf.lists.length === 0 && qpdf.hasStructTree) {
+    readingCatForLists.findings.push(`--- List Structure Analysis ---`)
+    readingCatForLists.findings.push('No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements')
   }
 
   // --- Marked Content & Artifacts → appended to text_extractability ---
