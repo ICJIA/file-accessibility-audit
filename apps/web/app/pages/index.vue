@@ -835,10 +835,15 @@
                   <td class="px-4 py-2">Text Extractability</td>
                   <td class="px-4 py-2">Counts <code>/Artifact</code> structure elements — headers, footers, and watermarks should be tagged as artifacts so screen readers skip them</td>
                 </tr>
-                <tr>
+                <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">ActualText &amp; expansion</td>
                   <td class="px-4 py-2">Reading Order</td>
                   <td class="px-4 py-2"><code>/ActualText</code> for glyph/ligature overrides and <code>/E</code> for abbreviation expansions — help screen readers pronounce content correctly</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">Acrobat remediation guide</td>
+                  <td class="px-4 py-2">All categories</td>
+                  <td class="px-4 py-2">When a category scores below "Pass", appends the exact Adobe Acrobat Full Check rule names, menu paths, and step-by-step fix instructions specific to that category</td>
                 </tr>
               </tbody>
             </table>
