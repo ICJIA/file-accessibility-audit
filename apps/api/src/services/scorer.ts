@@ -136,6 +136,30 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     findings.push('How to fix: (1) Run OCR in Adobe Acrobat: Scan & OCR → Recognize Text. (2) Then add tags: Accessibility → Add Tags to Document.')
   }
 
+  // Font embedding check — non-embedded fonts can cause garbled text for screen readers
+  if (qpdf.fonts.length > 0) {
+    const embedded = qpdf.fonts.filter(f => f.embedded).length
+    const notEmbedded = qpdf.fonts.filter(f => !f.embedded)
+
+    findings.push('--- Font Embedding ---')
+    findings.push(`  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`)
+    for (const font of qpdf.fonts.slice(0, 25)) {
+      findings.push(`  ${font.name} — ${font.embedded ? 'embedded' : 'NOT embedded'}`)
+    }
+    if (qpdf.fonts.length > 25) {
+      findings.push(`  ... and ${qpdf.fonts.length - 25} more font(s)`)
+    }
+
+    if (notEmbedded.length > 0) {
+      score = Math.min(score, 85) // cap at 85 (Minor) — never Pass with non-embedded fonts
+      const fontNames = notEmbedded.slice(0, 5).map(f => f.name).join(', ')
+      findings.push(`${notEmbedded.length} non-embedded font(s) may cause garbled text on systems without ${notEmbedded.length === 1 ? 'this font' : 'these fonts'}: ${fontNames}${notEmbedded.length > 5 ? ` (+${notEmbedded.length - 5} more)` : ''}`)
+      findings.push('Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: File → Properties → Fonts tab shows embedding status.')
+    } else {
+      findings.push('All fonts are embedded — text will render correctly regardless of the user\'s installed fonts')
+    }
+  }
+
   return {
     id: 'text_extractability',
     label: 'Text Extractability',
@@ -144,7 +168,7 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     grade: getGrade(score),
     severity: getSeverity(score),
     findings,
-    explanation: 'Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with.',
+    explanation: 'Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.',
     helpLinks: [
       { label: 'Adobe: Add Tags to a PDF', url: 'https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html' },
       { label: 'Adobe: OCR a Scanned Document', url: 'https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html' },
@@ -1035,24 +1059,7 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
     }
   }
 
-  // --- Font Embedding → appended to text_extractability ---
-  if (textCat && qpdf.fonts.length > 0) {
-    const embedded = qpdf.fonts.filter(f => f.embedded).length
-    const notEmbedded = qpdf.fonts.filter(f => !f.embedded)
-    textCat.findings.push(`--- Font Analysis ---`)
-    textCat.findings.push(`  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`)
-    for (const font of qpdf.fonts.slice(0, 25)) {
-      textCat.findings.push(`  ${font.name} — ${font.embedded ? 'embedded ✓' : 'NOT embedded ✗'}`)
-    }
-    if (qpdf.fonts.length > 25) {
-      textCat.findings.push(`  ... and ${qpdf.fonts.length - 25} more font(s)`)
-    }
-    if (notEmbedded.length > 0) {
-      textCat.findings.push('  Non-embedded fonts may display incorrectly on systems that lack the font, and can cause garbled text extraction')
-    } else {
-      textCat.findings.push('  All fonts are embedded — text will render correctly regardless of the user\'s installed fonts')
-    }
-  }
+  // Font embedding is now scored directly in scoreTextExtractability()
 
   // --- Role Mapping → appended to reading_order ---
   const readingCat = findCat('reading_order')
@@ -1159,6 +1166,8 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
       'If Tagged PDF fails: File → Properties → ensure "Tagged PDF: Yes" in Description tab',
       'If text is unreadable (scanned): Recognize Text → In This File (runs OCR)',
       'Then: Accessibility → Reading Order tool → verify content tags are correct',
+      'Check font embedding: File → Properties → Fonts tab — all fonts should say "(Embedded)" or "(Embedded Subset)"',
+      'To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight → Fix → Embed missing fonts',
       'Menu path: Acrobat Pro → All tools → Prepare for accessibility',
     ],
     title_language: [

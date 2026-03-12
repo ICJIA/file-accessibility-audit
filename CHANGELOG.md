@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.8.0] - 2026-03-12
+
+### Added
+- **Font embedding scoring** — non-embedded fonts now cap Text Extractability at 85 (Minor severity, never Pass), with per-font listing and Acrobat fix guidance
+- **Multiple H1 detection** — documents with more than one H1 heading score 75 (Minor) for Heading Structure; combined with hierarchy gaps, score drops to 55
+- **Acrobat remediation panel** — Adobe Acrobat fix instructions are now rendered in a distinct amber-bordered panel with numbered steps, separated from findings
+- **Inline guidance styling** — "How to fix:", "Fix:", and "Tip:" lines now render with amber left border and background tint for visual distinction
+
+### Changed
+- Font embedding moved from informational supplementary finding to scored component of Text Extractability
+- Acrobat remediation guide now always visible in Basic view (no Advanced toggle needed)
+
 ## [1.7.1] - 2026-03-12
 
 ### Added
@@ -153,6 +165,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Environment-specific configuration with `.env` examples
 - Deployment documentation for DigitalOcean/Forge/PM2/nginx
 
+[1.8.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.5.0...v1.6.0

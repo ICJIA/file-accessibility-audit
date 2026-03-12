@@ -729,7 +729,7 @@
                 <em>What it means:</em> Can a screen reader actually read the words in this PDF? Some PDFs are just pictures of text (scanned documents) — they look normal on screen but are completely invisible to assistive technology.
               </p>
               <p class="text-xs text-[var(--text-muted)]">
-                <em>How it's scored:</em> <strong>100</strong> = extractable text + structure tags (a properly tagged PDF). <strong>50</strong> = text is present but no tags (an untagged PDF — readable but poorly structured). <strong>25</strong> = tags are present but no extractable text (a scanned document that has been partially remediated with OCR). <strong>0</strong> = no text and no tags (an unremediated scanned image — completely inaccessible). This category carries the highest weight because if text can't be extracted, nothing else matters.
+                <em>How it's scored:</em> <strong>100</strong> = extractable text + structure tags + all fonts embedded. <strong>85 (cap)</strong> = any non-embedded fonts detected (prevents Pass — non-embedded fonts can cause garbled screen reader output). <strong>50</strong> = text is present but no tags (an untagged PDF). <strong>25</strong> = tags are present but no extractable text (partially remediated scan). <strong>0</strong> = no text and no tags (unremediated scanned image). This category carries the highest weight because if text can't be extracted, nothing else matters.
               </p>
             </div>
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
@@ -747,7 +747,7 @@
                 <em>What it means:</em> Headings (H1, H2, H3, etc.) are how screen reader users navigate and skim documents — the same way sighted users scan bold section titles. Without headings, a blind user must listen to the entire document from start to finish to find the section they need.
               </p>
               <p class="text-xs text-[var(--text-muted)]">
-                <em>How it's scored:</em> <strong>100</strong> = H1–H6 tags present with logical hierarchy (no level skips). <strong>60</strong> = numbered headings present but hierarchy is broken (e.g., jumps from H1 to H3 with no H2). <strong>40</strong> = only generic <code>/H</code> tags (not properly numbered H1–H6). <strong>0</strong> = no heading tags at all.
+                <em>How it's scored:</em> <strong>100</strong> = H1–H6 tags present with logical hierarchy (no level skips, exactly one H1). <strong>75</strong> = multiple H1 headings (a document should have exactly one H1 for the title). <strong>60</strong> = numbered headings present but hierarchy is broken (e.g., jumps from H1 to H3 with no H2). <strong>55</strong> = both multiple H1s and hierarchy gaps. <strong>40</strong> = only generic <code>/H</code> tags (not properly numbered H1–H6). <strong>0</strong> = no heading tags at all.
               </p>
             </div>
             <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
@@ -833,7 +833,7 @@
                 <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Font embedding</td>
                   <td class="px-4 py-2">Text Extractability</td>
-                  <td class="px-4 py-2">Per-font embedded/not-embedded listing with font names</td>
+                  <td class="px-4 py-2">Per-font embedded/not-embedded listing — <strong>scored:</strong> non-embedded fonts cap the category at 85 (Minor)</td>
                 </tr>
                 <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Role mapping &amp; tab order</td>

@@ -888,8 +888,9 @@ describe('supplementary findings — font embedding', () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
     const result = scoreDocument(qpdf, pdfjs)
     const textCat = findCategory(result, 'text_extractability')
-    expect(textCat.findings.some(f => f.includes('Non-embedded'))).toBe(true)
+    expect(textCat.findings.some(f => f.includes('non-embedded'))).toBe(true)
     expect(textCat.findings.some(f => f.includes('Comic Sans'))).toBe(true)
+    expect(textCat.score).toBeLessThan(100)
   })
 })
 

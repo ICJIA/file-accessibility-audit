@@ -115,9 +115,9 @@ Each PDF is scored across **9 accessibility categories** based on [WCAG 2.1](htt
 
 | Category | Weight | WCAG Criteria | Why It Matters |
 |----------|:------:|---------------|----------------|
-| Text Extractability | 20% | 1.3.1, 1.4.5 | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. |
+| Text Extractability | 20% | 1.3.1, 1.4.5 | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. Non-embedded fonts cap this category at 85 (Minor). |
 | Title & Language | 15% | 2.4.2, 3.1.1 | The document title is the first thing a screen reader announces. The language tag controls pronunciation. |
-| Heading Structure | 15% | 1.3.1, 2.4.6 | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. |
+| Heading Structure | 15% | 1.3.1, 2.4.6 | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. Multiple H1 headings are flagged as a minor issue (75). |
 | Alt Text on Images | 15% | 1.1.1 | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. Images are detected via QPDF tags; pdfjs-dist provides a fallback for untagged PDFs. |
 | Bookmarks | 10% | 2.4.5 | For documents over 10 pages, bookmarks provide a navigable table of contents. |
 | Table Markup | 10% | 1.3.1 | Without header cells (TH), screen readers read table data in a flat stream with no context. |
