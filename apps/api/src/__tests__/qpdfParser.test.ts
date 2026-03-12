@@ -789,3 +789,122 @@ describe('empty/malformed JSON handling', () => {
     expect(result.error).not.toBeNull()
   })
 })
+
+// ---------------------------------------------------------------------------
+// PDF/UA identifier detection
+// ---------------------------------------------------------------------------
+
+describe('PDF/UA identifier', () => {
+  it('detects pdfuaid in stream data', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': {
+          value: { '/Type': '/Catalog' },
+          data: '<rdf:Description xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/"><pdfuaid:part>1</pdfuaid:part></rdf:Description>',
+        },
+      }],
+    })
+    expect(result.hasPdfUaIdentifier).toBe(true)
+    expect(result.pdfUaPart).toBe('1')
+  })
+
+  it('detects pdfuaid part 2', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': {
+          value: { '/Type': '/Metadata', '/Subtype': '/XML' },
+          data: 'pdfuaid:part>2</pdfuaid:part>',
+        },
+      }],
+    })
+    expect(result.hasPdfUaIdentifier).toBe(true)
+    expect(result.pdfUaPart).toBe('2')
+  })
+
+  it('returns false when no pdfuaid found', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/Type': '/Catalog' } },
+      }],
+    })
+    expect(result.hasPdfUaIdentifier).toBe(false)
+    expect(result.pdfUaPart).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Artifact tagging detection
+// ---------------------------------------------------------------------------
+
+describe('Artifact tagging', () => {
+  it('counts /Artifact structure elements', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/Type': '/Catalog', '/StructTreeRoot': '2 0 R' } },
+        '2 0 R': { value: { '/Type': '/StructTreeRoot' } },
+        '3 0 R': { value: { '/S': '/Artifact' } },
+        '4 0 R': { value: { '/S': '/Artifact' } },
+        '5 0 R': { value: { '/S': '/P' } },
+      }],
+    })
+    expect(result.artifactCount).toBe(2)
+  })
+
+  it('returns 0 when no artifacts', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/S': '/P' } },
+      }],
+    })
+    expect(result.artifactCount).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ActualText and Expansion text detection
+// ---------------------------------------------------------------------------
+
+describe('ActualText and Expansion text', () => {
+  it('counts /ActualText attributes', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/S': '/Span', '/ActualText': 'u:fi' } },
+        '2 0 R': { value: { '/S': '/Span', '/ActualText': 'u:ffi' } },
+        '3 0 R': { value: { '/S': '/P' } },
+      }],
+    })
+    expect(result.actualTextCount).toBe(2)
+    expect(result.expansionTextCount).toBe(0)
+  })
+
+  it('counts /E expansion attributes', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/S': '/Span', '/E': 'u:Illinois' } },
+        '2 0 R': { value: { '/S': '/Span', '/E': 'u:United States' } },
+      }],
+    })
+    expect(result.expansionTextCount).toBe(2)
+    expect(result.actualTextCount).toBe(0)
+  })
+
+  it('counts both ActualText and Expansion on same element', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/S': '/Span', '/ActualText': 'u:fi', '/E': 'u:figure' } },
+      }],
+    })
+    expect(result.actualTextCount).toBe(1)
+    expect(result.expansionTextCount).toBe(1)
+  })
+
+  it('returns 0 when no ActualText or E', () => {
+    const result = parseJson({
+      qpdf: [null, {
+        '1 0 R': { value: { '/S': '/P' } },
+      }],
+    })
+    expect(result.actualTextCount).toBe(0)
+    expect(result.expansionTextCount).toBe(0)
+  })
+})

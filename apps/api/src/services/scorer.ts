@@ -1073,6 +1073,44 @@ function appendSupplementaryFindings(qpdf: QpdfResult, pdfjs: PdfjsResult, categ
     }
   }
 
+  // --- PDF/UA Identifier → appended to text_extractability ---
+  if (textCat) {
+    textCat.findings.push(`--- PDF/UA Compliance ---`)
+    if (qpdf.hasPdfUaIdentifier) {
+      textCat.findings.push(`  Document declares PDF/UA conformance${qpdf.pdfUaPart ? ` (PDF/UA-${qpdf.pdfUaPart})` : ''}`)
+      textCat.findings.push('  PDF/UA (ISO 14289) is the accessibility standard for PDF — this document claims to meet it')
+    } else {
+      textCat.findings.push('  No PDF/UA identifier found — the document does not claim PDF/UA (ISO 14289) conformance')
+      textCat.findings.push('  Note: PDF/UA conformance is not required for WCAG compliance, but indicates the PDF was created with accessibility in mind')
+    }
+  }
+
+  // --- Artifact Tagging → appended to text_extractability ---
+  if (textCat && qpdf.hasStructTree) {
+    textCat.findings.push(`--- Artifact Tagging ---`)
+    if (qpdf.artifactCount > 0) {
+      textCat.findings.push(`  ${qpdf.artifactCount} element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content`)
+    } else {
+      textCat.findings.push('  No artifact tags found — headers, footers, page numbers, and watermarks may be read aloud by screen readers as if they were document content')
+      textCat.findings.push('  Note: If this document has repeating headers/footers, they should be tagged as artifacts in Adobe Acrobat\'s Reading Order tool')
+    }
+  }
+
+  // --- ActualText / Expansion Text → appended to reading_order ---
+  if (readingCat && qpdf.hasStructTree) {
+    const total = qpdf.actualTextCount + qpdf.expansionTextCount
+    if (total > 0) {
+      readingCat.findings.push(`--- Screen Reader Text Overrides ---`)
+      if (qpdf.actualTextCount > 0) {
+        readingCat.findings.push(`  ${qpdf.actualTextCount} element(s) have /ActualText — provides a screen reader override for complex glyphs, ligatures, or symbols`)
+      }
+      if (qpdf.expansionTextCount > 0) {
+        readingCat.findings.push(`  ${qpdf.expansionTextCount} element(s) have /E (expansion text) — provides full-form text for abbreviations (e.g., "IL" → "Illinois")`)
+      }
+      readingCat.findings.push('  These attributes help screen readers pronounce content correctly')
+    }
+  }
+
   // --- Natural Language Spans → appended to title_language ---
   const langCat = findCat('title_language')
   if (langCat && qpdf.langSpans.length > 0) {

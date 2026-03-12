@@ -30,6 +30,11 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     totalPageCount: 0,
     langSpans: [],
     fonts: [],
+    hasPdfUaIdentifier: false,
+    pdfUaPart: null,
+    artifactCount: 0,
+    actualTextCount: 0,
+    expansionTextCount: 0,
     structTreeDepth: 0,
     contentOrder: [],
     error: null,
@@ -950,6 +955,68 @@ describe('supplementary findings — paragraph count', () => {
     const result = scoreDocument(qpdf, pdfjs)
     const textCat = findCategory(result, 'text_extractability')
     expect(textCat.findings.some(f => f.includes('15 paragraph tag(s)'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — PDF/UA identifier', () => {
+  it('reports PDF/UA conformance when present', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, hasPdfUaIdentifier: true, pdfUaPart: '1', structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('PDF/UA-1'))).toBe(true)
+  })
+
+  it('reports no PDF/UA when absent', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, hasPdfUaIdentifier: false, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('No PDF/UA identifier'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — artifact tagging', () => {
+  it('reports artifact count when present', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, artifactCount: 5, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('5 element(s) tagged as artifacts'))).toBe(true)
+  })
+
+  it('warns when no artifacts found in tagged PDF', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, artifactCount: 0, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const textCat = findCategory(result, 'text_extractability')
+    expect(textCat.findings.some(f => f.includes('No artifact tags found'))).toBe(true)
+  })
+})
+
+describe('supplementary findings — ActualText & expansion text', () => {
+  it('reports ActualText when present', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, actualTextCount: 3, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('3 element(s) have /ActualText'))).toBe(true)
+  })
+
+  it('reports expansion text when present', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, expansionTextCount: 2, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('2 element(s) have /E (expansion text)'))).toBe(true)
+  })
+
+  it('does not add section when neither present', () => {
+    const qpdf = makeQpdf({ hasStructTree: true, actualTextCount: 0, expansionTextCount: 0, structTreeDepth: 3, contentOrder: [0, 1] })
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 })
+    const result = scoreDocument(qpdf, pdfjs)
+    const readingCat = findCategory(result, 'reading_order')
+    expect(readingCat.findings.some(f => f.includes('Screen Reader Text Overrides'))).toBe(false)
   })
 })
 

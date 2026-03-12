@@ -587,10 +587,25 @@
                   <td class="px-4 py-2">FontDescriptor <code>/FontFile</code>, <code>/FontFile2</code>, <code>/FontFile3</code></td>
                   <td class="px-4 py-2">Whether fonts are embedded (non-embedded fonts can cause garbled text)</td>
                 </tr>
-                <tr>
+                <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Language spans</td>
                   <td class="px-4 py-2">Structure elements with their own <code>/Lang</code></td>
                   <td class="px-4 py-2">Inline language declarations for foreign-language content</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">PDF/UA identifier</td>
+                  <td class="px-4 py-2">XMP metadata stream (<code>pdfuaid:part</code>)</td>
+                  <td class="px-4 py-2">Whether the document claims PDF/UA (ISO 14289) accessibility conformance</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Artifact elements</td>
+                  <td class="px-4 py-2">Structure elements with <code>/S</code> = <code>/Artifact</code></td>
+                  <td class="px-4 py-2">Decorative content (headers, footers, watermarks) distinguished from real content</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">ActualText &amp; expansion</td>
+                  <td class="px-4 py-2"><code>/ActualText</code> and <code>/E</code> on structure elements</td>
+                  <td class="px-4 py-2">Screen reader text overrides for ligatures, symbols, and abbreviation expansions</td>
                 </tr>
               </tbody>
             </table>
@@ -805,10 +820,25 @@
                   <td class="px-4 py-2">Title &amp; Language</td>
                   <td class="px-4 py-2">Inline language declarations for foreign-language content within the document</td>
                 </tr>
-                <tr>
+                <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Alt text quality</td>
                   <td class="px-4 py-2">Alt Text on Images</td>
                   <td class="px-4 py-2">Heuristic check for non-human-readable alt text: hex-encoded data, filenames, generic placeholders, long strings without spaces</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">PDF/UA identifier</td>
+                  <td class="px-4 py-2">Text Extractability</td>
+                  <td class="px-4 py-2">Checks XMP metadata for <code>pdfuaid:part</code> — indicates if the document claims PDF/UA (ISO 14289) conformance</td>
+                </tr>
+                <tr class="border-b border-[var(--border-subtle)]">
+                  <td class="px-4 py-2">Artifact tagging</td>
+                  <td class="px-4 py-2">Text Extractability</td>
+                  <td class="px-4 py-2">Counts <code>/Artifact</code> structure elements — headers, footers, and watermarks should be tagged as artifacts so screen readers skip them</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-2">ActualText &amp; expansion</td>
+                  <td class="px-4 py-2">Reading Order</td>
+                  <td class="px-4 py-2"><code>/ActualText</code> for glyph/ligature overrides and <code>/E</code> for abbreviation expansions — help screen readers pronounce content correctly</td>
                 </tr>
               </tbody>
             </table>

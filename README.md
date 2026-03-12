@@ -414,7 +414,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**363 tests** across 10 test files. Run all with a summary at the end:
+**379 tests** across 10 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -429,19 +429,19 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      207 passed (5 files)
+  ✔ API      223 passed (5 files)
   ✔ Web      156 passed (5 files)
 ────────────────────────────────────────────────────────────
-  ✔ 363 tests passed across 10 files
+  ✔ 379 tests passed across 10 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (207 tests)
+### API Tests (223 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
-| `scorer.test.ts` | 94 | All 9 scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count) |
-| `qpdfParser.test.ts` | 55 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, malformed JSON |
+| `scorer.test.ts` | 101 | All 9 scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
+| `qpdfParser.test.ts` | 64 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
 | `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override) |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
 | `integration.test.ts` | 27 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents |

@@ -56,6 +56,11 @@ export interface QpdfResult {
   totalPageCount: number
   langSpans: Array<{ lang: string; tag: string }>
   fonts: Array<{ name: string; embedded: boolean }>
+  hasPdfUaIdentifier: boolean
+  pdfUaPart: string | null
+  artifactCount: number
+  actualTextCount: number
+  expansionTextCount: number
   structTreeDepth: number
   contentOrder: number[] // MCIDs in structure tree order
   error: string | null
@@ -150,6 +155,11 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
       totalPageCount: 0,
       langSpans: [],
       fonts: [],
+      hasPdfUaIdentifier: false,
+      pdfUaPart: null,
+      artifactCount: 0,
+      actualTextCount: 0,
+      expansionTextCount: 0,
       structTreeDepth: 0,
       contentOrder: [],
       error: 'QPDF parsing failed',
@@ -182,6 +192,11 @@ function parseQpdfJson(json: any): QpdfResult {
     totalPageCount: 0,
     langSpans: [],
     fonts: [],
+    hasPdfUaIdentifier: false,
+    pdfUaPart: null,
+    artifactCount: 0,
+    actualTextCount: 0,
+    expansionTextCount: 0,
     structTreeDepth: 0,
     contentOrder: [],
     error: null,
@@ -282,6 +297,22 @@ function parseQpdfJson(json: any): QpdfResult {
         }
       }
 
+      // Metadata streams — check for PDF/UA identifier in XMP
+      if (o['/Type'] === '/Metadata' || (typeof o['/Subtype'] === 'string' && o['/Subtype'] === '/XML')) {
+        // QPDF may expose metadata stream data; also check for pdfuaid in any string value
+      }
+      // Also check streams for pdfuaid (QPDF exposes stream data for metadata objects)
+      const rawObj = rawObjects[ref]
+      if (rawObj && typeof rawObj === 'object') {
+        const streamData = (rawObj as any).data
+        if (typeof streamData === 'string' && streamData.includes('pdfuaid')) {
+          result.hasPdfUaIdentifier = true
+          const partMatch = streamData.match(/pdfuaid:part[>\s]*(\d+)/i)
+            || streamData.match(/pdfuaid:part['"]?\s*[:=]\s*['"]?(\d+)/i)
+          if (partMatch) result.pdfUaPart = partMatch[1]
+        }
+      }
+
       // Structure elements (headings, tables, figures with alt)
       if (o['/S']) {
         const tag = o['/S']
@@ -301,6 +332,18 @@ function parseQpdfJson(json: any): QpdfResult {
         // Paragraphs
         if (tag === '/P') {
           result.paragraphCount++
+        }
+        // Artifact structure elements
+        if (tag === '/Artifact') {
+          result.artifactCount++
+        }
+        // ActualText — screen reader text overrides
+        if (o['/ActualText'] !== undefined) {
+          result.actualTextCount++
+        }
+        // Expansion text — abbreviation expansions for screen readers
+        if (o['/E'] !== undefined) {
+          result.expansionTextCount++
         }
         // Language spans — structure elements with their own /Lang
         if (o['/Lang'] && tag !== '/Document') {
