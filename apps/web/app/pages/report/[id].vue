@@ -247,13 +247,15 @@
 
             <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
               <li
-                v-for="(finding, i) in filteredFindings(cat.findings, cat.id)"
+                v-for="(finding, i) in splitAcrobatGuide(cat.findings, cat.id).regular"
                 :key="i"
                 :class="finding.startsWith('---')
                   ? 'text-sm text-[var(--text-secondary)] font-semibold mt-2 pt-2 border-t border-[var(--border-subtle)]'
                   : finding.startsWith('  ')
                     ? 'text-xs font-mono text-[var(--text-muted)] pl-6 opacity-80'
-                    : 'text-sm text-[var(--text-muted)] flex gap-2'"
+                    : isGuidanceFinding(finding)
+                      ? 'text-sm text-[var(--text-muted)] flex gap-2 bg-amber-500/8 rounded px-2 py-1.5 border-l-2 border-amber-500/40'
+                      : 'text-sm text-[var(--text-muted)] flex gap-2'"
               >
                 <template v-if="finding.startsWith('---')">
                   {{ finding.replace(/^-{3}\s*/, '').replace(/\s*-{3}$/, '') }}
@@ -262,7 +264,7 @@
                   {{ finding }}
                 </template>
                 <template v-else-if="isGuidanceFinding(finding)">
-                  <span class="flex-shrink-0 mt-0.5 text-[var(--text-muted)]">›</span>
+                  <span class="flex-shrink-0 mt-0.5 text-amber-400">&#9656;</span>
                   <span>{{ finding }}</span>
                 </template>
                 <template v-else>
@@ -274,6 +276,29 @@
                 </template>
               </li>
             </ul>
+
+            <!-- Adobe Acrobat Remediation Guide -->
+            <div
+              v-if="splitAcrobatGuide(cat.findings, cat.id).acrobat.length"
+              class="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden"
+            >
+              <div class="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20">
+                <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.194-.14 1.743" />
+                </svg>
+                <span class="text-sm font-semibold text-amber-300">How to Fix in Adobe Acrobat</span>
+              </div>
+              <ol class="px-4 py-3 space-y-2">
+                <li
+                  v-for="(step, j) in splitAcrobatGuide(cat.findings, cat.id).acrobat"
+                  :key="j"
+                  class="text-sm text-[var(--text-muted)] flex gap-2.5"
+                >
+                  <span class="flex-shrink-0 text-amber-400/70 font-mono text-xs mt-0.5 w-4 text-right">{{ j + 1 }}.</span>
+                  <span>{{ step }}</span>
+                </li>
+              </ol>
+            </div>
 
             <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[var(--border-subtle)]">
               <span class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Learn more</span>
@@ -554,6 +579,17 @@ function filteredFindings(findings: string[], catId: string): string[] {
 function isGuidanceFinding(finding: string): boolean {
   const f = finding.toLowerCase()
   return f.startsWith('how to fix:') || f.startsWith('tip:') || f.startsWith('fix:') || f.startsWith('note:') || f.startsWith('review these')
+}
+
+function isAcrobatHeading(finding: string): boolean {
+  return finding.startsWith('---') && finding.toLowerCase().includes('adobe acrobat')
+}
+
+function splitAcrobatGuide(findings: string[], catId: string): { regular: string[], acrobat: string[] } {
+  const filtered = filteredFindings(findings, catId)
+  const idx = filtered.findIndex(f => isAcrobatHeading(f))
+  if (idx === -1) return { regular: filtered, acrobat: [] }
+  return { regular: filtered.slice(0, idx), acrobat: filtered.slice(idx + 1) }
 }
 
 function findingIcon(cat: any): string {
