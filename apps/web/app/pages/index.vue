@@ -1038,6 +1038,7 @@ async function analyzeFile(file: File) {
   analysisError.value = null
   singleResult.value = null
   batchItems.value = []
+  Object.keys(advancedCards).forEach(k => delete advancedCards[k])
 
   try {
     processingStage.value = 'Uploading…'
@@ -1073,6 +1074,7 @@ async function analyzeBatch(files: File[]) {
   analysisError.value = null
   batchProcessing.value = true
   activeTabIndex.value = 0
+  Object.keys(advancedCards).forEach(k => delete advancedCards[k])
 
   batchAbortController = new AbortController()
   const { signal } = batchAbortController
