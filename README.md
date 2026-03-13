@@ -172,7 +172,7 @@ Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a tim
 | Constraint | Value | Enforced by |
 |-----------|-------|-------------|
 | Max files per batch | 5 | Frontend (`DropZone.vue`) |
-| Max file size | 100 MB each | Frontend + multer + nginx |
+| Max file size | 50 MB each | Frontend + multer + nginx |
 | Concurrent uploads | 2 | Frontend semaphore + server semaphore |
 | Rate limit | 30 analyses/hour | Server (`analyzeLimiter`) |
 
@@ -189,7 +189,7 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 | **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform |
 | **JSON (.json)** | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
-Reports can also be shared via **shareable links** that expire after 30 days. Shared report pages include:
+Reports can also be shared via **shareable links** that expire after 15 days. Shared report pages include:
 
 - **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
@@ -335,7 +335,7 @@ All magic numbers, thresholds, weights, limits, and email provider settings are 
 - **Auth toggle** → `AUTH.REQUIRE_LOGIN` (`true` or `false`)
 - **Scoring weights** → `SCORING_WEIGHTS`
 - **Email provider** → `EMAIL.PROVIDER` (`'mailgun'` or `'smtp2go'`)
-- **Share link expiry** → `SHARING.EXPIRY_DAYS` (default: 30)
+- **Share link expiry** → `SHARING.EXPIRY_DAYS` (default: 15)
 - **Rate limits** → `RATE_LIMITS`
 - **Dev/prod URLs** → automatic based on `NODE_ENV`
 
@@ -515,7 +515,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | Threat | Mitigation |
 |--------|-----------|
 | **Bypassing the 5-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
-| **Memory exhaustion** | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 100 MB = 200 MB (unchanged from single-file mode). |
+| **Memory exhaustion** | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 50 MB = 100 MB (unchanged from single-file mode). |
 | **Filename XSS** | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage. |
 | **Race conditions** | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue. |
 | **Auth bypass during batch** | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items. |

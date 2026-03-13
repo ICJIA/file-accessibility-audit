@@ -14,7 +14,7 @@ describe('DropZone', () => {
   it('renders the drop area with prompt text', () => {
     const wrapper = mount(DropZone)
     expect(wrapper.text()).toContain('Drop PDF files here')
-    expect(wrapper.text()).toContain('max 100 MB each')
+    expect(wrapper.text()).toContain('max 50 MB each')
   })
 
   it('contains a hidden file input that accepts PDF', () => {
@@ -62,11 +62,11 @@ describe('DropZone', () => {
     expect(wrapper.text()).toContain('Please select PDF files')
   })
 
-  it('does NOT emit file-selected if file exceeds 100 MB', async () => {
+  it('does NOT emit file-selected if file exceeds 50 MB', async () => {
     const wrapper = mount(DropZone)
-    // Create a "file" whose size is over 100 MB
+    // Create a "file" whose size is over 50 MB
     const bigFile = new File(['x'], 'huge.pdf', { type: 'application/pdf' })
-    Object.defineProperty(bigFile, 'size', { value: 101 * 1024 * 1024 })
+    Object.defineProperty(bigFile, 'size', { value: 51 * 1024 * 1024 })
 
     const input = wrapper.find('input[type="file"]')
     Object.defineProperty(input.element, 'files', { value: [bigFile], writable: true })
@@ -75,7 +75,7 @@ describe('DropZone', () => {
 
     expect(wrapper.emitted('file-selected')).toBeFalsy()
     expect(wrapper.text()).toContain('exceed')
-    expect(wrapper.text()).toContain('100 MB limit')
+    expect(wrapper.text()).toContain('50 MB limit')
   })
 
   it('shows drag-active text when dragging over', async () => {

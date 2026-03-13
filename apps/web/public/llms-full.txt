@@ -202,7 +202,7 @@ The JSON export includes machine-readable data designed for LLM consumption:
 ### POST /api/analyze
 Upload a PDF for accessibility analysis.
 - Content-Type: multipart/form-data
-- Field: "file" (PDF, max 100 MB)
+- Field: "file" (PDF, max 50 MB)
 - Returns: Full analysis result JSON
 
 ### POST /api/reports

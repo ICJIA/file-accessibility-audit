@@ -6,7 +6,7 @@ This web application analyzes PDF documents for accessibility compliance and pro
 
 ## What it does
 
-- Accepts a PDF file upload (up to 100 MB)
+- Accepts a PDF file upload (up to 50 MB)
 - Analyzes the document across 9 accessibility categories
 - Returns an overall score (0-100), letter grade (A-F), and per-category findings
 - Provides remediation guidance with WCAG success criteria references

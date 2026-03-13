@@ -43,7 +43,7 @@
             {{ data.sharedBy && data.sharedBy !== 'anonymous' ? `Shared by ${data.sharedBy} on` : 'Shared on' }} {{ formatDate(data.createdAt) }}
           </p>
           <p class="text-xs text-[var(--text-muted)] mt-1">
-            Shareable links expire after 30 days
+            Shareable links expire after 15 days
           </p>
         </div>
 

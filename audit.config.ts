@@ -252,11 +252,11 @@ export const ANALYSIS = {
    * 2. nginx `client_max_body_size` (set to this + 10MB headroom for headers)
    * 3. Frontend file picker validation (immediate user feedback)
    *
-   * SAFE TO CHANGE: Yes — but increasing above 100MB on a 4GB droplet risks
+   * SAFE TO CHANGE: Yes — but increasing above 50MB on a 4GB droplet risks
    * OOM kills during concurrent uploads. If you increase this, also increase
    * the nginx `client_max_body_size` in the Forge nginx config.
    */
-  MAX_FILE_SIZE_MB: 100,
+  MAX_FILE_SIZE_MB: 50,
 
   /**
    * QPDF subprocess timeout in milliseconds.
@@ -286,7 +286,7 @@ export const ANALYSIS = {
    * wait in a queue (or return 503 if the queue is also full).
    *
    * SAFE TO CHANGE: Yes — but on a 4GB droplet, 2 is the safe maximum.
-   * Each analysis can consume 100MB+ in memory (multer buffer + QPDF process).
+   * Each analysis can consume 50MB+ in memory (multer buffer + QPDF process).
    * Increase only if you upgrade the droplet's RAM.
    */
   MAX_CONCURRENT_ANALYSES: 2,
@@ -443,9 +443,9 @@ export const SHARED_REPORTS = {
    * for cleanup.
    *
    * SAFE TO CHANGE: Yes. Longer = more useful for recipients but more
-   * database storage. 30 days balances utility with data hygiene.
+   * database storage. 15 days balances utility with data hygiene.
    */
-  EXPIRY_DAYS: 30,
+  EXPIRY_DAYS: 15,
 
   /**
    * Maximum size of the report JSON payload in bytes.

@@ -413,7 +413,7 @@
                 Create Shareable Link
               </UButton>
             </div>
-            <p class="text-xs text-[var(--text-muted)] mt-2 text-center">Creates a public link anyone can view. Expires in 30 days.</p>
+            <p class="text-xs text-[var(--text-muted)] mt-2 text-center">Creates a public link anyone can view. Expires in 15 days.</p>
             <p v-if="shareError" class="text-xs text-[var(--status-error)] mt-1">{{ shareError }}</p>
           </div>
 
@@ -511,11 +511,32 @@
 
           <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">How It Works</h3>
           <p class="text-[var(--text-muted)] mb-3">
-            When you upload a PDF, the server runs two independent, open-source analysis tools <strong>in parallel</strong> — one reads the PDF's internal structure (tags, bookmarks, form fields), the other extracts text and metadata from every page. Their combined output feeds a scorer that evaluates nine accessibility categories and produces a weighted overall score. No data is sent to third-party services or AI models — all processing happens locally on the server.
+            When you upload a PDF, the server runs two independent, open-source analysis tools <strong>in parallel</strong> — one reads the PDF's internal structure (tags, bookmarks, form fields), the other extracts text and metadata from every page. Their combined output feeds a scorer that evaluates nine accessibility categories and produces a weighted overall score. No data is sent to third-party services or AI models — all processing happens on the server (hosted on <a href="https://www.digitalocean.com/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">DigitalOcean</a> cloud infrastructure). The uploaded PDF is deleted immediately after analysis — no PDF content is retained on the server.
           </p>
           <div class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)]">
             PDF → [validate file type &amp; size] → parallel { QPDF (structure), PDF.js (content) } → Scorer (9 categories) → Weighted Score → Report
           </div>
+        </div>
+
+        <!-- App Architecture -->
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2">Application Architecture</h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            The application is a monorepo with two components, both running on the same DigitalOcean droplet:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1 text-xs">Frontend (port 5102)</p>
+              <p class="text-xs text-[var(--text-muted)]">A <strong>Nuxt 4</strong> (Vue 3) web application that provides the user interface — the upload form, progress indicators, score cards, export buttons, and shareable report pages. Styled with Tailwind CSS and Nuxt UI. Served as a server-rendered app via Nitro.</p>
+            </div>
+            <div class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3">
+              <p class="font-medium text-[var(--text-secondary)] mb-1 text-xs">Backend API (port 5103)</p>
+              <p class="text-xs text-[var(--text-muted)]">An <strong>Express</strong> (Node.js/TypeScript) server that handles file uploads, runs QPDF and PDF.js analysis, scores the results, manages authentication (passwordless OTP via email), and stores shared reports in a <strong>SQLite</strong> database (WAL mode). Managed by PM2 in production.</p>
+            </div>
+          </div>
+          <p class="text-[var(--text-muted)] mt-3">
+            Both processes are managed by <strong>PM2</strong> behind an <strong>nginx</strong> reverse proxy on a single DigitalOcean droplet provisioned via <strong>Laravel Forge</strong>. The frontend proxies API requests to the backend — the user's browser never communicates directly with the API server.
+          </p>
         </div>
 
         <!-- QPDF -->
@@ -671,9 +692,9 @@
                   <td class="px-4 py-2">Link quality — detects raw URLs vs. descriptive text</td>
                 </tr>
                 <tr class="border-b border-[var(--border-subtle)]">
-                  <td class="px-4 py-2">Image count</td>
-                  <td class="px-4 py-2"><code>page.getOperatorList()</code> per page</td>
-                  <td class="px-4 py-2">Fallback image detection — counts paint operations when QPDF can't find tagged images</td>
+                  <td class="px-4 py-2">Image count (approx.)</td>
+                  <td class="px-4 py-2"><code>page.getOperatorList()</code> + image object resolution</td>
+                  <td class="px-4 py-2">Fallback image detection when QPDF finds no tagged images — deduplicates per page, filters out images smaller than 50px (spacers, borders). Count is approximate and may include decorative graphics.</td>
                 </tr>
                 <tr class="border-b border-[var(--border-subtle)]">
                   <td class="px-4 py-2">Outlines</td>
@@ -806,9 +827,9 @@
             </div>
           </div>
 
-          <h4 class="font-medium text-[var(--text-secondary)] mb-2 mt-4 text-xs uppercase tracking-wide">Supplementary analysis (informational — no scoring impact)</h4>
+          <h4 class="font-medium text-[var(--text-secondary)] mb-2 mt-4 text-xs uppercase tracking-wide">Supplementary analysis</h4>
           <p class="text-xs text-[var(--text-muted)] mb-3">
-            In addition to the nine scored categories, the tool appends informational findings to relevant categories. These do not affect the score but provide deeper insight into the document's accessibility posture.
+            In addition to the nine scored categories, the tool appends additional findings to relevant categories. Most are informational only, but some (marked below) do affect scoring. These provide deeper insight into the document's accessibility posture.
           </p>
           <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
             <table class="w-full text-xs">
@@ -898,7 +919,7 @@
             This tool provides a thorough <em>automated</em> assessment, but no automated tool can fully replace manual accessibility testing. Important limitations:
           </p>
           <ul class="space-y-2 text-xs text-[var(--text-muted)]">
-            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">1.</span><span><strong>Alt text quality:</strong> The tool can detect <em>whether</em> alt text exists, but not whether it's <em>meaningful</em>. An image tagged with alt text "image1.png" technically passes the automated check, but it's useless to a screen reader user. Human review is still needed to assess alt text quality.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">1.</span><span><strong>Alt text quality:</strong> The tool detects whether alt text exists and runs a heuristic check for obviously poor alt text (hex-encoded strings, filenames like "IMG_001.jpg", generic placeholders like "image", and long strings without spaces). However, it cannot evaluate whether alt text is <em>semantically meaningful</em> — for example, "a chart" technically passes all automated checks, but "Bar chart showing 2024 crime rates by county" is far more useful. Human review is still needed to assess alt text quality beyond the heuristic flags.</span></li>
             <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">2.</span><span><strong>Color contrast:</strong> PDF color contrast analysis requires rendering each page as an image and analyzing pixel colors. This tool focuses on structural accessibility (tags, metadata, markup) and does not currently assess color contrast.</span></li>
             <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">3.</span><span><strong>Natural language clarity:</strong> The tool cannot evaluate whether the text itself is written clearly. WCAG 3.1.5 recommends content be written at a lower secondary education reading level — this requires human judgment.</span></li>
             <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">4.</span><span><strong>Decorative images:</strong> Not all images need alt text — decorative images should be marked as artifacts. The tool cannot distinguish informative images from decorative ones; it reports all images without alt text as a potential issue.</span></li>
@@ -912,9 +933,25 @@
         <!-- Security / privacy -->
         <div>
           <h3 class="font-semibold text-[var(--text-heading)] mb-2">Privacy &amp; Security</h3>
-          <p class="text-[var(--text-muted)]">
-            Uploaded files are written to a temporary directory, analyzed, and immediately deleted — they are never stored on the server after analysis completes. The file is held in memory only for the duration of the analysis (typically under 10 seconds). A concurrency semaphore limits the server to two simultaneous analyses to prevent resource exhaustion. Encrypted (password-protected) PDFs are rejected with a clear error before analysis begins. The entire process runs server-side; no PDF data is transmitted to external APIs, cloud services, or AI models.
+          <p class="text-[var(--text-muted)] mb-3">
+            The application is hosted on <strong>DigitalOcean</strong> cloud infrastructure (managed via Laravel Forge). When you upload a PDF:
           </p>
+          <ul class="space-y-1.5 text-xs text-[var(--text-muted)] mb-3">
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">1.</span><span>The file is written to a temporary directory on the server, analyzed by QPDF and PDF.js, and <strong>immediately deleted</strong> — no PDF content is retained after analysis completes.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">2.</span><span>The file exists in server memory only for the duration of analysis (typically under 10 seconds).</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">3.</span><span>No PDF data is transmitted to external APIs, cloud services, or AI models — all analysis runs on the server itself.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">4.</span><span>Encrypted (password-protected) PDFs are rejected with a clear error before analysis begins.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-secondary)] font-bold flex-shrink-0">5.</span><span>A concurrency semaphore limits the server to two simultaneous analyses to prevent resource exhaustion.</span></li>
+          </ul>
+          <p class="text-[var(--text-muted)] mb-2">
+            <strong>Shared reports:</strong> When you click "Share Report," the analysis <em>results only</em> — scores, category findings, grade, metadata (title, author, page count) — are saved to a <strong>SQLite database file on the same DigitalOcean droplet</strong>. Specifically:
+          </p>
+          <ul class="space-y-1.5 text-xs text-[var(--text-muted)]">
+            <li class="flex gap-2"><span class="text-[var(--text-muted)]">•</span><span>The <strong>original PDF file is never saved</strong> — only the structured audit results (JSON) are stored.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-muted)]">•</span><span>Shared links expire after <strong>15 days</strong>. After expiration, the stored results are eligible for permanent deletion. The expiration exists to limit data retention — there is no reason to store results indefinitely.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-muted)]">•</span><span>Anyone with the link can view the report without logging in. No account is required to view a shared report.</span></li>
+            <li class="flex gap-2"><span class="text-[var(--text-muted)]">•</span><span>The database is stored locally on the server filesystem — it is not replicated to external storage or backup services.</span></li>
+          </ul>
         </div>
 
         <!-- Source code -->
@@ -1302,7 +1339,7 @@ function emailShareUrl() {
     `Here is the accessibility report for "${result.value.filename}":\n\n` +
     `Score: ${result.value.overallScore}/100 (Grade ${result.value.grade})\n\n` +
     `View the full report:\n${shareUrl.value}\n\n` +
-    `This link expires in 30 days.`
+    `This link expires in 15 days.`
   )
   window.open(`mailto:?subject=${subject}&body=${body}`, '_self')
 }
