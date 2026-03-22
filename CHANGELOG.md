@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.9.0] - 2026-03-22
+
+### Added
+- **Publication batch audit CLI** (`pnpm a11y-audit`) — new `publist` subcommand that fetches all ICJIA publications via GraphQL, audits every PDF, and generates reports with grades, category scores, and remediation guidance
+  - **SQLite cache** — results cached in `~/.a11y-audit/cache.db` so re-runs only audit new publications; `--force` and `--clear` flags for full re-scans
+  - **CSV report** — grade distribution summary, temporal comparison (recent vs. legacy), per-file scores across all 10 categories
+  - **HTML report** — interactive standalone page with:
+    - Grade distribution bar chart and stacked visualization
+    - Assessment summary with remediation recommendations
+    - Sortable columns (instant client-side sort on all columns including grade, score, date, and category scores)
+    - Pagination (150 rows per page) for fast rendering of 1,000+ publications
+    - Expandable detail rows with per-category grade/score/severity cards, publication summary, tags, type, and critical findings
+    - Horizontally scrollable title and critical issues columns
+    - Embedded CSV download button (no server round-trip)
+  - **Concurrent analysis** — configurable concurrency (1–10, default 3) with progress bar
+  - **Publication metadata** — fetches summary, tags, and publication type from ICJIA API; backfills existing cached rows automatically
+- **Manager report route** (`/publist`) — HTML report auto-deployed to `apps/web/public/publist.html` on each audit run, served via Nitro server route at `/publist` (no `.html` needed)
+  - Blocked from search engines via `robots.txt` and `X-Robots-Tag: noindex, nofollow` header
+  - Returns 404 with guidance if report hasn't been generated yet
+- **Modular CLI architecture** — refactored CLI from 280-line monolith to subcommand router with extracted modules:
+  - `commands/audit.ts` — original single-file audit
+  - `commands/publist.ts` — batch publication audit orchestrator
+  - `lib/graphql.ts` — GraphQL publication fetcher with pagination
+  - `lib/cache.ts` — SQLite cache layer with migration support
+  - `lib/csv.ts` — CSV generator with grade distribution and temporal comparison
+  - `lib/html.ts` — client-side rendered HTML report generator
+  - `lib/progress.ts` — terminal progress bar
+  - `lib/colors.ts` — shared ANSI color utilities
+
+### Changed
+- CLI entry point (`src/index.ts`) reduced to 19-line subcommand router
+- `better-sqlite3` added as CLI dependency; externalized in tsup build config
+
 ## [1.8.0] - 2026-03-12
 
 ### Added

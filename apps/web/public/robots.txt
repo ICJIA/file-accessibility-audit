@@ -4,3 +4,4 @@ Disallow: /api/
 Disallow: /login
 Disallow: /my-history
 Disallow: /history
+Disallow: /publist

@@ -11,15 +11,18 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
+    "publist": "tsx src/index.ts publist",
     "build": "tsup",
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "better-sqlite3": "^11.8.1",
     "pdfjs-dist": "^4.10.38"
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
     "tsx": "^4.19.3",
     "tsup": "^8.4.0"
   }

@@ -8,7 +8,7 @@ const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
 const appDesc = 'Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with detailed findings and remediation guidance.'
 const datePublished = '2025-03-06'
-const dateModified = '2026-03-12'
+const dateModified = '2026-03-22'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
@@ -113,6 +113,9 @@ export default defineNuxtConfig({
   routeRules: {
     '/api/**': {
       proxy: { to: `http://localhost:${DEPLOY.API_PORT}/api/**` },
+    },
+    '/publist': {
+      headers: { 'X-Robots-Tag': 'noindex, nofollow' },
     },
   },
 

@@ -267,6 +267,8 @@ The JSON export is designed for machine consumption. Beyond the basic report dat
 
 The monorepo includes `a11y-audit`, a command-line PDF accessibility analyzer that uses the same scoring engine as the web app.
 
+### Single-file audit
+
 ```bash
 # Build the CLI
 pnpm --filter @icjia/a11y-audit build
@@ -281,8 +283,6 @@ node apps/cli/dist/index.js report.pdf --json
 node apps/cli/dist/index.js docs/*.pdf --threshold 80
 ```
 
-### Options
-
 | Flag | Description |
 |------|-------------|
 | `--json` | Output results as JSON |
@@ -290,7 +290,48 @@ node apps/cli/dist/index.js docs/*.pdf --threshold 80
 | `--help` | Show usage |
 | `--version` | Show version |
 
-The CLI produces a colored terminal table with grades, scores, and severity for each category. Requires QPDF installed on the system.
+### Batch publication audit (`publist`)
+
+Audits all ICJIA publications in bulk, generating CSV and HTML reports with grade distribution, category breakdowns, and remediation guidance.
+
+```bash
+# Audit all ICJIA publications (uses cache — fast on re-runs)
+pnpm a11y-audit
+
+# Force full re-scan (clears cache)
+pnpm a11y-audit -- --force
+
+# Clear cache only (e.g., after remediation)
+pnpm a11y-audit -- --clear
+
+# Custom concurrency
+pnpm a11y-audit -- --concurrency 5
+```
+
+| Flag | Description |
+|------|-------------|
+| `--from <file>` | Local JSON file with publication list (default: fetch from API) |
+| `--output, -o <path>` | CSV output path (default: `./publist-audit.csv`) |
+| `--force` | Clear cache and re-audit all publications |
+| `--clear` | Clear cache only (no scan) |
+| `--concurrency, -c <n>` | Concurrent analyses, 1–10 (default: 3) |
+
+**How it works:**
+1. Fetches all publications from ICJIA's GraphQL API (with pagination)
+2. Filters to PDF files, skips already-cached results
+3. Downloads and audits each PDF with configurable concurrency
+4. Caches results in `~/.a11y-audit/cache.db` (SQLite)
+5. Generates CSV + HTML reports with grade distribution and assessment
+6. Copies HTML report to `apps/web/public/publist.html` → accessible at `/publist`
+
+**HTML report features:**
+- Grade distribution bar chart
+- Sortable columns (instant — sorts in-memory, renders 150 rows per page)
+- Expandable detail rows with category breakdowns, severity badges, summary, and tags
+- Embedded CSV download (no server round-trip)
+- Assessment summary with remediation recommendations
+
+**Manager access:** The report is served at `https://audit.icjia.app/publist` — a shareable URL for stakeholders. Not indexed by search engines.
 
 ## Project Structure
 
@@ -303,7 +344,7 @@ file-accessibility-audit/
 │   ├── api/            # Express API server
 │   │   └── src/        # Routes, services, middleware, database
 │   └── cli/            # a11y-audit CLI tool
-│       └── src/        # CLI entry point (bundles via tsup)
+│       └── src/        # Subcommand router, commands/, lib/ (cache, csv, html, graphql)
 ├── scripts/
 │   └── rebrand.ts      # Regenerate static branding files (pnpm rebrand)
 ├── docs/               # Design documents (see below)
