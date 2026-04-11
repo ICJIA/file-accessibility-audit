@@ -76,12 +76,12 @@
         </div>
 
         <!-- Score Hero -->
-        <div class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-8">
+        <div class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8">
           <ScoreCard :result="result" />
         </div>
 
         <!-- Methodology -->
-        <div class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-6 py-5">
+        <div class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5">
           <h2 class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h2>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center">
             This tool uses established open-source libraries to extract and analyze PDF structure. Scores are calculated against
@@ -110,17 +110,17 @@
         </div>
 
         <!-- Score Table -->
-        <div class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden">
-          <div class="px-5 py-3 border-b border-[var(--border)]">
+        <div class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto">
+          <div class="px-3 sm:px-5 py-3 border-b border-[var(--border)]">
             <h2 class="text-sm font-semibold text-[var(--text-secondary)]">Category Scores</h2>
           </div>
-          <table class="w-full text-sm">
+          <table class="w-full text-sm min-w-[420px]">
             <thead>
               <tr class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide">
-                <th class="text-left px-5 py-2 font-medium">Category</th>
-                <th class="text-center px-3 py-2 font-medium">Score</th>
-                <th class="text-center px-3 py-2 font-medium">Grade</th>
-                <th class="text-center px-3 py-2 font-medium">Severity</th>
+                <th class="text-left px-3 sm:px-5 py-2 font-medium">Category</th>
+                <th class="text-center px-2 sm:px-3 py-2 font-medium">Score</th>
+                <th class="text-center px-2 sm:px-3 py-2 font-medium">Grade</th>
+                <th class="text-center px-2 sm:px-3 py-2 font-medium">Severity</th>
               </tr>
             </thead>
             <tbody>
@@ -129,7 +129,7 @@
                 :key="cat.id"
                 class="border-b border-[var(--border-subtle)] last:border-0"
               >
-                <td class="px-5 py-2.5 text-[var(--text-secondary)]">{{ cat.label }}</td>
+                <td class="px-3 sm:px-5 py-2.5 text-[var(--text-secondary)]">{{ cat.label }}</td>
                 <td class="text-center px-3 py-2.5 font-mono" :style="{ color: catColor(cat) }">
                   {{ cat.score }}
                 </td>
@@ -153,7 +153,7 @@
             </tbody>
             <tbody v-if="naCategories.length">
               <tr class="border-t border-[var(--border)]">
-                <td colspan="4" class="px-5 py-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide bg-[var(--surface-deep)]">
+                <td colspan="4" class="px-3 sm:px-5 py-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide bg-[var(--surface-deep)]">
                   Not Included in Scoring
                 </td>
               </tr>
@@ -162,7 +162,7 @@
                 :key="cat.id"
                 class="border-b border-[var(--border-subtle)] last:border-0"
               >
-                <td class="px-5 py-2.5 text-[var(--text-muted)]">{{ cat.label }}</td>
+                <td class="px-3 sm:px-5 py-2.5 text-[var(--text-muted)]">{{ cat.label }}</td>
                 <td class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]">N/A</td>
                 <td class="text-center px-3 py-2.5 text-[var(--text-muted)]">—</td>
                 <td class="text-center px-3 py-2.5 text-[var(--text-muted)] text-xs">N/A</td>
@@ -178,8 +178,8 @@
             <p class="text-xs text-[var(--text-muted)] mt-0.5">Informational only — not included in the accessibility score</p>
           </div>
           <div class="divide-y divide-[var(--border-subtle)]">
-            <div v-for="item in metadataItems" :key="item.label" class="flex px-5 py-2.5 text-sm">
-              <span class="w-40 flex-shrink-0 text-[var(--text-muted)]">{{ item.label }}</span>
+            <div v-for="item in metadataItems" :key="item.label" class="flex flex-col sm:flex-row px-3 sm:px-5 py-2 sm:py-2.5 text-sm">
+              <span class="sm:w-40 sm:flex-shrink-0 text-[var(--text-muted)] text-xs sm:text-sm">{{ item.label }}</span>
               <span :class="item.value ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic'">
                 {{ item.value || 'Not set' }}
               </span>
@@ -188,15 +188,15 @@
         </div>
 
         <!-- Detailed Findings -->
-        <h2 class="text-lg font-semibold mb-4">Detailed Findings</h2>
+        <h2 class="text-base sm:text-lg font-semibold mb-4">Detailed Findings</h2>
 
         <div class="space-y-4">
           <div
             v-for="cat in scoredCategories"
             :key="cat.id"
-            class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5"
+            class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5"
           >
-            <div class="flex items-center gap-3 mb-3">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
               <h3 class="font-semibold text-[var(--text-heading)]">{{ cat.label }}</h3>
               <span class="text-sm font-mono" :style="{ color: catColor(cat) }">
                 {{ cat.score !== null ? `${cat.score}/100` : 'N/A' }}
@@ -310,15 +310,15 @@
 
         <!-- Not Included in Scoring -->
         <div v-if="naCategories.length">
-          <h2 class="text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]">Not Included in Scoring</h2>
+          <h2 class="text-base sm:text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]">Not Included in Scoring</h2>
 
           <div class="space-y-4">
             <div
               v-for="cat in naCategories"
               :key="cat.id"
-              class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5"
+              class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 sm:p-5"
             >
-              <div class="flex items-center gap-3 mb-3">
+              <div class="flex items-center gap-2 sm:gap-3 mb-3">
                 <h3 class="font-semibold text-[var(--text-muted)]">{{ cat.label }}</h3>
                 <span class="text-sm font-mono text-[var(--text-muted)]">N/A</span>
               </div>
@@ -362,7 +362,7 @@
         </div>
 
         <!-- Export & Share -->
-        <div class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 report-actions">
+        <div class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5 report-actions">
           <!-- Download row -->
           <p class="text-sm font-medium text-[var(--text-muted)] mb-3 text-center">Download Report</p>
           <div class="flex flex-wrap gap-2 justify-center">
@@ -469,7 +469,7 @@
     <!-- Drop zone (idle state) -->
     <div v-else>
       <div class="mb-8 text-center">
-        <h2 class="text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]">Check your PDFs for accessibility</h2>
+        <h2 class="text-xl sm:text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]">Check your PDFs for accessibility</h2>
         <p class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed">
           Upload a PDF to get an instant accessibility score based on
           <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold">WCAG 2.1</a>
@@ -491,13 +491,13 @@
 
     <!-- Technical Details (always visible, expandable) -->
     <details class="mt-12 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden group technical-details">
-      <summary class="px-6 py-4 cursor-pointer text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors select-none flex items-center gap-2">
+      <summary class="px-3 sm:px-6 py-4 cursor-pointer text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors select-none flex items-center gap-2">
         <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
         Technical Details: How This Tool Analyzes PDFs
       </summary>
-      <div class="px-6 pb-6 space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border)]">
+      <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border)]">
 
         <!-- Overview -->
         <div class="pt-5">
@@ -553,7 +553,7 @@
             <strong>Why QPDF?</strong> A PDF file is not a simple document — internally, it is a collection of numbered "objects" (text streams, images, fonts, bookmarks, form fields, tags) connected by cross-references. QPDF can decode and dump this entire object graph as structured data, which lets the tool inspect every accessibility-relevant feature without relying on visual rendering. No other open-source tool provides this level of structural access to PDFs.
           </p>
           <h4 class="font-medium text-[var(--text-secondary)] mb-2 text-xs uppercase tracking-wide">What QPDF extracts</h4>
-          <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+          <div class="rounded-lg border border-[var(--border-subtle)] overflow-x-auto">
             <table class="w-full text-xs">
               <thead>
                 <tr class="border-b border-[var(--border)] text-[var(--text-muted)] uppercase tracking-wide">
@@ -666,7 +666,7 @@
             is Mozilla's open-source JavaScript PDF renderer — the same library that powers Firefox's built-in PDF viewer, used by hundreds of millions of people. While QPDF reads the internal blueprint, PDF.js reads the PDF the way a human would: it renders each page and extracts the actual text content, metadata (title, author, language), and interactive elements like links. It runs server-side via Node.js, processing every page of the uploaded document.
           </p>
           <h4 class="font-medium text-[var(--text-secondary)] mb-2 text-xs uppercase tracking-wide">What PDF.js extracts</h4>
-          <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+          <div class="rounded-lg border border-[var(--border-subtle)] overflow-x-auto">
             <table class="w-full text-xs">
               <thead>
                 <tr class="border-b border-[var(--border)] text-[var(--text-muted)] uppercase tracking-wide">
@@ -831,7 +831,7 @@
           <p class="text-xs text-[var(--text-muted)] mb-3">
             In addition to the nine scored categories, the tool appends additional findings to relevant categories. Most are informational only, but some (marked below) do affect scoring. These provide deeper insight into the document's accessibility posture.
           </p>
-          <div class="rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+          <div class="rounded-lg border border-[var(--border-subtle)] overflow-x-auto">
             <table class="w-full text-xs">
               <thead>
                 <tr class="border-b border-[var(--border)] text-[var(--text-muted)] uppercase tracking-wide">
@@ -987,15 +987,15 @@
     <!-- Info cards -->
     <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
-        <div class="text-3xl font-black text-[var(--accent-green)] mb-2">9 Categories</div>
+        <div class="text-2xl sm:text-3xl font-black text-[var(--accent-green)] mb-2">9 Categories</div>
         <p class="text-sm text-[var(--text-muted)]">Accessibility categories scored across structure, navigation, and content</p>
       </div>
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
-        <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Accessibility Readiness</div>
+        <div class="text-2xl sm:text-3xl font-black text-[var(--accent-green)] mb-2">Accessibility Readiness</div>
         <p class="text-sm text-[var(--text-muted)]">Letter grade with severity levels so you know what to fix first</p>
       </div>
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
-        <div class="text-3xl font-black text-[var(--accent-green)] mb-2">Export & Share</div>
+        <div class="text-2xl sm:text-3xl font-black text-[var(--accent-green)] mb-2">Export & Share</div>
         <p class="text-sm text-[var(--text-muted)]">Download reports as Word, HTML, Markdown, or JSON and share via link</p>
       </div>
     </div>

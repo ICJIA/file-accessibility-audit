@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.10.0] - 2026-04-12
+
+### Added
+- **Fully responsive layout** — mobile-first redesign across all pages and components
+  - Hamburger menu with animated slide-down navigation drawer on screens below `md` breakpoint
+  - CategoryRow stacks label and score bar vertically on mobile for readability
+  - Grade circles scale down on small screens (`w-28`/`w-24` mobile, `w-40`/`w-32` desktop)
+  - All data tables (`Category Scores`, `My History`, `Admin Logs`, `Scoring Rubric`, `QPDF`, `PDF.js`) scroll horizontally on narrow viewports with `min-width` constraints
+  - Metadata rows stack vertically on mobile (`flex-col sm:flex-row`)
+  - Grade scale grid adapts from 3 columns on mobile to 5 on desktop
+  - Responsive padding throughout: `px-3 sm:px-6`, `p-3 sm:p-5`, `py-4 sm:py-8`
+  - Heading sizes adapt: `text-xl sm:text-2xl`, `text-base sm:text-lg`
+  - Info card text scales: `text-2xl sm:text-3xl`
+
 ## [1.9.1] - 2026-04-11
 
 ### Changed

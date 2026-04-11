@@ -9,21 +9,21 @@
     </div>
 
     <div v-else>
-      <div class="rounded-xl border border-[var(--border)] overflow-hidden">
-        <table class="w-full text-sm">
+      <div class="rounded-xl border border-[var(--border)] overflow-x-auto">
+        <table class="w-full text-sm min-w-[420px]">
           <thead class="bg-[var(--surface-card)] text-[var(--text-muted)]">
             <tr>
-              <th class="text-left px-4 py-3 font-medium">Filename</th>
-              <th class="text-center px-4 py-3 font-medium">Score</th>
-              <th class="text-center px-4 py-3 font-medium">Grade</th>
-              <th class="text-right px-4 py-3 font-medium">Date</th>
+              <th class="text-left px-3 sm:px-4 py-3 font-medium">Filename</th>
+              <th class="text-center px-2 sm:px-4 py-3 font-medium">Score</th>
+              <th class="text-center px-2 sm:px-4 py-3 font-medium">Grade</th>
+              <th class="text-right px-3 sm:px-4 py-3 font-medium">Date</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-[var(--border)]">
             <tr v-for="row in data.data" :key="row.id" class="hover:bg-[var(--surface-card-50)] transition-colors">
-              <td class="px-4 py-3 text-[var(--text-heading)]">{{ row.filename }}</td>
-              <td class="text-center px-4 py-3">{{ row.score ?? '—' }}</td>
-              <td class="text-center px-4 py-3">
+              <td class="px-3 sm:px-4 py-3 text-[var(--text-heading)]">{{ row.filename }}</td>
+              <td class="text-center px-2 sm:px-4 py-3">{{ row.score ?? '—' }}</td>
+              <td class="text-center px-2 sm:px-4 py-3">
                 <span
                   v-if="row.grade"
                   class="inline-block w-8 h-8 rounded-full text-sm font-bold leading-8 text-center"
@@ -32,7 +32,7 @@
                   {{ row.grade }}
                 </span>
               </td>
-              <td class="text-right px-4 py-3 text-[var(--text-muted)]">{{ formatDate(row.created_at) }}</td>
+              <td class="text-right px-3 sm:px-4 py-3 text-[var(--text-muted)]">{{ formatDate(row.created_at) }}</td>
             </tr>
           </tbody>
         </table>

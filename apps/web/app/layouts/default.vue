@@ -1,12 +1,27 @@
 <template>
   <div>
-    <header class="border-b border-[var(--border)] px-6 py-4">
+    <header class="border-b border-[var(--border)] px-3 sm:px-6 py-4">
       <div class="mx-auto max-w-4xl flex items-center justify-between">
-        <h1 class="text-lg font-semibold tracking-tight cursor-pointer hover:text-[var(--text-secondary)] transition-colors" @click="goAnalyze">
+        <h1 class="text-base sm:text-lg font-semibold tracking-tight cursor-pointer hover:text-[var(--text-secondary)] transition-colors" @click="goAnalyze">
           {{ config.public.appName }}
         </h1>
-        <div class="flex items-center gap-4">
-          <nav v-if="user" class="flex items-center gap-4">
+        <div class="flex items-center gap-2 sm:gap-4">
+          <!-- Mobile hamburger -->
+          <button
+            v-if="user"
+            class="md:hidden p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+            aria-label="Toggle menu"
+            @click="mobileMenuOpen = !mobileMenuOpen"
+          >
+            <svg v-if="!mobileMenuOpen" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+            <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <!-- Desktop nav -->
+          <nav v-if="user" class="hidden md:flex items-center gap-4">
             <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer" @click.prevent="goAnalyze">
               Analyze
             </a>
@@ -16,7 +31,7 @@
               </button>
               <template #content="{ close }">
                 <div class="max-w-2xl mx-auto">
-                  <div class="flex items-center justify-between px-6 pt-5 pb-3">
+                  <div class="flex items-center justify-between px-3 sm:px-6 pt-5 pb-3">
                     <div>
                       <h2 class="text-lg font-semibold text-[var(--text-heading)]">Scoring Rubric</h2>
                       <p class="text-sm text-[var(--text-muted)]">How accessibility scores are calculated for PDFs</p>
@@ -27,7 +42,7 @@
                       </svg>
                     </button>
                   </div>
-                  <div class="px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
+                  <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
                     <p class="text-[var(--text-muted)] leading-relaxed">
                       Each PDF is scored across nine accessibility categories based on
                       <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.1</a>
@@ -36,20 +51,20 @@
                       requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
                     </p>
 
-                    <div class="rounded-lg border border-[var(--border)] overflow-hidden">
-                      <table class="w-full text-sm">
+                    <div class="rounded-lg border border-[var(--border)] overflow-x-auto">
+                      <table class="w-full text-sm min-w-[480px]">
                         <thead>
                           <tr class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide">
-                            <th class="text-left px-4 py-2 font-medium">Category</th>
-                            <th class="text-center px-3 py-2 font-medium">Weight</th>
-                            <th class="text-left px-4 py-2 font-medium">Why It Matters</th>
+                            <th class="text-left px-3 sm:px-4 py-2 font-medium">Category</th>
+                            <th class="text-center px-2 sm:px-3 py-2 font-medium">Weight</th>
+                            <th class="text-left px-3 sm:px-4 py-2 font-medium">Why It Matters</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr v-for="cat in rubricCategories" :key="cat.id" class="border-b border-[var(--border-subtle)] last:border-0">
-                            <td class="px-4 py-2.5 text-[var(--text-secondary)] font-medium whitespace-nowrap">{{ cat.label }}</td>
-                            <td class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]">{{ cat.weight }}%</td>
-                            <td class="px-4 py-2.5 text-[var(--text-muted)] leading-relaxed">{{ cat.rationale }}</td>
+                            <td class="px-3 sm:px-4 py-2.5 text-[var(--text-secondary)] font-medium whitespace-nowrap">{{ cat.label }}</td>
+                            <td class="text-center px-2 sm:px-3 py-2.5 font-mono text-[var(--text-muted)]">{{ cat.weight }}%</td>
+                            <td class="px-3 sm:px-4 py-2.5 text-[var(--text-muted)] leading-relaxed">{{ cat.rationale }}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -57,7 +72,7 @@
 
                     <div>
                       <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Grade Scale</h3>
-                      <div class="grid grid-cols-5 gap-2">
+                      <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
                         <div v-for="g in grades" :key="g.grade" class="text-center rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] py-2.5">
                           <span class="text-lg font-black block" :style="{ color: g.color }">{{ g.grade }}</span>
                           <span class="text-xs text-[var(--text-muted)]">{{ g.min }}–{{ g.max }}</span>
@@ -127,13 +142,38 @@
           </button>
         </div>
       </div>
+      <!-- Mobile nav dropdown -->
+      <Transition name="slide-down">
+        <nav v-if="user && mobileMenuOpen" class="md:hidden mx-auto max-w-4xl border-t border-[var(--border-subtle)] pt-3 pb-1 px-3 flex flex-col gap-2">
+          <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]" @click.prevent="goAnalyze(); mobileMenuOpen = false">
+            Analyze
+          </a>
+          <a v-if="config.public.faqsUrl" :href="config.public.faqsUrl" target="_blank" rel="noopener noreferrer" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
+            FAQs
+          </a>
+          <template v-if="user.email !== 'anonymous'">
+            <NuxtLink to="/my-history" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]" @click="mobileMenuOpen = false">
+              My History
+            </NuxtLink>
+            <NuxtLink v-if="user.isAdmin" to="/history" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]" @click="mobileMenuOpen = false">
+              Admin Logs
+            </NuxtLink>
+            <div class="flex items-center justify-between px-2 py-1.5">
+              <span class="text-xs text-[var(--text-muted)]">{{ user.email }}</span>
+              <UButton size="xs" variant="ghost" color="neutral" @click="logout(); mobileMenuOpen = false">
+                Logout
+              </UButton>
+            </div>
+          </template>
+        </nav>
+      </Transition>
     </header>
 
-    <main class="mx-auto max-w-4xl px-6 py-8">
+    <main class="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8">
       <slot />
     </main>
 
-    <footer class="border-t border-[var(--border)] px-6 py-4">
+    <footer class="border-t border-[var(--border)] px-3 sm:px-6 py-4">
       <div class="mx-auto max-w-4xl">
 
         <div class="flex items-center justify-center gap-4">
@@ -174,6 +214,7 @@ const goAnalyze = inject<() => void>('goAnalyze')
 const logout = inject<() => void>('logout')
 
 const colorMode = useColorMode()
+const mobileMenuOpen = ref(false)
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'

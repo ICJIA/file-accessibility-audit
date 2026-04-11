@@ -7,11 +7,11 @@
     <!-- Grade circle -->
     <div class="flex justify-center">
       <div
-        class="w-40 h-40 rounded-full flex items-center justify-center border-4"
+        class="w-28 h-28 sm:w-40 sm:h-40 rounded-full flex items-center justify-center border-4"
         :style="{ borderColor: gradeColor, backgroundColor: gradeColor + '15' }"
       >
         <span
-          class="text-7xl font-black"
+          class="text-5xl sm:text-7xl font-black"
           :style="{ color: gradeColor }"
         >
           {{ result.grade }}

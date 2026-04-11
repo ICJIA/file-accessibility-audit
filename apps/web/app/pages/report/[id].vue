@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-[var(--surface-body)] text-[var(--text-primary)]">
-    <main class="max-w-4xl mx-auto px-6 py-10">
+    <main class="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
 
       <!-- Loading -->
       <div v-if="pending" class="text-center py-20">
@@ -35,7 +35,7 @@
               </svg>
             </button>
           </div>
-          <h1 class="text-2xl font-bold mb-1">{{ appName.replace('Audit', 'Report') }}</h1>
+          <h1 class="text-xl sm:text-2xl font-bold mb-1">{{ appName.replace('Audit', 'Report') }}</h1>
           <p class="text-sm text-[var(--text-secondary)] mt-2">
             <a :href="auditUrl" class="text-[var(--link)] hover:text-[var(--link-hover)] underline transition-colors">{{ appName }}</a>
           </p>
@@ -48,17 +48,17 @@
         </div>
 
         <!-- Score Hero -->
-        <div class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-8">
+        <div class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8">
           <p class="text-sm text-[var(--text-muted)] mb-4">
             {{ data.report.filename }} — {{ data.report.pageCount }} page{{ data.report.pageCount !== 1 ? 's' : '' }}
           </p>
 
           <div class="flex justify-center mb-4">
             <div
-              class="w-32 h-32 rounded-full flex items-center justify-center border-4"
+              class="w-24 h-24 sm:w-32 sm:h-32 rounded-full flex items-center justify-center border-4"
               :style="{ borderColor: gradeColor, backgroundColor: gradeColor + '15' }"
             >
-              <span class="text-6xl font-black" :style="{ color: gradeColor }">
+              <span class="text-4xl sm:text-6xl font-black" :style="{ color: gradeColor }">
                 {{ data.report.grade }}
               </span>
             </div>
@@ -93,7 +93,7 @@
         </div>
 
         <!-- Methodology -->
-        <div class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-6 py-5">
+        <div class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5">
           <h2 class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center">How Scores Are Derived</h2>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center">
             This tool uses established open-source libraries to extract and analyze PDF structure. Scores are calculated against
@@ -123,17 +123,17 @@
         </div>
 
         <!-- Score Table -->
-        <div class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden">
-          <div class="px-5 py-3 border-b border-[var(--border)]">
+        <div class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto">
+          <div class="px-3 sm:px-5 py-3 border-b border-[var(--border)]">
             <h2 class="text-sm font-semibold text-[var(--text-secondary)]">Category Scores</h2>
           </div>
-          <table class="w-full text-sm">
+          <table class="w-full text-sm min-w-[420px]">
             <thead>
               <tr class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide">
-                <th class="text-left px-5 py-2 font-medium">Category</th>
-                <th class="text-center px-3 py-2 font-medium">Score</th>
-                <th class="text-center px-3 py-2 font-medium">Grade</th>
-                <th class="text-center px-3 py-2 font-medium">Severity</th>
+                <th class="text-left px-3 sm:px-5 py-2 font-medium">Category</th>
+                <th class="text-center px-2 sm:px-3 py-2 font-medium">Score</th>
+                <th class="text-center px-2 sm:px-3 py-2 font-medium">Grade</th>
+                <th class="text-center px-2 sm:px-3 py-2 font-medium">Severity</th>
               </tr>
             </thead>
             <tbody>
@@ -142,11 +142,11 @@
                 :key="cat.id"
                 class="border-b border-[var(--border-subtle)] last:border-0"
               >
-                <td class="px-5 py-2.5 text-[var(--text-secondary)]">{{ cat.label }}</td>
-                <td class="text-center px-3 py-2.5 font-mono" :style="{ color: catColor(cat) }">
+                <td class="px-3 sm:px-5 py-2.5 text-[var(--text-secondary)]">{{ cat.label }}</td>
+                <td class="text-center px-2 sm:px-3 py-2.5 font-mono" :style="{ color: catColor(cat) }">
                   {{ cat.score }}
                 </td>
-                <td class="text-center px-3 py-2.5">
+                <td class="text-center px-2 sm:px-3 py-2.5">
                   <span
                     v-if="cat.grade"
                     class="inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
@@ -154,7 +154,7 @@
                   >{{ cat.grade }}</span>
                   <span v-else class="text-[var(--text-muted)]">—</span>
                 </td>
-                <td class="text-center px-3 py-2.5">
+                <td class="text-center px-2 sm:px-3 py-2.5">
                   <span
                     v-if="cat.severity"
                     class="text-xs px-2 py-0.5 rounded-full"
@@ -166,7 +166,7 @@
             </tbody>
             <tbody v-if="naCategories.length">
               <tr class="border-t border-[var(--border)]">
-                <td colspan="4" class="px-5 py-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide bg-[var(--surface-deep)]">
+                <td colspan="4" class="px-3 sm:px-5 py-2 text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide bg-[var(--surface-deep)]">
                   Not Included in Scoring
                 </td>
               </tr>
@@ -175,7 +175,7 @@
                 :key="cat.id"
                 class="border-b border-[var(--border-subtle)] last:border-0"
               >
-                <td class="px-5 py-2.5 text-[var(--text-muted)]">{{ cat.label }}</td>
+                <td class="px-3 sm:px-5 py-2.5 text-[var(--text-muted)]">{{ cat.label }}</td>
                 <td class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]">N/A</td>
                 <td class="text-center px-3 py-2.5 text-[var(--text-muted)]">—</td>
                 <td class="text-center px-3 py-2.5 text-[var(--text-muted)] text-xs">N/A</td>
@@ -191,8 +191,8 @@
             <p class="text-xs text-[var(--text-muted)] mt-0.5">Informational only — not included in the accessibility score</p>
           </div>
           <div class="divide-y divide-[var(--border-subtle)]">
-            <div v-for="item in metadataItems" :key="item.label" class="flex px-5 py-2.5 text-sm">
-              <span class="w-40 flex-shrink-0 text-[var(--text-muted)]">{{ item.label }}</span>
+            <div v-for="item in metadataItems" :key="item.label" class="flex flex-col sm:flex-row px-3 sm:px-5 py-2 sm:py-2.5 text-sm">
+              <span class="sm:w-40 sm:flex-shrink-0 text-[var(--text-muted)] text-xs sm:text-sm">{{ item.label }}</span>
               <span :class="item.value ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic'">
                 {{ item.value || 'Not set' }}
               </span>
@@ -201,15 +201,15 @@
         </div>
 
         <!-- Detailed Findings -->
-        <h2 class="text-lg font-semibold mb-4">Detailed Findings</h2>
+        <h2 class="text-base sm:text-lg font-semibold mb-4">Detailed Findings</h2>
 
         <div class="space-y-4">
           <div
             v-for="cat in scoredCategories"
             :key="cat.id"
-            class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5"
+            class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5"
           >
-            <div class="flex items-center gap-3 mb-3">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
               <h3 class="font-semibold text-[var(--text-heading)]">{{ cat.label }}</h3>
               <span class="text-sm font-mono" :style="{ color: catColor(cat) }">
                 {{ cat.score !== null ? `${cat.score}/100` : 'N/A' }}
@@ -323,15 +323,15 @@
 
         <!-- Not Included in Scoring -->
         <div v-if="naCategories.length">
-          <h2 class="text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]">Not Included in Scoring</h2>
+          <h2 class="text-base sm:text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]">Not Included in Scoring</h2>
 
           <div class="space-y-4">
             <div
               v-for="cat in naCategories"
               :key="cat.id"
-              class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5"
+              class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 sm:p-5"
             >
-              <div class="flex items-center gap-3 mb-3">
+              <div class="flex items-center gap-2 sm:gap-3 mb-3">
                 <h3 class="font-semibold text-[var(--text-muted)]">{{ cat.label }}</h3>
                 <span class="text-sm font-mono text-[var(--text-muted)]">N/A</span>
               </div>

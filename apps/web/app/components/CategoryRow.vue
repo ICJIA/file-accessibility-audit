@@ -1,64 +1,79 @@
 <template>
   <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden">
     <button
-      class="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-[var(--surface-hover)] transition-colors"
+      class="w-full px-3 sm:px-5 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-left hover:bg-[var(--surface-hover)] transition-colors"
       @click="expanded = !expanded"
     >
-      <!-- Category name -->
-      <span class="flex-shrink-0 w-44 text-sm font-medium text-[var(--text-heading)]">
-        {{ category.label }}
-      </span>
+      <!-- Mobile: category name + chevron row -->
+      <div class="flex items-center justify-between sm:contents">
+        <!-- Category name -->
+        <span class="flex-shrink-0 sm:w-44 text-sm font-medium text-[var(--text-heading)]">
+          {{ category.label }}
+        </span>
 
-      <!-- Score bar -->
-      <div class="flex-1 h-2.5 bg-[var(--surface-icon)] rounded-full overflow-hidden">
-        <div
-          v-if="category.score !== null"
-          class="h-full rounded-full transition-all duration-700 ease-out"
-          :style="{ width: category.score + '%', backgroundColor: scoreColor }"
-        />
+        <!-- Chevron (visible on mobile in the name row) -->
+        <svg
+          class="w-4 h-4 text-[var(--text-muted)] transition-transform flex-shrink-0 sm:hidden"
+          :class="expanded ? 'rotate-180' : ''"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
 
-      <!-- Score number -->
-      <span class="w-10 text-right text-sm font-mono" :style="{ color: scoreColor }">
-        {{ category.score !== null ? category.score : 'N/A' }}
-      </span>
+      <!-- Score bar + badges row -->
+      <div class="flex items-center gap-2 sm:gap-4 sm:contents w-full">
+        <!-- Score bar -->
+        <div class="flex-1 h-2.5 bg-[var(--surface-icon)] rounded-full overflow-hidden">
+          <div
+            v-if="category.score !== null"
+            class="h-full rounded-full transition-all duration-700 ease-out"
+            :style="{ width: category.score + '%', backgroundColor: scoreColor }"
+          />
+        </div>
 
-      <!-- Grade badge -->
-      <span
-        v-if="category.grade"
-        class="w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0"
-        :style="{ backgroundColor: scoreColor + '20', color: scoreColor }"
-      >
-        {{ category.grade }}
-      </span>
-      <span v-else class="w-7 h-7 flex items-center justify-center text-xs text-[var(--text-muted)] flex-shrink-0">
-        —
-      </span>
+        <!-- Score number -->
+        <span class="w-10 text-right text-sm font-mono" :style="{ color: scoreColor }">
+          {{ category.score !== null ? category.score : 'N/A' }}
+        </span>
 
-      <!-- Severity badge -->
-      <UBadge
-        v-if="category.severity"
-        :color="severityColor"
-        variant="subtle"
-        size="xs"
-        class="w-20 justify-center flex-shrink-0"
-      >
-        {{ category.severity }}
-      </UBadge>
-      <span v-else class="w-20 text-center text-xs text-[var(--text-muted)] flex-shrink-0">N/A</span>
+        <!-- Grade badge -->
+        <span
+          v-if="category.grade"
+          class="w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0"
+          :style="{ backgroundColor: scoreColor + '20', color: scoreColor }"
+        >
+          {{ category.grade }}
+        </span>
+        <span v-else class="w-7 h-7 flex items-center justify-center text-xs text-[var(--text-muted)] flex-shrink-0">
+          —
+        </span>
 
-      <!-- Chevron -->
-      <svg
-        class="w-4 h-4 text-[var(--text-muted)] transition-transform flex-shrink-0"
-        :class="expanded ? 'rotate-180' : ''"
-        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
+        <!-- Severity badge -->
+        <UBadge
+          v-if="category.severity"
+          :color="severityColor"
+          variant="subtle"
+          size="xs"
+          class="w-20 justify-center flex-shrink-0 hidden sm:inline-flex"
+        >
+          {{ category.severity }}
+        </UBadge>
+        <span v-else class="w-20 text-center text-xs text-[var(--text-muted)] flex-shrink-0 hidden sm:inline">N/A</span>
+
+        <!-- Chevron (desktop only) -->
+        <svg
+          class="w-4 h-4 text-[var(--text-muted)] transition-transform flex-shrink-0 hidden sm:block"
+          :class="expanded ? 'rotate-180' : ''"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
     </button>
 
     <!-- Findings -->
-    <div v-if="expanded" class="px-5 pb-5 border-t border-[var(--border)]">
+    <div v-if="expanded" class="px-3 sm:px-5 pb-4 sm:pb-5 border-t border-[var(--border)]">
       <!-- Explanation -->
       <div v-if="category.explanation" class="mt-4 mb-4 text-sm text-[var(--text-muted)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)]">
         <span class="text-[var(--text-muted)] font-medium">What this checks:</span>

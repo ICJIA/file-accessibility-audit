@@ -122,6 +122,23 @@ body {
   border-color: rgba(34, 197, 94, 0.3) !important;
 }
 
+/* Mobile nav slide transition */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: max-height 200ms ease, opacity 200ms ease;
+  overflow: hidden;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+.slide-down-enter-to,
+.slide-down-leave-from {
+  max-height: 300px;
+  opacity: 1;
+}
+
 /* Smooth transitions for interactive elements */
 * {
   transition-property: color, background-color, border-color, opacity;
