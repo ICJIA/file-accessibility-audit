@@ -2,6 +2,22 @@
 @import "@nuxt/ui";
 
 /* ==========================================================================
+   Font Size Overrides
+   Bump Tailwind's default text size scale up one tier for readability.
+   xs: 12px→14px, sm: 14px→16px, base: 16px→17px, lg: 18px→20px
+   ========================================================================== */
+@theme {
+  --font-size-xs: 1.0625rem;
+  --font-size-xs--line-height: 1.5rem;
+  --font-size-sm: 1.1875rem;
+  --font-size-sm--line-height: 1.75rem;
+  --font-size-base: 1.3125rem;
+  --font-size-base--line-height: 1.875rem;
+  --font-size-lg: 1.4375rem;
+  --font-size-lg--line-height: 2rem;
+}
+
+/* ==========================================================================
    Theme CSS Variables
    Dark mode values are the root defaults. Light mode overrides via html.light.
    The @nuxt/color-mode module adds "dark" or "light" class to <html>.

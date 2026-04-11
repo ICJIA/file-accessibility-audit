@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.9.1] - 2026-04-11
+
+### Changed
+- **Increased font sizes globally** — overrode Tailwind's default text size scale via `@theme` in `main.css` for improved readability across the entire UI (xs: 12→17px, sm: 14→19px, base: 16→21px, lg: 18→23px)
+- Technical Details section uses `text-sm` container for balanced density in long-form content
+
 ## [1.9.0] - 2026-03-22
 
 ### Added
