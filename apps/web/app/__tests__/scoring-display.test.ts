@@ -37,12 +37,12 @@ describe('Score display — grade color mapping', () => {
     })
 
     // The grade letter element should have the correct color
-    const gradeSpan = wrapper.find('span.text-7xl')
+    const gradeSpan = wrapper.find('span.text-5xl')
     expect(gradeSpan.exists()).toBe(true)
     expect(gradeSpan.attributes('style')).toContain(expectedColor)
 
     // The grade circle border should have the correct color
-    const circle = wrapper.find('div.w-40')
+    const circle = wrapper.find('div.w-28')
     expect(circle.attributes('style')).toContain(`border-color: ${expectedColor}`)
   })
 
@@ -75,7 +75,7 @@ describe('Score display — grade color mapping', () => {
     const wrapper = mount(ScoreCard, {
       props: { result: makeResult('Z', 50) },
     })
-    const gradeSpan = wrapper.find('span.text-7xl')
+    const gradeSpan = wrapper.find('span.text-5xl')
     expect(gradeSpan.attributes('style')).toContain('#666')
   })
 })
