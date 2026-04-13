@@ -194,6 +194,7 @@ Reports can also be shared via **shareable links** that expire after 15 days. Sh
 - **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
 - **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.1 and ADA Title II references, and a link to the full scoring rubric
+- **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.1 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — recommendation to verify with Adobe Acrobat and make source documents accessible before PDF export
 

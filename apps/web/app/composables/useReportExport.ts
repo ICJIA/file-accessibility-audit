@@ -1,4 +1,5 @@
 import fileSaver from 'file-saver'
+import { WCAG_MAP, getWcagCriteriaStrings } from '~/utils/wcag'
 const { saveAs } = fileSaver
 import {
   Document,
@@ -176,54 +177,6 @@ function buildMarkdown(result: ReportResult, branding: BrandingInfo): string {
 
 // ── JSON ──────────────────────────────────────────────────────────────────
 
-const WCAG_MAP: Record<string, { criteria: string[]; principle: string; remediation: string }> = {
-  text_extractability: {
-    criteria: ['1.3.1 Info and Relationships (Level A)', '1.4.5 Images of Text (Level AA)'],
-    principle: 'Perceivable',
-    remediation: 'Run OCR on scanned pages (Adobe Acrobat: Scan & OCR → Recognize Text), then add tags (Accessibility → Add Tags to Document). Verify the tag structure covers all content.',
-  },
-  title_language: {
-    criteria: ['2.4.2 Page Titled (Level A)', '3.1.1 Language of Page (Level A)'],
-    principle: 'Operable / Understandable',
-    remediation: 'Set the document title in File → Properties → Description. Set the language in File → Properties → Advanced → Language dropdown.',
-  },
-  heading_structure: {
-    criteria: ['1.3.1 Info and Relationships (Level A)', '2.4.6 Headings and Labels (Level AA)'],
-    principle: 'Perceivable / Operable',
-    remediation: 'Open the Tags panel, identify text that serves as section headings, and change their tag type to H1–H6 in a logical hierarchy. Do not skip levels (e.g., H1 → H3).',
-  },
-  alt_text: {
-    criteria: ['1.1.1 Non-text Content (Level A)'],
-    principle: 'Perceivable',
-    remediation: 'In the Tags panel, find each <Figure> tag, right-click → Properties, and enter descriptive alt text. Mark decorative images as artifacts instead.',
-  },
-  bookmarks: {
-    criteria: ['2.4.5 Multiple Ways (Level AA)'],
-    principle: 'Operable',
-    remediation: 'Open the Bookmarks panel. Create bookmarks for each major section, or auto-generate from heading tags (Options → New Bookmarks from Structure).',
-  },
-  table_markup: {
-    criteria: ['1.3.1 Info and Relationships (Level A)'],
-    principle: 'Perceivable',
-    remediation: 'In the Tags panel, expand each <Table> tag. Change header cell tags from <TD> to <TH>. Add scope attributes (Row or Column) to header cells.',
-  },
-  link_quality: {
-    criteria: ['2.4.4 Link Purpose in Context (Level A)'],
-    principle: 'Operable',
-    remediation: 'Replace raw URLs with descriptive link text in the source document before exporting to PDF. In Acrobat, edit link properties via Edit PDF.',
-  },
-  form_accessibility: {
-    criteria: ['1.3.1 Info and Relationships (Level A)', '4.1.2 Name, Role, Value (Level A)'],
-    principle: 'Perceivable / Robust',
-    remediation: 'Right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label announced by screen readers.',
-  },
-  reading_order: {
-    criteria: ['1.3.2 Meaningful Sequence (Level A)'],
-    principle: 'Perceivable',
-    remediation: 'Use the Reading Order tool (Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow.',
-  },
-}
-
 function buildJSON(result: ReportResult, branding: BrandingInfo): string {
   const failingCategories = result.categories.filter(c => c.score !== null && c.score < 90)
   const passingCategories = result.categories.filter(c => c.score !== null && c.score >= 90)
@@ -262,7 +215,8 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
         explanation: cat.explanation || null,
         helpLinks: cat.helpLinks || [],
         wcag: wcag ? {
-          successCriteria: wcag.criteria,
+          successCriteria: getWcagCriteriaStrings(cat.id),
+          successCriteriaDetailed: wcag.criteria,
           principle: wcag.principle,
           remediation: wcag.remediation,
         } : null,
@@ -279,7 +233,7 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
           category: cat.label,
           currentScore: cat.score,
           severity: cat.severity,
-          wcagCriteria: WCAG_MAP[cat.id]?.criteria || [],
+          wcagCriteria: getWcagCriteriaStrings(cat.id),
           action: WCAG_MAP[cat.id]?.remediation || 'Review findings and remediate in Adobe Acrobat.',
         })),
     },
