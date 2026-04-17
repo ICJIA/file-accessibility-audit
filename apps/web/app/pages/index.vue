@@ -479,6 +479,55 @@
           </div>
         </div>
 
+        <!-- AI-Ready Analysis -->
+        <div class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6">
+          <div class="flex items-start gap-3 mb-4">
+            <div class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center">
+              <svg class="w-5 h-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.847.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0 text-left">
+              <h2 class="text-base sm:text-lg font-semibold text-[var(--text-heading)]">For Use with AI Assistants</h2>
+              <p class="text-xs sm:text-sm text-[var(--text-muted)] mt-1 leading-relaxed">
+                Copy a plain-text summary of this audit — what's working, what isn't, WCAG references, and guided questions — into ChatGPT, Claude, or any LLM to study the results or get step-by-step remediation advice.
+              </p>
+            </div>
+          </div>
+
+          <ul class="text-xs text-[var(--text-muted)] space-y-1 mb-4 pl-1">
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">•</span><span>Overall verdict, grade, and score</span></li>
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">•</span><span>Passing categories (what's working)</span></li>
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">•</span><span>Failing categories with findings and WCAG 2.1 references</span></li>
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">•</span><span>A set of remediation questions for the AI to answer</span></li>
+          </ul>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <UButton
+              variant="solid"
+              color="primary"
+              size="md"
+              data-testid="copy-ai-analysis"
+              @click="handleCopyAiAnalysis"
+            >
+              <template #leading>
+                <svg v-if="!aiCopied" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
+                <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+              </template>
+              {{ aiCopied ? 'Copied to clipboard!' : 'Copy Analysis for AI' }}
+            </UButton>
+            <details class="text-sm">
+              <summary class="cursor-pointer text-[var(--link)] hover:text-[var(--link-hover)] select-none">Preview what gets copied</summary>
+              <textarea
+                readonly
+                class="mt-3 w-full min-h-[14rem] max-h-[28rem] bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-xs font-mono text-[var(--text-secondary)] whitespace-pre leading-relaxed"
+                :value="aiAnalysisPreview"
+              />
+            </details>
+          </div>
+          <p v-if="aiCopyError" class="text-xs text-[var(--status-error)] mt-2">Clipboard copy failed. Use the preview above to select and copy manually.</p>
+        </div>
+
         <div class="mt-4 text-center">
           <UButton variant="outline" color="neutral" @click="clearResults">
             Analyze More Files
@@ -1058,7 +1107,20 @@ const {
   exportMarkdown, exportJSON, exportDocx, exportHtml,
   shareReport, shareUrl, shareError, sharing, clearShare,
   exporting,
+  copyAiAnalysis, aiCopied, buildAiAnalysisText,
 } = useReportExport()
+
+const aiCopyError = ref(false)
+async function handleCopyAiAnalysis() {
+  if (!result.value) return
+  aiCopyError.value = false
+  const ok = await copyAiAnalysis(result.value)
+  if (!ok) aiCopyError.value = true
+}
+const aiAnalysisPreview = computed(() => {
+  if (!result.value) return ''
+  return buildAiAnalysisText(result.value)
+})
 
 // --- Single file state (preserved for single-file UX) ---
 const advancedCards = reactive<Record<string, boolean>>({})

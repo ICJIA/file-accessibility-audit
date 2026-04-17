@@ -729,6 +729,104 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
 </html>`
 }
 
+// ── AI-ready analysis ─────────────────────────────────────────────────────
+
+export function buildAiAnalysis(result: ReportResult): string {
+  const lines: string[] = []
+  const isAccessible = result.grade === 'A' || result.grade === 'B'
+  const verdict = isAccessible ? 'Accessible' : 'Not accessible'
+
+  const scored = result.categories.filter(c => c.score !== null)
+  const naCats = result.categories.filter(c => c.score === null)
+  const passing = scored.filter(c => c.severity === 'Pass' || c.severity === 'Minor')
+  const failing = scored.filter(c => c.severity === 'Moderate' || c.severity === 'Critical')
+  const criticalCount = scored.filter(c => c.severity === 'Critical').length
+  const moderateCount = scored.filter(c => c.severity === 'Moderate').length
+
+  lines.push(`# PDF Accessibility Audit — For AI Analysis`)
+  lines.push('')
+  lines.push(`I ran an automated PDF accessibility audit and I'd like your help interpreting the results and planning remediation. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Please review the data below and answer the questions at the end.`)
+  lines.push('')
+
+  lines.push(`## File`)
+  lines.push(`- Filename: ${result.filename}`)
+  lines.push(`- Pages: ${result.pageCount}`)
+  lines.push(`- Overall score: ${result.overallScore}/100`)
+  lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`)
+  lines.push(`- Verdict: ${verdict}`)
+  lines.push(`- Critical issues: ${criticalCount}`)
+  lines.push(`- Moderate issues: ${moderateCount}`)
+  if (result.isScanned) {
+    lines.push(`- Scanned document: yes (screen readers cannot access content until OCR + tagging is applied)`)
+  }
+  lines.push('')
+
+  lines.push(`## Executive summary (from the audit tool)`)
+  lines.push('')
+  lines.push(result.executiveSummary)
+  lines.push('')
+
+  if (result.warnings?.length) {
+    lines.push(`## Warnings`)
+    for (const w of result.warnings) lines.push(`- ${w}`)
+    lines.push('')
+  }
+
+  if (passing.length) {
+    lines.push(`## What's working (${passing.length} passing categor${passing.length === 1 ? 'y' : 'ies'})`)
+    lines.push('')
+    for (const c of passing) {
+      lines.push(`- **${c.label}** — ${c.score}/100 (${c.severity})`)
+      if (c.explanation) lines.push(`  - ${c.explanation}`)
+    }
+    lines.push('')
+  }
+
+  if (failing.length) {
+    lines.push(`## What's not working (${failing.length} failing categor${failing.length === 1 ? 'y' : 'ies'})`)
+    lines.push('')
+    for (const c of failing) {
+      lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`)
+      if (c.explanation) {
+        lines.push('')
+        lines.push(c.explanation)
+      }
+      const wcagRefs = getWcagCriteriaStrings(c.id)
+      if (wcagRefs.length) {
+        lines.push('')
+        lines.push(`**WCAG 2.1 references:**`)
+        for (const ref of wcagRefs) lines.push(`- ${ref}`)
+      }
+      if (c.findings?.length) {
+        lines.push('')
+        lines.push(`**Findings:**`)
+        for (const f of c.findings) lines.push(`- ${f}`)
+      }
+      lines.push('')
+    }
+  }
+
+  if (naCats.length) {
+    lines.push(`## Not applicable (excluded from scoring)`)
+    for (const c of naCats) {
+      lines.push(`- **${c.label}** — ${c.findings?.[0] || 'Not applicable to this document'}`)
+    }
+    lines.push('')
+  }
+
+  lines.push(`---`)
+  lines.push('')
+  lines.push(`## What I'd like from you`)
+  lines.push('')
+  lines.push(`1. Explain in plain language what each failing category means for a real screen-reader or assistive-technology user.`)
+  lines.push(`2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`)
+  lines.push(`3. Prioritize the Critical items — which fix should I tackle first, and why?`)
+  lines.push(`4. Flag any findings that automated tools commonly mis-report, and tell me how to verify them manually.`)
+  lines.push(`5. If I can only fix three things, which three would move this document closest to WCAG 2.1 AA compliance?`)
+
+  return lines.join('\n')
+}
+
 // ── Public composable ─────────────────────────────────────────────────────
 
 export function useReportExport() {
@@ -741,6 +839,8 @@ export function useReportExport() {
   const sharing = ref(false)
   const shareUrl = ref<string | null>(null)
   const shareError = ref<string | null>(null)
+  const aiCopied = ref(false)
+  let aiCopyTimer: ReturnType<typeof setTimeout> | null = null
 
   async function exportMarkdown(result: ReportResult) {
     const md = buildMarkdown(result, branding)
@@ -797,9 +897,31 @@ export function useReportExport() {
     shareError.value = null
   }
 
+  function buildAiAnalysisText(result: ReportResult): string {
+    return buildAiAnalysis(result)
+  }
+
+  async function copyAiAnalysis(result: ReportResult): Promise<boolean> {
+    const text = buildAiAnalysis(result)
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        return false
+      }
+      aiCopied.value = true
+      if (aiCopyTimer) clearTimeout(aiCopyTimer)
+      aiCopyTimer = setTimeout(() => { aiCopied.value = false }, 2500)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   return {
     exportMarkdown, exportJSON, exportDocx, exportHtml,
     shareReport, shareUrl, shareError, sharing, clearShare,
     exporting,
+    copyAiAnalysis, aiCopied, buildAiAnalysisText,
   }
 }

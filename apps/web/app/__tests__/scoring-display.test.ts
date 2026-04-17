@@ -81,6 +81,121 @@ describe('Score display — grade color mapping', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Verdict banner
+// ---------------------------------------------------------------------------
+describe('Score display — verdict banner', () => {
+  const makeResult = (grade: string, score: number) => ({
+    filename: 'test.pdf',
+    pageCount: 5,
+    overallScore: score,
+    grade,
+    executiveSummary: 'Test summary.',
+  })
+
+  it('shows "This file is accessible" on green background for grade A', () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: makeResult('A', 95) },
+    })
+    const banner = wrapper.find('[data-testid="verdict-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toBe('This file is accessible')
+    expect(banner.attributes('role')).toBe('status')
+    expect(banner.attributes('aria-live')).toBe('polite')
+    expect(banner.attributes('style')).toContain('#15803d')
+  })
+
+  it('shows "This file is not accessible" on red background for grade F', () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: makeResult('F', 30) },
+    })
+    const banner = wrapper.find('[data-testid="verdict-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toBe('This file is not accessible')
+    expect(banner.attributes('role')).toBe('status')
+    expect(banner.attributes('aria-live')).toBe('polite')
+    expect(banner.attributes('style')).toContain('#b91c1c')
+  })
+
+  it('treats grade B as accessible and grade C as not accessible', () => {
+    const wrapperB = mount(ScoreCard, { props: { result: makeResult('B', 82) } })
+    expect(wrapperB.find('[data-testid="verdict-banner"]').text()).toBe('This file is accessible')
+
+    const wrapperC = mount(ScoreCard, { props: { result: makeResult('C', 70) } })
+    expect(wrapperC.find('[data-testid="verdict-banner"]').text()).toBe('This file is not accessible')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Verdict explanation (critical/moderate counts)
+// ---------------------------------------------------------------------------
+describe('Score display — verdict explanation', () => {
+  const cat = (severity: string) => ({
+    id: 'x', label: 'X', score: 50, grade: 'D', severity, findings: [],
+  })
+
+  const makeResult = (grade: string, score: number, severities: string[]) => ({
+    filename: 'test.pdf',
+    pageCount: 5,
+    overallScore: score,
+    grade,
+    executiveSummary: 'Test summary.',
+    categories: severities.map(cat),
+  })
+
+  it('shows remediation sentence with counts for a failing document', () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: makeResult('D', 55, ['Critical', 'Critical', 'Moderate']) },
+    })
+    const explanation = wrapper.find('[data-testid="verdict-explanation"]')
+    expect(explanation.exists()).toBe(true)
+    expect(explanation.text()).toContain('2 critical issues')
+    expect(explanation.text()).toContain('1 moderate issue')
+    expect(explanation.text()).toContain('WCAG 2.1 AA')
+  })
+
+  it('renders singular "critical issue" when exactly one', () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: makeResult('F', 30, ['Critical']) },
+    })
+    const explanation = wrapper.find('[data-testid="verdict-explanation"]')
+    expect(explanation.text()).toContain('1 critical issue')
+    expect(explanation.text()).not.toContain('1 critical issues')
+  })
+
+  it('says every category passed when accessible with no Critical or Moderate', () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: makeResult('A', 95, ['Pass', 'Pass', 'Minor']) },
+    })
+    const explanation = wrapper.find('[data-testid="verdict-explanation"]')
+    expect(explanation.text()).toContain('Every scored category passed')
+  })
+
+  it('still notes remaining issues when accessible but some Moderate remain', () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: makeResult('B', 82, ['Pass', 'Moderate']) },
+    })
+    const explanation = wrapper.find('[data-testid="verdict-explanation"]')
+    expect(explanation.text()).toContain('passes overall')
+    expect(explanation.text()).toContain('1 moderate issue')
+  })
+
+  it('renders no explanation element when categories are not provided', () => {
+    const wrapper = mount(ScoreCard, {
+      props: {
+        result: {
+          filename: 'test.pdf',
+          pageCount: 5,
+          overallScore: 95,
+          grade: 'A',
+          executiveSummary: 'Test summary.',
+        },
+      },
+    })
+    expect(wrapper.find('[data-testid="verdict-explanation"]').exists()).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // N/A categories
 // ---------------------------------------------------------------------------
 describe('Score display — N/A categories', () => {
