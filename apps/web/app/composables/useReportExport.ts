@@ -737,15 +737,31 @@ export function buildAiAnalysis(result: ReportResult): string {
   const verdict = isAccessible ? 'Accessible' : 'Not accessible'
 
   const scored = result.categories.filter(c => c.score !== null)
-  const naCats = result.categories.filter(c => c.score === null)
-  const passing = scored.filter(c => c.severity === 'Pass' || c.severity === 'Minor')
   const failing = scored.filter(c => c.severity === 'Moderate' || c.severity === 'Critical')
   const criticalCount = scored.filter(c => c.severity === 'Critical').length
   const moderateCount = scored.filter(c => c.severity === 'Moderate').length
+  const passingCount = scored.length - failing.length
 
   lines.push(`# PDF Accessibility Audit — For AI Analysis`)
   lines.push('')
-  lines.push(`I ran an automated PDF accessibility audit and I'd like your help interpreting the results and planning remediation. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Please review the data below and answer the questions at the end.`)
+
+  if (failing.length === 0) {
+    lines.push(`An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG 2.1 Level AA and ADA Title II requirements. No remediation is needed at this time.`)
+    lines.push('')
+    lines.push(`## File`)
+    lines.push(`- Filename: ${result.filename}`)
+    lines.push(`- Pages: ${result.pageCount}`)
+    lines.push(`- Overall score: ${result.overallScore}/100`)
+    lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`)
+    lines.push(`- Verdict: ${verdict}`)
+    lines.push(`- Scored categories passed: ${passingCount}`)
+    if (result.isScanned) {
+      lines.push(`- Scanned document: yes`)
+    }
+    return lines.join('\n')
+  }
+
+  lines.push(`I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`)
   lines.push('')
 
   lines.push(`## File`)
@@ -772,44 +788,24 @@ export function buildAiAnalysis(result: ReportResult): string {
     lines.push('')
   }
 
-  if (passing.length) {
-    lines.push(`## What's working (${passing.length} passing categor${passing.length === 1 ? 'y' : 'ies'})`)
-    lines.push('')
-    for (const c of passing) {
-      lines.push(`- **${c.label}** — ${c.score}/100 (${c.severity})`)
-      if (c.explanation) lines.push(`  - ${c.explanation}`)
-    }
-    lines.push('')
-  }
-
-  if (failing.length) {
-    lines.push(`## What's not working (${failing.length} failing categor${failing.length === 1 ? 'y' : 'ies'})`)
-    lines.push('')
-    for (const c of failing) {
-      lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`)
-      if (c.explanation) {
-        lines.push('')
-        lines.push(c.explanation)
-      }
-      const wcagRefs = getWcagCriteriaStrings(c.id)
-      if (wcagRefs.length) {
-        lines.push('')
-        lines.push(`**WCAG 2.1 references:**`)
-        for (const ref of wcagRefs) lines.push(`- ${ref}`)
-      }
-      if (c.findings?.length) {
-        lines.push('')
-        lines.push(`**Findings:**`)
-        for (const f of c.findings) lines.push(`- ${f}`)
-      }
+  lines.push(`## Failing categories (${failing.length} to fix)`)
+  lines.push('')
+  for (const c of failing) {
+    lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`)
+    if (c.explanation) {
       lines.push('')
+      lines.push(c.explanation)
     }
-  }
-
-  if (naCats.length) {
-    lines.push(`## Not applicable (excluded from scoring)`)
-    for (const c of naCats) {
-      lines.push(`- **${c.label}** — ${c.findings?.[0] || 'Not applicable to this document'}`)
+    const wcagRefs = getWcagCriteriaStrings(c.id)
+    if (wcagRefs.length) {
+      lines.push('')
+      lines.push(`**WCAG 2.1 references:**`)
+      for (const ref of wcagRefs) lines.push(`- ${ref}`)
+    }
+    if (c.findings?.length) {
+      lines.push('')
+      lines.push(`**Findings:**`)
+      for (const f of c.findings) lines.push(`- ${f}`)
     }
     lines.push('')
   }
@@ -822,7 +818,6 @@ export function buildAiAnalysis(result: ReportResult): string {
   lines.push(`2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`)
   lines.push(`3. Prioritize the Critical items — which fix should I tackle first, and why?`)
   lines.push(`4. Flag any findings that automated tools commonly mis-report, and tell me how to verify them manually.`)
-  lines.push(`5. If I can only fix three things, which three would move this document closest to WCAG 2.1 AA compliance?`)
 
   return lines.join('\n')
 }

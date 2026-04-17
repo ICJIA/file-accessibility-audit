@@ -76,13 +76,17 @@ describe('buildAiAnalysis', () => {
     expect(out).toContain('Moderate issues: 1')
   })
 
-  it('separates passing from failing categories', () => {
+  it('lists only failing categories (omits passing and N/A)', () => {
     const out = buildAiAnalysis(baseResult())
-    expect(out).toContain("## What's working")
-    expect(out).toContain('Text Extractability')
-    expect(out).toContain("## What's not working")
+    expect(out).toContain('## Failing categories (2 to fix)')
     expect(out).toContain('Alt Text')
     expect(out).toContain('Heading Structure')
+    // Passing and N/A categories must not appear as headings or category entries
+    expect(out).not.toContain("## What's working")
+    expect(out).not.toContain("## What's not working")
+    expect(out).not.toContain('Text Extractability')
+    expect(out).not.toContain('Not applicable')
+    expect(out).not.toContain('Form Accessibility')
   })
 
   it('includes findings for failing categories', () => {
@@ -98,17 +102,31 @@ describe('buildAiAnalysis', () => {
     expect(out).toMatch(/1\.1\.1/)
   })
 
-  it('lists N/A categories under a separate section', () => {
-    const out = buildAiAnalysis(baseResult())
-    expect(out).toContain('Not applicable')
-    expect(out).toContain('Form Accessibility')
+  it('short-circuits to a compact message when nothing fails', () => {
+    const out = buildAiAnalysis(baseResult({
+      grade: 'A',
+      overallScore: 96,
+      categories: [
+        { id: 'text_extractability', label: 'Text Extractability', score: 98, grade: 'A', severity: 'Pass', findings: [], explanation: '' },
+        { id: 'alt_text', label: 'Alt Text', score: 92, grade: 'A', severity: 'Pass', findings: [], explanation: '' },
+        { id: 'form_accessibility', label: 'Form Accessibility', score: null, grade: null, severity: null, findings: ['No forms'], explanation: '' },
+      ],
+    }))
+    expect(out).toContain('No remediation is needed')
+    expect(out).toContain('Scored categories passed: 2')
+    // No detailed sections for a clean document
+    expect(out).not.toContain('## Failing categories')
+    expect(out).not.toContain("## What I'd like from you")
+    expect(out).not.toContain('Findings')
+    expect(out).not.toContain('WCAG 2.1 references')
   })
 
-  it('includes the five remediation questions at the end', () => {
+  it('includes the four remediation questions at the end', () => {
     const out = buildAiAnalysis(baseResult())
     expect(out).toContain("## What I'd like from you")
     expect(out).toMatch(/1\. .+/)
-    expect(out).toMatch(/5\. .+/)
+    expect(out).toMatch(/4\. .+/)
+    expect(out).not.toMatch(/^5\. /m)
   })
 
   it('notes scanned documents', () => {

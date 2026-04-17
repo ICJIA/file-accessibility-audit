@@ -479,8 +479,8 @@
           </div>
         </div>
 
-        <!-- AI-Ready Analysis -->
-        <div class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6">
+        <!-- AI-Ready Analysis (only shown when there's something to remediate) -->
+        <div v-if="hasRemediationItems" class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6">
           <div class="flex items-start gap-3 mb-4">
             <div class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center">
               <svg class="w-5 h-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -502,11 +502,21 @@
             <li class="flex items-start gap-2"><span class="text-purple-400 mt-0.5">•</span><span>A set of remediation questions for the AI to answer</span></li>
           </ul>
 
-          <div class="flex flex-wrap items-center gap-3">
+          <label for="ai-analysis-preview" class="block text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">AI Analysis Preview</label>
+          <textarea
+            id="ai-analysis-preview"
+            readonly
+            class="block w-full min-h-[18rem] sm:min-h-[22rem] max-h-[32rem] bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-mono text-[var(--text-secondary)] leading-relaxed resize-y"
+            :value="aiAnalysisPreview"
+          />
+
+          <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-center gap-2">
             <UButton
               variant="solid"
               color="primary"
               size="md"
+              block
+              class="sm:w-auto"
               data-testid="copy-ai-analysis"
               @click="handleCopyAiAnalysis"
             >
@@ -516,16 +526,8 @@
               </template>
               {{ aiCopied ? 'Copied to clipboard!' : 'Copy Analysis for AI' }}
             </UButton>
-            <details class="text-sm">
-              <summary class="cursor-pointer text-[var(--link)] hover:text-[var(--link-hover)] select-none">Preview what gets copied</summary>
-              <textarea
-                readonly
-                class="mt-3 w-full min-h-[14rem] max-h-[28rem] bg-[var(--surface-body)] border border-[var(--border-input)] rounded-lg px-3 py-2 text-xs font-mono text-[var(--text-secondary)] whitespace-pre leading-relaxed"
-                :value="aiAnalysisPreview"
-              />
-            </details>
           </div>
-          <p v-if="aiCopyError" class="text-xs text-[var(--status-error)] mt-2">Clipboard copy failed. Use the preview above to select and copy manually.</p>
+          <p v-if="aiCopyError" class="text-xs text-[var(--status-error)] mt-2 text-center">Clipboard copy failed. Use the preview above to select and copy manually.</p>
         </div>
 
         <div class="mt-4 text-center">
@@ -1120,6 +1122,10 @@ async function handleCopyAiAnalysis() {
 const aiAnalysisPreview = computed(() => {
   if (!result.value) return ''
   return buildAiAnalysisText(result.value)
+})
+const hasRemediationItems = computed(() => {
+  const cats = result.value?.categories || []
+  return cats.some((c: any) => c.severity === 'Critical' || c.severity === 'Moderate')
 })
 
 // --- Single file state (preserved for single-file UX) ---
