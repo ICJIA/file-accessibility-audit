@@ -63,6 +63,13 @@ describe('buildAiAnalysis', () => {
     expect(out).toContain('Verdict: Not accessible')
   })
 
+  it('asks the LLM to verify the PDF is attached and request it if missing', () => {
+    const out = buildAiAnalysis(baseResult())
+    expect(out).toContain('attached to this conversation')
+    expect(out).toContain('ask me to upload it')
+    expect(out).toContain('sample.pdf')
+  })
+
   it('reports Accessible verdict for grade A and B', () => {
     const outA = buildAiAnalysis(baseResult({ grade: 'A', overallScore: 95 }))
     expect(outA).toContain('Verdict: Accessible')

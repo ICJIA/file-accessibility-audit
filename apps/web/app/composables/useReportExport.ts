@@ -763,6 +763,8 @@ export function buildAiAnalysis(result: ReportResult): string {
 
   lines.push(`I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`)
   lines.push('')
+  lines.push(`**Please verify the PDF file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the actual tag tree, reading order, alt text, and form fields directly rather than reasoning only from the summary below.`)
+  lines.push('')
 
   lines.push(`## File`)
   lines.push(`- Filename: ${result.filename}`)
