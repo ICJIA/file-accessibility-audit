@@ -56,6 +56,14 @@ However, the strict profile is **not complete** on its own. Other tools may chec
 
 The practical-readiness profile now incorporates several **PDF/UA-oriented** signals, but it still does **not** implement the full Matterhorn Protocol or act as a PDF/UA conformance audit.
 
+Illinois IITAA 2.1 does expressly reference PDF/UA, but in a nuanced way. The standards page states that [`504.2.2 PDF Export`](https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html) requires authoring tools that can export PDF 1.7 to also be capable of exporting PDF/UA-1. Separately, [`E205.4 Accessibility Standard`](https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html) frames electronic content accessibility through WCAG 2.1 A/AA for non-web documents.
+
+That is why this app treats the two profiles differently:
+
+- **Strict** remains the primary **document-level** publication/review lens because it emphasizes WCAG/ITTAA-style programmatic semantics in the final PDF
+- **Practical** includes additional PDF/UA-oriented checks because IITAA does explicitly care about PDF/UA capability and those signals are often useful in remediation workflows
+- neither profile should be read as a standalone legal determination or a full PDF/UA/Matterhorn conformance audit
+
 Future PDF/UA work may still incorporate additional Matterhorn-inspired checks such as:
 
 - orphan MCIDs

@@ -300,8 +300,17 @@
                 semantics-first lens on that same file. Use Strict for agency
                 publication and ADA/WCAG/ITTAA-oriented legal accessibility
                 review. Practical also includes a dedicated PDF/UA-oriented
-                category, but Illinois has not indicated that PDF/UA or
-                Matterhorn is itself the controlling legal requirement.
+                category. Illinois IITAA 2.1 expressly references PDF/UA in
+                <a
+                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                  >§504.2.2 PDF Export</a
+                >
+                for authoring tools, while E205.4 frames document-level
+                electronic content accessibility through WCAG 2.1 for non-web
+                documents.
               </template>
               <template v-else>
                 Switching to Practical does not switch to a different document.
@@ -310,8 +319,17 @@
                 publication and ADA/WCAG/ITTAA-oriented legal accessibility
                 review, while Practical is a valid remediation/progress view
                 that adds a broader weighted schema including PDF/UA-oriented
-                audits that Illinois has not separately identified as the
-                controlling legal requirement.
+                audits. Illinois IITAA 2.1 expressly references PDF/UA in
+                <a
+                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                  >§504.2.2 PDF Export</a
+                >
+                for authoring tools, while E205.4 still frames non-web document
+                accessibility through WCAG 2.1, so Strict remains the better
+                primary view.
               </template>
             </p>
           </div>
@@ -1787,9 +1805,18 @@
             <p class="text-xs text-[var(--text-muted)]">
               If the two modes diverge, treat <strong>Strict</strong> as the
               better primary publication/compliance signal and use the category
-              findings to understand why. Illinois has not indicated that
-              PDF/UA/Matterhorn is itself the controlling legal requirement, so
-              neither mode alone is a final legal determination.
+              findings to understand why. Illinois IITAA 2.1 expressly
+              references PDF/UA in
+              <a
+                href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                >§504.2.2 PDF Export</a
+              >
+              for authoring tools, while E205.4 frames non-web document
+              accessibility through WCAG 2.1. So neither mode alone is a final
+              legal determination.
             </p>
           </div>
 

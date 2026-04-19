@@ -256,6 +256,14 @@ describe("ScoreCard", () => {
     expect(
       wrapper.get('[data-testid="strict-findings-note"]').text(),
     ).toContain("same document");
+    expect(
+      wrapper.get('[data-testid="strict-findings-note"]').text(),
+    ).toContain("§504.2.2 PDF Export");
+    expect(
+      wrapper.get('[data-testid="iitaa-pdfua-link"]').attributes("href"),
+    ).toBe(
+      "https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html",
+    );
   });
 
   it("emits selectedMode updates so parent category tables can follow the toggle", async () => {

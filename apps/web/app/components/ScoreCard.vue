@@ -146,9 +146,18 @@
         because it rewards usable improvements such as bookmarks, broader
         tagging, cleaner table grids, and a dedicated PDF/UA-oriented category
         covering signals like MarkInfo, tab order, list/table legality, and
-        PDF/UA identifiers. Illinois has not indicated that PDF/UA or Matterhorn
-        is itself the controlling legal requirement, so use Strict for agency
-        publication and legal accessibility decisions.
+        PDF/UA identifiers. Illinois IITAA 2.1 expressly references PDF/UA in
+        <a
+          href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline text-amber-100 hover:text-white"
+          data-testid="iitaa-pdfua-link"
+          >§504.2.2 PDF Export</a
+        >
+        for authoring tools, while E205.4 frames document-level electronic
+        content accessibility through WCAG 2.1 for non-web documents. Use Strict
+        for agency publication and legal accessibility decisions.
       </p>
     </div>
 
@@ -285,7 +294,7 @@ function profileLabel(mode: ScoringMode): string {
 
 function profileDescription(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "Valid remediation/progress lens on the same document. More generous and more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA-oriented category."
+    ? "Valid remediation/progress lens on the same document. More generous and more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA-oriented category. Illinois IITAA 2.1 references PDF/UA in authoring-tool rules, while Strict remains the primary document-level publication lens."
     : "Valid semantics-first lens on the same document. Prioritizes programmatically determinable headings, table semantics, and logical structure for ADA/WCAG/ITTAA-oriented review.";
 }
 
@@ -363,7 +372,7 @@ const recommendationTitle = computed(() =>
 const recommendationSummary = computed(() =>
   selectedMode.value === "strict"
     ? "Strict and Practical score the same document through different valid accessibility lenses. Strict is the semantics-first lens: it emphasizes programmatically determinable headings, table headers, and logical structure, making it the better primary signal for Illinois agency publication and ADA/WCAG/ITTAA-oriented review."
-    : "Strict and Practical score the same document through different valid accessibility lenses. Practical is the remediation/progress lens: it can score differently because it more closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category for signals such as MarkInfo, tab order, list/table legality, and PDF/UA identifiers. Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement, so switch back to Strict for publication and legal accessibility decisions.",
+    : "Strict and Practical score the same document through different valid accessibility lenses. Practical is the remediation/progress lens: it can score differently because it more closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category for signals such as MarkInfo, tab order, list/table legality, and PDF/UA identifiers. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames electronic content accessibility through WCAG 2.1 for non-web documents, so switch back to Strict for publication and legal accessibility decisions.",
 );
 
 const severityCounts = computed(() => {
@@ -405,9 +414,9 @@ const verdictExplanation = computed(() => {
 
   if (selectedMode.value !== "strict") {
     if (parts.length === 0) {
-      return "Practical is a valid remediation/progress lens on the same document, not a different document state. It can rise when bookmarks, broader tagging, cleaner table grids, or dedicated PDF/UA-oriented audit signals improve usability, even if semantic headings or table-header relationships are still incomplete. Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement, so for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.";
+      return "Practical is a valid remediation/progress lens on the same document, not a different document state. It can rise when bookmarks, broader tagging, cleaner table grids, or dedicated PDF/UA-oriented audit signals improve usability, even if semantic headings or table-header relationships are still incomplete. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level accessibility through WCAG 2.1 for non-web documents. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.";
     }
-    return `Practical is a valid remediation/progress lens on the same document, not a different document state. It can score differently when usability signals or dedicated PDF/UA-oriented audits improve, but ${joinParts(parts)} still remain in the scored categories below. Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement, so for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.`;
+    return `Practical is a valid remediation/progress lens on the same document, not a different document state. It can score differently when usability signals or dedicated PDF/UA-oriented audits improve, but ${joinParts(parts)} still remain in the scored categories below. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level accessibility through WCAG 2.1 for non-web documents. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.`;
   }
 
   if (!props.result.categories || props.result.categories.length === 0) {

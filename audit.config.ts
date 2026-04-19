@@ -187,8 +187,8 @@ export const SCORING_PROFILES = {
        *  "Click here" and raw URLs are unhelpful to screen reader users. */
       link_quality: 0.05,
 
-      /** Strict mode does not score PDF/UA/Matterhorn conformance directly.
-       *  The category is surfaced as N/A guidance only. */
+      /** Strict mode does not use PDF/UA/Matterhorn conformance as the primary
+       *  document-level score. The category is surfaced as N/A guidance only. */
       pdf_ua_compliance: 0,
 
       /** PDF color-contrast analysis is not implemented yet.
@@ -209,7 +209,7 @@ export const SCORING_PROFILES = {
   remediation: {
     label: "Practical readiness score",
     description:
-      "Readiness profile for comparing against practical remediation tools. More closely follows broader vendor-style weighted scoring, including a dedicated PDF/UA-compliance-signal category. Still diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
+      "Readiness profile for comparing against practical remediation tools. More closely follows broader vendor-style weighted scoring, including a dedicated PDF/UA-compliance-signal category. Illinois IITAA 2.1 references PDF/UA in authoring-tool rules, while final non-web document accessibility remains framed through WCAG 2.1. Still diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
     weights: {
       text_extractability: 0.175,
       title_language: 0.13,

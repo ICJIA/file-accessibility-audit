@@ -810,9 +810,13 @@ function scorePdfUaCompliance(
       label: "Matterhorn Protocol",
       url: "https://www.pdfa.org/resource/the-matterhorn-protocol-1-1/",
     },
+    {
+      label: "Illinois IITAA 2.1 Standards (§504.2.2 / E205.4)",
+      url: "https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html",
+    },
   ];
   const pdfUaExplanation =
-    "This category groups PDF/UA-oriented structural checks that remediation tools often emphasize: tagged structure, MarkInfo/Marked, PDF/UA metadata claims, list legality, table legality, and tab order. In this app it is only scored in Practical mode, because Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement for publication decisions.";
+    "This category groups PDF/UA-oriented structural checks that remediation tools often emphasize: tagged structure, MarkInfo/Marked, PDF/UA metadata claims, list legality, table legality, and tab order. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level electronic content accessibility through WCAG 2.1 for non-web documents. In this app the category is therefore scored only in Practical mode, while Strict remains the primary document-level publication lens.";
 
   if (mode !== "remediation") {
     return {
@@ -823,7 +827,8 @@ function scorePdfUaCompliance(
       grade: null,
       severity: null,
       findings: [
-        "Strict mode does not score PDF/UA or Matterhorn conformance as a primary publication/compliance requirement.",
+        "Strict mode does not use PDF/UA or Matterhorn conformance as the primary document-level publication/compliance score.",
+        "Illinois IITAA 2.1 §504.2.2 requires PDF/UA export capability for authoring tools, while E205.4 frames final electronic-content accessibility through WCAG 2.1.",
         "Use Practical mode to review PDF/UA-oriented audit signals such as tagging, MarkInfo, PDF/UA identifiers, list/table legality, and tab order.",
         "This category does not affect the Strict score.",
       ],
