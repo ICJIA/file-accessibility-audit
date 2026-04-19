@@ -1,165 +1,18 @@
 <template>
   <div class="text-center space-y-4">
-    <div
+    <ScoreProfileBanner
       v-if="hasAlternateProfile"
-      data-testid="mode-recommendation-card"
-      class="max-w-2xl mx-auto rounded-2xl border px-4 py-4 sm:px-5 sm:py-5 text-left shadow-sm"
-      :class="
-        selectedMode === 'strict'
-          ? 'border-emerald-500/30 bg-emerald-500/10'
-          : 'border-amber-500/35 bg-amber-500/10'
-      "
-    >
-      <div class="flex flex-col gap-3">
-        <div
-          class="flex flex-wrap items-center justify-between gap-2"
-          :class="
-            selectedMode === 'strict' ? 'text-emerald-200' : 'text-amber-200'
-          "
-        >
-          <p class="text-[11px] font-semibold uppercase tracking-[0.16em]">
-            Recommendation for Illinois agency use
-          </p>
-          <span
-            data-testid="mode-recommendation-current"
-            class="rounded-full border px-2.5 py-1 text-[11px] font-medium"
-            :class="
-              selectedMode === 'strict'
-                ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
-                : 'border-amber-400/35 bg-amber-400/10 text-amber-100'
-            "
-          >
-            Current view:
-            {{ selectedMode === "strict" ? "Strict" : "Practical" }}
-          </span>
-        </div>
-        <div>
-          <h2
-            class="text-sm sm:text-base font-semibold text-[var(--text-heading)]"
-            data-testid="mode-recommendation-title"
-          >
-            {{ recommendationTitle }}
-          </h2>
-          <p
-            class="mt-2 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
-            data-testid="mode-recommendation-summary"
-          >
-            {{ recommendationSummary }}
-          </p>
-        </div>
-        <div class="grid gap-2 sm:grid-cols-2">
-          <div
-            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3"
-          >
-            <p class="text-xs font-semibold text-[var(--text-heading)]">
-              Strict
-            </p>
-            <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-              Valid semantics-first lens on this same document. Best primary
-              mode for publication and ADA/WCAG/ITTAA-oriented legal
-              accessibility review.
-            </p>
-          </div>
-          <div
-            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3"
-          >
-            <p class="text-xs font-semibold text-[var(--text-heading)]">
-              Practical
-            </p>
-            <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-              Valid remediation/progress lens on this same document. Useful for
-              progress tracking, but not the stronger legal or
-              conformance-facing score. Also includes additional PDF/UA-oriented
-              audits.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+      :selected-mode="selectedMode"
+      :available-modes="availableModes"
+      :comparison-profile="comparisonProfile"
+      @update:selected-mode="setSelectedMode"
+    />
 
     <p class="text-sm text-[var(--text-muted)]">
       {{ result.filename }} — {{ result.pageCount }} page{{
         result.pageCount !== 1 ? "s" : ""
       }}
     </p>
-
-    <div
-      v-if="hasAlternateProfile"
-      class="max-w-lg mx-auto rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-4 py-3"
-    >
-      <p
-        class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"
-      >
-        Score profile
-      </p>
-      <div
-        class="mt-3 inline-flex rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] p-1"
-        role="group"
-        aria-label="Scoring profile toggle"
-      >
-        <button
-          v-for="mode in availableModes"
-          :key="mode"
-          type="button"
-          class="rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-          :class="
-            selectedMode === mode
-              ? 'bg-[var(--surface-hover)] text-[var(--text-heading)] shadow-sm'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-          "
-          :aria-pressed="selectedMode === mode"
-          :data-testid="`score-mode-${mode}`"
-          @click="setSelectedMode(mode)"
-        >
-          {{ modeButtonLabel(mode) }}
-        </button>
-      </div>
-      <p class="mt-3 text-xs text-[var(--text-muted)] leading-relaxed">
-        {{ displayedProfile.description }}
-      </p>
-      <p
-        v-if="selectedMode === 'strict'"
-        class="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-left text-xs text-emerald-100/95 leading-relaxed"
-        data-testid="strict-mode-rationale"
-      >
-        Choose Strict for the stronger ADA/WCAG/ITTAA-facing signal. It
-        prioritizes programmatically determinable semantics — real headings,
-        table headers, and logical structure — which makes it the better primary
-        mode for agency publication and legal accessibility review.
-      </p>
-      <p
-        v-if="comparisonProfile"
-        class="mt-2 text-xs text-[var(--text-secondary)]"
-        data-testid="alternate-score-summary"
-      >
-        Also available: <strong>{{ comparisonProfile.label }}</strong> —
-        {{ comparisonProfile.overallScore }}/100 ({{ comparisonProfile.grade }})
-      </p>
-      <p
-        v-if="selectedMode !== 'strict'"
-        class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200/95 leading-relaxed"
-        data-testid="strict-findings-note"
-      >
-        Practical does not mean a different document. It is the same document
-        viewed through a broader remediation/progress lens. That lens is valid
-        for tracking improvement and vendor-style accessibility workflows
-        because it rewards usable improvements such as bookmarks, broader
-        tagging, cleaner table grids, and a dedicated PDF/UA-oriented category
-        covering signals like MarkInfo, tab order, list/table legality, and
-        PDF/UA identifiers. Illinois IITAA 2.1 expressly references PDF/UA in
-        <a
-          href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline text-amber-100 hover:text-white"
-          data-testid="iitaa-pdfua-link"
-          >§504.2.2 PDF Export</a
-        >
-        for authoring tools, while E205.4 frames document-level electronic
-        content accessibility through WCAG 2.1 for non-web documents. Use Strict
-        for agency publication and legal accessibility decisions.
-      </p>
-    </div>
 
     <!-- Grade circle -->
     <div class="flex justify-center">
@@ -224,10 +77,13 @@
 </template>
 
 <script setup lang="ts">
+import ScoreProfileBanner from "./ScoreProfileBanner.vue";
 import {
+  MODE_PROFILE_DESCRIPTIONS,
+  MODE_PROFILE_LABELS,
+  categoriesForScoringMode,
   type ScoreProfile,
   type ScoringMode,
-  categoriesForScoringMode,
 } from "~/utils/scoringProfiles";
 
 interface Category {
@@ -282,29 +138,13 @@ watch(
   { immediate: true },
 );
 
-function modeButtonLabel(mode: ScoringMode): string {
-  return mode === "remediation" ? "Practical" : "Strict";
-}
-
-function profileLabel(mode: ScoringMode): string {
-  return mode === "remediation"
-    ? "Practical readiness score"
-    : "Strict semantic score";
-}
-
-function profileDescription(mode: ScoringMode): string {
-  return mode === "remediation"
-    ? "Valid remediation/progress lens on the same document. More generous and more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA-oriented category. Illinois IITAA 2.1 references PDF/UA in authoring-tool rules, while Strict remains the primary document-level publication lens."
-    : "Valid semantics-first lens on the same document. Prioritizes programmatically determinable headings, table semantics, and logical structure for ADA/WCAG/ITTAA-oriented review.";
-}
-
 const normalizedProfiles = computed<
   Record<ScoringMode, ScoreProfileView | null>
 >(() => ({
   strict: {
     mode: "strict",
-    label: profileLabel("strict"),
-    description: profileDescription("strict"),
+    label: MODE_PROFILE_LABELS.strict,
+    description: MODE_PROFILE_DESCRIPTIONS.strict,
     overallScore:
       props.result.scoreProfiles?.strict?.overallScore ??
       props.result.overallScore,
@@ -316,8 +156,8 @@ const normalizedProfiles = computed<
   remediation: props.result.scoreProfiles?.remediation
     ? {
         mode: "remediation",
-        label: profileLabel("remediation"),
-        description: profileDescription("remediation"),
+        label: MODE_PROFILE_LABELS.remediation,
+        description: MODE_PROFILE_DESCRIPTIONS.remediation,
         overallScore: props.result.scoreProfiles.remediation.overallScore,
         grade: props.result.scoreProfiles.remediation.grade,
         executiveSummary:
@@ -363,16 +203,6 @@ const gradeColor = computed(
 );
 const gradeLabel = computed(
   () => gradeMap[displayedProfile.value.grade]?.label || "",
-);
-const recommendationTitle = computed(() =>
-  selectedMode.value === "strict"
-    ? "Use Strict as the primary mode for legal accessibility review."
-    : "Practical is not the primary legal/compliance score.",
-);
-const recommendationSummary = computed(() =>
-  selectedMode.value === "strict"
-    ? "Strict and Practical score the same document through different valid accessibility lenses. Strict is the semantics-first lens: it emphasizes programmatically determinable headings, table headers, and logical structure, making it the better primary signal for Illinois agency publication and ADA/WCAG/ITTAA-oriented review."
-    : "Strict and Practical score the same document through different valid accessibility lenses. Practical is the remediation/progress lens: it can score differently because it more closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category for signals such as MarkInfo, tab order, list/table legality, and PDF/UA identifiers. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames electronic content accessibility through WCAG 2.1 for non-web documents, so switch back to Strict for publication and legal accessibility decisions.",
 );
 
 const severityCounts = computed(() => {
@@ -439,12 +269,10 @@ function escapeHtml(text: string): string {
 
 function highlightSeverities(raw: string): string {
   let text = escapeHtml(raw);
-  // Highlight "critical" phrases in red
   text = text.replace(
     /(\d+ critical(?: accessibility)? issues?)/gi,
     '<span style="color: var(--icon-fail); font-weight: 600;">$1</span>',
   );
-  // Highlight "moderate" phrases in yellow
   text = text.replace(
     /(\d+ moderate(?: accessibility)? issues?)/gi,
     '<span style="color: var(--icon-na); font-weight: 600;">$1</span>',

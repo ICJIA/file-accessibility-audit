@@ -292,45 +292,22 @@
               v-if="result.scoreProfiles?.remediation"
               class="mt-1 text-xs text-[var(--text-muted)]"
             >
-              <template v-if="remediationModeActive">
-                Practical does not mean a different document. It is the same
-                document viewed through a valid remediation/progress lens. The
-                score, grade, and severity shown below now reflect the softer
-                practical-readiness scoring, while Strict remains the valid
-                semantics-first lens on that same file. Use Strict for agency
-                publication and ADA/WCAG/ITTAA-oriented legal accessibility
-                review. Practical also includes a dedicated PDF/UA-oriented
-                category. Illinois IITAA 2.1 expressly references PDF/UA in
-                <a
-                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >
-                for authoring tools, while E205.4 frames document-level
-                electronic content accessibility through WCAG 2.1 for non-web
-                documents.
-              </template>
-              <template v-else>
-                Switching to Practical does not switch to a different document.
-                It applies a different valid accessibility lens to the same
-                file. Strict remains the better primary view for agency
-                publication and ADA/WCAG/ITTAA-oriented legal accessibility
-                review, while Practical is a valid remediation/progress view
-                that adds a broader weighted schema including PDF/UA-oriented
-                audits. Illinois IITAA 2.1 expressly references PDF/UA in
-                <a
-                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >
-                for authoring tools, while E205.4 still frames non-web document
-                accessibility through WCAG 2.1, so Strict remains the better
-                primary view.
-              </template>
+              {{
+                remediationModeActive
+                  ? CATEGORY_TABLE_PRACTICAL_PREFIX
+                  : CATEGORY_TABLE_STRICT_PREFIX
+              }}
+              <a
+                :href="IITAA_PDFUA_URL"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                >§504.2.2 PDF Export</a
+              >{{
+                remediationModeActive
+                  ? CATEGORY_TABLE_PRACTICAL_SUFFIX
+                  : CATEGORY_TABLE_STRICT_SUFFIX
+              }}
             </p>
           </div>
           <table class="w-full text-sm min-w-[420px]">
@@ -2533,6 +2510,11 @@ import { getWcagCriteria } from "~/utils/wcag";
 import {
   type ScoringMode,
   categoriesForScoringMode,
+  CATEGORY_TABLE_PRACTICAL_PREFIX,
+  CATEGORY_TABLE_PRACTICAL_SUFFIX,
+  CATEGORY_TABLE_STRICT_PREFIX,
+  CATEGORY_TABLE_STRICT_SUFFIX,
+  IITAA_PDFUA_URL,
 } from "~/utils/scoringProfiles";
 
 definePageMeta({ middleware: "auth" });
