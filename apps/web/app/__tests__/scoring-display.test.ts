@@ -405,4 +405,58 @@ describe("Detailed Findings — profile badge and PDF/UA pill", () => {
       expect(source).toContain("PDF/UA signals");
     }
   });
+
+  it("renders a ModeCompareBox inside each Detailed Findings card on both pages", () => {
+    for (const source of [indexSource, reportSource]) {
+      expect(source).toContain("ModeCompareBox");
+      expect(source).toContain('v-bind="compareProps(cat.id)"');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mode divergence copy — per-category rationale
+// ---------------------------------------------------------------------------
+describe("Mode divergence copy — per-category rationale", () => {
+  const modulePath = "~/utils/modeDivergence";
+
+  it("provides Strict/Practical rationale copy for every category that branches on the scoring mode", async () => {
+    const { DIVERGENCE_COPY, canCategoryDiverge, getDivergenceCopy } =
+      await import("../utils/modeDivergence");
+    // Only these four category scorers branch on the scoring mode.
+    const divergingIds = [
+      "heading_structure",
+      "table_markup",
+      "reading_order",
+      "pdf_ua_compliance",
+    ];
+    for (const id of divergingIds) {
+      expect(canCategoryDiverge(id)).toBe(true);
+      expect(DIVERGENCE_COPY[id]).toBeDefined();
+      const copy = getDivergenceCopy(id);
+      expect(copy.whatPracticalCredits.length).toBeGreaterThan(40);
+      expect(copy.whyStrictMatters.length).toBeGreaterThan(40);
+      expect(copy.whyPracticalMatters.length).toBeGreaterThan(40);
+    }
+  });
+
+  it("falls back to a same-in-both-modes explanation for non-branching categories", async () => {
+    const { canCategoryDiverge, getDivergenceCopy } = await import(
+      "../utils/modeDivergence"
+    );
+    for (const id of [
+      "text_extractability",
+      "title_language",
+      "alt_text",
+      "bookmarks",
+      "link_quality",
+      "form_accessibility",
+      "color_contrast",
+    ]) {
+      expect(canCategoryDiverge(id)).toBe(false);
+      expect(getDivergenceCopy(id).label).toBe("Same in both modes");
+    }
+    // Satisfy the "module path" reference to keep linting happy.
+    expect(modulePath).toContain("modeDivergence");
+  });
 });

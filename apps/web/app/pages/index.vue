@@ -519,6 +519,11 @@
               </button>
             </div>
 
+            <ModeCompareBox
+              v-if="result.scoreProfiles"
+              v-bind="compareProps(cat.id)"
+            />
+
             <p
               v-if="cat.explanation"
               class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3"
@@ -2658,6 +2663,7 @@
 
 <script setup lang="ts">
 import { getWcagCriteria } from "~/utils/wcag";
+import ModeCompareBox from "~/components/ModeCompareBox.vue";
 import {
   type ScoringMode,
   categoriesForScoringMode,
@@ -2768,6 +2774,23 @@ const remediationModeActive = computed(
     selectedScoreMode.value === "remediation" &&
     !!result.value?.scoreProfiles?.remediation,
 );
+
+function compareProps(catId: string) {
+  const strict = result.value?.scoreProfiles?.strict?.categories?.find(
+    (c: any) => c.id === catId,
+  );
+  const practical = result.value?.scoreProfiles?.remediation?.categories?.find(
+    (c: any) => c.id === catId,
+  );
+  return {
+    categoryId: catId,
+    strictScore: strict?.score ?? null,
+    strictGrade: strict?.grade ?? null,
+    practicalScore: practical?.score ?? null,
+    practicalGrade: practical?.grade ?? null,
+    selectedMode: selectedScoreMode.value,
+  };
+}
 
 // True when any batch item finished (done, error, or cancelled) or single result exists
 const hasAnyResult = computed(() => {
