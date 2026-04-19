@@ -1,7 +1,7 @@
 # 00 — Master Design Document
 
 **Project:** `file-accessibility-audit`
-**Version:** 1.7
+**Version:** 1.8
 **Stack:** Nuxt 4.31+ / Nuxt UI 4+ / Node.js / Express / QPDF / pdfjs-dist
 **Package Manager:** pnpm
 **Deployment:** DigitalOcean droplet → Laravel Forge → PM2 → nginx reverse proxy
@@ -16,12 +16,20 @@
 
 A private, internal web tool for ICJIA staff that allows users to drop a PDF file and receive an immediate, scored accessibility readiness report. The report is diagnostic only — it identifies issues but does not remediate them. The intended audience is agency staff who produce PDFs and need a clear, actionable signal to return to Adobe Acrobat for remediation before publishing.
 
+Every audit computes **two attributed score profiles** against the same document:
+
+- **Strict — ICJIA's rubric.** Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. This is the authoritative Illinois publication / legal-accessibility-review lens.
+- **Practical — a developer-introduced extension.** Layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. **Not ICJIA's rubric and not required by Illinois accessibility law** for final documents — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability. Useful for progress tracking and vendor reconciliation.
+
+Each profile carries a machine-readable origin tag in JSON exports (`icjia.iitaa.wcag21` / `developer-extension.pdfua`). See §5 and `docs/10-scoring-reconciliation.md` for full attribution rationale.
+
 ### Core Principles
 
 - **No file retention** — PDFs are processed in memory and immediately discarded
 - **Illinois.gov only** — Auth layer enforces agency email domain
 - **Score-first UX** — The grade is the hero of the UI, large and unambiguous
 - **Audit logging** — Login events and filenames are logged; file content is never stored
+- **Attribution-first scoring** — Two profiles are computed; only Strict speaks for ICJIA
 
 ---
 
@@ -211,7 +219,22 @@ try {
 
 > **Implementation note:** All scoring weights, grade thresholds, severity thresholds, and analysis limits referenced in this section are defined in `audit.config.ts` at the project root. That file is the single source of truth — the scorer imports it directly. When changing a value, change it in `audit.config.ts`, not inline in service code.
 
+### Scoring Profiles & Attribution
+
+Every audit computes two profiles against the same document. Only one of them speaks for ICJIA:
+
+| Profile | Origin tag | Authority | What it weighs | Role |
+|---------|-----------|-----------|----------------|------|
+| **Strict** | `icjia.iitaa.wcag21` | ICJIA's rubric. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. | Nine categories (see table below). | Authoritative Illinois publication / legal-review lens. Cite this score in agency sign-offs, ADA Title II reviews, and FOIA responses. |
+| **Practical** (internal key: `remediation`) | `developer-extension.pdfua` | **Developer-introduced extension.** Not ICJIA's rubric and not required by Illinois accessibility law for final documents. | Renormalized nine core categories plus a dedicated **PDF/UA Compliance Signals** category (9.5% weight). Applies partial-credit floors (70 on `heading_structure` / `table_markup` under specific conditions) and scores `reading_order` via proxies when Strict defers to N/A. | Supplementary progress / vendor-reconciliation lens. Useful for tracking remediation over time and reconciling against commercial PDF/UA-focused tools. **Do not cite as an Illinois accessibility-law signal.** |
+
+Weights, partial-credit floors, reading-order proxy bonuses, and the 9.5% weight on PDF/UA Compliance Signals inside the Practical profile are the original developer's judgment calls, not published standards. IITAA §504.2.2 references PDF/UA only for authoring-tool export capability; §E205.4 governs final-document accessibility through WCAG 2.1. See `docs/10-scoring-reconciliation.md` for deeper rationale and a worked example of when the two profiles diverge.
+
+The `scorer.ts` service computes both profiles in parallel and returns them as `scoreProfiles.strict` and `scoreProfiles.remediation` in the response body, each carrying its own full `categories: CategoryResult[]` array and the `origin` tag. The UI and all exports use the origin tag to label output correctly.
+
 ### Categories & Weights
+
+The table below is the **Strict** profile (ICJIA's rubric). The Practical profile uses renormalized weights over the same nine categories plus an additional PDF/UA Compliance Signals category; see `audit.config.ts` (`SCORING_PROFILES.remediation.weights`) for the full list.
 
 | # | Category | Weight | What's Checked |
 |---|----------|--------|----------------|
