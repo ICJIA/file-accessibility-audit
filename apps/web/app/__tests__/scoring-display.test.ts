@@ -1,9 +1,15 @@
 import "./test-helpers";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 import ScoreCard from "../components/ScoreCard.vue";
 import CategoryRow from "../components/CategoryRow.vue";
+
+function readPageSource(relativePath: string): string {
+  return readFileSync(resolve(__dirname, "..", relativePath), "utf-8");
+}
 
 // ---------------------------------------------------------------------------
 // Grade color thresholds
@@ -357,6 +363,46 @@ describe("Score display — severity badges", () => {
         props: { category: makeCategoryWithSeverity(severity) },
       });
       expect(wrapper.find(".u-badge").text()).toBe(severity);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Detailed Findings card — profile badge & PDF/UA pill
+// ---------------------------------------------------------------------------
+describe("Detailed Findings — profile badge and PDF/UA pill", () => {
+  const indexSource = readPageSource("pages/index.vue");
+  const reportSource = readPageSource("pages/report/[id].vue");
+
+  it("renders a strict profile badge on each scored category card when strict mode is selected", () => {
+    // Each Detailed Findings card carries a category-mode-badge pill whose
+    // text is driven by MODE_BUTTON_LABELS[selectedScoreMode] — so the badge
+    // reads "Strict" in strict mode and "Practical" in practical mode.
+    for (const source of [indexSource, reportSource]) {
+      expect(source).toContain('data-testid="category-mode-badge"');
+      expect(source).toContain(
+        "MODE_BUTTON_LABELS[selectedScoreMode]",
+      );
+      // Strict uses an emerald tint, Practical uses amber.
+      expect(source).toContain("border-emerald-500/40 bg-emerald-500/10 text-emerald-300");
+      expect(source).toContain("border-amber-500/40 bg-amber-500/10 text-amber-300");
+      // The mode badge is keyed off selectedScoreMode === 'strict'.
+      expect(source).toContain("selectedScoreMode === 'strict'");
+    }
+  });
+
+  it("renders a practical profile badge and a PDF/UA signals pill on the pdf_ua_compliance card when practical mode is selected", () => {
+    for (const source of [indexSource, reportSource]) {
+      expect(source).toContain('data-testid="pdf-ua-badge"');
+      // The pill is only shown when both the category is pdf_ua_compliance
+      // and the user has selected Practical (remediation) mode.
+      expect(source).toContain("cat.id === 'pdf_ua_compliance'");
+      expect(source).toContain("selectedScoreMode === 'remediation'");
+      // Stronger amber tint distinguishes it from the mode badge.
+      expect(source).toContain(
+        "border-amber-400/60 bg-amber-400/15 text-amber-200",
+      );
+      expect(source).toContain("PDF/UA signals");
     }
   });
 });

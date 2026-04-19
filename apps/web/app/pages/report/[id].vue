@@ -427,6 +427,26 @@
                 }"
                 >{{ cat.severity }}</span
               >
+              <span
+                data-testid="category-mode-badge"
+                :aria-label="`Scored under ${MODE_BUTTON_LABELS[selectedScoreMode]} mode`"
+                class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border"
+                :class="
+                  selectedScoreMode === 'strict'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                "
+                >{{ MODE_BUTTON_LABELS[selectedScoreMode] }}</span
+              >
+              <span
+                v-if="
+                  cat.id === 'pdf_ua_compliance' &&
+                  selectedScoreMode === 'remediation'
+                "
+                data-testid="pdf-ua-badge"
+                class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-400/60 bg-amber-400/15 text-amber-200"
+                >PDF/UA signals</span
+              >
               <button
                 v-if="hasAdvancedFindings(cat.findings)"
                 class="flex items-center gap-2 text-xs cursor-pointer select-none ml-auto rounded-full px-2.5 py-1 border transition-colors duration-200"
@@ -863,6 +883,7 @@ import { getWcagCriteria } from "~/utils/wcag";
 import {
   type ScoringMode,
   categoriesForScoringMode,
+  MODE_BUTTON_LABELS,
 } from "~/utils/scoringProfiles";
 
 definePageMeta({ layout: false });
