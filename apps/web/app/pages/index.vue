@@ -274,13 +274,15 @@
           <p
             class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
           >
-            <strong>Strict</strong> weighs nine core categories for
-            ADA/WCAG/ITTAA-oriented publication review.
-            <strong>Practical</strong> adds a dedicated <em>PDF/UA Compliance
-            Signals</em> category (eleven scored categories total) that grades
-            tagging, MarkInfo, tab order, PDF/UA identifiers, and list/table
-            legality. Categories that don't apply are excluded and weights
-            renormalized in both modes.
+            <strong>Strict</strong> is <strong>ICJIA's rubric</strong> —
+            anchored to WCAG 2.1 AA and IITAA §E205.4 — and weighs nine core
+            categories for ADA/WCAG/ITTAA-oriented publication review.
+            <strong>Practical</strong> is a
+            <strong>developer-added extension</strong> (not ICJIA's rubric,
+            not required by Illinois accessibility law) that adds a dedicated
+            <em>PDF/UA Compliance Signals</em> category and applies
+            partial-credit floors. Categories that don't apply are excluded
+            and weights renormalized in both modes.
           </p>
         </div>
 
@@ -1770,8 +1772,11 @@
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
             The scorer evaluates up to eleven accessibility categories — nine
-            are weighted in Strict mode, and Practical mode additionally weights
-            a PDF/UA Compliance Signals category. Each category receives a
+            are weighted in <strong>Strict</strong> (ICJIA's rubric, anchored
+            to WCAG 2.1 AA and IITAA §E205.4), and <strong>Practical</strong>
+            (a developer-added extension that is not ICJIA's rubric and not
+            required by Illinois accessibility law) additionally weights a
+            PDF/UA Compliance Signals category. Each category receives a
             score from 0 to 100 (or N/A if the category doesn't apply to the
             document). The overall score is a
             <strong>weighted average</strong> of applicable categories, with
@@ -1788,9 +1793,15 @@
                   <th class="text-left px-3 py-2 font-medium">Category</th>
                   <th class="text-right px-3 py-2 font-medium">
                     Strict weight
+                    <span class="block text-[9px] normal-case text-emerald-300 font-normal"
+                      >ICJIA rubric</span
+                    >
                   </th>
                   <th class="text-right px-3 py-2 font-medium">
                     Practical weight
+                    <span class="block text-[9px] normal-case text-amber-300 font-normal"
+                      >developer extension</span
+                    >
                   </th>
                 </tr>
               </thead>
@@ -1874,37 +1885,40 @@
               Scoring modes and legal interpretation
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <strong>Strict</strong> and <strong>Practical</strong> are two
-              valid accessibility lenses on the <strong>same document</strong>,
-              not two different document states. The choice of mode changes how
-              the file is interpreted and weighted, not which file is being
-              evaluated.
+              <strong>Strict</strong> is <strong>ICJIA's rubric</strong>.
+              <strong>Practical</strong> is a
+              <strong>developer-added extension</strong> that layers
+              PDF/UA-oriented checks on top of Strict. They evaluate the
+              <strong>same document</strong>, but the developer-extension
+              schema also scores PDF/UA-oriented signals that are not required
+              by Illinois accessibility law.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <strong>Strict</strong> is the better primary mode for Illinois
-              public-sector accessibility review because it prioritizes
+              <strong>Strict</strong> is the authoritative mode for Illinois
+              public-sector accessibility review. It is anchored to
+              <strong>WCAG 2.1 AA</strong> and
+              <strong>IITAA §E205.4</strong> and prioritizes
               <strong>programmatically determinable</strong> structure — real
               headings, real table-header relationships, and logical reading
-              order — which are the stronger signals for <strong>ADA</strong>,
-              <strong>WCAG 2.1 AA</strong>, and <strong>ITTAA</strong>-oriented
-              review.
+              order — which are the stronger signals for
+              <strong>ADA</strong>, <strong>WCAG</strong>, and
+              <strong>ITTAA</strong>-oriented review.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <strong>Practical</strong> is intentionally more generous. It is
-              still a valid accessibility view — just a different one. It is
-              useful for tracking improvement or comparing against vendor
-              remediation workflows because it more closely follows a broader
-              weighted schema and gives credit for signals such as bookmarks,
-              broader tagging, cleaner table grids, and a dedicated
-              PDF/UA-oriented category covering MarkInfo, tab order, list/table
-              legality, and PDF/UA identifiers, even when semantic structure is
-              still incomplete.
+              <strong>Practical</strong> is intentionally more generous and
+              adds a dedicated PDF/UA-oriented category (MarkInfo, tab order,
+              list/table legality, PDF/UA identifiers). It is useful for
+              tracking remediation progress and reconciling against vendor
+              rubrics — but it is <strong>not</strong> ICJIA's rubric and
+              <strong>not</strong> an Illinois accessibility-law signal. The
+              70-point floors on heading and table structure and the weight
+              distribution are judgment calls made by the developer who added
+              this profile, not published standards.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               If the two modes diverge, treat <strong>Strict</strong> as the
-              better primary publication/compliance signal and use the category
-              findings to understand why. Illinois IITAA 2.1 expressly
-              references PDF/UA in
+              authoritative publication/compliance signal — it reflects
+              ICJIA's rubric. Illinois IITAA 2.1 references PDF/UA only in
               <a
                 href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
                 target="_blank"
@@ -1912,9 +1926,10 @@
                 class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
                 >§504.2.2 PDF Export</a
               >
-              for authoring tools, while E205.4 frames non-web document
-              accessibility through WCAG 2.1. So neither mode alone is a final
-              legal determination.
+              for authoring-tool export capability, while
+              <strong>§E205.4</strong> frames final non-web document
+              accessibility through WCAG 2.1. So Practical's PDF/UA category
+              is supplementary; it is not a final legal determination.
             </p>
           </div>
 
@@ -2029,17 +2044,22 @@
                 PDF/UA Compliance Signals
                 <span
                   class="text-[10px] uppercase tracking-wide text-amber-400 ml-1"
-                  >Practical mode only · 9.5%</span
+                  >Practical only — developer extension · 9.5%</span
                 >
               </p>
               <p class="text-xs text-[var(--text-muted)] mb-2">
                 <em>What it means:</em> A family of PDF/UA-oriented structural
-                signals that remediation vendors and PAC-style tools often
-                weight explicitly. Strict does not score these because Illinois
-                IITAA 2.1 frames final non-web document accessibility through
-                WCAG 2.1 (§E205.4), while PDF/UA export capability is separately
-                required of authoring tools (§504.2.2). Practical surfaces the
-                same signals as a readiness view.
+                signals (tagging, MarkInfo, tab order, PDF/UA identifiers,
+                list/table legality) that some remediation vendors and
+                PAC-style tools weight explicitly. This category is
+                <strong>not part of ICJIA's rubric</strong> — it was added by a
+                developer who wanted to extend Strict with PDF/UA checks. It
+                is <strong>not required by Illinois accessibility law</strong>:
+                IITAA §504.2.2 references PDF/UA only for authoring-tool export
+                capability, while §E205.4 frames final-document accessibility
+                through WCAG 2.1. Strict (ICJIA's rubric) therefore surfaces
+                this category as N/A with guidance; Practical scores it as a
+                supplementary readiness view.
               </p>
               <p class="text-xs text-[var(--text-muted)]">
                 <em>How it's scored:</em> <strong>0</strong> if the document
@@ -2051,10 +2071,11 @@
                 (+5), <strong>list legality</strong> up to +15 based on
                 <code>&lt;Lbl&gt;</code>/<code>&lt;LBody&gt;</code> well-formedness,
                 and <strong>table legality</strong> up to +15 from row
-                structure, consistent columns, and no nested tables. Practical
-                mode treats the total as a readiness signal, not as a PDF/UA
-                conformance verdict — PAC and Matterhorn remain the formal
-                conformance checks.
+                structure, consistent columns, and no nested tables. The
+                numbers here are the original developer's judgment calls, not
+                a published standard, and the total is a readiness signal —
+                not a PDF/UA conformance verdict. PAC and Matterhorn remain
+                the formal conformance checks.
               </p>
             </div>
             <div

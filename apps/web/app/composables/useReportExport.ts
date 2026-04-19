@@ -87,14 +87,14 @@ function gradeLabel(grade: string): string {
 
 function profileLabel(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "Practical readiness score"
-    : "Strict semantic score";
+    ? "Practical readiness score (developer extension)"
+    : "Strict semantic score (ICJIA rubric)";
 }
 
 function profileDescription(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "More generous progress signal for tracking practical improvement. More closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category. Illinois IITAA 2.1 references PDF/UA in authoring-tool rules, while document accessibility remains framed through WCAG/ITTAA semantic review. Detailed category findings still reflect the strict semantic audit."
-    : "Default ADA/WCAG/ITTAA-oriented profile. Prioritizes programmatically determinable headings, table semantics, and structure because those are the stronger legal and compliance-facing signals.";
+    ? "Developer-added extension layering PDF/UA-oriented checks on top of ICJIA's Strict rubric. NOT ICJIA's rubric and NOT required by Illinois accessibility law — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1. Useful for progress tracking and vendor reconciliation. For Illinois agency publication / legal review, cite Strict."
+    : "ICJIA's rubric. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure — the stronger ADA/WCAG/ITTAA-facing signals.";
 }
 
 function getScoreProfiles(result: ReportResult): ScoreProfile[] {
@@ -1163,6 +1163,9 @@ export function buildAiAnalysis(result: ReportResult): string {
     if (remediationProfile) {
       lines.push(
         `- Practical readiness score: ${remediationProfile.overallScore}/100 (${remediationProfile.grade})`,
+      );
+      lines.push(
+        `  (Practical is a developer extension that adds PDF/UA-oriented checks. It is NOT ICJIA's rubric and NOT required by Illinois accessibility law — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1. For Illinois publication decisions, cite the Strict score.)`,
       );
     }
     lines.push(`- Verdict: ${verdict}`);

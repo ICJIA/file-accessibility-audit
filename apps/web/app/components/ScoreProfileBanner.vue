@@ -77,9 +77,10 @@
             >
           </p>
           <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-            Valid semantics-first lens on this same document. Best primary
-            mode for publication and ADA/WCAG/ITTAA-oriented legal
-            accessibility review.
+            ICJIA's rubric. Anchored to WCAG 2.1 AA and IITAA §E205.4 for
+            non-web documents. Best primary mode for Illinois agency
+            publication and ADA/WCAG/ITTAA-oriented legal accessibility
+            review.
           </p>
         </button>
         <button
@@ -105,13 +106,31 @@
             >
           </p>
           <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-            Valid remediation/progress lens on this same document. Useful for
-            progress tracking, but not the stronger legal or
-            conformance-facing score. Also includes additional PDF/UA-oriented
-            audits.
+            Developer-added lens, not ICJIA's rubric. Layers PDF/UA-oriented
+            checks on top of Strict. PDF/UA is not required by Illinois
+            accessibility law for final documents — useful for progress
+            tracking and vendor reconciliation, not a legal signal.
           </p>
         </button>
       </div>
+
+      <!-- Developer-extension disclaimer (shown only in Practical mode) -->
+      <p
+        v-if="selectedMode === 'remediation'"
+        data-testid="practical-disclaimer"
+        class="rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-2 text-xs text-amber-100 leading-relaxed"
+      >
+        <span class="font-semibold uppercase tracking-wide text-amber-200"
+          >Heads up:</span
+        >
+        Practical is a developer extension that adds PDF/UA-oriented checks.
+        It is <strong>not ICJIA's rubric</strong> and
+        <strong>not required by Illinois accessibility law</strong>. IITAA
+        §504.2.2 references PDF/UA only for authoring-tool export capability;
+        §E205.4 frames final-document accessibility through WCAG 2.1. Use
+        Strict — ICJIA's rubric — for publication and legal accessibility
+        decisions.
+      </p>
 
       <!-- Mode-specific rationale (keeps the strict/practical context blocks) -->
       <p

@@ -15,12 +15,12 @@ This web application analyzes PDF documents for accessibility compliance and pro
 
 ## Scoring modes
 
-The app always computes two profiles against the same document:
+The app always computes two profiles against the same document. Attribution matters:
 
-- Strict semantic score — primary view for Illinois agency publication / ADA / WCAG 2.1 / ITTAA-oriented review. Emphasizes programmatically determinable headings, table semantics, and logical reading order.
-- Practical readiness score — secondary progress view more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA Compliance Signals category covering tagging, MarkInfo, tab order, PDF/UA identifiers, and list/table legality. Not a compliance claim.
+- Strict semantic score — **this is ICJIA's rubric**. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Primary view for Illinois agency publication and ADA/WCAG/ITTAA-oriented review. Emphasizes programmatically determinable headings, table semantics, and logical reading order. Origin tag: `icjia.iitaa.wcag21`.
+- Practical readiness score — **this is a developer extension, NOT ICJIA's rubric and NOT required by Illinois accessibility law**. A developer added this profile to layer PDF/UA-oriented checks (tagging, MarkInfo, tab order, PDF/UA identifiers, list/table legality) on top of ICJIA's Strict rubric. Useful for progress tracking and vendor reconciliation. Weights and partial-credit floors are the original developer's judgment calls. Origin tag: `developer-extension.pdfua`.
 
-Illinois IITAA 2.1 references PDF/UA (§504.2.2) for authoring-tool export capability, while framing final non-web document accessibility through WCAG 2.1 (§E205.4) — which is why Strict is the primary publication lens and Practical layers in PDF/UA-oriented signals.
+Illinois IITAA 2.1 references PDF/UA only in §504.2.2 for authoring-tool export capability, while §E205.4 frames final non-web document accessibility through WCAG 2.1. Practical's PDF/UA category scores §504.2.2-style signals; Strict sticks to the §E205.4/WCAG signals that govern the finished document. For an Illinois accessibility-law answer about a PDF, cite the Strict score.
 
 ## Scoring categories (Strict / Practical weights)
 

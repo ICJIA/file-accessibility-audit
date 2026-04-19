@@ -153,11 +153,34 @@ export const EMAIL = {
 // codebase and in stored audit log data. Renaming a key is a breaking change.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Scoring profiles and rubric origin attribution
+// ---------------------------------------------------------------------------
+// Strict is ICJIA's rubric — anchored to WCAG 2.1 Level AA and Illinois
+// IITAA §E205.4 for non-web documents. It is the Illinois agency publication
+// and legal-accessibility-review lens.
+//
+// Practical (internal key: `remediation`) is a DEVELOPER-INTRODUCED extension.
+// It layers PDF/UA-oriented checks on top of ICJIA's rubric and applies
+// partial-credit floors. PDF/UA is NOT required by Illinois accessibility law
+// for final documents — IITAA §504.2.2 references PDF/UA only for
+// authoring-tool export capability. Treat Practical as a progress /
+// vendor-reconciliation signal, not as an ICJIA or Illinois-law score.
+//
+// Weights and partial-credit floors inside Practical are JUDGMENT CALLS made
+// by the developer who added this profile. They are not a vendor standard
+// or a published specification. Adjust per your operational needs.
+// ---------------------------------------------------------------------------
+
 export const SCORING_PROFILES = {
   strict: {
-    label: "Strict semantic score",
+    label: "Strict semantic score (ICJIA rubric)",
+    // Origin / authority tag surfaced in JSON exports so downstream
+    // consumers can tell which rubric produced a given score.
+    origin: "icjia.iitaa.wcag21",
+    originLabel: "ICJIA / IITAA-aligned",
     description:
-      "Default standards-oriented profile. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
+      "ICJIA's rubric. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
     weights: {
       /** Is the PDF text-based (not scanned) and tagged? Highest weight because
        *  a scanned PDF is fundamentally inaccessible — nothing else matters. */
@@ -207,9 +230,14 @@ export const SCORING_PROFILES = {
   },
 
   remediation: {
-    label: "Practical readiness score",
+    label: "Practical readiness score (developer extension)",
+    // DEVELOPER EXTENSION — not ICJIA's rubric and not an Illinois
+    // accessibility-law signal. Weights and partial-credit floors below are
+    // the original author's judgment calls, not a vendor standard.
+    origin: "developer-extension.pdfua",
+    originLabel: "Developer extension — adds PDF/UA",
     description:
-      "Readiness profile for comparing against practical remediation tools. More closely follows broader vendor-style weighted scoring, including a dedicated PDF/UA-compliance-signal category. Illinois IITAA 2.1 references PDF/UA in authoring-tool rules, while final non-web document accessibility remains framed through WCAG 2.1. Still diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
+      "Developer-added lens that layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. PDF/UA is not required by Illinois accessibility law for final documents — IITAA §504.2.2 references it only for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. Use Strict for Illinois agency publication decisions. Still diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
     weights: {
       text_extractability: 0.175,
       title_language: 0.13,

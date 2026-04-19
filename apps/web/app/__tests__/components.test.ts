@@ -186,13 +186,14 @@ describe("ScoreCard", () => {
     ).toContain("ADA/WCAG/ITTAA-facing");
     expect(
       wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("Use Strict as the primary mode");
+    ).toContain("Use Strict");
+    expect(
+      wrapper.get('[data-testid="mode-recommendation-title"]').text(),
+    ).toContain("ICJIA's rubric");
     expect(
       wrapper.get('[data-testid="mode-recommendation-current"]').text(),
     ).toContain("Current view: Strict");
-    expect(wrapper.text()).toContain(
-      "same document through different valid accessibility lenses",
-    );
+    expect(wrapper.text()).toContain("ICJIA's rubric");
   });
 
   it("switches the displayed score and summary when remediation mode is selected", async () => {
@@ -243,10 +244,19 @@ describe("ScoreCard", () => {
     expect(wrapper.text()).toContain("Remediation summary");
     expect(
       wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("not the primary legal/compliance score");
+    ).toContain("developer extension");
+    expect(
+      wrapper.get('[data-testid="mode-recommendation-title"]').text(),
+    ).toContain("not ICJIA's rubric");
     expect(
       wrapper.get('[data-testid="mode-recommendation-current"]').text(),
     ).toContain("Current view: Practical");
+    expect(
+      wrapper.get('[data-testid="practical-disclaimer"]').text(),
+    ).toContain("not ICJIA's rubric");
+    expect(
+      wrapper.get('[data-testid="practical-disclaimer"]').text(),
+    ).toContain("not required by Illinois accessibility law");
     expect(
       wrapper.get('[data-testid="strict-findings-note"]').text(),
     ).toContain("legal accessibility decisions");

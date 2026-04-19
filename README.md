@@ -111,30 +111,39 @@ Host and port are set automatically per provider.
 
 Each PDF is assessed across named accessibility categories based on [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
 
-### Two scoring modes, one document
+### Two profiles, one document — and only one of them is ICJIA's rubric
 
-Every audit surfaces **two score profiles side-by-side**: a **Strict semantic score** and a **Practical readiness score**. This is not an annoyance or a hedge — it is a deliberate feature that reflects how accessibility actually works in the real world. A PDF is rarely simply "accessible" or "not accessible." It can make real progress toward accessibility (tagged structure, bookmarks, broader artifact handling) while still lacking the deep semantic evidence that assistive technology relies on most.
+Every audit surfaces **two score profiles side-by-side**: a **Strict semantic score** and a **Practical readiness score**. Before anything else, you need to know which is which:
 
-The two modes let you answer **two different but equally valid questions about the same file**:
+> **Strict is ICJIA's rubric.** It is anchored to **WCAG 2.1 Level AA** and **Illinois IITAA §E205.4** for non-web documents. It is the Illinois agency publication and legal-accessibility-review lens.
+>
+> **Practical is a developer-introduced extension.** A developer wanted to take ICJIA's rubric and add **PDF/UA-oriented checks** on top of it. **PDF/UA is not required by Illinois accessibility law for final documents** — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. So Practical is supplementary: a progress lens and a vendor-reconciliation lens, **not** an ICJIA score and **not** an Illinois accessibility-law signal.
 
-- **Strict — "Is this document semantically ready for publication?"**
-  The stricter lens. It prioritizes programmatically determinable structure — real `H1`–`H6` headings, real `TH`/`Scope`/`Headers` table semantics, logical reading order — because those are the signals assistive technology actually consumes and the signals Illinois IITAA 2.1 (via WCAG 2.1 in §E205.4) and ADA Title II point to for non-web document accessibility. If you are publishing to the public, making an agency-level compliance determination, or signing off on a remediation as finished, **use Strict as your primary score**. Strict weighs nine categories and deliberately does not treat PDF/UA signals as the primary document-level driver, because PDF/UA is a technical PDF-specific standard rather than the governing WCAG/ADA publication rule.
-- **Practical — "Did this document materially improve, and does it register on broader vendor-style rubrics?"**
-  The softer progress lens. It follows a broader weighted schema more closely aligned with how many commercial remediation tools score PDFs, and it adds an eleventh category — **PDF/UA Compliance Signals** — that grades tagging, `MarkInfo`/`Marked`, tab order, PDF/UA identifiers, and list/table legality. That is useful because Illinois IITAA 2.1 [§504.2.2 PDF Export](https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html) does expressly reference PDF/UA — for authoring-tool export capability. Practical helps you measure _change over time_ and reconcile against vendor reports even when semantic remediation is incomplete. It is not a compliance claim.
+The two profiles let you answer two different questions about the **same** file:
 
-#### Why this is good, not confusing
+- **Strict — "Does this document meet ICJIA's / Illinois accessibility expectations?"**
+  The authoritative publication lens. Weighs nine categories. Prioritizes programmatically determinable structure — real `H1`–`H6` headings, real `TH`/`Scope`/`Headers` table semantics, logical reading order — because those are the signals assistive technology actually consumes, and the signals WCAG 2.1 and IITAA §E205.4 point to for non-web document accessibility. If you are publishing to the public, making an agency compliance determination, or signing off on a remediation as finished, **cite the Strict score**.
+- **Practical — "How do I look to a PDF/UA-focused vendor rubric, and am I making progress?"**
+  A developer-added lens. Renormalizes the nine core categories and adds an eleventh — **PDF/UA Compliance Signals** — that grades tagging, `MarkInfo`/`Marked`, tab order, PDF/UA identifiers, and list/table legality. It also applies partial-credit floors (e.g., 70 on `heading_structure` when bookmarks / role-mapped pseudo-headings exist even without real H1–H6). Useful for measuring change over time and reconciling against commercial remediation tools. **Not** a legal or compliance claim.
 
-Most accessibility tools collapse these two questions into a single number and then quietly disagree with one another. The result is the common frustration of "Acrobat says my PDF passes but my audit tool fails it" — or vice versa. Here, both lenses are shown explicitly so:
+#### Why two profiles instead of one
 
-1. **You can see the whole picture at a glance.** If Strict and Practical agree, you have high-confidence signal. If they diverge, the divergence itself is information: the file has made practical progress but still has semantic gaps.
-2. **You can pick the right score for the right conversation.** Strict is the better score to cite in a publication sign-off, a FOIA response, or an ADA Title II review. Practical is the better score to cite in a remediation status update, a vendor reconciliation, or a quarterly "are we getting better?" report.
-3. **You never have to choose blindly.** The web UI puts a recommendation card at the top of every report making the guidance explicit (Strict primary for Illinois agency publication; Practical as a progress view). Both scores, both grades, and both category breakdowns are always available — a single click on the **Strict / Practical** toggle swaps the view.
-4. **It matches the law, not a vendor.** Illinois IITAA 2.1 frames final non-web document accessibility through WCAG 2.1 (§E205.4), while separately requiring PDF/UA export capability of authoring tools (§504.2.2). The two-mode design mirrors that split: Strict is the final-document lens; Practical layers in authoring-tool / PDF-specific signals.
-5. **Neither mode is a legal determination.** Treat both profiles as diagnostic. For a definitive compliance verdict, pair the audit with PAC 2024, an Adobe Acrobat Accessibility Full Check, and — where possible — review by a human accessibility specialist.
+Most accessibility tools collapse these two questions into a single number and then quietly disagree with each other. The result is the common frustration of "Acrobat says my PDF passes but my audit tool fails it" — or vice versa. Exposing both lenses explicitly lets you:
 
-**Matterhorn** is worth a one-line clarification: it is _not_ a separate law or a separate accessibility standard. It is a detailed testing protocol / checklist used by some tools to evaluate PDF/UA-style conformance. In this app, it is mentioned only as context for Practical mode's PDF/UA-oriented category.
+1. **See the whole picture at a glance.** If Strict and Practical agree, you have a high-confidence signal. If they diverge, the divergence itself is information: the file has made remediation-visible progress but still has semantic gaps under ICJIA's rubric.
+2. **Pick the right score for the right conversation.** Cite the Strict score in publication sign-offs, FOIA responses, ADA Title II reviews, and any Illinois accessibility-law context. Cite the Practical score in quarterly "are we getting better?" status reports or when reconciling against a PDF/UA-focused vendor.
+3. **Avoid a false binary.** A PDF is rarely simply "accessible" or "not accessible." A file can improve meaningfully (more tags, more bookmarks, cleaner row structure) while still lacking the deep semantic evidence that assistive technology needs most. Strict refuses to round that up; Practical rewards the scaffolding. Both views are useful, but only one is ICJIA's rubric.
 
-Every report, export (Word, HTML, Markdown, JSON), shared report, and AI-analysis payload now surfaces both profiles. See [docs/10-scoring-reconciliation.md](docs/10-scoring-reconciliation.md) for when to use each profile and why the grades can differ in practice.
+#### Caveats about Practical you need to know
+
+- **Practical is NOT ICJIA's rubric.** It was introduced by a developer who wanted to add PDF/UA checks. It does not speak for ICJIA or for any Illinois agency.
+- **Practical is NOT required by Illinois accessibility law.** IITAA §504.2.2 references PDF/UA only for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1. Practical layering PDF/UA onto the final-document score is a judgment call, not a statutory one.
+- **The Practical weights and partial-credit floors are judgment calls.** The 9.5% weight on PDF/UA Compliance Signals, the 70-point floors on `heading_structure` and `table_markup`, and the reading-order proxy bonuses (55 baseline + up to 40) are the original developer's numbers. They are not published standards. Partner agencies or commercial tools using their own "practical" weighting will produce different numbers for the same PDF.
+- **Rubric origin is machine-identifiable.** The JSON export includes an `origin` tag on each profile: `icjia.iitaa.wcag21` for Strict, `developer-extension.pdfua` for Practical. Downstream consumers can filter on that when comparing against other tools.
+- **Matterhorn** is worth a one-line clarification: it is _not_ a separate law or accessibility standard. It is a detailed testing protocol / checklist used by some tools to evaluate PDF/UA-style conformance. In this app it only appears as context for Practical's PDF/UA category.
+- **Neither profile is a legal determination.** For a definitive compliance verdict, pair the audit with PAC 2024, an Adobe Acrobat Accessibility Full Check, and — where possible — review by a human accessibility specialist.
+
+Every report, export (Word, HTML, Markdown, JSON), shared report, and AI-analysis payload surfaces both profiles with their origin tags. See [docs/10-scoring-reconciliation.md](docs/10-scoring-reconciliation.md) for deeper rationale on when the profiles diverge.
 
 ### Categories & Weights
 

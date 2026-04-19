@@ -20,55 +20,80 @@ export interface ScoreProfile {
 export const IITAA_PDFUA_URL =
   "https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html";
 
+// Origin / attribution per profile.
+//   - Strict  → ICJIA's rubric, anchored to WCAG 2.1 AA + IITAA §E205.4.
+//   - Practical → a developer-introduced extension that layers PDF/UA-oriented
+//     checks on top of ICJIA's rubric. PDF/UA is NOT required by Illinois
+//     accessibility law for final documents — IITAA §504.2.2 references it
+//     only for authoring-tool export capability.
+export const MODE_PROFILE_ORIGINS: Record<ScoringMode, string> = {
+  strict: "icjia.iitaa.wcag21",
+  remediation: "developer-extension.pdfua",
+};
+
+export const MODE_PROFILE_ORIGIN_LABELS: Record<ScoringMode, string> = {
+  strict: "ICJIA / IITAA-aligned",
+  remediation: "Developer extension — adds PDF/UA",
+};
+
+export const PRACTICAL_DISCLAIMER =
+  "Practical is a developer extension that layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. PDF/UA is not required by Illinois accessibility law for final documents — IITAA §504.2.2 references it only for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. Use Strict for Illinois agency publication decisions.";
+
+export const PRACTICAL_DISCLAIMER_SHORT =
+  "Practical is a developer extension (adds PDF/UA signals) — it is not ICJIA's rubric and is not required by Illinois accessibility law.";
+
 export const MODE_BUTTON_LABELS: Record<ScoringMode, string> = {
   strict: "Strict",
   remediation: "Practical",
 };
 
+// Longer form used in banners, exports, and AI-analysis payloads.
 export const MODE_PROFILE_LABELS: Record<ScoringMode, string> = {
-  strict: "Strict semantic score",
-  remediation: "Practical readiness score",
+  strict: "Strict semantic score (ICJIA rubric)",
+  remediation: "Practical readiness score (developer extension)",
 };
 
 export const MODE_PROFILE_DESCRIPTIONS: Record<ScoringMode, string> = {
   strict:
-    "Valid semantics-first lens on the same document. Prioritizes programmatically determinable headings, table semantics, and logical structure for ADA/WCAG/ITTAA-oriented review.",
+    "ICJIA's rubric. Anchored to WCAG 2.1 AA and Illinois IITAA §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure.",
   remediation:
-    "Valid remediation/progress lens on the same document. More generous and more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA-oriented category. Illinois IITAA 2.1 references PDF/UA in authoring-tool rules, while Strict remains the primary document-level publication lens.",
+    "Developer-added lens. Layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. PDF/UA is not required by Illinois accessibility law for final documents — it is referenced in IITAA §504.2.2 only for authoring-tool export capability. Use Strict for publication and legal accessibility decisions.",
 };
 
 export const MODE_RECOMMENDATION_TITLES: Record<ScoringMode, string> = {
-  strict: "Use Strict as the primary mode for legal accessibility review.",
-  remediation: "Practical is not the primary legal/compliance score.",
+  strict:
+    "Use Strict — ICJIA's rubric — as the primary mode for legal accessibility review.",
+  remediation:
+    "Practical is a developer extension, not ICJIA's rubric or an Illinois accessibility-law signal.",
 };
 
 export const MODE_RECOMMENDATION_SUMMARIES: Record<ScoringMode, string> = {
   strict:
-    "Strict and Practical score the same document through different valid accessibility lenses. Strict is the semantics-first lens: it emphasizes programmatically determinable headings, table headers, and logical structure, making it the better primary signal for Illinois agency publication and ADA/WCAG/ITTAA-oriented review.",
+    "Strict is ICJIA's rubric, anchored to WCAG 2.1 AA and IITAA §E205.4 for non-web documents. It emphasizes programmatically determinable headings, table headers, and logical structure, which are the signals Illinois agency publication and ADA/WCAG/ITTAA-oriented review actually depend on. Practical is a developer-added extension that also scores PDF/UA signals — useful for progress tracking and vendor reconciliation, but not an Illinois accessibility-law signal.",
   remediation:
-    "Strict and Practical score the same document through different valid accessibility lenses. Practical is the remediation/progress lens: it can score differently because it more closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category for signals such as MarkInfo, tab order, list/table legality, and PDF/UA identifiers. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames electronic content accessibility through WCAG 2.1 for non-web documents, so switch back to Strict for publication and legal accessibility decisions.",
+    "Practical is a developer-introduced extension that layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. It can score differently because it adds a dedicated PDF/UA category (MarkInfo, tab order, list/table legality, PDF/UA identifiers) and applies partial-credit floors on heading and table structure. Illinois IITAA §504.2.2 references PDF/UA only for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. Switch back to Strict — ICJIA's rubric — for publication and legal accessibility decisions.",
 };
 
 export const STRICT_MODE_RATIONALE_TEXT =
-  "Choose Strict for the stronger ADA/WCAG/ITTAA-facing signal. It prioritizes programmatically determinable semantics — real headings, table headers, and logical structure — which makes it the better primary mode for agency publication and legal accessibility review.";
+  "Strict is ICJIA's rubric and the stronger ADA/WCAG/ITTAA-facing signal. It prioritizes programmatically determinable semantics — real headings, table headers, and logical structure — making it the better primary mode for Illinois agency publication and legal accessibility review.";
 
 export const PRACTICAL_FINDINGS_NOTE_PREFIX =
-  "Practical does not mean a different document. It is the same document viewed through a broader remediation/progress lens. That lens is valid for tracking improvement and vendor-style accessibility workflows because it rewards usable improvements such as bookmarks, broader tagging, cleaner table grids, and a dedicated PDF/UA-oriented category covering signals like MarkInfo, tab order, list/table legality, and PDF/UA identifiers. Illinois IITAA 2.1 expressly references PDF/UA in ";
+  "Practical is a developer-added lens, not ICJIA's rubric. It is the same document viewed through an extended schema that adds PDF/UA-oriented signals (MarkInfo, tab order, list/table legality, PDF/UA identifiers) and applies partial-credit floors. PDF/UA is not required by Illinois accessibility law for final documents — IITAA §504.2.2 references it only for authoring-tool export capability via ";
 
 export const PRACTICAL_FINDINGS_NOTE_SUFFIX =
-  " for authoring tools, while E205.4 frames document-level electronic content accessibility through WCAG 2.1 for non-web documents. Use Strict for agency publication and legal accessibility decisions.";
+  ", while §E205.4 frames final-document accessibility through WCAG 2.1. Use Strict — ICJIA's rubric — for publication and legal accessibility decisions.";
 
 export const CATEGORY_TABLE_PRACTICAL_PREFIX =
-  "Practical does not mean a different document. It is the same document viewed through a valid remediation/progress lens. The score, grade, and severity shown below now reflect the softer practical-readiness scoring, while Strict remains the valid semantics-first lens on that same file. Use Strict for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review. Practical also includes a dedicated PDF/UA-oriented category. Illinois IITAA 2.1 expressly references PDF/UA in ";
+  "Practical is a developer-added lens, not ICJIA's rubric. The score, grade, and severity shown below reflect the developer-extension schema (partial-credit floors plus a dedicated PDF/UA-oriented category). Use Strict for Illinois agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review — Strict is ICJIA's rubric. IITAA §504.2.2 references PDF/UA only for authoring tools via ";
 
 export const CATEGORY_TABLE_PRACTICAL_SUFFIX =
-  " for authoring tools, while E205.4 frames document-level electronic content accessibility through WCAG 2.1 for non-web documents.";
+  ", while §E205.4 frames final-document accessibility through WCAG 2.1.";
 
 export const CATEGORY_TABLE_STRICT_PREFIX =
-  "Switching to Practical does not switch to a different document. It applies a different valid accessibility lens to the same file. Strict remains the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, while Practical is a valid remediation/progress view that adds a broader weighted schema including PDF/UA-oriented audits. Illinois IITAA 2.1 expressly references PDF/UA in ";
+  "Switching to Practical does not switch to a different document. It applies a developer-added extension that layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. Strict remains the better primary view for Illinois agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, while Practical is a progress / vendor-reconciliation lens. IITAA §504.2.2 references PDF/UA only for authoring tools via ";
 
 export const CATEGORY_TABLE_STRICT_SUFFIX =
-  " for authoring tools, while E205.4 still frames non-web document accessibility through WCAG 2.1, so Strict remains the better primary view.";
+  ", while §E205.4 still frames final-document accessibility through WCAG 2.1. Strict is the Illinois publication lens.";
 
 export function gradeForScore(score: number | null): string | null {
   if (score === null) return null;
