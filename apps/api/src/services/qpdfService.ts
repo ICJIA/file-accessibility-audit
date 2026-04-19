@@ -409,7 +409,7 @@ function parseQpdfJson(json: any): QpdfResult {
           result.expansionTextCount++;
         }
         // Language spans — structure elements with their own /Lang
-        if (o["/Lang"] && tag !== "/Document") {
+        if (o["/Lang"] && tag && tag !== "/Document") {
           const spanLang =
             typeof o["/Lang"] === "string"
               ? o["/Lang"].replace(/^u:/, "")
