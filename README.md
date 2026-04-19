@@ -109,14 +109,18 @@ Host and port are set automatically per provider.
 
 ## Scoring Rubric
 
-Each PDF is scored across **9 accessibility categories** based on [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
+Each PDF is assessed across named accessibility categories based on [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
 
 The API now exposes **two score profiles**:
 
 - **Strict semantic score** — the default and the better primary view for ADA/WCAG/ITTAA-oriented review because it emphasizes programmatically determinable structure such as real headings, real table headers, and logical reading order
-- **Practical readiness score** — a more generous progress signal that gives credit for usable improvements such as bookmarks, broader tagging, and cleaner table grids, even when semantic structure is still incomplete
+- **Practical readiness score** — a more generous progress signal that more closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category, while still giving credit for usable improvements such as bookmarks, broader tagging, cleaner table grids, and other structural audit signals even when semantic structure is still incomplete
 
-This distinction matters because a PDF is not always simply "accessible" or "not accessible" in practice. A file can improve meaningfully while still falling short of the stronger semantic evidence needed for a more defensible legal/compliance interpretation. For Illinois public-sector publication decisions, treat **Strict** as the primary score and **Practical** as a secondary progress indicator rather than a compliance claim.
+This distinction matters because a PDF is not always simply "accessible" or "not accessible" in practice. A file can improve meaningfully while still falling short of the stronger semantic evidence needed for a more defensible legal/compliance interpretation. **Strict** and **Practical** are two valid accessibility lenses on the **same document**, not two different document states. For Illinois public-sector publication decisions, treat **Strict** as the primary score and **Practical** as a secondary progress indicator rather than a compliance claim.
+
+**PDF/UA** (ISO 14289, sometimes discussed alongside Matterhorn and PAC/Acrobat checks) is the technical accessibility standard for PDFs. It focuses on PDF-specific structure signals such as tagging/`StructTreeRoot`, `MarkInfo`, tab order, PDF/UA metadata, and related list/table legality checks. Those signals are generally helpful and often correlate with stronger accessibility, but **Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement** for publication decisions.
+
+For that reason, **Strict does not score PDF/UA conformance signals**, while **Practical does** through its dedicated PDF/UA-oriented category. Both views are valid: **Strict** is the semantics-first/publication lens, and **Practical** is the remediation/progress lens. The risk is not that PDF/UA is bad — it is usually a positive remediation target — but that treating a useful technical standard as though it were the governing legal rule could overstate noncompliance or distort remediation priorities.
 
 The web UI now reinforces this with a front-and-center recommendation card, mode-specific guidance in Technical Details, and category tables that follow the selected score profile. The old binary "This file is accessible / not accessible" banner has been removed to avoid overstating certainty.
 
@@ -456,23 +460,23 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Design Documents
 
-| Doc                                                                        | Description                                                                      |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [00 — Master Design](docs/00-master-design.md)                             | Architecture, scoring model, API, auth, security                                 |
-| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md)                | Phase 1 deliverables and testing checklist                                       |
-| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md)    | Batch upload, shareable reports                                                  |
-| [03 — Phase 3: Admin & Monitoring](docs/03-phase-3-admin-monitoring.md)    | Admin dashboard, scheduled re-checks                                             |
-| [04 — Deployment Guide](docs/04-deployment-guide.md)                       | Infrastructure, env vars, nginx, firewall                                        |
-| [05 — Use Cases](docs/05-use-cases.md)                                     | End-user scenarios and workflows                                                 |
-| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md)                 | Email provider setup and gotchas                                                 |
-| [07 — Mailgun Integration](docs/07-mailgun-integration.md)                 | Mailgun setup (default provider)                                                 |
-| [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md)              | DOCX accessibility analysis via jszip + XML parsing                              |
-| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script             |
-| [10 — Scoring Reconciliation](docs/10-scoring-reconciliation.md)           | Strict vs remediation-oriented scoring, WCAG/ADA interpretation, Matterhorn note |
+| Doc                                                                        | Description                                                                             |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [00 — Master Design](docs/00-master-design.md)                             | Architecture, scoring model, API, auth, security                                        |
+| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md)                | Phase 1 deliverables and testing checklist                                              |
+| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md)    | Batch upload, shareable reports                                                         |
+| [03 — Phase 3: Admin & Monitoring](docs/03-phase-3-admin-monitoring.md)    | Admin dashboard, scheduled re-checks                                                    |
+| [04 — Deployment Guide](docs/04-deployment-guide.md)                       | Infrastructure, env vars, nginx, firewall                                               |
+| [05 — Use Cases](docs/05-use-cases.md)                                     | End-user scenarios and workflows                                                        |
+| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md)                 | Email provider setup and gotchas                                                        |
+| [07 — Mailgun Integration](docs/07-mailgun-integration.md)                 | Mailgun setup (default provider)                                                        |
+| [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md)              | DOCX accessibility analysis via jszip + XML parsing                                     |
+| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script                    |
+| [10 — Scoring Reconciliation](docs/10-scoring-reconciliation.md)           | Strict vs Practical scoring, PDF/UA rationale, WCAG/ADA interpretation, Matterhorn note |
 
 ## Tests
 
-**388 tests** across 10 test files. Run all with a summary at the end:
+**473 tests** across 13 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -487,32 +491,35 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      232 passed (5 files)
-  ✔ Web      156 passed (5 files)
+  ✔ API      236 passed (5 files)
+  ✔ Web      237 passed (8 files)
 ────────────────────────────────────────────────────────────
-  ✔ 388 tests passed across 10 files
+  ✔ 473 tests passed across 13 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (232 tests)
+### API Tests (236 tests)
 
 | File                  | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------- | ----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scorer.test.ts`      |   105 | All 9 scoring categories, strict vs remediation-oriented score profiles, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text)                                   |
-| `qpdfParser.test.ts`  |    64 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
+| `scorer.test.ts`      |   109 | All 11 named scoring categories, Strict vs Practical score profiles, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text)                                   |
+| `qpdfParser.test.ts`  |    68 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
 | `auth.test.ts`        |    25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override)                                                                                                                                                                                                 |
 | `mailer.test.ts`      |     6 | Email config validation: production exits without credentials, development warns but continues, provider info logging                                                                                                                                                                                                                                                                                                               |
 | `integration.test.ts` |    28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents                                                                                                                                                                                                                                                                           |
 
-### Web Tests (156 tests)
+### Web Tests (237 tests)
 
-| File                      | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `accessibility.test.ts`   |    38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
-| `color-mode.test.ts`      |    51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks                                                                                                                     |
-| `components.test.ts`      |    33 | DropZone (drag/drop, multi-file PDF validation, file size limits, batch staging), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages)                                                                      |
-| `login.test.ts`           |    13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation                                                                                                                                                                                                                                                                               |
-| `scoring-display.test.ts` |    21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical)                                                                                                                                                                                                                                                                |
+| File                       | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accessibility.test.ts`    |    38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
+| `color-mode.test.ts`       |    51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks                                                                                                                     |
+| `ai-analysis.test.ts`      |    12 | AI analysis export/prompt generation, Practical/Strict profile labeling, and remediation-focused output                                                                                                                                                                                                                                                                |
+| `components.test.ts`       |    36 | DropZone (drag/drop, multi-file PDF validation, file size limits, batch staging), ScoreCard (grade display, profile toggle, recommendation copy, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages)                                 |
+| `login.test.ts`            |    13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation                                                                                                                                                                                                                                                                               |
+| `responsive.test.ts`       |    50 | Shared-report and main-page responsive layout behavior, including mode-aware score displays and mobile export behavior                                                                                                                                                                                                                                                 |
+| `scoring-display.test.ts`  |    29 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical), and mode-aware display messaging                                                                                                                                                                                                                              |
+| `scoring-profiles.test.ts` |     8 | Strict vs Practical profile selection utilities and fallback behavior                                                                                                                                                                                                                                                                                                  |
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 

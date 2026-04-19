@@ -293,18 +293,25 @@
               class="mt-1 text-xs text-[var(--text-muted)]"
             >
               <template v-if="remediationModeActive">
-                Practical mode is intentionally more generous. The score, grade,
-                and severity shown below now reflect the softer
-                practical-readiness scoring, but the findings text still
-                describes the stricter semantic audit evidence. Use Strict for
-                agency publication and ADA/WCAG/ITTAA-oriented legal
-                accessibility review.
+                Practical does not mean a different document. It is the same
+                document viewed through a valid remediation/progress lens. The
+                score, grade, and severity shown below now reflect the softer
+                practical-readiness scoring, while Strict remains the valid
+                semantics-first lens on that same file. Use Strict for agency
+                publication and ADA/WCAG/ITTAA-oriented legal accessibility
+                review. Practical also includes a dedicated PDF/UA-oriented
+                category, but Illinois has not indicated that PDF/UA or
+                Matterhorn is itself the controlling legal requirement.
               </template>
               <template v-else>
-                Switching to Practical will also update the category score,
-                grade, and severity shown below. Strict remains the better
-                primary view for agency publication and ADA/WCAG/ITTAA-oriented
-                legal accessibility review.
+                Switching to Practical does not switch to a different document.
+                It applies a different valid accessibility lens to the same
+                file. Strict remains the better primary view for agency
+                publication and ADA/WCAG/ITTAA-oriented legal accessibility
+                review, while Practical is a valid remediation/progress view
+                that adds a broader weighted schema including PDF/UA-oriented
+                audits that Illinois has not separately identified as the
+                controlling legal requirement.
               </template>
             </p>
           </div>
@@ -1751,6 +1758,13 @@
               Scoring modes and legal interpretation
             </p>
             <p class="text-xs text-[var(--text-muted)]">
+              <strong>Strict</strong> and <strong>Practical</strong> are two
+              valid accessibility lenses on the <strong>same document</strong>,
+              not two different document states. The choice of mode changes how
+              the file is interpreted and weighted, not which file is being
+              evaluated.
+            </p>
+            <p class="text-xs text-[var(--text-muted)]">
               <strong>Strict</strong> is the better primary mode for Illinois
               public-sector accessibility review because it prioritizes
               <strong>programmatically determinable</strong> structure — real
@@ -1761,16 +1775,21 @@
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               <strong>Practical</strong> is intentionally more generous. It is
+              still a valid accessibility view — just a different one. It is
               useful for tracking improvement or comparing against vendor
-              remediation workflows because it gives more credit for signals
-              such as bookmarks, broader tagging, and cleaner table grids, even
-              when semantic structure is still incomplete.
+              remediation workflows because it more closely follows a broader
+              weighted schema and gives credit for signals such as bookmarks,
+              broader tagging, cleaner table grids, and a dedicated
+              PDF/UA-oriented category covering MarkInfo, tab order, list/table
+              legality, and PDF/UA identifiers, even when semantic structure is
+              still incomplete.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               If the two modes diverge, treat <strong>Strict</strong> as the
               better primary publication/compliance signal and use the category
-              findings to understand why. Neither mode alone is a final legal
-              determination.
+              findings to understand why. Illinois has not indicated that
+              PDF/UA/Matterhorn is itself the controlling legal requirement, so
+              neither mode alone is a final legal determination.
             </p>
           </div>
 

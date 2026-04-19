@@ -105,6 +105,15 @@ function fullyAccessible(): { qpdf: QpdfResult; pdfjs: PdfjsResult } {
       lang: "en-US",
       hasOutlines: true,
       outlineCount: 5,
+      hasMarkInfo: true,
+      isMarkedContent: true,
+      tabOrderPages: 20,
+      totalPageCount: 20,
+      hasPdfUaIdentifier: true,
+      pdfUaPart: "1",
+      artifactCount: 4,
+      actualTextCount: 1,
+      expansionTextCount: 1,
       headings: [
         { level: "H1", tag: "/H1" },
         { level: "H2", tag: "/H2" },
@@ -181,8 +190,8 @@ describe("scoreDocument — fully accessible PDF", () => {
     expect(result.executiveSummary).toContain("ready for publication");
   });
 
-  it("all 9 categories are present", () => {
-    expect(result.categories).toHaveLength(9);
+  it("all 11 categories are present", () => {
+    expect(result.categories).toHaveLength(11);
   });
 
   it("text_extractability scores 100", () => {
@@ -201,12 +210,20 @@ describe("scoreDocument — fully accessible PDF", () => {
     expect(findCategory(result, "alt_text").score).toBe(100);
   });
 
+  it("pdf_ua_compliance is advisory/N-A in strict mode", () => {
+    expect(findCategory(result, "pdf_ua_compliance").score).toBeNull();
+  });
+
   it("bookmarks scores 100", () => {
     expect(findCategory(result, "bookmarks").score).toBe(100);
   });
 
   it("table_markup scores 100", () => {
     expect(findCategory(result, "table_markup").score).toBe(100);
+  });
+
+  it("color_contrast is N/A until PDF contrast analysis exists", () => {
+    expect(findCategory(result, "color_contrast").score).toBeNull();
   });
 
   it("link_quality scores 100", () => {
@@ -226,7 +243,7 @@ describe("scoreDocument — fully accessible PDF", () => {
     expect(result.scoreProfiles.strict.overallScore).toBe(100);
     expect(result.scoreProfiles.remediation.overallScore).toBe(100);
     expect(result.scoreProfiles.strict.label).toContain("Strict");
-    expect(result.scoreProfiles.remediation.label).toContain("Remediation");
+    expect(result.scoreProfiles.remediation.label).toContain("Practical");
   });
 });
 
@@ -1245,6 +1262,50 @@ describe("supplementary findings — PDF/UA identifier", () => {
     expect(
       textCat.findings.some((f) => f.includes("No PDF/UA identifier")),
     ).toBe(true);
+  });
+});
+
+describe("practical profile — PDF/UA-oriented audits", () => {
+  it("scores reading order in practical mode using reading-order proxies", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      totalPageCount: 5,
+      tabOrderPages: 5,
+      hasMarkInfo: true,
+      isMarkedContent: true,
+      artifactCount: 2,
+      actualTextCount: 1,
+      expansionTextCount: 1,
+      hasPdfUaIdentifier: true,
+      pdfUaPart: "1",
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+
+    expect(findCategory(result, "reading_order").score).toBeNull();
+    expect(result.scoreProfiles.remediation.categoryScores.reading_order).toBe(
+      90,
+    );
+  });
+
+  it("scores the dedicated practical PDF/UA category from available audit signals", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1],
+      hasMarkInfo: false,
+      artifactCount: 0,
+      hasPdfUaIdentifier: false,
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+
+    expect(findCategory(result, "pdf_ua_compliance").score).toBeNull();
+    expect(
+      result.scoreProfiles.remediation.categoryScores.pdf_ua_compliance,
+    ).toBe(55);
   });
 });
 

@@ -187,6 +187,14 @@ export const SCORING_PROFILES = {
        *  "Click here" and raw URLs are unhelpful to screen reader users. */
       link_quality: 0.05,
 
+      /** Strict mode does not score PDF/UA/Matterhorn conformance directly.
+       *  The category is surfaced as N/A guidance only. */
+      pdf_ua_compliance: 0,
+
+      /** PDF color-contrast analysis is not implemented yet.
+       *  The category is surfaced as N/A guidance only. */
+      color_contrast: 0,
+
       /** Do form fields have accessible labels (/TU tooltip)?
        *  Unlabeled form fields are unusable with assistive technology. */
       form_accessibility: 0.05,
@@ -199,19 +207,21 @@ export const SCORING_PROFILES = {
   },
 
   remediation: {
-    label: "Remediation-oriented score",
+    label: "Practical readiness score",
     description:
-      "Readiness profile for comparing against practical remediation tools. Still diagnostic only; not a WCAG, ADA, PDF/UA, or Matterhorn conformance claim.",
+      "Readiness profile for comparing against practical remediation tools. More closely follows broader vendor-style weighted scoring, including a dedicated PDF/UA-compliance-signal category. Still diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
     weights: {
-      text_extractability: 0.2,
-      title_language: 0.12,
-      heading_structure: 0.08,
-      alt_text: 0.15,
-      bookmarks: 0.12,
-      table_markup: 0.08,
-      link_quality: 0.05,
-      form_accessibility: 0.05,
-      reading_order: 0.15,
+      text_extractability: 0.175,
+      title_language: 0.13,
+      heading_structure: 0.13,
+      alt_text: 0.13,
+      pdf_ua_compliance: 0.095,
+      bookmarks: 0.085,
+      table_markup: 0.085,
+      color_contrast: 0.045,
+      link_quality: 0.045,
+      reading_order: 0.04,
+      form_accessibility: 0.04,
     },
   },
 } as const;

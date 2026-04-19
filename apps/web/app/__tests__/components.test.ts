@@ -190,6 +190,9 @@ describe("ScoreCard", () => {
     expect(
       wrapper.get('[data-testid="mode-recommendation-current"]').text(),
     ).toContain("Current view: Strict");
+    expect(wrapper.text()).toContain(
+      "same document through different valid accessibility lenses",
+    );
   });
 
   it("switches the displayed score and summary when remediation mode is selected", async () => {
@@ -247,6 +250,12 @@ describe("ScoreCard", () => {
     expect(
       wrapper.get('[data-testid="strict-findings-note"]').text(),
     ).toContain("legal accessibility decisions");
+    expect(
+      wrapper.get('[data-testid="strict-findings-note"]').text(),
+    ).toContain("PDF/UA identifiers");
+    expect(
+      wrapper.get('[data-testid="strict-findings-note"]').text(),
+    ).toContain("same document");
   });
 
   it("emits selectedMode updates so parent category tables can follow the toggle", async () => {

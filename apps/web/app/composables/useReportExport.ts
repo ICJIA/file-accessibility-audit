@@ -93,7 +93,7 @@ function profileLabel(mode: ScoringMode): string {
 
 function profileDescription(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "More generous progress signal for tracking practical improvement. Not an ADA/WCAG/ITTAA conformance claim. Detailed category findings still reflect the strict semantic audit."
+    ? "More generous progress signal for tracking practical improvement. More closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category, but is still not an ADA/WCAG/ITTAA or PDF/UA conformance claim. Detailed category findings still reflect the strict semantic audit."
     : "Default ADA/WCAG/ITTAA-oriented profile. Prioritizes programmatically determinable headings, table semantics, and structure because those are the stronger legal and compliance-facing signals.";
 }
 

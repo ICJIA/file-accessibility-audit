@@ -55,8 +55,9 @@
               Strict
             </p>
             <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-              Best primary mode for publication and ADA/WCAG/ITTAA-oriented
-              legal accessibility review.
+              Valid semantics-first lens on this same document. Best primary
+              mode for publication and ADA/WCAG/ITTAA-oriented legal
+              accessibility review.
             </p>
           </div>
           <div
@@ -66,8 +67,10 @@
               Practical
             </p>
             <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-              Useful for progress tracking, but not the stronger legal or
-              conformance-facing score.
+              Valid remediation/progress lens on this same document. Useful for
+              progress tracking, but not the stronger legal or
+              conformance-facing score. Also includes additional PDF/UA-oriented
+              audits.
             </p>
           </div>
         </div>
@@ -137,11 +140,15 @@
         class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200/95 leading-relaxed"
         data-testid="strict-findings-note"
       >
-        Practical mode is intentionally more generous. It rewards usable
-        improvements such as bookmarks, broader tagging, or cleaner table grids
-        even when the semantic evidence needed for ADA/WCAG/ITTAA review is
-        still incomplete. Use Strict for agency publication and legal
-        accessibility decisions.
+        Practical does not mean a different document. It is the same document
+        viewed through a broader remediation/progress lens. That lens is valid
+        for tracking improvement and vendor-style accessibility workflows
+        because it rewards usable improvements such as bookmarks, broader
+        tagging, cleaner table grids, and a dedicated PDF/UA-oriented category
+        covering signals like MarkInfo, tab order, list/table legality, and
+        PDF/UA identifiers. Illinois has not indicated that PDF/UA or Matterhorn
+        is itself the controlling legal requirement, so use Strict for agency
+        publication and legal accessibility decisions.
       </p>
     </div>
 
@@ -278,8 +285,8 @@ function profileLabel(mode: ScoringMode): string {
 
 function profileDescription(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "More generous progress signal that gives credit for usable improvements, even when semantic structure is still incomplete."
-    : "Default ADA/WCAG/ITTAA-oriented profile that prioritizes programmatically determinable headings, table semantics, and logical structure.";
+    ? "Valid remediation/progress lens on the same document. More generous and more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA-oriented category."
+    : "Valid semantics-first lens on the same document. Prioritizes programmatically determinable headings, table semantics, and logical structure for ADA/WCAG/ITTAA-oriented review.";
 }
 
 const normalizedProfiles = computed<
@@ -355,8 +362,8 @@ const recommendationTitle = computed(() =>
 );
 const recommendationSummary = computed(() =>
   selectedMode.value === "strict"
-    ? "Strict emphasizes programmatically determinable headings, table headers, and logical structure, making it the better primary signal for Illinois agency publication and ADA/WCAG/ITTAA-oriented review."
-    : "Practical can score higher by rewarding usable improvements such as bookmarks or broader tagging, even while semantic accessibility gaps remain. Switch back to Strict for publication and legal accessibility decisions.",
+    ? "Strict and Practical score the same document through different valid accessibility lenses. Strict is the semantics-first lens: it emphasizes programmatically determinable headings, table headers, and logical structure, making it the better primary signal for Illinois agency publication and ADA/WCAG/ITTAA-oriented review."
+    : "Strict and Practical score the same document through different valid accessibility lenses. Practical is the remediation/progress lens: it can score differently because it more closely follows a broader weighted remediation schema, including a dedicated PDF/UA-oriented category for signals such as MarkInfo, tab order, list/table legality, and PDF/UA identifiers. Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement, so switch back to Strict for publication and legal accessibility decisions.",
 );
 
 const severityCounts = computed(() => {
@@ -398,19 +405,19 @@ const verdictExplanation = computed(() => {
 
   if (selectedMode.value !== "strict") {
     if (parts.length === 0) {
-      return "Practical mode is intentionally more generous. It can rise when bookmarks, broader tagging, or cleaner table grids improve usability, even if semantic headings or table-header relationships are still incomplete. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.";
+      return "Practical is a valid remediation/progress lens on the same document, not a different document state. It can rise when bookmarks, broader tagging, cleaner table grids, or dedicated PDF/UA-oriented audit signals improve usability, even if semantic headings or table-header relationships are still incomplete. Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement, so for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.";
     }
-    return `Practical mode is intentionally more generous. It can score higher when usability signals improve, but ${joinParts(parts)} still remain in the scored categories below. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.`;
+    return `Practical is a valid remediation/progress lens on the same document, not a different document state. It can score differently when usability signals or dedicated PDF/UA-oriented audits improve, but ${joinParts(parts)} still remain in the scored categories below. Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement, so for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.`;
   }
 
   if (!props.result.categories || props.result.categories.length === 0) {
-    return "Strict mode is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure.";
+    return "Strict is a valid semantics-first lens on the same document, and it is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure.";
   }
 
   if (parts.length === 0) {
-    return "Strict mode is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. Every scored category passed with no critical or moderate issues, which is a strong structural signal, though it is still not a final legal determination.";
+    return "Strict is a valid semantics-first lens on the same document, and it is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. Every scored category passed with no critical or moderate issues, which is a strong structural signal, though it is still not a final legal determination.";
   }
-  return `Strict mode is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. The scored categories below still show ${joinParts(parts)}, so review the detailed findings before treating the file as publication-ready.`;
+  return `Strict is a valid semantics-first lens on the same document, and it is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. The scored categories below still show ${joinParts(parts)}, so review the detailed findings before treating the file as publication-ready.`;
 });
 
 function escapeHtml(text: string): string {

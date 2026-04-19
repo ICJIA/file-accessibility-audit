@@ -16,13 +16,16 @@ This note explains why this audit tool can disagree with remediation vendors or 
 ### 2. Practical-readiness score
 
 - Softer readiness signal for comparing against practical improvement workflows
+- More closely follows a broader vendor-style weighted remediation schema, including a dedicated `pdf_ua_compliance` category
 - Gives partial credit when a document has strong tagged body structure, bookmarks, or a well-formed table grid even if semantic headings/header cells are still incomplete
+- The dedicated PDF/UA-oriented category considers signals such as StructTreeRoot/tagging, MarkInfo/Marked, PDF/UA identifiers, list legality, table legality, and tab order
+- `color_contrast` is shown transparently as `N/A` until rendered PDF contrast analysis is implemented
 - Best used when the question is: "Did the file materially improve in practice, even if some semantics are still imperfect?"
 
 ## What this does **not** mean
 
 - Neither profile is a legal compliance determination
-- Neither profile alone proves WCAG 2.1 AA, ADA Title II, PDF/UA, PAC, or Matterhorn conformance
+- Neither profile alone proves WCAG 2.1 AA, ADA Title II, ITTAA, PDF/UA, PAC, or Matterhorn conformance
 - The practical-readiness profile is intentionally more forgiving and must **not** be treated as a substitute for semantic review
 
 ## Why the annual report files disagreed
@@ -51,9 +54,9 @@ However, the strict profile is **not complete** on its own. Other tools may chec
 
 ## Matterhorn / PDF-UA note
 
-The practical-readiness profile added in this project does **not** implement the Matterhorn Protocol.
+The practical-readiness profile now incorporates several **PDF/UA-oriented** signals, but it still does **not** implement the full Matterhorn Protocol or act as a PDF/UA conformance audit.
 
-Future PDF/UA work may incorporate Matterhorn-inspired checks such as:
+Future PDF/UA work may still incorporate additional Matterhorn-inspired checks such as:
 
 - orphan MCIDs
 - annotation `StructParent` integrity
@@ -65,5 +68,5 @@ Those checks should be added as explicit structural audit logic, not hidden insi
 ## Recommended usage
 
 - Use **strict semantic score** for internal publication review and policy-sensitive triage
-- Use **practical-readiness score** when comparing to external remediation vendors or measuring practical improvement over time
+- Use **practical-readiness score** when comparing to external remediation vendors, measuring practical improvement over time, or incorporating additional PDF/UA-oriented audits into a softer readiness view
 - When the two scores diverge, read the category findings before making a compliance decision

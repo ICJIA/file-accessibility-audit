@@ -12,12 +12,16 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Prominent legal recommendation card** — the ScoreCard hero now shows a front-and-center Illinois agency guidance card explaining that **Strict** is the better primary mode for publication and ADA/WCAG/ITTAA-oriented legal accessibility review, while **Practical** is a secondary progress view.
 - **Expanded methodology/legal guidance** — the Technical Details section now explains why accessibility is not always a simple binary, what each mode means, and how weight renormalization helps scoring without replacing strict semantic findings.
 - **Scoring-profile utilities and tests** — added shared profile-selection helpers and dedicated tests covering category-profile switching, UI copy, and export output.
+- **Dedicated Practical `pdf_ua_compliance` category** — the broader remediation-oriented profile now scores PDF/UA-oriented signals such as tagging/`StructTreeRoot`, `MarkInfo`, tab order, PDF/UA metadata, and list/table legality checks.
 
 ### Changed
 
 - **Renamed the softer profile in user-facing copy** from "Remediation" / "Remediation-oriented" to **"Practical" / "Practical readiness"** to avoid implying that a file is already fully remediated.
 - **Strict is now explicitly framed as the primary legal/compliance signal** throughout the app, shared report, and exports because it prioritizes programmatically determinable headings, table semantics, and logical structure.
 - **Recommendation copy is mode-aware** — when Practical is selected, the UI now explains that the score may be higher because it rewards usable improvements even while semantic accessibility gaps remain.
+- **PDF/UA is now explicitly defined in the docs and UI guidance** as the ISO accessibility standard for PDFs and a useful remediation benchmark, while clarifying that Illinois has not identified PDF/UA or Matterhorn as the controlling legal requirement for publication decisions.
+- **Strict vs Practical responsibilities are now more explicit** — Strict deliberately does not score PDF/UA conformance signals, while Practical does, to avoid overstating noncompliance or skewing remediation priorities by treating a helpful technical standard as though it were the governing legal rule.
+- **Same-document lens guidance is now explicit** — the UI and docs now clarify that Strict and Practical are two valid accessibility lenses applied to the same document, not different document states; Strict is the semantics-first/publication lens, while Practical is the remediation/progress lens.
 
 ### Fixed
 

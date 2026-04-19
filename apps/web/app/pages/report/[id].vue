@@ -233,18 +233,25 @@
               class="mt-1 text-xs text-[var(--text-muted)]"
             >
               <template v-if="remediationModeActive">
-                Practical mode is intentionally more generous. The score, grade,
-                and severity shown below now reflect the softer
-                practical-readiness scoring, but the findings text still
-                describes the stricter semantic audit evidence. Use Strict for
-                agency publication and ADA/WCAG/ITTAA-oriented legal
-                accessibility review.
+                Practical does not mean a different document. It is the same
+                document viewed through a valid remediation/progress lens. The
+                score, grade, and severity shown below now reflect the softer
+                practical-readiness scoring, while Strict remains the valid
+                semantics-first lens on that same file. Use Strict for agency
+                publication and ADA/WCAG/ITTAA-oriented legal accessibility
+                review. Practical also includes a dedicated PDF/UA-oriented
+                category, but Illinois has not indicated that PDF/UA or
+                Matterhorn is itself the controlling legal requirement.
               </template>
               <template v-else>
-                Switching to Practical will also update the category score,
-                grade, and severity shown below. Strict remains the better
-                primary view for agency publication and ADA/WCAG/ITTAA-oriented
-                legal accessibility review.
+                Switching to Practical does not switch to a different document.
+                It applies a different valid accessibility lens to the same
+                file. Strict remains the better primary view for agency
+                publication and ADA/WCAG/ITTAA-oriented legal accessibility
+                review, while Practical is a valid remediation/progress view
+                that adds a broader weighted schema including PDF/UA-oriented
+                audits that Illinois has not separately identified as the
+                controlling legal requirement.
               </template>
             </p>
           </div>

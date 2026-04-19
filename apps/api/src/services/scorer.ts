@@ -113,11 +113,13 @@ function buildCategories(
   categories.push(scoreTitleLanguage(qpdf, pdfjs));
   categories.push(scoreHeadingStructure(qpdf, mode));
   categories.push(scoreAltText(qpdf, pdfjs));
+  categories.push(scorePdfUaCompliance(qpdf, mode));
   categories.push(scoreBookmarks(qpdf, pdfjs));
   categories.push(scoreTableMarkup(qpdf, mode));
+  categories.push(scoreColorContrast());
   categories.push(scoreLinkQuality(pdfjs));
+  categories.push(scoreReadingOrder(qpdf, mode));
   categories.push(scoreFormAccessibility(qpdf));
-  categories.push(scoreReadingOrder(qpdf));
 
   applyProfileWeights(categories, mode);
   appendSupplementaryFindings(qpdf, pdfjs, categories);
@@ -134,6 +136,43 @@ function applyProfileWeights(
     const profileWeight = weights[category.id as keyof typeof weights];
     if (typeof profileWeight === "number") category.weight = profileWeight;
   }
+}
+
+function refreshCategoryPresentation(category: CategoryResult): void {
+  if (category.score === null) {
+    category.grade = null;
+    category.severity = null;
+    return;
+  }
+
+  category.score = Math.max(0, Math.min(100, Math.round(category.score)));
+  category.grade = getGrade(category.score);
+  category.severity = getSeverity(category.score);
+}
+
+function listLegalityScore(lists: QpdfResult["lists"]): number {
+  if (lists.length === 0) return 15;
+  const wellFormed = lists.filter((list) => list.isWellFormed).length;
+  return Math.round((wellFormed / lists.length) * 15);
+}
+
+function tableLegalityScore(tables: QpdfResult["tables"]): number {
+  if (tables.length === 0) return 15;
+
+  const tableScores = tables.map((table) => {
+    let tableScore = 0;
+    if (table.hasRowStructure) tableScore += 40;
+    if (table.hasConsistentColumns === true) tableScore += 35;
+    else if (table.hasConsistentColumns === null) tableScore += 20;
+    if (!table.hasNestedTable) tableScore += 25;
+    return tableScore;
+  });
+
+  const average =
+    tableScores.reduce((sum, tableScore) => sum + tableScore, 0) /
+    tableScores.length;
+
+  return Math.round((average / 100) * 15);
 }
 
 function aggregateScore(
@@ -754,6 +793,191 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   };
 }
 
+function scorePdfUaCompliance(
+  qpdf: QpdfResult,
+  mode: ScoringMode,
+): CategoryResult {
+  const pdfUaLinks: CategoryResult["helpLinks"] = [
+    {
+      label: "PDF/UA Overview",
+      url: "https://www.w3.org/WAI/WCAG21/Techniques/pdf/",
+    },
+    {
+      label: "PAC 2024",
+      url: "https://pac.pdf-accessibility.org/",
+    },
+    {
+      label: "Matterhorn Protocol",
+      url: "https://www.pdfa.org/resource/the-matterhorn-protocol-1-1/",
+    },
+  ];
+  const pdfUaExplanation =
+    "This category groups PDF/UA-oriented structural checks that remediation tools often emphasize: tagged structure, MarkInfo/Marked, PDF/UA metadata claims, list legality, table legality, and tab order. In this app it is only scored in Practical mode, because Illinois has not indicated that PDF/UA or Matterhorn is itself the controlling legal requirement for publication decisions.";
+
+  if (mode !== "remediation") {
+    return {
+      id: "pdf_ua_compliance",
+      label: "PDF/UA Compliance Signals",
+      weight: SCORING_WEIGHTS.pdf_ua_compliance,
+      score: null,
+      grade: null,
+      severity: null,
+      findings: [
+        "Strict mode does not score PDF/UA or Matterhorn conformance as a primary publication/compliance requirement.",
+        "Use Practical mode to review PDF/UA-oriented audit signals such as tagging, MarkInfo, PDF/UA identifiers, list/table legality, and tab order.",
+        "This category does not affect the Strict score.",
+      ],
+      explanation: pdfUaExplanation,
+      helpLinks: pdfUaLinks,
+    };
+  }
+
+  const findings: string[] = [];
+
+  if (!qpdf.hasStructTree) {
+    return {
+      id: "pdf_ua_compliance",
+      label: "PDF/UA Compliance Signals",
+      weight: SCORING_WEIGHTS.pdf_ua_compliance,
+      score: 0,
+      grade: "F",
+      severity: "Critical",
+      findings: [
+        "No StructTreeRoot found — the document is not tagged.",
+        "Without tags, major PDF/UA-oriented structure checks fail immediately.",
+        "How to fix: In Adobe Acrobat, run Accessibility → Add Tags to Document, then verify the resulting structure manually or in PAC.",
+      ],
+      explanation: pdfUaExplanation,
+      helpLinks: pdfUaLinks,
+    };
+  }
+
+  let score = 25;
+  findings.push("Tagged PDF detected (StructTreeRoot present).");
+
+  if (qpdf.hasMarkInfo && qpdf.isMarkedContent) {
+    score += 20;
+    findings.push(
+      "MarkInfo /Marked is true — real content is distinguished from artifacts.",
+    );
+  } else if (qpdf.hasMarkInfo) {
+    score += 10;
+    findings.push(
+      "MarkInfo is present, but /Marked is not true — artifact handling may be incomplete.",
+    );
+  } else {
+    findings.push("No MarkInfo dictionary found.");
+  }
+
+  if (qpdf.hasPdfUaIdentifier) {
+    score += 15;
+    findings.push(
+      `PDF/UA identifier found${qpdf.pdfUaPart ? ` (PDF/UA-${qpdf.pdfUaPart})` : ""}.`,
+    );
+  } else {
+    findings.push("No PDF/UA identifier found in metadata.");
+  }
+
+  if (qpdf.totalPageCount > 0) {
+    if (qpdf.tabOrderPages === qpdf.totalPageCount) {
+      score += 10;
+      findings.push(
+        `Tab order is set on all ${qpdf.totalPageCount} page(s) (/Tabs /S or equivalent page tab-order entries detected).`,
+      );
+    } else if (qpdf.tabOrderPages > 0) {
+      score += 5;
+      findings.push(
+        `Tab order is set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s).`,
+      );
+    } else {
+      findings.push("No page-level tab order entries detected.");
+    }
+  }
+
+  const listScore = listLegalityScore(qpdf.lists);
+  score += listScore;
+  if (qpdf.lists.length === 0) {
+    findings.push(
+      "No list structures present — no list-legality issues detected.",
+    );
+  } else {
+    const wellFormed = qpdf.lists.filter((list) => list.isWellFormed).length;
+    findings.push(
+      `List legality: ${wellFormed} of ${qpdf.lists.length} detected list(s) are well formed (${listScore}/15 points).`,
+    );
+  }
+
+  const tableScore = tableLegalityScore(qpdf.tables);
+  score += tableScore;
+  if (qpdf.tables.length === 0) {
+    findings.push(
+      "No table structures present — no table-legality issues detected.",
+    );
+  } else {
+    findings.push(
+      `Table legality: structural row nesting, non-nested tables, and consistent columns contributed ${tableScore}/15 points.`,
+    );
+  }
+
+  if (qpdf.actualTextCount + qpdf.expansionTextCount > 0) {
+    findings.push(
+      `Screen-reader text overrides detected: ${qpdf.actualTextCount} /ActualText and ${qpdf.expansionTextCount} /E expansion text attribute(s).`,
+    );
+  }
+
+  if (qpdf.hasRoleMap) {
+    findings.push(
+      `RoleMap present with ${qpdf.roleMapEntries.length} custom tag mapping(s).`,
+    );
+  }
+
+  findings.push(
+    "Practical mode scores this as a PDF/UA-oriented readiness signal, not a formal Matterhorn or PDF/UA conformance audit.",
+  );
+
+  return {
+    id: "pdf_ua_compliance",
+    label: "PDF/UA Compliance Signals",
+    weight: SCORING_WEIGHTS.pdf_ua_compliance,
+    score,
+    grade: getGrade(score),
+    severity: getSeverity(score),
+    findings,
+    explanation: pdfUaExplanation,
+    helpLinks: pdfUaLinks,
+  };
+}
+
+function scoreColorContrast(): CategoryResult {
+  const contrastLinks: CategoryResult["helpLinks"] = [
+    {
+      label: "WCAG 1.4.3: Contrast (Minimum)",
+      url: "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+    },
+    {
+      label: "Adobe: Accessibility Full Check",
+      url: "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html",
+    },
+  ];
+
+  return {
+    id: "color_contrast",
+    label: "Color Contrast",
+    weight: SCORING_WEIGHTS.color_contrast,
+    score: null,
+    grade: null,
+    severity: null,
+    findings: [
+      "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
+      "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
+      "The category is shown so the external practical scoring schema is explicit, but it does not affect the score today.",
+    ],
+    explanation:
+      "Color contrast checks whether text stands out strongly enough from its background for low-vision users. Unlike web pages, PDFs often require rendered page analysis to determine foreground/background pairs accurately. This analyzer does not yet perform that rendered contrast audit.",
+    helpLinks: contrastLinks,
+  };
+}
+
 function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const bookmarkLinks: CategoryResult["helpLinks"] = [
     {
@@ -1310,7 +1534,10 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   };
 }
 
-function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
+function scoreReadingOrder(
+  qpdf: QpdfResult,
+  mode: ScoringMode,
+): CategoryResult {
   const readingLinks: CategoryResult["helpLinks"] = [
     {
       label: "Adobe: Fix Reading Order",
@@ -1384,6 +1611,40 @@ function scoreReadingOrder(qpdf: QpdfResult): CategoryResult {
   findings.push(
     "Manual review recommended: verify the tag order in Adobe Acrobat's Reading Order / Order panels or in PAC before publishing.",
   );
+
+  if (mode === "remediation") {
+    let score = 55;
+
+    if (qpdf.totalPageCount > 0) {
+      if (qpdf.tabOrderPages === qpdf.totalPageCount) score += 20;
+      else if (qpdf.tabOrderPages > 0) score += 10;
+    }
+
+    if (qpdf.contentOrder.length > 1) score += 10;
+    if (qpdf.structTreeDepth >= 3) score += 5;
+    if (qpdf.paragraphCount > 0 || qpdf.headings.length > 0) score += 5;
+
+    findings.push(`--- Practical profile: reading-order readiness ---`);
+    findings.push(
+      "Practical mode scores this category using available reading-order proxies such as structure depth, content-order evidence, and tab-order coverage.",
+    );
+    findings.push(
+      "This remains a softer readiness signal, not a formal page-stream reading-order verification.",
+    );
+
+    return {
+      id: "reading_order",
+      label: "Reading Order",
+      weight: SCORING_WEIGHTS.reading_order,
+      score: Math.min(95, score),
+      grade: getGrade(Math.min(95, score)),
+      severity: getSeverity(Math.min(95, score)),
+      findings,
+      explanation: readingExplanation,
+      helpLinks: readingLinks,
+    };
+  }
+
   return {
     id: "reading_order",
     label: "Reading Order",
@@ -1742,7 +2003,9 @@ function generateSummary(
   mode: ScoringMode,
 ): string {
   const profileLead =
-    mode === "remediation" ? "Remediation-oriented profile: " : "";
+    mode === "remediation"
+      ? "Practical-readiness profile (includes additional PDF/UA-oriented audits): "
+      : "";
 
   if (isScanned) {
     return `${profileLead}This PDF appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required before this document can be made accessible.`;
@@ -1754,13 +2017,13 @@ function generateSummary(
 
   if (grade === "A") {
     return mode === "remediation"
-      ? `${profileLead}This PDF is in strong remediation shape across all ${applicable.length} assessed categories. Confirm any remaining legal/compliance checks separately.`
+      ? `${profileLead}This PDF is in strong practical shape across all ${applicable.length} assessed categories. Confirm any remaining legal/compliance checks separately.`
       : `This PDF meets accessibility standards across all ${applicable.length} assessed categories. It is ready for publication.`;
   }
 
   if (grade === "B") {
     return mode === "remediation"
-      ? `${profileLead}This PDF is in good remediation shape with a few remaining issues. ${passing.length} of ${applicable.length} categories pass in this softer profile. Review the findings below before treating it as compliant.`
+      ? `${profileLead}This PDF is in good practical shape with a few remaining issues. ${passing.length} of ${applicable.length} categories pass in this softer profile. Review the findings below before treating it as compliant.`
       : `This PDF is in good shape with minor issues. ${passing.length} of ${applicable.length} categories pass. Review the findings below for remaining improvements.`;
   }
 
