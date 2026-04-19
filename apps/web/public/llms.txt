@@ -7,23 +7,34 @@ This web application analyzes PDF documents for accessibility compliance and pro
 ## What it does
 
 - Accepts a PDF file upload (up to 50 MB)
-- Analyzes the document across 9 accessibility categories
-- Returns an overall score (0-100), letter grade (A-F), and per-category findings
+- Analyzes the document across up to 11 accessibility categories (nine in Strict mode; Practical mode adds PDF/UA Compliance Signals and reserves Color Contrast)
+- Returns two score profiles side-by-side — Strict (semantics-first for ADA/WCAG/ITTAA publication review) and Practical (broader remediation/progress view) — each with an overall score (0-100), letter grade (A-F), and per-category findings
 - Provides remediation guidance with WCAG success criteria references
 - Exports reports in Word (.docx), HTML, Markdown, and JSON formats
-- JSON export includes machine-readable WCAG mappings, prioritized remediation plans, and LLM-ready context
+- JSON export includes machine-readable WCAG mappings, prioritized remediation plans, and LLM-ready context for both profiles
 
-## Scoring categories (weighted)
+## Scoring modes
 
-1. Text Extractability (20%) - WCAG 1.3.1, 1.4.5
-2. Document Title & Language (15%) - WCAG 2.4.2, 3.1.1
-3. Heading Structure (15%) - WCAG 1.3.1, 2.4.6
-4. Alt Text on Images (15%) - WCAG 1.1.1
-5. Bookmarks / Navigation (10%) - WCAG 2.4.5
-6. Table Markup (10%) - WCAG 1.3.1
-7. Link & URL Quality (5%) - WCAG 2.4.4
-8. Form Accessibility (5%) - WCAG 1.3.1, 4.1.2
-9. Reading Order (5%) - WCAG 1.3.2
+The app always computes two profiles against the same document:
+
+- Strict semantic score — primary view for Illinois agency publication / ADA / WCAG 2.1 / ITTAA-oriented review. Emphasizes programmatically determinable headings, table semantics, and logical reading order.
+- Practical readiness score — secondary progress view more closely aligned to broader weighted remediation workflows, including a dedicated PDF/UA Compliance Signals category covering tagging, MarkInfo, tab order, PDF/UA identifiers, and list/table legality. Not a compliance claim.
+
+Illinois IITAA 2.1 references PDF/UA (§504.2.2) for authoring-tool export capability, while framing final non-web document accessibility through WCAG 2.1 (§E205.4) — which is why Strict is the primary publication lens and Practical layers in PDF/UA-oriented signals.
+
+## Scoring categories (Strict / Practical weights)
+
+1. Text Extractability — 20% / 17.5% — WCAG 1.3.1, 1.4.5
+2. Document Title & Language — 15% / 13% — WCAG 2.4.2, 3.1.1
+3. Heading Structure — 15% / 13% — WCAG 1.3.1, 2.4.6
+4. Alt Text on Images — 15% / 13% — WCAG 1.1.1
+5. PDF/UA Compliance Signals — Practical only / 9.5% — WCAG 1.3.1, 4.1.1
+6. Bookmarks / Navigation — 10% / 8.5% — WCAG 2.4.5
+7. Table Markup — 10% / 8.5% — WCAG 1.3.1
+8. Color Contrast — N/A / N/A (4.5% reserved) — WCAG 1.4.3
+9. Link & URL Quality — 5% / 4.5% — WCAG 2.4.4
+10. Reading Order — 5% / 4% — WCAG 1.3.2
+11. Form Accessibility — 5% / 4% — WCAG 1.3.1, 4.1.2
 
 ## Grade scale
 

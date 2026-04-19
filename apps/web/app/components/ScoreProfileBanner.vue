@@ -138,11 +138,68 @@
           >§504.2.2 PDF Export</a
         >{{ PRACTICAL_FINDINGS_NOTE_SUFFIX }}
       </p>
+      <details
+        class="mt-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)] px-3 py-2 text-left"
+        data-testid="profile-weights-details"
+      >
+        <summary
+          class="cursor-pointer text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors select-none"
+        >
+          View category weights for both modes
+        </summary>
+        <table
+          class="mt-3 w-full text-xs"
+          data-testid="profile-weights-table"
+        >
+          <thead>
+            <tr class="text-[var(--text-muted)] border-b border-[var(--border-subtle)]">
+              <th class="text-left py-1 font-medium">Category</th>
+              <th class="text-right py-1 font-medium">Strict</th>
+              <th class="text-right py-1 font-medium">Practical</th>
+            </tr>
+          </thead>
+          <tbody class="text-[var(--text-muted)] font-mono">
+            <tr v-for="row in WEIGHT_ROWS" :key="row.id">
+              <td class="py-1 pr-2 font-sans">
+                {{ row.label
+                }}<span
+                  v-if="row.practicalOnly"
+                  class="ml-1 text-[10px] uppercase tracking-wide text-amber-400"
+                  >Practical</span
+                >
+              </td>
+              <td class="py-1 text-right">{{ row.strict }}</td>
+              <td class="py-1 text-right">{{ row.practical }}</td>
+            </tr>
+            <tr
+              class="border-t border-[var(--border-subtle)] text-[var(--text-secondary)] font-semibold"
+            >
+              <td class="py-1 pr-2 font-sans">Total</td>
+              <td class="py-1 text-right">100%</td>
+              <td class="py-1 text-right">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </details>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+const WEIGHT_ROWS = [
+  { id: "text_extractability", label: "Text Extractability", strict: "20%", practical: "17.5%", practicalOnly: false },
+  { id: "title_language", label: "Title & Language", strict: "15%", practical: "13%", practicalOnly: false },
+  { id: "heading_structure", label: "Heading Structure", strict: "15%", practical: "13%", practicalOnly: false },
+  { id: "alt_text", label: "Alt Text on Images", strict: "15%", practical: "13%", practicalOnly: false },
+  { id: "pdf_ua_compliance", label: "PDF/UA Compliance Signals", strict: "N/A", practical: "9.5%", practicalOnly: true },
+  { id: "bookmarks", label: "Bookmarks / Navigation", strict: "10%", practical: "8.5%", practicalOnly: false },
+  { id: "table_markup", label: "Table Markup", strict: "10%", practical: "8.5%", practicalOnly: false },
+  { id: "color_contrast", label: "Color Contrast", strict: "N/A", practical: "N/A", practicalOnly: false },
+  { id: "link_quality", label: "Link Quality", strict: "5%", practical: "4.5%", practicalOnly: false },
+  { id: "reading_order", label: "Reading Order", strict: "5%", practical: "4%", practicalOnly: false },
+  { id: "form_accessibility", label: "Form Accessibility", strict: "5%", practical: "4%", practicalOnly: false },
+];
+
 import {
   IITAA_PDFUA_URL,
   MODE_BUTTON_LABELS,

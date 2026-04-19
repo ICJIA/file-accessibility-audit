@@ -274,9 +274,13 @@
           <p
             class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
           >
-            Nine categories are weighted by impact — from text extractability
-            (the most fundamental barrier) to reading order. Categories that
-            don't apply are excluded and weights renormalized.
+            <strong>Strict</strong> weighs nine core categories for
+            ADA/WCAG/ITTAA-oriented publication review.
+            <strong>Practical</strong> adds a dedicated <em>PDF/UA Compliance
+            Signals</em> category (eleven scored categories total) that grades
+            tagging, MarkInfo, tab order, PDF/UA identifiers, and list/table
+            legality. Categories that don't apply are excluded and weights
+            renormalized in both modes.
           </p>
         </div>
 
@@ -1740,12 +1744,104 @@
             How Scores Are Calculated
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            The scorer evaluates nine accessibility categories. Each category
-            receives a score from 0 to 100 (or N/A if the category doesn't apply
-            to the document). The overall score is a
+            The scorer evaluates up to eleven accessibility categories — nine
+            are weighted in Strict mode, and Practical mode additionally weights
+            a PDF/UA Compliance Signals category. Each category receives a
+            score from 0 to 100 (or N/A if the category doesn't apply to the
+            document). The overall score is a
             <strong>weighted average</strong> of applicable categories, with
             weights renormalized to exclude N/A categories.
           </p>
+          <div class="overflow-x-auto mb-4">
+            <table
+              class="w-full text-xs border border-[var(--border-subtle)] rounded-lg"
+            >
+              <thead>
+                <tr
+                  class="bg-[var(--surface-deep)] text-[var(--text-secondary)] uppercase tracking-wide"
+                >
+                  <th class="text-left px-3 py-2 font-medium">Category</th>
+                  <th class="text-right px-3 py-2 font-medium">
+                    Strict weight
+                  </th>
+                  <th class="text-right px-3 py-2 font-medium">
+                    Practical weight
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                class="text-[var(--text-muted)] divide-y divide-[var(--border-subtle)]"
+              >
+                <tr>
+                  <td class="px-3 py-1.5">Text Extractability</td>
+                  <td class="px-3 py-1.5 text-right font-mono">20%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">17.5%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Title &amp; Language</td>
+                  <td class="px-3 py-1.5 text-right font-mono">15%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">13%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Heading Structure</td>
+                  <td class="px-3 py-1.5 text-right font-mono">15%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">13%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Alt Text on Images</td>
+                  <td class="px-3 py-1.5 text-right font-mono">15%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">13%</td>
+                </tr>
+                <tr class="bg-amber-500/5">
+                  <td class="px-3 py-1.5 font-medium">
+                    PDF/UA Compliance Signals
+                    <span class="text-[10px] uppercase tracking-wide text-amber-400 ml-1"
+                      >Practical only</span
+                    >
+                  </td>
+                  <td class="px-3 py-1.5 text-right font-mono">N/A</td>
+                  <td class="px-3 py-1.5 text-right font-mono">9.5%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Bookmarks / Navigation</td>
+                  <td class="px-3 py-1.5 text-right font-mono">10%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">8.5%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Table Markup</td>
+                  <td class="px-3 py-1.5 text-right font-mono">10%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">8.5%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Color Contrast</td>
+                  <td class="px-3 py-1.5 text-right font-mono">N/A</td>
+                  <td class="px-3 py-1.5 text-right font-mono">4.5%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Link Quality</td>
+                  <td class="px-3 py-1.5 text-right font-mono">5%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">4.5%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Reading Order</td>
+                  <td class="px-3 py-1.5 text-right font-mono">5%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">4%</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-1.5">Form Accessibility</td>
+                  <td class="px-3 py-1.5 text-right font-mono">5%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">4%</td>
+                </tr>
+                <tr
+                  class="bg-[var(--surface-deep)] text-[var(--text-secondary)] font-semibold"
+                >
+                  <td class="px-3 py-1.5">Total</td>
+                  <td class="px-3 py-1.5 text-right font-mono">100%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">100%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-4 space-y-2"
           >
@@ -1899,6 +1995,41 @@
                 category scores <strong>0</strong> (Critical) instead of N/A.
                 <strong>N/A</strong> only if no images are detected by either
                 tool.
+              </p>
+            </div>
+            <div
+              class="rounded-lg bg-[var(--surface-deep)] border border-amber-500/30 px-4 py-3"
+            >
+              <p class="font-medium text-[var(--text-secondary)] mb-1">
+                PDF/UA Compliance Signals
+                <span
+                  class="text-[10px] uppercase tracking-wide text-amber-400 ml-1"
+                  >Practical mode only · 9.5%</span
+                >
+              </p>
+              <p class="text-xs text-[var(--text-muted)] mb-2">
+                <em>What it means:</em> A family of PDF/UA-oriented structural
+                signals that remediation vendors and PAC-style tools often
+                weight explicitly. Strict does not score these because Illinois
+                IITAA 2.1 frames final non-web document accessibility through
+                WCAG 2.1 (§E205.4), while PDF/UA export capability is separately
+                required of authoring tools (§504.2.2). Practical surfaces the
+                same signals as a readiness view.
+              </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <em>How it's scored:</em> <strong>0</strong> if the document
+                has no StructTreeRoot (untagged). Otherwise the score starts at
+                <strong>25</strong> for a tagged document and accumulates:
+                <strong>MarkInfo /Marked true</strong> (+20) or present-only
+                (+10), <strong>PDF/UA identifier</strong> in metadata (+15),
+                <strong>tab order</strong> on every page (+10) or some pages
+                (+5), <strong>list legality</strong> up to +15 based on
+                <code>&lt;Lbl&gt;</code>/<code>&lt;LBody&gt;</code> well-formedness,
+                and <strong>table legality</strong> up to +15 from row
+                structure, consistent columns, and no nested tables. Practical
+                mode treats the total as a readiness signal, not as a PDF/UA
+                conformance verdict — PAC and Matterhorn remain the formal
+                conformance checks.
               </p>
             </div>
             <div

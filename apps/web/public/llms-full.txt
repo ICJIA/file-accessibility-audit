@@ -4,7 +4,16 @@
 
 ## Overview
 
-The ICJIA File Accessibility Audit is a web application that analyzes PDF documents for accessibility compliance. It extracts structural data from PDFs using two complementary parsers (QPDF for tag structure, PDF.js for content extraction), scores the document across 9 weighted categories aligned to WCAG 2.1 Level AA and ADA Title II, and produces a detailed report with findings, remediation guidance, and standards references.
+The ICJIA File Accessibility Audit is a web application that analyzes PDF documents for accessibility compliance. It extracts structural data from PDFs using two complementary parsers (QPDF for tag structure, PDF.js for content extraction), scores the document under two profiles — a nine-category Strict semantic score aligned to WCAG 2.1 Level AA / ADA Title II / Illinois IITAA 2.1, and an eleven-category Practical readiness score that adds PDF/UA Compliance Signals and reserves Color Contrast — and produces a detailed report with findings, remediation guidance, and standards references.
+
+## Two scoring modes
+
+Every audit surfaces two score profiles against the same document so users can answer two different but equally valid questions:
+
+1. Strict semantic score — "Is this document semantically ready for publication?" Primary view for ADA/WCAG/ITTAA-oriented review. Weighs nine categories and emphasizes programmatically determinable structure (real H1–H6, real TH/Scope/Headers, logical reading order).
+2. Practical readiness score — "Did this document materially improve, and does it register on broader vendor-style rubrics?" Secondary progress view. Renormalizes the nine core categories and adds a PDF/UA Compliance Signals category covering StructTreeRoot, MarkInfo/Marked, PDF/UA identifiers, tab order, list legality, and table legality.
+
+Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while framing final non-web document accessibility through WCAG 2.1 (§E205.4). This split is why Strict remains the primary publication lens while Practical layers in PDF/UA-oriented signals. Neither mode alone is a legal compliance determination. Matterhorn is a PDF/UA testing protocol (not a separate law) and is referenced only as context for Practical mode.
 
 Website: https://audit.icjia.app
 Source: https://github.com/ICJIA/file-accessibility-audit
@@ -64,7 +73,24 @@ Scoring: Percentage of images with alt text (0-100)
 
 Remediation: In Tags panel, find <Figure> tags, right-click > Properties > enter Alternate Text.
 
-### 5. Bookmarks / Navigation (10% weight)
+### 5. PDF/UA Compliance Signals (Practical-only — 9.5% weight)
+WCAG: 1.3.1 Info and Relationships (Level A), 4.1.1 Parsing (Level A)
+Principle: Robust / Perceivable
+
+Practical-mode only. Aggregates PDF/UA-oriented structural signals that vendor remediation tools often weight explicitly: StructTreeRoot, MarkInfo/Marked, PDF/UA identifiers, tab order, list legality, and table legality. This is a readiness signal, not a formal PDF/UA conformance verdict — use PAC 2024 and a human accessibility review for conformance determinations. Strict mode surfaces this category as N/A with guidance only, because Illinois IITAA 2.1 frames final non-web document accessibility through WCAG 2.1 rather than PDF/UA.
+
+Scoring (Practical):
+- 0: No StructTreeRoot (untagged)
+- 25: Tagged, baseline
+- +20 for /MarkInfo /Marked true, +10 for /MarkInfo present only
+- +15 for PDF/UA identifier
+- +10 for tab order on every page, +5 for some pages
+- +up to 15 for list legality (<Lbl>/<LBody> well-formedness)
+- +up to 15 for table legality (row structure, consistent columns, no nested tables)
+
+Remediation: Run Adobe Acrobat Accessibility Full Check and PAC 2024. Review tagging, MarkInfo, tab order, PDF/UA metadata, and list/table legality. Treat the score as a Practical-mode PDF/UA-oriented readiness signal, not a final conformance verdict.
+
+### 6. Bookmarks / Navigation (10% Strict / 8.5% Practical weight)
 WCAG: 2.4.5 Multiple Ways (Level AA)
 Principle: Operable
 

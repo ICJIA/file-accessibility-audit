@@ -39,6 +39,51 @@ describe("scoringProfiles", () => {
     expect(displayed[0].findings).toEqual(["Strict finding"]);
   });
 
+  it("prefers the full per-profile categories array when the API supplies it", () => {
+    const strictCategories = [
+      {
+        id: "pdf_ua_compliance",
+        label: "PDF/UA Compliance Signals",
+        score: null,
+        grade: null,
+        severity: null,
+        findings: ["Strict mode does not use PDF/UA"],
+      },
+    ];
+    const practicalCategories = [
+      {
+        id: "pdf_ua_compliance",
+        label: "PDF/UA Compliance Signals",
+        score: 70,
+        grade: "C",
+        severity: "Minor",
+        findings: ["Tagged PDF detected", "PDF/UA identifier found"],
+      },
+    ];
+
+    const displayed = categoriesForScoringMode(
+      strictCategories,
+      {
+        remediation: {
+          label: "Practical readiness score",
+          overallScore: 70,
+          grade: "C",
+          executiveSummary: "Practical summary",
+          categoryScores: { pdf_ua_compliance: 70 },
+          categories: practicalCategories,
+        },
+      },
+      "remediation",
+    );
+
+    expect(displayed).toHaveLength(1);
+    expect(displayed[0].score).toBe(70);
+    expect(displayed[0].findings).toEqual([
+      "Tagged PDF detected",
+      "PDF/UA identifier found",
+    ]);
+  });
+
   it("keeps the original categories when a profile has no category overrides", () => {
     const categories = [
       { id: "bookmarks", score: 100, grade: "A", severity: "Pass" },

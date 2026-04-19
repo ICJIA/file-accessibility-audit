@@ -1,5 +1,12 @@
 export type ScoringMode = "strict" | "remediation";
 
+export interface ScoredCategoryLike {
+  id: string;
+  score: number | null;
+  grade: string | null;
+  severity: string | null;
+}
+
 export interface ScoreProfile {
   label: string;
   description?: string;
@@ -7,13 +14,7 @@ export interface ScoreProfile {
   grade: string;
   executiveSummary: string;
   categoryScores?: Record<string, number | null>;
-}
-
-export interface ScoredCategoryLike {
-  id: string;
-  score: number | null;
-  grade: string | null;
-  severity: string | null;
+  categories?: ScoredCategoryLike[];
 }
 
 export const IITAA_PDFUA_URL =
@@ -93,7 +94,17 @@ export function categoriesForScoringMode<T extends ScoredCategoryLike>(
 ): T[] {
   if (!categories?.length) return [];
 
-  const categoryScores = scoreProfiles?.[mode]?.categoryScores;
+  const profile = scoreProfiles?.[mode];
+
+  // Prefer the full per-profile category array when the API supplies it.
+  // This ensures fields like `findings` and `explanation` match the mode —
+  // e.g. `pdf_ua_compliance` cards show Strict-mode guidance text in Strict
+  // and Practical-mode findings in Practical.
+  if (profile?.categories?.length) {
+    return profile.categories as unknown as T[];
+  }
+
+  const categoryScores = profile?.categoryScores;
   if (!categoryScores) return categories;
 
   return categories.map((category) => {
