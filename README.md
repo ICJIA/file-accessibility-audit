@@ -61,9 +61,9 @@ Authentication is **off by default**. The app can be used without any login, ema
 
 ```ts
 export const AUTH = {
-  REQUIRE_LOGIN: false,  // ← set to true to enable OTP authentication
+  REQUIRE_LOGIN: false, // ← set to true to enable OTP authentication
   // ...
-}
+};
 ```
 
 ### With auth disabled (`REQUIRE_LOGIN: false` — default)
@@ -85,10 +85,10 @@ export const AUTH = {
 
 When authentication is enabled, the app sends one-time passcodes via email. This requires an SMTP relay service. The app supports two providers out of the box:
 
-| Provider | Docs |
-|----------|------|
+| Provider          | Docs                                                             |
+| ----------------- | ---------------------------------------------------------------- |
 | Mailgun (default) | [docs/07-mailgun-integration.md](docs/07-mailgun-integration.md) |
-| SMTP2GO | [docs/06-smtp2go-integration.md](docs/06-smtp2go-integration.md) |
+| SMTP2GO           | [docs/06-smtp2go-integration.md](docs/06-smtp2go-integration.md) |
 
 The provider is controlled in `audit.config.ts` → `EMAIL.PROVIDER`. Credentials go in `apps/api/.env`:
 
@@ -100,7 +100,7 @@ SMTP_PASS=your-smtp-password
 **To switch providers**, change one line in `audit.config.ts`:
 
 ```ts
-PROVIDER: 'mailgun'   // ← change to 'smtp2go' to switch
+PROVIDER: "mailgun"; // ← change to 'smtp2go' to switch
 ```
 
 Host and port are set automatically per provider.
@@ -111,40 +111,51 @@ Host and port are set automatically per provider.
 
 Each PDF is scored across **9 accessibility categories** based on [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
 
+The API now exposes **two score profiles**:
+
+- **Strict semantic score** — the default and the better primary view for ADA/WCAG/ITTAA-oriented review because it emphasizes programmatically determinable structure such as real headings, real table headers, and logical reading order
+- **Practical readiness score** — a more generous progress signal that gives credit for usable improvements such as bookmarks, broader tagging, and cleaner table grids, even when semantic structure is still incomplete
+
+This distinction matters because a PDF is not always simply "accessible" or "not accessible" in practice. A file can improve meaningfully while still falling short of the stronger semantic evidence needed for a more defensible legal/compliance interpretation. For Illinois public-sector publication decisions, treat **Strict** as the primary score and **Practical** as a secondary progress indicator rather than a compliance claim.
+
+The web UI now reinforces this with a front-and-center recommendation card, mode-specific guidance in Technical Details, and category tables that follow the selected score profile. The old binary "This file is accessible / not accessible" banner has been removed to avoid overstating certainty.
+
+See [docs/10-scoring-reconciliation.md](docs/10-scoring-reconciliation.md) for when to use each profile and why the grades can differ.
+
 ### Categories & Weights
 
-| Category | Weight | WCAG Criteria | Why It Matters |
-|----------|:------:|---------------|----------------|
-| Text Extractability | 20% | 1.3.1, 1.4.5 | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. Non-embedded fonts cap this category at 85 (Minor). |
-| Title & Language | 15% | 2.4.2, 3.1.1 | The document title is the first thing a screen reader announces. The language tag controls pronunciation. |
-| Heading Structure | 15% | 1.3.1, 2.4.6 | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. Multiple H1 headings are flagged as a minor issue (75). |
-| Alt Text on Images | 15% | 1.1.1 | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. Images are detected via QPDF tags; pdfjs-dist provides a fallback for untagged PDFs. |
-| Bookmarks | 10% | 2.4.5 | For documents over 10 pages, bookmarks provide a navigable table of contents. |
-| Table Markup | 10% | 1.3.1 | Without header cells (TH), screen readers read table data in a flat stream with no context. |
-| Link Quality | 5% | 2.4.4 | Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes. |
-| Form Fields | 5% | 1.3.1, 4.1.2 | Unlabeled form fields are unusable with assistive technology. |
-| Reading Order | 5% | 1.3.2 | The tag structure must define a logical reading sequence. |
+| Category            | Weight | WCAG Criteria | Why It Matters                                                                                                                                                                                                |
+| ------------------- | :----: | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text Extractability |  20%   | 1.3.1, 1.4.5  | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. Non-embedded fonts cap this category at 85 (Minor).                                     |
+| Title & Language    |  15%   | 2.4.2, 3.1.1  | The document title is the first thing a screen reader announces. The language tag controls pronunciation.                                                                                                     |
+| Heading Structure   |  15%   | 1.3.1, 2.4.6  | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. Multiple H1 headings are flagged as a minor issue (75).                                                                 |
+| Alt Text on Images  |  15%   | 1.1.1         | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. Images are detected via QPDF tags; pdfjs-dist provides a fallback for untagged PDFs. |
+| Bookmarks           |  10%   | 2.4.5         | For documents over 10 pages, bookmarks provide a navigable table of contents.                                                                                                                                 |
+| Table Markup        |  10%   | 1.3.1         | Without header cells (TH), screen readers read table data in a flat stream with no context.                                                                                                                   |
+| Link Quality        |   5%   | 2.4.4         | Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes.                                                                                                                |
+| Form Fields         |   5%   | 1.3.1, 4.1.2  | Unlabeled form fields are unusable with assistive technology.                                                                                                                                                 |
+| Reading Order       |   5%   | 1.3.2         | The tag structure must define a logical reading sequence.                                                                                                                                                     |
 
 ### Grade Scale
 
-| Grade | Score Range | Label |
-|:-----:|:----------:|-------|
-| **A** | 90–100 | Excellent |
-| **B** | 80–89 | Good |
-| **C** | 70–79 | Needs Improvement |
-| **D** | 60–69 | Poor |
-| **F** | 0–59 | Failing |
+| Grade | Score Range | Label             |
+| :---: | :---------: | ----------------- |
+| **A** |   90–100    | Excellent         |
+| **B** |    80–89    | Good              |
+| **C** |    70–79    | Needs Improvement |
+| **D** |    60–69    | Poor              |
+| **F** |    0–59     | Failing           |
 
 ### Severity Levels
 
 Each category receives a severity based on its individual score:
 
-| Severity | Score Range | Meaning |
-|----------|:----------:|---------|
-| Pass | 90–100 | Meets accessibility standards. |
-| Minor | 70–89 | Small improvements recommended. |
-| Moderate | 40–69 | Should be addressed before publishing. |
-| Critical | 0–39 | Must be fixed — represents a significant barrier to access. |
+| Severity | Score Range | Meaning                                                     |
+| -------- | :---------: | ----------------------------------------------------------- |
+| Pass     |   90–100    | Meets accessibility standards.                              |
+| Minor    |    70–89    | Small improvements recommended.                             |
+| Moderate |    40–69    | Should be addressed before publishing.                      |
+| Critical |    0–39     | Must be fixed — represents a significant barrier to access. |
 
 ### Reference Standards
 
@@ -169,12 +180,12 @@ Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a tim
 
 ### Limits
 
-| Constraint | Value | Enforced by |
-|-----------|-------|-------------|
-| Max files per batch | 5 | Frontend (`DropZone.vue`) |
-| Max file size | 50 MB each | Frontend + multer + nginx |
-| Concurrent uploads | 2 | Frontend semaphore + server semaphore |
-| Rate limit | 30 analyses/hour | Server (`analyzeLimiter`) |
+| Constraint          | Value            | Enforced by                           |
+| ------------------- | ---------------- | ------------------------------------- |
+| Max files per batch | 5                | Frontend (`DropZone.vue`)             |
+| Max file size       | 50 MB each       | Frontend + multer + nginx             |
+| Concurrent uploads  | 2                | Frontend semaphore + server semaphore |
+| Rate limit          | 30 analyses/hour | Server (`analyzeLimiter`)             |
 
 **Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
 
@@ -182,18 +193,19 @@ Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a tim
 
 Reports can be downloaded in four formats, all with links back to [audit.icjia.app](https://audit.icjia.app):
 
-| Format | Contents |
-|--------|----------|
-| **Word (.docx)** | Formatted report with score table, detailed findings, help links, and grade colors |
-| **HTML (.html)** | Standalone dark-themed page with full report — works offline, printable |
-| **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform |
-| **JSON (.json)** | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
+| Format             | Contents                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| **Word (.docx)**   | Formatted report with score table, detailed findings, help links, and grade colors             |
+| **HTML (.html)**   | Standalone dark-themed page with full report — works offline, printable                        |
+| **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform         |
+| **JSON (.json)**   | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
 Reports can also be shared via **shareable links** that expire after 15 days. Shared report pages include:
 
 - **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
 - **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.1 and ADA Title II references, and a link to the full scoring rubric
+- **Recommendation card** — a prominent Strict vs Practical explainer near the score hero that recommends Strict for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review
 - **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.1 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — recommendation to verify with Adobe Acrobat and make source documents accessible before PDF export
@@ -204,34 +216,34 @@ When auth is disabled, shared reports display "Shared on [date]" without exposin
 
 Every report includes a **Document Metadata** section that surfaces embedded PDF properties. This metadata is **informational only** — it is not scored or factored into the accessibility grade. Fields that are missing from the PDF display as "Not set," which itself is useful for identifying incomplete metadata.
 
-| Field | Source | What it tells you |
-|-------|--------|-------------------|
-| Source Application | `Creator` | The authoring tool (e.g., Microsoft Word, Adobe InDesign, LibreOffice) |
-| PDF Producer | `Producer` | The PDF generation engine (e.g., macOS Quartz, Adobe PDF Library) |
-| PDF Version | `PDFFormatVersion` | PDF spec version (e.g., 1.4, 1.7, 2.0) — tagged PDF requires 1.4+ |
-| Page Count | Document | Total number of pages |
-| Author | `Author` | Document author metadata |
-| Subject | `Subject` | Document subject/description |
-| Keywords | `Keywords` | Embedded keywords for search and classification |
-| Created | `CreationDate` | When the PDF was originally generated |
-| Last Modified | `ModDate` | When the PDF was last modified |
-| Encrypted | `IsEncrypted` | Whether the PDF has password protection or permission restrictions |
+| Field              | Source             | What it tells you                                                      |
+| ------------------ | ------------------ | ---------------------------------------------------------------------- |
+| Source Application | `Creator`          | The authoring tool (e.g., Microsoft Word, Adobe InDesign, LibreOffice) |
+| PDF Producer       | `Producer`         | The PDF generation engine (e.g., macOS Quartz, Adobe PDF Library)      |
+| PDF Version        | `PDFFormatVersion` | PDF spec version (e.g., 1.4, 1.7, 2.0) — tagged PDF requires 1.4+      |
+| Page Count         | Document           | Total number of pages                                                  |
+| Author             | `Author`           | Document author metadata                                               |
+| Subject            | `Subject`          | Document subject/description                                           |
+| Keywords           | `Keywords`         | Embedded keywords for search and classification                        |
+| Created            | `CreationDate`     | When the PDF was originally generated                                  |
+| Last Modified      | `ModDate`          | When the PDF was last modified                                         |
+| Encrypted          | `IsEncrypted`      | Whether the PDF has password protection or permission restrictions     |
 
 ## SEO
 
 The app uses **[@nuxtjs/seo](https://nuxtseo.com/)** for comprehensive search engine optimization:
 
-| Feature | Implementation |
-|---------|---------------|
-| **Sitemap** | Auto-generated at `/sitemap.xml` — includes public pages, excludes auth/admin routes |
-| **Robots** | Auto-generated at `/robots.txt` — blocks `/api/`, `/login`, `/my-history`, `/history` |
-| **Schema.org** | `Organization` identity (ICJIA) via module + `WebApplication` JSON-LD in page head |
-| **Open Graph** | Full OG tags with 1200x630 image, alt text, site name, locale |
-| **Twitter Cards** | `summary_large_image` with title, description, image, and alt text |
-| **Favicons** | `favicon.ico`, `favicon.png` (32px), `apple-touch-icon.png` (180px), PWA icons (192/512px) |
-| **Web Manifest** | `site.webmanifest` for PWA install and app metadata |
-| **Canonical URL** | `https://audit.icjia.app` |
-| **Meta** | `description`, `keywords`, `author`, `theme-color`, `lang="en"` |
+| Feature           | Implementation                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| **Sitemap**       | Auto-generated at `/sitemap.xml` — includes public pages, excludes auth/admin routes       |
+| **Robots**        | Auto-generated at `/robots.txt` — blocks `/api/`, `/login`, `/my-history`, `/history`      |
+| **Schema.org**    | `Organization` identity (ICJIA) via module + `WebApplication` JSON-LD in page head         |
+| **Open Graph**    | Full OG tags with 1200x630 image, alt text, site name, locale                              |
+| **Twitter Cards** | `summary_large_image` with title, description, image, and alt text                         |
+| **Favicons**      | `favicon.ico`, `favicon.png` (32px), `apple-touch-icon.png` (180px), PWA icons (192/512px) |
+| **Web Manifest**  | `site.webmanifest` for PWA install and app metadata                                        |
+| **Canonical URL** | `https://audit.icjia.app`                                                                  |
+| **Meta**          | `description`, `keywords`, `author`, `theme-color`, `lang="en"`                            |
 
 ## AI Readiness
 
@@ -239,9 +251,9 @@ The app is structured for discovery and consumption by LLMs, AI agents, and auto
 
 ### LLM Discovery Files
 
-| File | Purpose |
-|------|---------|
-| [`/llms.txt`](https://audit.icjia.app/llms.txt) | Concise summary: what the app does, scoring categories, grade scale, API endpoints |
+| File                                                      | Purpose                                                                               |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`/llms.txt`](https://audit.icjia.app/llms.txt)           | Concise summary: what the app does, scoring categories, grade scale, API endpoints    |
 | [`/llms-full.txt`](https://audit.icjia.app/llms-full.txt) | Full documentation: per-category scoring logic, remediation steps, JSON export schema |
 
 These follow the emerging [`llms.txt` convention](https://llmstxt.org/) — a plain-text file at the site root that tells AI crawlers what the site does and how to use it.
@@ -250,14 +262,14 @@ These follow the emerging [`llms.txt` convention](https://llmstxt.org/) — a pl
 
 The JSON export is designed for machine consumption. Beyond the basic report data, it includes:
 
-| Section | What it provides |
-|---------|-----------------|
-| `categories[].status` | Machine-readable `"pass"`, `"minor"`, `"moderate"`, `"fail"`, or `"not-applicable"` |
-| `categories[].wcag` | WCAG 2.1 success criteria IDs, principle name, and tool-specific remediation steps |
-| `remediationPlan` | Prioritized fix steps sorted by severity — each with category, score, WCAG criteria, and action |
-| `llmContext.prompt` | Pre-built prompt summarizing the audit, ready to paste into any LLM |
-| `llmContext.standards` | Array of applicable standards (WCAG 2.1 AA, ADA Title II, Section 508, PDF/UA) |
-| `llmContext.scoringScale` | Score range definitions for pass/minor/moderate/fail |
+| Section                   | What it provides                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `categories[].status`     | Machine-readable `"pass"`, `"minor"`, `"moderate"`, `"fail"`, or `"not-applicable"`             |
+| `categories[].wcag`       | WCAG 2.1 success criteria IDs, principle name, and tool-specific remediation steps              |
+| `remediationPlan`         | Prioritized fix steps sorted by severity — each with category, score, WCAG criteria, and action |
+| `llmContext.prompt`       | Pre-built prompt summarizing the audit, ready to paste into any LLM                             |
+| `llmContext.standards`    | Array of applicable standards (WCAG 2.1 AA, ADA Title II, Section 508, PDF/UA)                  |
+| `llmContext.scoringScale` | Score range definitions for pass/minor/moderate/fail                                            |
 
 ### Structured Data
 
@@ -284,12 +296,12 @@ node apps/cli/dist/index.js report.pdf --json
 node apps/cli/dist/index.js docs/*.pdf --threshold 80
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--json` | Output results as JSON |
+| Flag              | Description                                                         |
+| ----------------- | ------------------------------------------------------------------- |
+| `--json`          | Output results as JSON                                              |
 | `--threshold <n>` | Minimum passing score (0–100) — exits with code 1 if any file fails |
-| `--help` | Show usage |
-| `--version` | Show version |
+| `--help`          | Show usage                                                          |
+| `--version`       | Show version                                                        |
 
 ### Batch publication audit (`publist`)
 
@@ -309,15 +321,16 @@ pnpm a11y-audit -- --clear
 pnpm a11y-audit -- --concurrency 5
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--from <file>` | Local JSON file with publication list (default: fetch from API) |
-| `--output, -o <path>` | CSV output path (default: `./publist-audit.csv`) |
-| `--force` | Clear cache and re-audit all publications |
-| `--clear` | Clear cache only (no scan) |
-| `--concurrency, -c <n>` | Concurrent analyses, 1–10 (default: 3) |
+| Flag                    | Description                                                     |
+| ----------------------- | --------------------------------------------------------------- |
+| `--from <file>`         | Local JSON file with publication list (default: fetch from API) |
+| `--output, -o <path>`   | CSV output path (default: `./publist-audit.csv`)                |
+| `--force`               | Clear cache and re-audit all publications                       |
+| `--clear`               | Clear cache only (no scan)                                      |
+| `--concurrency, -c <n>` | Concurrent analyses, 1–10 (default: 3)                          |
 
 **How it works:**
+
 1. Fetches all publications from ICJIA's GraphQL API (with pagination)
 2. Filters to PDF files, skips already-cached results
 3. Downloads and audits each PDF with configurable concurrency
@@ -326,6 +339,7 @@ pnpm a11y-audit -- --concurrency 5
 6. Copies HTML report to `apps/web/public/publist.html` → accessible at `/publist`
 
 **HTML report features:**
+
 - Grade distribution bar chart
 - Sortable columns (instant — sorts in-memory, renders 150 rows per page)
 - Expandable detail rows with category breakdowns, severity badges, summary, and tags
@@ -358,24 +372,24 @@ file-accessibility-audit/
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Nuxt 4 / Nuxt UI 4 / Light & dark mode / WCAG 2.1 AA compliant |
-| SEO | @nuxtjs/seo (sitemap, robots, Schema.org, OG) |
-| API | Express / TypeScript / tsx (no build step in dev) |
+| Layer        | Technology                                                                         |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Frontend     | Nuxt 4 / Nuxt UI 4 / Light & dark mode / WCAG 2.1 AA compliant                     |
+| SEO          | @nuxtjs/seo (sitemap, robots, Schema.org, OG)                                      |
+| API          | Express / TypeScript / tsx (no build step in dev)                                  |
 | PDF Analysis | QPDF (structure tree, tags) + pdfjs-dist (text/metadata, image detection fallback) |
-| Database | SQLite via better-sqlite3 (audit logs, shared reports) |
-| Auth | Optional email OTP → JWT (httpOnly cookie) |
-| Email | Mailgun (default) / SMTP2GO (alternative) / Nodemailer |
-| CLI | tsup → single ESM bundle, QPDF + pdfjs-dist |
-| Deployment | DigitalOcean → Laravel Forge → PM2 → nginx |
+| Database     | SQLite via better-sqlite3 (audit logs, shared reports)                             |
+| Auth         | Optional email OTP → JWT (httpOnly cookie)                                         |
+| Email        | Mailgun (default) / SMTP2GO (alternative) / Nodemailer                             |
+| CLI          | tsup → single ESM bundle, QPDF + pdfjs-dist                                        |
+| Deployment   | DigitalOcean → Laravel Forge → PM2 → nginx                                         |
 
 ## Configuration
 
 All magic numbers, thresholds, weights, limits, and email provider settings are in **`audit.config.ts`** at the project root. This is the single source of truth — the API imports it directly, and the docs reference it.
 
 - **Auth toggle** → `AUTH.REQUIRE_LOGIN` (`true` or `false`)
-- **Scoring weights** → `SCORING_WEIGHTS`
+- **Scoring profiles & weights** → `SCORING_PROFILES` (`SCORING_WEIGHTS` remains the strict-profile alias)
 - **Email provider** → `EMAIL.PROVIDER` (`'mailgun'` or `'smtp2go'`)
 - **Share link expiry** → `SHARING.EXPIRY_DAYS` (default: 15)
 - **Rate limits** → `RATE_LIMITS`
@@ -389,38 +403,38 @@ All organization-specific branding is centralized in the `BRANDING` section of *
 
 ```ts
 export const BRANDING = {
-  APP_NAME: 'ICJIA File Accessibility Audit',  // Header, page titles, SEO, exports
-  APP_SHORT_NAME: 'Accessibility Audit',        // PWA manifest
-  ORG_NAME: 'Illinois Criminal Justice ...',    // Schema.org, meta author, JSON-LD
-  ORG_URL: 'https://icjia.illinois.gov',        // Schema.org identity link
-  FAQS_URL: 'https://accessibility.icjia.app',  // Navbar FAQs link ('' to hide)
-  GITHUB_URL: 'https://github.com/ICJIA/...',   // Footer GitHub link ('' to hide)
-  DEFAULT_COLOR_MODE: 'dark',                    // 'light' or 'dark' — user can toggle
-}
+  APP_NAME: "ICJIA File Accessibility Audit", // Header, page titles, SEO, exports
+  APP_SHORT_NAME: "Accessibility Audit", // PWA manifest
+  ORG_NAME: "Illinois Criminal Justice ...", // Schema.org, meta author, JSON-LD
+  ORG_URL: "https://icjia.illinois.gov", // Schema.org identity link
+  FAQS_URL: "https://accessibility.icjia.app", // Navbar FAQs link ('' to hide)
+  GITHUB_URL: "https://github.com/ICJIA/...", // Footer GitHub link ('' to hide)
+  DEFAULT_COLOR_MODE: "dark", // 'light' or 'dark' — user can toggle
+};
 ```
 
 These values flow automatically into:
 
-| Where | What changes |
-|-------|-------------|
-| **Header** | App name in the top-left |
-| **Page titles & SEO** | `<title>`, Open Graph, Twitter Cards, Schema.org |
-| **Color mode** | Default light or dark mode preference |
-| **Shared report pages** | Report title, footer attribution, CTA link |
-| **Report exports** | Markdown footer, JSON `reportMeta`, DOCX footer, HTML footer |
-| **Navbar** | FAQs link (hidden when `FAQS_URL` is `''`) |
-| **Footer** | GitHub link (hidden when `GITHUB_URL` is `''`) |
-| **API CORS** | Uses `DEPLOY.PRODUCTION_URL` (also in `audit.config.ts`) |
+| Where                   | What changes                                                 |
+| ----------------------- | ------------------------------------------------------------ |
+| **Header**              | App name in the top-left                                     |
+| **Page titles & SEO**   | `<title>`, Open Graph, Twitter Cards, Schema.org             |
+| **Color mode**          | Default light or dark mode preference                        |
+| **Shared report pages** | Report title, footer attribution, CTA link                   |
+| **Report exports**      | Markdown footer, JSON `reportMeta`, DOCX footer, HTML footer |
+| **Navbar**              | FAQs link (hidden when `FAQS_URL` is `''`)                   |
+| **Footer**              | GitHub link (hidden when `GITHUB_URL` is `''`)               |
+| **API CORS**            | Uses `DEPLOY.PRODUCTION_URL` (also in `audit.config.ts`)     |
 
 ### Also update when rebranding
 
 These values are in `audit.config.ts` but separate from `BRANDING`:
 
-| Config | Section | What it controls |
-|--------|---------|-----------------|
-| `DEPLOY.PRODUCTION_URL` | `DEPLOY` | Production domain for CORS, canonical URL, shared report links |
-| `EMAIL.DEFAULT_FROM` | `EMAIL` | Sender email address for OTP codes |
-| `AUTH.ALLOWED_EMAIL_REGEX` | `AUTH` | Allowed email domains for authentication |
+| Config                     | Section  | What it controls                                               |
+| -------------------------- | -------- | -------------------------------------------------------------- |
+| `DEPLOY.PRODUCTION_URL`    | `DEPLOY` | Production domain for CORS, canonical URL, shared report links |
+| `EMAIL.DEFAULT_FROM`       | `EMAIL`  | Sender email address for OTP codes                             |
+| `AUTH.ALLOWED_EMAIL_REGEX` | `AUTH`   | Allowed email domains for authentication                       |
 
 ### Regenerating static files
 
@@ -431,6 +445,7 @@ pnpm rebrand
 ```
 
 This regenerates:
+
 - `apps/web/public/site.webmanifest` — app name, short name
 - `apps/web/public/llms.txt` — title, org, URLs
 - `apps/web/public/llms-full.txt` — title, org, URLs, JSON schema examples
@@ -441,22 +456,23 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Design Documents
 
-| Doc | Description |
-|-----|-------------|
-| [00 — Master Design](docs/00-master-design.md) | Architecture, scoring model, API, auth, security |
-| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md) | Phase 1 deliverables and testing checklist |
-| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md) | Batch upload, shareable reports |
-| [03 — Phase 3: Admin & Monitoring](docs/03-phase-3-admin-monitoring.md) | Admin dashboard, scheduled re-checks |
-| [04 — Deployment Guide](docs/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
-| [05 — Use Cases](docs/05-use-cases.md) | End-user scenarios and workflows |
-| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md) | Email provider setup and gotchas |
-| [07 — Mailgun Integration](docs/07-mailgun-integration.md) | Mailgun setup (default provider) |
-| [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md) | DOCX accessibility analysis via jszip + XML parsing |
-| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script |
+| Doc                                                                        | Description                                                                      |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [00 — Master Design](docs/00-master-design.md)                             | Architecture, scoring model, API, auth, security                                 |
+| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md)                | Phase 1 deliverables and testing checklist                                       |
+| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md)    | Batch upload, shareable reports                                                  |
+| [03 — Phase 3: Admin & Monitoring](docs/03-phase-3-admin-monitoring.md)    | Admin dashboard, scheduled re-checks                                             |
+| [04 — Deployment Guide](docs/04-deployment-guide.md)                       | Infrastructure, env vars, nginx, firewall                                        |
+| [05 — Use Cases](docs/05-use-cases.md)                                     | End-user scenarios and workflows                                                 |
+| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md)                 | Email provider setup and gotchas                                                 |
+| [07 — Mailgun Integration](docs/07-mailgun-integration.md)                 | Mailgun setup (default provider)                                                 |
+| [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md)              | DOCX accessibility analysis via jszip + XML parsing                              |
+| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script             |
+| [10 — Scoring Reconciliation](docs/10-scoring-reconciliation.md)           | Strict vs remediation-oriented scoring, WCAG/ADA interpretation, Matterhorn note |
 
 ## Tests
 
-**379 tests** across 10 test files. Run all with a summary at the end:
+**388 tests** across 10 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -471,32 +487,32 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      223 passed (5 files)
+  ✔ API      232 passed (5 files)
   ✔ Web      156 passed (5 files)
 ────────────────────────────────────────────────────────────
-  ✔ 379 tests passed across 10 files
+  ✔ 388 tests passed across 10 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (223 tests)
+### API Tests (232 tests)
 
-| File | Tests | What it covers |
-|------|------:|----------------|
-| `scorer.test.ts` | 101 | All 9 scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
-| `qpdfParser.test.ts` | 64 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
-| `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override) |
-| `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider info logging |
-| `integration.test.ts` | 27 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents |
+| File                  | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------- | ----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scorer.test.ts`      |   105 | All 9 scoring categories, strict vs remediation-oriented score profiles, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text)                                   |
+| `qpdfParser.test.ts`  |    64 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
+| `auth.test.ts`        |    25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override)                                                                                                                                                                                                 |
+| `mailer.test.ts`      |     6 | Email config validation: production exits without credentials, development warns but continues, provider info logging                                                                                                                                                                                                                                                                                                               |
+| `integration.test.ts` |    28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents                                                                                                                                                                                                                                                                           |
 
 ### Web Tests (156 tests)
 
-| File | Tests | What it covers |
-|------|------:|----------------|
-| `accessibility.test.ts` | 38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
-| `color-mode.test.ts` | 51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks |
-| `components.test.ts` | 33 | DropZone (drag/drop, multi-file PDF validation, file size limits, batch staging), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages) |
-| `login.test.ts` | 13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation |
-| `scoring-display.test.ts` | 21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical) |
+| File                      | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accessibility.test.ts`   |    38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
+| `color-mode.test.ts`      |    51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks                                                                                                                     |
+| `components.test.ts`      |    33 | DropZone (drag/drop, multi-file PDF validation, file size limits, batch staging), ScoreCard (grade display, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages)                                                                      |
+| `login.test.ts`           |    13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation                                                                                                                                                                                                                                                                               |
+| `scoring-display.test.ts` |    21 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical)                                                                                                                                                                                                                                                                |
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 
@@ -504,14 +520,14 @@ The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main au
 
 **What's enforced:**
 
-| Requirement | Implementation |
-|-------------|---------------|
-| **Color contrast** | All text meets 4.5:1 minimum ratio in both dark and light modes. CSS custom properties ensure correct contrast for every theme. `text-neutral-500` and `text-neutral-600` are banned. |
-| **Semantic landmarks** | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages. |
-| **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`. |
-| **Keyboard accessibility** | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers. |
-| **Click targets** | Expand/collapse buttons span full width (WCAG 2.5.8). |
-| **Heading order** | Valid heading hierarchy (h1 → h2 → h3) on all pages. |
+| Requirement                 | Implementation                                                                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Color contrast**          | All text meets 4.5:1 minimum ratio in both dark and light modes. CSS custom properties ensure correct contrast for every theme. `text-neutral-500` and `text-neutral-600` are banned. |
+| **Semantic landmarks**      | `<header>`, `<nav>`, `<main>`, `<footer>` in the default layout; `<main>` on standalone report pages.                                                                                 |
+| **Link distinguishability** | External links use `underline` or blue-400 color (7.5:1+ contrast). All include `rel="noopener noreferrer"`.                                                                          |
+| **Keyboard accessibility**  | All interactive elements are native `<button>` or `<a>` elements — no div-based click handlers.                                                                                       |
+| **Click targets**           | Expand/collapse buttons span full width (WCAG 2.5.8).                                                                                                                                 |
+| **Heading order**           | Valid heading hierarchy (h1 → h2 → h3) on all pages.                                                                                                                                  |
 
 The `accessibility.test.ts` (38 tests) and `color-mode.test.ts` (51 tests) suites guard against regressions:
 
@@ -554,14 +570,14 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 
 Batch processing adds **no new server-side attack surface**. Each file in a batch is an independent HTTP request to the existing `/api/analyze` endpoint, subject to all existing protections:
 
-| Threat | Mitigation |
-|--------|-----------|
+| Threat                         | Mitigation                                                                                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bypassing the 5-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
-| **Memory exhaustion** | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 50 MB = 100 MB (unchanged from single-file mode). |
-| **Filename XSS** | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage. |
-| **Race conditions** | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue. |
-| **Auth bypass during batch** | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items. |
-| **Concurrent upload flood** | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP. |
+| **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 50 MB = 100 MB (unchanged from single-file mode).  |
+| **Filename XSS**               | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage.                   |
+| **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
+| **Auth bypass during batch**   | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items.                                           |
+| **Concurrent upload flood**    | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP.                                         |
 
 ## Changelog
 

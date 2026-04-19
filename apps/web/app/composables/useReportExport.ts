@@ -1,6 +1,6 @@
-import fileSaver from 'file-saver'
-import { WCAG_MAP, getWcagCriteriaStrings } from '~/utils/wcag'
-const { saveAs } = fileSaver
+import fileSaver from "file-saver";
+import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
+const { saveAs } = fileSaver;
 import {
   Document,
   Packer,
@@ -14,173 +14,258 @@ import {
   Table,
   WidthType,
   ExternalHyperlink,
-} from 'docx'
+} from "docx";
 
 interface HelpLink {
-  label: string
-  url: string
+  label: string;
+  url: string;
 }
 
 interface Category {
-  id: string
-  label: string
-  score: number | null
-  grade: string | null
-  severity: string | null
-  findings: string[]
-  explanation?: string
-  helpLinks?: HelpLink[]
+  id: string;
+  label: string;
+  score: number | null;
+  grade: string | null;
+  severity: string | null;
+  findings: string[];
+  explanation?: string;
+  helpLinks?: HelpLink[];
 }
 
 interface ReportResult {
-  filename: string
-  pageCount: number
-  overallScore: number
-  grade: string
-  isScanned: boolean
-  executiveSummary: string
-  categories: Category[]
-  warnings?: string[]
+  filename: string;
+  pageCount: number;
+  overallScore: number;
+  grade: string;
+  isScanned: boolean;
+  executiveSummary: string;
+  categories: Category[];
+  warnings?: string[];
+  scoringMode?: ScoringMode;
+  scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
+}
+
+type ScoringMode = "strict" | "remediation";
+
+interface ScoreProfile {
+  mode: ScoringMode;
+  label: string;
+  description: string;
+  overallScore: number;
+  grade: string;
+  executiveSummary: string;
+  categoryScores?: Record<string, number | null>;
 }
 
 function timestamp(): string {
-  return new Date().toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  })
+  return new Date().toLocaleString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
 }
 
 function baseFilename(result: ReportResult): string {
-  const name = result.filename.replace(/\.pdf$/i, '')
-  const date = new Date().toISOString().slice(0, 10)
-  return `${name}-accessibility-report-${date}`
+  const name = result.filename.replace(/\.pdf$/i, "");
+  const date = new Date().toISOString().slice(0, 10);
+  return `${name}-accessibility-report-${date}`;
 }
 
 function gradeLabel(grade: string): string {
   const map: Record<string, string> = {
-    A: 'Excellent',
-    B: 'Good',
-    C: 'Needs Improvement',
-    D: 'Poor',
-    F: 'Failing',
-  }
-  return map[grade] || grade
+    A: "Excellent",
+    B: "Good",
+    C: "Needs Improvement",
+    D: "Poor",
+    F: "Failing",
+  };
+  return map[grade] || grade;
+}
+
+function profileLabel(mode: ScoringMode): string {
+  return mode === "remediation"
+    ? "Practical readiness score"
+    : "Strict semantic score";
+}
+
+function profileDescription(mode: ScoringMode): string {
+  return mode === "remediation"
+    ? "More generous progress signal for tracking practical improvement. Not an ADA/WCAG/ITTAA conformance claim. Detailed category findings still reflect the strict semantic audit."
+    : "Default ADA/WCAG/ITTAA-oriented profile. Prioritizes programmatically determinable headings, table semantics, and structure because those are the stronger legal and compliance-facing signals.";
+}
+
+function getScoreProfiles(result: ReportResult): ScoreProfile[] {
+  const strictFallback: ScoreProfile = {
+    mode: "strict",
+    label: profileLabel("strict"),
+    description: profileDescription("strict"),
+    overallScore: result.overallScore,
+    grade: result.grade,
+    executiveSummary: result.executiveSummary,
+  };
+
+  const strict = result.scoreProfiles?.strict
+    ? {
+        ...result.scoreProfiles.strict,
+        mode: "strict" as const,
+        label: profileLabel("strict"),
+        description: profileDescription("strict"),
+      }
+    : strictFallback;
+
+  const remediation = result.scoreProfiles?.remediation
+    ? {
+        ...result.scoreProfiles.remediation,
+        mode: "remediation" as const,
+        label: profileLabel("remediation"),
+        description: profileDescription("remediation"),
+      }
+    : null;
+
+  return [strict, remediation].filter(Boolean) as ScoreProfile[];
 }
 
 function severityEmoji(severity: string | null): string {
-  if (!severity) return ''
+  if (!severity) return "";
   const map: Record<string, string> = {
-    Pass: '✅',
-    Minor: 'ℹ️',
-    Moderate: '⚠️',
-    Critical: '🔴',
-  }
-  return map[severity] || ''
+    Pass: "✅",
+    Minor: "ℹ️",
+    Moderate: "⚠️",
+    Critical: "🔴",
+  };
+  return map[severity] || "";
 }
 
 // ── Markdown ──────────────────────────────────────────────────────────────
 
 interface BrandingInfo {
-  appName: string
-  siteUrl: string
+  appName: string;
+  siteUrl: string;
 }
 
 function buildMarkdown(result: ReportResult, branding: BrandingInfo): string {
-  const lines: string[] = []
+  const lines: string[] = [];
+  const scoreProfiles = getScoreProfiles(result);
 
-  lines.push(`# PDF Accessibility Report`)
-  lines.push('')
-  lines.push(`**File:** ${result.filename}`)
-  lines.push(`**Pages:** ${result.pageCount}`)
-  lines.push(`**Date:** ${timestamp()}`)
-  lines.push(`**Overall Score:** ${result.overallScore}/100`)
-  lines.push(`**Grade:** ${result.grade} — ${gradeLabel(result.grade)}`)
-  if (result.isScanned) lines.push(`**Status:** ⚠️ Scanned document detected`)
-  lines.push('')
+  lines.push(`# PDF Accessibility Report`);
+  lines.push("");
+  lines.push(`**File:** ${result.filename}`);
+  lines.push(`**Pages:** ${result.pageCount}`);
+  lines.push(`**Date:** ${timestamp()}`);
+  lines.push(`**Overall Score:** ${result.overallScore}/100`);
+  lines.push(`**Grade:** ${result.grade} — ${gradeLabel(result.grade)}`);
+  if (result.isScanned) lines.push(`**Status:** ⚠️ Scanned document detected`);
+  lines.push("");
 
-  lines.push('---')
-  lines.push('')
-  lines.push('## Executive Summary')
-  lines.push('')
-  lines.push(result.executiveSummary)
-  lines.push('')
+  if (scoreProfiles.length > 1) {
+    lines.push("## Score Profiles");
+    lines.push("");
+    lines.push(`Primary report view: **${profileLabel("strict")}**`);
+    lines.push("");
+    lines.push("| Profile | Score | Grade | Notes |");
+    lines.push("|---------|-------|-------|-------|");
+    for (const profile of scoreProfiles) {
+      lines.push(
+        `| ${profile.label} | ${profile.overallScore}/100 | ${profile.grade} — ${gradeLabel(profile.grade)} | ${profile.description} |`,
+      );
+    }
+    lines.push("");
+  }
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## Executive Summary");
+  lines.push("");
+  lines.push(result.executiveSummary);
+  lines.push("");
 
   if (result.warnings?.length) {
-    lines.push('> **Warnings:**')
+    lines.push("> **Warnings:**");
     for (const w of result.warnings) {
-      lines.push(`> - ${w}`)
+      lines.push(`> - ${w}`);
     }
-    lines.push('')
+    lines.push("");
   }
 
-  lines.push('---')
-  lines.push('')
-  lines.push('## Category Scores')
-  lines.push('')
-  lines.push('| Category | Score | Grade | Severity |')
-  lines.push('|----------|-------|-------|----------|')
+  lines.push("---");
+  lines.push("");
+  lines.push("## Category Scores");
+  lines.push("");
+  lines.push("| Category | Score | Grade | Severity |");
+  lines.push("|----------|-------|-------|----------|");
   for (const cat of result.categories) {
-    const score = cat.score !== null ? `${cat.score}/100` : 'N/A'
-    const grade = cat.grade || '—'
-    const sev = cat.severity ? `${severityEmoji(cat.severity)} ${cat.severity}` : 'N/A'
-    lines.push(`| ${cat.label} | ${score} | ${grade} | ${sev} |`)
+    const score = cat.score !== null ? `${cat.score}/100` : "N/A";
+    const grade = cat.grade || "—";
+    const sev = cat.severity
+      ? `${severityEmoji(cat.severity)} ${cat.severity}`
+      : "N/A";
+    lines.push(`| ${cat.label} | ${score} | ${grade} | ${sev} |`);
   }
-  lines.push('')
+  lines.push("");
 
-  lines.push('---')
-  lines.push('')
-  lines.push('## Detailed Findings')
-  lines.push('')
+  lines.push("---");
+  lines.push("");
+  lines.push("## Detailed Findings");
+  lines.push("");
 
   for (const cat of result.categories) {
-    const scoreStr = cat.score !== null ? `${cat.score}/100 (${cat.grade})` : 'N/A'
-    lines.push(`### ${cat.label} — ${scoreStr}`)
-    lines.push('')
+    const scoreStr =
+      cat.score !== null ? `${cat.score}/100 (${cat.grade})` : "N/A";
+    lines.push(`### ${cat.label} — ${scoreStr}`);
+    lines.push("");
 
     if (cat.severity) {
-      lines.push(`**Severity:** ${severityEmoji(cat.severity)} ${cat.severity}`)
-      lines.push('')
+      lines.push(
+        `**Severity:** ${severityEmoji(cat.severity)} ${cat.severity}`,
+      );
+      lines.push("");
     }
 
     if (cat.explanation) {
-      lines.push(`> ${cat.explanation}`)
-      lines.push('')
+      lines.push(`> ${cat.explanation}`);
+      lines.push("");
     }
 
-    lines.push('**Findings:**')
-    lines.push('')
+    lines.push("**Findings:**");
+    lines.push("");
     for (const f of cat.findings) {
-      lines.push(`- ${f}`)
+      lines.push(`- ${f}`);
     }
-    lines.push('')
+    lines.push("");
 
     if (cat.helpLinks?.length) {
-      lines.push('**Resources:**')
-      lines.push('')
+      lines.push("**Resources:**");
+      lines.push("");
       for (const link of cat.helpLinks) {
-        lines.push(`- [${link.label}](${link.url})`)
+        lines.push(`- [${link.label}](${link.url})`);
       }
-      lines.push('')
+      lines.push("");
     }
   }
 
-  lines.push('---')
-  lines.push('')
-  lines.push(`*Report generated by [${branding.appName}](${branding.siteUrl}) — ${timestamp()}*`)
+  lines.push("---");
+  lines.push("");
+  lines.push(
+    `*Report generated by [${branding.appName}](${branding.siteUrl}) — ${timestamp()}*`,
+  );
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 // ── JSON ──────────────────────────────────────────────────────────────────
 
 function buildJSON(result: ReportResult, branding: BrandingInfo): string {
-  const failingCategories = result.categories.filter(c => c.score !== null && c.score < 90)
-  const passingCategories = result.categories.filter(c => c.score !== null && c.score >= 90)
-  const naCategories = result.categories.filter(c => c.score === null)
+  const failingCategories = result.categories.filter(
+    (c) => c.score !== null && c.score < 90,
+  );
+  const passingCategories = result.categories.filter(
+    (c) => c.score !== null && c.score >= 90,
+  );
+  const naCategories = result.categories.filter((c) => c.score === null);
+  const scoreProfiles = getScoreProfiles(result);
 
   const report = {
     reportMeta: {
@@ -188,7 +273,7 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
       generatedAtFormatted: timestamp(),
       tool: branding.appName,
       toolUrl: branding.siteUrl,
-      schemaVersion: '2.0',
+      schemaVersion: "2.1",
     },
     file: {
       name: result.filename,
@@ -199,33 +284,59 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
       overall: result.overallScore,
       grade: result.grade,
       gradeLabel: gradeLabel(result.grade),
+      primaryMode: result.scoringMode || "strict",
     },
+    scoreProfiles: Object.fromEntries(
+      scoreProfiles.map((profile) => [
+        profile.mode,
+        {
+          label: profile.label,
+          description: profile.description,
+          overall: profile.overallScore,
+          grade: profile.grade,
+          gradeLabel: gradeLabel(profile.grade),
+          executiveSummary: profile.executiveSummary,
+        },
+      ]),
+    ),
     executiveSummary: result.executiveSummary,
     warnings: result.warnings || [],
-    categories: result.categories.map(cat => {
-      const wcag = WCAG_MAP[cat.id]
+    categories: result.categories.map((cat) => {
+      const wcag = WCAG_MAP[cat.id];
       return {
         id: cat.id,
         label: cat.label,
         score: cat.score,
         grade: cat.grade,
         severity: cat.severity,
-        status: cat.score === null ? 'not-applicable' : cat.score >= 90 ? 'pass' : cat.score >= 70 ? 'minor' : cat.score >= 40 ? 'moderate' : 'fail',
+        status:
+          cat.score === null
+            ? "not-applicable"
+            : cat.score >= 90
+              ? "pass"
+              : cat.score >= 70
+                ? "minor"
+                : cat.score >= 40
+                  ? "moderate"
+                  : "fail",
         findings: cat.findings,
         explanation: cat.explanation || null,
         helpLinks: cat.helpLinks || [],
-        wcag: wcag ? {
-          successCriteria: getWcagCriteriaStrings(cat.id),
-          successCriteriaDetailed: wcag.criteria,
-          principle: wcag.principle,
-          remediation: wcag.remediation,
-        } : null,
-      }
+        wcag: wcag
+          ? {
+              successCriteria: getWcagCriteriaStrings(cat.id),
+              successCriteriaDetailed: wcag.criteria,
+              principle: wcag.principle,
+              remediation: wcag.remediation,
+            }
+          : null,
+      };
     }),
     remediationPlan: {
-      summary: failingCategories.length === 0
-        ? 'No remediation needed — all scored categories pass.'
-        : `${failingCategories.length} categor${failingCategories.length === 1 ? 'y needs' : 'ies need'} remediation.`,
+      summary:
+        failingCategories.length === 0
+          ? "No remediation needed — all scored categories pass."
+          : `${failingCategories.length} categor${failingCategories.length === 1 ? "y needs" : "ies need"} remediation.`,
       prioritizedSteps: failingCategories
         .sort((a, b) => (a.score ?? 100) - (b.score ?? 100))
         .map((cat, i) => ({
@@ -234,86 +345,156 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
           currentScore: cat.score,
           severity: cat.severity,
           wcagCriteria: getWcagCriteriaStrings(cat.id),
-          action: WCAG_MAP[cat.id]?.remediation || 'Review findings and remediate in Adobe Acrobat.',
+          action:
+            WCAG_MAP[cat.id]?.remediation ||
+            "Review findings and remediate in Adobe Acrobat.",
         })),
     },
     llmContext: {
-      description: 'This section provides structured context for LLMs processing this accessibility report.',
-      prompt: `You are reviewing a PDF accessibility audit for "${result.filename}" (${result.pageCount} pages). `
-        + `It scored ${result.overallScore}/100 (Grade ${result.grade}). `
-        + (failingCategories.length > 0
-          ? `The following categories need remediation: ${failingCategories.map(c => `${c.label} (${c.score}/100)`).join(', ')}. `
-          : 'All scored categories pass. ')
-        + `Use the remediationPlan.prioritizedSteps array for ordered fix instructions. `
-        + `Each category includes WCAG 2.1 success criteria references and tool-specific remediation steps for Adobe Acrobat.`,
-      standards: ['WCAG 2.1 Level AA', 'ADA Title II (effective April 2026)', 'Section 508', 'PDF/UA (ISO 14289-1)'],
+      description:
+        "This section provides structured context for LLMs processing this accessibility report.",
+      prompt:
+        `You are reviewing a PDF accessibility audit for "${result.filename}" (${result.pageCount} pages). ` +
+        `It scored ${result.overallScore}/100 (Grade ${result.grade}). ` +
+        (failingCategories.length > 0
+          ? `The following categories need remediation: ${failingCategories.map((c) => `${c.label} (${c.score}/100)`).join(", ")}. `
+          : "All scored categories pass. ") +
+        `Use the remediationPlan.prioritizedSteps array for ordered fix instructions. ` +
+        `Each category includes WCAG 2.1 success criteria references and tool-specific remediation steps for Adobe Acrobat.`,
+      standards: [
+        "WCAG 2.1 Level AA",
+        "ADA Title II (effective April 2026)",
+        "Section 508",
+        "PDF/UA (ISO 14289-1)",
+      ],
       scoringScale: {
-        pass: '90–100',
-        minor: '70–89',
-        moderate: '40–69',
-        fail: '0–39',
+        pass: "90–100",
+        minor: "70–89",
+        moderate: "40–69",
+        fail: "0–39",
       },
     },
-  }
-  return JSON.stringify(report, null, 2)
+  };
+  return JSON.stringify(report, null, 2);
 }
 
 // ── DOCX ──────────────────────────────────────────────────────────────────
 
 function gradeColor(grade: string): string {
   const map: Record<string, string> = {
-    A: '22c55e',
-    B: '14b8a6',
-    C: 'eab308',
-    D: 'f97316',
-    F: 'ef4444',
-  }
-  return map[grade] || '666666'
+    A: "22c55e",
+    B: "14b8a6",
+    C: "eab308",
+    D: "f97316",
+    F: "ef4444",
+  };
+  return map[grade] || "666666";
 }
 
 function severityColor(severity: string | null): string {
   const map: Record<string, string> = {
-    Pass: '22c55e',
-    Minor: '3b82f6',
-    Moderate: 'eab308',
-    Critical: 'ef4444',
-  }
-  return map[severity || ''] || '999999'
+    Pass: "22c55e",
+    Minor: "3b82f6",
+    Moderate: "eab308",
+    Critical: "ef4444",
+  };
+  return map[severity || ""] || "999999";
 }
 
-async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<Blob> {
-  const children: Paragraph[] = []
+async function buildDocx(
+  result: ReportResult,
+  branding: BrandingInfo,
+): Promise<Blob> {
+  const children: Paragraph[] = [];
+  const scoreProfiles = getScoreProfiles(result);
 
   // Title
   children.push(
     new Paragraph({
       children: [
-        new TextRun({ text: 'PDF Accessibility Report', bold: true, size: 48, font: 'Calibri' }),
+        new TextRun({
+          text: "PDF Accessibility Report",
+          bold: true,
+          size: 48,
+          font: "Calibri",
+        }),
       ],
       heading: HeadingLevel.TITLE,
       spacing: { after: 200 },
-    })
-  )
+    }),
+  );
 
   // Metadata block
   const metaLines = [
-    { label: 'File:', value: result.filename },
-    { label: 'Pages:', value: String(result.pageCount) },
-    { label: 'Date:', value: timestamp() },
-    { label: 'Overall Score:', value: `${result.overallScore}/100` },
-    { label: 'Grade:', value: `${result.grade} — ${gradeLabel(result.grade)}` },
-  ]
+    { label: "File:", value: result.filename },
+    { label: "Pages:", value: String(result.pageCount) },
+    { label: "Date:", value: timestamp() },
+    { label: "Overall Score:", value: `${result.overallScore}/100` },
+    { label: "Grade:", value: `${result.grade} — ${gradeLabel(result.grade)}` },
+  ];
 
   for (const m of metaLines) {
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: m.label, bold: true, size: 22, font: 'Calibri' }),
-          new TextRun({ text: ' ' + m.value, size: 22, font: 'Calibri' }),
+          new TextRun({ text: m.label, bold: true, size: 22, font: "Calibri" }),
+          new TextRun({ text: " " + m.value, size: 22, font: "Calibri" }),
         ],
         spacing: { after: 60 },
-      })
-    )
+      }),
+    );
+  }
+
+  if (scoreProfiles.length > 1) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Score Profiles",
+            bold: true,
+            size: 24,
+            font: "Calibri",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 140, after: 80 },
+      }),
+    );
+
+    for (const profile of scoreProfiles) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${profile.label}: `,
+              bold: true,
+              size: 22,
+              font: "Calibri",
+            }),
+            new TextRun({
+              text: `${profile.overallScore}/100 (${profile.grade} — ${gradeLabel(profile.grade)})`,
+              size: 22,
+              font: "Calibri",
+            }),
+          ],
+          spacing: { after: 40 },
+        }),
+      );
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: profile.description,
+              size: 20,
+              font: "Calibri",
+              italics: true,
+              color: "666666",
+            }),
+          ],
+          spacing: { after: 60 },
+        }),
+      );
+    }
   }
 
   if (result.isScanned) {
@@ -321,87 +502,130 @@ async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<
       new Paragraph({
         children: [
           new TextRun({
-            text: '⚠ This PDF appears to be a scanned image. OCR and full remediation are required.',
+            text: "⚠ This PDF appears to be a scanned image. OCR and full remediation are required.",
             bold: true,
             size: 22,
-            font: 'Calibri',
-            color: 'f97316',
+            font: "Calibri",
+            color: "f97316",
           }),
         ],
         spacing: { before: 120, after: 120 },
-      })
-    )
+      }),
+    );
   }
 
   // Divider
   children.push(
     new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cccccc' } },
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 6, color: "cccccc" },
+      },
       spacing: { before: 200, after: 200 },
-    })
-  )
+    }),
+  );
 
   // Executive Summary
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: 'Executive Summary', bold: true, size: 28, font: 'Calibri' })],
+      children: [
+        new TextRun({
+          text: "Executive Summary",
+          bold: true,
+          size: 28,
+          font: "Calibri",
+        }),
+      ],
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 120 },
-    })
-  )
+    }),
+  );
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: result.executiveSummary, size: 22, font: 'Calibri' })],
+      children: [
+        new TextRun({
+          text: result.executiveSummary,
+          size: 22,
+          font: "Calibri",
+        }),
+      ],
       spacing: { after: 200 },
-    })
-  )
+    }),
+  );
 
   // Warnings
   if (result.warnings?.length) {
     for (const w of result.warnings) {
       children.push(
         new Paragraph({
-          children: [new TextRun({ text: `⚠ ${w}`, size: 20, font: 'Calibri', color: 'b45309', italics: true })],
+          children: [
+            new TextRun({
+              text: `⚠ ${w}`,
+              size: 20,
+              font: "Calibri",
+              color: "b45309",
+              italics: true,
+            }),
+          ],
           spacing: { after: 60 },
-        })
-      )
+        }),
+      );
     }
-    children.push(new Paragraph({ spacing: { after: 120 } }))
+    children.push(new Paragraph({ spacing: { after: 120 } }));
   }
 
   // Score summary table
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: 'Category Scores', bold: true, size: 28, font: 'Calibri' })],
+      children: [
+        new TextRun({
+          text: "Category Scores",
+          bold: true,
+          size: 28,
+          font: "Calibri",
+        }),
+      ],
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 120 },
-    })
-  )
+    }),
+  );
 
   const headerRow = new TableRow({
     tableHeader: true,
-    children: ['Category', 'Score', 'Grade', 'Severity'].map(
-      text =>
+    children: ["Category", "Score", "Grade", "Severity"].map(
+      (text) =>
         new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 20, font: 'Calibri', color: 'ffffff' })] })],
-          shading: { fill: '333333' },
-          width: text === 'Category' ? { size: 40, type: WidthType.PERCENTAGE } : { size: 20, type: WidthType.PERCENTAGE },
-        })
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text,
+                  bold: true,
+                  size: 20,
+                  font: "Calibri",
+                  color: "ffffff",
+                }),
+              ],
+            }),
+          ],
+          shading: { fill: "333333" },
+          width:
+            text === "Category"
+              ? { size: 40, type: WidthType.PERCENTAGE }
+              : { size: 20, type: WidthType.PERCENTAGE },
+        }),
     ),
-  })
+  });
 
   const dataRows = result.categories.map(
-    cat =>
+    (cat) =>
       new TableRow({
         children: [
           new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: cat.label, size: 20, font: 'Calibri' })] })],
-          }),
-          new TableCell({
             children: [
               new Paragraph({
-                children: [new TextRun({ text: cat.score !== null ? `${cat.score}` : 'N/A', size: 20, font: 'Calibri' })],
-                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: cat.label, size: 20, font: "Calibri" }),
+                ],
               }),
             ],
           }),
@@ -410,11 +634,9 @@ async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: cat.grade || '—',
-                    bold: true,
+                    text: cat.score !== null ? `${cat.score}` : "N/A",
                     size: 20,
-                    font: 'Calibri',
-                    color: cat.grade ? gradeColor(cat.grade) : '999999',
+                    font: "Calibri",
                   }),
                 ],
                 alignment: AlignmentType.CENTER,
@@ -426,9 +648,25 @@ async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: cat.severity || 'N/A',
+                    text: cat.grade || "—",
+                    bold: true,
                     size: 20,
-                    font: 'Calibri',
+                    font: "Calibri",
+                    color: cat.grade ? gradeColor(cat.grade) : "999999",
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: cat.severity || "N/A",
+                    size: 20,
+                    font: "Calibri",
                     color: severityColor(cat.severity),
                   }),
                 ],
@@ -437,114 +675,188 @@ async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<
             ],
           }),
         ],
-      })
-  )
+      }),
+  );
 
-  children.push(new Paragraph({ spacing: { after: 40 } }))
+  children.push(new Paragraph({ spacing: { after: 40 } }));
 
   const scoreTable = new Table({
     rows: [headerRow, ...dataRows],
     width: { size: 100, type: WidthType.PERCENTAGE },
-  })
+  });
 
   // Divider before detailed findings
   const divider = new Paragraph({
-    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cccccc' } },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "cccccc" } },
     spacing: { before: 300, after: 200 },
-  })
+  });
 
   // Detailed findings
-  const detailParagraphs: Paragraph[] = []
+  const detailParagraphs: Paragraph[] = [];
 
   detailParagraphs.push(
     new Paragraph({
-      children: [new TextRun({ text: 'Detailed Findings', bold: true, size: 28, font: 'Calibri' })],
+      children: [
+        new TextRun({
+          text: "Detailed Findings",
+          bold: true,
+          size: 28,
+          font: "Calibri",
+        }),
+      ],
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 200 },
-    })
-  )
+    }),
+  );
 
   for (const cat of result.categories) {
-    const scoreStr = cat.score !== null ? `${cat.score}/100 (${cat.grade})` : 'N/A'
+    const scoreStr =
+      cat.score !== null ? `${cat.score}/100 (${cat.grade})` : "N/A";
 
     // Category heading
     detailParagraphs.push(
       new Paragraph({
         children: [
-          new TextRun({ text: cat.label, bold: true, size: 24, font: 'Calibri' }),
-          new TextRun({ text: ` — ${scoreStr}`, size: 24, font: 'Calibri', color: cat.grade ? gradeColor(cat.grade) : '999999' }),
+          new TextRun({
+            text: cat.label,
+            bold: true,
+            size: 24,
+            font: "Calibri",
+          }),
+          new TextRun({
+            text: ` — ${scoreStr}`,
+            size: 24,
+            font: "Calibri",
+            color: cat.grade ? gradeColor(cat.grade) : "999999",
+          }),
         ],
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 240, after: 80 },
-      })
-    )
+      }),
+    );
 
     // Severity badge
     if (cat.severity) {
       detailParagraphs.push(
         new Paragraph({
           children: [
-            new TextRun({ text: 'Severity: ', bold: true, size: 20, font: 'Calibri' }),
-            new TextRun({ text: cat.severity, bold: true, size: 20, font: 'Calibri', color: severityColor(cat.severity) }),
+            new TextRun({
+              text: "Severity: ",
+              bold: true,
+              size: 20,
+              font: "Calibri",
+            }),
+            new TextRun({
+              text: cat.severity,
+              bold: true,
+              size: 20,
+              font: "Calibri",
+              color: severityColor(cat.severity),
+            }),
           ],
           spacing: { after: 80 },
-        })
-      )
+        }),
+      );
     }
 
     // Explanation
     if (cat.explanation) {
       detailParagraphs.push(
         new Paragraph({
-          children: [new TextRun({ text: cat.explanation, size: 20, font: 'Calibri', italics: true, color: '666666' })],
+          children: [
+            new TextRun({
+              text: cat.explanation,
+              size: 20,
+              font: "Calibri",
+              italics: true,
+              color: "666666",
+            }),
+          ],
           spacing: { after: 120 },
           indent: { left: 360 },
-        })
-      )
+        }),
+      );
     }
 
     // Findings
     for (const f of cat.findings) {
-      const isFailure = cat.score !== null && (f.toLowerCase().includes('not found') || f.toLowerCase().includes('no ') || f.toLowerCase().includes('missing') || f.toLowerCase().includes('not tagged') || f.toLowerCase().includes('unlabeled'))
-      const isSuccess = f.toLowerCase().includes('found') || f.toLowerCase().includes('present') || f.toLowerCase().includes('all ') || f.toLowerCase().includes('declared')
-      const bullet = isFailure ? '✗' : isSuccess ? '✓' : '•'
-      const color = isFailure ? 'ef4444' : isSuccess ? '22c55e' : '666666'
+      const isFailure =
+        cat.score !== null &&
+        (f.toLowerCase().includes("not found") ||
+          f.toLowerCase().includes("no ") ||
+          f.toLowerCase().includes("missing") ||
+          f.toLowerCase().includes("not tagged") ||
+          f.toLowerCase().includes("unlabeled"));
+      const isSuccess =
+        f.toLowerCase().includes("found") ||
+        f.toLowerCase().includes("present") ||
+        f.toLowerCase().includes("all ") ||
+        f.toLowerCase().includes("declared");
+      const bullet = isFailure ? "✗" : isSuccess ? "✓" : "•";
+      const color = isFailure ? "ef4444" : isSuccess ? "22c55e" : "666666";
 
       detailParagraphs.push(
         new Paragraph({
           children: [
-            new TextRun({ text: `${bullet} `, bold: true, size: 20, font: 'Calibri', color }),
-            new TextRun({ text: f, size: 20, font: 'Calibri' }),
+            new TextRun({
+              text: `${bullet} `,
+              bold: true,
+              size: 20,
+              font: "Calibri",
+              color,
+            }),
+            new TextRun({ text: f, size: 20, font: "Calibri" }),
           ],
           spacing: { after: 40 },
           indent: { left: 360 },
-        })
-      )
+        }),
+      );
     }
 
     // Help links
     if (cat.helpLinks?.length) {
       detailParagraphs.push(
         new Paragraph({
-          children: [new TextRun({ text: 'Resources:', bold: true, size: 20, font: 'Calibri', color: '3b82f6' })],
+          children: [
+            new TextRun({
+              text: "Resources:",
+              bold: true,
+              size: 20,
+              font: "Calibri",
+              color: "3b82f6",
+            }),
+          ],
           spacing: { before: 80, after: 40 },
           indent: { left: 360 },
-        })
-      )
+        }),
+      );
       for (const link of cat.helpLinks) {
         detailParagraphs.push(
           new Paragraph({
             children: [
-              new TextRun({ text: '→ ', size: 20, font: 'Calibri', color: '3b82f6' }),
+              new TextRun({
+                text: "→ ",
+                size: 20,
+                font: "Calibri",
+                color: "3b82f6",
+              }),
               new ExternalHyperlink({
-                children: [new TextRun({ text: link.label, size: 20, font: 'Calibri', color: '3b82f6', underline: {} })],
+                children: [
+                  new TextRun({
+                    text: link.label,
+                    size: 20,
+                    font: "Calibri",
+                    color: "3b82f6",
+                    underline: {},
+                  }),
+                ],
                 link: link.url,
               }),
             ],
             spacing: { after: 30 },
             indent: { left: 720 },
-          })
-        )
+          }),
+        );
       }
     }
   }
@@ -552,23 +864,46 @@ async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<
   // Footer
   detailParagraphs.push(
     new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cccccc' } },
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 6, color: "cccccc" },
+      },
       spacing: { before: 300, after: 120 },
-    })
-  )
+    }),
+  );
   detailParagraphs.push(
     new Paragraph({
       children: [
-        new TextRun({ text: 'Report generated by ', size: 18, font: 'Calibri', italics: true, color: '999999' }),
+        new TextRun({
+          text: "Report generated by ",
+          size: 18,
+          font: "Calibri",
+          italics: true,
+          color: "999999",
+        }),
         new ExternalHyperlink({
-          children: [new TextRun({ text: branding.appName, size: 18, font: 'Calibri', italics: true, color: '3b82f6', underline: {} })],
+          children: [
+            new TextRun({
+              text: branding.appName,
+              size: 18,
+              font: "Calibri",
+              italics: true,
+              color: "3b82f6",
+              underline: {},
+            }),
+          ],
           link: branding.siteUrl,
         }),
-        new TextRun({ text: ` — ${timestamp()}`, size: 18, font: 'Calibri', italics: true, color: '999999' }),
+        new TextRun({
+          text: ` — ${timestamp()}`,
+          size: 18,
+          font: "Calibri",
+          italics: true,
+          color: "999999",
+        }),
       ],
       alignment: AlignmentType.CENTER,
-    })
-  )
+    }),
+  );
 
   const doc = new Document({
     sections: [
@@ -576,95 +911,158 @@ async function buildDocx(result: ReportResult, branding: BrandingInfo): Promise<
         children: [...children, scoreTable, divider, ...detailParagraphs],
       },
     ],
-  })
+  });
 
-  return await Packer.toBlob(doc)
+  return await Packer.toBlob(doc);
 }
 
 // ── HTML ──────────────────────────────────────────────────────────────────
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function buildHtml(result: ReportResult, branding: BrandingInfo): string {
+  const scoreProfiles = getScoreProfiles(result);
   const gc = (grade: string) => {
-    const m: Record<string, string> = { A: '#22c55e', B: '#14b8a6', C: '#eab308', D: '#f97316', F: '#ef4444' }
-    return m[grade] || '#666'
-  }
+    const m: Record<string, string> = {
+      A: "#22c55e",
+      B: "#14b8a6",
+      C: "#eab308",
+      D: "#f97316",
+      F: "#ef4444",
+    };
+    return m[grade] || "#666";
+  };
   const sc = (sev: string | null) => {
-    const m: Record<string, string> = { Pass: '#22c55e', Minor: '#3b82f6', Moderate: '#eab308', Critical: '#ef4444' }
-    return m[sev || ''] || '#999'
-  }
+    const m: Record<string, string> = {
+      Pass: "#22c55e",
+      Minor: "#3b82f6",
+      Moderate: "#eab308",
+      Critical: "#ef4444",
+    };
+    return m[sev || ""] || "#999";
+  };
 
-  const catRows = result.categories.map(cat => {
-    const score = cat.score !== null ? `${cat.score}` : 'N/A'
-    const grade = cat.grade || '—'
-    const sev = cat.severity || 'N/A'
-    return `<tr>
+  const catRows = result.categories
+    .map((cat) => {
+      const score = cat.score !== null ? `${cat.score}` : "N/A";
+      const grade = cat.grade || "—";
+      const sev = cat.severity || "N/A";
+      return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #222">${escapeHtml(cat.label)}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;font-family:monospace;color:${gc(cat.grade || '')}">${score}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;font-weight:bold;color:${gc(cat.grade || '')}">${grade}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;font-family:monospace;color:${gc(cat.grade || "")}">${score}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;font-weight:bold;color:${gc(cat.grade || "")}">${grade}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center"><span style="color:${sc(cat.severity)};background:${sc(cat.severity)}15;padding:2px 8px;border-radius:12px;font-size:12px">${escapeHtml(sev)}</span></td>
-    </tr>`
-  }).join('\n')
+    </tr>`;
+    })
+    .join("\n");
 
-  const detailSections = result.categories.map(cat => {
-    const scoreStr = cat.score !== null ? `${cat.score}/100 (${cat.grade})` : 'N/A'
+  const detailSections = result.categories
+    .map((cat) => {
+      const scoreStr =
+        cat.score !== null ? `${cat.score}/100 (${cat.grade})` : "N/A";
 
-    const findingsHtml = cat.findings.map(f => {
-      const isFail = cat.score !== null && (f.toLowerCase().includes('not found') || f.toLowerCase().includes('no ') || f.toLowerCase().includes('missing') || f.toLowerCase().includes('not tagged') || f.toLowerCase().includes('unlabeled'))
-      const isOk = f.toLowerCase().includes('found') || f.toLowerCase().includes('present') || f.toLowerCase().includes('all ') || f.toLowerCase().includes('declared')
-      const icon = isFail ? '✗' : isOk ? '✓' : cat.score === null ? '–' : '•'
-      const color = isFail ? '#ef4444' : isOk ? '#22c55e' : cat.score === null ? '#eab308' : '#999'
-      return `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:14px;color:#ccc">
+      const findingsHtml = cat.findings
+        .map((f) => {
+          const isFail =
+            cat.score !== null &&
+            (f.toLowerCase().includes("not found") ||
+              f.toLowerCase().includes("no ") ||
+              f.toLowerCase().includes("missing") ||
+              f.toLowerCase().includes("not tagged") ||
+              f.toLowerCase().includes("unlabeled"));
+          const isOk =
+            f.toLowerCase().includes("found") ||
+            f.toLowerCase().includes("present") ||
+            f.toLowerCase().includes("all ") ||
+            f.toLowerCase().includes("declared");
+          const icon = isFail
+            ? "✗"
+            : isOk
+              ? "✓"
+              : cat.score === null
+                ? "–"
+                : "•";
+          const color = isFail
+            ? "#ef4444"
+            : isOk
+              ? "#22c55e"
+              : cat.score === null
+                ? "#eab308"
+                : "#999";
+          return `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:14px;color:#ccc">
         <span style="color:${color};font-weight:bold;flex-shrink:0">${icon}</span>
         <span>${escapeHtml(f)}</span>
-      </div>`
-    }).join('\n')
+      </div>`;
+        })
+        .join("\n");
 
-    const linksHtml = (cat.helpLinks?.length)
-      ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #1a1a1a">
+      const linksHtml = cat.helpLinks?.length
+        ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #1a1a1a">
           <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Learn more</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${cat.helpLinks.map(l => `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#60a5fa;background:#3b82f610;padding:4px 10px;border-radius:6px;text-decoration:none">${escapeHtml(l.label)} ↗</a>`).join('\n')}
+            ${cat.helpLinks.map((l) => `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#60a5fa;background:#3b82f610;padding:4px 10px;border-radius:6px;text-decoration:none">${escapeHtml(l.label)} ↗</a>`).join("\n")}
           </div>
         </div>`
-      : ''
+        : "";
 
-    const explanationHtml = cat.explanation
-      ? `<div style="margin-bottom:12px;font-size:13px;color:#888;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:10px 14px">
+      const explanationHtml = cat.explanation
+        ? `<div style="margin-bottom:12px;font-size:13px;color:#888;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:10px 14px">
           <strong style="color:#aaa">What this checks:</strong> ${escapeHtml(cat.explanation)}
         </div>`
-      : ''
+        : "";
 
-    const sevBadge = cat.severity
-      ? `<span style="color:${sc(cat.severity)};background:${sc(cat.severity)}15;padding:2px 10px;border-radius:12px;font-size:12px;margin-left:auto">${escapeHtml(cat.severity)}</span>`
-      : ''
+      const sevBadge = cat.severity
+        ? `<span style="color:${sc(cat.severity)};background:${sc(cat.severity)}15;padding:2px 10px;border-radius:12px;font-size:12px;margin-left:auto">${escapeHtml(cat.severity)}</span>`
+        : "";
 
-    return `<div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:12px">
+      return `<div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <h3 style="margin:0;font-size:16px;color:#fff">${escapeHtml(cat.label)}</h3>
-        <span style="font-family:monospace;font-size:14px;color:${gc(cat.grade || '')}">${scoreStr}</span>
+        <span style="font-family:monospace;font-size:14px;color:${gc(cat.grade || "")}">${scoreStr}</span>
         ${sevBadge}
       </div>
       ${explanationHtml}
       ${findingsHtml}
       ${linksHtml}
-    </div>`
-  }).join('\n')
+    </div>`;
+    })
+    .join("\n");
 
   const warningsHtml = result.warnings?.length
     ? `<div style="background:#854d0e15;border:1px solid #854d0e30;border-radius:12px;padding:14px;margin-bottom:20px">
-        ${result.warnings.map(w => `<p style="color:#fbbf24;font-size:14px;margin:0">${escapeHtml(w)}</p>`).join('\n')}
+        ${result.warnings.map((w) => `<p style="color:#fbbf24;font-size:14px;margin:0">${escapeHtml(w)}</p>`).join("\n")}
       </div>`
-    : ''
+    : "";
 
   const scannedHtml = result.isScanned
     ? `<div style="background:#f9731615;border:1px solid #f9731630;border-radius:12px;padding:14px;margin-bottom:20px">
         <p style="color:#fdba74;font-size:14px;font-weight:500;margin:0">This PDF appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.</p>
       </div>`
-    : ''
+    : "";
+
+  const scoreProfilesHtml =
+    scoreProfiles.length > 1
+      ? `<div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px 20px;margin-bottom:24px">
+          <h2 style="font-size:14px;color:#aaa;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Score Profiles</h2>
+          <p style="font-size:13px;color:#888;margin:0 0 12px">Primary report view: ${escapeHtml(profileLabel("strict"))}</p>
+          ${scoreProfiles
+            .map(
+              (
+                profile,
+              ) => `<div style="margin-bottom:10px;padding:10px 12px;border:1px solid #222;border-radius:10px;background:#0d0d0d">
+                <div style="font-size:14px;font-weight:700;color:#fff">${escapeHtml(profile.label)} — <span style="color:${gc(profile.grade)}">${profile.overallScore}/100 (${escapeHtml(profile.grade)})</span></div>
+                <div style="font-size:12px;color:#888;margin-top:4px">${escapeHtml(profile.description)}</div>
+              </div>`,
+            )
+            .join("")}
+        </div>`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -686,7 +1084,7 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
   <p style="text-align:center;font-size:13px;color:#888;margin-top:0">${timestamp()}</p>
 
   <div style="text-align:center;margin:30px 0">
-    <p style="font-size:14px;color:#aaa;margin-bottom:12px">${escapeHtml(result.filename)} — ${result.pageCount} page${result.pageCount !== 1 ? 's' : ''}</p>
+    <p style="font-size:14px;color:#aaa;margin-bottom:12px">${escapeHtml(result.filename)} — ${result.pageCount} page${result.pageCount !== 1 ? "s" : ""}</p>
     <div style="width:120px;height:120px;border-radius:50%;border:4px solid ${gc(result.grade)};background:${gc(result.grade)}15;display:inline-flex;align-items:center;justify-content:center">
       <span style="font-size:56px;font-weight:900;color:${gc(result.grade)}">${result.grade}</span>
     </div>
@@ -696,6 +1094,7 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
 
   ${scannedHtml}
   ${warningsHtml}
+  ${scoreProfilesHtml}
 
   <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px 20px;margin-bottom:24px">
     <h2 style="font-size:14px;color:#aaa;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Executive Summary</h2>
@@ -726,199 +1125,242 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
 
 </div>
 </body>
-</html>`
+</html>`;
 }
 
 // ── AI-ready analysis ─────────────────────────────────────────────────────
 
 export function buildAiAnalysis(result: ReportResult): string {
-  const lines: string[] = []
-  const isAccessible = result.grade === 'A' || result.grade === 'B'
-  const verdict = isAccessible ? 'Accessible' : 'Not accessible'
+  const lines: string[] = [];
+  const scoreProfiles = getScoreProfiles(result);
+  const remediationProfile = scoreProfiles.find(
+    (profile) => profile.mode === "remediation",
+  );
+  const isAccessible = result.grade === "A" || result.grade === "B";
+  const verdict = isAccessible ? "Accessible" : "Not accessible";
 
-  const scored = result.categories.filter(c => c.score !== null)
-  const failing = scored.filter(c => c.severity === 'Moderate' || c.severity === 'Critical')
-  const criticalCount = scored.filter(c => c.severity === 'Critical').length
-  const moderateCount = scored.filter(c => c.severity === 'Moderate').length
-  const passingCount = scored.length - failing.length
+  const scored = result.categories.filter((c) => c.score !== null);
+  const failing = scored.filter(
+    (c) => c.severity === "Moderate" || c.severity === "Critical",
+  );
+  const criticalCount = scored.filter((c) => c.severity === "Critical").length;
+  const moderateCount = scored.filter((c) => c.severity === "Moderate").length;
+  const passingCount = scored.length - failing.length;
 
-  lines.push(`# PDF Accessibility Audit — For AI Analysis`)
-  lines.push('')
+  lines.push(`# PDF Accessibility Audit — For AI Analysis`);
+  lines.push("");
 
   if (failing.length === 0) {
-    lines.push(`An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG 2.1 Level AA and ADA Title II requirements. No remediation is needed at this time.`)
-    lines.push('')
-    lines.push(`## File`)
-    lines.push(`- Filename: ${result.filename}`)
-    lines.push(`- Pages: ${result.pageCount}`)
-    lines.push(`- Overall score: ${result.overallScore}/100`)
-    lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`)
-    lines.push(`- Verdict: ${verdict}`)
-    lines.push(`- Scored categories passed: ${passingCount}`)
-    if (result.isScanned) {
-      lines.push(`- Scanned document: yes`)
+    lines.push(
+      `An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG 2.1 Level AA and ADA Title II requirements. No remediation is needed at this time.`,
+    );
+    lines.push("");
+    lines.push(`## File`);
+    lines.push(`- Filename: ${result.filename}`);
+    lines.push(`- Pages: ${result.pageCount}`);
+    lines.push(`- Overall score: ${result.overallScore}/100`);
+    lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`);
+    if (remediationProfile) {
+      lines.push(
+        `- Practical readiness score: ${remediationProfile.overallScore}/100 (${remediationProfile.grade})`,
+      );
     }
-    return lines.join('\n')
+    lines.push(`- Verdict: ${verdict}`);
+    lines.push(`- Scored categories passed: ${passingCount}`);
+    if (result.isScanned) {
+      lines.push(`- Scanned document: yes`);
+    }
+    return lines.join("\n");
   }
 
-  lines.push(`I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`)
-  lines.push('')
-  lines.push(`**Please verify the PDF file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the actual tag tree, reading order, alt text, and form fields directly rather than reasoning only from the summary below.`)
-  lines.push('')
+  lines.push(
+    `I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+  );
+  lines.push("");
+  lines.push(
+    `**Please verify the PDF file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the actual tag tree, reading order, alt text, and form fields directly rather than reasoning only from the summary below.`,
+  );
+  lines.push("");
 
-  lines.push(`## File`)
-  lines.push(`- Filename: ${result.filename}`)
-  lines.push(`- Pages: ${result.pageCount}`)
-  lines.push(`- Overall score: ${result.overallScore}/100`)
-  lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`)
-  lines.push(`- Verdict: ${verdict}`)
-  lines.push(`- Critical issues: ${criticalCount}`)
-  lines.push(`- Moderate issues: ${moderateCount}`)
+  lines.push(`## File`);
+  lines.push(`- Filename: ${result.filename}`);
+  lines.push(`- Pages: ${result.pageCount}`);
+  lines.push(`- Overall score: ${result.overallScore}/100`);
+  lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`);
+  if (remediationProfile) {
+    lines.push(
+      `- Practical readiness score: ${remediationProfile.overallScore}/100 (${remediationProfile.grade})`,
+    );
+  }
+  lines.push(`- Verdict: ${verdict}`);
+  lines.push(`- Critical issues: ${criticalCount}`);
+  lines.push(`- Moderate issues: ${moderateCount}`);
   if (result.isScanned) {
-    lines.push(`- Scanned document: yes (screen readers cannot access content until OCR + tagging is applied)`)
+    lines.push(
+      `- Scanned document: yes (screen readers cannot access content until OCR + tagging is applied)`,
+    );
   }
-  lines.push('')
+  lines.push("");
 
-  lines.push(`## Executive summary (from the audit tool)`)
-  lines.push('')
-  lines.push(result.executiveSummary)
-  lines.push('')
+  lines.push(`## Executive summary (from the audit tool)`);
+  lines.push("");
+  lines.push(result.executiveSummary);
+  lines.push("");
 
   if (result.warnings?.length) {
-    lines.push(`## Warnings`)
-    for (const w of result.warnings) lines.push(`- ${w}`)
-    lines.push('')
+    lines.push(`## Warnings`);
+    for (const w of result.warnings) lines.push(`- ${w}`);
+    lines.push("");
   }
 
-  lines.push(`## Failing categories (${failing.length} to fix)`)
-  lines.push('')
+  lines.push(`## Failing categories (${failing.length} to fix)`);
+  lines.push("");
   for (const c of failing) {
-    lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`)
+    lines.push(`### ${c.label} — ${c.score}/100 (${c.severity})`);
     if (c.explanation) {
-      lines.push('')
-      lines.push(c.explanation)
+      lines.push("");
+      lines.push(c.explanation);
     }
-    const wcagRefs = getWcagCriteriaStrings(c.id)
+    const wcagRefs = getWcagCriteriaStrings(c.id);
     if (wcagRefs.length) {
-      lines.push('')
-      lines.push(`**WCAG 2.1 references:**`)
-      for (const ref of wcagRefs) lines.push(`- ${ref}`)
+      lines.push("");
+      lines.push(`**WCAG 2.1 references:**`);
+      for (const ref of wcagRefs) lines.push(`- ${ref}`);
     }
     if (c.findings?.length) {
-      lines.push('')
-      lines.push(`**Findings:**`)
-      for (const f of c.findings) lines.push(`- ${f}`)
+      lines.push("");
+      lines.push(`**Findings:**`);
+      for (const f of c.findings) lines.push(`- ${f}`);
     }
-    lines.push('')
+    lines.push("");
   }
 
-  lines.push(`---`)
-  lines.push('')
-  lines.push(`## What I'd like from you`)
-  lines.push('')
-  lines.push(`1. Explain in plain language what each failing category means for a real screen-reader or assistive-technology user.`)
-  lines.push(`2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`)
-  lines.push(`3. Prioritize the Critical items — which fix should I tackle first, and why?`)
-  lines.push(`4. Flag any findings that automated tools commonly mis-report, and tell me how to verify them manually.`)
+  lines.push(`---`);
+  lines.push("");
+  lines.push(`## What I'd like from you`);
+  lines.push("");
+  lines.push(
+    `1. Explain in plain language what each failing category means for a real screen-reader or assistive-technology user.`,
+  );
+  lines.push(
+    `2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`,
+  );
+  lines.push(
+    `3. Prioritize the Critical items — which fix should I tackle first, and why?`,
+  );
+  lines.push(
+    `4. Flag any findings that automated tools commonly mis-report, and tell me how to verify them manually.`,
+  );
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 // ── Public composable ─────────────────────────────────────────────────────
 
 export function useReportExport() {
-  const config = useRuntimeConfig()
+  const config = useRuntimeConfig();
   const branding: BrandingInfo = {
     appName: config.public.appName as string,
     siteUrl: config.public.siteUrl as string,
-  }
-  const exporting = ref(false)
-  const sharing = ref(false)
-  const shareUrl = ref<string | null>(null)
-  const shareError = ref<string | null>(null)
-  const aiCopied = ref(false)
-  let aiCopyTimer: ReturnType<typeof setTimeout> | null = null
+  };
+  const exporting = ref(false);
+  const sharing = ref(false);
+  const shareUrl = ref<string | null>(null);
+  const shareError = ref<string | null>(null);
+  const aiCopied = ref(false);
+  let aiCopyTimer: ReturnType<typeof setTimeout> | null = null;
 
   async function exportMarkdown(result: ReportResult) {
-    const md = buildMarkdown(result, branding)
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-    saveAs(blob, `${baseFilename(result)}.md`)
+    const md = buildMarkdown(result, branding);
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    saveAs(blob, `${baseFilename(result)}.md`);
   }
 
   async function exportJSON(result: ReportResult) {
-    const json = buildJSON(result, branding)
-    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
-    saveAs(blob, `${baseFilename(result)}.json`)
+    const json = buildJSON(result, branding);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    saveAs(blob, `${baseFilename(result)}.json`);
   }
 
   async function exportDocx(result: ReportResult) {
-    exporting.value = true
+    exporting.value = true;
     try {
-      const blob = await buildDocx(result, branding)
-      saveAs(blob, `${baseFilename(result)}.docx`)
+      const blob = await buildDocx(result, branding);
+      saveAs(blob, `${baseFilename(result)}.docx`);
     } finally {
-      exporting.value = false
+      exporting.value = false;
     }
   }
 
   async function exportHtml(result: ReportResult) {
-    const html = buildHtml(result, branding)
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-    saveAs(blob, `${baseFilename(result)}.html`)
+    const html = buildHtml(result, branding);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    saveAs(blob, `${baseFilename(result)}.html`);
   }
 
   async function shareReport(result: ReportResult): Promise<string | null> {
-    sharing.value = true
-    shareError.value = null
-    shareUrl.value = null
+    sharing.value = true;
+    shareError.value = null;
+    shareUrl.value = null;
     try {
-      const response = await $fetch<{ id: string }>('/api/reports', {
-        method: 'POST',
+      const response = await $fetch<{ id: string }>("/api/reports", {
+        method: "POST",
         body: { report: result },
-        credentials: 'include',
-      })
-      const config = useRuntimeConfig()
-      const url = `${config.public.siteUrl}/report/${response.id}`
-      shareUrl.value = url
-      return url
+        credentials: "include",
+      });
+      const config = useRuntimeConfig();
+      const url = `${config.public.siteUrl}/report/${response.id}`;
+      shareUrl.value = url;
+      return url;
     } catch (err: any) {
-      shareError.value = err?.data?.error || 'Failed to create share link'
-      return null
+      shareError.value = err?.data?.error || "Failed to create share link";
+      return null;
     } finally {
-      sharing.value = false
+      sharing.value = false;
     }
   }
 
   function clearShare() {
-    shareUrl.value = null
-    shareError.value = null
+    shareUrl.value = null;
+    shareError.value = null;
   }
 
   function buildAiAnalysisText(result: ReportResult): string {
-    return buildAiAnalysis(result)
+    return buildAiAnalysis(result);
   }
 
   async function copyAiAnalysis(result: ReportResult): Promise<boolean> {
-    const text = buildAiAnalysis(result)
+    const text = buildAiAnalysis(result);
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text)
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
       } else {
-        return false
+        return false;
       }
-      aiCopied.value = true
-      if (aiCopyTimer) clearTimeout(aiCopyTimer)
-      aiCopyTimer = setTimeout(() => { aiCopied.value = false }, 2500)
-      return true
+      aiCopied.value = true;
+      if (aiCopyTimer) clearTimeout(aiCopyTimer);
+      aiCopyTimer = setTimeout(() => {
+        aiCopied.value = false;
+      }, 2500);
+      return true;
     } catch {
-      return false
+      return false;
     }
   }
 
   return {
-    exportMarkdown, exportJSON, exportDocx, exportHtml,
-    shareReport, shareUrl, shareError, sharing, clearShare,
+    exportMarkdown,
+    exportJSON,
+    exportDocx,
+    exportHtml,
+    shareReport,
+    shareUrl,
+    shareError,
+    sharing,
+    clearShare,
     exporting,
-    copyAiAnalysis, aiCopied, buildAiAnalysisText,
-  }
+    copyAiAnalysis,
+    aiCopied,
+    buildAiAnalysisText,
+  };
 }

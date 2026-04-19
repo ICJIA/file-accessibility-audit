@@ -1,41 +1,149 @@
 <template>
   <div class="text-center space-y-4">
-    <!-- Verdict banner -->
     <div
-      role="status"
-      aria-live="polite"
-      data-testid="verdict-banner"
-      class="flex items-center justify-center gap-3 sm:gap-4 px-6 py-5 sm:px-10 sm:py-7 rounded-2xl text-2xl sm:text-3xl font-extrabold tracking-tight text-white shadow-lg ring-1 ring-white/10"
-      :style="{ backgroundColor: verdictColor }"
+      v-if="hasAlternateProfile"
+      data-testid="mode-recommendation-card"
+      class="max-w-2xl mx-auto rounded-2xl border px-4 py-4 sm:px-5 sm:py-5 text-left shadow-sm"
+      :class="
+        selectedMode === 'strict'
+          ? 'border-emerald-500/30 bg-emerald-500/10'
+          : 'border-amber-500/35 bg-amber-500/10'
+      "
     >
-      <!-- Thumbs up (accessible) -->
-      <svg
-        v-if="isAccessible"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        class="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-sm"
-        aria-hidden="true"
-      >
-        <path d="M7.493 18.75c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.375c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM2.331 10.977a11.969 11.969 0 00-.831 4.398 12 12 0 00.52 3.507c.26.85 1.084 1.368 1.973 1.368H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 01-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227z" />
-      </svg>
-      <!-- Thumbs down (not accessible) -->
-      <svg
-        v-else
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        class="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-sm"
-        aria-hidden="true"
-      >
-        <path d="M15.73 5.25h1.035A7.465 7.465 0 0118 9.375a7.465 7.465 0 01-1.235 4.125h-.148c-.806 0-1.534.446-2.031 1.08a9.04 9.04 0 01-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.498 4.498 0 00-.322 1.672V21a.75.75 0 01-.75.75 2.25 2.25 0 01-2.25-2.25c0-1.152.26-2.243.723-3.218.266-.558-.107-1.282-.725-1.282H3.622c-1.026 0-1.945-.694-2.054-1.715A12.137 12.137 0 011.5 12c0-2.848.992-5.464 2.649-7.521.388-.482.987-.729 1.605-.729H9.77a4.5 4.5 0 011.423.23l3.114 1.04a4.5 4.5 0 001.423.23zM21.669 13.023c.536-1.362.831-2.845.831-4.398 0-1.22-.182-2.398-.52-3.507-.26-.85-1.084-1.368-1.973-1.368H19.1c-.445 0-.72.498-.523.898.591 1.2.924 2.55.924 3.977a8.959 8.959 0 01-1.302 4.666c-.245.403.028.959.5.959h1.053c.832 0 1.612-.453 1.918-1.227z" />
-      </svg>
-      <span>{{ verdictText }}</span>
+      <div class="flex flex-col gap-3">
+        <div
+          class="flex flex-wrap items-center justify-between gap-2"
+          :class="
+            selectedMode === 'strict' ? 'text-emerald-200' : 'text-amber-200'
+          "
+        >
+          <p class="text-[11px] font-semibold uppercase tracking-[0.16em]">
+            Recommendation for Illinois agency use
+          </p>
+          <span
+            data-testid="mode-recommendation-current"
+            class="rounded-full border px-2.5 py-1 text-[11px] font-medium"
+            :class="
+              selectedMode === 'strict'
+                ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+                : 'border-amber-400/35 bg-amber-400/10 text-amber-100'
+            "
+          >
+            Current view:
+            {{ selectedMode === "strict" ? "Strict" : "Practical" }}
+          </span>
+        </div>
+        <div>
+          <h2
+            class="text-sm sm:text-base font-semibold text-[var(--text-heading)]"
+            data-testid="mode-recommendation-title"
+          >
+            {{ recommendationTitle }}
+          </h2>
+          <p
+            class="mt-2 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
+            data-testid="mode-recommendation-summary"
+          >
+            {{ recommendationSummary }}
+          </p>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <div
+            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3"
+          >
+            <p class="text-xs font-semibold text-[var(--text-heading)]">
+              Strict
+            </p>
+            <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+              Best primary mode for publication and ADA/WCAG/ITTAA-oriented
+              legal accessibility review.
+            </p>
+          </div>
+          <div
+            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3"
+          >
+            <p class="text-xs font-semibold text-[var(--text-heading)]">
+              Practical
+            </p>
+            <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+              Useful for progress tracking, but not the stronger legal or
+              conformance-facing score.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <p class="text-sm text-[var(--text-muted)]">
-      {{ result.filename }} — {{ result.pageCount }} page{{ result.pageCount !== 1 ? 's' : '' }}
+      {{ result.filename }} — {{ result.pageCount }} page{{
+        result.pageCount !== 1 ? "s" : ""
+      }}
     </p>
+
+    <div
+      v-if="hasAlternateProfile"
+      class="max-w-lg mx-auto rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-4 py-3"
+    >
+      <p
+        class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"
+      >
+        Score profile
+      </p>
+      <div
+        class="mt-3 inline-flex rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] p-1"
+        role="group"
+        aria-label="Scoring profile toggle"
+      >
+        <button
+          v-for="mode in availableModes"
+          :key="mode"
+          type="button"
+          class="rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+          :class="
+            selectedMode === mode
+              ? 'bg-[var(--surface-hover)] text-[var(--text-heading)] shadow-sm'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+          "
+          :aria-pressed="selectedMode === mode"
+          :data-testid="`score-mode-${mode}`"
+          @click="setSelectedMode(mode)"
+        >
+          {{ modeButtonLabel(mode) }}
+        </button>
+      </div>
+      <p class="mt-3 text-xs text-[var(--text-muted)] leading-relaxed">
+        {{ displayedProfile.description }}
+      </p>
+      <p
+        v-if="selectedMode === 'strict'"
+        class="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-left text-xs text-emerald-100/95 leading-relaxed"
+        data-testid="strict-mode-rationale"
+      >
+        Choose Strict for the stronger ADA/WCAG/ITTAA-facing signal. It
+        prioritizes programmatically determinable semantics — real headings,
+        table headers, and logical structure — which makes it the better primary
+        mode for agency publication and legal accessibility review.
+      </p>
+      <p
+        v-if="comparisonProfile"
+        class="mt-2 text-xs text-[var(--text-secondary)]"
+        data-testid="alternate-score-summary"
+      >
+        Also available: <strong>{{ comparisonProfile.label }}</strong> —
+        {{ comparisonProfile.overallScore }}/100 ({{ comparisonProfile.grade }})
+      </p>
+      <p
+        v-if="selectedMode !== 'strict'"
+        class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200/95 leading-relaxed"
+        data-testid="strict-findings-note"
+      >
+        Practical mode is intentionally more generous. It rewards usable
+        improvements such as bookmarks, broader tagging, or cleaner table grids
+        even when the semantic evidence needed for ADA/WCAG/ITTAA review is
+        still incomplete. Use Strict for agency publication and legal
+        accessibility decisions.
+      </p>
+    </div>
 
     <!-- Grade circle -->
     <div class="flex justify-center">
@@ -47,14 +155,15 @@
           class="text-5xl sm:text-7xl font-black"
           :style="{ color: gradeColor }"
         >
-          {{ result.grade }}
+          {{ displayedProfile.grade }}
         </span>
       </div>
     </div>
 
     <!-- Score -->
     <p class="text-3xl font-bold">
-      {{ result.overallScore }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
+      {{ displayedProfile.overallScore
+      }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
     </p>
 
     <!-- Label -->
@@ -71,115 +180,263 @@
     />
 
     <!-- Summary -->
-    <p class="text-sm text-[var(--text-muted)] max-w-lg mx-auto leading-relaxed" v-html="highlightedSummary" />
+    <p
+      class="text-sm text-[var(--text-muted)] max-w-lg mx-auto leading-relaxed"
+      v-html="highlightedSummary"
+    />
 
     <!-- Caveat -->
-    <div class="max-w-lg mx-auto mt-5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border-alt)] px-5 py-4">
+    <div
+      class="max-w-lg mx-auto mt-5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border-alt)] px-5 py-4"
+    >
       <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
-        This automated audit provides a reliable initial assessment, but it cannot catch every issue. For the most thorough evaluation, test your PDF directly in
-        <a href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)] underline">Adobe Acrobat's Accessibility Checker</a>.
-        Whenever possible, ensure your source document (Word, InDesign, etc.) is accessible before generating the PDF — retrofitting accessibility after export is more difficult and less reliable.
+        This automated audit provides a reliable initial assessment, but it
+        cannot catch every issue. For the most thorough evaluation, test your
+        PDF directly in
+        <a
+          href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
+          >Adobe Acrobat's Accessibility Checker</a
+        >. Whenever possible, ensure your source document (Word, InDesign, etc.)
+        is accessible before generating the PDF — retrofitting accessibility
+        after export is more difficult and less reliable.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  type ScoreProfile,
+  type ScoringMode,
+  categoriesForScoringMode,
+} from "~/utils/scoringProfiles";
+
 interface Category {
-  id: string
-  label: string
-  score: number | null
-  grade: string | null
-  severity: string | null
-  findings?: string[]
+  id: string;
+  label: string;
+  score: number | null;
+  grade: string | null;
+  severity: string | null;
+  findings?: string[];
+}
+
+interface ScoreProfileView extends ScoreProfile {
+  mode?: ScoringMode;
 }
 
 const props = defineProps<{
   result: {
-    filename: string
-    pageCount: number
-    overallScore: number
-    grade: string
-    executiveSummary: string
-    categories?: Category[]
-  }
-}>()
+    filename: string;
+    pageCount: number;
+    overallScore: number;
+    grade: string;
+    executiveSummary: string;
+    categories?: Category[];
+    scoringMode?: ScoringMode;
+    scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
+  };
+  selectedMode?: ScoringMode;
+}>();
+
+const emit = defineEmits<{
+  "update:selectedMode": [mode: ScoringMode];
+}>();
 
 const gradeMap: Record<string, { color: string; label: string }> = {
-  A: { color: '#22c55e', label: 'Excellent' },
-  B: { color: '#14b8a6', label: 'Good' },
-  C: { color: '#eab308', label: 'Needs Improvement' },
-  D: { color: '#f97316', label: 'Poor' },
-  F: { color: '#ef4444', label: 'Failing' },
+  A: { color: "#22c55e", label: "Excellent" },
+  B: { color: "#14b8a6", label: "Good" },
+  C: { color: "#eab308", label: "Needs Improvement" },
+  D: { color: "#f97316", label: "Poor" },
+  F: { color: "#ef4444", label: "Failing" },
+};
+
+const internalSelectedMode = ref<ScoringMode>("strict");
+
+watch(
+  () => props.result,
+  (value) => {
+    internalSelectedMode.value =
+      value.scoringMode === "remediation" && value.scoreProfiles?.remediation
+        ? "remediation"
+        : "strict";
+  },
+  { immediate: true },
+);
+
+function modeButtonLabel(mode: ScoringMode): string {
+  return mode === "remediation" ? "Practical" : "Strict";
 }
 
-const gradeColor = computed(() => gradeMap[props.result.grade]?.color || '#666')
-const gradeLabel = computed(() => gradeMap[props.result.grade]?.label || '')
+function profileLabel(mode: ScoringMode): string {
+  return mode === "remediation"
+    ? "Practical readiness score"
+    : "Strict semantic score";
+}
 
-const isAccessible = computed(() => props.result.grade === 'A' || props.result.grade === 'B')
-const verdictText = computed(() => isAccessible.value ? 'This file is accessible' : 'This file is not accessible')
-const verdictColor = computed(() => isAccessible.value ? '#15803d' : '#b91c1c')
+function profileDescription(mode: ScoringMode): string {
+  return mode === "remediation"
+    ? "More generous progress signal that gives credit for usable improvements, even when semantic structure is still incomplete."
+    : "Default ADA/WCAG/ITTAA-oriented profile that prioritizes programmatically determinable headings, table semantics, and logical structure.";
+}
+
+const normalizedProfiles = computed<
+  Record<ScoringMode, ScoreProfileView | null>
+>(() => ({
+  strict: {
+    mode: "strict",
+    label: profileLabel("strict"),
+    description: profileDescription("strict"),
+    overallScore:
+      props.result.scoreProfiles?.strict?.overallScore ??
+      props.result.overallScore,
+    grade: props.result.scoreProfiles?.strict?.grade ?? props.result.grade,
+    executiveSummary:
+      props.result.scoreProfiles?.strict?.executiveSummary ??
+      props.result.executiveSummary,
+  },
+  remediation: props.result.scoreProfiles?.remediation
+    ? {
+        mode: "remediation",
+        label: profileLabel("remediation"),
+        description: profileDescription("remediation"),
+        overallScore: props.result.scoreProfiles.remediation.overallScore,
+        grade: props.result.scoreProfiles.remediation.grade,
+        executiveSummary:
+          props.result.scoreProfiles.remediation.executiveSummary,
+      }
+    : null,
+}));
+
+const availableModes = computed(() =>
+  (["strict", "remediation"] as ScoringMode[]).filter(
+    (mode) => normalizedProfiles.value[mode],
+  ),
+);
+const hasAlternateProfile = computed(() => availableModes.value.length > 1);
+const selectedMode = computed(() => {
+  const requestedMode = props.selectedMode;
+  return requestedMode && availableModes.value.includes(requestedMode)
+    ? requestedMode
+    : internalSelectedMode.value;
+});
+const displayedProfile = computed(
+  () =>
+    normalizedProfiles.value[selectedMode.value] ||
+    normalizedProfiles.value.strict!,
+);
+const comparisonProfile = computed(() => {
+  const otherMode = availableModes.value.find(
+    (mode) => mode !== selectedMode.value,
+  );
+  return otherMode ? normalizedProfiles.value[otherMode] : null;
+});
+
+const displayedCategories = computed(() =>
+  categoriesForScoringMode(
+    props.result.categories,
+    props.result.scoreProfiles,
+    selectedMode.value,
+  ),
+);
+
+const gradeColor = computed(
+  () => gradeMap[displayedProfile.value.grade]?.color || "#666",
+);
+const gradeLabel = computed(
+  () => gradeMap[displayedProfile.value.grade]?.label || "",
+);
+const recommendationTitle = computed(() =>
+  selectedMode.value === "strict"
+    ? "Use Strict as the primary mode for legal accessibility review."
+    : "Practical is not the primary legal/compliance score.",
+);
+const recommendationSummary = computed(() =>
+  selectedMode.value === "strict"
+    ? "Strict emphasizes programmatically determinable headings, table headers, and logical structure, making it the better primary signal for Illinois agency publication and ADA/WCAG/ITTAA-oriented review."
+    : "Practical can score higher by rewarding usable improvements such as bookmarks or broader tagging, even while semantic accessibility gaps remain. Switch back to Strict for publication and legal accessibility decisions.",
+);
 
 const severityCounts = computed(() => {
-  const cats = props.result.categories || []
+  const cats = displayedCategories.value;
   return {
-    critical: cats.filter(c => c.severity === 'Critical').length,
-    moderate: cats.filter(c => c.severity === 'Moderate').length,
-  }
-})
+    critical: cats.filter((c) => c.severity === "Critical").length,
+    moderate: cats.filter((c) => c.severity === "Moderate").length,
+  };
+});
+
+function setSelectedMode(mode: ScoringMode): void {
+  internalSelectedMode.value = mode;
+  emit("update:selectedMode", mode);
+}
 
 function pluralize(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? '' : 's'}`
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 function joinParts(parts: string[]): string {
-  if (parts.length === 0) return ''
-  if (parts.length === 1) return parts[0]
-  return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
 }
 
 const verdictExplanation = computed(() => {
-  if (!props.result.categories || props.result.categories.length === 0) return ''
-  const { critical, moderate } = severityCounts.value
-  const parts: string[] = []
+  const { critical, moderate } = severityCounts.value;
+  const parts: string[] = [];
   if (critical > 0) {
-    parts.push(`<span style="color: var(--icon-fail); font-weight: 600;">${pluralize(critical, 'critical issue')}</span>`)
+    parts.push(
+      `<span style="color: var(--icon-fail); font-weight: 600;">${pluralize(critical, "critical issue")}</span>`,
+    );
   }
   if (moderate > 0) {
-    parts.push(`<span style="color: var(--icon-na); font-weight: 600;">${pluralize(moderate, 'moderate issue')}</span>`)
+    parts.push(
+      `<span style="color: var(--icon-na); font-weight: 600;">${pluralize(moderate, "moderate issue")}</span>`,
+    );
   }
 
-  if (isAccessible.value) {
+  if (selectedMode.value !== "strict") {
     if (parts.length === 0) {
-      return 'Every scored category passed with no critical or moderate issues — this document is in strong shape for WCAG 2.1 AA and ADA Title II.'
+      return "Practical mode is intentionally more generous. It can rise when bookmarks, broader tagging, or cleaner table grids improve usability, even if semantic headings or table-header relationships are still incomplete. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.";
     }
-    return `The document passes overall, though ${joinParts(parts)} remain in individual categories. See the detailed findings below to take it from compliant to polished.`
+    return `Practical mode is intentionally more generous. It can score higher when usability signals improve, but ${joinParts(parts)} still remain in the scored categories below. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.`;
+  }
+
+  if (!props.result.categories || props.result.categories.length === 0) {
+    return "Strict mode is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure.";
   }
 
   if (parts.length === 0) {
-    return 'Several categories are close to passing but fall short of WCAG 2.1 AA thresholds. Review the detailed findings below to bring this document into compliance.'
+    return "Strict mode is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. Every scored category passed with no critical or moderate issues, which is a strong structural signal, though it is still not a final legal determination.";
   }
-  return `Resolving ${joinParts(parts)} in the detailed findings below will move this document toward WCAG 2.1 AA and ADA Title II compliance.`
-})
+  return `Strict mode is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. The scored categories below still show ${joinParts(parts)}, so review the detailed findings before treating the file as publication-ready.`;
+});
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function highlightSeverities(raw: string): string {
-  let text = escapeHtml(raw)
+  let text = escapeHtml(raw);
   // Highlight "critical" phrases in red
   text = text.replace(
     /(\d+ critical(?: accessibility)? issues?)/gi,
-    '<span style="color: var(--icon-fail); font-weight: 600;">$1</span>'
-  )
+    '<span style="color: var(--icon-fail); font-weight: 600;">$1</span>',
+  );
   // Highlight "moderate" phrases in yellow
   text = text.replace(
     /(\d+ moderate(?: accessibility)? issues?)/gi,
-    '<span style="color: var(--icon-na); font-weight: 600;">$1</span>'
-  )
-  return text
+    '<span style="color: var(--icon-na); font-weight: 600;">$1</span>',
+  );
+  return text;
 }
 
-const highlightedSummary = computed(() => highlightSeverities(props.result.executiveSummary))
+const highlightedSummary = computed(() =>
+  highlightSeverities(displayedProfile.value.executiveSummary),
+);
 </script>

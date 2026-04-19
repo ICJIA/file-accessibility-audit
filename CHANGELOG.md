@@ -4,14 +4,35 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [Unreleased]
+
+### Added
+
+- **Dual scoring profiles in the UI and exports** — reports now surface both a **Strict semantic score** and a **Practical readiness score**. Category tables follow the selected profile where alternate category scores are available, and exports/AI analysis include the practical-readiness label when present.
+- **Prominent legal recommendation card** — the ScoreCard hero now shows a front-and-center Illinois agency guidance card explaining that **Strict** is the better primary mode for publication and ADA/WCAG/ITTAA-oriented legal accessibility review, while **Practical** is a secondary progress view.
+- **Expanded methodology/legal guidance** — the Technical Details section now explains why accessibility is not always a simple binary, what each mode means, and how weight renormalization helps scoring without replacing strict semantic findings.
+- **Scoring-profile utilities and tests** — added shared profile-selection helpers and dedicated tests covering category-profile switching, UI copy, and export output.
+
+### Changed
+
+- **Renamed the softer profile in user-facing copy** from "Remediation" / "Remediation-oriented" to **"Practical" / "Practical readiness"** to avoid implying that a file is already fully remediated.
+- **Strict is now explicitly framed as the primary legal/compliance signal** throughout the app, shared report, and exports because it prioritizes programmatically determinable headings, table semantics, and logical structure.
+- **Recommendation copy is mode-aware** — when Practical is selected, the UI now explains that the score may be higher because it rewards usable improvements even while semantic accessibility gaps remain.
+
+### Removed
+
+- **Binary accessibility verdict banner** — removed the "This file is accessible" / "This file is not accessible" banner because the absolute phrasing overstated certainty in cases where practical improvement and stricter semantic accessibility diverge.
+
 ## [1.12.2] - 2026-04-17
 
 ### Changed
+
 - **AI analysis prompt now instructs the LLM to verify the PDF is attached** — the prompt references the filename directly and tells the assistant to ask the user to upload the PDF if it wasn't attached to the conversation. Makes remediation guidance much more accurate by prompting the model to inspect the actual tag tree, reading order, alt text, and form fields rather than reasoning only from the audit summary.
 
 ## [1.12.1] - 2026-04-17
 
 ### Changed
+
 - **AI analysis panel only renders when remediation is needed** — the "For Use with AI Assistants" card is hidden entirely on clean reports (no Critical or Moderate severity categories). Passing documents now go straight from Export & Share to the "Analyze More Files" button without AI copy clutter.
 - **AI analysis output lists only failing items** — `buildAiAnalysis` no longer emits the "What's working" or "Not applicable" sections. When called on a clean document the function short-circuits to a compact "No remediation is needed" message. This keeps LLM context focused on what actually needs fixing.
 - **Preview textarea is always visible and full-width** — removed the `<details>` collapsible wrapper and the narrow flex column that was clipping lines. The textarea now spans the full card width, uses `resize-y` so users can drag to expand, wraps long lines (no horizontal scrollbar), and is labeled "AI Analysis Preview".
@@ -21,6 +42,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ## [1.12.0] - 2026-04-17
 
 ### Added
+
 - **Prominent accessibility verdict banner** — ScoreCard now displays a large green "This file is accessible" or red "This file is not accessible" banner above the grade circle, with thumbs-up/thumbs-down icons, WCAG-AA-compliant contrast (`#15803d` / `#b91c1c` on white), and `role="status"` + `aria-live="polite"` for assistive technology. Grades A and B are considered accessible; C/D/F are not.
 - **Verdict explanation sentence** — a new sentence under the grade label quantifies the remaining Critical and Moderate issues (e.g. "Resolving 2 critical issues and 1 moderate issue in the detailed findings below will move this document toward WCAG 2.1 AA and ADA Title II compliance"), with four wording variants covering accessible-with/without-remaining-issues and failing-with/without-counts.
 - **AI-ready analysis panel** (`apps/web/app/pages/index.vue`) — new card after Export & Share with a "Copy Analysis for AI" button and a collapsible preview textarea. Clipboard payload includes verdict, grade, executive summary, passing categories, failing categories with findings and WCAG 2.1 references, N/A categories, and five remediation questions for an LLM to answer. Designed for pasting into ChatGPT, Claude, or any LLM to get plain-language explanations and step-by-step remediation guidance.
@@ -28,30 +50,36 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Test coverage** — 15 new tests (5 verdict-explanation cases in `scoring-display.test.ts`, 10 cases in the new `ai-analysis.test.ts`). Suite is now 222 tests, all passing.
 
 ### Changed
+
 - `ScoreCard.vue` `result` prop accepts an optional `categories` array; the verdict explanation is only rendered when categories are provided.
 - `vitest.config.ts` registers `~` and `@` aliases so tests can import from `~/utils/*` the same way runtime code does.
 
 ## [1.11.0] - 2026-04-13
 
 ### Added
+
 - **WCAG 2.1 References card in every scored category** — each basic/advanced card on the audit results page and shared report page now includes a dedicated "WCAG 2.1 References" sub-card listing the exact success criteria the score is tied to (id, name, and Level A/AA badge), with each row linking to the official W3C Understanding document. Makes the rubric externally anchored and auditable so reviewers can verify the grade against the source standard.
 - **Shared WCAG utility** (`apps/web/app/utils/wcag.ts`) — single source of truth mapping each scoring category to structured `WcagCriterion` objects (`id`, `name`, `level`, W3C Understanding URL). Replaces the previous duplicate map that lived only inside the export composable.
 - **JSON export enrichment** — exported reports now include `wcag.successCriteriaDetailed` (structured objects with URLs) alongside the existing `successCriteria` string array. Additive change; no breaking change to existing consumers.
 
 ### Changed
+
 - `useReportExport.ts` now imports the WCAG map from the shared util instead of defining its own copy, keeping web UI citations and exported reports in lockstep.
 
 ## [1.10.1] - 2026-04-12
 
 ### Added
+
 - **Responsive layout test suite** (`responsive.test.ts`) — 48 tests covering mobile navigation, responsive padding, ScoreCard/CategoryRow responsive classes, table overflow handling, CSS transitions, and scoring modal breakpoints
 
 ### Fixed
+
 - Updated ScoreCard selectors in `scoring-display.test.ts` to match new responsive class names (`text-5xl`/`w-28` instead of `text-7xl`/`w-40`)
 
 ## [1.10.0] - 2026-04-12
 
 ### Added
+
 - **Fully responsive layout** — mobile-first redesign across all pages and components
   - Hamburger menu with animated slide-down navigation drawer on screens below `md` breakpoint
   - CategoryRow stacks label and score bar vertically on mobile for readability
@@ -66,12 +94,14 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ## [1.9.1] - 2026-04-11
 
 ### Changed
+
 - **Increased font sizes globally** — overrode Tailwind's default text size scale via `@theme` in `main.css` for improved readability across the entire UI (xs: 12→17px, sm: 14→19px, base: 16→21px, lg: 18→23px)
 - Technical Details section uses `text-sm` container for balanced density in long-form content
 
 ## [1.9.0] - 2026-03-22
 
 ### Added
+
 - **Publication batch audit CLI** (`pnpm a11y-audit`) — new `publist` subcommand that fetches all ICJIA publications via GraphQL, audits every PDF, and generates reports with grades, category scores, and remediation guidance
   - **SQLite cache** — results cached in `~/.a11y-audit/cache.db` so re-runs only audit new publications; `--force` and `--clear` flags for full re-scans
   - **CSV report** — grade distribution summary, temporal comparison (recent vs. legacy), per-file scores across all 10 categories
@@ -99,24 +129,28 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
   - `lib/colors.ts` — shared ANSI color utilities
 
 ### Changed
+
 - CLI entry point (`src/index.ts`) reduced to 19-line subcommand router
 - `better-sqlite3` added as CLI dependency; externalized in tsup build config
 
 ## [1.8.0] - 2026-03-12
 
 ### Added
+
 - **Font embedding scoring** — non-embedded fonts now cap Text Extractability at 85 (Minor severity, never Pass), with per-font listing and Acrobat fix guidance
 - **Multiple H1 detection** — documents with more than one H1 heading score 75 (Minor) for Heading Structure; combined with hierarchy gaps, score drops to 55
 - **Acrobat remediation panel** — Adobe Acrobat fix instructions are now rendered in a distinct amber-bordered panel with numbered steps, separated from findings
 - **Inline guidance styling** — "How to fix:", "Fix:", and "Tip:" lines now render with amber left border and background tint for visual distinction
 
 ### Changed
+
 - Font embedding moved from informational supplementary finding to scored component of Text Extractability
 - Acrobat remediation guide now always visible in Basic view (no Advanced toggle needed)
 
 ## [1.7.1] - 2026-03-12
 
 ### Added
+
 - **Adobe Acrobat remediation guide** — every category that scores below "Pass" now includes a `--- Adobe Acrobat: How to Fix ---` section with:
   - The exact Acrobat Full Check rule name to look for (e.g., "Document → Tagged PDF", "Alternate Text → Figures alternate text")
   - Step-by-step menu paths (e.g., "File → Properties → Description tab → Title field")
@@ -124,11 +158,13 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
   - Guidance is shown in Advanced view only (no score impact)
 
 ### Changed
+
 - List structure analysis moved from Table Markup to Reading Order category — lists no longer appear orphaned under N/A when a document has no tables
 
 ## [1.7.0] - 2026-03-12
 
 ### Added
+
 - **PDF/UA identifier detection** — checks XMP metadata for `pdfuaid:part` to report whether a document claims PDF/UA (ISO 14289) conformance (informational, no score impact)
 - **Artifact tagging analysis** — counts `/Artifact` structure elements to verify decorative content (headers, footers, watermarks) is properly distinguished from real content (informational, no score impact)
 - **ActualText & expansion text detection** — reports `/ActualText` (glyph/ligature overrides) and `/E` (abbreviation expansion) attributes that help screen readers pronounce content correctly (informational, no score impact)
@@ -137,11 +173,13 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - 16 new tests (379 total): PDF/UA detection, artifact counting, ActualText/expansion text, scorer supplementary findings
 
 ### Changed
+
 - Technical details section updated with 3 new QPDF extraction rows and 3 new supplementary analysis entries
 
 ## [1.6.0] - 2026-03-12
 
 ### Added
+
 - **Per-card Basic/Advanced toggle** — each category card has its own sliding switch to show or hide detailed findings (per-table breakdowns, per-font listings, heading trees, link inventories, form field names)
 - **Alt text quality heuristic** — non-scoring warning flags alt text that appears to be hex-encoded, machine-generated, a filename, or a generic placeholder (e.g., "image", "photo")
 - **QPDF binary string decoding** — `b:` prefixed hex strings from QPDF are now decoded as UTF-16BE or UTF-8, producing human-readable alt text instead of raw hex
@@ -149,6 +187,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Guidance line rendering** — "How to fix:", "Tip:", and "Fix:" lines no longer display failure icons; they render with a subtle `›` marker instead
 
 ### Changed
+
 - Basic/Advanced toggle styling: Basic state uses emerald/green pill, Advanced uses blue pill — both visually distinct
 - Supplementary findings (role mapping, tab order, language spans, font analysis) are now classified as "advanced" and hidden by default in Basic view
 - Technical details section updated with alt text quality check documentation
@@ -157,6 +196,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ## [1.5.0] - 2026-03-11
 
 ### Added
+
 - **Comprehensive supplementary analysis** — 10 new detection checks appended as informational findings to existing scoring categories:
   - **List markup analysis** — detects `/L`, `/LI`, `/Lbl`, `/LBody` tags; reports well-formed vs malformed lists and nesting depth
   - **Marked content & artifact detection** — checks `/MarkInfo` dictionary for proper content/artifact distinction
@@ -172,12 +212,14 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - 23 new tests (363 total): list detection, MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, and scorer supplementary findings
 
 ### Changed
+
 - Supplementary findings appear as grouped sections (e.g., "--- Font Analysis ---") within existing scored categories, preserving scoring stability
 - All new checks are **informational only** — no scoring weight changes, ensuring existing document grades remain consistent
 
 ## [1.4.0] - 2026-03-11
 
 ### Added
+
 - **Enhanced table accessibility analysis** — six sub-checks replace the old binary header detection:
   - Header cells (TH tags) — 30 points
   - Scope attributes (/Column or /Row) — 20 points
@@ -192,6 +234,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - `CHANGELOG.md` with historical entries for v1.0.0–v1.3.0
 
 ### Changed
+
 - Table markup scoring now uses multi-factor weighted scoring instead of binary pass/fail
 - Each table sub-check produces actionable findings with Adobe Acrobat fix instructions
 - Technical details section updated with full table scoring methodology
@@ -199,6 +242,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ## [1.3.0] - 2026-03-11
 
 ### Added
+
 - **Batch PDF upload** — drop or select up to 5 PDFs at once with a staged file list and validation before analysis begins
 - **Tab-based results** — grid layout shows all file tabs; click any tab to view its full report, export, or share
 - **Cancel support** — AbortController-based cancel button stops remaining uploads mid-batch
@@ -209,16 +253,19 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **`BATCH.MAX_FILES`** constant in `audit.config.ts` (default 5)
 
 ### Fixed
+
 - pdfjs document resource leak on error paths (try/finally destroy)
 - File objects now nulled after upload to free browser memory
 - Tab bar no longer disappears when clicking error/cancelled tabs
 
 ### Changed
+
 - Rate limit increased from 30 to 35 analyses/hour to accommodate batch sessions with retries
 
 ## [1.2.0] - 2026-03-10
 
 ### Added
+
 - **Document metadata section** in reports (creator, producer, dates, version, encryption status)
 - **pdfjs image detection fallback** for untagged PDFs using operator list analysis
 - **Expandable technical details** section explaining how the tool analyzes PDFs (QPDF + PDF.js methodology)
@@ -226,11 +273,13 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Show all findings without truncation in detailed report
 
 ### Fixed
+
 - TS2551: cast OPS to Record for pdfjs-dist type compatibility
 
 ## [1.1.0] - 2026-03-09
 
 ### Added
+
 - **Light/dark mode toggle** with CSS variable theming and configurable default
 - **a11y-audit CLI tool** for command-line PDF accessibility analysis
 - **WCAG 2.1 AA compliance** — contrast fixes, accessibility tests, caveat text
@@ -243,6 +292,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Methodology card with severity highlights
 
 ### Fixed
+
 - Scoring modal heading order a11y violation
 - Robots warning for shared report pages
 - Meta description length for SEO compliance
@@ -252,6 +302,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ## [1.0.0] - 2026-03-07
 
 ### Added
+
 - **Core PDF accessibility grader** — 9 categories scored against WCAG 2.1 and ADA Title II
 - **Dual analysis engine** — QPDF (structure) + PDF.js (content) run in parallel
 - **Report exports** — Word (.docx), HTML, Markdown, JSON

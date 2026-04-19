@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
-import { analyzePDF } from '../services/pdfAnalyzer.js'
-import type { AnalysisResult } from '../services/pdfAnalyzer.js'
+import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { analyzePDF } from "../services/pdfAnalyzer.js";
+import type { AnalysisResult } from "../services/pdfAnalyzer.js";
 
 // ---------------------------------------------------------------------------
 // Full pipeline integration tests using real PDF files
@@ -14,16 +14,16 @@ import type { AnalysisResult } from '../services/pdfAnalyzer.js'
 // Prerequisites: QPDF must be installed (`brew install qpdf` / `apt install qpdf`)
 // ---------------------------------------------------------------------------
 
-const fixturesDir = path.join(import.meta.dirname, 'fixtures')
+const fixturesDir = path.join(import.meta.dirname, "fixtures");
 
 function loadFixture(filename: string): Buffer {
-  return fs.readFileSync(path.join(fixturesDir, filename))
+  return fs.readFileSync(path.join(fixturesDir, filename));
 }
 
 function findCategory(result: AnalysisResult, id: string) {
-  const cat = result.categories.find(c => c.id === id)
-  if (!cat) throw new Error(`Category "${id}" not found`)
-  return cat
+  const cat = result.categories.find((c) => c.id === id);
+  if (!cat) throw new Error(`Category "${id}" not found`);
+  return cat;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,76 +34,76 @@ function findCategory(result: AnalysisResult, id: string) {
 // descriptive links. It should score A (90+).
 // ---------------------------------------------------------------------------
 
-describe('integration: accessible PDF', () => {
-  let result: AnalysisResult
+describe("integration: accessible PDF", () => {
+  let result: AnalysisResult;
 
-  it('analyzes without errors', async () => {
-    const buffer = loadFixture('accessible.pdf')
-    result = await analyzePDF(buffer, 'accessible.pdf')
-    expect(result).toBeDefined()
-    expect(result.warnings).toHaveLength(0)
-  }, 30_000)
+  it("analyzes without errors", async () => {
+    const buffer = loadFixture("accessible.pdf");
+    result = await analyzePDF(buffer, "accessible.pdf");
+    expect(result).toBeDefined();
+    expect(result.warnings).toHaveLength(0);
+  }, 30_000);
 
-  it('is not detected as scanned', () => {
-    expect(result.isScanned).toBe(false)
-  })
+  it("is not detected as scanned", () => {
+    expect(result.isScanned).toBe(false);
+  });
 
-  it('scores 80+ overall (grade A or B)', () => {
-    expect(result.overallScore).toBeGreaterThanOrEqual(80)
-    expect(['A', 'B']).toContain(result.grade)
-  })
+  it("scores 80+ overall (grade A or B)", () => {
+    expect(result.overallScore).toBeGreaterThanOrEqual(80);
+    expect(["A", "B"]).toContain(result.grade);
+  });
 
-  it('has extractable tagged text (score >= 80)', () => {
-    const cat = findCategory(result, 'text_extractability')
-    expect(cat.score).toBeGreaterThanOrEqual(80)
-  })
+  it("has extractable tagged text (score >= 80)", () => {
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBeGreaterThanOrEqual(80);
+  });
 
-  it('has title and language (score 100)', () => {
-    const cat = findCategory(result, 'title_language')
-    expect(cat.score).toBe(100)
-  })
+  it("has title and language (score 100)", () => {
+    const cat = findCategory(result, "title_language");
+    expect(cat.score).toBe(100);
+  });
 
-  it('has proper heading structure (score 100)', () => {
-    const cat = findCategory(result, 'heading_structure')
-    expect(cat.score).toBe(100)
-  })
+  it("has proper heading structure (score 100)", () => {
+    const cat = findCategory(result, "heading_structure");
+    expect(cat.score).toBe(100);
+  });
 
-  it('has alt text on all images (score 100)', () => {
-    const cat = findCategory(result, 'alt_text')
-    expect(cat.score).toBe(100)
-  })
+  it("has alt text on all images (score 100)", () => {
+    const cat = findCategory(result, "alt_text");
+    expect(cat.score).toBe(100);
+  });
 
-  it('has properly marked-up tables (score >= 50)', () => {
-    const cat = findCategory(result, 'table_markup')
+  it("has properly marked-up tables (score >= 50)", () => {
+    const cat = findCategory(result, "table_markup");
     // Enhanced table scoring checks headers, scope, row structure, nesting,
     // caption, and column consistency. Most PDFs won't score 100 unless
     // they have scope attributes and captions on every table.
-    expect(cat.score).toBeGreaterThanOrEqual(50)
-  })
+    expect(cat.score).toBeGreaterThanOrEqual(50);
+  });
 
-  it('has descriptive links (score 100)', () => {
-    const cat = findCategory(result, 'link_quality')
-    expect(cat.score).toBe(100)
-  })
+  it("has descriptive links (score 100)", () => {
+    const cat = findCategory(result, "link_quality");
+    expect(cat.score).toBe(100);
+  });
 
-  it('all categories have explanations and help links', () => {
+  it("all categories have explanations and help links", () => {
     for (const cat of result.categories) {
-      expect(cat.explanation).toBeTruthy()
-      expect(cat.helpLinks).toBeDefined()
-      expect(cat.helpLinks.length).toBeGreaterThan(0)
+      expect(cat.explanation).toBeTruthy();
+      expect(cat.helpLinks).toBeDefined();
+      expect(cat.helpLinks.length).toBeGreaterThan(0);
     }
-  })
+  });
 
-  it('returns correct metadata', () => {
-    expect(result.filename).toBe('accessible.pdf')
-    expect(result.fileType).toBe('pdf')
-    expect(result.pageCount).toBeGreaterThan(0)
-  })
+  it("returns correct metadata", () => {
+    expect(result.filename).toBe("accessible.pdf");
+    expect(result.fileType).toBe("pdf");
+    expect(result.pageCount).toBeGreaterThan(0);
+  });
 
-  it('executive summary describes document quality', () => {
-    expect(result.executiveSummary.length).toBeGreaterThan(20)
-  })
-})
+  it("executive summary describes document quality", () => {
+    expect(result.executiveSummary.length).toBeGreaterThan(20);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Inaccessible PDF — file-example_PDF_1MB_not_accessible.pdf
@@ -112,99 +112,119 @@ describe('integration: accessible PDF', () => {
 // incomplete metadata. It should score F or D (well below 60).
 // ---------------------------------------------------------------------------
 
-describe('integration: inaccessible PDF', () => {
-  let result: AnalysisResult
+describe("integration: inaccessible PDF", () => {
+  let result: AnalysisResult;
 
-  it('analyzes without errors', async () => {
-    const buffer = loadFixture('inaccessible.pdf')
-    result = await analyzePDF(buffer, 'inaccessible.pdf')
-    expect(result).toBeDefined()
-  }, 30_000)
+  it("analyzes without errors", async () => {
+    const buffer = loadFixture("inaccessible.pdf");
+    result = await analyzePDF(buffer, "inaccessible.pdf");
+    expect(result).toBeDefined();
+  }, 30_000);
 
-  it('is not detected as scanned (it has text, just no tags)', () => {
-    expect(result.isScanned).toBe(false)
-  })
+  it("is not detected as scanned (it has text, just no tags)", () => {
+    expect(result.isScanned).toBe(false);
+  });
 
-  it('scores below 60 overall (grade F)', () => {
-    expect(result.overallScore).toBeLessThan(60)
-    expect(result.grade).toBe('F')
-  })
+  it("scores below 60 overall (grade F)", () => {
+    expect(result.overallScore).toBeLessThan(60);
+    expect(result.grade).toBe("F");
+  });
 
-  it('text is present but not tagged (score 50)', () => {
-    const cat = findCategory(result, 'text_extractability')
-    expect(cat.score).toBe(50)
-    expect(cat.findings.some(f => f.includes('NOT tagged'))).toBe(true)
-  })
+  it("text is present but not tagged (score 50)", () => {
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBe(50);
+    expect(cat.findings.some((f) => f.includes("NOT tagged"))).toBe(true);
+  });
 
-  it('has no heading structure (score 0, Critical)', () => {
-    const cat = findCategory(result, 'heading_structure')
-    expect(cat.score).toBe(0)
-    expect(cat.severity).toBe('Critical')
-  })
+  it("has no heading structure (score 0, Critical)", () => {
+    const cat = findCategory(result, "heading_structure");
+    expect(cat.score).toBe(0);
+    expect(cat.severity).toBe("Critical");
+  });
 
-  it('has no structure tree → reading order fails (score 0, Critical)', () => {
-    const cat = findCategory(result, 'reading_order')
-    expect(cat.score).toBe(0)
-    expect(cat.severity).toBe('Critical')
-  })
+  it("has no structure tree → reading order fails (score 0, Critical)", () => {
+    const cat = findCategory(result, "reading_order");
+    expect(cat.score).toBe(0);
+    expect(cat.severity).toBe("Critical");
+  });
 
-  it('has at least one critical issue', () => {
-    const criticals = result.categories.filter(c => c.severity === 'Critical')
-    expect(criticals.length).toBeGreaterThanOrEqual(1)
-  })
+  it("has at least one critical issue", () => {
+    const criticals = result.categories.filter(
+      (c) => c.severity === "Critical",
+    );
+    expect(criticals.length).toBeGreaterThanOrEqual(1);
+  });
 
-  it('executive summary mentions critical issues', () => {
-    expect(result.executiveSummary).toContain('critical')
-  })
+  it("executive summary mentions critical issues", () => {
+    expect(result.executiveSummary).toContain("critical");
+  });
 
-  it('all categories have explanations and help links', () => {
+  it("all categories have explanations and help links", () => {
     for (const cat of result.categories) {
-      expect(cat.explanation).toBeTruthy()
-      expect(cat.helpLinks).toBeDefined()
-      expect(cat.helpLinks.length).toBeGreaterThan(0)
+      expect(cat.explanation).toBeTruthy();
+      expect(cat.helpLinks).toBeDefined();
+      expect(cat.helpLinks.length).toBeGreaterThan(0);
     }
-  })
-})
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Cross-check: accessible PDF should outscore inaccessible PDF
 // ---------------------------------------------------------------------------
 
-describe('integration: comparative scoring', () => {
-  let accessible: AnalysisResult
-  let inaccessible: AnalysisResult
+describe("integration: comparative scoring", () => {
+  let accessible: AnalysisResult;
+  let inaccessible: AnalysisResult;
 
-  it('loads both PDFs', async () => {
+  it("loads both PDFs", async () => {
     [accessible, inaccessible] = await Promise.all([
-      analyzePDF(loadFixture('accessible.pdf'), 'accessible.pdf'),
-      analyzePDF(loadFixture('inaccessible.pdf'), 'inaccessible.pdf'),
-    ])
-  }, 30_000)
+      analyzePDF(loadFixture("accessible.pdf"), "accessible.pdf"),
+      analyzePDF(loadFixture("inaccessible.pdf"), "inaccessible.pdf"),
+    ]);
+  }, 30_000);
 
-  it('accessible PDF scores significantly higher', () => {
-    expect(accessible.overallScore).toBeGreaterThan(inaccessible.overallScore + 30)
-  })
+  it("accessible PDF scores significantly higher", () => {
+    expect(accessible.overallScore).toBeGreaterThan(
+      inaccessible.overallScore + 30,
+    );
+  });
 
-  it('accessible PDF has a better grade', () => {
-    const gradeOrder = ['F', 'D', 'C', 'B', 'A']
+  it("accessible PDF has a better grade", () => {
+    const gradeOrder = ["F", "D", "C", "B", "A"];
     expect(gradeOrder.indexOf(accessible.grade)).toBeGreaterThan(
-      gradeOrder.indexOf(inaccessible.grade)
-    )
-  })
+      gradeOrder.indexOf(inaccessible.grade),
+    );
+  });
 
-  it('accessible PDF has fewer critical issues', () => {
-    const accessibleCriticals = accessible.categories.filter(c => c.severity === 'Critical').length
-    const inaccessibleCriticals = inaccessible.categories.filter(c => c.severity === 'Critical').length
-    expect(accessibleCriticals).toBeLessThan(inaccessibleCriticals)
-  })
+  it("accessible PDF has fewer critical issues", () => {
+    const accessibleCriticals = accessible.categories.filter(
+      (c) => c.severity === "Critical",
+    ).length;
+    const inaccessibleCriticals = inaccessible.categories.filter(
+      (c) => c.severity === "Critical",
+    ).length;
+    expect(accessibleCriticals).toBeLessThan(inaccessibleCriticals);
+  });
 
-  it('no false positive: inaccessible PDF does NOT score A', () => {
-    expect(inaccessible.grade).not.toBe('A')
-    expect(inaccessible.grade).not.toBe('B')
-  })
+  it("no false positive: inaccessible PDF does NOT score A", () => {
+    expect(inaccessible.grade).not.toBe("A");
+    expect(inaccessible.grade).not.toBe("B");
+  });
 
-  it('no false negative: accessible PDF does NOT score F', () => {
-    expect(accessible.grade).not.toBe('F')
-    expect(accessible.grade).not.toBe('D')
-  })
-})
+  it("no false negative: accessible PDF does NOT score F", () => {
+    expect(accessible.grade).not.toBe("F");
+    expect(accessible.grade).not.toBe("D");
+  });
+});
+
+describe("integration: malformed PDF handling", () => {
+  it("rejects malformed PDFs instead of scoring them as scanned", async () => {
+    const malformed = Buffer.from(
+      "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\n%%EOF\n",
+    );
+
+    await expect(analyzePDF(malformed, "broken.pdf")).rejects.toThrow(
+      "PDF parsing failed",
+    );
+  });
+});

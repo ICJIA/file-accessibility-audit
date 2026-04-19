@@ -33,29 +33,29 @@
 
 export const BRANDING = {
   /** Application name displayed in headers, page titles, exports, and emails. */
-  APP_NAME: 'ICJIA File Accessibility Audit',
+  APP_NAME: "ICJIA File Accessibility Audit",
 
   /** Short app name (for PWA manifest, browser tabs when space is limited). */
-  APP_SHORT_NAME: 'Accessibility Audit',
+  APP_SHORT_NAME: "Accessibility Audit",
 
   /** Organization name shown in Schema.org, meta tags, and export footers. */
-  ORG_NAME: 'Illinois Criminal Justice Information Authority',
+  ORG_NAME: "Illinois Criminal Justice Information Authority",
 
   /** Organization website URL (used in Schema.org identity and JSON-LD author). */
-  ORG_URL: 'https://icjia.illinois.gov',
+  ORG_URL: "https://icjia.illinois.gov",
 
   /** FAQs / documentation URL shown in the navbar. Set to '' to hide the link. */
-  FAQS_URL: 'https://accessibility.icjia.app',
+  FAQS_URL: "https://accessibility.icjia.app",
 
   /** GitHub repository URL shown in the footer. Set to '' to hide the link. */
-  GITHUB_URL: 'https://github.com/ICJIA/file-accessibility-audit',
+  GITHUB_URL: "https://github.com/ICJIA/file-accessibility-audit",
 
   /** Default color mode for the UI. Users can toggle between light and dark via the nav.
    *  Set to 'dark' for a dark-first experience, or 'light' if your agency's branding
    *  requires a light default. Users can always switch modes via the toggle in the nav bar.
    *  SAFE TO CHANGE: 'light' | 'dark' */
-  DEFAULT_COLOR_MODE: 'dark' as 'light' | 'dark',
-} as const
+  DEFAULT_COLOR_MODE: "dark" as "light" | "dark",
+} as const;
 
 // ---------------------------------------------------------------------------
 // DEPLOYMENT
@@ -74,7 +74,7 @@ export const DEPLOY = {
    * SAFE TO CHANGE: Yes — update when migrating to a new domain.
    * ALSO UPDATE: nginx config, DNS A record, Let's Encrypt cert.
    */
-  PRODUCTION_URL: 'https://audit.icjia.app',
+  PRODUCTION_URL: "https://audit.icjia.app",
 
   /**
    * Development frontend URL (Nuxt dev server).
@@ -82,14 +82,14 @@ export const DEPLOY = {
    *
    * SAFE TO CHANGE: Yes — if you change the Nuxt dev port, update this.
    */
-  DEV_FRONTEND_URL: 'http://localhost:5102',
+  DEV_FRONTEND_URL: "http://localhost:5102",
 
   /** API server port (development and production) */
   API_PORT: 5103,
 
   /** Frontend server port (Nuxt dev / production) */
   WEB_PORT: 5102,
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // EMAIL PROVIDER
@@ -111,7 +111,7 @@ export const EMAIL = {
    *
    * SAFE TO CHANGE: Yes — set to 'mailgun' or 'smtp2go'.
    */
-  PROVIDER: 'mailgun' as 'mailgun' | 'smtp2go',
+  PROVIDER: "mailgun" as "mailgun" | "smtp2go",
 
   /**
    * Default sender address for OTP emails.
@@ -119,20 +119,20 @@ export const EMAIL = {
    * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.
    * Can be overridden in .env with SMTP_FROM.
    */
-  DEFAULT_FROM: 'admin@icjia.cloud',
+  DEFAULT_FROM: "admin@icjia.cloud",
 
   /** Mailgun SMTP connection details (no secrets). */
   mailgun: {
-    host: 'smtp.mailgun.org',
+    host: "smtp.mailgun.org",
     port: 587,
   },
 
   /** SMTP2GO SMTP connection details (no secrets). */
   smtp2go: {
-    host: 'mail.smtp2go.com',
+    host: "mail.smtp2go.com",
     port: 2525,
   },
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // SCORING WEIGHTS
@@ -153,44 +153,70 @@ export const EMAIL = {
 // codebase and in stored audit log data. Renaming a key is a breaking change.
 // ---------------------------------------------------------------------------
 
-export const SCORING_WEIGHTS = {
-  /** Is the PDF text-based (not scanned) and tagged? Highest weight because
-   *  a scanned PDF is fundamentally inaccessible — nothing else matters. */
-  text_extractability: 0.20,
+export const SCORING_PROFILES = {
+  strict: {
+    label: "Strict semantic score",
+    description:
+      "Default standards-oriented profile. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
+    weights: {
+      /** Is the PDF text-based (not scanned) and tagged? Highest weight because
+       *  a scanned PDF is fundamentally inaccessible — nothing else matters. */
+      text_extractability: 0.2,
 
-  /** Does the PDF have a meaningful title and a declared language?
-   *  Screen readers announce both on document open. */
-  title_language: 0.15,
+      /** Does the PDF have a meaningful title and a declared language?
+       *  Screen readers announce both on document open. */
+      title_language: 0.15,
 
-  /** Are H1–H6 heading tags present with a logical hierarchy?
-   *  Headings are the primary navigation mechanism for screen reader users. */
-  heading_structure: 0.15,
+      /** Are H1–H6 heading tags present with a logical hierarchy?
+       *  Headings are the primary navigation mechanism for screen reader users. */
+      heading_structure: 0.15,
 
-  /** Do images have alternative text descriptions?
-   *  Required by WCAG 1.1.1 for all non-decorative images. */
-  alt_text: 0.15,
+      /** Do images have alternative text descriptions?
+       *  Required by WCAG 1.1.1 for all non-decorative images. */
+      alt_text: 0.15,
 
-  /** Does the document have bookmarks/outlines for navigation?
-   *  Only assessed for documents with 10+ pages (see ANALYSIS.BOOKMARKS_PAGE_THRESHOLD). */
-  bookmarks: 0.10,
+      /** Does the document have bookmarks/outlines for navigation?
+       *  Only assessed for documents with 10+ pages (see ANALYSIS.BOOKMARKS_PAGE_THRESHOLD). */
+      bookmarks: 0.1,
 
-  /** Are data tables marked up with /Table, /TH, and /TD tags?
-   *  Without these, screen readers can't convey table structure. */
-  table_markup: 0.10,
+      /** Are data tables marked up with /Table, /TH, and /TD tags?
+       *  Without these, screen readers can't convey table structure. */
+      table_markup: 0.1,
 
-  /** Are hyperlinks descriptive (not raw URLs)?
-   *  "Click here" and raw URLs are unhelpful to screen reader users. */
-  link_quality: 0.05,
+      /** Are hyperlinks descriptive (not raw URLs)?
+       *  "Click here" and raw URLs are unhelpful to screen reader users. */
+      link_quality: 0.05,
 
-  /** Do form fields have accessible labels (/TU tooltip)?
-   *  Unlabeled form fields are unusable with assistive technology. */
-  form_accessibility: 0.05,
+      /** Do form fields have accessible labels (/TU tooltip)?
+       *  Unlabeled form fields are unusable with assistive technology. */
+      form_accessibility: 0.05,
 
-  /** Does the structure tree define a correct reading order?
-   *  Distinct from text_extractability: this checks ORDER quality, not just
-   *  whether the StructTree exists. */
-  reading_order: 0.05,
-} as const
+      /** Does the structure tree define a correct reading order?
+       *  Distinct from text_extractability: this checks ORDER quality, not just
+       *  whether the StructTree exists. */
+      reading_order: 0.05,
+    },
+  },
+
+  remediation: {
+    label: "Remediation-oriented score",
+    description:
+      "Readiness profile for comparing against practical remediation tools. Still diagnostic only; not a WCAG, ADA, PDF/UA, or Matterhorn conformance claim.",
+    weights: {
+      text_extractability: 0.2,
+      title_language: 0.12,
+      heading_structure: 0.08,
+      alt_text: 0.15,
+      bookmarks: 0.12,
+      table_markup: 0.08,
+      link_quality: 0.05,
+      form_accessibility: 0.05,
+      reading_order: 0.15,
+    },
+  },
+} as const;
+
+export const SCORING_WEIGHTS = SCORING_PROFILES.strict.weights;
 
 // ---------------------------------------------------------------------------
 // GRADE THRESHOLDS
@@ -207,12 +233,17 @@ export const SCORING_WEIGHTS = {
 // ---------------------------------------------------------------------------
 
 export const GRADE_THRESHOLDS = [
-  { min: 90, grade: 'A' as const, color: '#22c55e', label: 'Excellent' },
-  { min: 80, grade: 'B' as const, color: '#14b8a6', label: 'Good' },
-  { min: 70, grade: 'C' as const, color: '#eab308', label: 'Needs Improvement' },
-  { min: 60, grade: 'D' as const, color: '#f97316', label: 'Poor' },
-  { min: 0,  grade: 'F' as const, color: '#ef4444', label: 'Failing' },
-] as const
+  { min: 90, grade: "A" as const, color: "#22c55e", label: "Excellent" },
+  { min: 80, grade: "B" as const, color: "#14b8a6", label: "Good" },
+  {
+    min: 70,
+    grade: "C" as const,
+    color: "#eab308",
+    label: "Needs Improvement",
+  },
+  { min: 60, grade: "D" as const, color: "#f97316", label: "Poor" },
+  { min: 0, grade: "F" as const, color: "#ef4444", label: "Failing" },
+] as const;
 
 // ---------------------------------------------------------------------------
 // SEVERITY THRESHOLDS
@@ -228,11 +259,11 @@ export const GRADE_THRESHOLDS = [
 // ---------------------------------------------------------------------------
 
 export const SEVERITY_THRESHOLDS = [
-  { min: 90, severity: 'Pass' as const },
-  { min: 70, severity: 'Minor' as const },
-  { min: 40, severity: 'Moderate' as const },
-  { min: 0,  severity: 'Critical' as const },
-] as const
+  { min: 90, severity: "Pass" as const },
+  { min: 70, severity: "Minor" as const },
+  { min: 40, severity: "Moderate" as const },
+  { min: 0, severity: "Critical" as const },
+] as const;
 
 // ---------------------------------------------------------------------------
 // PDF ANALYSIS LIMITS
@@ -310,8 +341,8 @@ export const ANALYSIS = {
    * SAFE TO CHANGE: Yes — increase to be more lenient (e.g., 0.30 = allow
    * 30% out-of-order before penalizing), decrease to be stricter.
    */
-  READING_ORDER_DISORDER_THRESHOLD: 0.20,
-} as const
+  READING_ORDER_DISORDER_THRESHOLD: 0.2,
+} as const;
 
 // ---------------------------------------------------------------------------
 // AUTHENTICATION
@@ -392,7 +423,7 @@ export const AUTH = {
    * ALSO UPDATE: the .env ALLOWED_DOMAINS variable for development overrides.
    */
   ALLOWED_EMAIL_REGEX: /^[^@]+@([a-z0-9-]+\.)*illinois\.gov$/i,
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // RATE LIMITS
@@ -411,26 +442,26 @@ export const AUTH = {
 export const RATE_LIMITS = {
   /** POST /api/auth/request — keyed by email address.
    *  Prevents an attacker from spamming OTP emails to a victim. */
-  authRequest: { max: 5, windowMs: 60 * 60 * 1000 },       // 5 per hour
+  authRequest: { max: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour
 
   /** POST /api/auth/verify — keyed by IP address.
    *  Prevents brute-forcing OTP codes from a single source. */
-  authVerify: { max: 10, windowMs: 15 * 60 * 1000 },       // 10 per 15 min
+  authVerify: { max: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 min
 
   /** POST /api/analyze — keyed by email (from JWT).
    *  Prevents a single user from monopolizing analysis resources.
    *  Sized for 6 full batches of BATCH.MAX_FILES (5) plus headroom
    *  for retries, errors, and cancelled-then-restarted sessions. */
-  analyze: { max: 35, windowMs: 60 * 60 * 1000 },           // 35 per hour
+  analyze: { max: 35, windowMs: 60 * 60 * 1000 }, // 35 per hour
 
   /** POST /api/reports — keyed by email (from JWT).
    *  Prevents a single user from filling the shared_reports table. */
-  reports: { max: 10, windowMs: 60 * 60 * 1000 },           // 10 per hour
+  reports: { max: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
 
   /** All routes — keyed by IP address.
    *  Catch-all safety net against request floods. */
-  global: { max: 100, windowMs: 60 * 1000 },                // 100 per minute
-} as const
+  global: { max: 100, windowMs: 60 * 1000 }, // 100 per minute
+} as const;
 
 // ---------------------------------------------------------------------------
 // SHARED REPORTS (Phase 2)
@@ -456,7 +487,7 @@ export const SHARED_REPORTS = {
    * Increase only if legitimate reports are being rejected (unlikely).
    */
   MAX_PAYLOAD_BYTES: 1 * 1024 * 1024, // 1MB
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // BATCH UPLOAD (Phase 2)
@@ -473,7 +504,7 @@ export const BATCH = {
    * a background job queue.
    */
   MAX_FILES: 5,
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // SCHEDULED CHECKS (Phase 3)
@@ -507,7 +538,7 @@ export const SCHEDULED_CHECKS = {
    * SAFE TO CHANGE: Yes. 30 seconds is generous for most PDF downloads.
    */
   FETCH_TIMEOUT_MS: 30_000,
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // FILENAME SANITIZATION
@@ -532,7 +563,7 @@ export const FILENAME = {
    * that render filenames.
    */
   ALLOWED_CHARS: /[a-zA-Z0-9._\-\s]/g,
-} as const
+} as const;
 
 // ---------------------------------------------------------------------------
 // UI CONSTANTS
@@ -553,10 +584,10 @@ export const UI = {
    * your agency's brand guidelines if needed.
    */
   COLORS: {
-    background: '#0a0a0a',
-    surface: '#111111',
-    border: '#222222',
-    text: '#f5f5f5',
+    background: "#0a0a0a",
+    surface: "#111111",
+    border: "#222222",
+    text: "#f5f5f5",
   },
 
   /**
@@ -573,5 +604,4 @@ export const UI = {
    * SAFE TO CHANGE: Yes — but keep it reasonable (100–200 max).
    */
   MAX_PAGE_SIZE: 100,
-
-} as const
+} as const;
