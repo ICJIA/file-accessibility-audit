@@ -46,23 +46,55 @@
           </p>
         </div>
         <div class="grid gap-2 sm:grid-cols-2">
-          <div
-            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3"
+          <button
+            type="button"
+            :aria-pressed="selectedMode === 'strict'"
+            data-testid="mode-card-strict"
+            class="group text-left rounded-xl border px-3 py-3 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--link)]"
+            :class="
+              selectedMode === 'strict'
+                ? 'border-emerald-400/60 bg-emerald-500/15 ring-1 ring-emerald-400/30'
+                : 'border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] hover:border-[var(--border)]'
+            "
+            @click="$emit('update:selectedMode', 'strict')"
           >
-            <p class="text-xs font-semibold text-[var(--text-heading)]">
+            <p
+              class="text-xs font-semibold text-[var(--text-heading)] flex items-center gap-1.5"
+            >
               Strict
+              <span
+                v-if="selectedMode === 'strict'"
+                class="text-[10px] uppercase tracking-wide text-emerald-300 font-medium"
+                >Active</span
+              >
             </p>
             <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
               Valid semantics-first lens on this same document. Best primary
               mode for publication and ADA/WCAG/ITTAA-oriented legal
               accessibility review.
             </p>
-          </div>
-          <div
-            class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3"
+          </button>
+          <button
+            type="button"
+            :aria-pressed="selectedMode === 'remediation'"
+            data-testid="mode-card-practical"
+            class="group text-left rounded-xl border px-3 py-3 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--link)]"
+            :class="
+              selectedMode === 'remediation'
+                ? 'border-amber-400/60 bg-amber-500/15 ring-1 ring-amber-400/30'
+                : 'border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] hover:border-[var(--border)]'
+            "
+            @click="$emit('update:selectedMode', 'remediation')"
           >
-            <p class="text-xs font-semibold text-[var(--text-heading)]">
+            <p
+              class="text-xs font-semibold text-[var(--text-heading)] flex items-center gap-1.5"
+            >
               Practical
+              <span
+                v-if="selectedMode === 'remediation'"
+                class="text-[10px] uppercase tracking-wide text-amber-300 font-medium"
+                >Active</span
+              >
             </p>
             <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
               Valid remediation/progress lens on this same document. Useful for
@@ -70,7 +102,7 @@
               conformance-facing score. Also includes additional PDF/UA-oriented
               audits.
             </p>
-          </div>
+          </button>
         </div>
       </div>
     </div>
