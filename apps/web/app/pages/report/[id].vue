@@ -222,15 +222,55 @@
 
         <!-- Score Table -->
         <div
+          ref="categoryScoresAnchor"
           class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto"
         >
           <div class="px-3 sm:px-5 py-3 border-b border-[var(--border)]">
-            <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
-              Category Scores
-            </h2>
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
+                Category Scores
+              </h2>
+              <div
+                v-if="
+                  data.report.scoreProfiles?.strict &&
+                  data.report.scoreProfiles?.remediation
+                "
+                data-testid="category-scores-mode-switch"
+                class="inline-flex shrink-0 rounded-lg border border-[var(--border)] overflow-hidden text-[11px]"
+                role="group"
+                aria-label="Switch scoring mode"
+              >
+                <button
+                  type="button"
+                  :aria-pressed="selectedScoreMode === 'strict'"
+                  class="px-2.5 py-1 font-semibold uppercase tracking-wide transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/60"
+                  :class="
+                    selectedScoreMode === 'strict'
+                      ? 'bg-emerald-500/20 text-emerald-200'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
+                  "
+                  @click="flipScoreTableMode('strict')"
+                >
+                  Strict
+                </button>
+                <button
+                  type="button"
+                  :aria-pressed="selectedScoreMode === 'remediation'"
+                  class="px-2.5 py-1 font-semibold uppercase tracking-wide transition-colors cursor-pointer border-l border-[var(--border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/60"
+                  :class="
+                    selectedScoreMode === 'remediation'
+                      ? 'bg-amber-500/20 text-amber-200'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
+                  "
+                  @click="flipScoreTableMode('remediation')"
+                >
+                  Practical
+                </button>
+              </div>
+            </div>
             <p
               v-if="data.report.scoreProfiles?.remediation"
-              class="mt-1 text-xs text-[var(--text-muted)]"
+              class="mt-2 text-xs text-[var(--text-muted)]"
             >
               <template v-if="remediationModeActive">
                 Practical does not mean a different document. It is the same
@@ -958,6 +998,30 @@ function toggleColorMode() {
 
 const advancedCards = reactive<Record<string, boolean>>({});
 const selectedScoreMode = ref<ScoringMode>("strict");
+const categoryScoresAnchor = ref<HTMLElement | null>(null);
+
+// See index.vue for rationale — keep the Category Scores card visually
+// pinned when the mode switch flips, since the table rows and surrounding
+// copy re-render at different heights.
+async function flipScoreTableMode(mode: ScoringMode) {
+  if (mode === selectedScoreMode.value) return;
+  const el = categoryScoresAnchor.value;
+  const beforeTop = el?.getBoundingClientRect().top ?? null;
+  selectedScoreMode.value = mode;
+  if (beforeTop === null || typeof window === "undefined") return;
+  await nextTick();
+  await new Promise<null>((r) => requestAnimationFrame(() => r(null)));
+  const afterTop = el?.getBoundingClientRect().top ?? null;
+  if (afterTop === null) return;
+  const delta = afterTop - beforeTop;
+  if (Math.abs(delta) > 1) {
+    window.scrollBy({
+      top: delta,
+      left: 0,
+      behavior: "instant" as ScrollBehavior,
+    });
+  }
+}
 
 const { data, pending, error } = await useFetch(`/api/reports/${id}`);
 

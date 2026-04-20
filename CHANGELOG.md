@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.8] - 2026-04-20
+
+### Added
+
+- **Compact Strict / Practical mode switch in the Category Scores header.** Lets users flip the active scoring mode in place without scrolling back to the top-of-page ScoreProfileBanner toggle. Segmented pair of `<button>` elements with `aria-pressed` state and `role="group"` / `aria-label="Switch scoring mode"` for screen-reader context. Active side uses emerald (Strict) or amber (Practical) tinting; inactive side is muted with a hover state.
+- **Scroll-preservation** on the switch: `categoryScoresAnchor` ref captures the card's viewport top before the flip, and `window.scrollBy` cancels the delta after `nextTick` + one `requestAnimationFrame`. The card stays visually pinned while the table rows and descriptive header copy re-render at different heights. Same pattern used in `ModeCompareBox.flipMode` (v1.13.5).
+- Mirrored on `pages/index.vue` and `pages/report/[id].vue`.
+- 251 web tests still pass.
+
 ## [1.13.7] - 2026-04-20
 
 ### Changed
