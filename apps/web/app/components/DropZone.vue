@@ -76,7 +76,7 @@
           <p class="text-lg font-medium" :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'">
             {{ dragging ? 'Drop your PDFs here' : 'Drop PDF files here' }}
           </p>
-          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — up to 5 files, max 50 MB each</p>
+          <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — up to 5 files, max 15 MB each</p>
         </div>
       </div>
     </div>
@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 const MAX_FILES = 5
-const MAX_SIZE = 50 * 1024 * 1024
+const MAX_SIZE = 15 * 1024 * 1024
 
 const emit = defineEmits<{
   'file-selected': [file: File]
@@ -160,7 +160,7 @@ function processFiles(files: File[]) {
 
   const oversized = pdfs.filter(f => f.size > MAX_SIZE)
   if (oversized.length) {
-    validationError.value = `${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 50 MB limit`
+    validationError.value = `${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 15 MB limit`
     return
   }
 

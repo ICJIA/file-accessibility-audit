@@ -26,15 +26,13 @@ describe("NaCell — accessible N/A tooltip", () => {
     );
   });
 
-  it("returns the reading-order abstention reason under Strict", () => {
+  it("returns the reading-order fallback reason under Strict (when MCIDs don't overlap)", () => {
     const wrapper = mount(NaCell, {
       props: { catId: "reading_order", mode: "strict" },
     });
 
     const tip = wrapper.get('[role="tooltip"]');
-    expect(tip.text()).toContain(
-      "Strict abstains here because a rigorous reading-order verdict",
-    );
+    expect(tip.text()).toContain("per-page MCID fidelity check");
     expect(tip.text()).toContain("Acrobat's Order panel or PAC");
   });
 

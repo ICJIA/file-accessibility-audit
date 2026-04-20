@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.14.0] - 2026-04-20
+
+### Added
+
+- **Rigorous per-page reading-order check in Strict mode.** When the analyzer can extract a structure-tree MCID sequence (logical tag order from QPDF) and a content-stream MCID sequence (visual draw order from pdfjs-dist) for the same page, it computes a longest-common-subsequence ratio, weights across pages, and produces a 0–100 Strict score with bands at 100% / 95% / 80% / 50% / <50%. When the sequences don't overlap sufficiently (fewer than 2 shared MCIDs per page), Strict falls back to an honest N/A.
+- **New `QpdfResult.structTreeMcidsByPage`** (`Record<number, number[]>`) built in `qpdfService.ts`: walks the StructTreeRoot, tracks enclosing `/Pg` references, resolves MCR dicts that may override the page, and skips OBJR (non-content) kids. Cycle-guarded and depth-limited.
+- **New `PdfjsResult.contentStreamMcidsByPage`** (`Record<number, number[]>`) built in `pdfjsService.ts`: piggybacks on the existing operator-list loop, captures MCIDs from `OPS.beginMarkedContentProps`, and skips `/Artifact`-tagged runs (which don't participate in logical reading order). Handles pdfjs-dist's two tag shapes (plain string vs. `{name: string}`) and the two properties shapes (bare MCID number vs. dict).
+- **New `computeReadingOrderFidelity()` and `longestCommonSubsequence()` helpers** in `scorer.ts`. LCS is O(m·n) with negligible cost at typical PDF MCID counts (tens to low hundreds per page).
+- **Practical mode gains an informational finding** reporting the rigorous fidelity percentage; the Practical score itself still uses its proxy formula (unchanged).
+- **Six new scorer tests** cover the rigorous path: perfect match, partial drift, reverse order (worst case), N/A fallback when MCIDs don't overlap, Practical still uses proxies, fidelity finding appears in Strict output.
+- Control-fixture validation: baseline annual-report → Strict reading_order 70 (C); remediated → 70 (C). Strict overall 37 → 39 / 66 → 67 (tiny uptick from the reading_order category no longer being excluded via null).
+- UI copy on `ModeCompareBox` and `NaCell` updated to describe what Strict now does instead of "abstains because not yet implemented."
+
+### Changed
+
+- **`MAX_FILE_SIZE_MB` lowered from 50 to 15.** Updated `audit.config.ts`, the `.env.example.local` / `.env.example.production` hints, `DropZone.vue` client-side check + drop-zone copy, error messages in `apps/api/src/index.ts` (now interpolated from config), `llms.txt` / `llms-full.txt`, README table + memory-exhaustion mitigation calc, and two `components.test.ts` assertions.
+
+### Tagged
+
+- `revert-point-pre-reading-order` — safe restore point pinned at v1.13.8. If the reading-order work needs to be undone: `git reset --hard revert-point-pre-reading-order && git push --force-with-lease origin main`.
+
 ## [1.13.8] - 2026-04-20
 
 ### Added

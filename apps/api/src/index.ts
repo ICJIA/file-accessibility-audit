@@ -11,7 +11,7 @@ import logsRoutes from './routes/logs.js'
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
 import { validateMailConfig } from './mailer.js'
-import { AUTH, DEPLOY } from '#config'
+import { ANALYSIS, AUTH, DEPLOY } from '#config'
 
 // Validate email config before starting — only needed when auth requires OTP emails
 if (AUTH.REQUIRE_LOGIN) {
@@ -76,7 +76,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   // Multer file size error
   if (err.code === 'LIMIT_FILE_SIZE') {
     res.status(413).json({
-      error: 'This file is too large. The maximum upload size is 50 MB.',
+      error: `This file is too large. The maximum upload size is ${ANALYSIS.MAX_FILE_SIZE_MB} MB.`,
       details: 'Large PDFs are often inflated by uncompressed images. To reduce file size: (1) In Adobe Acrobat, use File → Save As Other → Reduced Size PDF; (2) Use File → Save As Other → Optimized PDF to downsample images; (3) Split the document into smaller sections (File → Organize Pages → Split) and analyze each part separately.',
     })
     return

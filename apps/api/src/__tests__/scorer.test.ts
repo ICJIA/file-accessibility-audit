@@ -42,6 +42,7 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     expansionTextCount: 0,
     structTreeDepth: 0,
     contentOrder: [],
+    structTreeMcidsByPage: {},
     error: null,
     ...overrides,
   };
@@ -92,6 +93,7 @@ function makePdfjs(overrides: Partial<PdfjsResult> = {}): PdfjsResult {
       pageCount: 1,
     },
     error: null,
+    contentStreamMcidsByPage: {},
     ...overrides,
   };
 }
@@ -1262,6 +1264,94 @@ describe("supplementary findings — PDF/UA identifier", () => {
     expect(
       textCat.findings.some((f) => f.includes("No PDF/UA identifier")),
     ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reading-order rigorous check (Strict mode)
+// ---------------------------------------------------------------------------
+
+describe("reading_order — rigorous struct-tree vs. content-stream check", () => {
+  // Build the common "deep tree with MCID data" base and let each test
+  // override the per-page MCID maps to simulate the fidelity states.
+  function buildBase(
+    structByPage: Record<number, number[]>,
+    streamByPage: Record<number, number[]>,
+  ) {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      totalPageCount: Object.keys(structByPage).length,
+      tabOrderPages: Object.keys(structByPage).length,
+      paragraphCount: 10,
+      structTreeMcidsByPage: structByPage,
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      contentStreamMcidsByPage: streamByPage,
+    });
+    return { qpdf, pdfjs };
+  }
+
+  it("scores 100 in Strict when struct-tree and content-stream MCID orders match perfectly", () => {
+    const seq = [0, 1, 2, 3, 4, 5, 6, 7];
+    const { qpdf, pdfjs } = buildBase({ 1: seq }, { 1: seq });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "reading_order").score).toBe(100);
+  });
+
+  it("scores below 100 when the two sequences diverge", () => {
+    const struct = [0, 1, 2, 3, 4, 5, 6, 7];
+    const stream = [0, 2, 1, 3, 5, 4, 6, 7]; // a few local swaps
+    const { qpdf, pdfjs } = buildBase({ 1: struct }, { 1: stream });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "reading_order");
+    expect(cat.score).not.toBeNull();
+    expect(cat.score!).toBeLessThan(100);
+    expect(cat.score!).toBeGreaterThan(0);
+  });
+
+  it("scores 10 or low when the stream order is the reverse of the tree order", () => {
+    const struct = [0, 1, 2, 3, 4, 5, 6, 7];
+    const stream = [7, 6, 5, 4, 3, 2, 1, 0];
+    const { qpdf, pdfjs } = buildBase({ 1: struct }, { 1: stream });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "reading_order");
+    expect(cat.score).toBeLessThanOrEqual(40);
+  });
+
+  it("falls back to N/A in Strict when fewer than 2 MCIDs overlap per page", () => {
+    // Struct has MCIDs [0,1,2] but stream only has [99] — no shared MCIDs.
+    const { qpdf, pdfjs } = buildBase({ 1: [0, 1, 2] }, { 1: [99] });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "reading_order").score).toBeNull();
+  });
+
+  it("Practical still uses proxy scoring even when rigorous data is present", () => {
+    const seq = [0, 1, 2];
+    const { qpdf, pdfjs } = buildBase({ 1: seq }, { 1: seq });
+    const result = scoreDocument(qpdf, pdfjs);
+    // Practical should use its 55-baseline + proxies formula, not the
+    // rigorous score. The exact value depends on proxy weights, but it
+    // should be <= 95 (Practical caps at 95) and not identical to the
+    // rigorous 100 that Strict produced.
+    const practicalReading =
+      result.scoreProfiles.remediation.categories.find(
+        (c) => c.id === "reading_order",
+      )!;
+    expect(practicalReading.score).not.toBeNull();
+    expect(practicalReading.score!).toBeLessThanOrEqual(95);
+  });
+
+  it("includes a human-readable fidelity finding in Strict", () => {
+    const seq = [0, 1, 2, 3, 4];
+    const { qpdf, pdfjs } = buildBase({ 1: seq }, { 1: seq });
+    const result = scoreDocument(qpdf, pdfjs);
+    const findings = findCategory(result, "reading_order").findings.join("\n");
+    expect(findings).toMatch(/Reading-order fidelity/i);
+    expect(findings).toMatch(/100%/);
   });
 });
 

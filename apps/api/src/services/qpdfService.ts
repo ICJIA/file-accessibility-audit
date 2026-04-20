@@ -77,6 +77,11 @@ export interface QpdfResult {
   expansionTextCount: number;
   structTreeDepth: number;
   contentOrder: number[]; // MCIDs in structure tree order
+  // Per-page MCID sequence as collected by walking the structure tree in
+  // document order. Key is the 1-indexed page number. Compared against
+  // pdfjs's content-stream MCID sequence to verify logical reading order.
+  // Empty when the document has no struct tree or no MCIDs.
+  structTreeMcidsByPage: Record<number, number[]>;
   error: string | null;
 }
 
@@ -222,6 +227,7 @@ function emptyQpdfResult(error: string | null): QpdfResult {
     expansionTextCount: 0,
     structTreeDepth: 0,
     contentOrder: [],
+    structTreeMcidsByPage: {},
     error,
   };
 }
@@ -477,6 +483,18 @@ function parseQpdfJson(json: any): QpdfResult {
     // Calculate structure tree depth
     if (result.hasStructTree) {
       result.structTreeDepth = calculateTreeDepth(objects);
+    }
+
+    // Collect per-page MCID sequences from the structure tree. Used by the
+    // scorer's reading-order check to compare logical (tag) order against
+    // visual (content-stream) order. Only meaningful when a struct tree
+    // exists — otherwise returns an empty map.
+    if (result.hasStructTree) {
+      const pageRefToNum = buildPageRefToNum(json, objects);
+      result.structTreeMcidsByPage = collectStructTreeMcidsByPage(
+        objects,
+        pageRefToNum,
+      );
     }
   } catch (err) {
     console.error("QPDF JSON parse error:", err);
@@ -865,4 +883,165 @@ function calculateTreeDepth(objects: any): number {
   }
 
   return maxDepth;
+}
+
+// Build page-ref → 1-indexed page-number map. QPDF v2 JSON exposes a top-level
+// `pages` array in document order with { object, pageposfrom1 }; prefer that
+// when available. Fall back to walking the /Pages tree from the catalog for
+// older QPDF output shapes.
+function buildPageRefToNum(
+  json: any,
+  objects: Record<string, any>,
+): Map<string, number> {
+  const map = new Map<string, number>();
+
+  if (Array.isArray(json?.pages)) {
+    for (const page of json.pages) {
+      const ref = typeof page?.object === "string" ? page.object : null;
+      const pos =
+        typeof page?.pageposfrom1 === "number" ? page.pageposfrom1 : null;
+      if (ref && pos !== null) map.set(ref, pos);
+    }
+    if (map.size > 0) return map;
+  }
+
+  // Fallback: find /Catalog → /Pages → walk /Kids tree in document order.
+  let catalog: any = null;
+  for (const obj of Object.values(objects)) {
+    if ((obj as any)?.["/Type"] === "/Catalog") {
+      catalog = obj;
+      break;
+    }
+  }
+  if (!catalog) return map;
+
+  const rootPagesRef = catalog["/Pages"];
+  const rootPages =
+    typeof rootPagesRef === "string"
+      ? resolveRef(rootPagesRef, objects)
+      : rootPagesRef;
+  if (!rootPages) return map;
+
+  let pageCounter = 0;
+  const walk = (node: any): void => {
+    const type = node?.["/Type"];
+    if (type === "/Page") {
+      // Find the ref for this object by matching in objects dict.
+      for (const [ref, candidate] of Object.entries(objects)) {
+        if (candidate === node) {
+          pageCounter++;
+          map.set(ref, pageCounter);
+          return;
+        }
+      }
+      return;
+    }
+    if (type === "/Pages") {
+      const kids = node["/Kids"];
+      if (Array.isArray(kids)) {
+        for (const kid of kids) {
+          if (typeof kid === "string") {
+            const child = resolveRef(kid, objects);
+            if (child) walk(child);
+          } else if (kid && typeof kid === "object") {
+            walk(kid);
+          }
+        }
+      }
+    }
+  };
+  walk(rootPages);
+
+  return map;
+}
+
+// Walk the structure tree in document order and emit MCIDs grouped by page.
+//   - Bare MCID numbers inside /K arrays inherit the nearest enclosing /Pg.
+//   - MCR dicts ({/Type /MCR, /MCID n, /Pg <ref>}) may override the page.
+//   - OBJR dicts reference non-content objects (annotations) and are skipped.
+//   - Nested struct element kids (inline dicts or indirect refs) recurse.
+// Pages that end up with no MCIDs are absent from the returned map.
+function collectStructTreeMcidsByPage(
+  objects: Record<string, any>,
+  pageRefToNum: Map<string, number>,
+): Record<number, number[]> {
+  const out: Record<number, number[]> = {};
+
+  let root: any = null;
+  for (const obj of Object.values(objects)) {
+    if ((obj as any)?.["/Type"] === "/StructTreeRoot") {
+      root = obj;
+      break;
+    }
+  }
+  if (!root) return out;
+
+  const pageStack: Array<number | null> = [];
+  const visited = new Set<any>();
+
+  const pushPg = (node: any): boolean => {
+    if (node && typeof node === "object" && typeof node["/Pg"] === "string") {
+      pageStack.push(pageRefToNum.get(node["/Pg"]) ?? null);
+      return true;
+    }
+    return false;
+  };
+
+  const emit = (pageNum: number | null, mcid: number): void => {
+    if (pageNum === null) return;
+    if (!Number.isInteger(mcid)) return;
+    (out[pageNum] ??= []).push(mcid);
+  };
+
+  const walk = (node: any, depth: number): void => {
+    if (depth > 200) return; // safety against pathological structure trees
+    if (!node || typeof node !== "object") return;
+    if (visited.has(node)) return; // cycle guard
+    visited.add(node);
+
+    const pushed = pushPg(node);
+    const currentPage = pageStack.length
+      ? pageStack[pageStack.length - 1]
+      : null;
+
+    const kids = node["/K"];
+
+    const processKid = (kid: any): void => {
+      if (typeof kid === "number") {
+        emit(currentPage, kid);
+        return;
+      }
+      if (typeof kid === "string") {
+        const child = resolveRef(kid, objects);
+        if (child) walk(child, depth + 1);
+        return;
+      }
+      if (kid && typeof kid === "object") {
+        const kidType = kid["/Type"];
+        // MCR: marked-content reference; may override /Pg.
+        if (kidType === "/MCR" || kid["/MCID"] !== undefined) {
+          const mcid = kid["/MCID"];
+          const pgRef = typeof kid["/Pg"] === "string" ? kid["/Pg"] : null;
+          const pgNum = pgRef ? (pageRefToNum.get(pgRef) ?? null) : currentPage;
+          if (typeof mcid === "number") emit(pgNum, mcid);
+          return;
+        }
+        // OBJR: object reference (annotation, form field) — not content.
+        if (kidType === "/OBJR") return;
+        // Nested struct element.
+        walk(kid, depth + 1);
+      }
+    };
+
+    if (Array.isArray(kids)) {
+      for (const kid of kids) processKid(kid);
+    } else if (kids !== undefined) {
+      processKid(kids);
+    }
+
+    if (pushed) pageStack.pop();
+  };
+
+  walk(root, 0);
+  return out;
 }

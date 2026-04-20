@@ -210,7 +210,7 @@ Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a tim
 | Constraint          | Value            | Enforced by                           |
 | ------------------- | ---------------- | ------------------------------------- |
 | Max files per batch | 5                | Frontend (`DropZone.vue`)             |
-| Max file size       | 50 MB each       | Frontend + multer + nginx             |
+| Max file size       | 15 MB each       | Frontend + multer + nginx             |
 | Concurrent uploads  | 2                | Frontend semaphore + server semaphore |
 | Rate limit          | 30 analyses/hour | Server (`analyzeLimiter`)             |
 
@@ -603,7 +603,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | Threat                         | Mitigation                                                                                                                                                       |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bypassing the 5-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
-| **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 50 MB = 100 MB (unchanged from single-file mode).  |
+| **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
 | **Filename XSS**               | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage.                   |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
 | **Auth bypass during batch**   | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items.                                           |

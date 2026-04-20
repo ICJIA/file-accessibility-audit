@@ -121,7 +121,7 @@ function buildCategories(
   categories.push(scoreTableMarkup(qpdf, mode));
   categories.push(scoreColorContrast());
   categories.push(scoreLinkQuality(pdfjs));
-  categories.push(scoreReadingOrder(qpdf, mode));
+  categories.push(scoreReadingOrder(qpdf, pdfjs, mode));
   categories.push(scoreFormAccessibility(qpdf));
 
   applyProfileWeights(categories, mode);
@@ -1545,6 +1545,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
 
 function scoreReadingOrder(
   qpdf: QpdfResult,
+  pdfjs: PdfjsResult,
   mode: ScoringMode,
 ): CategoryResult {
   const readingLinks: CategoryResult["helpLinks"] = [
@@ -1621,6 +1622,12 @@ function scoreReadingOrder(
     "Manual review recommended: verify the tag order in Adobe Acrobat's Reading Order / Order panels or in PAC before publishing.",
   );
 
+  // Strict: compare struct-tree MCID order (logical) against content-stream
+  // MCID order (visual) per page. When both sequences are available and
+  // non-trivial, emit a real score. Fall back to null only when extraction
+  // failed or the sequences are too short to compare meaningfully.
+  const rigorous = computeReadingOrderFidelity(qpdf, pdfjs);
+
   if (mode === "remediation") {
     let score = 55;
 
@@ -1637,9 +1644,11 @@ function scoreReadingOrder(
     findings.push(
       "Practical mode scores this category using available reading-order proxies such as structure depth, content-order evidence, and tab-order coverage.",
     );
-    findings.push(
-      "This remains a softer readiness signal, not a formal page-stream reading-order verification.",
-    );
+    if (rigorous.score !== null) {
+      findings.push(
+        `Rigorous struct-tree vs. content-stream order fidelity: ${rigorous.similarityPct}% across ${rigorous.pagesAnalyzed} analyzed page(s). (Not factored into the Practical score — see Strict for the rigorous verdict.)`,
+      );
+    }
 
     return {
       id: "reading_order",
@@ -1654,6 +1663,39 @@ function scoreReadingOrder(
     };
   }
 
+  // Strict mode — rigorous verdict when we have enough data.
+  if (rigorous.score !== null) {
+    findings.push(
+      `Reading-order fidelity: ${rigorous.similarityPct}% (${rigorous.pagesAnalyzed} of ${qpdf.totalPageCount} page(s) compared)`,
+    );
+    findings.push(
+      `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (visual draw order) on every page that had both. Higher = the tag order matches the visual flow.`,
+    );
+    if (rigorous.pagesWithDrift > 0) {
+      findings.push(
+        `${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match). Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
+      );
+    }
+    return {
+      id: "reading_order",
+      label: "Reading Order",
+      weight: SCORING_WEIGHTS.reading_order,
+      score: rigorous.score,
+      grade: getGrade(rigorous.score),
+      severity: getSeverity(rigorous.score),
+      findings,
+      explanation: readingExplanation,
+      helpLinks: readingLinks,
+    };
+  }
+
+  findings.push(
+    "Automated reading-order verification could not be performed: the structure tree and content-stream MCID sequences did not overlap sufficiently for a meaningful comparison.",
+  );
+  findings.push(
+    "Manual review recommended: verify the tag order in Adobe Acrobat's Reading Order / Order panels or in PAC before publishing.",
+  );
+
   return {
     id: "reading_order",
     label: "Reading Order",
@@ -1665,5 +1707,107 @@ function scoreReadingOrder(
     explanation: readingExplanation,
     helpLinks: readingLinks,
   };
+}
+
+// Rigorous reading-order fidelity check. For each page that has both a
+// struct-tree MCID sequence (from QPDF) and a content-stream MCID sequence
+// (from pdfjs), compute the longest-common-subsequence ratio — i.e. how
+// many MCIDs appear in the same relative order in both sequences. Aggregate
+// weighted by the number of shared MCIDs per page, then map to 0-100.
+//
+// Returns score=null when fewer than 1 page can be meaningfully compared
+// so the caller can fall back to an honest N/A instead of a noise-level
+// verdict.
+interface ReadingOrderFidelity {
+  score: number | null;
+  similarityPct: number;
+  pagesAnalyzed: number;
+  pagesWithDrift: number;
+}
+
+function computeReadingOrderFidelity(
+  qpdf: QpdfResult,
+  pdfjs: PdfjsResult,
+): ReadingOrderFidelity {
+  const emptyResult: ReadingOrderFidelity = {
+    score: null,
+    similarityPct: 0,
+    pagesAnalyzed: 0,
+    pagesWithDrift: 0,
+  };
+
+  const structByPage = qpdf.structTreeMcidsByPage;
+  const streamByPage = pdfjs.contentStreamMcidsByPage;
+  if (!structByPage || !streamByPage) return emptyResult;
+
+  const pageNumbers = new Set<number>([
+    ...Object.keys(structByPage).map(Number),
+    ...Object.keys(streamByPage).map(Number),
+  ]);
+
+  let totalShared = 0;
+  let weightedSum = 0;
+  let pagesAnalyzed = 0;
+  let pagesWithDrift = 0;
+
+  for (const pageNum of pageNumbers) {
+    const struct = structByPage[pageNum] ?? [];
+    const stream = streamByPage[pageNum] ?? [];
+    if (struct.length === 0 || stream.length === 0) continue;
+
+    const shared = new Set<number>(struct.filter((m) => stream.includes(m)));
+    if (shared.size < 2) continue; // <2 shared MCIDs = no order signal
+
+    const filteredStruct = struct.filter((m) => shared.has(m));
+    const filteredStream = stream.filter((m) => shared.has(m));
+
+    const lcs = longestCommonSubsequence(filteredStruct, filteredStream);
+    const denom = Math.max(filteredStruct.length, filteredStream.length);
+    const pageSimilarity = denom > 0 ? lcs / denom : 1;
+
+    totalShared += shared.size;
+    weightedSum += pageSimilarity * shared.size;
+    pagesAnalyzed++;
+    if (pageSimilarity < 0.8) pagesWithDrift++;
+  }
+
+  if (pagesAnalyzed === 0 || totalShared === 0) return emptyResult;
+
+  const similarity = weightedSum / totalShared;
+  const similarityPct = Math.round(similarity * 100);
+
+  let score: number;
+  if (similarity >= 0.99) score = 100;
+  else if (similarity >= 0.95) score = 90;
+  else if (similarity >= 0.8) score = 70;
+  else if (similarity >= 0.5) score = 40;
+  else score = 10;
+
+  return {
+    score,
+    similarityPct,
+    pagesAnalyzed,
+    pagesWithDrift,
+  };
+}
+
+// Length of the longest common subsequence of two integer arrays.
+// Standard O(m*n) DP. For typical PDF pages (tens to low hundreds of MCIDs)
+// this is negligible. Used to measure how "out of order" two MCID sequences
+// are relative to each other.
+function longestCommonSubsequence(a: number[], b: number[]): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0 || n === 0) return 0;
+  const prev = new Array<number>(n + 1).fill(0);
+  const curr = new Array<number>(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) curr[j] = prev[j - 1] + 1;
+      else curr[j] = Math.max(prev[j], curr[j - 1]);
+    }
+    for (let k = 0; k <= n; k++) prev[k] = curr[k];
+  }
+  return prev[n];
 }
 

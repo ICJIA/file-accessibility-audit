@@ -328,7 +328,7 @@ export const ANALYSIS = {
    * OOM kills during concurrent uploads. If you increase this, also increase
    * the nginx `client_max_body_size` in the Forge nginx config.
    */
-  MAX_FILE_SIZE_MB: 50,
+  MAX_FILE_SIZE_MB: 15,
 
   /**
    * QPDF subprocess timeout in milliseconds.

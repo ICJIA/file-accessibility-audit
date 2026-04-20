@@ -6,7 +6,7 @@ This web application analyzes PDF documents for accessibility compliance and pro
 
 ## What it does
 
-- Accepts a PDF file upload (up to 50 MB)
+- Accepts a PDF file upload (up to 15 MB)
 - Analyzes the document across up to 11 accessibility categories (nine in Strict mode; Practical mode adds PDF/UA Compliance Signals and includes Color Contrast at 4.5%)
 - Returns two score profiles side-by-side — Strict (WCAG + IITAA §E205.4, semantics-first) and Practical (WCAG + PDF/UA, broader remediation/progress view) — each with an overall score (0-100), letter grade (A-F), and per-category findings
 - Provides remediation guidance with WCAG success criteria references

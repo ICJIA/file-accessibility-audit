@@ -54,11 +54,11 @@ export const DIVERGENCE_COPY: Record<string, DivergenceCopy> = {
   reading_order: {
     label: "Scores can differ by mode",
     whatPracticalCredits:
-      "Once the structure tree has depth > 1, Practical scores reading order using proxies — tab-order coverage across pages, content-order evidence (MCIDs), struct-tree depth, and the presence of paragraph / heading tags — starting at 55 and adding up to 40 bonus points. Strict reports N/A in the same state.",
+      "Practical scores reading order using proxies — tab-order coverage across pages, content-order evidence, struct-tree depth, and the presence of paragraph / heading tags — starting at 55 and adding up to 40 bonus points. Strict performs a rigorous per-page MCID fidelity check (logical tag order vs. visual draw order) and produces a 0–100 score when it can extract enough shared MCIDs; otherwise it falls back to N/A.",
     whyStrictMatters:
-      "Strict is anchored to WCAG 2.1 AA and IITAA §E205.4. It refuses to score reading order above \"structure exists\" because a rigorous verdict requires comparing per-page marked-content order against the actual page content stream — a check this analyzer does not yet perform. N/A is an honest \"we can't verify that.\"",
+      "Strict compares each page's structure-tree MCID sequence against its content-stream MCID sequence using a longest-common-subsequence ratio. That's the signal WCAG 1.3.2 Meaningful Sequence actually cares about — whether the tag order matches the visual flow a sighted reader sees.",
     whyPracticalMatters:
-      "Practical's proxy scoring (55 baseline + up to 40 bonus) is a judgment call built into this tool. It is useful for surfacing movement and reconciling against tools that grade on similar proxies — not a formal reading-order verdict.",
+      "Practical's proxy scoring (55 baseline + up to 40 bonus) is a softer readiness signal built into this tool. It rewards remediation scaffolding (tab-order coverage, struct-tree depth) even when the rigorous MCID fidelity check isn't available. Useful for reconciling against tools that grade on similar proxies.",
   },
   pdf_ua_compliance: {
     label: "Practical-only (Strict does not include PDF/UA)",
@@ -101,7 +101,7 @@ export function naReason(
   }
   if (categoryId === "reading_order") {
     return mode === "strict"
-      ? "Strict abstains here because a rigorous reading-order verdict requires comparing each page's marked-content order against the page content stream — a check this analyzer does not yet perform. Practical scores reading order via softer proxies (tab-order coverage, MCID count, structure-tree depth). Verify the tag order in Acrobat's Order panel or PAC before publishing."
+      ? "Strict performs a per-page MCID fidelity check (logical tag order vs. visual draw order) but could not extract enough shared MCIDs from this document to produce a verdict — the structure tree and content stream didn't overlap sufficiently. Practical scores via softer proxies (tab-order coverage, struct-tree depth). Verify the tag order in Acrobat's Order panel or PAC before publishing."
       : "Reading order could not be evaluated.";
   }
   if (categoryId === "color_contrast") {

@@ -25,6 +25,14 @@ export interface PdfjsResult {
   imageCount: number
   emptyPages: number[]
   metadata: PdfMetadata
+  // Per-page MCID sequence as encountered while walking each page's content
+  // stream (i.e. visual draw order). Populated from pdfjs's operator list —
+  // OPS.beginMarkedContentProps args include the MCID on the properties dict.
+  // /Artifact-tagged marked-content runs are skipped since they do not
+  // participate in the logical reading order. Key is the 1-indexed page
+  // number. Compared against QpdfResult.structTreeMcidsByPage to measure
+  // reading-order fidelity.
+  contentStreamMcidsByPage: Record<number, number[]>
   error: string | null
 }
 
@@ -45,6 +53,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     links: [],
     imageCount: 0,
     emptyPages: [],
+    contentStreamMcidsByPage: {},
     metadata: {
       creator: null,
       producer: null,
@@ -147,12 +156,54 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     const MIN_IMAGE_DIM = 50 // pixels — skip spacers, borders, tiny decorative elements
     const seenPerPage = new Set<string>()
     let imageCount = 0
+    // Marked-content operators surface MCIDs in visual/draw order. We
+    // capture them per page so the scorer can compare this content-stream
+    // sequence against the struct-tree sequence from QPDF (reading-order
+    // fidelity check). /Artifact-tagged runs are skipped because they do
+    // not participate in logical reading order.
+    const bdcOp = OPS.beginMarkedContentProps
+    const bmcOp = OPS.beginMarkedContent
+    const emcOp = OPS.endMarkedContent
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
       const ops = await page.getOperatorList()
       seenPerPage.clear()
+      const pageMcids: number[] = []
+      // Stack of "is this marked-content run inside an /Artifact?" flags.
+      const artifactStack: boolean[] = []
       for (let j = 0; j < ops.fnArray.length; j++) {
-        if (!imageOps.has(ops.fnArray[j])) continue
+        const fn = ops.fnArray[j]
+        // Marked-content tracking. BMC and BDC push onto the stack, EMC pops.
+        // pdfjs-dist normalizes the tag (args[0]) as either a plain string
+        // ("P", "Artifact") or a {name: string} object depending on how the
+        // PDF encoded it. The properties arg for BDC (args[1]) is either a
+        // bare MCID number (common case — pdfjs flattens {MCID n} to n) or
+        // a dict for non-MCID property sets, or null.
+        if (fn === bmcOp) {
+          const tag = ops.argsArray[j]?.[0]
+          artifactStack.push(isArtifactTag(tag))
+        } else if (fn === bdcOp) {
+          const tag = ops.argsArray[j]?.[0]
+          const props = ops.argsArray[j]?.[1]
+          const isArtifact = isArtifactTag(tag)
+          artifactStack.push(isArtifact)
+          if (!isArtifact) {
+            // Check if *any enclosing* run is an artifact (exclude the
+            // just-pushed frame — it's this run, which is non-artifact).
+            const enclosingArtifact = artifactStack
+              .slice(0, -1)
+              .some((f) => f)
+            if (!enclosingArtifact) {
+              const mcid = extractMcid(props)
+              if (mcid !== null) pageMcids.push(mcid)
+            }
+          }
+          continue
+        } else if (fn === emcOp) {
+          artifactStack.pop()
+        }
+
+        if (!imageOps.has(fn)) continue
         const imgName = ops.argsArray[j]?.[0]
         if (typeof imgName !== 'string') continue
         if (seenPerPage.has(imgName)) continue // same image painted twice on same page
@@ -172,6 +223,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           // If we can't resolve the image, count it conservatively
         }
         imageCount++
+      }
+      if (pageMcids.length > 0) {
+        result.contentStreamMcidsByPage[i] = pageMcids
       }
     }
     result.imageCount = imageCount
@@ -210,6 +264,32 @@ function findLinkText(annot: any, textItems: any[]): string {
   }
 
   return matchingTexts.join(' ')
+}
+
+// pdfjs-dist passes the tag on a marked-content op either as a plain string
+// ("P", "Artifact") or as a { name: string } object — normalize both forms
+// when checking for artifact runs (which do not participate in reading order).
+function isArtifactTag(tag: any): boolean {
+  if (typeof tag === 'string') {
+    return tag === 'Artifact' || tag === '/Artifact'
+  }
+  if (tag && typeof tag === 'object' && 'name' in tag) {
+    return (tag as any).name === 'Artifact'
+  }
+  return false
+}
+
+// pdfjs-dist simplifies the BDC properties arg. When the only property is
+// /MCID, the worker emits the MCID as a bare number. Otherwise it emits a
+// dict (possibly including an MCID key). Handle both shapes plus the legacy
+// "/MCID"-keyed form in case a different pdfjs build surfaces it.
+function extractMcid(props: any): number | null {
+  if (typeof props === 'number' && Number.isInteger(props)) return props
+  if (props && typeof props === 'object') {
+    const mcid = (props as any).MCID ?? (props as any)['/MCID']
+    if (typeof mcid === 'number' && Number.isInteger(mcid)) return mcid
+  }
+  return null
 }
 
 /** Parse PDF date strings like "D:20240115120000+05'30'" into ISO format */
