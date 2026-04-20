@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.6] - 2026-04-20
+
+### Added
+
+- **Accessible N/A tooltips in the Category Scores table.** Each N/A cell now renders a small focusable "i" button that exposes an `aria-describedby` tooltip explaining *why* the analyzer abstained — e.g. "Strict does not include a PDF/UA category" or "Reading Order requires per-page marked-content vs. page-stream comparison, which this analyzer doesn't yet perform." Shows on mouse hover and keyboard focus-within; screen readers announce the reason via the `aria-label` on the button plus the `role="tooltip"` element.
+- **New `<NaCell>` component** (`apps/web/app/components/NaCell.vue`) drives the tooltip. Backed by a new `naReason(catId, mode)` helper in `modeDivergence.ts` with distinct copy for `pdf_ua_compliance`, `reading_order`, `color_contrast`, `bookmarks`, and the image/table/link/form "none detected" cases.
+- **Footnote below the Category Scores table** spelling out that N/A is an analyzer abstention, not a WCAG/ADA/IITAA exemption, with a visual hint to hover/focus the "i" button for the specific reason per row.
+- **`na-cell.test.ts`** (3 tests) locks in the a11y contract — `aria-describedby`, `aria-label`, `role="tooltip"`, and per-category reason strings. 247 web tests pass.
+
+### Changed
+
+- Score cells where `cat.score === null` now render the `<NaCell>` instead of an empty string (previously blank under Strict for PDF/UA and Reading Order).
+- Grade / Severity em-dash placeholders for N/A rows are now `aria-hidden="true"` so the tooltip becomes the single accessible source of truth.
+
 ## [1.13.5] - 2026-04-20
 
 ### Changed

@@ -343,10 +343,14 @@
                   {{ cat.label }}
                 </td>
                 <td
+                  v-if="cat.score !== null"
                   class="text-center px-3 py-2.5 font-mono"
                   :style="{ color: catColor(cat) }"
                 >
                   {{ cat.score }}
+                </td>
+                <td v-else class="text-center px-3 py-2.5 font-mono">
+                  <NaCell :cat-id="cat.id" :mode="selectedScoreMode" />
                 </td>
                 <td class="text-center px-3 py-2.5">
                   <span
@@ -358,7 +362,12 @@
                     }"
                     >{{ cat.grade }}</span
                   >
-                  <span v-else class="text-[var(--text-muted)]">—</span>
+                  <span
+                    v-else
+                    class="text-[var(--text-muted)]"
+                    aria-hidden="true"
+                    >—</span
+                  >
                 </td>
                 <td class="text-center px-3 py-2.5">
                   <span
@@ -370,7 +379,12 @@
                     }"
                     >{{ cat.severity }}</span
                   >
-                  <span v-else class="text-[var(--text-muted)] text-xs">—</span>
+                  <span
+                    v-else
+                    class="text-[var(--text-muted)] text-xs"
+                    aria-hidden="true"
+                    >—</span
+                  >
                 </td>
               </tr>
             </tbody>
@@ -394,19 +408,48 @@
                 <td
                   class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]"
                 >
-                  N/A
+                  <NaCell :cat-id="cat.id" :mode="selectedScoreMode" />
                 </td>
-                <td class="text-center px-3 py-2.5 text-[var(--text-muted)]">
+                <td
+                  class="text-center px-3 py-2.5 text-[var(--text-muted)]"
+                  aria-hidden="true"
+                >
                   —
                 </td>
                 <td
                   class="text-center px-3 py-2.5 text-[var(--text-muted)] text-xs"
+                  aria-hidden="true"
                 >
-                  N/A
+                  —
                 </td>
               </tr>
             </tbody>
           </table>
+          <div
+            v-if="hasAnyNaRow"
+            class="px-3 sm:px-5 py-3 border-t border-[var(--border)] bg-[var(--surface-deep)] text-xs text-[var(--text-muted)] leading-relaxed space-y-1.5"
+            data-testid="category-scores-footnote"
+          >
+            <p class="font-medium text-[var(--text-secondary)]">
+              About the N/A rows
+            </p>
+            <p>
+              <strong>N/A</strong> means this analyzer abstained from a
+              score for that category under the active mode — it does
+              <em>not</em> mean the category is exempt from WCAG, ADA, or
+              IITAA.
+              <strong>Hover or keyboard-focus the
+                <span
+                  class="inline-flex w-4 h-4 items-center justify-center rounded-full border border-[var(--border)] text-[10px] align-text-bottom"
+                  aria-hidden="true"
+                  >i</span></strong>
+              on any N/A cell to read the specific reason (Strict doesn't
+              include a PDF/UA category; Reading Order requires page-stream
+              analysis this tool hasn't implemented; Color Contrast needs
+              rendered-PDF sampling; small documents don't require
+              bookmarks; etc.).
+            </p>
+          </div>
         </div>
 
         <!-- PDF Metadata -->
@@ -2705,6 +2748,7 @@
 <script setup lang="ts">
 import { getWcagCriteria } from "~/utils/wcag";
 import ModeCompareBox from "~/components/ModeCompareBox.vue";
+import NaCell from "~/components/NaCell.vue";
 import {
   type ScoringMode,
   categoriesForScoringMode,
@@ -3037,6 +3081,11 @@ const naCategories = computed(() =>
   displayedCategories.value.filter(
     (c: any) => c.score === null && !hasCrossModeSignal(c.id),
   ),
+);
+const hasAnyNaRow = computed(
+  () =>
+    naCategories.value.length > 0 ||
+    scoredCategories.value.some((c: any) => c.score === null),
 );
 
 function formatMetaDate(iso: string | null): string | null {
