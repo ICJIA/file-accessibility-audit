@@ -114,24 +114,7 @@
         </button>
       </div>
 
-      <!-- Methodology note (shown only in Practical mode) -->
-      <p
-        v-if="selectedMode === 'remediation'"
-        data-testid="practical-disclaimer"
-        class="rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-2 text-xs text-amber-100 leading-relaxed"
-      >
-        <span class="font-semibold uppercase tracking-wide text-amber-200"
-          >Note:</span
-        >
-        Both Strict and Practical evaluate the same document using WCAG
-        guidelines. Practical uses different category weights than Strict
-        and adds a <strong>PDF/UA Compliance Signals</strong> category;
-        Strict does not include a PDF/UA category. Both are valid
-        evaluations of the same document — pick whichever view (or both
-        together) matches what you're trying to learn.
-      </p>
-
-      <!-- Mode-specific rationale (keeps the strict/practical context blocks) -->
+      <!-- Mode-specific rationale -->
       <p
         v-if="selectedMode === 'strict'"
         class="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100/95 leading-relaxed"
@@ -142,7 +125,7 @@
       <p
         v-else
         class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200/95 leading-relaxed"
-        data-testid="strict-findings-note"
+        data-testid="practical-disclaimer"
       >
         {{ PRACTICAL_FINDINGS_NOTE_PREFIX }}
         <a

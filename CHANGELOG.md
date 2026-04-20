@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.2] - 2026-04-20
+
+### Changed
+
+- **Practical mode's rationale block is now a single paragraph** instead of two. Dropped the redundant "NOTE:" amber banner — its content ("both evaluate the same document under WCAG … pick whichever view") duplicated the top-level `mode-recommendation-summary` directly above it.
+- **The remaining Practical paragraph is tightened to match Strict's word count** (~36 vs. ~35 words): "Practical adds a PDF/UA Compliance Signals category (MarkInfo, tab order, list/table legality, PDF/UA identifiers) plus partial-credit floors on heading and table structure. Useful for tracking PDF/UA tools and authoring exports referenced in IITAA §504.2.2 PDF Export."
+- **Keeps the §504.2.2 PDF Export link** and the indicator that Practical is useful for tracking PDF/UA tools per IITAA guidelines.
+- `data-testid="practical-disclaimer"` now points at the single remaining Practical paragraph (the element previously carrying `strict-findings-note`).
+- Test assertions updated; all 243 web tests pass.
+
 ## [1.13.1] - 2026-04-20
 
 ### Changed

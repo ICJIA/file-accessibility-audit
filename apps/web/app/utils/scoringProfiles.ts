@@ -79,10 +79,9 @@ export const STRICT_MODE_RATIONALE_TEXT =
   "Strict weighs nine categories anchored to WCAG 2.1 AA and IITAA §E205.4. It emphasizes programmatically determinable semantics — real headings, table headers, and logical structure — as the way it evaluates the document.";
 
 export const PRACTICAL_FINDINGS_NOTE_PREFIX =
-  "Practical uses different category weights than Strict and adds PDF/UA-oriented rules (MarkInfo, tab order, list/table legality, PDF/UA identifiers) plus partial-credit floors on heading and table structure. Both evaluate the same document under WCAG. IITAA §504.2.2 references PDF/UA in ";
+  "Practical adds a PDF/UA Compliance Signals category (MarkInfo, tab order, list/table legality, PDF/UA identifiers) plus partial-credit floors on heading and table structure. Useful for tracking PDF/UA tools and authoring exports referenced in IITAA ";
 
-export const PRACTICAL_FINDINGS_NOTE_SUFFIX =
-  ", while §E205.4 frames final-document accessibility through WCAG 2.1. The two methodologies can produce different scores because they emphasize different signals.";
+export const PRACTICAL_FINDINGS_NOTE_SUFFIX = ".";
 
 export const CATEGORY_TABLE_PRACTICAL_PREFIX =
   "Practical uses different category weights than Strict and adds a PDF/UA Compliance Signals category plus partial-credit floors. Both evaluate the same document under WCAG. IITAA §504.2.2 references PDF/UA in ";

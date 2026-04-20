@@ -256,18 +256,12 @@ describe("ScoreCard", () => {
     ).toContain("PDF/UA Compliance Signals");
     expect(
       wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("same document");
-    expect(
-      wrapper.get('[data-testid="strict-findings-note"]').text(),
-    ).toContain("different category weights");
-    expect(
-      wrapper.get('[data-testid="strict-findings-note"]').text(),
     ).toContain("PDF/UA identifiers");
     expect(
-      wrapper.get('[data-testid="strict-findings-note"]').text(),
-    ).toContain("same document");
+      wrapper.get('[data-testid="practical-disclaimer"]').text(),
+    ).toContain("tracking PDF/UA tools");
     expect(
-      wrapper.get('[data-testid="strict-findings-note"]').text(),
+      wrapper.get('[data-testid="practical-disclaimer"]').text(),
     ).toContain("§504.2.2 PDF Export");
     expect(
       wrapper.get('[data-testid="iitaa-pdfua-link"]').attributes("href"),
