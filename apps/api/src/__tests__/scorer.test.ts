@@ -1355,6 +1355,172 @@ describe("reading_order — rigorous struct-tree vs. content-stream check", () =
   });
 });
 
+// ---------------------------------------------------------------------------
+// Practical's PDF/UA bonus-only aggregation
+// ---------------------------------------------------------------------------
+
+describe("Practical aggregate — PDF/UA is bonus-only, not a drag", () => {
+  // Build a document where every other category scores high so that a
+  // weak PDF/UA Compliance Signals score would drag the Practical
+  // weighted average down if PDF/UA were aggregated like a normal
+  // category. Under the bonus-only rule, Practical should ignore the
+  // weak PDF/UA contribution and surface the WCAG-only score instead.
+  function strongWcagWeakPdfUa() {
+    const mcidSeq = [0, 1, 2, 3, 4];
+    return {
+      qpdf: makeQpdf({
+        hasStructTree: true,
+        hasLang: true,
+        lang: "en-US",
+        hasOutlines: true,
+        outlineCount: 10,
+        structTreeDepth: 4,
+        contentOrder: mcidSeq,
+        totalPageCount: 1,
+        tabOrderPages: 1,
+        paragraphCount: 30,
+        headings: [
+          { text: "Title", level: 1, tag: "/H1" },
+          { text: "Chapter", level: 2, tag: "/H2" },
+        ],
+        tables: [
+          {
+            hasHeaders: true,
+            headerCount: 3,
+            dataCellCount: 6,
+            hasScope: true,
+            scopeMissingCount: 0,
+            hasRowStructure: true,
+            rowCount: 3,
+            hasNestedTable: false,
+            hasCaption: false,
+            hasConsistentColumns: true,
+            columnCounts: [3, 3, 3],
+            hasHeaderAssociation: true,
+          },
+        ] as TableAnalysis[],
+        images: [
+          { ref: "1", hasAlt: true, altText: "Photo" },
+          { ref: "2", hasAlt: true, altText: "Chart" },
+        ],
+        imageObjectCount: 2,
+        lists: [{ hasLI: true, hasLbl: true, hasLBody: true, isWellFormed: true, itemCount: 3 }],
+        hasMarkInfo: false, // weak PDF/UA signal
+        isMarkedContent: false,
+        hasPdfUaIdentifier: false, // weak PDF/UA signal
+        structTreeMcidsByPage: { 1: mcidSeq },
+      }),
+      pdfjs: makePdfjs({
+        hasText: true,
+        textLength: 500,
+        title: "Annual Report",
+        imageCount: 2,
+        contentStreamMcidsByPage: { 1: mcidSeq },
+      }),
+    };
+  }
+
+  it("Practical overall is not less than the WCAG-only Practical score", () => {
+    const { qpdf, pdfjs } = strongWcagWeakPdfUa();
+    const result = scoreDocument(qpdf, pdfjs);
+    const practical = result.scoreProfiles.remediation;
+    const categories = practical.categories;
+    const pdfUaCat = categories.find((c) => c.id === "pdf_ua_compliance");
+    expect(pdfUaCat).toBeDefined();
+
+    // Compute the "WCAG-only" Practical score: the weighted average over
+    // the applicable categories EXCLUDING pdf_ua_compliance.
+    const wcagOnly = categories.filter(
+      (c) => c.score !== null && c.id !== "pdf_ua_compliance",
+    );
+    const totalWcag = wcagOnly.reduce((sum, c) => sum + c.weight, 0);
+    const wcagScore = Math.round(
+      wcagOnly.reduce(
+        (sum, c) => sum + c.score! * (c.weight / totalWcag),
+        0,
+      ),
+    );
+
+    expect(practical.overallScore).toBeGreaterThanOrEqual(wcagScore);
+  });
+
+  it("PDF/UA category still appears in the per-category list with its own score", () => {
+    const { qpdf, pdfjs } = strongWcagWeakPdfUa();
+    const result = scoreDocument(qpdf, pdfjs);
+    const pdfUaCat = result.scoreProfiles.remediation.categories.find(
+      (c) => c.id === "pdf_ua_compliance",
+    );
+    expect(pdfUaCat).toBeDefined();
+    expect(pdfUaCat!.score).not.toBeNull();
+    // And the category is non-zero weight in the Practical profile.
+    expect(pdfUaCat!.weight).toBeGreaterThan(0);
+  });
+
+  it("when PDF/UA is stronger than the rest of the document, Practical includes it (no cap at WCAG-only)", () => {
+    // Flip the scenario: everything scores low except PDF/UA, which is
+    // strong. The bonus-only rule should let PDF/UA lift Practical above
+    // the WCAG-only score.
+    const mcidSeq = [0, 1, 2];
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: mcidSeq,
+      totalPageCount: 1,
+      tabOrderPages: 1,
+      paragraphCount: 30,
+      hasMarkInfo: true,
+      isMarkedContent: true,
+      hasPdfUaIdentifier: true,
+      pdfUaPart: "1",
+      structTreeMcidsByPage: { 1: mcidSeq },
+      // deliberately leave WCAG signals weak: no headings, no tables, no alt text
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      contentStreamMcidsByPage: { 1: mcidSeq },
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const practical = result.scoreProfiles.remediation;
+    const pdfUaCat = practical.categories.find(
+      (c) => c.id === "pdf_ua_compliance",
+    )!;
+    expect(pdfUaCat.score).not.toBeNull();
+
+    const wcagOnly = practical.categories.filter(
+      (c) => c.score !== null && c.id !== "pdf_ua_compliance",
+    );
+    const totalWcag = wcagOnly.reduce((sum, c) => sum + c.weight, 0);
+    const wcagScore = Math.round(
+      wcagOnly.reduce(
+        (sum, c) => sum + c.score! * (c.weight / totalWcag),
+        0,
+      ),
+    );
+
+    // PDF/UA is stronger than the WCAG average, so the bonus-only rule
+    // should let it lift the Practical score above the WCAG-only score.
+    expect(practical.overallScore).toBeGreaterThanOrEqual(wcagScore);
+  });
+
+  it("Strict is unaffected by the Practical bonus-only rule", () => {
+    const { qpdf, pdfjs } = strongWcagWeakPdfUa();
+    const result = scoreDocument(qpdf, pdfjs);
+    const strict = result.scoreProfiles.strict;
+    // Strict weights pdf_ua_compliance at 0, so it is a no-op either way.
+    // Verify Strict's overall equals the manual WCAG-only weighted average.
+    const wcagOnly = strict.categories.filter((c) => c.score !== null);
+    const totalWcag = wcagOnly.reduce((sum, c) => sum + c.weight, 0);
+    const expected = Math.round(
+      wcagOnly.reduce(
+        (sum, c) => sum + c.score! * (c.weight / totalWcag),
+        0,
+      ),
+    );
+    expect(strict.overallScore).toBe(expected);
+  });
+});
+
 describe("practical profile — PDF/UA-oriented audits", () => {
   it("scores reading order in practical mode using reading-order proxies", () => {
     const qpdf = makeQpdf({

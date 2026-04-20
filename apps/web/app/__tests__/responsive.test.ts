@@ -204,7 +204,8 @@ describe("Responsive — Index Page", () => {
   it("technical details explains Strict vs Practical methodology divergence", () => {
     expect(source).toContain("Two scoring methodologies, one document");
     expect(source).toContain("Practical can score higher than Strict");
-    expect(source).toContain("Practical can score lower than Strict");
+    expect(source).toContain("Practical can also score below Strict");
+    expect(source).toContain("PDF/UA is a bonus-only contribution");
     expect(source).toContain("WCAG 2.1 AA");
   });
 

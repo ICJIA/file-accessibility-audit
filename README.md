@@ -124,7 +124,29 @@ Both methodologies correctly evaluate the same document — neither is "right." 
 #### Why the two scores can differ
 
 - **Practical can score higher than Strict** when a document has remediation scaffolding that Strict does not credit. Examples: rich tagged body structure plus bookmarks instead of real H1–H6 tags (Practical gives a 70-point floor on `heading_structure`); valid table rows without `<TH>` (Practical gives a 70-point floor on `table_markup`); strong PDF/UA signals like a PDF/UA identifier and complete tab order (scored in Practical's PDF/UA category, not scored at all in Strict).
-- **Practical can score lower than Strict** when a document has solid WCAG semantics (real H1–H6, real `<TH>`, bookmarks) but is missing PDF/UA-specific markers. Missing `MarkInfo /Marked true`, missing PDF/UA identifier in metadata, or incomplete tab order drags down Practical's 9.5% PDF/UA Compliance Signals category — while Strict does not count that category at all.
+- **Practical can also score below Strict** when Practical's different category weights move scoring mass onto categories that happen to score lower in this specific document. Example from the control fixtures: the `WomenInPolicing2021-remediated.pdf` file scores Strict 81 vs. Practical 81 because Strict weights Alt Text at 15% and Practical weights it at 13% — an "Alt Text 0 → 100" remediation lifts Strict more than Practical in absolute points. Practical is not "Strict + a bonus"; it is "Strict with different weights, plus an extra PDF/UA category." The weight differences can go either direction depending on which categories happened to improve.
+
+#### PDF/UA is a bonus-only contribution to Practical (v1.14.1+)
+
+PDF/UA Compliance Signals is weighted at 9.5% inside the Practical profile. Prior to v1.14.1 it was aggregated like any other category, which meant a weak PDF/UA score (e.g. document is tagged but is missing `MarkInfo /Marked true`, the PDF/UA identifier in XMP metadata, or complete tab-order coverage) could drag the Practical aggregate **below** what a WCAG-only renormalization would have produced. That was surprising: a profile explicitly framed as a "practical readiness" view shouldn't punish a document for missing PDF/UA markers that have no bearing on WCAG conformance.
+
+**The rule now:** Practical computes its overall score two ways and keeps the higher number:
+
+1. With `pdf_ua_compliance` included in the weighted average (the historical behavior).
+2. With `pdf_ua_compliance` **excluded** and the remaining weights renormalized (WCAG-only Practical).
+
+When the document's PDF/UA signals are strong enough to lift the aggregate, Practical uses path (1). When they're weaker than the rest of the document, Practical silently uses path (2) so the overall number reflects the WCAG-only view. The `pdf_ua_compliance` category still appears in the per-category breakdown with its own score — it's only the aggregation step that's guarded. Auditors who want to see the raw PDF/UA signal can look at the category row directly; nothing is hidden.
+
+**Effect on the control fixtures:**
+
+| Fixture | Strict | Practical (v1.14.0) | Practical (v1.14.1, bonus-only) |
+|---|---|---|---|
+| FY_22 Annual Report (baseline) | 39 | 57 | 57 — unchanged (PDF/UA 75 lifts) |
+| FY_22 Annual Report (remediated) | 67 | 83 | 83 — unchanged (PDF/UA 85 lifts) |
+| WomenInPolicing 2021 (baseline) | 65 | 65 | 65 — unchanged (PDF/UA 65 neutral) |
+| **WomenInPolicing 2021 (remediated)** | **81** | **80** | **81** — no longer drops below Strict |
+
+Strict is unaffected by this rule (its `pdf_ua_compliance` weight is 0; the category is surfaced as N/A with guidance text).
 
 #### Why two profiles instead of one
 

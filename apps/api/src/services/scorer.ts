@@ -189,16 +189,49 @@ function aggregateScore(
   profile: ScoreProfileResult;
 } {
   const applicable = categories.filter((c) => c.score !== null);
-  const totalWeight = applicable.reduce((sum, c) => sum + c.weight, 0);
-  const overallScore =
-    totalWeight > 0
-      ? Math.round(
-          applicable.reduce(
-            (sum, c) => sum + c.score! * (c.weight / totalWeight),
-            0,
-          ),
-        )
-      : 0;
+
+  // Straightforward weighted average across all applicable categories.
+  const weightedAverage = (cats: CategoryResult[]): number => {
+    const totalWeight = cats.reduce((sum, c) => sum + c.weight, 0);
+    if (totalWeight === 0) return 0;
+    return Math.round(
+      cats.reduce(
+        (sum, c) => sum + c.score! * (c.weight / totalWeight),
+        0,
+      ),
+    );
+  };
+
+  let overallScore = weightedAverage(applicable);
+
+  // Bonus-only PDF/UA in Practical mode:
+  // Historically, the PDF/UA Compliance Signals category was weighted
+  // normally in the Practical aggregate. That made Practical drag below
+  // Strict whenever a document had strong WCAG semantics (alt text, real
+  // headings, bookmarks) but weak PDF/UA signals (low MarkInfo / tab-order
+  // / PDF/UA-identifier coverage). That was surprising: a "practical
+  // readiness" profile shouldn't punish a document for missing PDF/UA
+  // markers that don't affect WCAG conformance.
+  //
+  // Fix: PDF/UA is now a lift-only contribution in Practical. Compute the
+  // Practical aggregate BOTH ways (with PDF/UA and without) and keep the
+  // higher score. PDF/UA can boost the number when it's strong; when it's
+  // weak, it is ignored for aggregation purposes and the renormalized
+  // "WCAG-only Practical" score is surfaced instead.
+  //
+  // Strict is unaffected (its pdf_ua_compliance weight is 0 anyway) and
+  // the PDF/UA category itself still appears in the per-category table
+  // with its own score, so auditors see the PDF/UA signal — it just
+  // doesn't drag the overall Practical number below the WCAG-only baseline.
+  if (mode === "remediation") {
+    const withoutPdfUa = applicable.filter(
+      (c) => c.id !== "pdf_ua_compliance",
+    );
+    if (withoutPdfUa.length < applicable.length) {
+      const withoutScore = weightedAverage(withoutPdfUa);
+      overallScore = Math.max(overallScore, withoutScore);
+    }
+  }
 
   const grade = getGrade(overallScore);
   const executiveSummary = generateSummary(

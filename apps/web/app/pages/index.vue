@@ -2012,14 +2012,30 @@
               (Practical gives a 70-point floor there too), or strong PDF/UA
               signals like a PDF/UA identifier and complete tab order (these
               are scored in Practical but not in Strict).
-              <strong>Practical can score lower than Strict</strong> when a
-              document has solid WCAG semantics (real H1–H6, real
-              <code>&lt;TH&gt;</code>, bookmarks) but is missing
-              PDF/UA-specific markers (no <code>MarkInfo /Marked true</code>,
-              no PDF/UA identifier in metadata, incomplete tab order) — the
-              9.5% PDF/UA Compliance Signals category can drag down
-              Practical's weighted average, while Strict does not count that
-              category at all.
+              <strong>Practical can also score below Strict</strong> when
+              Practical's different category weights move scoring mass onto
+              categories that happen to score lower in this specific
+              document (for example, Strict weights Alt Text at 15%;
+              Practical weights it at 13%, so a big Alt Text win lifts
+              Strict slightly more).
+            </p>
+            <p class="text-xs text-[var(--text-muted)]">
+              <strong>PDF/UA is a bonus-only contribution</strong> to the
+              Practical aggregate. Historically, the 9.5% PDF/UA Compliance
+              Signals category was aggregated like any other weighted
+              category, which meant a weak PDF/UA score could drag the
+              Practical number <em>below</em> what a WCAG-only
+              renormalization would have produced — a surprising result,
+              since a "practical readiness" view shouldn't punish a
+              document for missing PDF/UA markers. Practical now computes
+              the aggregate both ways (with PDF/UA included and with it
+              excluded and renormalized) and keeps the higher number.
+              PDF/UA can lift Practical when the document's PDF/UA signals
+              are strong, but it can no longer pull Practical below the
+              WCAG-only baseline. The PDF/UA category itself still appears
+              in the per-category breakdown with its own score, so the
+              signal is visible to auditors; only the overall aggregation
+              changed.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               Illinois IITAA 2.1 references PDF/UA in

@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.14.1] - 2026-04-20
+
+### Changed — PDF/UA becomes a bonus-only contribution in Practical
+
+The 9.5% `pdf_ua_compliance` category used to be aggregated into Practical's weighted average like any other category, which meant a weak PDF/UA score could drag the Practical aggregate below what a WCAG-only renormalization would produce. That was counterintuitive — a "practical readiness" profile shouldn't punish a document for missing PDF/UA markers that have no bearing on WCAG conformance.
+
+**Now:** Practical computes its overall score two ways and keeps the higher number:
+
+1. With `pdf_ua_compliance` included in the weighted average (historical behavior).
+2. With `pdf_ua_compliance` excluded and the remaining weights renormalized (WCAG-only Practical).
+
+When the document's PDF/UA signals are strong, path (1) wins and PDF/UA lifts the aggregate as before. When they're weak, path (2) wins and the PDF/UA category is silently dropped from the aggregate, surfacing the WCAG-only Practical score instead. The `pdf_ua_compliance` row still appears in the per-category breakdown with its own score, so the signal is visible to auditors — only the aggregation step is guarded.
+
+### Control-fixture effect
+
+| Fixture | Strict | Practical v1.14.0 | Practical v1.14.1 |
+|---|---|---|---|
+| FY_22 Annual Report (baseline) | 39 | 57 | 57 (unchanged — PDF/UA 75 lifts) |
+| FY_22 Annual Report (remediated) | 67 | 83 | 83 (unchanged — PDF/UA 85 lifts) |
+| WomenInPolicing 2021 (baseline) | 65 | 65 | 65 (unchanged — PDF/UA 65 neutral) |
+| **WomenInPolicing 2021 (remediated)** | **81** | **80** | **81** (no longer drops below Strict) |
+
+Strict is unaffected by this rule (its `pdf_ua_compliance` weight is 0; the category is surfaced as N/A with guidance text).
+
+### Documentation
+
+- **Homepage "Why the two scores can differ" section** expanded to explain (1) that weight differences alone can make Practical score below Strict even without PDF/UA in the mix (different weight-mass on the same categories), and (2) the bonus-only PDF/UA rule with a plain-language explanation.
+- **README "Scoring Rubric" section** rewritten with a control-fixture table showing the before/after impact on both fixture pairs and clear language that Practical is "Strict with different weights, plus an extra PDF/UA category" — not "Strict + a bonus."
+- Four new scorer tests lock in the invariants: (a) Practical overall ≥ WCAG-only Practical score for every document, (b) the `pdf_ua_compliance` row is still present with its own score, (c) a strong PDF/UA signal lifts Practical above WCAG-only, (d) Strict is not affected by the bonus-only rule.
+
+497 tests pass (251 web + 246 api).
+
 ## [1.14.0] - 2026-04-20
 
 ### Added
