@@ -3023,11 +3023,20 @@ function clearResults() {
   clearShare();
 }
 
+// Keep categories anchored: a category that is scored in either profile (even
+// if N/A in the currently-selected one) stays in Detailed Findings so the
+// card does not jump sections when the user clicks a mode-compare pill that
+// flips the global mode. Only categories that are N/A in both profiles drop
+// to "Not Included in Scoring."
 const scoredCategories = computed(() =>
-  displayedCategories.value.filter((c: any) => c.score !== null),
+  displayedCategories.value.filter(
+    (c: any) => c.score !== null || hasCrossModeSignal(c.id),
+  ),
 );
 const naCategories = computed(() =>
-  displayedCategories.value.filter((c: any) => c.score === null),
+  displayedCategories.value.filter(
+    (c: any) => c.score === null && !hasCrossModeSignal(c.id),
+  ),
 );
 
 function formatMetaDate(iso: string | null): string | null {

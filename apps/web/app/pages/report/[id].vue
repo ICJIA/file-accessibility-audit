@@ -995,11 +995,17 @@ function hasCrossModeSignal(catId: string): boolean {
   return strictScore !== practicalScore;
 }
 
+// See index.vue for rationale: anchor divergent categories in Detailed
+// Findings so clicking a mode-compare pill never yanks a card out of view.
 const scoredCategories = computed(() =>
-  displayedCategories.value.filter((c: any) => c.score !== null),
+  displayedCategories.value.filter(
+    (c: any) => c.score !== null || hasCrossModeSignal(c.id),
+  ),
 );
 const naCategories = computed(() =>
-  displayedCategories.value.filter((c: any) => c.score === null),
+  displayedCategories.value.filter(
+    (c: any) => c.score === null && !hasCrossModeSignal(c.id),
+  ),
 );
 
 function formatMetaDate(iso: string | null): string | null {

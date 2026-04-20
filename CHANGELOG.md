@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.4] - 2026-04-20
+
+### Changed
+
+- **Divergent categories (PDF/UA, heading_structure, table_markup, reading_order) now stay anchored in Detailed Findings** regardless of which mode is active. Previously, flipping to Strict via the PDF/UA mode-compare pill moved the card out of Detailed Findings into "Not Included in Scoring," which shifted the viewport — the next card underneath (often Text Extractability at 100/100 in both modes) scrolled into view and looked like the pill scores had changed. They hadn't; a different card had taken the position.
+- `scoredCategories` filter now keeps any category that is scored in at least one profile (via `hasCrossModeSignal`); `naCategories` only catches categories that are N/A in both profiles (currently just `color_contrast`). The Detailed Findings card header gracefully displays `N/A` when the active mode is null for that category.
+- Applied to both `index.vue` and `report/[id].vue`.
+
 ## [1.13.3] - 2026-04-20
 
 ### Changed
