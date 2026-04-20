@@ -12,16 +12,27 @@
         How each mode scores this category
       </p>
       <span
-        class="text-[10px] font-medium uppercase tracking-wide rounded-full border px-2 py-0.5"
+        class="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide rounded-full border px-2.5 py-1"
         :class="
           diverges
-            ? 'border-amber-400/50 bg-amber-400/10 text-amber-300'
-            : 'border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)]'
+            ? 'border-amber-400/60 bg-amber-400/15 text-amber-200'
+            : 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
         "
       >
+        <span aria-hidden="true" class="text-[13px] leading-none">{{
+          diverges ? "⚠" : "="
+        }}</span>
         {{ copy.label }}
       </span>
     </div>
+    <p
+      v-if="!diverges"
+      class="mt-1 text-[11px] text-[var(--text-muted)] leading-snug"
+    >
+      Both pills show the same score because this category scores the same
+      under both methodologies — only the profile weight differs, which
+      affects the overall grade. Not a bug.
+    </p>
     <div class="mt-2 grid gap-2 sm:grid-cols-2 text-xs">
       <button
         type="button"

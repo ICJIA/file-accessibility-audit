@@ -72,7 +72,7 @@ export const DIVERGENCE_COPY: Record<string, DivergenceCopy> = {
 };
 
 const SAME_COPY: DivergenceCopy = {
-  label: "Same in both modes",
+  label: "Same score in both modes",
   whatPracticalCredits: SAME_SCORE_LABEL,
   whyStrictMatters:
     "This category does not branch on the scoring mode. Strict applies WCAG 2.1 AA / IITAA §E205.4 for this category and Practical uses the same evaluation.",

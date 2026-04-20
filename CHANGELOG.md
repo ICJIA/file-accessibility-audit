@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.7] - 2026-04-20
+
+### Changed
+
+- **ModeCompareBox's divergence badge is now visually prominent.** Bumped text from 10px to 11px, raised weight to `font-semibold`, gave it a larger pill (`px-2.5 py-1`), and added a leading glyph (`=` for matching scores, `⚠` for divergent). The "same" state uses emerald tinting (previously muted gray that faded into the background); the "diverges" state stays amber.
+- **Badge label** on non-branching categories updated from "Same in both modes" to "Same score in both modes" so the badge can't be read as "same scoring mode."
+- **New inline explainer** rendered immediately below the pills when scores match: "Both pills show the same score because this category scores the same under both methodologies — only the profile weight differs, which affects the overall grade. Not a bug."
+
 ## [1.13.6] - 2026-04-20
 
 ### Added

@@ -454,7 +454,7 @@ describe("Mode divergence copy — per-category rationale", () => {
       "color_contrast",
     ]) {
       expect(canCategoryDiverge(id)).toBe(false);
-      expect(getDivergenceCopy(id).label).toBe("Same in both modes");
+      expect(getDivergenceCopy(id).label).toBe("Same score in both modes");
     }
     // Satisfy the "module path" reference to keep linting happy.
     expect(modulePath).toContain("modeDivergence");
