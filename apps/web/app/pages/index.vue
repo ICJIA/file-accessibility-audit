@@ -747,6 +747,12 @@
                 >
               </div>
 
+              <ModeCompareBox
+                v-if="result.scoreProfiles && hasCrossModeSignal(cat.id)"
+                v-bind="compareProps(cat.id)"
+                @update:selected-mode="selectedScoreMode = $event"
+              />
+
               <p
                 v-if="cat.explanation"
                 class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3"
@@ -2825,6 +2831,15 @@ function compareProps(catId: string) {
     practicalGrade: practical?.grade ?? null,
     selectedMode: selectedScoreMode.value,
   };
+}
+
+// Show ModeCompareBox on an N/A card only when the two profiles actually
+// disagree for that category (so the user can still see the side-by-side
+// pills and click-to-switch mode without the box disappearing). Categories
+// that are N/A in both modes (e.g. color_contrast) skip the box.
+function hasCrossModeSignal(catId: string): boolean {
+  const { strictScore, practicalScore } = compareProps(catId);
+  return strictScore !== practicalScore;
 }
 
 // True when any batch item finished (done, error, or cancelled) or single result exists

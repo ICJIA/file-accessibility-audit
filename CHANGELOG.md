@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.3] - 2026-04-20
+
+### Changed
+
+- **ModeCompareBox now renders inside "Not Included in Scoring" cards too** when the two profiles diverge for that category (e.g. PDF/UA Compliance Signals: Strict = N/A, Practical = scored). Previously clicking the Strict pill on a PDF/UA Practical card flipped mode to Strict, which moved the card out of Detailed Findings into the N/A section — and the mode-compare pills disappeared because the N/A section didn't render ModeCompareBox. Now the pills travel with the card so Strict = N/A and Practical = its score stay visible across the toggle.
+- **New `hasCrossModeSignal(catId)` helper** on both `index.vue` and `report/[id].vue` gates the N/A-card ModeCompareBox so categories that are N/A in both modes (e.g. `color_contrast` without rendered-contrast analysis) don't get a useless "N/A vs N/A" box.
+- **New `mode-compare-stable.test.ts`** locks in the invariant that ModeCompareBox's two pill scores stay put when `selectedMode` flips — 244 web tests now pass.
+
 ## [1.13.2] - 2026-04-20
 
 ### Changed

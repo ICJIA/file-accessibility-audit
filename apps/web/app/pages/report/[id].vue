@@ -702,6 +702,12 @@
                 >
               </div>
 
+              <ModeCompareBox
+                v-if="data?.report?.scoreProfiles && hasCrossModeSignal(cat.id)"
+                v-bind="compareProps(cat.id)"
+                @update:selected-mode="selectedScoreMode = $event"
+              />
+
               <p
                 v-if="cat.explanation"
                 class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3"
@@ -982,6 +988,11 @@ function compareProps(catId: string) {
     practicalGrade: practical?.grade ?? null,
     selectedMode: selectedScoreMode.value,
   };
+}
+
+function hasCrossModeSignal(catId: string): boolean {
+  const { strictScore, practicalScore } = compareProps(catId);
+  return strictScore !== practicalScore;
 }
 
 const scoredCategories = computed(() =>
