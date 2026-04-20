@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.5] - 2026-04-20
+
+### Changed
+
+- **Clicking a Strict/Practical pill no longer causes the viewport to jump.** The ScoreProfileBanner's rationale paragraph and several mode-dependent badges re-render at different heights when the active mode flips; that shifted the clicked card up or down relative to the viewport. `ModeCompareBox.vue` now captures its own `getBoundingClientRect().top` before emitting the mode change and, after Vue has flushed the DOM and one animation frame has elapsed, calls `window.scrollBy` to cancel out any delta. The clicked card stays visually static across the flip.
+- No-op when the click is for the already-active mode, and no-op in SSR contexts where `window` is undefined.
+
 ## [1.13.4] - 2026-04-20
 
 ### Changed

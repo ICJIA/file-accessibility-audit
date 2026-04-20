@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="rootEl"
     data-testid="mode-compare-box"
     :data-category-id="categoryId"
     class="mb-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)] px-3 py-2.5"
@@ -32,7 +33,7 @@
             ? 'border-emerald-400/60 bg-emerald-500/10 ring-1 ring-emerald-400/30'
             : 'border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] hover:border-[var(--border)]'
         "
-        @click="emit('update:selectedMode', 'strict')"
+        @click="flipMode('strict')"
       >
         <p class="flex items-center gap-1.5">
           <span
@@ -63,7 +64,7 @@
             ? 'border-amber-400/60 bg-amber-500/10 ring-1 ring-amber-400/30'
             : 'border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] hover:border-[var(--border)]'
         "
-        @click="emit('update:selectedMode', 'remediation')"
+        @click="flipMode('remediation')"
       >
         <p class="flex items-center gap-1.5">
           <span
@@ -113,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, ref } from "vue";
 import {
   canCategoryDiverge,
   getDivergenceCopy,
@@ -132,6 +133,30 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:selectedMode": [mode: ScoringMode];
 }>();
+
+const rootEl = ref<HTMLElement | null>(null);
+
+// Keep the clicked card visually static across the mode flip. Content
+// above the box (rationale banners, divergence badges, category-mode
+// badges) re-renders with different heights when the mode changes, which
+// without this handler would shift the clicked card up or down in the
+// viewport. Capture the box's viewport-relative top before the emit,
+// and after Vue has flushed the DOM, scroll by the delta.
+async function flipMode(mode: ScoringMode) {
+  if (mode === props.selectedMode) return;
+  const el = rootEl.value;
+  const beforeTop = el?.getBoundingClientRect().top ?? null;
+  emit("update:selectedMode", mode);
+  if (beforeTop === null || typeof window === "undefined") return;
+  await nextTick();
+  await new Promise((r) => requestAnimationFrame(() => r(null)));
+  const afterTop = el?.getBoundingClientRect().top ?? null;
+  if (afterTop === null) return;
+  const delta = afterTop - beforeTop;
+  if (Math.abs(delta) > 1) {
+    window.scrollBy({ top: delta, left: 0, behavior: "instant" as ScrollBehavior });
+  }
+}
 
 const copy = computed(() => getDivergenceCopy(props.categoryId));
 
