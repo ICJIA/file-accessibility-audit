@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.15.0] - 2026-04-20
+
+### Added
+
+- **Always-visible dual-score audit row** under the main grade circle in `ScoreCard`. Renders `Strict X/100` in emerald and `Practical Y/100` in amber side-by-side, regardless of which mode is selected via the toggle. Auditors no longer need to flip the mode switch to confirm both numbers. `data-testid="dual-score-audit-row"`, `role="group"`, and per-pill `aria-label` attributes for screen readers.
+- **Export parity.** The Markdown / AI-analysis / plain-text exports now emit both scores: `Strict score (WCAG / IITAA §E205.4): X/100 (grade)` followed by `Practical score (WCAG + PDF/UA): Y/100 (grade)`. When the Strict floor lifts Practical, the export line also includes `(raw weighted-average: Z/100; floored to Strict)` so downstream consumers can reconstruct the pre-floor math.
+- **`scoreProfiles.remediation.rawOverallScore`** and **`scoreProfiles.remediation.flooredToStrict`** on the API / JSON-export response. `rawOverallScore` is always the pre-floor weighted-average number; `flooredToStrict` is true when the floor lifted the displayed `overallScore`. Strict profile mirrors `rawOverallScore = overallScore` and `flooredToStrict = false`.
+
+### Changed — `Strict ≤ Practical, always` invariant
+
+The scorer now guarantees `Practical.overallScore ≥ Strict.overallScore` for every document. If the raw Practical weighted-average math produces a lower number (because Practical's different category weights moved scoring mass onto a category that happened to score low, or for any reason a future document might surface), Practical is lifted up to Strict. The per-category Practical scores are unchanged — only the overall aggregate is floored — so the raw category math remains inspectable.
+
+This subsumes the v1.14.1 bonus-only PDF/UA rule (still in place as an internal first pass) and gives users a single simple invariant to remember: "Practical can only add points to Strict, never subtract."
+
+### Changed — clearer framing of what each score covers
+
+- **Strict** is now positioned as **the canonical score covering WCAG 2.1 AA + ADA Title II + Illinois IITAA §E205.4** — the three rules that actually govern non-web document accessibility in Illinois. This is the number to cite in legal-compliance contexts, agency sign-off, FOIA responses, and audits with groups (e.g. Illinois DoIT) that evaluate documents against IITAA without a PDF/UA overlay.
+- **Practical** adds an **ISO 14289-1 (PDF/UA) layer** on top of Strict. The description in the homepage / mode-toggle / export copy now explicitly notes that PDF/UA is *not* a legal requirement for final PDFs under Illinois rules — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability, not for the PDF artifact itself.
+
+### Simplified — user-facing explanatory text
+
+The "Why the two scores can differ" technical-details paragraph is rewritten around the single `Strict ≤ Practical` invariant. The previous three-paragraph version (higher / lower / bonus-only) is replaced by one paragraph describing Strict's coverage and one describing the relationship. The `PDF/UA is a bonus-only contribution` subsection in the README is replaced by a fuller `Strict is the canonical score and the floor for Practical` section.
+
+### Tests
+
+Three new scorer invariant tests: (a) `Practical.overallScore >= Strict.overallScore` for every document, (b) `rawOverallScore` and `flooredToStrict` are always present and correctly populated, (c) non-floor cases retain `flooredToStrict = false`. 500 tests pass in total (251 web + 249 api).
+
 ## [1.14.1] - 2026-04-20
 
 ### Changed — PDF/UA becomes a bonus-only contribution in Practical

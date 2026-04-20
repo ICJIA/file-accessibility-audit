@@ -49,6 +49,14 @@ export interface ScoreProfileResult {
   executiveSummary: string;
   categoryScores: Record<string, number | null>;
   categories: CategoryResult[];
+  // For auditing transparency. On Practical, `rawOverallScore` is the
+  // unfloored weighted average; `flooredToStrict` is true when that raw
+  // number was lifted up to Strict's score to maintain the Strict ≤
+  // Practical invariant. On Strict, these mirror `overallScore` and
+  // `false`. Always present post-v1.15.0 so auditors can reconstruct
+  // the pre-floor math when needed.
+  rawOverallScore?: number;
+  flooredToStrict?: boolean;
 }
 
 function getGrade(score: number): string {
@@ -90,6 +98,45 @@ export function scoreDocument(
     "remediation",
   );
 
+  // Strict-is-floor invariant for Practical:
+  // Strict is the canonical WCAG / IITAA §E205.4 view. Practical layers
+  // different category weights plus a PDF/UA category on top of the same
+  // document evidence, so intuitively it should never scare lower than
+  // Strict — a "remediation readiness" profile shouldn't punish a
+  // document for things Strict overlooked.
+  //
+  // In practice the raw Practical weighted average CAN dip below Strict
+  // when the weight redistribution moves mass onto a category that scores
+  // low (e.g. alt_text carries 15% in Strict vs. 13% in Practical — a big
+  // Alt Text win lifts Strict slightly more in absolute points) or when
+  // PDF/UA is mid-tier. v1.14.1 capped the PDF/UA drag; this rule
+  // generalizes that idea: if Practical's math ends up below Strict, we
+  // floor Practical at Strict so the UX invariant is clean:
+  //
+  //     Strict ≤ Practical, always.
+  //
+  // The per-category Practical scores remain unchanged (they still reflect
+  // the raw math so auditors can reconstruct the weighted average), and
+  // the underlying "Practical raw" score is retained on the profile as
+  // `rawOverallScore` for transparency.
+  const remediationProfile = remediationAggregate.profile;
+  if (remediationProfile.overallScore < strictAggregate.overallScore) {
+    remediationProfile.rawOverallScore = remediationProfile.overallScore;
+    remediationProfile.flooredToStrict = true;
+    remediationProfile.overallScore = strictAggregate.overallScore;
+    remediationProfile.grade = strictAggregate.grade;
+    remediationProfile.executiveSummary = generateSummary(
+      strictAggregate.overallScore,
+      strictAggregate.grade,
+      isScanned,
+      remediationCategories,
+      "remediation",
+    );
+  } else {
+    remediationProfile.rawOverallScore = remediationProfile.overallScore;
+    remediationProfile.flooredToStrict = false;
+  }
+
   return {
     overallScore: strictAggregate.overallScore,
     grade: strictAggregate.grade,
@@ -100,7 +147,7 @@ export function scoreDocument(
     scoringMode: "strict",
     scoreProfiles: {
       strict: strictAggregate.profile,
-      remediation: remediationAggregate.profile,
+      remediation: remediationProfile,
     },
   };
 }

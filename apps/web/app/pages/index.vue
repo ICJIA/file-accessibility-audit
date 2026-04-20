@@ -2003,39 +2003,31 @@
               calls built into this tool, not published standards.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <strong>Why the two scores can differ.</strong>
-              <strong>Practical can score higher than Strict</strong> when a
-              document has remediation scaffolding that Strict does not
-              credit — for example, rich tagged body structure plus
-              bookmarks instead of real H1–H6 tags (Practical gives a
-              70-point floor), or valid table rows without <code>&lt;TH&gt;</code>
-              (Practical gives a 70-point floor there too), or strong PDF/UA
-              signals like a PDF/UA identifier and complete tab order (these
-              are scored in Practical but not in Strict).
-              <strong>Practical can also score below Strict</strong> when
-              Practical's different category weights move scoring mass onto
-              categories that happen to score lower in this specific
-              document (for example, Strict weights Alt Text at 15%;
-              Practical weights it at 13%, so a big Alt Text win lifts
-              Strict slightly more).
+              <strong>How the two scores relate.</strong>
+              <strong>Strict is the canonical score.</strong> It aligns
+              with <strong>WCAG 2.1 Level AA</strong>,
+              <strong>ADA Title II</strong>, and Illinois
+              <strong>IITAA §E205.4</strong> — the rules that actually
+              govern non-web document accessibility in Illinois.
+              <strong>Practical adds a PDF/UA layer</strong>
+              (<em>ISO 14289-1</em>) on top of Strict. PDF/UA is
+              <em>not</em> a legal requirement for final documents under
+              Illinois rules — IITAA references PDF/UA only in §504.2.2,
+              and only for authoring-tool export capability, not for the
+              PDF artifact itself. Groups like DoIT that want the WCAG /
+              IITAA / ADA picture without PDF/UA noise should cite the
+              Strict score.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <strong>PDF/UA is a bonus-only contribution</strong> to the
-              Practical aggregate. Historically, the 9.5% PDF/UA Compliance
-              Signals category was aggregated like any other weighted
-              category, which meant a weak PDF/UA score could drag the
-              Practical number <em>below</em> what a WCAG-only
-              renormalization would have produced — a surprising result,
-              since a "practical readiness" view shouldn't punish a
-              document for missing PDF/UA markers. Practical now computes
-              the aggregate both ways (with PDF/UA included and with it
-              excluded and renormalized) and keeps the higher number.
-              PDF/UA can lift Practical when the document's PDF/UA signals
-              are strong, but it can no longer pull Practical below the
-              WCAG-only baseline. The PDF/UA category itself still appears
-              in the per-category breakdown with its own score, so the
-              signal is visible to auditors; only the overall aggregation
-              changed.
+              <strong>Strict ≤ Practical, always.</strong> Practical
+              starts from the same document evidence and can
+              <em>add</em> points for remediation scaffolding that
+              Strict deliberately ignores (70-point partial-credit
+              floors on heading and table structure) and for PDF/UA
+              signals (MarkInfo, tab order, PDF/UA identifiers). When
+              none of those bonuses apply, Practical equals Strict.
+              Practical can never drop below Strict — the scorer guards
+              that invariant explicitly.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               Illinois IITAA 2.1 references PDF/UA in

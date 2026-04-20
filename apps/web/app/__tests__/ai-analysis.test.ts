@@ -61,8 +61,7 @@ describe("buildAiAnalysis", () => {
     const out = buildAiAnalysis(baseResult());
     expect(out).toContain("sample.pdf");
     expect(out).toContain("Pages: 12");
-    expect(out).toContain("Overall score: 58/100");
-    expect(out).toContain("Grade: F");
+    expect(out).toContain("Strict score (WCAG / IITAA §E205.4): 58/100 (F)");
     expect(out).toContain("Verdict: Not accessible");
   });
 
@@ -102,7 +101,7 @@ describe("buildAiAnalysis", () => {
       }),
     );
 
-    expect(out).toContain("Practical readiness score: 86/100 (B)");
+    expect(out).toContain("Practical score (WCAG + PDF/UA): 86/100 (B)");
   });
 
   it("counts critical and moderate categories", () => {

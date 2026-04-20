@@ -121,32 +121,38 @@ Every audit surfaces **two score profiles side-by-side**: a **Strict semantic sc
 
 Both methodologies correctly evaluate the same document — neither is "right." They can produce different scores because they emphasize different signals. Pick whichever view (or both together) matches the question being asked.
 
-#### Why the two scores can differ
+#### Strict is the canonical score and the floor for Practical
 
-- **Practical can score higher than Strict** when a document has remediation scaffolding that Strict does not credit. Examples: rich tagged body structure plus bookmarks instead of real H1–H6 tags (Practical gives a 70-point floor on `heading_structure`); valid table rows without `<TH>` (Practical gives a 70-point floor on `table_markup`); strong PDF/UA signals like a PDF/UA identifier and complete tab order (scored in Practical's PDF/UA category, not scored at all in Strict).
-- **Practical can also score below Strict** when Practical's different category weights move scoring mass onto categories that happen to score lower in this specific document. Example from the control fixtures: the `WomenInPolicing2021-remediated.pdf` file scores Strict 81 vs. Practical 81 because Strict weights Alt Text at 15% and Practical weights it at 13% — an "Alt Text 0 → 100" remediation lifts Strict more than Practical in absolute points. Practical is not "Strict + a bonus"; it is "Strict with different weights, plus an extra PDF/UA category." The weight differences can go either direction depending on which categories happened to improve.
+One invariant governs the relationship between the two overall scores:
 
-#### PDF/UA is a bonus-only contribution to Practical (v1.14.1+)
+> **Strict ≤ Practical, always.**
 
-PDF/UA Compliance Signals is weighted at 9.5% inside the Practical profile. Prior to v1.14.1 it was aggregated like any other category, which meant a weak PDF/UA score (e.g. document is tagged but is missing `MarkInfo /Marked true`, the PDF/UA identifier in XMP metadata, or complete tab-order coverage) could drag the Practical aggregate **below** what a WCAG-only renormalization would have produced. That was surprising: a profile explicitly framed as a "practical readiness" view shouldn't punish a document for missing PDF/UA markers that have no bearing on WCAG conformance.
+**Strict is the canonical number.** It aligns with the three standards that actually govern non-web document accessibility in Illinois:
 
-**The rule now:** Practical computes its overall score two ways and keeps the higher number:
+- **WCAG 2.1 Level AA** — the W3C Web Content Accessibility Guidelines
+- **ADA Title II** — the 2024 U.S. Department of Justice rule requiring state/local government digital content to meet WCAG 2.1 AA by April 2026
+- **Illinois IITAA §E205.4** — frames non-web document accessibility through WCAG 2.1 AA
 
-1. With `pdf_ua_compliance` included in the weighted average (the historical behavior).
-2. With `pdf_ua_compliance` **excluded** and the remaining weights renormalized (WCAG-only Practical).
+Cite the Strict score for legal-compliance decisions, Illinois agency publication sign-off, ADA Title II reviews, FOIA responses, and any audit conversation with a group (e.g. DoIT) that evaluates documents against IITAA without a PDF/UA overlay.
 
-When the document's PDF/UA signals are strong enough to lift the aggregate, Practical uses path (1). When they're weaker than the rest of the document, Practical silently uses path (2) so the overall number reflects the WCAG-only view. The `pdf_ua_compliance` category still appears in the per-category breakdown with its own score — it's only the aggregation step that's guarded. Auditors who want to see the raw PDF/UA signal can look at the category row directly; nothing is hidden.
+**Practical adds a PDF/UA layer (ISO 14289-1) on top of Strict.** PDF/UA is an ISO standard for tagged-PDF structural integrity; it is *not* a legal requirement for final PDFs under Illinois accessibility rules. IITAA §504.2.2 references PDF/UA only for *authoring-tool* export capability (whether a tool can emit PDF/UA-1), not for the PDF artifact itself. Practical scores the PDF/UA signals alongside the WCAG signals because many commercial remediation tools report on them and because the signals correlate with assistive-technology behaviour — but the Practical score is a supplementary remediation-readiness view, not a legal-compliance answer.
+
+The floor rule ties the two together: Practical starts from the same document evidence as Strict and can add points for things Strict deliberately ignores — 70-point partial-credit floors on heading and table structure when the conditions apply, and the PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). When none of those bonuses apply, Practical simply equals Strict. Practical can never drop below Strict; if the raw weighted-average math would produce a lower number (because Practical's different category weights moved scoring mass toward a category that scored low, or because a weak PDF/UA score dragged the aggregate down), the scorer lifts Practical up to Strict.
+
+**Why this matters for auditing.** Both overall scores are always visible in the app (a dual-score audit row sits directly under the main grade circle) and in every export format (JSON, Word, HTML, Markdown). The JSON export also includes `scoreProfiles.remediation.rawOverallScore` (the pre-floor weighted-average result) and a `flooredToStrict` boolean so an auditor can reconstruct the math either way. Nothing about the per-category Practical scores changes when the floor kicks in — only the aggregate `overallScore` is lifted. That keeps the raw category math inspectable.
 
 **Effect on the control fixtures:**
 
-| Fixture | Strict | Practical (v1.14.0) | Practical (v1.14.1, bonus-only) |
-|---|---|---|---|
-| FY_22 Annual Report (baseline) | 39 | 57 | 57 — unchanged (PDF/UA 75 lifts) |
-| FY_22 Annual Report (remediated) | 67 | 83 | 83 — unchanged (PDF/UA 85 lifts) |
-| WomenInPolicing 2021 (baseline) | 65 | 65 | 65 — unchanged (PDF/UA 65 neutral) |
-| **WomenInPolicing 2021 (remediated)** | **81** | **80** | **81** — no longer drops below Strict |
+| Fixture | Strict | Practical | `rawOverallScore` | `flooredToStrict` |
+|---|---|---|---|---|
+| FY_22 Annual Report (baseline) | 39 | 57 | 57 | false |
+| FY_22 Annual Report (remediated) | 67 | 83 | 83 | false |
+| WomenInPolicing 2021 (baseline) | 65 | 65 | 65 | false |
+| WomenInPolicing 2021 (remediated) | 81 | 81 | 81 | false |
 
-Strict is unaffected by this rule (its `pdf_ua_compliance` weight is 0; the category is surfaced as N/A with guidance text).
+In every fixture we have, `flooredToStrict` stays `false` — the Strict-floor rule is an insurance policy rather than a frequent intervention. It exists so users never encounter the counterintuitive "Practical scored 80 on a file Strict scored 81" result a future document could otherwise produce.
+
+**What Practical is (and isn't).** Practical is not "Strict plus a bonus" — it is "Strict with different category weights plus the extra `pdf_ua_compliance` category, floored at Strict." The weight differences can push individual category contributions in either direction; the floor handles the case where those differences conspire against the overall number.
 
 #### Why two profiles instead of one
 

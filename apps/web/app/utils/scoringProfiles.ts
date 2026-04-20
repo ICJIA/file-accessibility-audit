@@ -56,9 +56,9 @@ export const MODE_PROFILE_LABELS: Record<ScoringMode, string> = {
 
 export const MODE_PROFILE_DESCRIPTIONS: Record<ScoringMode, string> = {
   strict:
-    "WCAG-based scoring methodology. Anchored to WCAG 2.1 AA and Illinois IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA category. Emphasizes programmatically determinable headings, table semantics, and logical structure.",
+    "Canonical score. Aligns with WCAG 2.1 Level AA, ADA Title II, and Illinois IITAA §E205.4 — the rules that govern non-web document accessibility. Nine categories, no PDF/UA category. Cite this score for legal-compliance and Illinois agency publication decisions.",
   remediation:
-    "WCAG-based scoring methodology with different category weights and an added PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). Applies partial-credit floors on heading and table structure.",
+    "Strict plus an added PDF/UA layer (ISO 14289-1). Different category weights and a PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality) with partial-credit floors on heading and table structure. PDF/UA is not a legal requirement for final PDFs under Illinois rules — IITAA references it only in §504.2.2 for authoring-tool export capability. Practical ≥ Strict always: it can lift the number when PDF/UA or partial-credit signals apply, but never drop below Strict.",
 };
 
 export const MODE_RECOMMENDATION_TITLES: Record<ScoringMode, string> = {

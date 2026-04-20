@@ -35,6 +35,34 @@
       }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
     </p>
 
+    <!-- Dual-score audit row: always shows BOTH overall scores so an
+         auditor can confirm Strict and Practical at a glance without
+         flipping the mode toggle. Per the scoring rule (v1.15.0+),
+         Strict ≤ Practical always holds, so this is also a quick visual
+         cue that the invariant is in effect. -->
+    <div
+      v-if="hasAlternateProfile"
+      data-testid="dual-score-audit-row"
+      class="mx-auto inline-flex items-stretch gap-0 rounded-lg border border-[var(--border)] overflow-hidden text-[12px] leading-none"
+      role="group"
+      aria-label="Overall scores across both methodologies"
+    >
+      <span
+        class="px-3 py-1.5 flex items-center gap-1.5 bg-emerald-500/10 text-emerald-200"
+        :aria-label="`Strict ${strictOverallScore} of 100`"
+      >
+        <span class="font-semibold uppercase tracking-wide">Strict</span>
+        <span class="font-mono">{{ strictOverallScore }}/100</span>
+      </span>
+      <span
+        class="px-3 py-1.5 flex items-center gap-1.5 bg-amber-500/10 text-amber-200 border-l border-[var(--border)]"
+        :aria-label="`Practical ${practicalOverallScore} of 100`"
+      >
+        <span class="font-semibold uppercase tracking-wide">Practical</span>
+        <span class="font-mono">{{ practicalOverallScore }}/100</span>
+      </span>
+    </div>
+
     <!-- Label -->
     <p class="text-sm font-medium" :style="{ color: gradeColor }">
       {{ gradeLabel }}
@@ -189,6 +217,21 @@ const comparisonProfile = computed(() => {
   );
   return otherMode ? normalizedProfiles.value[otherMode] : null;
 });
+
+// Overall scores from each profile, exposed directly so the dual-score
+// audit row can show both values without depending on which mode the
+// user has selected. Falls back to the active score when one profile
+// is missing (solo-profile documents).
+const strictOverallScore = computed(
+  () =>
+    normalizedProfiles.value.strict?.overallScore ??
+    displayedProfile.value.overallScore,
+);
+const practicalOverallScore = computed(
+  () =>
+    normalizedProfiles.value.remediation?.overallScore ??
+    displayedProfile.value.overallScore,
+);
 
 const displayedCategories = computed(() =>
   categoriesForScoringMode(

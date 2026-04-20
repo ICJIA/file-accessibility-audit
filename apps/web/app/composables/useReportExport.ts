@@ -1158,14 +1158,20 @@ export function buildAiAnalysis(result: ReportResult): string {
     lines.push(`## File`);
     lines.push(`- Filename: ${result.filename}`);
     lines.push(`- Pages: ${result.pageCount}`);
-    lines.push(`- Overall score: ${result.overallScore}/100`);
-    lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`);
+    lines.push(
+      `- Strict score (WCAG / IITAA §E205.4): ${result.overallScore}/100 (${result.grade})`,
+    );
     if (remediationProfile) {
+      const rawNote =
+        remediationProfile.rawOverallScore !== undefined &&
+        remediationProfile.flooredToStrict
+          ? ` (raw weighted-average: ${remediationProfile.rawOverallScore}/100; floored to Strict per the Strict ≤ Practical invariant)`
+          : "";
       lines.push(
-        `- Practical readiness score: ${remediationProfile.overallScore}/100 (${remediationProfile.grade})`,
+        `- Practical score (WCAG + PDF/UA): ${remediationProfile.overallScore}/100 (${remediationProfile.grade})${rawNote}`,
       );
       lines.push(
-        `  (Both Strict and Practical evaluate the same document using WCAG guidelines. Practical uses different category weights and includes a PDF/UA Compliance Signals category; Strict does not. IITAA §504.2.2 references PDF/UA for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1.)`,
+        `  (Strict is the canonical score and the floor for Practical. Practical adds PDF/UA Compliance Signals and partial-credit floors on heading and table structure; it can only lift the overall number, never lower it. IITAA §504.2.2 references PDF/UA for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1.)`,
       );
     }
     lines.push(`- Verdict: ${verdict}`);
@@ -1188,11 +1194,17 @@ export function buildAiAnalysis(result: ReportResult): string {
   lines.push(`## File`);
   lines.push(`- Filename: ${result.filename}`);
   lines.push(`- Pages: ${result.pageCount}`);
-  lines.push(`- Overall score: ${result.overallScore}/100`);
-  lines.push(`- Grade: ${result.grade} (${gradeLabel(result.grade)})`);
+  lines.push(
+    `- Strict score (WCAG / IITAA §E205.4): ${result.overallScore}/100 (${result.grade})`,
+  );
   if (remediationProfile) {
+    const rawNote =
+      remediationProfile.rawOverallScore !== undefined &&
+      remediationProfile.flooredToStrict
+        ? ` (raw weighted-average: ${remediationProfile.rawOverallScore}/100; floored to Strict)`
+        : "";
     lines.push(
-      `- Practical readiness score: ${remediationProfile.overallScore}/100 (${remediationProfile.grade})`,
+      `- Practical score (WCAG + PDF/UA): ${remediationProfile.overallScore}/100 (${remediationProfile.grade})${rawNote}`,
     );
   }
   lines.push(`- Verdict: ${verdict}`);
