@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.15.1] - 2026-04-20
+
+### Fixed
+
+- Production `tsc --noEmit` build failure introduced by v1.15.0. The new scorer invariant tests constructed `heading` fixtures with numeric `level` (`level: 1`) and `list` fixtures with non-interface properties (`hasLI`, `hasLbl`, `hasLBody`). Vitest uses esbuild which is permissive about these type mismatches, so local `pnpm test` passed, but production builds through `tsc --noEmit` in `apps/api/package.json` caught them. Fixtures are now type-correct: `level` is `"1"` / `"2"` (the canonical string-form the parser emits) and lists use `hasLabels`, `hasBodies`, `nestingDepth` matching the `ListAnalysis` interface.
+
 ## [1.15.0] - 2026-04-20
 
 ### Added

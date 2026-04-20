@@ -1380,8 +1380,8 @@ describe("Practical aggregate — PDF/UA is bonus-only, not a drag", () => {
         tabOrderPages: 1,
         paragraphCount: 30,
         headings: [
-          { text: "Title", level: 1, tag: "/H1" },
-          { text: "Chapter", level: 2, tag: "/H2" },
+          { level: "1", tag: "/H1" },
+          { level: "2", tag: "/H2" },
         ],
         tables: [
           {
@@ -1404,7 +1404,15 @@ describe("Practical aggregate — PDF/UA is bonus-only, not a drag", () => {
           { ref: "2", hasAlt: true, altText: "Chart" },
         ],
         imageObjectCount: 2,
-        lists: [{ hasLI: true, hasLbl: true, hasLBody: true, isWellFormed: true, itemCount: 3 }],
+        lists: [
+          {
+            itemCount: 3,
+            hasLabels: true,
+            hasBodies: true,
+            isWellFormed: true,
+            nestingDepth: 1,
+          },
+        ],
         hasMarkInfo: false, // weak PDF/UA signal
         isMarkedContent: false,
         hasPdfUaIdentifier: false, // weak PDF/UA signal
@@ -1542,7 +1550,7 @@ describe("Practical aggregate — Strict is the floor", () => {
       paragraphCount: 30,
       hasMarkInfo: false,
       hasPdfUaIdentifier: false,
-      headings: [{ text: "T", level: 1, tag: "/H1" }],
+      headings: [{ level: "1", tag: "/H1" }],
       images: [{ ref: "1", hasAlt: true, altText: "Photo" }],
       imageObjectCount: 1,
       structTreeMcidsByPage: { 1: [0, 1] },
