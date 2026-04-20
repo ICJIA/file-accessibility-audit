@@ -154,33 +154,36 @@ export const EMAIL = {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Scoring profiles and rubric origin attribution
+// Scoring profiles and origin attribution
 // ---------------------------------------------------------------------------
-// Strict is ICJIA's rubric — anchored to WCAG 2.1 Level AA and Illinois
-// IITAA §E205.4 for non-web documents. It is the Illinois agency publication
-// and legal-accessibility-review lens.
+// Both profiles use WCAG guidelines to evaluate the same document. They
+// differ in (1) category weights and (2) whether PDF/UA signals are
+// included as a scored category.
 //
-// Practical (internal key: `remediation`) is a DEVELOPER-INTRODUCED extension.
-// It layers PDF/UA-oriented checks on top of ICJIA's rubric and applies
-// partial-credit floors. PDF/UA is NOT required by Illinois accessibility law
-// for final documents — IITAA §504.2.2 references PDF/UA only for
-// authoring-tool export capability. Treat Practical as a progress /
-// vendor-reconciliation signal, not as an ICJIA or Illinois-law score.
+// Strict — WCAG-based, anchored to WCAG 2.1 Level AA and Illinois IITAA
+// §E205.4 for non-web documents. Nine categories, no PDF/UA category.
+// Emphasizes programmatically determinable heading and table semantics.
 //
-// Weights and partial-credit floors inside Practical are JUDGMENT CALLS made
-// by the developer who added this profile. They are not a vendor standard
-// or a published specification. Adjust per your operational needs.
+// Practical (internal key: `remediation`) — WCAG-based, with different
+// category weights and an added PDF/UA Compliance Signals category.
+// Applies partial-credit floors on heading and table structure. PDF/UA
+// is referenced in IITAA §504.2.2 for authoring-tool export capability;
+// §E205.4 frames final-document accessibility through WCAG 2.1.
+//
+// Weights and partial-credit floors inside Practical are JUDGMENT CALLS
+// built into this tool. They are not a vendor standard or a published
+// specification. Adjust per your operational needs.
 // ---------------------------------------------------------------------------
 
 export const SCORING_PROFILES = {
   strict: {
-    label: "Strict semantic score (ICJIA rubric)",
-    // Origin / authority tag surfaced in JSON exports so downstream
-    // consumers can tell which rubric produced a given score.
-    origin: "icjia.iitaa.wcag21",
-    originLabel: "ICJIA / IITAA-aligned",
+    label: "Strict semantic score (WCAG + IITAA §E205.4)",
+    // Origin tag surfaced in JSON exports so downstream consumers can tell
+    // which profile produced a given score.
+    origin: "wcag.iitaa.strict",
+    originLabel: "WCAG + IITAA §E205.4",
     description:
-      "ICJIA's rubric. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
+      "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA category. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
     weights: {
       /** Is the PDF text-based (not scanned) and tagged? Highest weight because
        *  a scanned PDF is fundamentally inaccessible — nothing else matters. */
@@ -230,14 +233,14 @@ export const SCORING_PROFILES = {
   },
 
   remediation: {
-    label: "Practical readiness score (developer extension)",
-    // DEVELOPER EXTENSION — not ICJIA's rubric and not an Illinois
-    // accessibility-law signal. Weights and partial-credit floors below are
-    // the original author's judgment calls, not a vendor standard.
-    origin: "developer-extension.pdfua",
-    originLabel: "Developer extension — adds PDF/UA",
+    label: "Practical readiness score (WCAG + PDF/UA)",
+    // WCAG-based with an added PDF/UA Compliance Signals category.
+    // Weights and partial-credit floors below are judgment calls built
+    // into this tool, not a vendor standard.
+    origin: "wcag.pdfua.practical",
+    originLabel: "WCAG + PDF/UA signals",
     description:
-      "Developer-added lens that layers PDF/UA-oriented checks on top of ICJIA's Strict rubric. PDF/UA is not required by Illinois accessibility law for final documents — IITAA §504.2.2 references it only for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. Use Strict for Illinois agency publication decisions. Still diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
+      "WCAG-based scoring methodology with different category weights than Strict and an added PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). Applies partial-credit floors on heading and table structure. PDF/UA is referenced in IITAA §504.2.2 for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. Diagnostic only — not a WCAG, ADA, ITTAA, PDF/UA, or Matterhorn conformance claim.",
     weights: {
       text_extractability: 0.175,
       title_language: 0.13,

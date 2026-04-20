@@ -77,10 +77,10 @@
             >
           </p>
           <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-            ICJIA's rubric. Anchored to WCAG 2.1 AA and IITAA §E205.4 for
-            non-web documents. Best primary mode for Illinois agency
-            publication and ADA/WCAG/ITTAA-oriented legal accessibility
-            review.
+            WCAG-based scoring methodology. Anchored to WCAG 2.1 AA and
+            IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA
+            category. Emphasizes programmatically determinable headings,
+            table semantics, and logical structure.
           </p>
         </button>
         <button
@@ -106,30 +106,29 @@
             >
           </p>
           <p class="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
-            Developer-added lens, not ICJIA's rubric. Layers PDF/UA-oriented
-            checks on top of Strict. PDF/UA is not required by Illinois
-            accessibility law for final documents — useful for progress
-            tracking and vendor reconciliation, not a legal signal.
+            WCAG-based scoring methodology with different category weights
+            and an added PDF/UA Compliance Signals category. Applies
+            partial-credit floors on heading and table structure. Useful for
+            progress tracking and reconciling against PDF/UA-focused tools.
           </p>
         </button>
       </div>
 
-      <!-- Developer-extension disclaimer (shown only in Practical mode) -->
+      <!-- Methodology note (shown only in Practical mode) -->
       <p
         v-if="selectedMode === 'remediation'"
         data-testid="practical-disclaimer"
         class="rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 py-2 text-xs text-amber-100 leading-relaxed"
       >
         <span class="font-semibold uppercase tracking-wide text-amber-200"
-          >Heads up:</span
+          >Note:</span
         >
-        Practical is a developer extension that adds PDF/UA-oriented checks.
-        It is <strong>not ICJIA's rubric</strong> and
-        <strong>not required by Illinois accessibility law</strong>. IITAA
-        §504.2.2 references PDF/UA only for authoring-tool export capability;
-        §E205.4 frames final-document accessibility through WCAG 2.1. Use
-        Strict — ICJIA's rubric — for publication and legal accessibility
-        decisions.
+        Both Strict and Practical evaluate the same document using WCAG
+        guidelines. Practical uses different category weights than Strict
+        and adds a <strong>PDF/UA Compliance Signals</strong> category;
+        Strict does not include a PDF/UA category. Both are valid
+        evaluations of the same document — pick whichever view (or both
+        together) matches what you're trying to learn.
       </p>
 
       <!-- Mode-specific rationale (keeps the strict/practical context blocks) -->
@@ -271,7 +270,7 @@ const WEIGHT_ROWS = [
     id: "color_contrast",
     label: "Color Contrast",
     strict: "N/A",
-    practical: "N/A",
+    practical: "4.5%",
     practicalOnly: false,
   },
   {

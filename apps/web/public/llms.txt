@@ -7,20 +7,20 @@ This web application analyzes PDF documents for accessibility compliance and pro
 ## What it does
 
 - Accepts a PDF file upload (up to 50 MB)
-- Analyzes the document across up to 11 accessibility categories (nine in Strict mode; Practical mode adds PDF/UA Compliance Signals and reserves Color Contrast)
-- Returns two score profiles side-by-side — Strict (semantics-first for ADA/WCAG/ITTAA publication review) and Practical (broader remediation/progress view) — each with an overall score (0-100), letter grade (A-F), and per-category findings
+- Analyzes the document across up to 11 accessibility categories (nine in Strict mode; Practical mode adds PDF/UA Compliance Signals and includes Color Contrast at 4.5%)
+- Returns two score profiles side-by-side — Strict (WCAG + IITAA §E205.4, semantics-first) and Practical (WCAG + PDF/UA, broader remediation/progress view) — each with an overall score (0-100), letter grade (A-F), and per-category findings
 - Provides remediation guidance with WCAG success criteria references
 - Exports reports in Word (.docx), HTML, Markdown, and JSON formats
 - JSON export includes machine-readable WCAG mappings, prioritized remediation plans, and LLM-ready context for both profiles
 
-## Scoring modes
+## Two scoring methodologies, one document
 
-The app always computes two profiles against the same document. Attribution matters:
+Both profiles use WCAG guidelines to evaluate the same document. They differ in (1) category weights and (2) whether PDF/UA signals are scored:
 
-- Strict semantic score — **this is ICJIA's rubric**. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Primary view for Illinois agency publication and ADA/WCAG/ITTAA-oriented review. Emphasizes programmatically determinable headings, table semantics, and logical reading order. Origin tag: `icjia.iitaa.wcag21`.
-- Practical readiness score — **this is a developer extension, NOT ICJIA's rubric and NOT required by Illinois accessibility law**. A developer added this profile to layer PDF/UA-oriented checks (tagging, MarkInfo, tab order, PDF/UA identifiers, list/table legality) on top of ICJIA's Strict rubric. Useful for progress tracking and vendor reconciliation. Weights and partial-credit floors are the original developer's judgment calls. Origin tag: `developer-extension.pdfua`.
+- Strict semantic score — **WCAG-based, anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents**. Nine categories, no PDF/UA category. Emphasizes programmatically determinable headings, table semantics, and logical reading order. Origin tag: `wcag.iitaa.strict`.
+- Practical readiness score — **WCAG-based, with different category weights and an added PDF/UA Compliance Signals category** (MarkInfo, tab order, PDF/UA identifiers, list/table legality). Applies partial-credit floors on heading and table structure. Origin tag: `wcag.pdfua.practical`.
 
-Illinois IITAA 2.1 references PDF/UA only in §504.2.2 for authoring-tool export capability, while §E205.4 frames final non-web document accessibility through WCAG 2.1. Practical's PDF/UA category scores §504.2.2-style signals; Strict sticks to the §E205.4/WCAG signals that govern the finished document. For an Illinois accessibility-law answer about a PDF, cite the Strict score.
+Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool export capability, while §E205.4 frames final non-web document accessibility through WCAG 2.1. Practical's PDF/UA category scores §504.2.2-style signals; Strict sticks to the §E205.4/WCAG signals. The two methodologies can produce different scores because they emphasize different signals — pick whichever view (or both together) matches the question being asked.
 
 ## Scoring categories (Strict / Practical weights)
 

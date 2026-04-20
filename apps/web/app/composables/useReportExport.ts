@@ -87,14 +87,14 @@ function gradeLabel(grade: string): string {
 
 function profileLabel(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "Practical readiness score (developer extension)"
-    : "Strict semantic score (ICJIA rubric)";
+    ? "Practical readiness score (WCAG + PDF/UA)"
+    : "Strict semantic score (WCAG + IITAA §E205.4)";
 }
 
 function profileDescription(mode: ScoringMode): string {
   return mode === "remediation"
-    ? "Developer-added extension layering PDF/UA-oriented checks on top of ICJIA's Strict rubric. NOT ICJIA's rubric and NOT required by Illinois accessibility law — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1. Useful for progress tracking and vendor reconciliation. For Illinois agency publication / legal review, cite Strict."
-    : "ICJIA's rubric. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure — the stronger ADA/WCAG/ITTAA-facing signals.";
+    ? "WCAG-based scoring methodology with different category weights than Strict and an added PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). Applies partial-credit floors on heading and table structure. IITAA §504.2.2 references PDF/UA in authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1."
+    : "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA category. Prioritizes programmatically determinable headings, table semantics, and logical structure.";
 }
 
 function getScoreProfiles(result: ReportResult): ScoreProfile[] {
@@ -1165,7 +1165,7 @@ export function buildAiAnalysis(result: ReportResult): string {
         `- Practical readiness score: ${remediationProfile.overallScore}/100 (${remediationProfile.grade})`,
       );
       lines.push(
-        `  (Practical is a developer extension that adds PDF/UA-oriented checks. It is NOT ICJIA's rubric and NOT required by Illinois accessibility law — IITAA §504.2.2 references PDF/UA only for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1. For Illinois publication decisions, cite the Strict score.)`,
+        `  (Both Strict and Practical evaluate the same document using WCAG guidelines. Practical uses different category weights and includes a PDF/UA Compliance Signals category; Strict does not. IITAA §504.2.2 references PDF/UA for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1.)`,
       );
     }
     lines.push(`- Verdict: ${verdict}`);

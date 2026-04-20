@@ -183,17 +183,17 @@ describe("ScoreCard", () => {
     ).toContain("Practical readiness score");
     expect(
       wrapper.get('[data-testid="strict-mode-rationale"]').text(),
-    ).toContain("ADA/WCAG/ITTAA-facing");
+    ).toContain("programmatically determinable");
     expect(
       wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("Use Strict");
+    ).toContain("two WCAG-based scoring methodologies");
     expect(
       wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("ICJIA's rubric");
+    ).toContain("both are valid");
     expect(
       wrapper.get('[data-testid="mode-recommendation-current"]').text(),
     ).toContain("Current view: Strict");
-    expect(wrapper.text()).toContain("ICJIA's rubric");
+    expect(wrapper.text()).toContain("IITAA §E205.4");
   });
 
   it("switches the displayed score and summary when remediation mode is selected", async () => {
@@ -244,22 +244,22 @@ describe("ScoreCard", () => {
     expect(wrapper.text()).toContain("Remediation summary");
     expect(
       wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("developer extension");
+    ).toContain("two WCAG-based scoring methodologies");
     expect(
       wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("not ICJIA's rubric");
+    ).toContain("both are valid");
     expect(
       wrapper.get('[data-testid="mode-recommendation-current"]').text(),
     ).toContain("Current view: Practical");
     expect(
       wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("not ICJIA's rubric");
+    ).toContain("PDF/UA Compliance Signals");
     expect(
       wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("not required by Illinois accessibility law");
+    ).toContain("same document");
     expect(
       wrapper.get('[data-testid="strict-findings-note"]').text(),
-    ).toContain("legal accessibility decisions");
+    ).toContain("different category weights");
     expect(
       wrapper.get('[data-testid="strict-findings-note"]').text(),
     ).toContain("PDF/UA identifiers");

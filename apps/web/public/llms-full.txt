@@ -6,16 +6,16 @@
 
 The ICJIA File Accessibility Audit is a web application that analyzes PDF documents for accessibility compliance. It extracts structural data from PDFs using two complementary parsers (QPDF for tag structure, PDF.js for content extraction), scores the document under two profiles — a nine-category Strict semantic score aligned to WCAG 2.1 Level AA / ADA Title II / Illinois IITAA 2.1, and an eleven-category Practical readiness score that adds PDF/UA Compliance Signals and reserves Color Contrast — and produces a detailed report with findings, remediation guidance, and standards references.
 
-## Two scoring modes — and only one of them is ICJIA's rubric
+## Two scoring methodologies, one document
 
-Every audit surfaces two score profiles against the same document. Attribution matters:
+Every audit surfaces two score profiles against the same document. Both use WCAG guidelines; they differ in category weights and whether PDF/UA signals are scored:
 
-1. Strict semantic score — **this is ICJIA's rubric**. Origin tag: `icjia.iitaa.wcag21`. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Primary view for ADA/WCAG/ITTAA-oriented review. Weighs nine categories and emphasizes programmatically determinable structure (real H1–H6, real TH/Scope/Headers, logical reading order).
-2. Practical readiness score — **this is a developer-introduced extension, NOT ICJIA's rubric and NOT required by Illinois accessibility law for final documents**. Origin tag: `developer-extension.pdfua`. A developer added this profile to layer PDF/UA-oriented checks on top of ICJIA's Strict rubric. Renormalizes the nine core categories and adds a PDF/UA Compliance Signals category covering StructTreeRoot, MarkInfo/Marked, PDF/UA identifiers, tab order, list legality, and table legality. Weights, partial-credit floors (70 on `heading_structure` and `table_markup` under specific conditions), and reading-order proxies are the original developer's judgment calls, not published standards.
+1. Strict semantic score — **WCAG-based, anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents**. Origin tag: `wcag.iitaa.strict`. Nine categories, no PDF/UA category. Emphasizes programmatically determinable structure (real H1–H6, real TH/Scope/Headers, logical reading order).
+2. Practical readiness score — **WCAG-based, with different category weights and an added PDF/UA Compliance Signals category**. Origin tag: `wcag.pdfua.practical`. Renormalizes the nine core categories and adds a PDF/UA Compliance Signals category covering StructTreeRoot, MarkInfo/Marked, PDF/UA identifiers, tab order, list legality, and table legality. Applies partial-credit floors (70 on `heading_structure` and `table_markup` under specific conditions) and reading-order proxies. Weights and floors are judgment calls built into this tool, not published standards.
 
-Illinois IITAA 2.1 references PDF/UA in §504.2.2 only for authoring-tool export capability (not for the final document). Final non-web document accessibility is framed through WCAG 2.1 via §E205.4. That is why Strict — ICJIA's rubric — is the authoritative Illinois-publication lens, while Practical is a supplementary progress / vendor-reconciliation view that happens to score PDF/UA signals. Neither profile alone is a legal compliance determination. Matterhorn is a PDF/UA testing protocol (not a separate law) and is referenced only as context for Practical's PDF/UA category.
+Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool export capability (not for the final document). Final non-web document accessibility is framed through WCAG 2.1 via §E205.4. Strict sticks to the §E205.4/WCAG signals; Practical adds the §504.2.2 PDF/UA signals on top. Both methodologies are valid evaluations of the same document — they emphasize different signals. Neither is a legal compliance determination. Matterhorn is a PDF/UA testing protocol (not a separate law) and is referenced only as context for Practical's PDF/UA category.
 
-**When citing a score in an Illinois accessibility-law context (agency publication, ADA Title II review, FOIA, etc.), cite the Strict score. Practical is not ICJIA's rubric and should not be represented as one.**
+**Both profiles correctly evaluate the same document. Pick whichever view (or both together) matches the question being asked — neither is "right."**
 
 Website: https://audit.icjia.app
 Source: https://github.com/ICJIA/file-accessibility-audit

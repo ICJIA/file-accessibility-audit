@@ -244,19 +244,19 @@ const verdictExplanation = computed(() => {
 
   if (selectedMode.value !== "strict") {
     if (parts.length === 0) {
-      return "Practical is a valid remediation/progress lens on the same document, not a different document state. It can rise when bookmarks, broader tagging, cleaner table grids, or dedicated PDF/UA-oriented audit signals improve usability, even if semantic headings or table-header relationships are still incomplete. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level accessibility through WCAG 2.1 for non-web documents. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.";
+      return "Practical and Strict both evaluate the same document using WCAG guidelines. Practical uses different category weights and includes a PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality), while Strict does not. That is why the two views can score differently — they emphasize different signals. Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level accessibility through WCAG 2.1 for non-web documents.";
     }
-    return `Practical is a valid remediation/progress lens on the same document, not a different document state. It can score differently when usability signals or dedicated PDF/UA-oriented audits improve, but ${joinParts(parts)} still remain in the scored categories below. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level accessibility through WCAG 2.1 for non-web documents. For agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review, Strict remains the better primary view.`;
+    return `Practical and Strict both evaluate the same document using WCAG guidelines. Practical uses different category weights and includes a PDF/UA Compliance Signals category, while Strict does not — that is why the two views can score differently. The scored categories below still show ${joinParts(parts)}. Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level accessibility through WCAG 2.1 for non-web documents.`;
   }
 
   if (!props.result.categories || props.result.categories.length === 0) {
-    return "Strict is a valid semantics-first lens on the same document, and it is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure.";
+    return "Strict weighs nine categories anchored to WCAG 2.1 AA and IITAA §E205.4 and does not include a PDF/UA category. It emphasizes programmatically determinable structure — real headings, real table-header relationships, logical reading order.";
   }
 
   if (parts.length === 0) {
-    return "Strict is a valid semantics-first lens on the same document, and it is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. Every scored category passed with no critical or moderate issues, which is a strong structural signal, though it is still not a final legal determination.";
+    return "Strict weighs nine categories anchored to WCAG 2.1 AA and IITAA §E205.4 and does not include a PDF/UA category. It emphasizes programmatically determinable structure. Every scored category passed with no critical or moderate issues, which is a strong structural signal, though it is still not a final legal determination.";
   }
-  return `Strict is a valid semantics-first lens on the same document, and it is the better primary view for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review because it emphasizes programmatically determinable structure. The scored categories below still show ${joinParts(parts)}, so review the detailed findings before treating the file as publication-ready.`;
+  return `Strict weighs nine categories anchored to WCAG 2.1 AA and IITAA §E205.4 and does not include a PDF/UA category. It emphasizes programmatically determinable structure. The scored categories below still show ${joinParts(parts)}, so review the detailed findings before treating the file as publication-ready.`;
 });
 
 function escapeHtml(text: string): string {

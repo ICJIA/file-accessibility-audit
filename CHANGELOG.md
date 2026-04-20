@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.0] - 2026-04-20
+
+### Changed — profile messaging rewrite (no scoring-logic changes)
+
+This release rewrites how the two scoring profiles are described throughout the app, exports, docs, and LLM files. Scoring weights, partial-credit floors, and scoring branches are unchanged. Stored reports continue to render identically. Internal profile keys (`strict`, `remediation`) are unchanged.
+
+Motivation: ICJIA has not yet formally adopted a rubric, so framing Strict as "ICJIA's rubric" was premature. The previous messaging also unnecessarily positioned Practical as a "developer extension" with less standing than Strict. The new framing describes both profiles neutrally as two scoring methodologies that evaluate the same document using WCAG guidelines — differing only in category weights and whether PDF/UA signals are included.
+
+- **Removed "ICJIA's rubric" and "developer extension / developer-added" language** from all user-facing copy: `apps/web/app/pages/index.vue`, `ScoreProfileBanner.vue`, `ScoreCard.vue`, `scoringProfiles.ts`, `modeDivergence.ts`, `useReportExport.ts`, `audit.config.ts`, `public/llms.txt`, `public/llms-full.txt`, `README.md`, `docs/00-master-design.md`, `docs/10-scoring-reconciliation.md`.
+- **Profile labels** changed:
+  - Strict: `Strict semantic score (ICJIA rubric)` → `Strict semantic score (WCAG + IITAA §E205.4)`
+  - Practical: `Practical readiness score (developer extension)` → `Practical readiness score (WCAG + PDF/UA)`
+- **Origin tags** changed (this is a machine-visible JSON-export change — downstream consumers filtering on origin need to update):
+  - Strict: `icjia.iitaa.wcag21` → `wcag.iitaa.strict`
+  - Practical: `developer-extension.pdfua` → `wcag.pdfua.practical`
+- **Origin labels** changed:
+  - Strict: `ICJIA / IITAA-aligned` → `WCAG + IITAA §E205.4`
+  - Practical: `Developer extension — adds PDF/UA` → `WCAG + PDF/UA signals`
+- **New explanatory section on the homepage** ("Why the two scores can differ") explicitly addresses when Practical scores higher than Strict (remediation scaffolding such as 70-point floors, PDF/UA signals that Strict doesn't count) and when Practical scores lower (solid WCAG semantics combined with missing PDF/UA markers like `MarkInfo /Marked true`, PDF/UA identifier, complete tab order — the 9.5% PDF/UA Compliance Signals category drags down Practical while Strict ignores it).
+- **Color Contrast row in the ScoreProfileBanner weights table** now correctly displays `4.5%` for Practical (the config has always included it; the display row was stale at `N/A`).
+- **Test assertions updated** to match the new copy across `components.test.ts`, `scoring-display.test.ts`, and `responsive.test.ts`. All 243 web tests pass.
+- **Profile weights verified** to sum to 100% in both profiles (Strict: 20 + 15×3 + 10×2 + 5×3 = 100%; Practical: 17.5 + 13×3 + 9.5 + 8.5×2 + 4.5×2 + 4×2 = 100%).
+
+### Breaking
+
+- JSON-export consumers filtering on `profile.origin` must update from `icjia.iitaa.wcag21` → `wcag.iitaa.strict` and from `developer-extension.pdfua` → `wcag.pdfua.practical`. Stored reports generated before this release retain the old tags.
+
 ## [1.12.10] - 2026-04-19
 
 ### Changed

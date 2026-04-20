@@ -201,11 +201,11 @@ describe("Responsive — Index Page", () => {
     expect(source).toContain("px-3 sm:px-6");
   });
 
-  it("technical details explains Strict vs Practical for legal review", () => {
-    expect(source).toContain("Scoring modes and legal interpretation");
-    expect(source).toContain("ADA");
+  it("technical details explains Strict vs Practical methodology divergence", () => {
+    expect(source).toContain("Two scoring methodologies, one document");
+    expect(source).toContain("Practical can score higher than Strict");
+    expect(source).toContain("Practical can score lower than Strict");
     expect(source).toContain("WCAG 2.1 AA");
-    expect(source).toContain("ITTAA");
   });
 
   it("technical details explains normalization tradeoffs", () => {

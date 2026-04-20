@@ -169,7 +169,7 @@ describe("Score display — verdict explanation", () => {
     expect(explanation.exists()).toBe(true);
     expect(explanation.text()).toContain("2 critical issues");
     expect(explanation.text()).toContain("1 moderate issue");
-    expect(explanation.text()).toContain("legal accessibility review");
+    expect(explanation.text()).toContain("programmatically determinable");
   });
 
   it('renders singular "critical issue" when exactly one', () => {
@@ -213,7 +213,7 @@ describe("Score display — verdict explanation", () => {
     });
     expect(
       wrapper.find('[data-testid="verdict-explanation"]').text(),
-    ).toContain("legal accessibility review");
+    ).toContain("programmatically determinable");
   });
 });
 
