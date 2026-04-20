@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.13.1] - 2026-04-20
+
+### Changed
+
+- **Mode-compare boxes inside Detailed Findings are now clickable.** The per-category Strict / Practical score pills in `ModeCompareBox.vue` are rendered as `<button>` elements with `aria-pressed` state. Clicking either pill emits `update:selectedMode`, which the index and report pages bind to `selectedScoreMode` so the global mode flips from any category card.
+- **The active profile's rationale paragraph moves to the top** of the "Why Strict matters / Why Practical matters" stack and gets an `· active view` tail indicator. Switching modes reorders the paragraphs in place so the relevant rationale is read first.
+- **All 243 web tests still pass.**
+
 ## [1.13.0] - 2026-04-20
 
 ### Changed — profile messaging rewrite (no scoring-logic changes)

@@ -526,6 +526,7 @@
             <ModeCompareBox
               v-if="result.scoreProfiles"
               v-bind="compareProps(cat.id)"
+              @update:selected-mode="selectedScoreMode = $event"
             />
 
             <p

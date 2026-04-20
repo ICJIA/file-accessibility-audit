@@ -22,17 +22,28 @@
       </span>
     </div>
     <div class="mt-2 grid gap-2 sm:grid-cols-2 text-xs">
-      <div
-        class="rounded-md border px-2.5 py-2"
+      <button
+        type="button"
+        :aria-pressed="selectedMode === 'strict'"
+        data-testid="mode-compare-strict"
+        class="text-left rounded-md border px-2.5 py-2 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
         :class="
           selectedMode === 'strict'
-            ? 'border-emerald-400/50 bg-emerald-500/10'
-            : 'border-[var(--border-subtle)] bg-[var(--surface-card)]'
+            ? 'border-emerald-400/60 bg-emerald-500/10 ring-1 ring-emerald-400/30'
+            : 'border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] hover:border-[var(--border)]'
         "
-        data-testid="mode-compare-strict"
+        @click="emit('update:selectedMode', 'strict')"
       >
-        <p class="text-[10px] uppercase tracking-wide text-emerald-300 font-semibold">
-          Strict
+        <p class="flex items-center gap-1.5">
+          <span
+            class="text-[10px] uppercase tracking-wide text-emerald-300 font-semibold"
+            >Strict</span
+          >
+          <span
+            v-if="selectedMode === 'strict'"
+            class="text-[9px] uppercase tracking-wide text-emerald-300/80 font-medium"
+            >Active</span
+          >
         </p>
         <p class="mt-0.5 font-mono text-sm text-[var(--text-heading)]">
           {{ formatScore(strictScore) }}
@@ -41,18 +52,29 @@
             {{ strictGrade ?? "—" }}</span
           >
         </p>
-      </div>
-      <div
-        class="rounded-md border px-2.5 py-2"
+      </button>
+      <button
+        type="button"
+        :aria-pressed="selectedMode === 'remediation'"
+        data-testid="mode-compare-practical"
+        class="text-left rounded-md border px-2.5 py-2 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
         :class="
           selectedMode === 'remediation'
-            ? 'border-amber-400/50 bg-amber-500/10'
-            : 'border-[var(--border-subtle)] bg-[var(--surface-card)]'
+            ? 'border-amber-400/60 bg-amber-500/10 ring-1 ring-amber-400/30'
+            : 'border-[var(--border-subtle)] bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] hover:border-[var(--border)]'
         "
-        data-testid="mode-compare-practical"
+        @click="emit('update:selectedMode', 'remediation')"
       >
-        <p class="text-[10px] uppercase tracking-wide text-amber-300 font-semibold">
-          Practical
+        <p class="flex items-center gap-1.5">
+          <span
+            class="text-[10px] uppercase tracking-wide text-amber-300 font-semibold"
+            >Practical</span
+          >
+          <span
+            v-if="selectedMode === 'remediation'"
+            class="text-[9px] uppercase tracking-wide text-amber-300/80 font-medium"
+            >Active</span
+          >
         </p>
         <p class="mt-0.5 font-mono text-sm text-[var(--text-heading)]">
           {{ formatScore(practicalScore) }}
@@ -61,7 +83,7 @@
             {{ practicalGrade ?? "—" }}</span
           >
         </p>
-      </div>
+      </button>
     </div>
     <div class="mt-2.5 space-y-1.5 text-xs text-[var(--text-muted)] leading-relaxed">
       <p>
@@ -70,13 +92,21 @@
         >
         {{ copy.whatPracticalCredits }}
       </p>
-      <p>
-        <span class="font-semibold text-emerald-300">Why Strict matters:</span>
-        {{ copy.whyStrictMatters }}
-      </p>
-      <p>
-        <span class="font-semibold text-amber-300">Why Practical matters:</span>
-        {{ copy.whyPracticalMatters }}
+      <p
+        v-for="block in orderedWhyBlocks"
+        :key="block.key"
+        :class="block.key === activeWhyKey ? 'text-[var(--text-secondary)]' : ''"
+      >
+        <span class="font-semibold" :class="block.accentClass">
+          Why {{ block.label }} matters:
+        </span>
+        {{ block.text
+        }}<span
+          v-if="block.key === activeWhyKey"
+          class="ml-1 text-[10px] uppercase tracking-wide"
+          :class="block.accentClass"
+          >· active view</span
+        >
       </p>
     </div>
   </div>
@@ -99,11 +129,37 @@ const props = defineProps<{
   selectedMode: ScoringMode;
 }>();
 
+const emit = defineEmits<{
+  "update:selectedMode": [mode: ScoringMode];
+}>();
+
 const copy = computed(() => getDivergenceCopy(props.categoryId));
 
 const diverges = computed(() => {
   if (!canCategoryDiverge(props.categoryId)) return false;
   return props.strictScore !== props.practicalScore;
+});
+
+const activeWhyKey = computed(() =>
+  props.selectedMode === "strict" ? "strict" : "practical",
+);
+
+const orderedWhyBlocks = computed(() => {
+  const strictBlock = {
+    key: "strict" as const,
+    label: "Strict",
+    text: copy.value.whyStrictMatters,
+    accentClass: "text-emerald-300",
+  };
+  const practicalBlock = {
+    key: "practical" as const,
+    label: "Practical",
+    text: copy.value.whyPracticalMatters,
+    accentClass: "text-amber-300",
+  };
+  return props.selectedMode === "strict"
+    ? [strictBlock, practicalBlock]
+    : [practicalBlock, strictBlock];
 });
 
 function formatScore(score: number | null): string {
