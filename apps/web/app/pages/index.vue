@@ -288,6 +288,13 @@
           </p>
         </div>
 
+        <!-- Adobe Acrobat parity — a third view alongside Strict and
+             Practical. Sits above Category Scores so it's visible without
+             scrolling past the entire category table. -->
+        <div v-if="result.adobeParity" class="mb-8">
+          <AdobeParityCard :parity="result.adobeParity" />
+        </div>
+
         <!-- Score Table -->
         <div
           ref="categoryScoresAnchor"
@@ -490,13 +497,6 @@
               bookmarks; etc.).
             </p>
           </div>
-        </div>
-
-        <!-- Adobe Acrobat parity — reconciles this audit's score against
-             Acrobat's 32-rule built-in checker, with vacuous passes flagged.
-             Sits between Category Scores and Document Metadata. -->
-        <div v-if="result.adobeParity" class="mb-8">
-          <AdobeParityCard :parity="result.adobeParity" />
         </div>
 
         <!-- PDF Metadata -->

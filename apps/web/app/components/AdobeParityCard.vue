@@ -1,27 +1,37 @@
 <template>
   <section
     data-testid="adobe-parity-card"
-    class="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-4 sm:px-6 sm:py-5 shadow-sm"
+    class="rounded-2xl border-2 border-indigo-500/30 bg-indigo-500/[0.04] px-4 py-4 sm:px-6 sm:py-5 shadow-sm"
   >
     <!-- Header -->
     <header class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
         <p
-          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]"
+          class="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-300"
         >
-          Reconciliation view
+          Third view · alongside Strict &amp; Practical
         </p>
         <h2
-          class="mt-1 text-base sm:text-lg font-semibold text-[var(--text-heading)]"
+          class="mt-1 text-lg sm:text-xl font-semibold text-[var(--text-heading)]"
         >
           Adobe Acrobat parity — 32 rules
         </h2>
         <p
           class="mt-1 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
         >
-          The 32 rules Acrobat's built-in Accessibility Checker runs, mirrored
-          here alongside what this tool saw. No aggregated "Adobe score" is
-          published — anchoring on the higher number would defeat the purpose.
+          The 32 binary rules Acrobat's built-in Accessibility Checker runs —
+          mirrored here rule-by-rule so you can reconcile this audit against
+          what Acrobat would say. Adobe's reference:
+          <a
+            href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="underline decoration-dotted underline-offset-2 hover:text-[var(--text-heading)]"
+          >
+            helpx.adobe.com — Create and verify PDF accessibility
+          </a>
+          ↗. No aggregated "Adobe score" is published — anchoring on the higher
+          number would defeat the purpose.
         </p>
       </div>
       <button
@@ -35,7 +45,87 @@
       </button>
     </header>
 
-    <!-- Authority callout — always visible, even when body is collapsed -->
+    <!-- Summary tallies — the at-a-glance "Acrobat view" numbers.
+         Each pill is a button: click to filter + expand the rule detail
+         below so users can see exactly which rules fell into that bucket.
+         Hovering reveals the rule names. Click the same pill again or
+         "Show all 32" to clear the filter. -->
+    <div
+      class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 text-xs sm:text-sm"
+      data-testid="adobe-parity-tallies"
+      role="group"
+      aria-label="Adobe Acrobat rule tallies — click a pill to filter the rule list below"
+    >
+      <StatPill
+        label="Passed"
+        :value="summary.passed"
+        tone="pass"
+        :sub="
+          summary.vacuousPasses > 0
+            ? `${summary.vacuousPasses} vacuous`
+            : undefined
+        "
+        :active="activeFilter === 'passed'"
+        :title="tooltipFor('passed')"
+        @click="toggleFilter('passed')"
+      />
+      <StatPill
+        label="Failed"
+        :value="summary.failed"
+        tone="fail"
+        :active="activeFilter === 'failed'"
+        :title="tooltipFor('failed')"
+        :disabled="summary.failed === 0"
+        @click="toggleFilter('failed')"
+      />
+      <StatPill
+        label="Manual"
+        :value="summary.manual"
+        tone="info"
+        :active="activeFilter === 'manual'"
+        :title="tooltipFor('manual')"
+        :disabled="summary.manual === 0"
+        @click="toggleFilter('manual')"
+      />
+      <StatPill
+        label="Skipped"
+        :value="summary.skipped"
+        tone="muted"
+        :active="activeFilter === 'skipped'"
+        :title="tooltipFor('skipped')"
+        :disabled="summary.skipped === 0"
+        @click="toggleFilter('skipped')"
+      />
+      <StatPill
+        label="Not computed"
+        :value="summary.notComputed"
+        tone="muted"
+        :active="activeFilter === 'not_computed'"
+        :title="tooltipFor('not_computed')"
+        :disabled="summary.notComputed === 0"
+        @click="toggleFilter('not_computed')"
+      />
+    </div>
+
+    <p class="mt-2 text-[11px] sm:text-xs text-[var(--text-muted)] italic">
+      Click a pill to see exactly which rules fall in that bucket. Hover for a
+      quick preview.
+    </p>
+
+    <p
+      v-if="summary.vacuousPasses > 0"
+      class="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
+    >
+      <strong class="text-amber-200">Watch the vacuous count.</strong>
+      {{ summary.vacuousPasses }} of {{ summary.passed }} passes above clear
+      Acrobat's bar only because the relevant content does not exist in the
+      document (no tables → table rules pass, no figures → alt-text rules
+      pass). Acrobat still reports these as "Passed" with no asterisk.
+    </p>
+
+    <!-- Authority callout — always visible, even when rule detail is collapsed.
+         Sits under the tallies so users see the numbers first, then the
+         canonical-references context that explains why Acrobat isn't the bar. -->
     <div
       class="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 sm:px-5 sm:py-4 text-amber-100"
       role="note"
@@ -48,7 +138,12 @@
         Managers and authors often treat "Adobe Accessibility Checker says
         Passed" as the definitive verdict. It is not. Acrobat's built-in
         checker runs
-        <strong>32 binary rules</strong>
+        <a
+          href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline decoration-dotted underline-offset-2 hover:text-amber-50"
+        ><strong>32 binary rules</strong></a>
         that Adobe chose to automate. The actual authorities are:
       </p>
       <ul
@@ -81,45 +176,28 @@
       </p>
     </div>
 
-    <!-- Summary tallies -->
-    <div
-      class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 text-xs sm:text-sm"
-    >
-      <StatPill
-        label="Passed"
-        :value="summary.passed"
-        tone="pass"
-        :sub="
-          summary.vacuousPasses > 0
-            ? `${summary.vacuousPasses} vacuous`
-            : undefined
-        "
-      />
-      <StatPill label="Failed" :value="summary.failed" tone="fail" />
-      <StatPill label="Manual" :value="summary.manual" tone="info" />
-      <StatPill label="Skipped" :value="summary.skipped" tone="muted" />
-      <StatPill
-        label="Not computed"
-        :value="summary.notComputed"
-        tone="muted"
-      />
-    </div>
-
-    <p
-      v-if="summary.vacuousPasses > 0"
-      class="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
-    >
-      <strong class="text-amber-200">Watch the vacuous count.</strong>
-      {{ summary.vacuousPasses }} of {{ summary.passed }} passes above clear
-      Acrobat's bar only because the relevant content does not exist in the
-      document (no tables → table rules pass, no figures → alt-text rules
-      pass). Acrobat still reports these as "Passed" with no asterisk.
-    </p>
-
     <!-- Rule detail -->
     <div v-show="expanded" id="adobe-parity-body" class="mt-5 space-y-5">
       <div
-        v-for="(rulesInCategory, category) in groupedRules"
+        v-if="activeFilter"
+        class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2.5 text-xs sm:text-sm text-indigo-100"
+      >
+        <span>
+          Showing only
+          <strong>{{ statusLabel(activeFilter) }}</strong>
+          rules
+          ({{ filteredCount }} of {{ summary.total }}).
+        </span>
+        <button
+          type="button"
+          class="rounded-full border border-indigo-300/40 bg-indigo-300/10 px-3 py-1 text-[11px] font-medium text-indigo-100 hover:bg-indigo-300/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+          @click="activeFilter = null"
+        >
+          Show all 32
+        </button>
+      </div>
+      <div
+        v-for="(rulesInCategory, category) in filteredGroupedRules"
         :key="category"
         class="rounded-xl border border-[var(--border)] bg-[var(--surface)]"
       >
@@ -177,7 +255,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, defineComponent, h } from "vue";
+import { computed, ref, nextTick, defineComponent, h } from "vue";
 
 type AdobeStatus =
   | "passed"
@@ -214,6 +292,7 @@ const props = defineProps<{
 }>();
 
 const expanded = ref(false);
+const activeFilter = ref<AdobeStatus | null>(null);
 const summary = computed(() => props.parity.summary);
 
 // Preserve Adobe's native category order.
@@ -236,6 +315,66 @@ const groupedRules = computed(() => {
   }
   return groups;
 });
+
+// Filter the grouped rules by activeFilter; empty categories are pruned so
+// the detail view doesn't show a cluster of empty-section headers.
+const filteredGroupedRules = computed(() => {
+  if (!activeFilter.value) return groupedRules.value;
+  const filtered: Record<string, AdobeRuleResult[]> = {};
+  for (const [cat, rules] of Object.entries(groupedRules.value)) {
+    const match = rules.filter((r) => r.status === activeFilter.value);
+    if (match.length > 0) filtered[cat] = match;
+  }
+  return filtered;
+});
+
+const filteredCount = computed(() => {
+  if (!activeFilter.value) return summary.value.total;
+  return props.parity.rules.filter((r) => r.status === activeFilter.value)
+    .length;
+});
+
+function rulesByStatus(status: AdobeStatus): AdobeRuleResult[] {
+  return props.parity.rules.filter((r) => r.status === status);
+}
+
+// Native `title` tooltip content — compact list of rule names so hovering a
+// pill previews exactly which rules it's pointing at, without needing to
+// click. Cross-platform and works without a custom tooltip library.
+function tooltipFor(status: AdobeStatus): string {
+  const rules = rulesByStatus(status);
+  if (rules.length === 0) {
+    return `No rules in this bucket on this document.`;
+  }
+  const header = `${rules.length} ${statusLabel(status).toLowerCase()} rule${rules.length === 1 ? "" : "s"}:`;
+  const names = rules
+    .map((r) => {
+      const suffix = r.vacuous && r.status === "passed" ? " (vacuous)" : "";
+      return `• ${r.name}${suffix}`;
+    })
+    .join("\n");
+  const footer = `\n\nClick to show only these rules below.`;
+  return `${header}\n${names}${footer}`;
+}
+
+function toggleFilter(status: AdobeStatus): void {
+  // Clicking a pill with 0 count does nothing (button is also disabled).
+  if (rulesByStatus(status).length === 0) return;
+  // Click same pill again → clear filter but keep detail expanded.
+  if (activeFilter.value === status) {
+    activeFilter.value = null;
+    return;
+  }
+  // Otherwise switch filter and auto-expand so user sees the detail.
+  activeFilter.value = status;
+  expanded.value = true;
+  // After Vue updates the DOM, scroll the body into view so the user sees
+  // the filter result without manual scrolling.
+  nextTick(() => {
+    const body = document.getElementById("adobe-parity-body");
+    body?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+}
 
 function statusLabel(status: AdobeStatus): string {
   switch (status) {
@@ -267,7 +406,9 @@ function statusStyle(status: AdobeStatus): string {
   }
 }
 
-// Inline stat pill — small enough to keep co-located.
+// Inline stat pill. Renders as a <button> so it's keyboard-navigable and
+// announces its pressed state to screen readers; clicking emits a click
+// event that the parent uses to filter the rule detail list.
 const StatPill = defineComponent({
   props: {
     label: { type: String, required: true },
@@ -277,34 +418,70 @@ const StatPill = defineComponent({
       type: String as () => "pass" | "fail" | "info" | "muted",
       required: true,
     },
+    active: { type: Boolean, default: false },
+    disabled: { type: Boolean, default: false },
+    title: { type: String, default: "" },
   },
-  setup(p) {
+  emits: ["click"],
+  setup(p, { emit }) {
     const toneClass: Record<typeof p.tone, string> = {
-      pass: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100",
-      fail: "border-rose-400/30 bg-rose-500/10 text-rose-100",
-      info: "border-sky-400/30 bg-sky-500/10 text-sky-100",
-      muted: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)]",
+      pass: "border-emerald-400/40 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25",
+      fail: "border-rose-400/40 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25",
+      info: "border-sky-400/40 bg-sky-500/15 text-sky-100 hover:bg-sky-500/25",
+      muted:
+        "border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
+    };
+    const activeRing: Record<typeof p.tone, string> = {
+      pass: "ring-emerald-300",
+      fail: "ring-rose-300",
+      info: "ring-sky-300",
+      muted: "ring-indigo-300",
     };
     return () =>
       h(
-        "div",
+        "button",
         {
+          type: "button",
+          title: p.title,
+          "aria-pressed": p.active ? "true" : "false",
+          "aria-label": `${p.value} ${p.label.toLowerCase()} — ${p.disabled ? "no rules in this bucket" : "click to filter"}`,
+          disabled: p.disabled || undefined,
+          onClick: () => {
+            if (!p.disabled) emit("click");
+          },
           class: [
-            "rounded-lg border px-3 py-2 text-center",
+            "rounded-xl border px-3 py-3 sm:py-4 text-center transition",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0",
             toneClass[p.tone],
+            p.active
+              ? `ring-2 ${activeRing[p.tone]} shadow-md`
+              : "",
+            p.disabled
+              ? "opacity-50 cursor-not-allowed hover:bg-[var(--surface)]"
+              : "cursor-pointer",
           ],
         },
         [
-          h("div", { class: "text-lg font-semibold leading-tight" }, p.value),
           h(
             "div",
-            { class: "text-[10px] uppercase tracking-wider opacity-80" },
+            { class: "text-2xl sm:text-3xl font-bold leading-none" },
+            p.value,
+          ),
+          h(
+            "div",
+            {
+              class:
+                "mt-1.5 text-[10px] sm:text-[11px] uppercase tracking-wider opacity-90 font-medium",
+            },
             p.label,
           ),
           p.sub
             ? h(
                 "div",
-                { class: "mt-1 text-[10px] text-amber-300" },
+                {
+                  class:
+                    "mt-1.5 text-[10px] sm:text-[11px] font-semibold text-amber-300",
+                },
                 p.sub,
               )
             : null,

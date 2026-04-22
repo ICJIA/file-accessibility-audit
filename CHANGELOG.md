@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.16.1] - 2026-04-22
+
+### Changed — Adobe parity card: prominence and interactivity
+
+Follow-up polish for v1.16.0, shipped same day after live review. The parity card was sitting below the Category Scores table and reading as a secondary panel — users weren't registering that Acrobat's view was a *third* lens alongside Strict and Practical. The tallies were also static summary numbers with no path to "which rules passed vs failed?"
+
+- **Card moved above Category Scores** on both `pages/index.vue` and `pages/report/[id].vue`. Report now reads: grade circle → Strict/Practical dual row → Acrobat parity card → Category Scores. The three lenses land in a single scan.
+- **Eyebrow reframed** from "Reconciliation view" to "Third view · alongside Strict & Practical" so the pattern is explicit. Card itself now uses an indigo accent border (`border-2 border-indigo-500/30`) that differentiates it from the neutral-chrome Category Scores card.
+- **Tallies enlarged.** Numbers jumped from `text-lg` to `text-2xl sm:text-3xl font-bold` and pills grew in padding. The five tallies now carry the visual weight of the section.
+- **Tallies are interactive.** Each pill is now a `<button>` with `aria-pressed` state. Clicking a pill filters the rule detail list to just that bucket (Passed / Failed / Manual / Skipped / Not computed) and auto-expands the detail section with a smooth scroll-into-view. Clicking the active pill again clears the filter; a "Show all 32" button in the filtered-state banner does the same. Pills with 0 rules are disabled.
+- **Hover tooltips via native `title`.** Hovering a pill previews the rule names in that bucket without opening the detail view, with vacuous passes marked `(vacuous)`. Works cross-platform with no custom tooltip library.
+- **Direct link to Adobe's 32-rule reference.** Header subtitle and the authority callout both link to `https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html` so managers can verify Acrobat's ruleset against Adobe's own documentation with one click.
+- **Internal reorder: tallies first, authority callout below.** The numbers land first (Acrobat-view at a glance), then the one-line vacuous-watch callout, then the "Adobe is not the canonical reference" amber box with WCAG / IITAA / PDF/UA / Matterhorn context. The authority callout still stays visible when rule detail is collapsed.
+- **Accessibility.** Pills are keyboard-navigable via Tab, operate via Enter/Space, announce their count and pressed state to screen readers, and are visually ring-highlighted when active. The tally grid has `role="group"` with a descriptive `aria-label`.
+
 ## [1.16.0] - 2026-04-22
 
 ### Added — Adobe Acrobat parity panel
