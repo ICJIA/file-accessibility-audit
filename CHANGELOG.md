@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.16.2] - 2026-04-22
+
+### Docs
+
+README's "Adobe Acrobat parity panel" section brought up to date with the v1.16.1 UX changes: card renamed to "the third view," placement above Category Scores documented, interactive-tallies behaviour described (click to filter, hover for rule-name tooltip, keyboard-navigable, vacuous pass marker in the tooltip), direct link to Adobe's 32-rule documentation called out. No code changes — docs-only release so deployed instances match the README's narrative.
+
 ## [1.16.1] - 2026-04-22
 
 ### Changed — Adobe parity card: prominence and interactivity
