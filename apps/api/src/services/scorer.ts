@@ -9,6 +9,10 @@ import type { QpdfResult } from "./qpdfService.js";
 import type { PdfjsResult } from "./pdfjsService.js";
 import { appendSupplementaryFindings } from "./scoring/supplementary.js";
 import { generateSummary } from "./scoring/summary.js";
+import {
+  buildAdobeParityReport,
+  type AdobeParityResult,
+} from "./scoring/adobeParity.js";
 
 export interface HelpLink {
   label: string;
@@ -36,6 +40,11 @@ export interface ScoringResult {
   warnings: string[];
   scoringMode: ScoringMode;
   scoreProfiles: Record<ScoringMode, ScoreProfileResult>;
+  // Adobe Acrobat's built-in Accessibility Checker runs 32 binary rules, most
+  // of which pass vacuously on documents with sparse structure. This field
+  // mirrors that 32-rule output alongside our verdict so users can reconcile
+  // the divergence. NOT an aggregated "Adobe score" — qualitative only.
+  adobeParity: AdobeParityResult;
 }
 
 export type ScoringMode = keyof typeof SCORING_PROFILES;
@@ -137,6 +146,8 @@ export function scoreDocument(
     remediationProfile.flooredToStrict = false;
   }
 
+  const adobeParity = buildAdobeParityReport(qpdf, pdfjs);
+
   return {
     overallScore: strictAggregate.overallScore,
     grade: strictAggregate.grade,
@@ -149,6 +160,7 @@ export function scoreDocument(
       strict: strictAggregate.profile,
       remediation: remediationProfile,
     },
+    adobeParity,
   };
 }
 

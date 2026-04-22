@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.16.0] - 2026-04-22
+
+### Added — Adobe Acrobat parity panel
+
+New **Adobe Acrobat parity** card on every report, mirroring Acrobat's 32-rule built-in Accessibility Checker alongside this tool's verdict. Purpose: close the expectation gap for managers and authors who anchor on "Acrobat says my PDF passes" as a compliance answer, and to surface that Acrobat is neither the Illinois compliance bar (WCAG 2.1 AA via IITAA §E205.4) nor the PDF/UA bar — it is a lightweight subset Adobe chose to automate.
+
+- `apps/api/src/services/scoring/adobeParity.ts` — pure function mapping QPDF + pdfjs signals onto Acrobat's 32 rules, grouped by Acrobat's native categories (Document / Page Content / Forms / Alternate Text / Tables / Lists / Headings). Each rule returns status (passed / failed / manual / skipped / not_computed) plus a `vacuous: boolean` flag and a per-rule note explaining what this tool actually saw.
+- Summary tallies (`passed`, `failed`, `manual`, `skipped`, `notComputed`, `vacuousPasses`, `total`) at the top of the card. **No aggregated "Adobe score" is exposed** — anchoring on that number would defeat the purpose. Parity is qualitative and rule-by-rule.
+- `apps/web/app/components/AdobeParityCard.vue` — collapsible card with an always-visible authority callout. The callout names the references that do govern Illinois electronic-document accessibility (**WCAG 2.1 AA via IITAA §E205.4**) and positions PDF/UA (ISO 14289-1) as industry-standard but not required by Illinois law (IITAA §504.2.2 covers authoring-tool export capability only). Matterhorn Protocol is cited as the PDF Association's formal 136-condition PDF/UA test so readers understand Acrobat's 32 rules are well below either canonical standard.
+- **Vacuous-pass annotations.** When Acrobat's rule clears its bar only because the relevant content type does not exist in the document (no tables → 4 table rules pass, no figures → all 5 alt-text rules pass, no headings → "Appropriate nesting" passes), the card tags the row `⚠ vacuous` and the per-rule note explains why. On documents with sparse structure, vacuous passes can dominate Acrobat's "Passed" count — on the ILHEAL control fixture Acrobat reports `28/32 passed` while ~20 of those 28 are vacuous.
+- **`ScoringResult.adobeParity`** added to the API / JSON-export response. Shared reports gracefully degrade on older snapshots via `v-if="data.report.adobeParity"`.
+
+### Tests
+
+6 new scorer tests covering: always-32-rules shape in Acrobat's native 8/9/2/5/5/2/1 grouping, ILHEAL "Potemkin-tagged" case (StructTreeRoot present but empty → `tagged_pdf` and `tagged_content` as vacuous passes, `figures_alternate_text` note surfaces painted-but-untagged images), real-structure case on a well-tagged fixture (non-vacuous passes dominate, malformed lists produce `lbl_and_lbody` failure), invariant that `Summary` is always skipped and `Logical Reading Order` / `Color contrast` are always manual, and that no aggregated Adobe score leaks into the summary shape. 255 / 255 tests pass (6 new + 249 existing).
+
+### References
+
+Parity UI and README point to [Adobe's official Acrobat Accessibility Checker documentation](https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html) for anyone who wants to verify the 32-rule set against Adobe's own reference.
+
 ## [1.15.1] - 2026-04-20
 
 ### Fixed

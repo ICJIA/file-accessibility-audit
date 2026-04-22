@@ -447,6 +447,13 @@
           </div>
         </div>
 
+        <!-- Adobe Acrobat parity — see apps/api/src/services/scoring/adobeParity.ts.
+             Mirrors Acrobat's 32-rule output so shared reports can show the
+             reconciliation alongside the audit score. -->
+        <div v-if="data.report.adobeParity" class="mb-8">
+          <AdobeParityCard :parity="data.report.adobeParity" />
+        </div>
+
         <!-- PDF Metadata -->
         <div
           v-if="data.report.pdfMetadata"

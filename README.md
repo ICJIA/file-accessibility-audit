@@ -172,6 +172,16 @@ Most accessibility tools collapse these questions into a single number and quiet
 
 Every report, export (Word, HTML, Markdown, JSON), shared report, and AI-analysis payload surfaces both profiles with their origin tags. See [docs/10-scoring-reconciliation.md](docs/10-scoring-reconciliation.md) for deeper rationale on when the profiles diverge.
 
+#### Adobe Acrobat parity panel
+
+Every report also includes an **Adobe Acrobat parity** card that mirrors Acrobat's built-in Accessibility Checker 32 rules alongside this tool's verdict. The card is a reconciliation view, not a scoring profile — **no aggregated "Adobe score" is exposed**, because anchoring on that number would defeat the purpose. The tallies are qualitative (passed / failed / manual / skipped / not computed) with a separate `vacuousPasses` count called out explicitly.
+
+**Why it's there.** Acrobat's checker is the most visible PDF accessibility tool, so users anchor on "Acrobat says my PDF passes." In practice, Acrobat's 32 rules are mostly _existence-validators_: they check whether tags already present are well-formed, but rarely assert that a type of content _must exist_. On sparse documents most rules pass **vacuously** — no tables → 4 table rules pass, no figures → all 5 alt-text rules pass, no headings → "Appropriate nesting" passes. Acrobat reports these as "Passed" with no asterisk. On the ILHEAL control fixture Acrobat reports `28/32 passed` while ~20 of those 28 are vacuous passes against the empty structure tree.
+
+**The authority callout inside the card** names the references that actually govern Illinois electronic-document accessibility: **WCAG 2.1 AA via IITAA §E205.4** is the legal bar. **PDF/UA (ISO 14289-1)** is industry-standard for broader PDF accessibility but is not required by Illinois law; IITAA §504.2.2 references PDF/UA only for authoring-tool export capability. **Matterhorn Protocol** is the PDF Association's formal 136-condition PDF/UA test — another reminder that Acrobat's 32 rules sit well below either canonical standard. Managers and authors who read "Acrobat: 28/32 passed" and assume the file is accessible can see the fuller picture without having to ask.
+
+Adobe's own documentation for the 32-rule checker is at [helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html](https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html); the parity card cites it for anyone who wants to verify the rule set against Adobe's own reference.
+
 ### Categories & Weights
 
 The weights column shows both profiles. Strict weighs nine core categories. Practical renormalizes those nine _and_ adds PDF/UA Compliance Signals and Color Contrast (the latter reserved for future rendered-PDF analysis).

@@ -492,6 +492,13 @@
           </div>
         </div>
 
+        <!-- Adobe Acrobat parity — reconciles this audit's score against
+             Acrobat's 32-rule built-in checker, with vacuous passes flagged.
+             Sits between Category Scores and Document Metadata. -->
+        <div v-if="result.adobeParity" class="mb-8">
+          <AdobeParityCard :parity="result.adobeParity" />
+        </div>
+
         <!-- PDF Metadata -->
         <div
           v-if="result.pdfMetadata"
