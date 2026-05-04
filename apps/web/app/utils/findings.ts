@@ -1,6 +1,6 @@
 export function isGuidanceFinding(finding: string): boolean {
   if (!finding) return false
-  const f = finding.toLowerCase().trimStart()
+  const f = finding.toLowerCase()
   return (
     f.startsWith('how to fix:') ||
     f.startsWith('tip:') ||

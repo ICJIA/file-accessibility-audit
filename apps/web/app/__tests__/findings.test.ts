@@ -15,9 +15,11 @@ describe('isGuidanceFinding', () => {
     expect(isGuidanceFinding('Document is tagged')).toBe(false)
   })
 
-  it('returns false for empty / whitespace strings', () => {
+  it('returns false for empty input and for guidance prefixes preceded by whitespace', () => {
     expect(isGuidanceFinding('')).toBe(false)
-    expect(isGuidanceFinding('   ')).toBe(false)
+    // no leading-whitespace tolerance — matches the page duplicates' behavior
+    expect(isGuidanceFinding('  Fix: x')).toBe(false)
+    expect(isGuidanceFinding('\tNote: x')).toBe(false)
   })
 })
 
@@ -41,5 +43,10 @@ describe('firstActionableFinding', () => {
   it('returns empty string for empty input', () => {
     expect(firstActionableFinding([])).toBe('')
     expect(firstActionableFinding(undefined as any)).toBe('')
+  })
+
+  it('skips empty-string elements (defensive against split-on-newline output)', () => {
+    expect(firstActionableFinding(['', 'real finding'])).toBe('real finding')
+    expect(firstActionableFinding(['', '', ''])).toBe('')
   })
 })
