@@ -4,26 +4,36 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
-## [Unreleased] — feature/reader-auditor-toggle
+## [1.17.0] - 2026-05-04
 
 ### Added — Action banner + Issues to fix punch list
 
-Two new in-page blocks under the score hero on both `/report/:id` and `pages/index.vue`:
+Two new in-page blocks under the score hero on both the shareable-report page (`/report/:id`) and the post-upload page (`pages/index.vue`):
 
-- A one-line action banner with severity-keyed copy (e.g., `2 critical issues must be fixed before publishing.`) that gives an at-a-glance verdict in plain English.
-- A severity-ordered "Issues to fix" punch list with anchor links that jump straight to the matching Detailed Findings card. Critical → Moderate → Minor; Pass and N/A categories are excluded.
+- A one-line **action banner** with severity-keyed copy (e.g., `2 critical issues must be fixed before publishing.`) that gives an at-a-glance verdict in plain English. Tinted red for Critical, yellow for Moderate-only, blue for Minor-only, green when the PDF passes outright.
+- A severity-ordered **Issues to fix** punch list with anchor links that jump straight to the matching Detailed Findings card. Sort order is Critical → Moderate → Minor; Pass and N/A categories are excluded. Each row shows the category name, severity pill, a one-line plain-English summary derived from the category's first actionable finding, and a `↓ Fix steps` jump anchor.
 
-Each Detailed Findings card root div now carries a stable anchor id (`cat-${cat.id}`) so the punch-list jump links and any future linkable export can target it.
+Each Detailed Findings card root div now carries a stable anchor id (`cat-${cat.id}`) so the punch-list jump links — and any future linkable export — can target it.
+
+### Changed — Detailed Findings card layout
+
+The technical-detail lines that some categories emit (the `--- Section ---` headers and their indented data lines) are no longer interleaved with plain findings. They now group into a clearly-labeled **Technical signals** panel within each card:
+
+- The panel only renders when the per-card `Basic` / `Advanced` toggle is on **Advanced**.
+- It uses a subtle left rule, dim text, and a monospace font to visually separate the data signals from the human-readable findings above it.
+- A small `N technical signals` count label sits next to the toggle so the user knows what's available before flipping. Cards with zero technical signals hide the toggle and label entirely.
+
+The plain findings list, the guidance lines (`Fix:` / `Tip:` / `Note:`), and the Adobe Acrobat fix-steps panel are unchanged in both modes — they always render the same way regardless of Basic / Advanced.
 
 ### Refactored — utility extraction
 
-`isGuidanceFinding` and a new `firstActionableFinding` helper were extracted into `apps/web/app/utils/findings.ts` for reuse by the Issues summary component. The two duplicate copies in `pages/report/[id].vue` and `pages/index.vue` are intentionally left in place; deduping is a separate engagement.
+- `isGuidanceFinding` and a new `firstActionableFinding` helper extracted into `apps/web/app/utils/findings.ts` for reuse by the Issues summary component. The two duplicate copies in `pages/report/[id].vue` and `pages/index.vue` are intentionally left in place; deduping is a separate engagement.
+- New `partitionCardFindings` helper in the same util splits a category's findings array into `{ main, signals, signalCount, acrobat }` in one pass, so each Detailed Findings card no longer has to chain `splitAcrobatGuide` + `filteredFindings` + per-line conditionals during rendering.
+- New `tallySeverity` utility in `apps/web/app/utils/severityTally.ts` aggregates category severity counts for the action-banner copy.
 
-A `tallySeverity` utility in `apps/web/app/utils/severityTally.ts` aggregates category severity counts for the action-banner copy.
+### Tests
 
-### Note
-
-An earlier iteration on this branch experimented with a page-level Reader/Auditor toggle that collapsed optional content blocks behind disclosures. That work was rolled back after user review — the page reverts to today's inline layout. The action banner and Issues summary above are the surviving additions.
+15 new unit tests across the new utilities and components: `tallySeverity` (3 cases), `findings` helpers including `partitionCardFindings` (14 cases), and the `ReportActionBanner` and `IssuesSummary` components. Total web suite: 283 / 283 passing.
 
 ## [1.16.3] - 2026-05-04
 
