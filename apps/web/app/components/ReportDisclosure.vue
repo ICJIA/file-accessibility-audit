@@ -1,6 +1,7 @@
 <template>
   <details
     :open="isOpen"
+    :data-mode="mode"
     class="report-disclosure"
     @toggle="onToggle"
   >
@@ -94,5 +95,16 @@ function onToggle(e: Event) {
 }
 .report-disclosure > .body > :first-child {
   margin-top: 6px;
+}
+.report-disclosure[data-mode="auditor"] {
+  border: 0;
+  background: transparent;
+  margin: 0;
+}
+.report-disclosure[data-mode="auditor"] > summary {
+  display: none;
+}
+.report-disclosure[data-mode="auditor"] > .body {
+  padding: 0;
 }
 </style>

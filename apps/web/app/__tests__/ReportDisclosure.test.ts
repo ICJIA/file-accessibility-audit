@@ -62,4 +62,13 @@ describe('ReportDisclosure', () => {
     })
     expect(wrapper.find('.probe').exists()).toBe(true)
   })
+
+  it('exposes mode via data-mode attribute (used by scoped CSS to suppress chrome in Auditor)', async () => {
+    const wrapper = mount(ReportDisclosure, {
+      props: { mode: 'reader', label: 'X' },
+    })
+    expect(wrapper.find('details').attributes('data-mode')).toBe('reader')
+    await wrapper.setProps({ mode: 'auditor' })
+    expect(wrapper.find('details').attributes('data-mode')).toBe('auditor')
+  })
 })
