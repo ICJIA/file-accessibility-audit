@@ -155,10 +155,6 @@
 
       <!-- Active tab result -->
       <template v-if="result">
-        <div class="flex justify-end items-center mb-4">
-          <ReportModeToggle v-model="mode" />
-        </div>
-
         <!-- Scanned warning banner -->
         <div
           v-if="result.isScanned"
@@ -576,9 +572,12 @@
         </ReportDisclosure>
 
         <!-- Detailed Findings -->
-        <h2 class="text-base sm:text-lg font-semibold mb-4">
-          Detailed Findings
-        </h2>
+        <div class="flex justify-between items-center mb-4 gap-3 flex-wrap">
+          <h2 class="text-base sm:text-lg font-semibold">
+            Detailed Findings
+          </h2>
+          <ReportModeToggle v-model="mode" />
+        </div>
 
         <div class="space-y-4">
           <div

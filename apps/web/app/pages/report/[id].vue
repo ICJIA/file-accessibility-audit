@@ -27,7 +27,6 @@
         <!-- Header -->
         <div class="text-center mb-8">
           <div class="flex justify-end items-center gap-2 mb-4">
-            <ReportModeToggle v-model="mode" />
             <button
               class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
               :aria-label="
@@ -525,9 +524,12 @@
         </ReportDisclosure>
 
         <!-- Detailed Findings -->
-        <h2 class="text-base sm:text-lg font-semibold mb-4">
-          Detailed Findings
-        </h2>
+        <div class="flex justify-between items-center mb-4 gap-3 flex-wrap">
+          <h2 class="text-base sm:text-lg font-semibold">
+            Detailed Findings
+          </h2>
+          <ReportModeToggle v-model="mode" />
+        </div>
 
         <div class="space-y-4">
           <div

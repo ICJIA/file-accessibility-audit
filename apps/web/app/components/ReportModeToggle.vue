@@ -2,6 +2,7 @@
   <div class="mode-toggle" role="group" aria-label="Report view mode">
     <button
       type="button"
+      title="Focused view for authors. Shows the grade, failing categories, and Adobe Acrobat fix steps. Hides methodology, WCAG citations, and alternate-lens detail. Same scores either way."
       :aria-pressed="modelValue === 'reader' ? 'true' : 'false'"
       :class="['seg', 'reader', { active: modelValue === 'reader' }]"
       @click="emit('update:modelValue', 'reader')"
@@ -10,6 +11,7 @@
     </button>
     <button
       type="button"
+      title="Full view for accessibility specialists, compliance reviewers, and auditors. Expands methodology, WCAG 2.1 citations, the Adobe Parity 32-rule grid, and the Strict-vs-Practical explainer inline. Same scores either way."
       :aria-pressed="modelValue === 'auditor' ? 'true' : 'false'"
       :class="['seg', 'auditor', { active: modelValue === 'auditor' }]"
       @click="emit('update:modelValue', 'auditor')"

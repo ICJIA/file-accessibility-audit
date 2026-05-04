@@ -56,4 +56,13 @@ describe('ReportModeToggle', () => {
     expect(group.exists()).toBe(true)
     expect(group.attributes('aria-label')).toBe('Report view mode')
   })
+
+  it('exposes hover tooltips on both buttons via title attribute', () => {
+    const wrapper = mount(ReportModeToggle, { props: { modelValue: 'reader' } })
+    const buttons = wrapper.findAll('button')
+    expect(buttons[0]?.attributes('title')).toContain('Focused view for authors')
+    expect(buttons[0]?.attributes('title')).toContain('Same scores either way')
+    expect(buttons[1]?.attributes('title')).toContain('Full view for accessibility specialists')
+    expect(buttons[1]?.attributes('title')).toContain('Same scores either way')
+  })
 })
