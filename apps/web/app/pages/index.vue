@@ -203,20 +203,14 @@
         />
 
         <!-- Methodology -->
-        <ReportDisclosure
-          :mode="mode"
-          label="Methodology and scoring sources"
-          badge="QPDF · pdf.js · WCAG 2.1 AA · ADA Title II"
-          class="mb-8"
+        <div
+          class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5"
         >
-          <div
-            class="rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5"
+          <h2
+            class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center"
           >
-            <h2
-              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center"
-            >
-              How Scores Are Derived
-            </h2>
+            How Scores Are Derived
+          </h2>
           <p
             class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center"
           >
@@ -304,21 +298,12 @@
             to learn. Categories that don't apply are excluded and weights
             renormalized in both modes.
           </p>
-          </div>
-        </ReportDisclosure>
+        </div>
 
-        <!-- Adobe Acrobat parity — a third view alongside Strict and
-             Practical. Sits above Category Scores so it's visible without
-             scrolling past the entire category table. -->
-        <ReportDisclosure
-          v-if="result?.adobeParity"
-          :mode="mode"
-          label="How Adobe Acrobat would score this"
-          badge="32-rule reconciliation"
-          class="mb-8"
-        >
+        <!-- Adobe Acrobat parity — a third view alongside Strict and Practical. -->
+        <div v-if="result.adobeParity" class="mb-8">
           <AdobeParityCard :parity="result.adobeParity" />
-        </ReportDisclosure>
+        </div>
 
         <!-- Score Table -->
         <div
@@ -368,31 +353,24 @@
                 </button>
               </div>
             </div>
-            <ReportDisclosure
-              v-if="result?.scoreProfiles?.remediation"
-              :mode="mode"
-              label="How Strict and Practical differ"
-              class="mt-2"
-            >
-              <p class="text-xs text-[var(--text-muted)]">
-                {{
-                  remediationModeActive
-                    ? CATEGORY_TABLE_PRACTICAL_PREFIX
-                    : CATEGORY_TABLE_STRICT_PREFIX
-                }}
-                <a
-                  :href="IITAA_PDFUA_URL"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >{{
-                  remediationModeActive
-                    ? CATEGORY_TABLE_PRACTICAL_SUFFIX
-                    : CATEGORY_TABLE_STRICT_SUFFIX
-                }}
-              </p>
-            </ReportDisclosure>
+            <p v-if="result.scoreProfiles?.remediation" class="mt-2 text-xs text-[var(--text-muted)]">
+              {{
+                remediationModeActive
+                  ? CATEGORY_TABLE_PRACTICAL_PREFIX
+                  : CATEGORY_TABLE_STRICT_PREFIX
+              }}
+              <a
+                :href="IITAA_PDFUA_URL"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                >§504.2.2 PDF Export</a
+              >{{
+                remediationModeActive
+                  ? CATEGORY_TABLE_PRACTICAL_SUFFIX
+                  : CATEGORY_TABLE_STRICT_SUFFIX
+              }}
+            </p>
           </div>
           <table class="w-full text-sm min-w-[420px]">
             <thead>
@@ -529,55 +507,45 @@
         </div>
 
         <!-- PDF Metadata -->
-        <ReportDisclosure
-          v-if="result?.pdfMetadata"
-          :mode="mode"
-          label="Document metadata"
-          badge="creator · producer · author · dates"
-          class="mb-8"
+        <div
+          v-if="result.pdfMetadata"
+          class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden"
         >
-          <div
-            class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden"
-          >
-            <div class="px-5 py-3 border-b border-[var(--border)]">
-              <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
-                Document Metadata
-              </h2>
-              <p class="text-xs text-[var(--text-muted)] mt-0.5">
-                Informational only — not included in the accessibility score
-              </p>
-            </div>
-            <div class="divide-y divide-[var(--border-subtle)]">
-              <div
-                v-for="item in metadataItems"
-                :key="item.label"
-                class="flex flex-col sm:flex-row px-3 sm:px-5 py-2 sm:py-2.5 text-sm"
+          <div class="px-5 py-3 border-b border-[var(--border)]">
+            <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
+              Document Metadata
+            </h2>
+            <p class="text-xs text-[var(--text-muted)] mt-0.5">
+              Informational only — not included in the accessibility score
+            </p>
+          </div>
+          <div class="divide-y divide-[var(--border-subtle)]">
+            <div
+              v-for="item in metadataItems"
+              :key="item.label"
+              class="flex flex-col sm:flex-row px-3 sm:px-5 py-2 sm:py-2.5 text-sm"
+            >
+              <span
+                class="sm:w-40 sm:flex-shrink-0 text-[var(--text-muted)] text-xs sm:text-sm"
+                >{{ item.label }}</span
               >
-                <span
-                  class="sm:w-40 sm:flex-shrink-0 text-[var(--text-muted)] text-xs sm:text-sm"
-                  >{{ item.label }}</span
-                >
-                <span
-                  :class="
-                    item.value
-                      ? 'text-[var(--text-secondary)]'
-                      : 'text-[var(--text-muted)] italic'
-                  "
-                >
-                  {{ item.value || "Not set" }}
-                </span>
-              </div>
+              <span
+                :class="
+                  item.value
+                    ? 'text-[var(--text-secondary)]'
+                    : 'text-[var(--text-muted)] italic'
+                "
+              >
+                {{ item.value || "Not set" }}
+              </span>
             </div>
           </div>
-        </ReportDisclosure>
+        </div>
 
         <!-- Detailed Findings -->
-        <div class="flex justify-between items-center mb-4 gap-3 flex-wrap">
-          <h2 class="text-base sm:text-lg font-semibold">
-            Detailed Findings
-          </h2>
-          <ReportModeToggle v-model="mode" />
-        </div>
+        <h2 class="text-base sm:text-lg font-semibold mb-4">
+          Detailed Findings
+        </h2>
 
         <div class="space-y-4">
           <div
@@ -659,18 +627,15 @@
               @update:selected-mode="selectedScoreMode = $event"
             />
 
-            <ReportDisclosure
+            <p
               v-if="cat.explanation"
-              :mode="mode"
-              label="What this category checks"
-              class="mb-3"
+              class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3"
             >
-              <p
-                class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)]"
+              <span class="text-[var(--text-muted)] font-medium"
+                >What this checks:</span
               >
-                {{ cat.explanation }}
-              </p>
-            </ReportDisclosure>
+              {{ cat.explanation }}
+            </p>
 
             <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
               <li
@@ -751,90 +716,84 @@
               </ol>
             </div>
 
-            <ReportDisclosure
+            <div
               v-if="getWcagCriteria(cat.id).length && cat.score !== null"
-              :mode="mode"
-              label="WCAG 2.1 references"
-              :badge="`${getWcagCriteria(cat.id).length} success ${getWcagCriteria(cat.id).length === 1 ? 'criterion' : 'criteria'}`"
-              class="mt-4"
+              class="mt-4 rounded-lg border border-indigo-500/30 bg-indigo-500/5 overflow-hidden"
             >
               <div
-                class="rounded-lg border border-indigo-500/30 bg-indigo-500/5 overflow-hidden"
+                class="flex items-start gap-2.5 px-4 py-3 bg-indigo-500/10 border-b border-indigo-500/20"
               >
-                <div
-                  class="flex items-start gap-2.5 px-4 py-3 bg-indigo-500/10 border-b border-indigo-500/20"
+                <svg
+                  class="w-4 h-4 text-indigo-300 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
                 >
-                  <svg
-                    class="w-4 h-4 text-indigo-300 flex-shrink-0 mt-0.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z"
-                    />
-                  </svg>
-                  <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-indigo-200">
-                      WCAG 2.1 References
-                    </div>
-                    <div class="text-xs text-[var(--text-muted)] mt-0.5">
-                      This score is tied to the following Web Content
-                      Accessibility Guidelines success criteria. Click any
-                      reference to verify the definition on the official W3C site.
-                    </div>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z"
+                  />
+                </svg>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-indigo-200">
+                    WCAG 2.1 References
+                  </div>
+                  <div class="text-xs text-[var(--text-muted)] mt-0.5">
+                    This score is tied to the following Web Content
+                    Accessibility Guidelines success criteria. Click any
+                    reference to verify the definition on the official W3C site.
                   </div>
                 </div>
-                <ul class="divide-y divide-indigo-500/15">
-                  <li v-for="c in getWcagCriteria(cat.id)" :key="c.id + c.name">
-                    <a
-                      :href="c.url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-500/10 transition-colors group"
-                    >
-                      <span
-                        class="font-mono text-sm text-indigo-300 flex-shrink-0 w-12"
-                        >{{ c.id }}</span
-                      >
-                      <span
-                        class="flex-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-heading)]"
-                        >{{ c.name }}</span
-                      >
-                      <span
-                        class="text-[10px] font-semibold uppercase tracking-wider text-indigo-300 bg-indigo-500/15 border border-indigo-500/20 rounded px-1.5 py-0.5 flex-shrink-0"
-                        >Level {{ c.level }}</span
-                      >
-                      <svg
-                        class="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-indigo-300 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                        />
-                      </svg>
-                    </a>
-                  </li>
-                </ul>
               </div>
-            </ReportDisclosure>
+              <ul class="divide-y divide-indigo-500/15">
+                <li v-for="c in getWcagCriteria(cat.id)" :key="c.id + c.name">
+                  <a
+                    :href="c.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-500/10 transition-colors group"
+                  >
+                    <span
+                      class="font-mono text-sm text-indigo-300 flex-shrink-0 w-12"
+                      >{{ c.id }}</span
+                    >
+                    <span
+                      class="flex-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-heading)]"
+                      >{{ c.name }}</span
+                    >
+                    <span
+                      class="text-[10px] font-semibold uppercase tracking-wider text-indigo-300 bg-indigo-500/15 border border-indigo-500/20 rounded px-1.5 py-0.5 flex-shrink-0"
+                      >Level {{ c.level }}</span
+                    >
+                    <svg
+                      class="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-indigo-300 flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                      />
+                    </svg>
+                  </a>
+                </li>
+              </ul>
+            </div>
 
-            <ReportDisclosure
+            <div
               v-if="cat.helpLinks?.length"
-              :mode="mode"
-              label="Learn more"
-              :badge="`${cat.helpLinks.length} reference ${cat.helpLinks.length === 1 ? 'link' : 'links'}`"
-              class="mt-3"
+              class="mt-3 pt-3 border-t border-[var(--border-subtle)]"
             >
-              <div class="flex flex-wrap gap-2">
+              <span
+                class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide"
+                >Learn more</span
+              >
+              <div class="mt-2 flex flex-wrap gap-2">
                 <a
                   v-for="link in cat.helpLinks"
                   :key="link.url"
@@ -859,111 +818,102 @@
                   </svg>
                 </a>
               </div>
-            </ReportDisclosure>
+            </div>
           </div>
         </div>
 
         <!-- Not Included in Scoring -->
-        <ReportDisclosure
-          v-if="naCategories.length"
-          :mode="mode"
-          label="Categories not included in scoring"
-          class="mt-8"
-        >
-          <div>
-            <h2
-              class="text-base sm:text-lg font-semibold mb-4 text-[var(--text-secondary)]"
+        <div v-if="naCategories.length">
+          <h2
+            class="text-base sm:text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]"
+          >
+            Not Included in Scoring
+          </h2>
+
+          <div class="space-y-4">
+            <div
+              v-for="cat in naCategories"
+              :key="cat.id"
+              :id="`cat-${cat.id}`"
+              class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 sm:p-5"
             >
-              Not Included in Scoring
-            </h2>
+              <div class="flex items-center gap-2 sm:gap-3 mb-3">
+                <h3 class="font-semibold text-[var(--text-muted)]">
+                  {{ cat.label }}
+                </h3>
+                <span class="text-sm font-mono text-[var(--text-muted)]"
+                  >N/A</span
+                >
+              </div>
 
-            <div class="space-y-4">
-              <div
-                v-for="cat in naCategories"
-                :key="cat.id"
-                :id="`cat-${cat.id}`"
-                class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 sm:p-5"
+              <ModeCompareBox
+                v-if="result.scoreProfiles && hasCrossModeSignal(cat.id)"
+                v-bind="compareProps(cat.id)"
+                @update:selected-mode="selectedScoreMode = $event"
+              />
+
+              <p
+                v-if="cat.explanation"
+                class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3"
               >
-                <div class="flex items-center gap-2 sm:gap-3 mb-3">
-                  <h3 class="font-semibold text-[var(--text-muted)]">
-                    {{ cat.label }}
-                  </h3>
-                  <span class="text-sm font-mono text-[var(--text-muted)]"
-                    >N/A</span
+                <span class="text-[var(--text-muted)] font-medium"
+                  >What this checks:</span
+                >
+                {{ cat.explanation }}
+              </p>
+
+              <ul class="space-y-1.5 max-h-96 overflow-y-auto">
+                <li
+                  v-for="(finding, i) in cat.findings"
+                  :key="i"
+                  class="text-sm text-[var(--text-muted)] flex gap-2"
+                >
+                  <span
+                    class="flex-shrink-0 mt-0.5 font-bold"
+                    :style="{ color: 'var(--icon-na)' }"
+                    >–</span
                   >
+                  <span>{{ finding }}</span>
+                </li>
+              </ul>
+
+              <div
+                v-if="cat.helpLinks?.length"
+                class="mt-3 pt-3 border-t border-[var(--border-subtle)]"
+              >
+                <span
+                  class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide"
+                  >Learn more</span
+                >
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <a
+                    v-for="link in cat.helpLinks"
+                    :key="link.url"
+                    :href="link.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+                  >
+                    {{ link.label }}
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                      />
+                    </svg>
+                  </a>
                 </div>
-
-                <ModeCompareBox
-                  v-if="result.scoreProfiles && hasCrossModeSignal(cat.id)"
-                  v-bind="compareProps(cat.id)"
-                  @update:selected-mode="selectedScoreMode = $event"
-                />
-
-                <ReportDisclosure
-                  v-if="cat.explanation"
-                  :mode="mode"
-                  label="What this category checks"
-                  class="mb-3"
-                >
-                  <p
-                    class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)]"
-                  >
-                    {{ cat.explanation }}
-                  </p>
-                </ReportDisclosure>
-
-                <ul class="space-y-1.5 max-h-96 overflow-y-auto">
-                  <li
-                    v-for="(finding, i) in cat.findings"
-                    :key="i"
-                    class="text-sm text-[var(--text-muted)] flex gap-2"
-                  >
-                    <span
-                      class="flex-shrink-0 mt-0.5 font-bold"
-                      :style="{ color: 'var(--icon-na)' }"
-                      >–</span
-                    >
-                    <span>{{ finding }}</span>
-                  </li>
-                </ul>
-
-                <ReportDisclosure
-                  v-if="cat.helpLinks?.length"
-                  :mode="mode"
-                  label="Learn more"
-                  :badge="`${cat.helpLinks.length} reference ${cat.helpLinks.length === 1 ? 'link' : 'links'}`"
-                  class="mt-3"
-                >
-                  <div class="flex flex-wrap gap-2">
-                    <a
-                      v-for="link in cat.helpLinks"
-                      :key="link.url"
-                      :href="link.url"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
-                    >
-                      {{ link.label }}
-                      <svg
-                        class="w-3 h-3"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                        />
-                      </svg>
-                    </a>
-                  </div>
-                </ReportDisclosure>
               </div>
             </div>
           </div>
-        </ReportDisclosure>
+        </div>
 
         <!-- Export & Share -->
         <div
@@ -2863,11 +2813,8 @@
 import { getWcagCriteria } from "~/utils/wcag";
 import ModeCompareBox from "~/components/ModeCompareBox.vue";
 import NaCell from "~/components/NaCell.vue";
-import ReportModeToggle from "~/components/ReportModeToggle.vue";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
-import ReportDisclosure from "~/components/ReportDisclosure.vue";
-import { useReportMode } from "~/composables/useReportMode";
 import {
   type ScoringMode,
   categoriesForScoringMode,
@@ -2955,7 +2902,6 @@ const result = computed(() => {
 
 const selectedScoreMode = ref<ScoringMode>("strict");
 const categoryScoresAnchor = ref<HTMLElement | null>(null);
-const { mode } = useReportMode({ persist: true });
 
 watch(
   result,

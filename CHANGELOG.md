@@ -6,17 +6,24 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 ## [Unreleased] — feature/reader-auditor-toggle
 
-### Added — Reader / Auditor view modes
+### Added — Action banner + Issues to fix punch list
 
-A page-level Reader / Auditor toggle on the post-upload page and the shareable-report page collapses optional blocks (methodology, the Adobe Acrobat parity card, PDF metadata, the Strict-vs-Practical explainer paragraph, the per-card "What this checks" copy, the WCAG references panel, and the Learn-more pill links) behind labeled disclosures in Reader mode. Auditor preserves today's layout exactly — every existing block, badge, and panel stays in its current position with full content. Sticky in localStorage on the post-upload page; the shareable page always defaults to Reader so each recipient lands in a fresh view regardless of any other viewer's preference.
+Two new in-page blocks under the score hero on both `/report/:id` and `pages/index.vue`:
 
-Two new blocks render in both modes:
-- A one-line action banner under the score hero with severity-keyed copy (e.g., `3 critical and 2 moderate issues must be fixed before publishing.`).
-- A severity-ordered "Issues to fix" punch list with anchor links that jump to the matching Detailed Findings card, where the Adobe Acrobat fix-steps panel — users' favorite feature — stays inline in every mode.
+- A one-line action banner with severity-keyed copy (e.g., `2 critical issues must be fixed before publishing.`) that gives an at-a-glance verdict in plain English.
+- A severity-ordered "Issues to fix" punch list with anchor links that jump straight to the matching Detailed Findings card. Critical → Moderate → Minor; Pass and N/A categories are excluded.
 
-### Tests
+Each Detailed Findings card root div now carries a stable anchor id (`cat-${cat.id}`) so the punch-list jump links and any future linkable export can target it.
 
-New unit tests for `tallySeverity`, `firstActionableFinding`/`isGuidanceFinding`, `useReportMode`, `ReportDisclosure`, `ReportModeToggle`, `ReportActionBanner`, and `IssuesSummary`. The two pages themselves are still tested via the existing source-grep pattern; a full SSR-render smoke test is deferred to a separate engagement (see `docs/superpowers/specs/2026-05-04-reader-auditor-toggle-design.md` open items).
+### Refactored — utility extraction
+
+`isGuidanceFinding` and a new `firstActionableFinding` helper were extracted into `apps/web/app/utils/findings.ts` for reuse by the Issues summary component. The two duplicate copies in `pages/report/[id].vue` and `pages/index.vue` are intentionally left in place; deduping is a separate engagement.
+
+A `tallySeverity` utility in `apps/web/app/utils/severityTally.ts` aggregates category severity counts for the action-banner copy.
+
+### Note
+
+An earlier iteration on this branch experimented with a page-level Reader/Auditor toggle that collapsed optional content blocks behind disclosures. That work was rolled back after user review — the page reverts to today's inline layout. The action banner and Issues summary above are the surviving additions.
 
 ## [1.16.3] - 2026-05-04
 
