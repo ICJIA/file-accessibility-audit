@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.16.3] - 2026-05-04
+
+### Fixed
+
+- Shareable report links (`/report/:id`) returned a 500 server error in production whenever the link resolved to a real `shared_reports` row. SSR rendering threw `ReferenceError: gradeColors is not defined` from `apps/web/app/pages/report/[id].vue`'s `catColor()`. The function was rewritten in v1.12.x to look up `gradeColors[cat.grade]`, but the `gradeColors` map was only added to `pages/index.vue` — not to the shared-report page. Local development never tripped it because the local SQLite usually has no row matching the prod link, so the page rendered the `v-else-if="error"` ("Report Not Available") branch and never hit `catColor`. Vitest tests parse `.vue` source as text rather than SSR-rendering with valid data, so they passed too. Fix: declare the same five-entry `gradeColors` map (`A → #22c55e` … `F → #ef4444`) directly above `catColor()` in `pages/report/[id].vue`. Verified by seeding the prod payload into local SQLite and confirming `/report/:id` now returns 200 with the full rendered report.
+
 ## [1.16.2] - 2026-04-22
 
 ### Docs

@@ -1159,6 +1159,14 @@ const metadataItems = computed(() => {
   ];
 });
 
+const gradeColors: Record<string, string> = {
+  A: "#22c55e",
+  B: "#14b8a6",
+  C: "#eab308",
+  D: "#f97316",
+  F: "#ef4444",
+};
+
 function catColor(cat: any): string {
   if (cat.grade) return gradeColors[cat.grade] || "#666";
   return "#555";
