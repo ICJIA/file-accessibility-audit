@@ -26,7 +26,8 @@
       <div v-else-if="data">
         <!-- Header -->
         <div class="text-center mb-8">
-          <div class="flex justify-end mb-4">
+          <div class="flex justify-end items-center gap-2 mb-4">
+            <ReportModeToggle v-model="mode" />
             <button
               class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
               :aria-label="
@@ -99,6 +100,17 @@
           />
         </div>
 
+        <ReportActionBanner
+          v-if="data?.report?.categories"
+          :categories="(data as any).report.categories"
+          class="mb-4"
+        />
+
+        <IssuesSummary
+          v-if="data?.report?.categories"
+          :categories="(data as any).report.categories"
+          class="mb-8"
+        />
         <!-- Scanned warning -->
         <div
           v-if="data.report.isScanned"
@@ -496,6 +508,7 @@
         <div class="space-y-4">
           <div
             v-for="cat in scoredCategories"
+            :id="`cat-${cat.id}`"
             :key="cat.id"
             class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5"
           >
@@ -778,6 +791,7 @@
           <div class="space-y-4">
             <div
               v-for="cat in naCategories"
+              :id="`cat-${cat.id}`"
               :key="cat.id"
               class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 sm:p-5"
             >
@@ -987,6 +1001,10 @@ import {
   categoriesForScoringMode,
   MODE_BUTTON_LABELS,
 } from "~/utils/scoringProfiles";
+import ReportModeToggle from "~/components/ReportModeToggle.vue";
+import ReportActionBanner from "~/components/ReportActionBanner.vue";
+import IssuesSummary from "~/components/IssuesSummary.vue";
+import { useReportMode } from "~/composables/useReportMode";
 
 definePageMeta({ layout: false });
 
@@ -996,6 +1014,7 @@ const config = useRuntimeConfig();
 const auditUrl = config.public.siteUrl as string;
 const appName = config.public.appName as string;
 const colorMode = useColorMode();
+const { mode } = useReportMode({ persist: false });
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
