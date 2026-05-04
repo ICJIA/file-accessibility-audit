@@ -544,35 +544,43 @@
                 class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-400/60 bg-amber-400/15 text-amber-200"
                 >PDF/UA signals</span
               >
-              <button
-                v-if="hasAdvancedFindings(cat.findings)"
-                class="flex items-center gap-2 text-xs cursor-pointer select-none ml-auto rounded-full px-2.5 py-1 border transition-colors duration-200"
-                :class="
-                  advancedCards[cat.id]
-                    ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
-                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                "
-                @click="toggleAdvanced(cat.id)"
+              <div
+                v-if="partitionCardFindings(cat.findings).signalCount > 0"
+                class="flex items-center gap-2 ml-auto"
               >
-                <span class="font-medium">{{
-                  advancedCards[cat.id] ? "Advanced" : "Basic"
-                }}</span>
-                <span
-                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200"
-                  :class="
-                    advancedCards[cat.id] ? 'bg-blue-500' : 'bg-emerald-500'
-                  "
-                >
-                  <span
-                    class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200"
-                    :class="
-                      advancedCards[cat.id]
-                        ? 'translate-x-[18px]'
-                        : 'translate-x-[3px]'
-                    "
-                  />
+                <span class="text-xs text-[var(--text-muted)]">
+                  {{ partitionCardFindings(cat.findings).signalCount }} technical signals
                 </span>
-              </button>
+                <button
+                  class="flex items-center gap-2 text-xs cursor-pointer select-none rounded-full px-2.5 py-1 border transition-colors duration-200"
+                  :class="
+                    advancedCards[cat.id]
+                      ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
+                      : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                  "
+                  :title="advancedCards[cat.id] ? 'Hide technical signals' : 'Show technical signals'"
+                  @click="toggleAdvanced(cat.id)"
+                >
+                  <span class="font-medium">{{
+                    advancedCards[cat.id] ? "Advanced" : "Basic"
+                  }}</span>
+                  <span
+                    class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200"
+                    :class="
+                      advancedCards[cat.id] ? 'bg-blue-500' : 'bg-emerald-500'
+                    "
+                  >
+                    <span
+                      class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200"
+                      :class="
+                        advancedCards[cat.id]
+                          ? 'translate-x-[18px]'
+                          : 'translate-x-[3px]'
+                      "
+                    />
+                  </span>
+                </button>
+              </div>
             </div>
 
             <ModeCompareBox
@@ -588,29 +596,16 @@
 
             <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
               <li
-                v-for="(finding, i) in splitAcrobatGuide(cat.findings, cat.id)
-                  .regular"
+                v-for="(finding, i) in partitionCardFindings(cat.findings).main"
                 :key="i"
                 :class="
-                  finding.startsWith('---')
-                    ? 'text-sm text-[var(--text-secondary)] font-semibold mt-2 pt-2 border-t border-[var(--border-subtle)]'
-                    : finding.startsWith('  ')
-                      ? 'text-xs font-mono text-[var(--text-muted)] pl-6 opacity-80'
-                      : isGuidanceFinding(finding)
-                        ? 'text-sm text-[var(--text-muted)] flex gap-2 bg-amber-500/8 rounded px-2 py-1.5 border-l-2 border-amber-500/40'
-                        : 'text-sm text-[var(--text-muted)] flex gap-2'
+                  isGuidanceFinding(finding)
+                    ? 'text-sm text-[var(--text-muted)] flex gap-2 bg-amber-500/8 rounded px-2 py-1.5 border-l-2 border-amber-500/40'
+                    : 'text-sm text-[var(--text-muted)] flex gap-2'
                 "
               >
-                <template v-if="finding.startsWith('---')">
-                  {{ finding.replace(/^-{3}\s*/, "").replace(/\s*-{3}$/, "") }}
-                </template>
-                <template v-else-if="finding.startsWith('  ')">
-                  {{ finding }}
-                </template>
-                <template v-else-if="isGuidanceFinding(finding)">
-                  <span class="flex-shrink-0 mt-0.5 text-amber-400"
-                    >&#9656;</span
-                  >
+                <template v-if="isGuidanceFinding(finding)">
+                  <span class="flex-shrink-0 mt-0.5 text-amber-400">&#9656;</span>
                   <span>{{ finding }}</span>
                 </template>
                 <template v-else>
@@ -624,9 +619,40 @@
               </li>
             </ul>
 
+            <div
+              v-if="advancedCards[cat.id] && partitionCardFindings(cat.findings).signalCount > 0"
+              class="mt-4 rounded-lg border border-[var(--border-subtle)] border-l-2 border-l-[var(--border)] bg-[var(--surface-deep)] px-4 py-3"
+              data-testid="technical-signals-panel"
+            >
+              <div class="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium mb-3">
+                Technical signals · {{ partitionCardFindings(cat.findings).signalCount }}
+              </div>
+              <div
+                v-for="group in partitionCardFindings(cat.findings).signals"
+                :key="group.heading || `__group_${group.items[0] || ''}`"
+                class="mb-3 last:mb-0"
+              >
+                <div
+                  v-if="group.heading"
+                  class="text-xs font-semibold text-[var(--text-secondary)] mb-1"
+                >
+                  {{ group.heading }}
+                </div>
+                <ul class="space-y-0.5">
+                  <li
+                    v-for="item in group.items"
+                    :key="item"
+                    class="text-xs font-mono text-[var(--text-muted)] pl-3"
+                  >
+                    {{ item }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
             <!-- Adobe Acrobat Remediation Guide -->
             <div
-              v-if="splitAcrobatGuide(cat.findings, cat.id).acrobat.length"
+              v-if="partitionCardFindings(cat.findings).acrobat.length"
               class="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden"
             >
               <div
@@ -651,7 +677,7 @@
               </div>
               <ol class="px-4 py-3 space-y-2">
                 <li
-                  v-for="(step, j) in splitAcrobatGuide(cat.findings, cat.id)
+                  v-for="(step, j) in partitionCardFindings(cat.findings)
                     .acrobat"
                   :key="j"
                   class="text-sm text-[var(--text-muted)] flex gap-2.5"
@@ -986,6 +1012,7 @@ import {
   categoriesForScoringMode,
   MODE_BUTTON_LABELS,
 } from "~/utils/scoringProfiles";
+import { partitionCardFindings } from "~/utils/findings";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 
