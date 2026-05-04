@@ -137,14 +137,20 @@
         </div>
 
         <!-- Methodology -->
-        <div
-          class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5"
+        <ReportDisclosure
+          :mode="mode"
+          label="Methodology and scoring sources"
+          badge="QPDF · pdf.js · WCAG 2.1 AA · ADA Title II"
+          class="mb-8"
         >
-          <h2
-            class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center"
+          <div
+            class="rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5"
           >
-            How Scores Are Derived
-          </h2>
+            <h2
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center"
+            >
+              How Scores Are Derived
+            </h2>
           <p
             class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center"
           >
@@ -230,12 +236,19 @@
             >
             on the audit tool.
           </p>
-        </div>
+          </div>
+        </ReportDisclosure>
 
         <!-- Adobe Acrobat parity — a third view alongside Strict and Practical. -->
-        <div v-if="data.report.adobeParity" class="mb-8">
+        <ReportDisclosure
+          v-if="data?.report?.adobeParity"
+          :mode="mode"
+          label="How Adobe Acrobat would score this"
+          badge="32-rule reconciliation"
+          class="mb-8"
+        >
           <AdobeParityCard :parity="data.report.adobeParity" />
-        </div>
+        </ReportDisclosure>
 
         <!-- Score Table -->
         <div
@@ -285,50 +298,54 @@
                 </button>
               </div>
             </div>
-            <p
-              v-if="data.report.scoreProfiles?.remediation"
-              class="mt-2 text-xs text-[var(--text-muted)]"
+            <ReportDisclosure
+              v-if="data?.report?.scoreProfiles?.remediation"
+              :mode="mode"
+              label="How Strict and Practical differ"
+              class="mt-2"
             >
-              <template v-if="remediationModeActive">
-                Practical does not mean a different document. It is the same
-                document viewed through a valid remediation/progress lens. The
-                score, grade, and severity shown below now reflect the softer
-                practical-readiness scoring, while Strict remains the valid
-                semantics-first lens on that same file. Use Strict for agency
-                publication and ADA/WCAG/ITTAA-oriented legal accessibility
-                review. Practical also includes a dedicated PDF/UA-oriented
-                category. Illinois IITAA 2.1 expressly references PDF/UA in
-                <a
-                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >
-                for authoring tools, while E205.4 frames document-level
-                electronic content accessibility through WCAG 2.1 for non-web
-                documents.
-              </template>
-              <template v-else>
-                Switching to Practical does not switch to a different document.
-                It applies a different valid accessibility lens to the same
-                file. Strict remains the better primary view for agency
-                publication and ADA/WCAG/ITTAA-oriented legal accessibility
-                review, while Practical is a valid remediation/progress view
-                that adds a broader weighted schema including PDF/UA-oriented
-                audits. Illinois IITAA 2.1 expressly references PDF/UA in
-                <a
-                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >
-                for authoring tools, while E205.4 still frames non-web document
-                accessibility through WCAG 2.1, so Strict remains the better
-                primary view.
-              </template>
-            </p>
+              <p class="text-xs text-[var(--text-muted)]">
+                <template v-if="remediationModeActive">
+                  Practical does not mean a different document. It is the same
+                  document viewed through a valid remediation/progress lens. The
+                  score, grade, and severity shown below now reflect the softer
+                  practical-readiness scoring, while Strict remains the valid
+                  semantics-first lens on that same file. Use Strict for agency
+                  publication and ADA/WCAG/ITTAA-oriented legal accessibility
+                  review. Practical also includes a dedicated PDF/UA-oriented
+                  category. Illinois IITAA 2.1 expressly references PDF/UA in
+                  <a
+                    href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                    >§504.2.2 PDF Export</a
+                  >
+                  for authoring tools, while E205.4 frames document-level
+                  electronic content accessibility through WCAG 2.1 for non-web
+                  documents.
+                </template>
+                <template v-else>
+                  Switching to Practical does not switch to a different document.
+                  It applies a different valid accessibility lens to the same
+                  file. Strict remains the better primary view for agency
+                  publication and ADA/WCAG/ITTAA-oriented legal accessibility
+                  review, while Practical is a valid remediation/progress view
+                  that adds a broader weighted schema including PDF/UA-oriented
+                  audits. Illinois IITAA 2.1 expressly references PDF/UA in
+                  <a
+                    href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                    >§504.2.2 PDF Export</a
+                  >
+                  for authoring tools, while E205.4 still frames non-web document
+                  accessibility through WCAG 2.1, so Strict remains the better
+                  primary view.
+                </template>
+              </p>
+            </ReportDisclosure>
           </div>
           <table class="w-full text-sm min-w-[420px]">
             <thead>
@@ -465,40 +482,47 @@
         </div>
 
         <!-- PDF Metadata -->
-        <div
-          v-if="data.report.pdfMetadata"
-          class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden"
+        <ReportDisclosure
+          v-if="data?.report?.pdfMetadata"
+          :mode="mode"
+          label="Document metadata"
+          badge="creator · producer · author · dates"
+          class="mb-8"
         >
-          <div class="px-5 py-3 border-b border-[var(--border)]">
-            <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
-              Document Metadata
-            </h2>
-            <p class="text-xs text-[var(--text-muted)] mt-0.5">
-              Informational only — not included in the accessibility score
-            </p>
-          </div>
-          <div class="divide-y divide-[var(--border-subtle)]">
-            <div
-              v-for="item in metadataItems"
-              :key="item.label"
-              class="flex flex-col sm:flex-row px-3 sm:px-5 py-2 sm:py-2.5 text-sm"
-            >
-              <span
-                class="sm:w-40 sm:flex-shrink-0 text-[var(--text-muted)] text-xs sm:text-sm"
-                >{{ item.label }}</span
+          <div
+            class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden"
+          >
+            <div class="px-5 py-3 border-b border-[var(--border)]">
+              <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
+                Document Metadata
+              </h2>
+              <p class="text-xs text-[var(--text-muted)] mt-0.5">
+                Informational only — not included in the accessibility score
+              </p>
+            </div>
+            <div class="divide-y divide-[var(--border-subtle)]">
+              <div
+                v-for="item in metadataItems"
+                :key="item.label"
+                class="flex flex-col sm:flex-row px-3 sm:px-5 py-2 sm:py-2.5 text-sm"
               >
-              <span
-                :class="
-                  item.value
-                    ? 'text-[var(--text-secondary)]'
-                    : 'text-[var(--text-muted)] italic'
-                "
-              >
-                {{ item.value || "Not set" }}
-              </span>
+                <span
+                  class="sm:w-40 sm:flex-shrink-0 text-[var(--text-muted)] text-xs sm:text-sm"
+                  >{{ item.label }}</span
+                >
+                <span
+                  :class="
+                    item.value
+                      ? 'text-[var(--text-secondary)]'
+                      : 'text-[var(--text-muted)] italic'
+                  "
+                >
+                  {{ item.value || "Not set" }}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </ReportDisclosure>
 
         <!-- Detailed Findings -->
         <h2 class="text-base sm:text-lg font-semibold mb-4">
@@ -781,14 +805,20 @@
         </div>
 
         <!-- Not Included in Scoring -->
-        <div v-if="naCategories.length">
-          <h2
-            class="text-base sm:text-lg font-semibold mb-4 mt-8 text-[var(--text-secondary)]"
-          >
-            Not Included in Scoring
-          </h2>
+        <ReportDisclosure
+          v-if="naCategories.length"
+          :mode="mode"
+          label="Categories not included in scoring"
+          class="mt-8"
+        >
+          <div>
+            <h2
+              class="text-base sm:text-lg font-semibold mb-4 text-[var(--text-secondary)]"
+            >
+              Not Included in Scoring
+            </h2>
 
-          <div class="space-y-4">
+            <div class="space-y-4">
             <div
               v-for="cat in naCategories"
               :id="`cat-${cat.id}`"
@@ -871,7 +901,8 @@
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </ReportDisclosure>
 
         <!-- Downloads + CTA -->
         <div
