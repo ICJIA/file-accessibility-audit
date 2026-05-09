@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [Unreleased]
+
+### Added — `POST /api/bulk-from-inventory` endpoint (closes #9)
+
+New endpoint that accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory, fetches each PDF server-side by its public URL, runs the existing `analyzePDF` scoring pipeline, persists every result via `shared_reports`, and returns a manifest with per-file scores, grades, and shareable report links.
+
+**Request (JSON body):**
+
+```json
+{ "inventory": "<NDJSON content>", "filterCategory": "pdf" }
+```
+
+**Request (raw text — for `curl --data-binary`):**
+
+```bash
+curl -X POST \
+  -H "Cookie: token=<your-jwt>" \
+  -H "Content-Type: text/plain" \
+  --data-binary @inventory.ndjson \
+  https://audit.icjia.app/api/bulk-from-inventory
+```
+
+**Response:**
+
+```json
+{
+  "summary": { "total": 10, "analyzed": 9, "failed": 1, "skipped": 3 },
+  "results": [
+    { "path": "2024/report.pdf", "publicUrl": "...", "overallScore": 78, "grade": "C", "reportId": "...", "reportUrl": "/api/reports/..." },
+    { "path": "2024/scan.pdf",   "publicUrl": "...", "error": "not a valid PDF (header bytes: ...)" }
+  ]
+}
+```
+
+**Key behaviors:**
+
+- Parses filecap NDJSON: recognizes header/footer records, reconstructs `publicUrl` from `publicUrlBase` when individual entries omit it, filters to `category === filterCategory`.
+- 5 MB inventory cap; 15 MB per-PDF cap (matches `ANALYSIS.MAX_FILE_SIZE_MB`); 100 files per request maximum.
+- Processing is intentionally serial to respect the existing 2-at-a-time semaphore in `pdfAnalyzer.ts`.
+- Auth required. Uses existing `authMiddleware` (cookie JWT) and `reportsLimiter`.
+- Adds `express.text({ limit: '5mb', type: 'text/plain' })` in `index.ts` for the raw text/plain intake mode.
+
 ## [1.17.0] - 2026-05-04
 
 ### Added — Action banner + Issues to fix punch list
