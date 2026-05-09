@@ -40,6 +40,28 @@ Visiting `https://audit.icjia.app/?prefill=https%3A%2F%2Ficjia.illinois.gov%2Fdo
 - `apps/web/app/pages/index.vue` — wires `usePrefill`
 - `apps/web/app/__tests__/usePrefill.test.ts` — unit tests
 
+### Added — Personal access tokens for CLI/API authentication
+
+New `access_tokens` table and three token management endpoints so headless clients (e.g. [@icjia/filecap](https://github.com/ICJIA/filecap-cli)) can authenticate without a browser session.
+
+**Endpoints:**
+
+- `POST /api/tokens` — create a named token (session auth only; returns the raw token once)
+- `GET /api/tokens` — list the caller's tokens (metadata only; raw tokens never returned)
+- `DELETE /api/tokens/:id` — revoke a token by ID (session auth only; row retained for audit trail)
+
+**Token format:** `fap_<32-hex-chars>` (128-bit entropy). The server stores only the SHA-256 hash.
+
+**Auth middleware change:** `authMiddleware` now checks for an `Authorization: Bearer fap_xxx` header before falling through to the existing cookie/JWT check. Sets `req.user.authMethod` to `'pat'` or `'session'` so downstream route handlers can distinguish.
+
+**Security:**
+- Raw token shown once at creation; never stored or retrievable.
+- PAT-authenticated requests cannot mint or revoke tokens (prevents a leaked token from compounding damage).
+- `last_used_at` updated on each authenticated request; `revoked_at` retained for paper trail.
+- Per-user cap of 10 active tokens (configurable via `MAX_TOKENS_PER_USER`).
+
+**Migration:** `CREATE TABLE IF NOT EXISTS access_tokens` and its indexes are added to the existing startup `db.exec(...)` block in `db/sqlite.ts` — no separate migration step required for new installs. Existing installs: the table will be created on next startup.
+
 ---
 
 ### Added — `POST /api/bulk-from-inventory` endpoint (closes #9)

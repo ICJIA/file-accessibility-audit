@@ -354,8 +354,82 @@ curl -X POST \
 ### Considerations
 
 - **Serial processing.** PDFs are scored one at a time to respect the 2-at-a-time semaphore in `pdfAnalyzer.ts`. Large inventories (50+ PDFs) can take several minutes inside a single HTTP request.
-- **Auth model.** The endpoint uses the existing cookie-based JWT. A filecap CLI workflow needs a personal access token mechanism (not yet implemented); see issue #9 for discussion.
+- **Auth model.** The endpoint accepts both the session cookie and a personal access token (`Authorization: Bearer fap_xxx`). See [Personal Access Tokens](#personal-access-tokens-pats) below for how to create a token for CLI use.
 - **No URL allowlist.** The server will fetch any URL in the inventory. A per-deployment allowlist of permitted hostnames is recommended before exposing this endpoint publicly.
+
+## Personal Access Tokens (PATs)
+
+Personal access tokens let CLI tools and automation scripts authenticate against the API without an interactive browser session. They are intended for headless workflows such as the [@icjia/filecap](https://github.com/ICJIA/filecap-cli) `audit-enrich` command.
+
+### Creating a token
+
+Tokens can only be created from a browser session (cookie auth). Use `curl` with your session cookie, or use the **Settings → Tokens** tab once a UI is added.
+
+```bash
+# Create a token named "filecap-cli"
+curl -X POST \
+  -H "Cookie: token=<your-session-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "filecap-cli" }' \
+  https://audit.icjia.app/api/tokens
+```
+
+Response:
+
+```json
+{
+  "id": "a1b2c3d4e5f6a7b8",
+  "name": "filecap-cli",
+  "token": "fap_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "note": "Save this token now. You will not be able to see it again."
+}
+```
+
+**The raw token is shown only once.** Copy it immediately — the server stores only a SHA-256 hash and cannot return the original.
+
+### Using a token
+
+Pass the token in the `Authorization` header on any protected endpoint:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer fap_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" \
+  -H "Content-Type: text/plain" \
+  --data-binary @inventory.ndjson \
+  https://audit.icjia.app/api/bulk-from-inventory
+```
+
+Or set the environment variable used by filecap-cli:
+
+```bash
+export FILECAP_AUDIT_TOKEN="fap_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+filecap audit-enrich inventory.ndjson
+```
+
+### Listing and revoking tokens
+
+```bash
+# List all tokens for your account (metadata only — raw tokens are never returned)
+curl -H "Cookie: token=<your-session-jwt>" https://audit.icjia.app/api/tokens
+
+# Revoke a token by ID
+curl -X DELETE \
+  -H "Cookie: token=<your-session-jwt>" \
+  https://audit.icjia.app/api/tokens/<token-id>
+```
+
+### Token format and security
+
+| Property         | Detail                                                         |
+| ---------------- | -------------------------------------------------------------- |
+| Format           | `fap_` prefix + 32 lowercase hex chars (128-bit entropy)       |
+| Storage          | SHA-256 hash only — the raw token never persists server-side   |
+| One-time display | Shown once at creation; cannot be retrieved later              |
+| Revocation       | Immediate; revoked tokens are retained in the DB for audit     |
+| Mint/revoke via PAT | Not allowed — only browser sessions can manage tokens (prevents a leaked token from self-replicating) |
+| Per-user limit   | 10 active tokens maximum                                        |
+| Audit trail      | `last_used_at` updated on each authenticated request           |
 
 ## Report Exports
 

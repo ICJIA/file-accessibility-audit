@@ -54,6 +54,19 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_shared_reports_expires ON shared_reports(expires_at);
+
+  CREATE TABLE IF NOT EXISTS access_tokens (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    revoked_at TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_access_tokens_email ON access_tokens(email);
+  CREATE INDEX IF NOT EXISTS idx_access_tokens_hash_active ON access_tokens(token_hash) WHERE revoked_at IS NULL;
 `)
 
 export default db
