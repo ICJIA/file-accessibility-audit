@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js'
 import analyzeRoutes from './routes/analyze.js'
 import reportsRoutes from './routes/reports.js'
 import logsRoutes from './routes/logs.js'
+import bulkInventoryRoutes from './routes/bulk-from-inventory.js'
 
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
@@ -36,6 +37,8 @@ app.use(cors({
 
 // Body parsing
 app.use(express.json({ limit: '1mb' }))
+// text/plain is used by bulk-from-inventory when the caller pipes NDJSON directly
+app.use(express.text({ limit: '5mb', type: 'text/plain' }))
 app.use(cookieParser())
 
 // Global rate limit
@@ -46,6 +49,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api', analyzeRoutes)
 app.use('/api', reportsRoutes)
 app.use('/api', logsRoutes)
+app.use('/api', bulkInventoryRoutes)
 
 // Health check — also serves as the root API response
 const startedAt = new Date()

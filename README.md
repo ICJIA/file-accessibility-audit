@@ -258,6 +258,53 @@ Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a tim
 
 **Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
 
+## Bulk Inventory Scoring (`POST /api/bulk-from-inventory`)
+
+Accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every PDF in it server-side in one request. The server fetches each PDF by its public URL, runs the existing `analyzePDF` pipeline, saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
+
+**Auth required.** Send the session cookie or an `Authorization` header as you would for `/api/analyze`.
+
+### How it works
+
+1. Generate an inventory with filecap: `filecap scan ... --public-url-base https://yoursite.com/uploads -o inventory.ndjson`
+2. POST the inventory:
+
+```bash
+# Option A — raw NDJSON (Content-Type: text/plain, max 5 MB)
+curl -X POST \
+  -H "Cookie: token=<your-jwt>" \
+  -H "Content-Type: text/plain" \
+  --data-binary @inventory.ndjson \
+  https://audit.icjia.app/api/bulk-from-inventory \
+  > scores.json
+
+# Option B — JSON body
+curl -X POST \
+  -H "Cookie: token=<your-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{ "inventory": "<NDJSON string>" }' \
+  https://audit.icjia.app/api/bulk-from-inventory \
+  > scores.json
+```
+
+3. The response is a `{ summary, results }` manifest where each entry maps a file path to its score, grade, and a `/api/reports/:id` link.
+
+### Limits
+
+| Constraint              | Value    | Note                                                     |
+| ----------------------- | -------- | -------------------------------------------------------- |
+| Max inventory size      | 5 MB     | Total NDJSON payload                                     |
+| Max files per request   | 100      | Additional entries beyond 100 are silently skipped       |
+| Max PDF size            | 15 MB    | Per-file limit, matches `ANALYSIS.MAX_FILE_SIZE_MB`      |
+| Fetch timeout           | 30 s     | Per PDF; timed-out entries are recorded as errors        |
+| Rate limit              | shared with `/api/reports` (10/hour per user)            |
+
+### Considerations
+
+- **Serial processing.** PDFs are scored one at a time to respect the 2-at-a-time semaphore in `pdfAnalyzer.ts`. Large inventories (50+ PDFs) can take several minutes inside a single HTTP request.
+- **Auth model.** The endpoint uses the existing cookie-based JWT. A filecap CLI workflow needs a personal access token mechanism (not yet implemented); see issue #9 for discussion.
+- **No URL allowlist.** The server will fetch any URL in the inventory. A per-deployment allowlist of permitted hostnames is recommended before exposing this endpoint publicly.
+
 ## Report Exports
 
 Reports can be downloaded in four formats, all with links back to [audit.icjia.app](https://audit.icjia.app):
