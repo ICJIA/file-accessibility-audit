@@ -3040,6 +3040,31 @@ watch(
   },
 );
 
+// --- Prefill: auto-analyze a PDF from the ?prefill=<url> query param ---
+// filecap-cli generates audit links of the form:
+//   https://audit.icjia.app/?prefill=https%3A%2F%2Fexample.com%2Freport.pdf
+// On page load usePrefill reads the param, calls POST /api/analyze-url,
+// and feeds the result into the same single-file UI used for uploads.
+usePrefill({
+  onStart(url) {
+    processing.value = true;
+    analysisError.value = null;
+    singleResult.value = null;
+    batchItems.value = [];
+    processingStage.value = `Fetching ${url}…`;
+  },
+  onResult(result) {
+    processingStage.value = "Building report…";
+    singleResult.value = result;
+  },
+  onError(err) {
+    analysisError.value = err;
+  },
+  onDone() {
+    processing.value = false;
+  },
+});
+
 // --- Single file analysis (unchanged behavior) ---
 async function analyzeFile(file: File) {
   processing.value = true;
