@@ -258,6 +258,58 @@ Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a tim
 
 **Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
 
+## Analyze from URL (`POST /api/analyze-url`)
+
+Audits a PDF by URL instead of upload. Two surfaces:
+
+1. **API** — `POST /api/analyze-url` with body `{ "url": "..." }` returns the same `AnalysisResult` shape as `POST /api/analyze`.
+2. **Web UI** — visiting `https://audit.icjia.app/?prefill=<url>` auto-fetches the file on page load and displays the result in the existing analysis UI.
+
+This is the server-side complement to the "Audit Link" column that [filecap-cli](https://github.com/ICJIA/filecap-cli) generates in its HTML/CSV reports. Each report row produces a link like `https://audit.icjia.app/?prefill=https%3A%2F%2Fexample.com%2Freport.pdf`; clicking it now runs the audit automatically.
+
+### Using the API
+
+```bash
+curl -X POST https://audit.icjia.app/api/analyze-url \
+  -H "Authorization: Bearer fap_yourtoken" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}'
+```
+
+Auth required — send the session cookie or a Bearer PAT (same as `/api/analyze`).
+
+### URL allowlist
+
+Only ICJIA-domain URLs are accepted by default:
+
+| Allowed host | Matches |
+| --- | --- |
+| `icjia.illinois.gov` | exact |
+| `icjia-api.cloud` | exact and all subdomains |
+| `dvfr.icjia-api.cloud` | explicit subdomain |
+| `i2i.icjia-api.cloud` | explicit subdomain |
+| `vpp.icjia-api.cloud` | explicit subdomain |
+| `infonet.icjia-api.cloud` | explicit subdomain |
+
+Operators can extend the list without a code change via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable (comma-separated hostnames).
+
+### SSRF protection
+
+Even if a hostname passes the allowlist, the endpoint hard-rejects:
+
+- `localhost`, `127.0.0.1`, `0.0.0.0`, `::1`
+- `*.local`, `*.internal`
+- RFC1918 private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
+- Link-local (`169.254.0.0/16`)
+
+### Limits
+
+| Constraint | Value | Note |
+| --- | --- | --- |
+| Max PDF size | 100 MB | Fetched content |
+| Fetch timeout | 30 s | Same as bulk-from-inventory |
+| Rate limit | shared with `/api/analyze` (`analyzeLimiter`) | |
+
 ## Bulk Inventory Scoring (`POST /api/bulk-from-inventory`)
 
 Accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every PDF in it server-side in one request. The server fetches each PDF by its public URL, runs the existing `analyzePDF` pipeline, saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
