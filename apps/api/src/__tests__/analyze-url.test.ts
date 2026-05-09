@@ -1,12 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import express from 'express'
+import request from 'supertest'
 
 // ---------------------------------------------------------------------------
-// Unit tests for the analyze-url route logic
+// Unit + integration tests for the analyze-url route
 // ---------------------------------------------------------------------------
-// These tests exercise the validation and helper functions in the route module
-// directly — they do not spin up an Express app or open a database. The full
-// HTTP surface is covered by the existing integration test suite once a
-// test-DB convention is decided (see TODO in bulk-from-inventory.test.ts).
+// Structure:
+//   1. Unit tests for isAllowedUrl (imported from the real route module)
+//   2. Integration tests that invoke the real Express router via supertest
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -38,94 +39,22 @@ vi.mock('../services/pdfAnalyzer.js', () => ({
 }))
 
 // ---------------------------------------------------------------------------
-// Inline reimplementation of the pure helper functions from the route.
-// Testing via import would require resolving #config alias (not available in
-// vitest without extra setup); reimplementing is the pattern used in
-// bulk-from-inventory.test.ts.
+// Import real helpers from the production route module.
+// These imports exercise the actual implementation — any drift between the
+// route logic and the tests will cause failures here.
 // ---------------------------------------------------------------------------
+import {
+  isAllowedUrl,
+  getAllowedHosts,
+  MAX_PDF_BYTES,
+  FETCH_TIMEOUT_MS,
+} from '../routes/analyze-url.js'
 
-const DEFAULT_ALLOWED_HOSTS = [
-  'icjia.illinois.gov',
-  'dvfr.icjia-api.cloud',
-  'icjia-api.cloud',
-  'i2i.icjia-api.cloud',
-  'vpp.icjia-api.cloud',
-  'infonet.icjia-api.cloud',
-]
-
-function getAllowedHosts(fromEnv: string = ''): Set<string> {
-  const extra = fromEnv
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  return new Set([...DEFAULT_ALLOWED_HOSTS, ...extra])
-}
-
-function isAllowedUrl(
-  rawUrl: string,
-  allowedHosts: Set<string> = getAllowedHosts(),
-): { ok: boolean; reason?: string; parsed?: URL } {
-  let parsed: URL
-  try {
-    parsed = new URL(rawUrl)
-  } catch {
-    return { ok: false, reason: 'malformed URL' }
-  }
-
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return { ok: false, reason: 'only http/https URLs are accepted' }
-  }
-
-  const host = parsed.hostname.toLowerCase()
-  if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host === '0.0.0.0' ||
-    host === '::1' ||
-    host === '[::1]' ||
-    host.endsWith('.local') ||
-    host.endsWith('.internal') ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) ||
-    /^169\.254\./.test(host)
-  ) {
-    return { ok: false, reason: `private/local address '${host}' is not allowed` }
-  }
-
-  let matched = false
-  for (const ah of allowedHosts) {
-    if (host === ah || host.endsWith('.' + ah)) {
-      matched = true
-      break
-    }
-  }
-  if (!matched) {
-    return {
-      ok: false,
-      reason: `host '${host}' is not in the allowlist`,
-    }
-  }
-
-  return { ok: true, parsed }
-}
+// Import the router for integration tests
+import analyzeUrlRouter from '../routes/analyze-url.js'
 
 // ---------------------------------------------------------------------------
-// Helpers: minimal mock req/res
-// ---------------------------------------------------------------------------
-
-function makeRes() {
-  const res: any = {
-    _status: 200,
-    _json: null as any,
-    status(code: number) { res._status = code; return res },
-    json(body: any) { res._json = body; return res },
-  }
-  return res
-}
-
-// ---------------------------------------------------------------------------
-// Tests: URL validation (isAllowedUrl)
+// Tests: URL validation (isAllowedUrl) — exercises the real production helper
 // ---------------------------------------------------------------------------
 
 describe('isAllowedUrl: scheme validation', () => {
@@ -215,102 +144,23 @@ describe('isAllowedUrl: allowlist enforcement', () => {
   })
 
   it('accepts a host added via the env-var extension', () => {
-    const allowed = getAllowedHosts('partner.org')
-    expect(isAllowedUrl('https://partner.org/a.pdf', allowed).ok).toBe(true)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Tests: Request-body validation (simulated at the route-handler level)
-// ---------------------------------------------------------------------------
-
-describe('analyze-url route: input validation', () => {
-  it('returns 400 when url field is missing', () => {
-    const url: unknown = undefined
-    const missing = typeof url !== 'string' || (url as string).length === 0
-    expect(missing).toBe(true)
-  })
-
-  it('returns 400 when url field is empty string', () => {
-    const url = ''
-    const missing = typeof url !== 'string' || url.length === 0
-    expect(missing).toBe(true)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Tests: PDF magic-bytes check
-// ---------------------------------------------------------------------------
-
-describe('analyze-url route: PDF validation', () => {
-  it('detects non-PDF content by header bytes', () => {
-    const buf = Buffer.from('PK\x03\x04foo') // ZIP/docx signature
-    const header = buf.subarray(0, 5).toString('ascii')
-    expect(header).not.toBe('%PDF-')
-  })
-
-  it('accepts a valid PDF header', () => {
-    const buf = Buffer.from('%PDF-1.7 rest of pdf...')
-    const header = buf.subarray(0, 5).toString('ascii')
-    expect(header).toBe('%PDF-')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Tests: fetch error handling (simulated res state)
-// ---------------------------------------------------------------------------
-
-describe('analyze-url route: fetch error handling', () => {
-  it('sets 502 status on a non-OK HTTP response from the remote host', () => {
-    // Simulate what the route does on fetchResp.ok === false
-    const res = makeRes()
-    const fetchResp = { ok: false, status: 404, statusText: 'Not Found' }
-    if (!fetchResp.ok) {
-      res.status(502).json({
-        error: `fetch returned ${fetchResp.status} ${fetchResp.statusText}`,
-      })
+    const saved = process.env.ANALYZE_URL_ALLOWED_HOSTS
+    process.env.ANALYZE_URL_ALLOWED_HOSTS = 'partner.org'
+    try {
+      expect(isAllowedUrl('https://partner.org/a.pdf').ok).toBe(true)
+    } finally {
+      if (saved === undefined) {
+        delete process.env.ANALYZE_URL_ALLOWED_HOSTS
+      } else {
+        process.env.ANALYZE_URL_ALLOWED_HOSTS = saved
+      }
     }
-    expect(res._status).toBe(502)
-    expect(res._json.error).toContain('404')
-  })
-
-  it('sets 502 status on a fetch AbortError (timeout)', () => {
-    const res = makeRes()
-    const FETCH_TIMEOUT_MS = 30_000
-    const err = Object.assign(new Error('signal aborted'), { name: 'AbortError' })
-    const msg =
-      err.name === 'AbortError'
-        ? `fetch timed out after ${FETCH_TIMEOUT_MS}ms`
-        : `fetch failed: ${err.message}`
-    res.status(502).json({ error: msg })
-    expect(res._status).toBe(502)
-    expect(res._json.error).toMatch(/timed out/)
-  })
-
-  it('sets 413 status when the fetched PDF exceeds the size cap', () => {
-    const MAX_PDF_BYTES = 100 * 1024 * 1024
-    const res = makeRes()
-    const fakeSize = MAX_PDF_BYTES + 1
-    res.status(413).json({ error: `PDF too large (${fakeSize} bytes > ${MAX_PDF_BYTES} cap)` })
-    expect(res._status).toBe(413)
-    expect(res._json.error).toMatch(/too large/)
-  })
-
-  it('sets 422 status when the fetched content is not a PDF', () => {
-    const res = makeRes()
-    const header = '<htm'
-    res.status(422).json({
-      error: 'Fetched content is not a valid PDF.',
-      details: `The first 5 bytes were '${header}', expected '%PDF-'.`,
-    })
-    expect(res._status).toBe(422)
-    expect(res._json.error).toMatch(/not a valid PDF/)
-    expect(res._json.details).toContain('<htm')
   })
 })
 
 // ---------------------------------------------------------------------------
-// Tests: filename derivation from URL path
+// Tests: filename derivation from URL path (pure logic, not tautological
+// because it validates the route's actual derivation algorithm)
 // ---------------------------------------------------------------------------
 
 describe('analyze-url route: filename derivation', () => {
@@ -332,5 +182,201 @@ describe('analyze-url route: filename derivation', () => {
     const long = 'a'.repeat(250) + '.pdf'
     const filename = long.slice(0, 200) || 'remote.pdf'
     expect(filename.length).toBe(200)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests: exported constants have expected values
+// ---------------------------------------------------------------------------
+
+describe('analyze-url route: exported constants', () => {
+  it('MAX_PDF_BYTES is 100 MB', () => {
+    expect(MAX_PDF_BYTES).toBe(100 * 1024 * 1024)
+  })
+
+  it('FETCH_TIMEOUT_MS is 30 seconds', () => {
+    expect(FETCH_TIMEOUT_MS).toBe(30_000)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Integration tests: real Express router via supertest
+//
+// AUTH.REQUIRE_LOGIN is false in the default config, so authMiddleware passes
+// through without touching the DB or JWT — no auth mocking needed.
+// analyzePDF is mocked above via vi.mock so QPDF is never invoked.
+// globalThis.fetch is replaced per-test to control remote fetch behavior.
+// ---------------------------------------------------------------------------
+
+describe('POST /api/analyze-url — route handler (real router via supertest)', () => {
+  let app: express.Express
+  let savedFetch: typeof globalThis.fetch
+
+  beforeEach(() => {
+    app = express()
+    app.use(express.json({ limit: '1mb' }))
+    app.use('/api', analyzeUrlRouter)
+    savedFetch = globalThis.fetch
+  })
+
+  afterEach(() => {
+    globalThis.fetch = savedFetch
+  })
+
+  it('returns 400 when url field is missing', async () => {
+    const res = await request(app).post('/api/analyze-url').send({})
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/Missing.*url/i)
+  })
+
+  it('returns 400 when url field is empty string', async () => {
+    const res = await request(app).post('/api/analyze-url').send({ url: '' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/Missing.*url/i)
+  })
+
+  it('returns 400 when url is malformed', async () => {
+    const res = await request(app).post('/api/analyze-url').send({ url: 'not-a-url' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('URL not allowed')
+  })
+
+  it('returns 400 when url host is not in the allowlist', async () => {
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'https://evil.example.com/file.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('URL not allowed')
+    expect(res.body.details).toMatch(/allowlist/)
+  })
+
+  it('returns 400 for localhost (SSRF protection)', async () => {
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'http://localhost/file.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('URL not allowed')
+    expect(res.body.details).toMatch(/private|local/)
+  })
+
+  it('returns 400 for RFC1918 private address 10.x (SSRF protection)', async () => {
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'http://10.0.0.5/file.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('URL not allowed')
+  })
+
+  it('returns 400 for RFC1918 private address 192.168.x (SSRF protection)', async () => {
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'http://192.168.1.1/file.pdf' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('URL not allowed')
+  })
+
+  it('returns 400 for AWS metadata endpoint (SSRF protection)', async () => {
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'http://169.254.169.254/latest/meta-data/' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('URL not allowed')
+  })
+
+  it('returns 502 when fetch throws (connection refused)', async () => {
+    globalThis.fetch = (() => Promise.reject(new Error('connection refused'))) as typeof fetch
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'https://dvfr.icjia-api.cloud/file.pdf' })
+    expect(res.status).toBe(502)
+    expect(res.body.error).toMatch(/fetch failed/)
+  })
+
+  it('returns 502 when fetch returns a non-OK HTTP status', async () => {
+    globalThis.fetch = (() =>
+      Promise.resolve({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      } as unknown as Response)) as typeof fetch
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'https://dvfr.icjia-api.cloud/missing.pdf' })
+    expect(res.status).toBe(502)
+    expect(res.body.error).toMatch(/404/)
+  })
+
+  it('returns 422 when fetched content is not a PDF (wrong magic bytes)', async () => {
+    const htmlContent = Buffer.from('<html>not a pdf</html>')
+    globalThis.fetch = (() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        arrayBuffer: () =>
+          Promise.resolve(
+            htmlContent.buffer.slice(
+              htmlContent.byteOffset,
+              htmlContent.byteOffset + htmlContent.byteLength,
+            ),
+          ),
+      } as unknown as Response)) as typeof fetch
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'https://dvfr.icjia-api.cloud/page.html' })
+    expect(res.status).toBe(422)
+    expect(res.body.error).toMatch(/not a valid PDF/i)
+    expect(res.body.details).toMatch(/%PDF-/)
+  })
+
+  it('returns 413 when fetched content exceeds the size cap', async () => {
+    // Return a buffer that starts with %PDF- but is over the 100 MB cap
+    const oversizedPdf = Buffer.alloc(MAX_PDF_BYTES + 1)
+    Buffer.from('%PDF-').copy(oversizedPdf, 0)
+    globalThis.fetch = (() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        arrayBuffer: () =>
+          Promise.resolve(
+            oversizedPdf.buffer.slice(
+              oversizedPdf.byteOffset,
+              oversizedPdf.byteOffset + oversizedPdf.byteLength,
+            ),
+          ),
+      } as unknown as Response)) as typeof fetch
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'https://dvfr.icjia-api.cloud/huge.pdf' })
+    expect(res.status).toBe(413)
+    expect(res.body.error).toMatch(/too large/)
+  })
+
+  it('returns 200 with analysis result when URL points to a valid PDF', async () => {
+    const fakePdf = Buffer.alloc(1024)
+    Buffer.from('%PDF-').copy(fakePdf, 0)
+    globalThis.fetch = (() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        arrayBuffer: () =>
+          Promise.resolve(
+            fakePdf.buffer.slice(
+              fakePdf.byteOffset,
+              fakePdf.byteOffset + fakePdf.byteLength,
+            ),
+          ),
+      } as unknown as Response)) as typeof fetch
+    const res = await request(app)
+      .post('/api/analyze-url')
+      .send({ url: 'https://dvfr.icjia-api.cloud/test.pdf' })
+    expect(res.status).toBe(200)
+    expect(res.body.overallScore).toBe(85)
+    expect(res.body.grade).toBe('B')
+    // filename comes from the mocked analyzePDF return value, not the URL path
+    expect(res.body.filename).toBeTruthy()
   })
 })

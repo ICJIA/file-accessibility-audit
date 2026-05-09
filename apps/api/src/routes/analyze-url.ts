@@ -5,8 +5,8 @@ import { analyzePDF } from '../services/pdfAnalyzer.js'
 
 const router: IRouter = Router()
 
-const MAX_PDF_BYTES = 100 * 1024 * 1024 // 100 MB
-const FETCH_TIMEOUT_MS = 30_000
+export const MAX_PDF_BYTES = 100 * 1024 * 1024 // 100 MB
+export const FETCH_TIMEOUT_MS = 30_000
 
 // ---------------------------------------------------------------------------
 // URL allowlist
@@ -24,7 +24,7 @@ const DEFAULT_ALLOWED_HOSTS = [
   'infonet.icjia-api.cloud',
 ]
 
-function getAllowedHosts(): Set<string> {
+export function getAllowedHosts(): Set<string> {
   const fromEnv = (process.env.ANALYZE_URL_ALLOWED_HOSTS ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -32,7 +32,7 @@ function getAllowedHosts(): Set<string> {
   return new Set([...DEFAULT_ALLOWED_HOSTS, ...fromEnv])
 }
 
-function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; parsed?: URL } {
+export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; parsed?: URL } {
   let parsed: URL
   try {
     parsed = new URL(rawUrl)
@@ -81,7 +81,7 @@ function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; parsed?: 
   return { ok: true, parsed }
 }
 
-async function fetchWithTimeout(url: string, timeoutMs: number): Promise<globalThis.Response> {
+export async function fetchWithTimeout(url: string, timeoutMs: number): Promise<globalThis.Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
