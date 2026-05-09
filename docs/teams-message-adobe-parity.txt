@@ -1,0 +1,32 @@
+Hey — wanted to share something I've been chewing on about the audit scoring. Short version: your remediation is doing the right work. The score gaps between our auditz, Adobe's checker, and PDF/UA tools aren't about what you're remediating — they're about which yardstick is being used, and it turns out none of them really agree with each other.
+
+Giving you the context I came out with this morning in case it's useful for how we talk about the numbers.
+
+
+Illinois compliance = WCAG 2.1 AA.
+
+IITAA 2.1 §E205.4 points directly at WCAG for non-web electronic documents. That's our legal bar. Our Strict profile is the view that measures against it — which is why it tends to be the tougher number. (Quick reference: https://www.w3.org/WAI/WCAG21/quickref/)
+
+
+PDF/UA (ISO 14289-1) is NOT required by Illinois.
+
+It shows up once in IITAA, at §504.2.2, but only as an authoring-tool capability requirement — Acrobat/InDesign have to be *able* to export PDF/UA; the final document doesn't have to conform to it under Illinois law. That said, PDF/UA remediation naturally picks up most of the WCAG requirements as a side effect — so your pipeline is giving us solid IITAA coverage, which is what matters. In the audit, the Practical profile treats PDF/UA signals as lift-only — they can boost your score but never drag it.
+
+
+Adobe's built-in Accessibility Checker is its own thing.
+
+Not Illinois, not PDF/UA — just 32 binary rules Adobe chose to automate (the Full Check dialog literally labels them "32 of 32 in all categories"). Adobe documents each one here: https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html.
+
+And here's the bit that surprised me: most are *existence-validators*. They check whether tags already present are well-formed, but rarely assert that a type of content *must exist*. I ran one remediated file through Acrobat and got "28/32 passed" — sounds great — but ~20 of those 28 were vacuous (no tables → 4 table rules pass, no figures → all 5 alt-text rules pass, no headings → "Appropriate nesting" passes). Acrobat doesn't flag them as vacuous, so its "pass" reads a lot stronger than it actually is.
+
+
+The gap between Acrobat's "pass" and our audit's score is the gap we *want* to see (as you mention above) — it's how we know we're measuring real accessibility against the IITAA bar, not checklist compliance. I'm adding an "Adobe parity" panel to the report UI so anyone who asks "but Adobe says it passes!" can see both views side-by-side with vacuous passes flagged. Should help head off those conversations.
+
+Nothing needs to change on your end — just wanted you to have this same context. Happy to dig into any of the specifics if helpful.
+
+
+References if you want to verify:
+- Adobe Acrobat Accessibility Checker — rule-by-rule: https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html
+- Adobe's plain-language PDF accessibility walkthrough: https://blog.adobe.com/en/publish/2022/11/29/the-complete-checklist-to-pdf-accessibility
+- WCAG 2.1 quick reference: https://www.w3.org/WAI/WCAG21/quickref/
+- IITAA 2.1 standards: findable via Illinois DoIT's site — the §E205.4 and §504.2.2 sections are the ones referenced above.
