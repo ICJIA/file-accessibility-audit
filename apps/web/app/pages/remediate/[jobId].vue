@@ -400,7 +400,117 @@ function labelForEvent(name: string): string {
             :result="receipt.outputAudit"
           />
 
-          <!-- Outstanding-issues callout + expandable detail -->
+          <!-- Three-heuristic comparison (visible by default — primary
+               comparison story) -->
+          <div
+            v-if="heuristicRows.length > 0"
+            class="mt-6 pt-6 border-t border-emerald-700/30"
+          >
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-1">
+              All three scoring heuristics
+            </h3>
+            <p class="text-xs text-[var(--text-muted)] mb-3">
+              The audit measures accessibility three ways. Here's how each one moved.
+            </p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-[var(--text-muted)] border-b border-emerald-700/30">
+                    <th class="py-2 pr-4 font-medium">Heuristic</th>
+                    <th class="py-2 pr-4 font-medium">Before</th>
+                    <th class="py-2 pr-4 font-medium">After</th>
+                    <th class="py-2 font-medium">Δ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in heuristicRows"
+                    :key="row.label"
+                    class="border-b border-emerald-700/15 last:border-0"
+                  >
+                    <td class="py-3 pr-4">
+                      <div class="font-medium">{{ row.label }}</div>
+                      <div class="text-xs text-[var(--text-muted)] mt-0.5">
+                        {{ row.description }}
+                      </div>
+                    </td>
+                    <td class="py-3 pr-4 font-mono">{{ row.beforeText }}</td>
+                    <td class="py-3 pr-4 font-mono">{{ row.afterText }}</td>
+                    <td
+                      class="py-3 font-mono"
+                      :class="{
+                        'text-emerald-400': row.delta.startsWith('+'),
+                        'text-red-400': row.delta.startsWith('-'),
+                      }"
+                    >
+                      {{ row.delta }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Fully fixed (visible by default — celebrate the wins) -->
+          <div
+            v-if="fixedCategories.length > 0"
+            class="mt-6 pt-6 border-t border-emerald-700/30"
+          >
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-2">
+              ✓ Fully fixed ({{ fixedCategories.length }})
+            </h3>
+            <ul class="space-y-1 text-sm">
+              <li
+                v-for="cat in fixedCategories"
+                :key="cat.id"
+                class="flex items-baseline gap-3"
+              >
+                <span class="flex-1">{{ cat.label }}</span>
+                <span class="font-mono text-[var(--text-muted)] text-xs">
+                  {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) ?? '?' }}
+                </span>
+                <span
+                  v-if="cat.delta !== null"
+                  class="font-mono text-emerald-400 text-xs w-12 text-right"
+                >
+                  +{{ cat.delta.toFixed(0) }}
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Improved but still low (visible by default) -->
+          <div
+            v-if="improvedButLowCategories.length > 0"
+            class="mt-6 pt-6 border-t border-emerald-700/30"
+          >
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">
+              ↑ Improved but still needs a closer look ({{ improvedButLowCategories.length }})
+            </h3>
+            <ul class="space-y-3 text-sm">
+              <li v-for="cat in improvedButLowCategories" :key="cat.id">
+                <div class="flex items-baseline gap-3">
+                  <span class="flex-1">{{ cat.label }}</span>
+                  <span class="font-mono text-[var(--text-muted)] text-xs">
+                    {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) }}
+                  </span>
+                  <span class="font-mono text-amber-400 text-xs w-12 text-right">
+                    +{{ cat.delta?.toFixed(0) }}
+                  </span>
+                </div>
+                <ul
+                  v-if="cat.findings.length > 0"
+                  class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+                >
+                  <li v-for="f in cat.findings.slice(0, 2)" :key="f">
+                    {{ f }}
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Outstanding-issues callout + expandable severity detail -->
           <div class="mt-6 pt-6 border-t border-emerald-700/30">
             <!-- Inline summary -->
             <p
@@ -418,37 +528,16 @@ function labelForEvent(name: string): string {
               {{ outstandingModerate.length }} moderate).
             </p>
 
-            <!-- Expandable detail -->
+            <!-- Expandable detail with Adobe Acrobat next steps -->
             <details class="mt-4 group">
               <summary
                 class="cursor-pointer text-sm font-medium text-emerald-200 hover:text-emerald-100 select-none text-center list-none flex items-center justify-center gap-2"
               >
-                <span class="group-open:hidden">Show details: what was fixed, what's left, Adobe Acrobat next steps ▾</span>
-                <span class="hidden group-open:inline">Hide details ▴</span>
+                <span class="group-open:hidden">Show outstanding issues + Adobe Acrobat next steps ▾</span>
+                <span class="hidden group-open:inline">Hide outstanding issues ▴</span>
               </summary>
 
               <div class="mt-6 space-y-6">
-                <!-- What was fixed (compact) -->
-                <div v-if="fixedSummaryItems.length > 0">
-                  <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-2">
-                    Fixed this run
-                  </h3>
-                  <ul class="text-sm space-y-1">
-                    <li
-                      v-for="item in fixedSummaryItems"
-                      :key="item.id"
-                      class="flex items-baseline gap-3"
-                    >
-                      <span class="flex-1">{{ item.label }}</span>
-                      <span class="font-mono text-[var(--text-muted)] text-xs">
-                        {{ item.before === null ? 'N/A' : item.before.toFixed(0) }} → {{ item.after?.toFixed(0) }}
-                      </span>
-                      <span class="font-mono text-emerald-400 text-xs w-12 text-right">
-                        +{{ item.delta?.toFixed(0) }}
-                      </span>
-                    </li>
-                  </ul>
-                </div>
 
                 <!-- Critical outstanding -->
                 <div v-if="outstandingCritical.length > 0">
@@ -619,144 +708,10 @@ function labelForEvent(name: string): string {
       </p>
     </section>
 
-    <!-- Three-heuristic comparison -->
-    <section
-      v-if="status?.status === 'complete' && heuristicRows.length > 0"
-      class="border border-[var(--border)] rounded-lg p-6 mb-6"
-    >
-      <h2 class="text-lg font-medium mb-1">All three scoring heuristics</h2>
-      <p class="text-sm text-[var(--text-muted)] mb-4">
-        The audit measures accessibility three ways. Here's how each one moved.
-      </p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
-              <th class="py-2 pr-4 font-medium">Heuristic</th>
-              <th class="py-2 pr-4 font-medium">Before</th>
-              <th class="py-2 pr-4 font-medium">After</th>
-              <th class="py-2 font-medium">Δ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in heuristicRows"
-              :key="row.label"
-              class="border-b border-[var(--border)]/40 last:border-0"
-            >
-              <td class="py-3 pr-4">
-                <div class="font-medium">{{ row.label }}</div>
-                <div class="text-xs text-[var(--text-muted)] mt-0.5">
-                  {{ row.description }}
-                </div>
-              </td>
-              <td class="py-3 pr-4 font-mono">{{ row.beforeText }}</td>
-              <td class="py-3 pr-4 font-mono">{{ row.afterText }}</td>
-              <td
-                class="py-3 font-mono"
-                :class="{
-                  'text-emerald-400': row.delta.startsWith('+'),
-                  'text-red-400': row.delta.startsWith('-'),
-                }"
-              >
-                {{ row.delta }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- What we fixed -->
-    <section
-      v-if="status?.status === 'complete' && fixedCategories.length > 0"
-      class="border border-emerald-700/40 bg-emerald-950/10 rounded-lg p-6 mb-6"
-    >
-      <h2 class="text-lg font-medium mb-3 text-emerald-400">
-        ✓ What we fixed ({{ fixedCategories.length }})
-      </h2>
-      <ul class="space-y-2 text-sm">
-        <li
-          v-for="cat in fixedCategories"
-          :key="cat.id"
-          class="flex items-baseline gap-3"
-        >
-          <span class="font-medium flex-1">{{ cat.label }}</span>
-          <span class="font-mono text-[var(--text-muted)]">
-            {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) ?? '?' }}
-          </span>
-          <span
-            v-if="cat.delta !== null"
-            class="font-mono text-emerald-400 w-12 text-right"
-          >
-            +{{ cat.delta.toFixed(0) }}
-          </span>
-        </li>
-      </ul>
-    </section>
-
-    <!-- Improved but still low -->
-    <section
-      v-if="status?.status === 'complete' && improvedButLowCategories.length > 0"
-      class="border border-amber-700/40 bg-amber-950/10 rounded-lg p-6 mb-6"
-    >
-      <h2 class="text-lg font-medium mb-3 text-amber-400">
-        ↑ Improved but still needs a closer look ({{ improvedButLowCategories.length }})
-      </h2>
-      <ul class="space-y-3 text-sm">
-        <li v-for="cat in improvedButLowCategories" :key="cat.id">
-          <div class="flex items-baseline gap-3">
-            <span class="font-medium flex-1">{{ cat.label }}</span>
-            <span class="font-mono text-[var(--text-muted)]">
-              {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) }}
-            </span>
-            <span class="font-mono text-amber-400 w-12 text-right">
-              +{{ cat.delta?.toFixed(0) }}
-            </span>
-          </div>
-          <ul
-            v-if="cat.findings.length > 0"
-            class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
-          >
-            <li v-for="f in cat.findings.slice(0, 2)" :key="f">
-              {{ f }}
-            </li>
-          </ul>
-        </li>
-      </ul>
-    </section>
-
-    <!-- Still needs manual review -->
-    <section
-      v-if="status?.status === 'complete' && needsManualCategories.length > 0"
-      class="border border-red-700/40 bg-red-950/10 rounded-lg p-6 mb-6"
-    >
-      <h2 class="text-lg font-medium mb-3 text-red-400">
-        ⚠ Still needs manual review ({{ needsManualCategories.length }})
-      </h2>
-      <p class="text-sm text-[var(--text-muted)] mb-4">
-        Auto-remediation couldn't improve these categories. These typically need
-        a human to write meaningful descriptions, verify reading order, or mark
-        table headers.
-      </p>
-      <ul class="space-y-3 text-sm">
-        <li v-for="cat in needsManualCategories" :key="cat.id">
-          <div class="flex items-baseline gap-3">
-            <span class="font-medium flex-1">{{ cat.label }}</span>
-            <span class="font-mono text-[var(--text-muted)]">
-              {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after === null ? 'N/A' : cat.after.toFixed(0) }}
-            </span>
-          </div>
-          <ul
-            v-if="cat.findings.length > 0"
-            class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
-          >
-            <li v-for="f in cat.findings.slice(0, 2)" :key="f">
-              {{ f }}
-            </li>
-          </ul>
-        </li>
-      </ul>
+    <!-- Source-document recommendation: PDF remediation is a fallback;
+         the real fix is upstream in the authoring tool. -->
+    <section v-if="status?.status === 'complete'" class="mb-6">
+      <SourceDocumentNotice variant="result" />
     </section>
 
     <!-- Issues summary on the remediated output (same component as audit page) -->

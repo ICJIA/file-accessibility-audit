@@ -192,11 +192,16 @@
 
         <!-- Auto-Remediate (visible right under the score; component
              self-hides on score ≥ 90 or when REMEDIATION feature is off) -->
-        <div class="mb-8 flex justify-center">
+        <div class="mb-6 flex justify-center">
           <RemediateButton
             :file="singleFile"
             :input-score="result?.overallScore ?? null"
           />
+        </div>
+
+        <!-- Best path to a11y starts at the source document -->
+        <div class="mb-8">
+          <SourceDocumentNotice variant="audit" />
         </div>
 
         <ReportActionBanner
