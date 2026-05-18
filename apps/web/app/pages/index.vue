@@ -316,11 +316,6 @@
           </p>
         </div>
 
-        <!-- Adobe Acrobat parity — a third view alongside Strict and Practical. -->
-        <div v-if="result.adobeParity" class="mb-8">
-          <AdobeParityCard :parity="result.adobeParity" />
-        </div>
-
         <!-- Score Table -->
         <div
           ref="categoryScoresAnchor"

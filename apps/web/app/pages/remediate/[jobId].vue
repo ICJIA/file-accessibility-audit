@@ -220,32 +220,6 @@ const heuristicRows = computed<HeuristicRow[]>(() => {
     })
   }
 
-  // Adobe parity (the 32-rule checker signal)
-  const adBefore = inp.adobeParity?.summary
-  const adAfter = out.adobeParity?.summary
-  if (adBefore || adAfter) {
-    const pB = adBefore?.passed ?? null
-    const pA = adAfter?.passed ?? null
-    const vB = adBefore?.vacuousPasses ?? 0
-    const vA = adAfter?.vacuousPasses ?? 0
-    const mB = pB === null ? null : pB - vB
-    const mA = pA === null ? null : pA - vA
-    const tot = adAfter?.total ?? adBefore?.total ?? 0
-    rows.push({
-      label: 'Adobe Acrobat checks',
-      description:
-        'The 32-rule parity check Adobe Acrobat runs. A rule passes "vacuously" when the document has no content of that type (e.g., "Table headers" auto-passes if there are no tables). Adding structure can DECREASE total passes while INCREASING meaningful (non-vacuous) passes.',
-      beforeText:
-        pB === null ? '–' : `${pB}/${tot} (${mB} meaningful)`,
-      afterText:
-        pA === null ? '–' : `${pA}/${tot} (${mA} meaningful)`,
-      delta:
-        pA !== null && pB !== null && mA !== null && mB !== null
-          ? `${pA - pB >= 0 ? '+' : ''}${pA - pB} / ${mA - mB >= 0 ? '+' : ''}${mA - mB} meaningful`
-          : '–',
-    })
-  }
-
   return rows
 })
 
@@ -421,10 +395,10 @@ function labelForEvent(name: string): string {
             class="mt-6 pt-6 border-t border-emerald-700/30"
           >
             <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-1">
-              All three scoring heuristics
+              Score comparison
             </h3>
             <p class="text-xs text-[var(--text-muted)] mb-3">
-              The audit measures accessibility three ways. Here's how each one moved.
+              Both scoring profiles before and after remediation.
             </p>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -853,15 +827,6 @@ function labelForEvent(name: string): string {
     >
       <h2 class="text-lg font-medium mb-3">Issues in the remediated PDF</h2>
       <IssuesSummary :categories="receipt.outputAudit.categories" />
-    </section>
-
-    <!-- Adobe parity comparison (uses the same card as audit page) -->
-    <section
-      v-if="status?.status === 'complete' && receipt?.outputAudit?.adobeParity"
-      class="mb-6"
-    >
-      <h2 class="text-lg font-medium mb-3">Adobe Acrobat checks (remediated)</h2>
-      <AdobeParityCard :parity="receipt.outputAudit.adobeParity" />
     </section>
 
     <!-- Failed -->
