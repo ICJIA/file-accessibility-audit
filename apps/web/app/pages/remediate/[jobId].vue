@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useRemediationJob } from '~/composables/useRemediationJob'
+import {
+  useRemediationJob,
+  type CategoryResult,
+} from '~/composables/useRemediationJob'
+
+// Score-mode toggle (matches the audit page's ScoreCard contract)
+const beforeMode = ref<'strict' | 'remediation'>('strict')
+const afterMode = ref<'strict' | 'remediation'>('strict')
 
 definePageMeta({ middleware: [] })
 
@@ -10,6 +17,151 @@ const jobId = String(route.params.jobId)
 const downloadToken = String(route.query.t ?? '')
 
 const { status, receipt, error, loading, isTerminal } = useRemediationJob(jobId)
+
+// ------------------------------------------------------------------
+// Category comparison (drives "What we fixed" / "Still needs review")
+// ------------------------------------------------------------------
+
+interface CategoryPair {
+  id: string
+  label: string
+  before: number | null
+  after: number | null
+  delta: number | null
+  findings: string[]
+}
+
+const categoryPairs = computed<CategoryPair[]>(() => {
+  const input = receipt.value?.inputAudit?.categories ?? []
+  const output = receipt.value?.outputAudit?.categories ?? []
+  const byId = new Map<string, CategoryResult>()
+  for (const c of input) byId.set(c.id, c)
+  return output.map((after) => {
+    const before = byId.get(after.id)
+    const beforeScore = before?.score ?? null
+    const afterScore = after.score ?? null
+    return {
+      id: after.id,
+      label: after.label,
+      before: beforeScore,
+      after: afterScore,
+      delta:
+        beforeScore !== null && afterScore !== null
+          ? afterScore - beforeScore
+          : null,
+      findings: after.findings ?? [],
+    }
+  })
+})
+
+const fixedCategories = computed(() =>
+  categoryPairs.value.filter(
+    (p) =>
+      p.after !== null &&
+      p.after >= 80 &&
+      ((p.before ?? -1) < p.after || (p.before === null && p.after >= 80)),
+  ),
+)
+
+const improvedButLowCategories = computed(() =>
+  categoryPairs.value.filter(
+    (p) =>
+      p.after !== null &&
+      p.after < 80 &&
+      p.delta !== null &&
+      p.delta > 0,
+  ),
+)
+
+const needsManualCategories = computed(() =>
+  categoryPairs.value.filter(
+    (p) =>
+      p.after !== null &&
+      p.after < 80 &&
+      (p.delta === null || p.delta <= 0),
+  ),
+)
+
+// ------------------------------------------------------------------
+// Three-heuristic comparison rows
+// ------------------------------------------------------------------
+
+interface HeuristicRow {
+  label: string
+  description: string
+  beforeText: string
+  afterText: string
+  delta: string
+}
+
+function fmtScoreGrade(score: number | null | undefined, grade: string | null | undefined): string {
+  if (score === null || score === undefined) return '–'
+  return `${score.toFixed(0)} (${grade ?? '?'})`
+}
+
+const heuristicRows = computed<HeuristicRow[]>(() => {
+  const inp = receipt.value?.inputAudit
+  const out = receipt.value?.outputAudit
+  if (!inp || !out) return []
+  const rows: HeuristicRow[] = []
+
+  // Strict (the canonical score most prominently shown on the audit page)
+  const strictBefore = inp.scoreProfiles?.strict
+  const strictAfter = out.scoreProfiles?.strict
+  if (strictBefore || strictAfter) {
+    const dB = strictBefore?.overallScore ?? null
+    const dA = strictAfter?.overallScore ?? null
+    rows.push({
+      label: 'Strict score',
+      description: 'The graded WCAG-aligned score shown on the audit page.',
+      beforeText: fmtScoreGrade(dB, strictBefore?.grade),
+      afterText: fmtScoreGrade(dA, strictAfter?.grade),
+      delta:
+        dA !== null && dB !== null
+          ? `${dA - dB >= 0 ? '+' : ''}${(dA - dB).toFixed(0)}`
+          : '–',
+    })
+  }
+
+  // Remediation (the "practical" profile)
+  const remBefore = inp.scoreProfiles?.remediation
+  const remAfter = out.scoreProfiles?.remediation
+  if (remBefore || remAfter) {
+    const dB = remBefore?.overallScore ?? null
+    const dA = remAfter?.overallScore ?? null
+    rows.push({
+      label: 'Remediation score',
+      description: 'Practical scoring profile (weights N/A categories more leniently).',
+      beforeText: fmtScoreGrade(dB, remBefore?.grade),
+      afterText: fmtScoreGrade(dA, remAfter?.grade),
+      delta:
+        dA !== null && dB !== null
+          ? `${dA - dB >= 0 ? '+' : ''}${(dA - dB).toFixed(0)}`
+          : '–',
+    })
+  }
+
+  // Adobe parity (the 32-rule checker signal)
+  const adBefore = inp.adobeParity?.summary
+  const adAfter = out.adobeParity?.summary
+  if (adBefore || adAfter) {
+    const pB = adBefore?.passed ?? null
+    const pA = adAfter?.passed ?? null
+    const tot = adAfter?.total ?? adBefore?.total ?? 0
+    rows.push({
+      label: 'Adobe Acrobat checks',
+      description: 'The 32-rule parity check Adobe Acrobat itself runs.',
+      beforeText: pB === null ? '–' : `${pB}/${tot} passed`,
+      afterText: pA === null ? '–' : `${pA}/${tot} passed`,
+      delta:
+        pA !== null && pB !== null
+          ? `${pA - pB >= 0 ? '+' : ''}${pA - pB}`
+          : '–',
+    })
+  }
+
+  return rows
+})
 
 const stepLabels: Record<string, string> = {
   preparing: 'Preparing file',
@@ -130,20 +282,45 @@ function labelForEvent(name: string): string {
       </p>
     </section>
 
-    <!-- Complete -->
+    <!-- Complete: before/after ScoreCards side-by-side -->
     <section
-      v-if="status && status.status === 'complete'"
-      class="border border-emerald-700/50 bg-emerald-950/20 rounded-lg p-6 mb-6"
+      v-if="status?.status === 'complete' && receipt?.inputAudit && receipt?.outputAudit"
+      class="mb-6"
     >
-      <h2 class="text-lg font-medium mb-3 text-emerald-400">
-        Auto-remediation complete
+      <h2 class="text-emerald-400 text-center text-base font-medium mb-4">
+        ✓ Auto-remediation complete
       </h2>
-      <p class="text-2xl font-semibold mb-1">
-        {{ status.inputScore?.toFixed(0) ?? '?' }} → {{ status.outputScore?.toFixed(0) ?? '?' }}
-      </p>
-      <p class="text-sm text-[var(--text-muted)] mb-6">
-        Score improvement from auto-remediation.
-      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- BEFORE -->
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6 relative">
+          <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+            Before
+          </span>
+          <ScoreCard
+            v-model:selected-mode="beforeMode"
+            :result="receipt.inputAudit"
+          />
+        </div>
+
+        <!-- AFTER -->
+        <div class="rounded-xl border-2 border-emerald-700/40 bg-emerald-950/10 p-4 sm:p-6 relative">
+          <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">
+            After remediation
+          </span>
+          <ScoreCard
+            v-model:selected-mode="afterMode"
+            :result="receipt.outputAudit"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Download + manual-review notice -->
+    <section
+      v-if="status?.status === 'complete'"
+      class="rounded-xl border border-emerald-700/40 bg-emerald-950/20 p-6 mb-6 text-center"
+    >
       <UButton
         v-if="downloadHref"
         :to="downloadHref"
@@ -153,14 +330,172 @@ function labelForEvent(name: string): string {
       >
         ⬇ Download Remediated PDF
       </UButton>
-      <p v-else class="text-sm text-amber-400 mb-4">
+      <p v-else class="text-sm text-amber-400">
         Download token missing — return to the audit page and click Remediate again.
       </p>
-      <p class="text-sm mt-6 text-amber-400">
+      <p class="text-sm mt-4 text-amber-400">
         ⚠ Manual review still recommended. Auto-remediation handles structure and
-        metadata; it can't write meaningful alt text for charts or verify
-        complex reading order.
+        metadata; it can't write meaningful alt text for charts or verify complex
+        reading order.
       </p>
+    </section>
+
+    <!-- Three-heuristic comparison -->
+    <section
+      v-if="status?.status === 'complete' && heuristicRows.length > 0"
+      class="border border-[var(--border)] rounded-lg p-6 mb-6"
+    >
+      <h2 class="text-lg font-medium mb-1">All three scoring heuristics</h2>
+      <p class="text-sm text-[var(--text-muted)] mb-4">
+        The audit measures accessibility three ways. Here's how each one moved.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
+              <th class="py-2 pr-4 font-medium">Heuristic</th>
+              <th class="py-2 pr-4 font-medium">Before</th>
+              <th class="py-2 pr-4 font-medium">After</th>
+              <th class="py-2 font-medium">Δ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in heuristicRows"
+              :key="row.label"
+              class="border-b border-[var(--border)]/40 last:border-0"
+            >
+              <td class="py-3 pr-4">
+                <div class="font-medium">{{ row.label }}</div>
+                <div class="text-xs text-[var(--text-muted)] mt-0.5">
+                  {{ row.description }}
+                </div>
+              </td>
+              <td class="py-3 pr-4 font-mono">{{ row.beforeText }}</td>
+              <td class="py-3 pr-4 font-mono">{{ row.afterText }}</td>
+              <td
+                class="py-3 font-mono"
+                :class="{
+                  'text-emerald-400': row.delta.startsWith('+'),
+                  'text-red-400': row.delta.startsWith('-'),
+                }"
+              >
+                {{ row.delta }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- What we fixed -->
+    <section
+      v-if="status?.status === 'complete' && fixedCategories.length > 0"
+      class="border border-emerald-700/40 bg-emerald-950/10 rounded-lg p-6 mb-6"
+    >
+      <h2 class="text-lg font-medium mb-3 text-emerald-400">
+        ✓ What we fixed ({{ fixedCategories.length }})
+      </h2>
+      <ul class="space-y-2 text-sm">
+        <li
+          v-for="cat in fixedCategories"
+          :key="cat.id"
+          class="flex items-baseline gap-3"
+        >
+          <span class="font-medium flex-1">{{ cat.label }}</span>
+          <span class="font-mono text-[var(--text-muted)]">
+            {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) ?? '?' }}
+          </span>
+          <span
+            v-if="cat.delta !== null"
+            class="font-mono text-emerald-400 w-12 text-right"
+          >
+            +{{ cat.delta.toFixed(0) }}
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Improved but still low -->
+    <section
+      v-if="status?.status === 'complete' && improvedButLowCategories.length > 0"
+      class="border border-amber-700/40 bg-amber-950/10 rounded-lg p-6 mb-6"
+    >
+      <h2 class="text-lg font-medium mb-3 text-amber-400">
+        ↑ Improved but still needs a closer look ({{ improvedButLowCategories.length }})
+      </h2>
+      <ul class="space-y-3 text-sm">
+        <li v-for="cat in improvedButLowCategories" :key="cat.id">
+          <div class="flex items-baseline gap-3">
+            <span class="font-medium flex-1">{{ cat.label }}</span>
+            <span class="font-mono text-[var(--text-muted)]">
+              {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) }}
+            </span>
+            <span class="font-mono text-amber-400 w-12 text-right">
+              +{{ cat.delta?.toFixed(0) }}
+            </span>
+          </div>
+          <ul
+            v-if="cat.findings.length > 0"
+            class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+          >
+            <li v-for="f in cat.findings.slice(0, 2)" :key="f">
+              {{ f }}
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Still needs manual review -->
+    <section
+      v-if="status?.status === 'complete' && needsManualCategories.length > 0"
+      class="border border-red-700/40 bg-red-950/10 rounded-lg p-6 mb-6"
+    >
+      <h2 class="text-lg font-medium mb-3 text-red-400">
+        ⚠ Still needs manual review ({{ needsManualCategories.length }})
+      </h2>
+      <p class="text-sm text-[var(--text-muted)] mb-4">
+        Auto-remediation couldn't improve these categories. These typically need
+        a human to write meaningful descriptions, verify reading order, or mark
+        table headers.
+      </p>
+      <ul class="space-y-3 text-sm">
+        <li v-for="cat in needsManualCategories" :key="cat.id">
+          <div class="flex items-baseline gap-3">
+            <span class="font-medium flex-1">{{ cat.label }}</span>
+            <span class="font-mono text-[var(--text-muted)]">
+              {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after === null ? 'N/A' : cat.after.toFixed(0) }}
+            </span>
+          </div>
+          <ul
+            v-if="cat.findings.length > 0"
+            class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+          >
+            <li v-for="f in cat.findings.slice(0, 2)" :key="f">
+              {{ f }}
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Issues summary on the remediated output (same component as audit page) -->
+    <section
+      v-if="status?.status === 'complete' && receipt?.outputAudit?.categories"
+      class="mb-6"
+    >
+      <h2 class="text-lg font-medium mb-3">Issues in the remediated PDF</h2>
+      <IssuesSummary :categories="receipt.outputAudit.categories" />
+    </section>
+
+    <!-- Adobe parity comparison (uses the same card as audit page) -->
+    <section
+      v-if="status?.status === 'complete' && receipt?.outputAudit?.adobeParity"
+      class="mb-6"
+    >
+      <h2 class="text-lg font-medium mb-3">Adobe Acrobat checks (remediated)</h2>
+      <AdobeParityCard :parity="receipt.outputAudit.adobeParity" />
     </section>
 
     <!-- Failed -->

@@ -182,11 +182,20 @@
 
         <!-- Score Hero -->
         <div
-          class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
+          class="text-center mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
         >
           <ScoreCard
             v-model:selected-mode="selectedScoreMode"
             :result="result"
+          />
+        </div>
+
+        <!-- Auto-Remediate (visible right under the score; component
+             self-hides on score ≥ 90 or when REMEDIATION feature is off) -->
+        <div class="mb-8 flex justify-center">
+          <RemediateButton
+            :file="singleFile"
+            :input-score="result?.overallScore ?? null"
           />
         </div>
 
@@ -939,15 +948,6 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Auto-Remediate (hidden when REMEDIATION.ENABLED=false at the
-             config level; component checks runtime config and self-hides) -->
-        <div class="mt-8 flex justify-center">
-          <RemediateButton
-            :file="singleFile"
-            :input-score="result?.overallScore ?? null"
-          />
         </div>
 
         <!-- Export & Share -->

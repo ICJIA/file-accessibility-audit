@@ -195,6 +195,53 @@ export function setComplete(id: string, outputPath: string): void {
   finalizeJob.run(outputPath, now, now + REMEDIATION.OUTPUT_TTL_MS, id);
 }
 
+const setInputAuditStmt = db.prepare(
+  "UPDATE remediation_jobs SET input_audit_json = ? WHERE id = ?",
+);
+
+const setOutputAuditStmt = db.prepare(
+  "UPDATE remediation_jobs SET output_audit_json = ? WHERE id = ?",
+);
+
+/**
+ * Persist the pre-flight audit categories (JSON) so the result page can
+ * render category-level before/after without re-running the audit.
+ */
+export function setInputAudit(id: string, auditJson: string): void {
+  setInputAuditStmt.run(auditJson, id);
+}
+
+/**
+ * Persist the post-remediation audit categories (JSON). Called from the
+ * worker once the output passes validation.
+ */
+export function setOutputAudit(id: string, auditJson: string): void {
+  setOutputAuditStmt.run(auditJson, id);
+}
+
+export interface JobAuditPair {
+  inputAudit: unknown | null;
+  outputAudit: unknown | null;
+}
+
+const selectAuditPairStmt = db.prepare(
+  "SELECT input_audit_json, output_audit_json FROM remediation_jobs WHERE id = ?",
+);
+
+export function getJobAuditPair(id: string): JobAuditPair {
+  const row = selectAuditPairStmt.get(id) as
+    | { input_audit_json: string | null; output_audit_json: string | null }
+    | undefined;
+  return {
+    inputAudit: row?.input_audit_json
+      ? JSON.parse(row.input_audit_json)
+      : null,
+    outputAudit: row?.output_audit_json
+      ? JSON.parse(row.output_audit_json)
+      : null,
+  };
+}
+
 export function setFailed(id: string, reason: string): void {
   failJob.run(reason, Date.now(), id);
 }

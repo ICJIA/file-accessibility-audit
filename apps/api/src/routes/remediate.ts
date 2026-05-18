@@ -14,6 +14,8 @@ import {
   countActiveJobsForEmail,
   verifyDownloadToken,
   setExpired,
+  setInputAudit,
+  getJobAuditPair,
 } from '../services/remediationJobs.js'
 import {
   recordEvent,
@@ -163,11 +165,14 @@ router.post(
       })
 
       // Persist the pre-flight input score on the job row immediately so
-      // the worker doesn't have to re-audit the input.
+      // the worker doesn't have to re-audit the input. Also persist the
+      // full audit (categories) so the result page can show category-
+      // level before/after without re-auditing.
       const setInputScore = (await import('../db/sqlite.js')).default.prepare(
         'UPDATE remediation_jobs SET input_score = ? WHERE id = ?',
       )
       setInputScore.run(preflight.overallScore, job.id)
+      setInputAudit(job.id, JSON.stringify(preflight))
 
       await ensureOutputRoot()
       const jobDir = path.join(path.resolve(REMEDIATION.OUTPUT_DIR), job.id)
@@ -333,6 +338,7 @@ router.get(
     }
 
     const events = getEventsForJob(job.id)
+    const audits = getJobAuditPair(job.id)
     res.json({
       jobId: job.id,
       filename: job.inputFilename,
@@ -342,6 +348,8 @@ router.get(
       outputScore: job.outputScore,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
+      inputAudit: audits.inputAudit,
+      outputAudit: audits.outputAudit,
       events: events.map((e) => ({
         event: e.event,
         occurredAt: e.occurredAt,

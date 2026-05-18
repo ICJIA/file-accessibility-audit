@@ -42,6 +42,36 @@ export interface ReceiptEvent {
   details: Record<string, unknown> | null
 }
 
+export interface CategoryResult {
+  id: string
+  label: string
+  score: number | null
+  grade: string | null
+  severity: string | null
+  findings?: string[]
+  explanation?: string
+}
+
+export interface AuditResultLite {
+  overallScore: number
+  grade: string
+  categories: CategoryResult[]
+  scoreProfiles?: {
+    strict?: { overallScore: number; grade: string }
+    remediation?: { overallScore: number; grade: string }
+  }
+  adobeParity?: {
+    summary: {
+      passed: number
+      failed: number
+      manual: number
+      skipped: number
+      notComputed: number
+      total: number
+    }
+  }
+}
+
 export interface Receipt {
   jobId: string
   filename: string
@@ -51,6 +81,8 @@ export interface Receipt {
   outputScore: number | null
   createdAt: number
   completedAt: number | null
+  inputAudit: AuditResultLite | null
+  outputAudit: AuditResultLite | null
   events: ReceiptEvent[]
 }
 

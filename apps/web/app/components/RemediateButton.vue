@@ -81,17 +81,24 @@ async function handlePickerChange(e: Event): Promise<void> {
 </script>
 
 <template>
-  <div v-if="visible" class="inline-flex flex-col items-start gap-2">
+  <div
+    v-if="visible"
+    class="w-full max-w-2xl rounded-xl border border-blue-700/40 bg-blue-950/20 px-5 sm:px-8 py-5 sm:py-6 text-center"
+  >
+    <p class="text-xs uppercase tracking-wide text-blue-300/80 mb-3">
+      Optional next step
+    </p>
     <UButton
       color="primary"
-      size="md"
+      size="xl"
       :loading="submitting"
       :disabled="submitting"
+      class="w-full sm:w-auto"
       @click="handleClick"
     >
       <template #leading>
         <svg
-          class="w-4 h-4"
+          class="w-5 h-5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -106,10 +113,12 @@ async function handlePickerChange(e: Event): Promise<void> {
       </template>
       Auto-Remediate this PDF
     </UButton>
-    <p class="text-xs text-[var(--text-muted)] max-w-xs">
-      Most issues fixed automatically. Manual review still recommended.
+    <p class="text-sm text-[var(--text-muted)] mt-3">
+      Adds structure tags, fixes metadata, and re-audits. Most issues are
+      fixed automatically — manual review is still recommended for alt
+      text and table headers.
     </p>
-    <p v-if="error" class="text-xs text-red-400">
+    <p v-if="error" class="text-sm text-red-400 mt-3">
       {{ error }}
     </p>
     <input

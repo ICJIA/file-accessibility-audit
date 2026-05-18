@@ -37,6 +37,7 @@ import {
   getJob,
   setComplete,
   setFailed,
+  setOutputAudit,
   setRunning,
   setScores,
   setStep,
@@ -243,6 +244,9 @@ export async function runRemediationJob(jobId: string): Promise<void> {
         `${job.inputFilename} (remediated)`,
       );
       outputScore = audit.overallScore;
+      // Persist the full output audit so the result page can render
+      // category-level before/after without a second pass.
+      setOutputAudit(jobId, JSON.stringify(audit));
     } catch (e) {
       recordEvent(jobId, "error", {
         error_type: "reaudit_failed",

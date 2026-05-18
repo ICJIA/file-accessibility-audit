@@ -87,6 +87,8 @@ db.exec(`
     output_path TEXT,
     download_token_hash TEXT,
     failure_reason TEXT,
+    input_audit_json TEXT,
+    output_audit_json TEXT,
     created_at INTEGER NOT NULL,
     completed_at INTEGER,
     expires_at INTEGER NOT NULL
@@ -133,6 +135,25 @@ if (!auditLogColumns.some((c) => c.name === 'content_hash')) {
   db.exec(
     'CREATE INDEX IF NOT EXISTS idx_audit_content_hash ON audit_log(content_hash)',
   )
+}
+
+// Backfill: add input_audit_json / output_audit_json to remediation_jobs
+// for the category-level before/after view on the result page. Created
+// idempotently in case an earlier dev run already created the table.
+const remediationJobsColumns = db
+  .prepare("PRAGMA table_info(remediation_jobs)")
+  .all() as { name: string }[]
+if (
+  remediationJobsColumns.length > 0 &&
+  !remediationJobsColumns.some((c) => c.name === 'input_audit_json')
+) {
+  db.exec('ALTER TABLE remediation_jobs ADD COLUMN input_audit_json TEXT')
+}
+if (
+  remediationJobsColumns.length > 0 &&
+  !remediationJobsColumns.some((c) => c.name === 'output_audit_json')
+) {
+  db.exec('ALTER TABLE remediation_jobs ADD COLUMN output_audit_json TEXT')
 }
 
 export default db
