@@ -291,19 +291,22 @@ function labelForEvent(name: string): string {
         ✓ Auto-remediation complete
       </h2>
 
-      <!-- BEFORE -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6 relative">
-        <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
-          Before
+      <!-- AFTER (shown first — the result) -->
+      <div class="rounded-xl border-2 border-emerald-700/40 bg-emerald-950/10 p-4 sm:p-6 relative">
+        <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">
+          After remediation
         </span>
         <ScoreCard
-          v-model:selected-mode="beforeMode"
-          :result="receipt.inputAudit"
+          v-model:selected-mode="afterMode"
+          :result="receipt.outputAudit"
         />
       </div>
 
-      <!-- Down-arrow separator -->
+      <!-- Up-arrow separator -->
       <div class="flex flex-col items-center my-8 text-[var(--text-muted)]">
+        <span class="text-xs uppercase tracking-wider mb-1">
+          Improved from
+        </span>
         <svg
           class="w-6 h-6"
           fill="none"
@@ -314,22 +317,19 @@ function labelForEvent(name: string): string {
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            d="M19.5 8.25 12 15.75 4.5 8.25"
+            d="m4.5 15.75 7.5-7.5 7.5 7.5"
           />
         </svg>
-        <span class="text-xs uppercase tracking-wider mt-1">
-          Auto-remediated to
-        </span>
       </div>
 
-      <!-- AFTER -->
-      <div class="rounded-xl border-2 border-emerald-700/40 bg-emerald-950/10 p-4 sm:p-6 relative">
-        <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">
-          After remediation
+      <!-- BEFORE (shown second — for reference) -->
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6 relative">
+        <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+          Before
         </span>
         <ScoreCard
-          v-model:selected-mode="afterMode"
-          :result="receipt.outputAudit"
+          v-model:selected-mode="beforeMode"
+          :result="receipt.inputAudit"
         />
       </div>
     </section>
