@@ -114,7 +114,12 @@ interface UseRemediationJobReturn {
   isTerminal: Ref<boolean>
 }
 
-const POLL_INTERVAL_MS = 2000
+// Poll faster than the typical job duration so updates arrive while
+// the worker is still running. Most jobs finish in ~1 second; 250 ms
+// gives several update opportunities even on the fastest cases. The
+// remediate page also runs a client-side minimum-time animation per
+// stage so even a sub-second job still shows the steps tick by.
+const POLL_INTERVAL_MS = 250
 const TERMINAL_STATES = new Set<RemediationStatus>([
   'complete',
   'failed',

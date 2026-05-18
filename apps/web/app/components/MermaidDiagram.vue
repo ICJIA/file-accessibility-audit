@@ -108,14 +108,17 @@ watch(
       class="px-4 sm:px-5 py-4 text-xs font-mono text-[var(--text-muted)] whitespace-pre-wrap overflow-x-auto m-0"
     >{{ source }}</pre>
 
-    <!-- Client-mounted: mermaid renders into this container. -->
+    <!-- Client-mounted: mermaid renders into this container. The outer
+         div is the scroll viewport (overflow-x-auto for wide diagrams);
+         the inner div is the centered SVG host. -->
     <div
       v-else
-      ref="containerRef"
-      class="px-3 sm:px-5 py-4 overflow-x-auto flex justify-center mermaid-container"
+      class="px-3 sm:px-5 py-4 overflow-x-auto overflow-y-hidden"
       :aria-label="title || 'Diagram'"
       :aria-describedby="desc ? 'mermaid-desc' : undefined"
-    />
+    >
+      <div ref="containerRef" class="mermaid-container" />
+    </div>
 
     <p
       v-if="desc"
@@ -136,8 +139,29 @@ watch(
 </template>
 
 <style>
-.mermaid-container svg {
-  max-width: 100%;
-  height: auto;
+/* mermaid emits an inline-block SVG with an internal width hint; force
+   it into block layout and clamp to the container width so adjacent
+   diagrams cannot bleed into each other vertically (the cause of the
+   overlap rendering bug). */
+.mermaid-container {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  text-align: center;
+}
+.mermaid-container > svg {
+  display: block;
+  max-width: 100% !important;
+  height: auto !important;
+  margin: 0 auto;
+}
+/* Inline-foreignObject HTML labels inside mermaid sometimes inherit
+   text colors that don't render against dark surfaces — fix that too. */
+.mermaid-container .nodeLabel,
+.mermaid-container .edgeLabel {
+  color: #f5f5f5 !important;
+}
+.mermaid-container .edgeLabel rect {
+  fill: #1e293b !important;
 }
 </style>

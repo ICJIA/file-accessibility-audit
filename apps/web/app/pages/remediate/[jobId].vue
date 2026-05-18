@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   useRemediationJob,
@@ -259,17 +259,110 @@ const stepLabels: Record<string, string> = {
 
 const stepOrder = ['preparing', 'tagging', 'validating', 'comparing']
 
-function stepState(name: string): 'done' | 'active' | 'pending' {
-  const current = status.value?.step
-  if (!current) {
-    return status.value?.status === 'complete' ? 'done' : 'pending'
+// Minimum time each stage is shown to the user, even if the worker
+// finished the underlying step faster than we could poll. Without this,
+// a sub-second job pops straight from 'pending' to 'complete' and the
+// user never sees stages light up.
+const MIN_STAGE_MS = 350
+
+// Server-tracked "real" target index — derived from status. -1 = job
+// not started yet visually. The displayedStageIdx animates UP toward
+// this target but is held back by MIN_STAGE_MS between advances.
+const displayedStageIdx = ref<number>(-1)
+let stageAdvanceTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearStageTimer(): void {
+  if (stageAdvanceTimer) {
+    clearTimeout(stageAdvanceTimer)
+    stageAdvanceTimer = null
   }
-  const i = stepOrder.indexOf(current)
-  const j = stepOrder.indexOf(name)
-  if (j < i) return 'done'
-  if (j === i) return 'active'
+}
+
+function targetStageIdx(): number {
+  const s = status.value
+  if (!s) return -1
+  if (s.status === 'pending' || s.status === 'running') {
+    if (s.step) return stepOrder.indexOf(s.step)
+    return 0 // running but no step yet → at least show 'preparing'
+  }
+  if (s.status === 'complete') return stepOrder.length - 1 // show all stages done
+  return displayedStageIdx.value // expired/failed: hold current
+}
+
+function scheduleAdvance(): void {
+  clearStageTimer()
+  const target = targetStageIdx()
+  if (displayedStageIdx.value >= target) return
+  stageAdvanceTimer = setTimeout(() => {
+    displayedStageIdx.value = Math.min(displayedStageIdx.value + 1, stepOrder.length - 1)
+    if (displayedStageIdx.value < targetStageIdx()) {
+      scheduleAdvance()
+    }
+  }, MIN_STAGE_MS)
+}
+
+watch(
+  () => [status.value?.status, status.value?.step],
+  () => {
+    const target = targetStageIdx()
+    if (target < 0) return
+    if (displayedStageIdx.value < 0) {
+      // Snap to the first stage immediately so the indicator appears
+      displayedStageIdx.value = 0
+    }
+    if (displayedStageIdx.value < target) {
+      scheduleAdvance()
+    }
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(clearStageTimer)
+
+function stepState(name: string): 'done' | 'active' | 'pending' {
+  const idx = stepOrder.indexOf(name)
+  if (idx < 0) return 'pending'
+  if (idx < displayedStageIdx.value) return 'done'
+  if (idx === displayedStageIdx.value) {
+    // If the job is actually complete AND we've reached the last stage,
+    // mark it done rather than 'active' so the final tick is shown
+    if (status.value?.status === 'complete' && displayedStageIdx.value >= stepOrder.length - 1) {
+      return 'done'
+    }
+    return 'active'
+  }
   return 'pending'
 }
+
+// Progress percentage derived from the animated stage rather than
+// the raw server progress_pct. This way the bar animates smoothly
+// up through stages even when the job finished server-side
+// instantly.
+const displayedProgressPct = computed(() => {
+  if (displayedStageIdx.value < 0) return 0
+  const allDone =
+    status.value?.status === 'complete' &&
+    displayedStageIdx.value >= stepOrder.length - 1
+  if (allDone) return 100
+  return Math.round(((displayedStageIdx.value + 1) / stepOrder.length) * 100)
+})
+
+// Visually-running gate: keep the running section visible while the
+// animation is still walking forward, even if the server already
+// reports 'complete'.
+const isVisuallyRunning = computed(() => {
+  if (!status.value) return false
+  if (status.value.status === 'pending' || status.value.status === 'running') {
+    return true
+  }
+  if (
+    status.value.status === 'complete' &&
+    displayedStageIdx.value < stepOrder.length - 1
+  ) {
+    return true
+  }
+  return false
+})
 
 const downloadHref = computed(() =>
   status.value?.status === 'complete' && downloadToken
@@ -335,7 +428,7 @@ function labelForEvent(name: string): string {
 
     <!-- Running -->
     <section
-      v-if="status && (status.status === 'pending' || status.status === 'running')"
+      v-if="isVisuallyRunning"
       class="border border-[var(--border)] rounded-lg p-6 mb-6"
     >
       <h2 class="text-lg font-medium mb-4">Processing your PDF…</h2>
@@ -368,7 +461,7 @@ function labelForEvent(name: string): string {
       <div class="mt-6 w-full bg-[var(--border)] rounded-full h-2 overflow-hidden">
         <div
           class="h-full bg-blue-600 transition-all"
-          :style="{ width: `${status.progressPct}%` }"
+          :style="{ width: `${displayedProgressPct}%` }"
         />
       </div>
       <p class="mt-4 text-xs text-[var(--text-muted)]">
