@@ -81,6 +81,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     email TEXT,
     input_filename TEXT NOT NULL,
+    original_filename TEXT,
     content_hash TEXT,
     page_count INTEGER,
     status TEXT NOT NULL CHECK (status IN ('pending','running','complete','failed','expired')),
@@ -180,6 +181,16 @@ if (
   !remediationJobsColumns.some((c) => c.name === 'verapdf_summary_json')
 ) {
   db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_summary_json TEXT')
+}
+// v1.20.0+: preserve the user's exact uploaded filename (spaces and
+// everything) so the download endpoint can serve the file under the
+// original name — critical for CMS file-replacement workflows where
+// the filename is what links resolve against.
+if (
+  remediationJobsColumns.length > 0 &&
+  !remediationJobsColumns.some((c) => c.name === 'original_filename')
+) {
+  db.exec('ALTER TABLE remediation_jobs ADD COLUMN original_filename TEXT')
 }
 
 // Backfill: add content_hash to shared_reports if it doesn't exist yet.

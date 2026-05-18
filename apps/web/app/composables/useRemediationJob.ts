@@ -34,6 +34,15 @@ export interface JobStatus {
   createdAt: number
   completedAt: number | null
   expiresAt: number
+  /** Sanitized filename used for internal storage. */
+  inputFilename?: string
+  /**
+   * The exact uploaded filename (spaces, unicode, and all). The
+   * download UI uses this for the "Keep original filename" option so
+   * the remediated PDF can be dropped in place of the original
+   * without breaking CMS links. Null for jobs created before v1.20.0.
+   */
+  originalFilename?: string | null
 }
 
 export interface ReceiptEvent {

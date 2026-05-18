@@ -123,6 +123,13 @@ router.post(
         return
       }
 
+      // Capture the user's exact uploaded filename (spaces, unicode,
+      // and everything else) before sanitization. The download endpoint
+      // uses this verbatim by default so CMS-replacement workflows can
+      // drop the remediated file in over the original without breaking
+      // links. The sanitized version is what we use for filesystem
+      // paths, internal storage, and the path-traversal check below.
+      const originalFilename = String(file.originalname ?? '').slice(0, 500)
       const filename = sanitizeFilename(file.originalname)
       const email = AUTH.REQUIRE_LOGIN ? (req.user?.email ?? null) : null
 
@@ -161,6 +168,7 @@ router.post(
       const { job, downloadToken } = createJob({
         email,
         inputFilename: filename,
+        originalFilename,
         contentHash,
         pageCount: preflight.pageCount ?? null,
       })
@@ -241,6 +249,11 @@ router.get(
       createdAt: job.createdAt,
       completedAt: job.completedAt,
       expiresAt: job.expiresAt,
+      // Surface both filename variants so the download UI can offer
+      // "keep original" (originalFilename, spaces and all) vs rename.
+      // originalFilename is null for jobs created before v1.20.0.
+      inputFilename: job.inputFilename,
+      originalFilename: job.originalFilename,
     })
   },
 )
@@ -293,9 +306,42 @@ router.get(
     // file gets deleted by the next cleanup sweep (orphan removal).
     setExpired(job.id)
 
-    const downloadName = sanitizeFilename(
-      job.inputFilename.replace(/\.pdf$/i, '') + '_remediated.pdf',
-    )
+    // Resolve the download filename. Priority:
+    //   1. ?name=<custom> query param — caller-specified rename. The
+    //      caller is choosing this name deliberately (e.g., to flatten
+    //      a CMS-versioned name into something cleaner). We trust it
+    //      but sanity-check length and force a .pdf extension.
+    //   2. job.originalFilename — the exact uploaded name, spaces and
+    //      all. Critical for CMS file-replacement: the remediated PDF
+    //      drops in over the original under the same name, so any
+    //      links in the CMS keep resolving.
+    //   3. job.inputFilename + '_remediated.pdf' — legacy fallback for
+    //      jobs created before v1.20.0 (original_filename was null).
+    const customName =
+      typeof req.query?.name === 'string' && req.query.name.length > 0
+        ? String(req.query.name)
+        : null
+
+    let downloadName: string
+    if (customName) {
+      const trimmed = customName.trim().slice(0, 250)
+      downloadName = /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`
+    } else if (job.originalFilename) {
+      downloadName = job.originalFilename
+    } else {
+      downloadName = sanitizeFilename(
+        job.inputFilename.replace(/\.pdf$/i, '') + '_remediated.pdf',
+      )
+    }
+
+    // RFC 6266 dual filename header — provides an ASCII fallback for
+    // older clients alongside the percent-encoded UTF-8 name. The
+    // ASCII fallback runs through sanitizeFilename so spaces and
+    // unicode become underscores there; the UTF-8 filename* preserves
+    // the exact name including spaces. Modern browsers (and curl)
+    // honor filename* and present the exact original name to the user.
+    const asciiFallback = sanitizeFilename(downloadName)
+    const encodedName = encodeURIComponent(downloadName)
     let fileSize = 0
     try {
       fileSize = statSync(job.outputPath).size
@@ -305,7 +351,7 @@ router.get(
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${downloadName}"`,
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`,
     )
     if (fileSize > 0) {
       res.setHeader('Content-Length', String(fileSize))

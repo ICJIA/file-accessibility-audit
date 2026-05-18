@@ -145,3 +145,61 @@ body {
   transition-duration: 150ms;
   transition-timing-function: ease;
 }
+
+/* -----------------------------------------------------------------
+ * Print stylesheet — used when the user picks the "PDF (browser
+ * print)" export from the report toolbar. Hides chrome, switches to
+ * a light color scheme so ink-on-paper / save-to-PDF output is
+ * legible, lets long-form content paginate naturally, and keeps
+ * headings + section blocks from breaking awkwardly across pages.
+ * --------------------------------------------------------------- */
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  /* Hide the global site chrome that adds no value on paper. */
+  header[role='banner'],
+  nav,
+  footer[role='contentinfo'],
+  .print-hide,
+  button {
+    display: none !important;
+  }
+  /* Open all <details> on print so collapsed content prints too. */
+  details > summary {
+    display: none !important;
+  }
+  details {
+    display: block !important;
+  }
+  /* Let mermaid SVGs scale to their container instead of being
+     cropped at the viewport viewBox width. */
+  .mermaid-host > svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  /* Avoid awkward page breaks in the middle of a heading or card. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  section,
+  article,
+  .rounded-xl,
+  .rounded-lg {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* Show the URL after each link so paper readers can find the
+     reference. Skip for fragment-only in-page anchors. */
+  a[href^='http']:after {
+    content: ' (' attr(href) ')';
+    font-size: 0.85em;
+    color: #555555;
+  }
+}

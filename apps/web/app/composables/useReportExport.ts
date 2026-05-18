@@ -1313,6 +1313,29 @@ export function useReportExport() {
     saveAs(blob, `${baseFilename(result)}.html`);
   }
 
+  /**
+   * Trigger the browser's native print dialog so the user can save the
+   * current report page as a PDF (Save as PDF is the default print
+   * destination on macOS, Windows, and ChromeOS). The browser respects
+   * the @media print rules in assets/css/main.css which hide site
+   * chrome, switch to ink-on-paper colors, expand <details> sections,
+   * scale mermaid SVGs, and avoid awkward page breaks. The user can
+   * choose the filename in the print dialog.
+   *
+   * Browser print is the lightest possible PDF generator — it works
+   * without adding puppeteer / playwright / pdfkit dependencies (~100 MB
+   * combined) and produces output that's visually faithful to the
+   * report page itself.
+   */
+  function exportPdfViaBrowserPrint(_result: ReportResult) {
+    if (typeof window === "undefined") return;
+    // Defer one frame so any UI close-handlers (e.g., dropdown closing
+    // before print fires) settle before the modal blocks the page.
+    requestAnimationFrame(() => {
+      window.print();
+    });
+  }
+
   async function shareReport(result: ReportResult): Promise<string | null> {
     sharing.value = true;
     shareError.value = null;
@@ -1368,6 +1391,7 @@ export function useReportExport() {
     exportJSON,
     exportDocx,
     exportHtml,
+    exportPdfViaBrowserPrint,
     shareReport,
     shareUrl,
     shareError,

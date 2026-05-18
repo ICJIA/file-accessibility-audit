@@ -383,6 +383,103 @@ const downloadHref = computed(() =>
     : null,
 )
 
+// ------------------------------------------------------------------
+// Result-section gating
+// ------------------------------------------------------------------
+// Result sections wait for BOTH the server status to flip to 'complete'
+// AND the local progress animation to finish walking through every
+// stage. Without this gate, the results appear roughly halfway through
+// the progress bar when a fast server response races ahead of the
+// animator. UX intent: progress indicator finishes its arc → results
+// appear in one visual beat.
+const isVisuallyComplete = computed(
+  () => status.value?.status === 'complete' && !isVisuallyRunning.value,
+)
+
+// ------------------------------------------------------------------
+// Download filename dialog state
+// ------------------------------------------------------------------
+// Three modes:
+//   'keep'        — download with the exact original filename (spaces
+//                   and all). DEFAULT. Critical for CMS file
+//                   replacement workflows: links to the original PDF
+//                   keep working when the file is overwritten in place.
+//   'suffix'      — opt-in 'foo_remediated.pdf' for users who want to
+//                   keep the original around alongside the remediated
+//                   copy (no CMS replacement intent).
+//   'rename'      — user-typed custom name. Shows an "are you sure?"
+//                   warning before the download proceeds, because this
+//                   path actively breaks any existing references to the
+//                   PDF on the user's site.
+const filenameChoice = ref<'keep' | 'suffix' | 'rename'>('keep')
+const customFilename = ref('')
+
+/**
+ * The exact filename to display in the "Keep original filename"
+ * option. Pulls from the server-side originalFilename (preserves
+ * spaces and unicode) and falls back to inputFilename for jobs
+ * created before v1.20.0 when originalFilename was not stored.
+ */
+const originalFilenameDisplay = computed(
+  () =>
+    status.value?.originalFilename ??
+    status.value?.inputFilename ??
+    '',
+)
+
+const suffixFilenamePreview = computed(() => {
+  const base = (originalFilenameDisplay.value || 'remediated.pdf').replace(
+    /\.pdf$/i,
+    '',
+  )
+  return `${base}_remediated.pdf`
+})
+
+/**
+ * Final download href with the user's filename choice applied.
+ * - Default ("keep"): no ?name= param → server uses originalFilename
+ *   via RFC 6266 dual-name Content-Disposition. Exact match for CMS
+ *   overwrite.
+ * - Suffix opt-in: ?name=<basename>_remediated.pdf
+ * - Custom rename: ?name=<typed>.pdf — server validates length, forces
+ *   .pdf extension, and encodes for Content-Disposition.
+ */
+const resolvedDownloadHref = computed(() => {
+  if (!downloadHref.value) return null
+  if (filenameChoice.value === 'suffix') {
+    const baseName = (originalFilenameDisplay.value || 'remediated.pdf').replace(
+      /\.pdf$/i,
+      '',
+    )
+    return `${downloadHref.value}&name=${encodeURIComponent(baseName + '_remediated.pdf')}`
+  }
+  if (filenameChoice.value === 'rename' && customFilename.value) {
+    const cleaned = customFilename.value.replace(/\.pdf$/i, '')
+    return `${downloadHref.value}&name=${encodeURIComponent(cleaned + '.pdf')}`
+  }
+  return downloadHref.value
+})
+
+/**
+ * Final-confirm gate for the rename path. Set true when the user
+ * clicks Download with 'rename' selected so an "Are you sure?"
+ * inline prompt appears. Click Download again to actually proceed
+ * (the button text changes to "Confirm download with new name").
+ */
+const renameConfirming = ref(false)
+
+function handleDownloadClick(event: MouseEvent) {
+  if (filenameChoice.value === 'rename' && !renameConfirming.value) {
+    event.preventDefault()
+    renameConfirming.value = true
+  }
+}
+
+// Reset the confirm gate when the user changes their mind back.
+watch(filenameChoice, (next) => {
+  if (next !== 'rename') renameConfirming.value = false
+})
+
 function fmtTime(ms: number | null | undefined): string {
   if (!ms) return ''
   return new Date(ms).toLocaleTimeString()
@@ -428,7 +525,12 @@ function labelForEvent(name: string): string {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 py-10">
+  <!-- min-h-[calc(100vh-4rem)] reserves space so the page doesn't shift
+       when status flips loading → running → complete. Without this
+       reservation, Lighthouse measured CLS=0.252 on desktop because the
+       result section (~3000px tall) appears in one paint and pushes the
+       (initially empty) page from short to tall. -->
+  <div class="max-w-3xl mx-auto px-4 py-10 min-h-[calc(100vh-4rem)]">
     <h1 class="text-2xl font-semibold mb-2">PDF Auto-Remediation</h1>
     <p class="text-sm text-[var(--text-muted)] mb-8">
       Receipt ID:
@@ -484,7 +586,7 @@ function labelForEvent(name: string): string {
 
     <!-- Complete: before/after ScoreCards side-by-side -->
     <section
-      v-if="status?.status === 'complete' && receipt?.inputAudit && receipt?.outputAudit"
+      v-if="isVisuallyComplete && receipt?.inputAudit && receipt?.outputAudit"
       class="mb-6"
     >
       <h2 class="text-emerald-400 text-center text-base font-medium mb-4">
@@ -1079,22 +1181,137 @@ function labelForEvent(name: string): string {
 
     <!-- Download + manual-review notice -->
     <section
-      v-if="status?.status === 'complete'"
-      class="rounded-xl border border-emerald-700/40 bg-emerald-950/20 p-6 mb-6 text-center"
+      v-if="isVisuallyComplete"
+      class="rounded-xl border border-emerald-700/40 bg-emerald-950/20 p-6 mb-6"
     >
-      <UButton
-        v-if="downloadHref"
-        :to="downloadHref"
-        external
-        size="lg"
-        color="primary"
-      >
-        ⬇ Download Remediated PDF
-      </UButton>
-      <p v-else class="text-sm text-amber-400">
+      <div v-if="downloadHref" class="space-y-4">
+        <h2 class="text-base font-semibold text-emerald-100 text-center">
+          Download remediated PDF
+        </h2>
+
+        <!-- Why-keep-the-name explainer (always visible). -->
+        <p class="text-xs text-emerald-200/85 leading-relaxed">
+          <strong class="text-emerald-100">Recommended:</strong> download
+          under the exact same filename as the original and replace the
+          PDF in your CMS in place. This way every existing link to the
+          PDF — on your website, in shared documents, in old emails —
+          keeps working without redirects or fix-up. The "Keep original
+          filename" option below is selected by default for this reason.
+        </p>
+
+        <div class="rounded-lg border border-emerald-700/30 bg-emerald-950/30 p-4 space-y-3">
+          <!-- Option 1: Keep original filename (DEFAULT, RECOMMENDED) -->
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              v-model="filenameChoice"
+              type="radio"
+              value="keep"
+              class="mt-1 accent-emerald-500"
+            />
+            <span class="flex-1">
+              <span class="block text-sm font-medium text-emerald-100">
+                Keep original filename
+                <span class="ml-1 inline-block rounded bg-emerald-700/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-100">
+                  Recommended
+                </span>
+              </span>
+              <span class="block mt-1 font-mono text-xs text-[var(--text-muted)] break-all">
+                {{ originalFilenameDisplay || '—' }}
+              </span>
+            </span>
+          </label>
+
+          <!-- Option 2: Add _remediated suffix (opt-in) -->
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              v-model="filenameChoice"
+              type="radio"
+              value="suffix"
+              class="mt-1 accent-emerald-500"
+            />
+            <span class="flex-1">
+              <span class="block text-sm font-medium text-emerald-100">
+                Add a "_remediated" suffix
+                <span class="text-xs text-emerald-300/70 font-normal">
+                  (keeps the original alongside)
+                </span>
+              </span>
+              <span class="block mt-1 font-mono text-xs text-[var(--text-muted)] break-all">
+                {{ suffixFilenamePreview }}
+              </span>
+            </span>
+          </label>
+
+          <!-- Option 3: Use a different filename (warning + confirm gate) -->
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              v-model="filenameChoice"
+              type="radio"
+              value="rename"
+              class="mt-1 accent-emerald-500"
+            />
+            <span class="flex-1">
+              <span class="block text-sm font-medium text-emerald-100">
+                Use a different filename
+              </span>
+              <div class="mt-1 flex items-center gap-1">
+                <input
+                  v-model.trim="customFilename"
+                  type="text"
+                  class="flex-1 rounded border border-[var(--border)] bg-[var(--surface-deep)] px-2 py-1 text-sm font-mono text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  placeholder="my-renamed-report"
+                  :disabled="filenameChoice !== 'rename'"
+                  @click="filenameChoice = 'rename'"
+                />
+                <span class="text-xs font-mono text-[var(--text-muted)]">.pdf</span>
+              </div>
+            </span>
+          </label>
+        </div>
+
+        <!-- "Are you sure?" warning + confirm gate for the rename path -->
+        <div
+          v-if="filenameChoice === 'rename'"
+          class="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3 text-xs text-amber-200 leading-relaxed"
+        >
+          <strong class="text-amber-100">⚠ Are you sure?</strong>
+          A different filename means existing links to this PDF —
+          anywhere it's referenced on your site, in emails, or in
+          partner documents — will start returning 404s once the
+          original file is removed. The recommended path is "Keep
+          original filename" so a CMS overwrite preserves every
+          existing link. Only use a custom name if you're keeping
+          the original PDF in place and treating this as a separate
+          new file.
+          <span v-if="renameConfirming" class="block mt-2 text-amber-100">
+            Click <strong>Confirm download</strong> again to proceed.
+          </span>
+        </div>
+
+        <div class="text-center">
+          <UButton
+            :to="resolvedDownloadHref"
+            external
+            size="lg"
+            color="primary"
+            :disabled="filenameChoice === 'rename' && !customFilename"
+            @click="handleDownloadClick"
+          >
+            <template v-if="filenameChoice === 'rename' && renameConfirming">
+              ⬇ Confirm download with new name
+            </template>
+            <template v-else>
+              ⬇ Download
+            </template>
+          </UButton>
+        </div>
+      </div>
+
+      <p v-else class="text-sm text-amber-400 text-center">
         Download token missing — return to the audit page and click Remediate again.
       </p>
-      <p class="text-sm mt-4 text-amber-400">
+
+      <p class="text-sm mt-4 text-amber-400 text-center">
         ⚠ Manual review still recommended. Auto-remediation handles structure and
         metadata; it can't write meaningful alt text for charts or verify complex
         reading order.
@@ -1102,7 +1319,7 @@ function labelForEvent(name: string): string {
     </section>
 
     <!-- Compliance disclaimer (veraPDF verdict + IITAA + manual review) -->
-    <section v-if="status?.status === 'complete' && receipt?.veraPdf" class="mb-6">
+    <section v-if="isVisuallyComplete && receipt?.veraPdf" class="mb-6">
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6">
         <h3 class="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
           Compliance disclaimer
@@ -1221,14 +1438,14 @@ function labelForEvent(name: string): string {
 
     <!-- Source-document recommendation: PDF remediation is a fallback;
          the real fix is upstream in the authoring tool. -->
-    <section v-if="status?.status === 'complete'" class="mb-6">
+    <section v-if="isVisuallyComplete" class="mb-6">
       <SourceDocumentNotice variant="result" />
     </section>
 
     <!-- Issues summary on the remediated output (same component as audit page).
          IssuesSummary is self-titled ('Issues to fix'), so no wrapping <h2> here. -->
     <section
-      v-if="status?.status === 'complete' && receipt?.outputAudit?.categories"
+      v-if="isVisuallyComplete && receipt?.outputAudit?.categories"
       class="mb-6"
     >
       <IssuesSummary :categories="receipt.outputAudit.categories" />

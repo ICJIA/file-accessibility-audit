@@ -19,6 +19,14 @@ export interface RemediationJob {
   id: string;
   email: string | null;
   inputFilename: string;
+  /**
+   * The user's exact uploaded filename, including spaces, unicode,
+   * and any characters that sanitizeFilename() would have stripped.
+   * Used by the download endpoint so CMS file-replacement workflows
+   * can drop the remediated file in over the original without
+   * breaking links. May be null for jobs created before v1.20.0.
+   */
+  originalFilename: string | null;
   contentHash: string | null;
   pageCount: number | null;
   status: RemediationJobStatus;
@@ -39,6 +47,7 @@ interface JobRow {
   id: string;
   email: string | null;
   input_filename: string;
+  original_filename: string | null;
   content_hash: string | null;
   page_count: number | null;
   status: RemediationJobStatus;
@@ -60,6 +69,7 @@ function rowToJob(r: JobRow): RemediationJob {
     id: r.id,
     email: r.email,
     inputFilename: r.input_filename,
+    originalFilename: r.original_filename,
     contentHash: r.content_hash,
     pageCount: r.page_count,
     status: r.status,
@@ -80,9 +90,10 @@ function rowToJob(r: JobRow): RemediationJob {
 
 const insertJob = db.prepare(
   `INSERT INTO remediation_jobs (
-     id, email, input_filename, content_hash, page_count, status,
-     progress_pct, download_token_hash, created_at, expires_at
-   ) VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
+     id, email, input_filename, original_filename, content_hash,
+     page_count, status, progress_pct, download_token_hash,
+     created_at, expires_at
+   ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
 );
 
 const selectJobById = db.prepare(
@@ -125,6 +136,11 @@ const countRunningByEmail = db.prepare(
 export interface CreateJobInput {
   email: string | null;
   inputFilename: string;
+  /**
+   * Optional. The user's exact uploaded filename (no sanitization).
+   * If omitted, the download endpoint falls back to inputFilename.
+   */
+  originalFilename?: string | null;
   contentHash: string;
   pageCount: number | null;
 }
@@ -153,6 +169,7 @@ export function createJob(input: CreateJobInput): CreatedJob {
     id,
     input.email,
     input.inputFilename,
+    input.originalFilename ?? null,
     input.contentHash,
     input.pageCount,
     downloadTokenHash,

@@ -1056,6 +1056,30 @@
               </template>
               JSON (.json)
             </UButton>
+            <UButton
+              variant="soft"
+              color="neutral"
+              size="sm"
+              :title="'Opens the browser print dialog — pick &quot;Save as PDF&quot; as the destination.'"
+              @click="exportPdfViaBrowserPrint(result)"
+            >
+              <template #leading>
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z"
+                  />
+                </svg>
+              </template>
+              PDF (browser print)
+            </UButton>
           </div>
 
           <!-- Share divider -->
@@ -1632,9 +1656,18 @@ PDF says:
           </p>
           <div
             class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)]"
+            tabindex="0"
           >
             PDF → [validate file type &amp; size] → parallel { QPDF (structure),
             PDF.js (content) } → Scorer (9 categories) → Weighted Score → Report
+          </div>
+
+          <div class="mt-4">
+            <MermaidDiagram
+              :source="td_auditFlowDiagram"
+              title="Audit pipeline — visual flow"
+              desc="Browser uploads PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results, scores nine categories, returns the grade and findings to the browser, and discards the memory buffer."
+            />
           </div>
         </div>
 
@@ -1684,6 +1717,14 @@ PDF says:
             proxies API requests to the backend — the user's browser never
             communicates directly with the API server.
           </p>
+
+          <div class="mt-4">
+            <MermaidDiagram
+              :source="td_architectureDiagram"
+              title="Application architecture"
+              desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; it reads and writes SQLite locally. No external services."
+            />
+          </div>
         </div>
 
         <!-- QPDF -->
@@ -2088,6 +2129,14 @@ PDF says:
             requires PDF.js to attempt text extraction. Running both tools in
             parallel hides their individual processing time.
           </p>
+
+          <div class="mt-4">
+            <MermaidDiagram
+              :source="td_twoToolDiagram"
+              title="Two-tool parallel analysis"
+              desc="The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories."
+            />
+          </div>
         </div>
 
         <!-- Scoring -->
@@ -2747,6 +2796,14 @@ Worker pipeline:
                         guard: reject if Overall|Strict|Practical regress
 
 Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
+
+          <div class="mt-4">
+            <MermaidDiagram
+              :source="td_remediationFlowDiagram"
+              title="Remediation pipeline — visual flow"
+              desc="The user re-uploads the PDF. qpdf normalizes it; original deleted with verification. OpenDataLoader adds structure tags; normalized intermediate deleted with verification. qpdf check + veraPDF validate the output. A re-audit confirms no score profile regressed. If all clear, output is held for 30 minutes; user downloads via single-use token; output deleted with verification."
+            />
+          </div>
         </div>
 
         <div>
@@ -4016,6 +4073,7 @@ const {
   exportJSON,
   exportDocx,
   exportHtml,
+  exportPdfViaBrowserPrint,
   shareReport,
   shareUrl,
   shareError,
@@ -4543,6 +4601,56 @@ function emailShareUrl() {
   );
   window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
 }
+
+// ------------------------------------------------------------------
+// Mermaid diagram sources for the Technical Details expandable.
+// Kept deliberately simple — flowchart TD only, short labels, no
+// subgraphs, no HTML-in-labels. The standalone /technical-details
+// page uses the same diagrams. Reliability over richness.
+// ------------------------------------------------------------------
+
+const td_auditFlowDiagram = `flowchart TD
+    A[Browser uploads PDF] --> B[Magic-byte + size check]
+    B --> C[Hold in memory only]
+    C --> D[qpdf analyzes structure]
+    C --> E[pdfjs extracts content]
+    D --> F[Combined results]
+    E --> F
+    F --> G[Scorer applies 9 categories]
+    G --> H[A-F grade + findings]
+    H --> I[Return to browser]`
+
+const td_twoToolDiagram = `flowchart TD
+    A[Uploaded PDF buffer] --> B[Run in parallel]
+    B --> C[qpdf: structure tree, language, outlines, images, tables]
+    B --> D[pdfjs: text, metadata, content order, per-page details]
+    C --> E[QpdfResult]
+    D --> F[PdfjsResult]
+    E --> G[Scorer]
+    F --> G
+    G --> H[Weighted score across 9 categories]`
+
+const td_remediationFlowDiagram = `flowchart TD
+    A[User clicks Remediate] --> B[Re-upload PDF]
+    B --> C[qpdf normalize]
+    C --> D[Delete original + verify]
+    D --> E[OpenDataLoader tags]
+    E --> F[Delete normalized + verify]
+    F --> G[qpdf check + veraPDF]
+    G --> H[Re-audit + regression guard]
+    H --> I[Output ready, 30 min TTL]
+    I --> J[Single-use download]
+    J --> K[Delete + verify ENOENT]`
+
+const td_architectureDiagram = `flowchart TD
+    A[Browser] --> B[Nginx reverse proxy]
+    B --> C[Nuxt web app on port 5102]
+    B --> D[Express API on port 5103]
+    C --> D
+    D --> E[qpdf binary]
+    D --> F[OpenDataLoader Java]
+    D --> G[veraPDF Java]
+    D --> H[SQLite database]`
 </script>
 
 <style scoped>
