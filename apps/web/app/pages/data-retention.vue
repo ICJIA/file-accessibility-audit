@@ -18,6 +18,211 @@ useHead({
 const POLICY_VERSION = '1.0'
 const POLICY_EFFECTIVE = '2026-05-18'
 const TOOL_VERSION = '1.18.0'
+
+// Mermaid diagram sources kept as plain strings so they survive SSR
+// and remain readable in the no-JS fallback inside <MermaidDiagram>.
+
+const auditPipelineDiagram = `flowchart TD
+    A[Browser uploads PDF<br/>multipart/form-data over HTTPS] --> B[multer memoryStorage<br/>buffer in API memory only]
+    B --> C{Validate<br/>magic bytes = %PDF-<br/>file size ≤ 15 MB}
+    C -->|invalid| X[Reject<br/>HTTP 400]
+    C -->|valid| D[analyzePDF buffer]
+    D --> E[qpdf subprocess<br/>parses structure tree, language,<br/>outlines, images, tables]
+    D --> F[pdfjs library<br/>extracts text + metadata,<br/>per-page content order]
+    E --> G[scorer<br/>9 WCAG categories,<br/>weighted overall score]
+    F --> G
+    G --> H[HTTP response → client<br/>typically &lt; 10 s]
+    H --> I[Node garbage collector<br/>reclaims buffer]
+    I --> Z[PDF no longer exists<br/>in any form, anywhere]
+    style Z fill:#064e3b,stroke:#10b981,color:#d1fae5
+    style X fill:#7f1d1d,stroke:#ef4444,color:#fecaca`
+
+const remediationPipelineDiagram = `flowchart TD
+    A[Client uploads PDF<br/>multipart, re-upload required] --> B{Validate<br/>magic bytes, ≤ 50 MB,<br/>≤ 500 pages}
+    B -->|invalid| X1[Reject 400]
+    B -->|valid| C[Create remediation_jobs row<br/>status='pending'<br/>content_hash = SHA-256]
+    C --> D[Write work/input.pdf<br/>mode 0600]
+    D --> E[Spawn detached worker<br/>tsx src/jobs/remediate.ts]
+    E -.async respond 202.-> Client((Client polls<br/>/api/.../status))
+
+    E --> S1[Stage 1: PREPARING]
+    S1 --> S1a[qpdf --object-streams=disable<br/>→ normalized.pdf]
+    S1a --> S1b[DELETE input.pdf]
+    S1b --> S1c{fs.stat<br/>ENOENT?}
+    S1c -->|yes| V1[event: verified_absent]
+    S1c -->|no| FAIL[event: verify_failed<br/>compliance alert]
+
+    V1 --> S2[Stage 2: TAGGING]
+    S2 --> S2a[OpenDataLoader<br/>→ tagged.pdf]
+    S2a --> S2b[DELETE normalized.pdf]
+    S2b --> S2c{fs.stat<br/>ENOENT?}
+    S2c -->|yes| V2[event: verified_absent]
+    S2c -->|no| FAIL
+
+    V2 --> S3[Stage 3: VALIDATING]
+    S3 --> S3a[qpdf --check tagged.pdf]
+    S3a --> S3b[veraPDF --flavour ua1<br/>informational]
+    S3b -->|qpdf warnings| R[REJECT<br/>delete output<br/>mark failed]
+    S3b -->|valid| S4[Stage 4: COMPARING]
+
+    S4 --> S4a[Re-audit tagged.pdf]
+    S4a -->|score regresses<br/>Overall, Strict, or Practical| R
+    S4a -->|score holds or improves| F[Finalize output.pdf<br/>30-min TTL starts]
+
+    F --> D1[User downloads via<br/>single-use token]
+    F --> D2[30 min passes<br/>no download]
+    D1 --> DEL[Stream output then<br/>delete + verify ENOENT]
+    D2 --> DEL
+    DEL --> Z[All PDF artifacts gone<br/>events recorded]
+
+    R --> Z
+    FAIL --> Z
+
+    style Z fill:#064e3b,stroke:#10b981,color:#d1fae5
+    style R fill:#78350f,stroke:#f59e0b,color:#fde68a
+    style FAIL fill:#7f1d1d,stroke:#ef4444,color:#fecaca
+    style V1 fill:#064e3b,stroke:#10b981,color:#d1fae5
+    style V2 fill:#064e3b,stroke:#10b981,color:#d1fae5`
+
+const lifecycleSequenceDiagram = `sequenceDiagram
+    autonumber
+    participant C as Client
+    participant A as API process
+    participant W as Detached worker
+    participant FS as Filesystem
+    participant DB as remediation_events
+
+    C->>A: POST /api/remediate (multipart)
+    A->>FS: write work/input.pdf (mode 0600)
+    A->>DB: 'received' { filename, size, page_count }
+    A-->>C: 202 { jobId, downloadToken }
+    A->>W: spawn detached + unref
+
+    W->>DB: 'processing_started'
+    W->>FS: qpdf normalize → normalized.pdf
+    W->>DB: 'normalize_complete' { duration_ms }
+    W->>FS: unlink input.pdf
+    W->>FS: fs.stat input.pdf → ENOENT ✓
+    W->>DB: 'input_deleted' + 'verified_absent'
+
+    W->>FS: ODL convert → tagged.pdf
+    W->>DB: 'tagging_complete' { duration_ms }
+    W->>FS: unlink normalized.pdf + verify
+    W->>DB: 'intermediate_deleted' + 'verified_absent'
+
+    W->>FS: qpdf --check tagged.pdf
+    W->>DB: 'validation_passed'
+    W->>FS: verapdf --flavour ua1 (optional)
+    W->>DB: 'verapdf_passed' | 'verapdf_failed' | 'verapdf_unavailable'
+    W->>DB: 'output_ready' { input_score, output_score }
+
+    C->>A: GET /:jobId/status (polled every 2s)
+    A-->>C: { status: 'complete', scores }
+
+    C->>A: GET /:jobId/download?token=...
+    A->>A: setExpired BEFORE stream (single-use enforced)
+    A->>FS: createReadStream → pipe(res)
+    A-->>C: stream output.pdf
+    A->>FS: unlink output.pdf on stream 'close'
+    A->>FS: fs.stat output.pdf → ENOENT ✓
+    A->>DB: 'downloaded' + 'output_deleted' + 'verified_absent'
+
+    Note over DB: Append-only log retained 7 yrs<br/>(REMEDIATION.EVENT_LOG_RETENTION_DAYS)`
+
+// Network boundary — shows everything inside the dotted box stays on
+// the ICJIA-controlled server; the X marks indicate that no
+// AI-service traffic ever leaves the boundary. The only outbound call
+// is Mailgun for OTP delivery, which carries authentication codes
+// only — no PDF content.
+const networkBoundaryDiagram = `flowchart LR
+    Browser((User's<br/>browser)) -->|HTTPS upload| API
+
+    subgraph Server["ICJIA-controlled DigitalOcean server"]
+        API[API process<br/>Node.js + Express]
+        QPDF[qpdf<br/>local binary]
+        ODL[OpenDataLoader<br/>local Java]
+        VERA[veraPDF<br/>local Java]
+        DB[(SQLite<br/>local file)]
+        API <--> QPDF
+        API <--> ODL
+        API <--> VERA
+        API <--> DB
+    end
+
+    Server -.OTP code only.-> Mailgun{{Mailgun<br/>email relay}}
+
+    GPT[ChatGPT / GPT-4o]
+    Claude[Anthropic Claude]
+    Gemini[Google Gemini]
+    Copilot[Microsoft Copilot]
+
+    Server -.X NEVER X.-> GPT
+    Server -.X NEVER X.-> Claude
+    Server -.X NEVER X.-> Gemini
+    Server -.X NEVER X.-> Copilot
+
+    style Server fill:#0a1f0a,stroke:#10b981,stroke-width:2px
+    style GPT fill:#7f1d1d,stroke:#ef4444,color:#fecaca
+    style Claude fill:#7f1d1d,stroke:#ef4444,color:#fecaca
+    style Gemini fill:#7f1d1d,stroke:#ef4444,color:#fecaca
+    style Copilot fill:#7f1d1d,stroke:#ef4444,color:#fecaca`
+
+// Retention timeline — every storage location plotted on a log-scale
+// timeline so the eye immediately sees that PDF content lives only for
+// seconds-to-minutes, while content-free metadata (the audit trail)
+// is what persists long-term. Mermaid Gantt format.
+const retentionTimelineDiagram = `gantt
+    title Maximum retention by data category (log scale; PDF content vs metadata)
+    dateFormat X
+    axisFormat %s
+
+    section PDF content (deleted ASAP)
+    Audited PDF (memory only)            :a1, 0, 10s
+    Remediation input (scratch)          :a2, 0, 5s
+    Normalized intermediate              :a3, 0, 5s
+    Remediated output (until download)   :a4, 0, 1800s
+
+    section Metadata (content-free)
+    OTP code (single-use)                :b1, 0, 600s
+    Shared report (audit results only)   :b2, 0, 1296000s
+    Remediation job row                  :b3, 0, 2592000s
+    Lifecycle audit trail                :b4, 0, 220752000s
+    Plain audit log                      :b5, 0, 220752000s`
+
+// Red/blue team concept — flowchart showing the structure of a
+// pre-release security audit, for non-technical readers.
+const redBlueTeamDiagram = `flowchart TD
+    Start([Pre-release security review]) --> Split
+
+    Split{{Two perspectives}}
+
+    Split --> Red[RED TEAM<br/>thinks like an attacker<br/>what could go wrong?]
+    Split --> Blue[BLUE TEAM<br/>thinks like a defender<br/>what protections exist?]
+
+    Red --> RV["Lists attack vectors:<br/>• Malicious uploads<br/>• Memory exhaustion<br/>• Race conditions<br/>• Path traversal<br/>• Information disclosure<br/>• ..."]
+    Blue --> BV["Lists defenses:<br/>• Magic-byte validation<br/>• Size + page caps<br/>• File permissions<br/>• Token entropy<br/>• Audit trail<br/>• ..."]
+
+    RV --> Compare{Match vectors<br/>to defenses}
+    BV --> Compare
+
+    Compare -->|attack covered| Pass[Defense documented]
+    Compare -->|gap found| Finding[FINDING]
+
+    Finding --> Severity{Severity rating}
+    Severity -->|P0 critical| Fix0[Block release until fixed]
+    Severity -->|P1 serious| Fix1[Fix before release]
+    Severity -->|P2 moderate| Doc[Document + mitigate]
+    Severity -->|P3 minor| Track[Track for later]
+
+    Fix0 --> Release([Release tagged<br/>+ findings published])
+    Fix1 --> Release
+    Doc --> Release
+    Track --> Release
+    Pass --> Release
+
+    style Red fill:#7f1d1d,stroke:#ef4444,color:#fecaca
+    style Blue fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe
+    style Release fill:#064e3b,stroke:#10b981,color:#d1fae5`
 </script>
 
 <template>
@@ -218,11 +423,12 @@ const TOOL_VERSION = '1.18.0'
         <li><a href="#retention-table" class="text-[var(--link)] hover:text-[var(--link-hover)]">7. Retention periods by data category</a></li>
         <li><a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]">8. What is and isn't stored</a></li>
         <li><a href="#safeguards" class="text-[var(--link)] hover:text-[var(--link-hover)]">9. Security &amp; technical safeguards</a></li>
-        <li><a href="#inspect" class="text-[var(--link)] hover:text-[var(--link-hover)]">10. Right to inspect &amp; verify</a></li>
-        <li><a href="#standards" class="text-[var(--link)] hover:text-[var(--link-hover)]">11. Standards &amp; compliance alignment</a></li>
-        <li><a href="#glossary" class="text-[var(--link)] hover:text-[var(--link-hover)]">12. Glossary of technical terms</a></li>
-        <li><a href="#change-log" class="text-[var(--link)] hover:text-[var(--link-hover)]">13. Change log for this policy</a></li>
-        <li><a href="#contact" class="text-[var(--link)] hover:text-[var(--link-hover)]">14. Contact &amp; questions</a></li>
+        <li><a href="#security-audits" class="text-[var(--link)] hover:text-[var(--link-hover)]">10. Security audit history (red/blue team reviews)</a></li>
+        <li><a href="#inspect" class="text-[var(--link)] hover:text-[var(--link-hover)]">11. Right to inspect &amp; verify</a></li>
+        <li><a href="#standards" class="text-[var(--link)] hover:text-[var(--link-hover)]">12. Standards &amp; compliance alignment</a></li>
+        <li><a href="#glossary" class="text-[var(--link)] hover:text-[var(--link-hover)]">13. Glossary of technical terms</a></li>
+        <li><a href="#change-log" class="text-[var(--link)] hover:text-[var(--link-hover)]">14. Change log for this policy</a></li>
+        <li><a href="#contact" class="text-[var(--link)] hover:text-[var(--link-hover)]">15. Contact &amp; questions</a></li>
       </ol>
     </section>
 
@@ -304,6 +510,14 @@ HTTP response → client (typically &lt; 10 seconds total)
        ▼
 Node.js garbage collector reclaims the buffer
 (file no longer exists in any form, anywhere)</div>
+
+      <div class="mt-4">
+        <MermaidDiagram
+          :source="auditPipelineDiagram"
+          title="Audit pipeline — visual flow"
+          desc="A flowchart of the audit pipeline. The uploaded PDF is held in memory only, validated, analyzed in parallel by qpdf and pdfjs, scored across 9 WCAG categories, and the buffer is discarded as soon as the HTTP response is sent. The PDF never touches disk."
+        />
+      </div>
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         Once the HTTP response has been sent, the in-memory buffer is
         unreferenced and garbage-collected by the Node.js runtime in the next
@@ -398,6 +612,15 @@ Client downloads via single-use token:
 [Emit: 'expired', 'output_deleted', 'verified_absent']
 
 ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
+
+      <div class="mt-4">
+        <MermaidDiagram
+          :source="remediationPipelineDiagram"
+          title="Remediation pipeline — visual flow"
+          desc="A flowchart of the remediation pipeline. Four stages — preparing, tagging, validating, comparing. After each stage, intermediate files are deleted and the deletion is verified by an fs.stat ENOENT check (shown as green 'verified_absent' nodes). Any validation failure or score regression rejects the output. Successful outputs are held only until first download or 30-minute TTL, then deleted with verification."
+        />
+      </div>
+
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         <strong>Key invariants of the remediation pipeline:</strong>
       </p>
@@ -505,6 +728,14 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
           before the feature is enabled in production</strong>, with a
           corresponding update to the policy version above.
         </p>
+      </div>
+
+      <div class="mt-5">
+        <MermaidDiagram
+          :source="networkBoundaryDiagram"
+          title="Network boundary — what enters and leaves the server"
+          desc="A flowchart showing the user's browser uploading a PDF into the ICJIA-controlled server (the green-bordered box). Inside the box, the API talks to qpdf, OpenDataLoader, veraPDF, and SQLite — all local. The only outbound traffic is Mailgun for OTP-code delivery (no PDF content). All AI services — ChatGPT/GPT-4o, Claude, Gemini, Copilot — are explicitly outside the boundary with 'X NEVER X' arrows indicating no data ever crosses to them."
+        />
       </div>
     </section>
 
@@ -696,6 +927,15 @@ CREATE TABLE remediation_jobs (
         <span>expired</span>
         <span>error</span>
       </div>
+
+      <div class="mt-4 mb-5">
+        <MermaidDiagram
+          :source="lifecycleSequenceDiagram"
+          title="Lifecycle audit trail — sequence diagram"
+          desc="A sequence diagram showing every message exchange between Client, API process, detached Worker, Filesystem, and the remediation_events database during a successful remediation + download. Every file deletion is followed by an fs.stat verification (ENOENT) and a 'verified_absent' event in the audit log. The audit trail is append-only and retained for 7 years by default."
+        />
+      </div>
+
       <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
         <strong>The <code class="text-xs font-mono">verified_absent</code>
         event is the critical compliance signal.</strong>
@@ -866,6 +1106,14 @@ CREATE TABLE remediation_jobs (
           </tbody>
         </table>
       </div>
+      <div class="mt-5">
+        <MermaidDiagram
+          :source="retentionTimelineDiagram"
+          title="Retention timeline at a glance"
+          desc="Gantt chart showing maximum retention for each data category. PDF content (top bars: audited PDF, remediation input, normalized intermediate, remediated output) lives only seconds to a maximum of 30 minutes. Metadata only (lower bars: OTP codes, shared reports, job rows, lifecycle audit trail, plain audit log) persists for longer windows — up to 7 years for the audit trail — but never contains PDF content."
+        />
+      </div>
+
       <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed">
         Retention periods marked "configurable" can be adjusted in the source
         configuration file
@@ -1058,10 +1306,275 @@ CREATE TABLE remediation_jobs (
       </ul>
     </section>
 
-    <!-- 10. Right to inspect -->
+    <!-- 10. Security audits -->
+    <section id="security-audits" class="scroll-mt-8">
+      <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
+        10. Security audit history (red/blue team reviews)
+      </h2>
+
+      <!-- Plain-language explainer for non-technical readers -->
+      <div
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-5"
+      >
+        <h3
+          class="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3"
+        >
+          What is a red/blue team audit, in plain language?
+        </h3>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          Imagine the tool is a bank vault. <strong>The red team</strong>
+          plays the role of someone trying to break in — looking for unlocked
+          doors, weak walls, or ways to trick the guards. They aren't actually
+          attackers; they're security-minded reviewers who deliberately think
+          like attackers. <strong>The blue team</strong> plays the defenders —
+          documenting every lock, alarm, and procedure that's supposed to keep
+          the vault safe.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          A red/blue team audit is when both teams sit down together — often
+          the same person playing both roles — and systematically work through
+          everything that could go wrong: <em>"What if someone uploads a
+          poisoned file?" "What if two people try to download the same thing
+          at once?" "What if the server runs out of memory mid-job?"</em>
+          For each scenario, they identify whether existing protections are
+          adequate, what could fail, and how to fix it.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          The output is a list of <strong>findings</strong>, each rated by
+          severity:
+        </p>
+        <ul class="space-y-1.5 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-3">
+          <li>
+            <strong>P0 — critical:</strong> the system is broken right now and
+            users are exposed. Must be fixed immediately, before any release.
+          </li>
+          <li>
+            <strong>P1 — serious:</strong> a real vulnerability that could be
+            exploited. Must be fixed before the upcoming release.
+          </li>
+          <li>
+            <strong>P2 — moderate:</strong> a real concern, but its impact is
+            bounded by other protections. Documented; sometimes accepted as
+            a known limitation if mitigation is in place.
+          </li>
+          <li>
+            <strong>P3 — minor:</strong> a small concern or theoretical risk.
+            Tracked; addressed when convenient.
+          </li>
+        </ul>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong>Why this matters for compliance:</strong> ADA Title II,
+          Illinois IITAA, and most state-agency procurement standards require
+          a "reasonable" level of security. A documented red/blue team audit
+          before each release is concrete evidence of due diligence — it
+          demonstrates that the development team didn't just hope nothing
+          would go wrong, they systematically checked. For an external
+          auditor, this section IS the documentation of that diligence.
+        </p>
+
+        <div class="mt-5">
+          <MermaidDiagram
+            :source="redBlueTeamDiagram"
+            title="How a red/blue team audit works"
+            desc="A flowchart of the red/blue team audit process. Two perspectives — red team (attacker mindset, lists attack vectors) and blue team (defender mindset, lists protections) — meet to match each vector against existing defenses. Where a defense already exists, the protection is documented. Where a gap is found, a finding is created with a severity rating (P0 critical, P1 serious, P2 moderate, P3 minor) and an appropriate remediation path before the release is tagged."
+          />
+        </div>
+      </div>
+
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+        Audit entries below are in reverse-chronological order (most recent
+        first). Each entry lists the findings discovered during that
+        release's review and what was done about them.
+      </p>
+
+      <!-- v1.18.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.18.0
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-18</strong> · scope: PDF
+            auto-remediation feature (entire new surface)
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          The remediation pipeline was the first major surface added to
+          this tool. The pre-release red/blue team review covered the
+          public API endpoints, the worker, the frontend, the cleanup
+          sweep, the database schema, and the file lifecycle. The 15-row
+          threat-model checklist documented in
+          <code class="text-xs font-mono"
+            >docs/pdf-remediation-integration-plan.md</code
+          >
+          (§ Security) was the basis of the review.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Findings
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-red-700/30 text-red-200 mr-2">P1</span>
+              Fixed</strong
+            >
+            — Memory exhaustion via large output downloads.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the download endpoint loaded
+              the entire remediated PDF (up to 50 MB) into the API
+              process's memory before sending it to the user's browser.
+              Under several simultaneous downloads, this could exceed the
+              API process's 512 MB memory cap and crash it. <br />
+              <strong>How it was fixed:</strong> switched to streaming the
+              file in small chunks
+              (<code class="text-xs font-mono"
+                >createReadStream + stream.pipe(res)</code
+              >). Memory usage is now constant regardless of output size.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-red-700/30 text-red-200 mr-2">P1</span>
+              Fixed</strong
+            >
+            — Race condition allowed concurrent double-download.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the download token was
+              supposed to be single-use, but two near-simultaneous
+              requests with the same token could both pass the validation
+              check and both retrieve the file before either completed.
+              This violated the "single-use" privacy guarantee.<br />
+              <strong>How it was fixed:</strong> the job is marked
+              <code class="text-xs font-mono">status='expired'</code>
+              <em>before</em> the file is sent, so any concurrent second
+              request immediately sees the expired status and receives a
+              "410 Gone" response.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Mitigated</strong
+            >
+            — Auth-bypass when login is not required (dev/internal mode).
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was found:</strong> when the tool runs with the
+              "require login" flag turned off (typical for internal
+              development), the per-job email check on the status,
+              download, and receipt endpoints is bypassed. Anyone who
+              knows a job's UUID could read its data.<br />
+              <strong>How it was handled:</strong> job UUIDs use 122 bits
+              of cryptographic randomness — guessing one is
+              computationally impractical. Production deployments run
+              with login required, which closes the gap entirely. This
+              limitation is documented in the integration plan as the
+              known posture; it does not affect the production deployment.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Accepted</strong
+            >
+            — Legacy scoring data computed but unused.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was found:</strong> the Adobe Acrobat parity
+              score (a 32-rule check) is still calculated on the server
+              even though the user interface no longer displays it. Costs
+              about 50 milliseconds per audit.<br />
+              <strong>How it was handled:</strong> intentionally kept for
+              data-shape stability so existing tests and audit-log
+              entries continue to work. May be removed in a future
+              release if the cost ever matters. Not a privacy or
+              security issue — just dead code.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Accepted</strong
+            >
+            — Conservative PDF validation rejects borderline files.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was found:</strong> the
+              <code class="text-xs font-mono">qpdf --check</code> validator
+              flags some technically-valid PDF outputs as "warnings,"
+              which the tool treats as failures.<br />
+              <strong>How it was handled:</strong> accepted by design.
+              Better to reject a borderline file (the user is told the
+              remediation didn't work, can try a different path) than to
+              serve a file that <em>might</em> be damaged and contaminate
+              the user's records. Privacy and integrity over feature
+              completion.
+            </p>
+          </li>
+        </ul>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Pre-launch items still open
+        </h4>
+        <ul class="space-y-1 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
+          <li>
+            External penetration test on the remediation surface (planned
+            before public-announce; budget tracked in Phase 4 roadmap).
+          </li>
+          <li>
+            Full automated test coverage for the remediation pipeline
+            (<code class="text-xs font-mono">remediation.test.ts</code>,
+            <code class="text-xs font-mono"
+              >remediation-privacy.test.ts</code
+            >,
+            <code class="text-xs font-mono"
+              >remediation-receipt.test.ts</code
+            >). Tracked in Phase 4.
+          </li>
+          <li>
+            File the upstream OpenDataLoader object-streams bug with
+            reproducer PDFs (the qpdf preprocessing workaround is in place
+            in the meantime).
+          </li>
+        </ul>
+      </article>
+
+      <!-- Prior releases -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.17.0 and earlier
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Pre-formatted-audit era
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          Security reviews for releases prior to v1.18.0 were not yet
+          captured in this format. Earlier releases focused on the
+          synchronous audit pipeline (added in v1.0) and authentication
+          flow (Personal Access Tokens added in v1.16, analyze-by-URL
+          added in v1.17). Review history for those releases is available
+          via the
+          <a
+            href="https://github.com/ICJIA/file-accessibility-audit/commits/main"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >commit history on GitHub</a
+          >. Going forward — beginning with v1.18.0 — every release will
+          have a corresponding entry in this section before tagging.
+        </p>
+      </article>
+    </section>
+
+    <!-- 11. Right to inspect -->
     <section id="inspect" class="scroll-mt-8">
       <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
-        10. Right to inspect &amp; verify
+        11. Right to inspect &amp; verify
       </h2>
       <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
         Authorized agency staff — including managers, records-retention
