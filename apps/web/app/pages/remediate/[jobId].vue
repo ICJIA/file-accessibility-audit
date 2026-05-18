@@ -291,15 +291,36 @@ function labelForEvent(name: string): string {
         ✓ Auto-remediation complete
       </h2>
 
-      <!-- AFTER (shown first — the result) -->
-      <div class="rounded-xl border-2 border-emerald-700/40 bg-emerald-950/10 p-4 sm:p-6 relative">
-        <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">
-          After remediation
-        </span>
-        <ScoreCard
-          v-model:selected-mode="afterMode"
-          :result="receipt.outputAudit"
-        />
+      <!-- AFTER (shown first — the result, infographic-style banner) -->
+      <div class="rounded-xl border-2 border-emerald-700/40 bg-emerald-950/10 overflow-hidden">
+        <div
+          class="bg-emerald-700/25 border-b border-emerald-700/40 py-6 sm:py-8 px-6 text-center"
+        >
+          <p
+            class="text-2xl sm:text-3xl font-black uppercase tracking-[0.2em] text-emerald-300 flex items-center justify-center gap-3"
+          >
+            <svg
+              class="w-7 h-7 sm:w-8 sm:h-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4.5 12.75l6 6 9-13.5"
+              />
+            </svg>
+            After Remediation
+          </p>
+        </div>
+        <div class="p-4 sm:p-6">
+          <ScoreCard
+            v-model:selected-mode="afterMode"
+            :result="receipt.outputAudit"
+          />
+        </div>
       </div>
 
       <!-- Up-arrow separator -->
@@ -322,15 +343,23 @@ function labelForEvent(name: string): string {
         </svg>
       </div>
 
-      <!-- BEFORE (shown second — for reference) -->
-      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6 relative">
-        <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
-          Before
-        </span>
-        <ScoreCard
-          v-model:selected-mode="beforeMode"
-          :result="receipt.inputAudit"
-        />
+      <!-- BEFORE (shown second — for reference, muted banner) -->
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden">
+        <div
+          class="bg-[var(--border)]/30 border-b border-[var(--border)] py-3 sm:py-4 px-6 text-center"
+        >
+          <p
+            class="text-sm sm:text-base font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]"
+          >
+            Before
+          </p>
+        </div>
+        <div class="p-4 sm:p-6">
+          <ScoreCard
+            v-model:selected-mode="beforeMode"
+            :result="receipt.inputAudit"
+          />
+        </div>
       </div>
     </section>
 
