@@ -1429,6 +1429,186 @@
           </p>
 
           <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            What Is a PDF, Really? (And Why It's Different from Word)
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            To understand why some PDFs are accessible and others aren't —
+            and why "fixing" an inaccessible PDF can be so much harder than
+            it looks — it helps to know what a PDF actually <em>is</em>
+            under the hood. Most people use PDFs every day without ever
+            thinking about it. Here's the short version.
+          </p>
+
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>A PDF is an export, not a source document.</strong>
+            Adobe created the Portable Document Format in 1993 to solve a
+            specific problem: making a file that <em>looks identical</em>
+            on every printer, every monitor, every operating system. You
+            don't <em>write</em> in a PDF — you write in Word, InDesign,
+            Pages, or Google Docs, and then you <em>export to</em> PDF when
+            you want to share the finished result. PDF is the printed-and-
+            mailed envelope at the end of the workflow, not the
+            word-processor you used to draft the letter.
+          </p>
+
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>The difference between Word and PDF is about
+            <em>what each format stores</em>:</strong>
+          </p>
+          <div
+            class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+          >Word (.docx) says:
+  &lt;h1&gt;Annual Report 2024&lt;/h1&gt;
+  &lt;p&gt;In fiscal year 2024…&lt;/p&gt;
+  &lt;img alt="Bar chart showing arrests by month" src="…" /&gt;
+
+PDF says:
+  Page 1, x=72,  y=720, font=Arial-Bold, size=24pt: glyph 'A'
+  Page 1, x=85,  y=720, font=Arial-Bold, size=24pt: glyph 'n'
+  Page 1, x=98,  y=720, font=Arial-Bold, size=24pt: glyph 'n'
+  Page 1, x=72,  y=680, font=Arial,      size=11pt: glyph 'I'
+  Page 1, x=78,  y=680, font=Arial,      size=11pt: glyph 'n'
+  Page 1, x=72,  y=200, image XObject ref=42 (768 x 432 pixels)
+  …</div>
+          <p class="text-[var(--text-muted)] mt-3 mb-3">
+            Word stores the <em>meaning</em> of your content. The
+            <code class="text-xs font-mono">&lt;h1&gt;</code> tag tells
+            <em>any</em> program reading the file: "this is a top-level
+            heading." The <code class="text-xs font-mono">&lt;img&gt;</code>
+            tag has an
+            <code class="text-xs font-mono">alt</code> attribute that
+            describes the picture. A screen reader can read a Word file and
+            navigate it like a webpage because the meaning is right there
+            in the file.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            PDF stores <em>where every glyph goes on the page</em>. That's
+            it. A PDF doesn't natively know which glyphs are a heading and
+            which are a paragraph — only that this letter is here, that
+            letter is there, in this font, in this color. When you read a
+            PDF, your brain does the work of recognizing "the big bold text
+            at the top must be a heading." A screen reader can't do that
+            from glyph positions alone — it would just read each glyph in
+            sequence, which sounds like gibberish.
+          </p>
+
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>So how can a PDF be accessible at all?</strong>
+            Starting in 2001 (PDF version 1.4), Adobe added an
+            <em>optional</em> second layer to the format called the
+            <strong>structure tree</strong> (or "tags"). This is a separate
+            invisible layer that runs alongside the visual content and says
+            "the glyphs that draw 'Annual Report 2024' belong to a
+            <code class="text-xs font-mono">&lt;H1&gt;</code> element. The
+            image at x=72, y=200 is a
+            <code class="text-xs font-mono">&lt;Figure&gt;</code> element with
+            alt-text 'Bar chart showing arrests by month'." Screen readers
+            read the structure tree first, then jump to the visual content
+            based on what the tree tells them.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            A PDF that has this layer is called a
+            <strong>"tagged PDF."</strong> A PDF without it is
+            <strong>"untagged."</strong> Whether a PDF gets tagged depends
+            on how it was exported. In Word: <em>File → Save As → PDF →
+            Options → "Document structure tags for accessibility"</em>
+            (checked by default in recent versions, but commonly turned off
+            on older Office installs or "minimum size" exports). In
+            InDesign: <em>File → Export → Adobe PDF (Print) → "Create
+            Tagged PDF"</em>. Pages and Google Docs are similar. If that
+            box is unchecked, you get an untagged PDF — visually identical,
+            but invisible to screen readers.
+          </p>
+
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>The structure tree itself looks like a webpage's DOM
+            tree,</strong>
+            because it borrows the same ideas:
+          </p>
+          <div
+            class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+          >StructTreeRoot
+└── Document
+    ├── H1 "Annual Report 2024"
+    ├── P  "In fiscal year 2024, the agency processed…"
+    ├── Figure  (/Alt "Bar chart showing arrests by month")
+    ├── H2 "Methodology"
+    ├── P  "Data was collected from…"
+    └── Table
+        ├── TR
+        │    ├── TH (Scope=Col) "County"
+        │    ├── TH (Scope=Col) "Arrests"
+        │    └── TH (Scope=Col) "Year"
+        └── TR
+             ├── TD "Cook"
+             ├── TD "12,345"
+             └── TD "2024"</div>
+          <p class="text-[var(--text-muted)] mt-3 mb-3">
+            Standard tag types include
+            <code class="text-xs font-mono">Document</code>,
+            <code class="text-xs font-mono">Sect</code>,
+            <code class="text-xs font-mono">H1</code> through
+            <code class="text-xs font-mono">H6</code>,
+            <code class="text-xs font-mono">P</code>,
+            <code class="text-xs font-mono">L</code> /
+            <code class="text-xs font-mono">LI</code> (list / list item),
+            <code class="text-xs font-mono">Table</code> /
+            <code class="text-xs font-mono">TR</code> /
+            <code class="text-xs font-mono">TH</code> /
+            <code class="text-xs font-mono">TD</code>,
+            <code class="text-xs font-mono">Figure</code>,
+            <code class="text-xs font-mono">Caption</code>,
+            <code class="text-xs font-mono">Form</code>,
+            <code class="text-xs font-mono">Link</code>, and
+            <code class="text-xs font-mono">Artifact</code> (used for
+            purely decorative content that screen readers should skip).
+            Each can carry attributes like
+            <code class="text-xs font-mono">/Alt</code> (alt text for
+            figures), <code class="text-xs font-mono">/Lang</code>
+            (language declaration), and
+            <code class="text-xs font-mono">Scope</code> (whether a
+            <code class="text-xs font-mono">TH</code> is a row or column
+            header).
+          </p>
+
+          <p class="text-[var(--text-muted)] mb-3">
+            Linking these tags back to the glyphs they describe uses
+            <strong>Marked Content Identifiers</strong> (MCIDs). Each chunk
+            of content in the page's drawing instructions is wrapped in a
+            marker (<code class="text-xs font-mono">/MCID 7 … /EMC</code>),
+            and the corresponding structure tree node points back at that
+            marker. It's the same idea as <code class="font-mono">id</code>
+            attributes connecting HTML elements to JavaScript handlers —
+            a separate identifier layer that knits two parallel
+            representations together.
+          </p>
+
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>This architecture is why retrofitting accessibility
+            into an existing PDF is so much harder than getting it right at
+            export.</strong>
+            When Word exports a tagged PDF, it already knows your headings
+            are headings — it just copies that semantic information into
+            the structure tree. When somebody hands you an untagged PDF
+            and asks you to fix it, the only thing left is the glyph
+            positions. Reverse-engineering "what was this heading?" from
+            "14-pt bold text at the top of page 2" is what auto-remediation
+            tools attempt, but with the same fundamental limitation a human
+            would have: it's a guess based on visual cues, not a recall of
+            authorial intent.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>The practical takeaway:</strong> the most reliable path
+            to an accessible PDF is to fix accessibility issues in the
+            <em>source document</em> (Word, InDesign, etc.) and re-export
+            with tagging enabled. The next-best path — and what this tool's
+            optional auto-remediation feature does — is to take an
+            already-exported PDF and add structure tags after the fact. The
+            audit results page surfaces this distinction in the "Best path
+            to accessibility starts at the source" notice.
+          </p>
+
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
             How It Works
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
@@ -3640,43 +3820,155 @@ pm2 restart ecosystem.config.cjs</div>
       </div>
     </details>
 
-    <!-- Info cards -->
-    <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+    <!-- Feature stats (infographic style) -->
+    <div class="mt-12 mb-2 text-center">
+      <h2 class="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--text-muted)]">
+        What This Tool Does
+      </h2>
+      <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
+        Audit any PDF for WCAG 2.1 AA accessibility — and (optionally) auto-remediate
+        it, all on infrastructure you control, with no AI and no per-document fees.
+      </p>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
+      <!-- Audit -->
       <div
-        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5"
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
       >
         <div
-          class="text-2xl sm:text-3xl font-black text-[var(--accent-green)] mb-2"
+          class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none"
         >
-          9 Categories
+          9
         </div>
-        <p class="text-sm text-[var(--text-muted)]">
-          Accessibility categories scored across structure, navigation, and
-          content
+        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          WCAG categories audited
+        </div>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          Each PDF scored across 9 categories aligned with
+          <strong>WCAG 2.1 Level AA</strong> and ADA Title II. A–F letter grade plus
+          Critical / Serious / Moderate severity per category so you know what to
+          fix first.
         </p>
       </div>
+
+      <!-- Auto-Remediate -->
       <div
-        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5"
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
       >
         <div
-          class="text-2xl sm:text-3xl font-black text-[var(--accent-green)] mb-2"
+          class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none"
         >
-          Accessibility Readiness
+          F → A
         </div>
-        <p class="text-sm text-[var(--text-muted)]">
-          Letter grade with severity levels so you know what to fix first
+        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          Auto-remediation (optional)
+        </div>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          Tag untagged PDFs in seconds with the qpdf →
+          <a
+            href="https://github.com/opendataloader-project/opendataloader-pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >OpenDataLoader</a
+          >
+          →
+          <a
+            href="https://verapdf.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >veraPDF</a
+          >
+          pipeline. Output never regresses any score profile, and manual review is
+          still recommended for IITAA compliance.
         </p>
       </div>
+
+      <!-- Standards alignment -->
       <div
-        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5"
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
       >
         <div
-          class="text-2xl sm:text-3xl font-black text-[var(--accent-green)] mb-2"
+          class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none"
         >
-          Export & Share
+          PDF/UA-1
         </div>
-        <p class="text-sm text-[var(--text-muted)]">
-          Download reports as Word, HTML, Markdown, or JSON and share via link
+        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          Standards aligned
+        </div>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          WCAG 2.1 Level AA, ADA Title II (effective April 2026), Illinois IITAA,
+          and PDF/UA-1 (ISO 14289-1) via veraPDF. Full lifecycle audit trail with
+          deletion verification for compliance reporting.
+        </p>
+      </div>
+
+      <!-- Privacy -->
+      <div
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
+      >
+        <div
+          class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none"
+        >
+          0
+        </div>
+        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          PDFs retained
+        </div>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          Uploaded files exist on the server only as long as the pipeline requires.
+          Audited files: in-memory, gone in seconds. Remediated outputs: deleted on
+          first download or 30-minute TTL, then
+          <code class="font-mono text-[10px]">fs.stat</code>-verified absent.
+        </p>
+      </div>
+
+      <!-- No AI / no third-party -->
+      <div
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
+      >
+        <div
+          class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none"
+        >
+          $0
+        </div>
+        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          No AI, no third-party APIs
+        </div>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          Every step runs on this server. No data is sent to vision models, hosted
+          AI services, or commercial PDF SDKs. The toolchain (qpdf, pdfjs,
+          OpenDataLoader, veraPDF) is entirely open source — no per-document fees,
+          no SDK licensing.
+        </p>
+      </div>
+
+      <!-- Open source / cost -->
+      <div
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
+      >
+        <div
+          class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none"
+        >
+          100%
+        </div>
+        <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
+          Open source
+        </div>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          Every line of code is on
+          <a
+            href="https://github.com/ICJIA/file-accessibility-audit"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >GitHub</a
+          >
+          — fork it, audit it, run it on your own infrastructure. Underlying tools
+          use Apache 2.0 / MIT / MPL licenses. Designed for state agencies that need
+          control over their accessibility pipeline.
         </p>
       </div>
     </div>

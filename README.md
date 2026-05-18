@@ -4,9 +4,24 @@
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
-A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload one or more PDFs (up to 5), get instant grades (A–F) with category-by-category findings and remediation guidance.
+A web tool that **audits and (optionally) remediates** PDF accessibility against [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/), [ADA Title II](https://www.ada.gov/resources/title-ii-rule/), [Illinois IITAA](https://doit.illinois.gov/initiatives/accessibility.html), and [PDF/UA-1 (ISO 14289-1)](https://www.iso.org/standard/64599.html) — all on infrastructure you control, with no AI and no per-document fees.
 
-**This tool is primarily diagnostic** — it identifies accessibility issues and grades them. As of v1.18.0 it also offers optional **auto-remediation** for PDFs that need structure tagging (gated behind `REMEDIATION_ENABLED=true`, disabled by default — see [docs/pdf-remediation-integration-plan.md](docs/pdf-remediation-integration-plan.md)). The intended workflow is: upload → review findings → either auto-remediate or fix in Adobe Acrobat → re-upload to verify. Manual review remains essential for IITAA compliance regardless of which path is taken.
+## What it does
+
+| | Feature | Detail |
+|---|---------|--------|
+| **9** | WCAG categories audited | Each PDF scored across 9 accessibility categories. A–F letter grade plus Critical / Serious / Moderate severity per category. Strict + Practical scoring profiles. |
+| **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses any score profile. Manual review still recommended for IITAA compliance. |
+| **PDF/UA-1** | Standards aligned | WCAG 2.1 AA, ADA Title II (April 2026), Illinois IITAA, PDF/UA-1 via veraPDF. Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
+| **0** | PDFs retained | Audit: in-memory only, gone in seconds. Remediation: output deleted on first download or 30-minute TTL, then verified absent. |
+| **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF SDKs. |
+| **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
+| **5** | PDFs per batch | Upload up to 5 PDFs at once; per-tab remediation. `POST /api/analyze-url` for programmatic auditing of public PDFs. |
+| **4** | Export formats | Word / HTML / Markdown / JSON report exports. 15-day shareable links (no login required to view). |
+
+Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/pdf-remediation-integration-plan.md](docs/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/pdf-remediation-alt-text-walkthrough-spec.md](docs/pdf-remediation-alt-text-walkthrough-spec.md).
+
+The intended workflow is: **upload → review findings → either auto-remediate or fix at the source (Word, InDesign, etc.) and re-export → re-upload to verify.** Manual review remains essential for full IITAA compliance regardless of which path is taken — the tool's job is to find issues and reduce the manual remediation surface, not replace human review.
 
 ## Security
 
