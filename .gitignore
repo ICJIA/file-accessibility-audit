@@ -60,3 +60,4 @@ spike-out-smolvlm/
 
 # Remediation runtime artifacts (output PDFs, worker scratch dirs)
 apps/api/data/remediation/
+.tmp-shots/
