@@ -646,3 +646,148 @@ export const UI = {
    */
   MAX_PAGE_SIZE: 100,
 } as const;
+
+// ---------------------------------------------------------------------------
+// PDF AUTO-REMEDIATION (v1 — basic OpenDataLoader + qpdf preprocessing)
+// ---------------------------------------------------------------------------
+// Tunables for the "Remediate this PDF" feature. v1 ships basic ODL only;
+// hybrid mode and AI alt text are on the roadmap (see
+// docs/pdf-remediation-integration-plan.md).
+//
+// The privacy posture is the load-bearing decision here: PDFs are NOT cached
+// between audit and remediation. The user re-uploads to remediate. Inputs are
+// deleted between pipeline stages; outputs are deleted on first download or
+// after OUTPUT_TTL_MS, whichever comes first.
+
+export const REMEDIATION = {
+  /**
+   * Feature flag. When false, the API endpoints return 404 and the
+   * frontend hides the Remediate button. Lets us merge plumbing without
+   * exposing the feature until it's ready.
+   *
+   * SAFE TO CHANGE: Yes — flip to true to enable the feature in production.
+   */
+  ENABLED: false,
+
+  /**
+   * Maximum file size for PDFs submitted to remediation, in megabytes.
+   * Larger than ANALYSIS.MAX_FILE_SIZE_MB because remediation handles
+   * documents the audit may have flagged as needing structure work
+   * (annual reports, multi-section dossiers). The Juvenile fixture in the
+   * spike was 7MB / 246 pages.
+   *
+   * SAFE TO CHANGE: Yes — keep ≤ nginx client_max_body_size minus headroom.
+   * Increasing past 100MB risks JVM OOM on a 4GB droplet.
+   */
+  MAX_FILE_SIZE_MB: 50,
+
+  /**
+   * Maximum page count accepted for remediation. Pathological PDFs with
+   * thousands of pages are rejected pre-pipeline (not the audit pipeline's
+   * concern; this is specifically for the remediation worker).
+   *
+   * SAFE TO CHANGE: Yes — 500 covers all realistic ICJIA reports including
+   * the 246-page Juvenile fixture. Lower if you want faster failure.
+   */
+  MAX_PAGE_COUNT: 500,
+
+  /**
+   * Wall-clock timeout for the remediation worker, in milliseconds.
+   * The JVM child is killed if the whole pipeline takes longer than this.
+   * Typical reports finish in 0.4–2s; the 246-page Juvenile took 37s in
+   * basic mode. 5 minutes is generous and catches runaway/stuck cases.
+   *
+   * SAFE TO CHANGE: Yes — lower for stricter resource use, higher only
+   * if you regularly hit the cap on legitimate documents.
+   */
+  WORKER_TIMEOUT_MS: 300_000,
+
+  /**
+   * JVM max heap size for the OpenDataLoader child process.
+   * Passed via JAVA_TOOL_OPTIONS=-Xmx<value>m. Caps memory a single
+   * remediation can consume regardless of input pathology.
+   *
+   * SAFE TO CHANGE: Yes — raise if you see "OutOfMemoryError" in worker
+   * logs on legitimate documents. Lower to be more frugal. 768MB handled
+   * every spike fixture comfortably; 512MB is the safe lower bound.
+   */
+  JVM_HEAP_MB: 768,
+
+  /**
+   * Maximum concurrent remediation jobs per user.
+   * Enforced at POST /api/remediate. Prevents one user from queueing
+   * dozens of jobs and saturating disk/CPU.
+   *
+   * SAFE TO CHANGE: Yes — keep at 1 for v1; revisit if user volume grows.
+   */
+  MAX_CONCURRENT_JOBS_PER_USER: 1,
+
+  /**
+   * How long the remediated output PDF lives on disk after the job
+   * completes successfully, in milliseconds. Cleanup deletes the file
+   * when this TTL expires, even if the user never downloads. First
+   * successful download also deletes the file regardless of TTL.
+   *
+   * SAFE TO CHANGE: Yes — shorter is better for privacy; longer if users
+   * complain about lost downloads. 30 minutes is the privacy-vs-UX
+   * default.
+   */
+  OUTPUT_TTL_MS: 30 * 60_000,
+
+  /**
+   * How long the `remediation_jobs` row is kept after job completion,
+   * in days. The row never contains PDF content — only metadata — so
+   * retention is cheap. Used for short-term operational visibility
+   * ("my recent remediations").
+   *
+   * SAFE TO CHANGE: Yes — independent of EVENT_LOG_RETENTION_DAYS below.
+   */
+  JOB_ROW_RETENTION_DAYS: 30,
+
+  /**
+   * How long lifecycle audit events are kept, in days. These rows are
+   * the auditor-facing record: timestamps for every step of the
+   * pipeline including post-deletion fs.stat verification. They contain
+   * no PDF content, so long retention is safe.
+   *
+   * SAFE TO CHANGE: Yes — matches your agency's records-retention
+   * policy. 7 years (~2555 days) is a common default for state-agency
+   * compliance.
+   */
+  EVENT_LOG_RETENTION_DAYS: 7 * 365,
+
+  /**
+   * How often the cleanup sweep runs, in milliseconds. The sweep:
+   *  1. Deletes output files past OUTPUT_TTL_MS.
+   *  2. Marks jobs stuck in `running` >10 min as failed.
+   *  3. Removes orphan files (no matching DB row).
+   *  4. Purges `remediation_jobs` rows past JOB_ROW_RETENTION_DAYS.
+   *  5. Purges `remediation_events` rows past EVENT_LOG_RETENTION_DAYS.
+   *
+   * SAFE TO CHANGE: Yes — shorter means more frequent disk hygiene at
+   * the cost of CPU. 5 minutes is a reasonable default.
+   */
+  CLEANUP_INTERVAL_MS: 5 * 60_000,
+
+  /**
+   * Storage location for output PDFs (resolved relative to apps/api/).
+   * Each job's output lives at `${OUTPUT_DIR}/<jobId>.pdf`; the worker's
+   * scratch dir is `${OUTPUT_DIR}/<jobId>/work/` and is removed at the
+   * end of the job.
+   *
+   * SAFE TO CHANGE: Yes — but make sure the path is gitignored, has 0700
+   * mode in production, and has enough free disk for your throughput.
+   */
+  OUTPUT_DIR: "./data/remediation",
+
+  /**
+   * Optional explicit path to the Java binary. If null, the worker uses
+   * `java` from PATH. Set this on macOS dev boxes where brew's openjdk
+   * isn't symlinked into /usr/bin (e.g., "/opt/homebrew/opt/openjdk@17/bin/java").
+   * On Ubuntu/DigitalOcean with `apt install openjdk-17-jre-headless`,
+   * leave null — `java` is already on PATH.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  JAVA_PATH: null as string | null,
+} as const;

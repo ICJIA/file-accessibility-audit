@@ -54,3 +54,6 @@ spike-out/
 spike-out-smolvlm/
 .venv-odl/
 .venv/
+
+# Remediation runtime artifacts (output PDFs, worker scratch dirs)
+apps/api/data/remediation/

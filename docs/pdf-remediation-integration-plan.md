@@ -133,6 +133,21 @@ All under `apps/api/src/routes/remediate.ts` (new):
 | GET    | `/api/me/remediations`                | Logged-in user's own remediation history (paginated). Returns metadata only — no PDFs. |
 | GET    | `/api/admin/remediations`             | Admin-only. Filters: `email`, `from`, `to`, `status`. Returns full event timelines. |
 | GET    | `/api/admin/remediations.csv`         | Admin-only. Same data as `/api/admin/remediations` but CSV for printing/emailing. |
+| POST   | `/api/admin/verify-pdf`               | **Phase 2 (planned, not v1).** Auth-gated lookup answering "did this PDF go through our tool?" Body is either `{ filename: "..." }` for fuzzy filename match or a multipart upload — server computes sha256 and searches `audit_log` + `remediation_jobs` for matches. Returns history with timestamps + scores, or "not found." |
+
+**Feature-flag rollout** (`audit.config.ts` → `REMEDIATION.ENABLED`):
+all the remediation endpoints (and the Remediate button) are dark when
+`ENABLED: false`. This lets the schema, route handlers, worker, and UI
+land in production unused, then flip a single config flag to release.
+Until the flip, requests return `404 Not Found` and the button is
+hidden. Useful for staged rollout: ship plumbing, internally smoke-test,
+then enable for real users.
+
+**Verification endpoint authentication** (Phase 2): when `verify-pdf`
+ships, it's gated by the same `AUTH.ADMIN_EMAILS` mechanism used for
+audit logs. The endpoint is intended for managers asking *"did this
+report actually go through our tool?"* — answering yes/no with details
+(when, by whom, score) or no/never (no match).
 
 Mount in `apps/api/src/index.ts` alongside existing route imports.
 
@@ -169,6 +184,16 @@ CREATE INDEX IF NOT EXISTS idx_remediation_jobs_expires
 A second append-only table `remediation_events` captures the lifecycle
 audit trail — see the **Lifecycle audit trail** section below for the
 schema and event-type list.
+
+**Content-hash column for verification lookup**. The schema includes
+`content_hash TEXT` on `remediation_jobs` storing a SHA-256 of the input
+PDF bytes (computed pre-pipeline, stored as a 64-char hex string). The
+existing `audit_log` table gets the same column via
+`ALTER TABLE audit_log ADD COLUMN content_hash TEXT`. This makes the
+Phase 2 `verify-pdf` endpoint possible without storing PDF content —
+the hash is purely a fingerprint. It also enables future de-duplication
+analytics ("how many users uploaded the same document?") without
+exposing what those documents contain.
 
 ## Privacy and retention (data minimization)
 
