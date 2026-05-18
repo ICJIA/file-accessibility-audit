@@ -4,26 +4,50 @@ set -e
 cd "$(dirname "$0")"
 
 # ---------------------------------------------------------------------
-# Remediation feature flag — default ON for production deploys.
+# Remediation feature flag.
 #
-# Setting it here (rather than relying on /etc/environment or PM2's
-# saved state) means every ./rebuild.sh invocation produces a PM2
-# process tree with remediation enabled, regardless of whether the
-# operator remembered to export the var first. This pairs with the
-# auto-detection of REMEDIATION_VERAPDF_PATH below so a fresh deploy
-# lights up the full pipeline without manual env setup.
+# Three ways to set this on a deploy, in priority order:
 #
-# To deploy with remediation OFF (e.g., emergency rollback), run:
+#   1. Pre-set the env var when invoking — wins outright:
+#        REMEDIATION_ENABLED=true  ./rebuild.sh   # explicit on
+#        REMEDIATION_ENABLED=false ./rebuild.sh   # explicit off
 #
-#   REMEDIATION_ENABLED=false ./rebuild.sh
+#   2. Interactive prompt — only when run from a TTY (typing
+#      `./rebuild.sh` at an ssh session). Defaults to YES; hit Enter
+#      to accept, or type `n` to deploy audit-only.
 #
-# The shell's pre-set value wins because `export` only writes if the
-# var isn't already defined.
+#   3. Non-interactive default (Forge webhook, CI, anything without a
+#      TTY) — falls through to YES so a stock auto-deploy stands up
+#      the full pipeline without manual intervention.
+#
+# This pairs with the auto-detection of REMEDIATION_VERAPDF_PATH
+# below, so a fresh deploy on a server with veraPDF installed lights
+# up the full pipeline end-to-end with one ./rebuild.sh call.
 # ---------------------------------------------------------------------
-: "${REMEDIATION_ENABLED:=true}"
+if [ -n "$REMEDIATION_ENABLED" ]; then
+  : # already set by the caller — respect it
+elif [ -t 0 ]; then
+  # Interactive TTY — ask. Default is yes; hit Enter or type y/yes
+  # for on, type n/no for off. Anything else falls through to on.
+  echo ""
+  printf "Enable remediation feature on this deploy? [Y/n] "
+  read -r _ans
+  case "$_ans" in
+    [nN]|[nN][oO]) REMEDIATION_ENABLED=false ;;
+    *)             REMEDIATION_ENABLED=true ;;
+  esac
+  unset _ans
+else
+  # Non-interactive (webhook / CI / piped stdin) — default to on.
+  REMEDIATION_ENABLED=true
+fi
 export REMEDIATION_ENABLED
 
-echo "Remediation feature: $REMEDIATION_ENABLED"
+if [ "$REMEDIATION_ENABLED" = "true" ]; then
+  echo "Remediation feature: ENABLED"
+else
+  echo "Remediation feature: disabled (audit-only deploy)"
+fi
 echo ""
 
 # Check for required system dependencies
