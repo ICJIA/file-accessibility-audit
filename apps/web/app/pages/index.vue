@@ -2571,6 +2571,299 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
 
         <div>
           <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Why Auditing Is Easy and Remediation Is Hard
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            Auditing a PDF is a <em>read-only</em> operation: walk the
+            document's internal structure, ask "does it have a tagged
+            StructTreeRoot? Are figures marked? Is the language declared?"
+            and report what you find. The PDF specification
+            (<a
+              href="https://www.iso.org/standard/75839.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >ISO 32000-2</a
+            >) is unambiguous about how to <em>read</em> these structures;
+            the libraries that parse them (qpdf, pdfjs, veraPDF) are mature
+            and battle-tested; the answers don't change between runs. A
+            PDF can be audited a thousand times and produce the same
+            result every time.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            Remediation is a <em>read-modify-write</em> operation, and PDFs
+            make that uniquely hard for several reasons that are baked into
+            the format itself:
+          </p>
+          <ol class="space-y-2 text-xs text-[var(--text-muted)] list-decimal list-inside ml-2">
+            <li>
+              <strong>PDF was designed for fixed-layout printing, not
+              semantic content.</strong> Adobe published it in 1993 to make
+              "documents that look identical on every printer." The
+              accessibility layer
+              (<code class="text-xs font-mono">StructTreeRoot</code>, marked
+              content, role mapping) was bolted on in
+              <strong>PDF 1.4 (2001)</strong> and is <em>optional</em> —
+              valid PDFs can have none of it. Auto-tagging means
+              reverse-engineering semantic meaning from raw visual
+              presentation, which is much harder than reading existing
+              semantic markers.
+            </li>
+            <li>
+              <strong>There is no canonical mapping from visual layout to
+              semantic role.</strong> Is a 14-pt bold line of text an
+              <code class="text-xs font-mono">&lt;H2&gt;</code> or just
+              emphasized body text? Is a 100×100-pixel image content (needs
+              alt text) or decoration (mark as
+              <code class="text-xs font-mono">/Artifact</code>)? A human
+              reader judges from context; software guesses heuristically and
+              is wrong some of the time.
+            </li>
+            <li>
+              <strong>The content stream and the structure tree are coupled
+              but separable.</strong> Every glyph and image in a PDF lives in
+              a per-page content stream. Each one is wrapped in a "marked
+              content" section
+              (<code class="text-xs font-mono">/MCID 7 … /EMC</code>) that
+              links it back to a node in the
+              <code class="text-xs font-mono">StructTreeRoot</code>. Adding
+              an alt-text to one image means mutating
+              <em>both</em> sides coherently — write the new
+              <code class="text-xs font-mono">/Alt</code> property on the
+              Figure structure element AND ensure the MCID linkage stays
+              valid. Many PDF libraries handle reading one side or the
+              other, but not modifying both at once.
+            </li>
+            <li>
+              <strong>The content layer can be in any of several
+              representations.</strong> A scanned PDF has no text layer — it's
+              just raster images, requiring OCR before any semantic
+              remediation can happen. An optimized PDF compresses objects
+              into "object streams" (a PDF 1.5+ feature) that some libraries
+              can't safely round-trip. An encrypted PDF requires a password
+              even to read. Each case is its own engineering minefield, and
+              they layer onto each other (scanned-and-encrypted is worse
+              than either alone).
+            </li>
+            <li>
+              <strong>No single PDF library does everything well.</strong>
+              <code class="text-xs font-mono">pdf-lib</code> (JavaScript, in
+              the Node ecosystem) reads and writes metadata easily but has
+              no StructTreeRoot builder. Apache PDFBox (Java) has the deepest
+              structure-tree support but is Java-only. Ghostscript can
+              rewrite PDFs but silently degrades tag structure.
+              OpenDataLoader (Java, used here) is the only open-source tool
+              that produces a tagged PDF from an untagged one — and even it
+              cannot judge whether the result is <em>meaningful</em>.
+            </li>
+            <li>
+              <strong>The "tagged PDF" specification is permissive.</strong>
+              You can produce a PDF that satisfies all the technical
+              requirements of <em>being</em> tagged (MarkInfo=true,
+              StructTreeRoot exists, every page has marked content) and is
+              still inaccessible to screen readers (e.g., every paragraph
+              wrapped in a single
+              <code class="text-xs font-mono">&lt;P&gt;</code> with no
+              heading structure). PDF/UA-1 (ISO 14289-1) narrows this
+              somewhat but doesn't eliminate it. Automated remediation
+              tools often produce tagged-but-shallow output that machine
+              validators accept but assistive technology can't navigate.
+            </li>
+            <li>
+              <strong>Mistakes compound badly.</strong> A wrong heading level
+              might confuse a screen reader user. A corrupted cross-reference
+              (xref) table makes the entire PDF unreadable by any viewer.
+              Remediation tools have to be conservative — when in doubt,
+              don't touch. The qpdf preprocessing step in this pipeline
+              exists precisely because OpenDataLoader's PDF writer
+              occasionally corrupts the xref on round-trip with certain
+              inputs (the InDesign 18.x / Word 365 case described above);
+              we accept the cost of an extra normalization pass to avoid
+              serving a damaged file.
+            </li>
+            <li>
+              <strong>Round-trip fidelity is the highest bar.</strong>
+              Remediation must <em>add</em> semantic markup
+              while <em>preserving</em> every visual nuance: embedded fonts,
+              raster + vector images, color spaces, ICC profiles, page
+              labels, bookmarks, hyperlinks, form fields, digital
+              signatures, embedded multimedia. The user doesn't want their
+              report to look different after remediation; they want the
+              <em>same document</em> with structure added. Read-modify-write
+              while changing only the semantic layer is a class of problem
+              the format simply wasn't designed to make easy.
+            </li>
+          </ol>
+          <p class="text-[var(--text-muted)] mt-3">
+            The result is that PDF auto-remediation works well for the
+            machine-checkable parts of accessibility (structure presence,
+            metadata, language declaration, tagged content stream) and
+            falls back to human judgment for the semantically-judged parts
+            (alt-text quality, reading-order intent, decorative vs.
+            informative classification). The roadmap for this tool
+            (see
+            <code class="text-xs font-mono"
+              >docs/pdf-remediation-alt-text-walkthrough-spec.md</code
+            >) is an interactive walkthrough that augments the
+            machine-checkable foundation with human-authored alt text —
+            without any AI in the loop, because the regulatory durability
+            of agency-authored content is higher than the durability of
+            AI-generated content.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Why OpenDataLoader Changes the Cost Equation
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            Until <strong>2024–2025</strong>, programmatically tagging a PDF
+            (auto-generating
+            <code class="text-xs font-mono">StructTreeRoot</code>, marking
+            figures, tables, headings) was something only a handful of
+            commercial vendors could do, and they priced accordingly. The
+            economics of PDF accessibility have historically been brutal for
+            state agencies: PDF/UA expertise is rare, specialized, and was
+            locked behind commercial walls for decades.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>Commercial PDF remediation, today:</strong>
+          </p>
+          <ul class="space-y-1.5 text-xs text-[var(--text-muted)] mb-3">
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Apryse / PDFTron SDK:</strong> enterprise-quoted,
+                typically <strong>$1,500/yr minimum</strong> for the entry
+                SDK and considerably more for the auto-tagging add-on. On-prem
+                deployable but you pay for the privilege of running their
+                Java/C++ binary in your own data center.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Adobe PDF Services API:</strong> Accessibility
+                Auto-Tag endpoint, free tier of 500 transactions per month
+                (about 50 pages — exhausted by a single annual report).
+                Beyond the free tier:
+                <strong>enterprise-quoted</strong>, scaling per-document. Your
+                PDF leaves your network for the API call.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>PDFix SDK, AbleDocs ADapi, CommonLook API:</strong>
+                all enterprise-quoted, all opaque pricing, all aimed at large
+                organizations.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Manual remediation services:</strong>
+                <strong>$5–$50 per page</strong> for hand-remediation of
+                tagged-and-reviewed output. A typical 50-page agency report
+                costs <strong>$250–$2,500</strong> to remediate this way, and
+                that's per document. State agencies producing dozens of
+                reports per year face annual remediation bills in the tens
+                of thousands.</span
+              >
+            </li>
+          </ul>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>Why so expensive?</strong> The skill is rare — there are
+            relatively few practitioners who can read a structure tree and
+            judge whether it's correct. The labor is real — even with good
+            tooling, a 50-page report can require 4–8 hours of expert work.
+            The market is small, the demand is regulated (ADA Title II,
+            IITAA, Section 508), and the buyers are mostly governments and
+            large organizations that aren't price-sensitive. The result is
+            a niche industry with high prices and slow innovation.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong
+              >OpenDataLoader PDF, released as Apache 2.0 in 2024 and
+              continuously developed since, is the first credible
+              open-source PDF auto-tagger.</strong
+            >
+            It does what previously required a $1,500/year SDK subscription:
+            takes an untagged PDF and produces a tagged one. It's developed
+            by
+            <a
+              href="https://sdk.hancom.com/en"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >Hancom</a
+            >
+            (a Korean office-software vendor with deep PDF expertise) in
+            collaboration with the
+            <a
+              href="https://pdfa.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >PDF Association</a
+            >
+            and
+            <a
+              href="https://www.duallab.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >Dual Lab</a
+            >
+            (the same people behind the veraPDF validator). It ranks #1
+            overall (0.907) in 2026 PDF-extraction accuracy benchmarks — not
+            just "as good as the commercial tools," better than them on the
+            published metrics.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>For this tool, OpenDataLoader is load-bearing.</strong>
+            The pipeline architecture (qpdf preprocess → ODL tag → veraPDF
+            check → re-audit) takes the most expensive part of commercial
+            PDF remediation — the auto-tagging step — and replaces it with
+            an
+            <code class="text-xs font-mono"
+              >apt install openjdk-17-jre-headless</code
+            >. The other open-source tools we pair it with
+            (<a
+              href="https://qpdf.sourceforge.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >qpdf</a
+            >
+            for preprocessing,
+            <a
+              href="https://verapdf.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >veraPDF</a
+            >
+            for PDF/UA-1 conformance validation) are also free and mature.
+            Together they form a complete pipeline that until very recently
+            did not exist in open source.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            What ODL <em>doesn't</em> do — and no auto-tagger does — is
+            judge whether the resulting structure is <em>meaningful</em>. It
+            can mark every image as a Figure but can't write an alt-text. It
+            can mark every table cell but can't decide which row is the
+            header. Those remain human judgment calls. The economic shift
+            ODL enables is from "$1,500/year + per-document manual labor"
+            to "<strong>$0 of software + the manual labor for the parts a
+            machine genuinely cannot do</strong>." That's an order-of-magnitude
+            cost reduction for the agencies it serves, with no loss of
+            output quality.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
             Tool 3: OpenDataLoader PDF (Auto-Tagging)
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
@@ -3014,6 +3307,20 @@ pm2 restart ecosystem.config.cjs</div>
               >Adobe Acrobat Accessibility Checker</a
             >.
           </p>
+          <p class="text-[var(--text-muted)] mt-3">
+            <strong>These limitations apply to auto-remediation too.</strong>
+            When the optional auto-remediation feature runs, OpenDataLoader
+            can add a <code class="text-xs font-mono">/Figure</code>
+            structure element for an image — but it cannot author a
+            meaningful description. The same human-judgment gap applies to
+            color contrast, reading-order ambiguity in multi-column layouts,
+            distinguishing decorative from informative images, and writing
+            text at a clear reading level. Auto-remediation is genuinely
+            helpful for the machine-checkable parts of accessibility
+            (structure, metadata, language declaration); it is not a
+            substitute for the human-judgment parts. The result page is
+            explicit about this in the IITAA compliance disclaimer.
+          </p>
         </div>
 
         <!-- Security / privacy -->
@@ -3109,6 +3416,107 @@ pm2 restart ecosystem.config.cjs</div>
               >
             </li>
           </ul>
+
+          <!-- Remediation-specific privacy details -->
+          <p class="text-[var(--text-muted)] mt-5 mb-2">
+            <strong>When auto-remediation is enabled</strong> (the optional
+            v1.18.0 feature behind
+            <code class="text-xs font-mono">REMEDIATION_ENABLED=true</code>),
+            the file lifecycle differs from a plain audit. The remediation
+            worker needs the PDF on disk briefly to run external tools (qpdf,
+            OpenDataLoader, veraPDF). The posture remains "as short-lived as
+            the work requires, then deleted with verification":
+          </p>
+          <ul class="space-y-1.5 text-xs text-[var(--text-muted)]">
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>No between-stage cache.</strong> A PDF is never
+                stored on disk waiting for the user to click "Remediate"
+                after an audit. Clicking the button prompts a fresh
+                multipart upload — the just-audited buffer is not preserved
+                server-side.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Inputs deleted between pipeline stages.</strong>
+                After qpdf normalizes the uploaded file, the original input
+                is deleted. After OpenDataLoader produces the tagged
+                output, the normalized intermediate is deleted. At any
+                moment, at most one copy of the PDF exists on disk per
+                job. The entire scratch directory is wiped in a
+                <code class="text-xs font-mono">finally</code> block
+                regardless of pipeline outcome (including crashes).</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Output deleted on first download.</strong> The
+                remediated PDF is served via a single-use download token.
+                The file is deleted as soon as the response stream closes,
+                and an
+                <code class="text-xs font-mono">fs.stat</code> call
+                verifies the deletion succeeded (the
+                <code class="text-xs font-mono">verified_absent</code>
+                event in the audit log is the auditor evidence). Concurrent
+                or repeat download attempts return
+                <code class="text-xs font-mono">410 Gone</code>.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Maximum 30-minute output retention.</strong> If
+                the user never downloads, a cleanup sweep removes the file
+                after
+                <code class="text-xs font-mono">REMEDIATION.OUTPUT_TTL_MS</code>
+                (default 30 minutes) and marks the job
+                <code class="text-xs font-mono">status='expired'</code>.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Lifecycle events contain no PDF content.</strong>
+                Each step (received, normalize_complete, tagging_complete,
+                validation_passed, output_ready, downloaded, output_deleted,
+                verified_absent, etc.) writes a row to
+                <code class="text-xs font-mono">remediation_events</code>
+                with a server-side timestamp and a JSON payload of structural
+                metadata only. File paths are recorded as SHA-256 hashes
+                rather than literal strings.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>No external API calls.</strong> The remediation
+                pipeline runs entirely on this server. OpenDataLoader and
+                veraPDF execute locally; the file never leaves the droplet.
+                AI-based alt text generation (which would call a hosted
+                vision API) is explicitly not used in v1 — see the
+                <code class="text-xs font-mono"
+                  >docs/pdf-remediation-alt-text-walkthrough-spec.md</code
+                >
+                roadmap document for the AI-free Phase 1 approach.</span
+              >
+            </li>
+            <li class="flex gap-2">
+              <span class="text-[var(--text-muted)]">•</span
+              ><span
+                ><strong>Per-user concurrency limit.</strong> Each user can
+                have at most one remediation job in flight at a time
+                (<code class="text-xs font-mono"
+                  >REMEDIATION.MAX_CONCURRENT_JOBS_PER_USER</code
+                >). The 50 MB file-size cap, 500-page count cap, 5-minute
+                wall-clock timeout, and 768 MB JVM heap cap are additional
+                resource-exhaustion guards.</span
+              >
+            </li>
+          </ul>
         </div>
 
         <!-- Source code -->
@@ -3119,7 +3527,8 @@ pm2 restart ecosystem.config.cjs</div>
             <strong class="text-[var(--text-secondary)]"
               >Verify for yourself:</strong
             >
-            The complete source code for the analysis pipeline is open source.
+            The complete source code for the analysis
+            <em>and</em> auto-remediation pipelines is open source.
           </p>
           <div class="mt-2 flex flex-wrap gap-2">
             <a
@@ -3160,6 +3569,32 @@ pm2 restart ecosystem.config.cjs</div>
                 />
               </svg>
               Configuration &amp; Weights (audit.config.ts)
+              <svg
+                class="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                />
+              </svg>
+            </a>
+            <a
+              href="https://github.com/ICJIA/file-accessibility-audit/tree/main/apps/api/src/jobs"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
+                />
+              </svg>
+              Remediation Services (worker, ODL, veraPDF)
               <svg
                 class="w-3 h-3"
                 fill="none"
