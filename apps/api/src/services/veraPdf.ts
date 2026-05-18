@@ -148,15 +148,18 @@ function extractVerdict(
       | undefined) ??
     "ua1";
 
-  // failureSummary or failedRules contains the meaty content.
-  // veraPDF 1.30.x nests these under validation.details rather than
-  // putting them on the validation object directly, so try both.
+  // Rule-summary location varies by veraPDF version:
+  //   1.30.x: validation.details.ruleSummaries (array of per-rule objects).
+  //           In this shape details.failedRules is a *count* (number), so
+  //           never use it as an array fallback.
+  //   1.26.x: validation.ruleSummaries (array) on the validation object.
+  //   pre-1.20: validation.failedRules (array) on the validation object.
+  // Try them in newest-first order.
   const details = validation.details as Record<string, unknown> | undefined;
   const ruleSummariesRaw =
+    (details?.ruleSummaries as Array<Record<string, unknown>> | undefined) ??
     (validation.ruleSummaries as Array<Record<string, unknown>> | undefined) ??
     (validation.failedRules as Array<Record<string, unknown>> | undefined) ??
-    (details?.ruleSummaries as Array<Record<string, unknown>> | undefined) ??
-    (details?.failedRules as Array<Record<string, unknown>> | undefined) ??
     [];
 
   const failures: VeraPdfRuleFailure[] = ruleSummariesRaw
@@ -182,7 +185,15 @@ function extractVerdict(
     }))
     .filter((f) => f.count > 0);
 
-  const totalFailureCount = failures.reduce((s, f) => s + f.count, 0);
+  // Prefer the authoritative server-reported count when veraPDF exposes
+  // it (1.30.x details.failedChecks). Falls back to summing the
+  // displayed rule list, which is post-truncation so it under-counts on
+  // wildly non-compliant PDFs.
+  const reportedFailedChecks = details?.failedChecks as number | undefined;
+  const totalFailureCount =
+    typeof reportedFailedChecks === "number"
+      ? reportedFailedChecks
+      : failures.reduce((s, f) => s + f.count, 0);
 
   return {
     available: true,
