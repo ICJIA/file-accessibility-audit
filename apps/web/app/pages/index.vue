@@ -941,6 +941,15 @@
           </div>
         </div>
 
+        <!-- Auto-Remediate (hidden when REMEDIATION.ENABLED=false at the
+             config level; component checks runtime config and self-hides) -->
+        <div class="mt-8 flex justify-center">
+          <RemediateButton
+            :file="singleFile"
+            :input-score="result?.overallScore ?? null"
+          />
+        </div>
+
         <!-- Export & Share -->
         <div
           class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5 report-actions"
@@ -2907,6 +2916,7 @@ const advancedCards = reactive<Record<string, boolean>>({});
 const processing = ref(false);
 const processingStage = ref("");
 const singleResult = ref<any>(null);
+const singleFile = ref<File | null>(null);
 const analysisError = ref<any>(null);
 
 // --- Batch state ---
@@ -3070,6 +3080,7 @@ async function analyzeFile(file: File) {
   processing.value = true;
   analysisError.value = null;
   singleResult.value = null;
+  singleFile.value = file;
   batchItems.value = [];
   Object.keys(advancedCards).forEach((k) => delete advancedCards[k]);
 

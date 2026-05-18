@@ -643,16 +643,86 @@ implementation.
 - Honest framing: "For PDFs where standard remediation didn't help much.
   Takes several minutes. Same recommendation: manual review still needed."
 
-### AI-generated alt text (Tier 3)
+### Interactive remediation walkthrough (recommended Phase 2 — $0 recurring cost, AI-free)
 
-- **Not** self-hosted SmolVLM — proven on this spike to be too heavy for
-  shared infrastructure
-- Path: rendered page → hosted vision API (Claude vision or GPT-4o vision)
-  → suggested alt text per image
-- Should be presented as suggestions the user reviews and accepts,
-  not automatic writes
-- Cost per remediation ≈ pennies; needs an admin-level on/off and budget
-  cap
+The preferred Phase 2 direction. A guided UI walks the user through
+the structure-tree gaps the basic pipeline leaves behind. Zero
+recurring cost, highest quality output, no AI dependency.
+
+Why this is the right Phase 2:
+
+- **No recurring cost.** No API bills, no per-document inference fees.
+- **Best output quality.** Human judgment on alt text and decorative
+  status beats every current vision model in benchmarks. The
+  walkthrough's ceiling is "what a thoughtful person can write," not
+  "what a 256M-parameter model can guess."
+- **Future-proof against AI regulation.** State agencies are
+  increasingly likely to constrain or audit AI use in workflows.
+  An AI-free remediation path stays usable regardless of how those
+  rules evolve.
+- **Respects user agency.** The walkthrough is opt-in: a user can say
+  "no, I don't want to do this manually." That accepts the remaining
+  issues as a *conscious user choice* — documented in the receipt as
+  "user skipped alt-text walkthrough" — rather than a silent tool
+  limitation. This is the kind of decision auditors can defend.
+- **Differentiator.** Most tools either auto-do-it-with-AI or
+  punt-to-Acrobat. A guided walkthrough that produces clean,
+  human-authored tags is rare and quietly valuable.
+
+User flow:
+
+1. Result page detects remaining gaps from the post-remediation audit
+   (Figures without /Alt, tables without headers, etc.).
+2. Offers a "Fix the remaining N issues" walkthrough — opt-in.
+3. For each missing alt text: render the image inline via
+   `pdfjs-dist`, ask for a description, accept "this is decorative"
+   as a one-click option. Save & next.
+4. (Future) Table-header walkthrough: show table, let user click the
+   header row/column.
+5. (Future) Heading-level walkthrough: show extracted text, let user
+   demote/promote H1↔H2↔H3.
+6. On finish: re-apply via `pdf-lib` (`Figure.setAlt(text)` or
+   `setRole('/Artifact')`), re-validate with `qpdf --check`, present
+   the enhanced PDF for download (same single-use, delete-on-download
+   posture as v1).
+
+Implementation surface:
+
+- `pdf-lib` (MIT) is the writer. Mutating existing struct elements is
+  much easier than building a tree from scratch — pdf-lib supports
+  it via the catalog/object graph traversal.
+- Existing `pdfjsService.ts` already enumerates images by object ref;
+  we render the pixels for preview via `pdfjs-dist` on the client.
+- New endpoint `POST /api/remediate/:jobId/enhance` accepts the
+  user's edits, applies them to the still-resident output PDF (we
+  keep it slightly longer for this case — the receipt records the
+  extension), re-validates, and serves the enhanced result.
+
+Honest caveats:
+
+- Real UX work (estimate 1–2 weeks for a polished alt-text
+  walkthrough; each additional gap type is a separate slice).
+- Users will skip if the flow is tedious. Keyboard nav, "skip all,"
+  and clear progress indicators are essential.
+- Decorative-vs-content is still a judgment call; the UI should
+  make that easy but won't be perfect.
+
+### AI-generated alt text (Tier 3 — alternative to the walkthrough)
+
+If the walkthrough is too much UX investment, the alternative is
+**hosted vision API** (Claude vision or GPT-4o). Pennies per PDF, no
+self-hosted infra, three-day integration. Output is good but variable;
+should still be reviewed in the same walkthrough UI before being
+written.
+
+- **Not** self-hosted SmolVLM — proven on this spike to be too heavy
+  for the 4 GB shared production droplet (active inference competes
+  with API/web for memory and CPU).
+- Architecture: rendered page or extracted image → hosted vision API
+  → suggested alt text per image.
+- Same write-back path as the interactive walkthrough; the AI
+  suggestion is a pre-filled draft the user accepts/edits.
+- Needs an admin-level on/off + monthly budget cap.
 
 ### Upstream ODL object-streams bug
 
