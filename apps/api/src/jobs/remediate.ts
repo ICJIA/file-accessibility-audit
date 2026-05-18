@@ -35,6 +35,7 @@ import {
 } from "../services/remediationEvents.js";
 import {
   getJob,
+  getJobAuditPair,
   setComplete,
   setFailed,
   setOutputAudit,
@@ -273,22 +274,21 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     setStep(jobId, "comparing", 90);
     let inputScore: number;
     let outputScore: number;
+    let outputAudit: Awaited<ReturnType<typeof analyzePDF>>;
     try {
       // We deleted the original input — re-audit by reading from the
-      // tagged output (for output_score) and… we need the input score.
-      // It's already in the job row from the API's pre-flight audit.
-      // For now, re-audit the tagged output only; input_score is set
-      // by the API at job creation time.
+      // tagged output. The input score and the full input audit JSON
+      // are already on the job row from the API's pre-flight audit.
       inputScore = job.inputScore ?? 0;
       const outputBuf = await fs.readFile(taggedPath);
-      const audit = await analyzePDF(
+      outputAudit = await analyzePDF(
         outputBuf,
         `${job.inputFilename} (remediated)`,
       );
-      outputScore = audit.overallScore;
+      outputScore = outputAudit.overallScore;
       // Persist the full output audit so the result page can render
       // category-level before/after without a second pass.
-      setOutputAudit(jobId, JSON.stringify(audit));
+      setOutputAudit(jobId, JSON.stringify(outputAudit));
     } catch (e) {
       recordEvent(jobId, "error", {
         error_type: "reaudit_failed",
@@ -301,16 +301,60 @@ export async function runRemediationJob(jobId: string): Promise<void> {
 
     setScores(jobId, inputScore, outputScore, true);
 
-    if (outputScore < inputScore) {
+    // Per-profile regression guard. The headline overall score may go
+    // up on the default mode while one of the underlying profiles
+    // (Strict or Practical) regresses. Show users only net gains —
+    // if either profile regresses, reject the output.
+    const inputAuditRaw = getJobAuditPair(jobId).inputAudit as
+      | {
+          scoreProfiles?: {
+            strict?: { overallScore?: number };
+            remediation?: { overallScore?: number };
+          };
+          overallScore?: number;
+        }
+      | null;
+    const inputStrict =
+      inputAuditRaw?.scoreProfiles?.strict?.overallScore ??
+      inputAuditRaw?.overallScore ??
+      inputScore;
+    const inputPractical =
+      inputAuditRaw?.scoreProfiles?.remediation?.overallScore ??
+      inputAuditRaw?.overallScore ??
+      inputScore;
+    const outputStrict =
+      outputAudit.scoreProfiles?.strict?.overallScore ?? outputScore;
+    const outputPractical =
+      outputAudit.scoreProfiles?.remediation?.overallScore ?? outputScore;
+
+    const strictDelta = outputStrict - inputStrict;
+    const practicalDelta = outputPractical - inputPractical;
+    const overallDelta = outputScore - inputScore;
+
+    if (
+      overallDelta < 0 ||
+      strictDelta < 0 ||
+      practicalDelta < 0
+    ) {
+      const regressed: string[] = [];
+      if (overallDelta < 0) regressed.push(`overall ${overallDelta.toFixed(1)}`);
+      if (strictDelta < 0) regressed.push(`strict ${strictDelta.toFixed(1)}`);
+      if (practicalDelta < 0)
+        regressed.push(`practical ${practicalDelta.toFixed(1)}`);
       recordEvent(jobId, "validation_failed", {
-        reason: "score regressed",
-        input_score: inputScore,
-        output_score: outputScore,
+        reason: "score regressed on one or more profiles",
+        input_overall: inputScore,
+        output_overall: outputScore,
+        input_strict: inputStrict,
+        output_strict: outputStrict,
+        input_practical: inputPractical,
+        output_practical: outputPractical,
+        regressed_profiles: regressed,
       });
       await deleteAndVerify(jobId, taggedPath, "cleanup");
       setFailed(
         jobId,
-        `auto-remediation regressed the score (${inputScore} → ${outputScore})`,
+        `auto-remediation regressed: ${regressed.join(", ")}`,
       );
       return;
     }
