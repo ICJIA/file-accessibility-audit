@@ -11,6 +11,10 @@ import bulkInventoryRoutes from './routes/bulk-from-inventory.js'
 import analyzeUrlRoutes from './routes/analyze-url.js'
 import tokensRoutes from './routes/tokens.js'
 import remediateRoutes from './routes/remediate.js'
+import {
+  runCleanup,
+  startCleanupInterval,
+} from './services/remediationCleanup.js'
 
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
@@ -56,6 +60,14 @@ app.use('/api', bulkInventoryRoutes)
 app.use('/api', analyzeUrlRoutes)
 app.use('/api', tokensRoutes)
 app.use('/api', remediateRoutes)
+
+// Remediation cleanup: one-shot on startup to reconcile from any crash,
+// then a periodic sweep. Gated internally on REMEDIATION.ENABLED so it's
+// a no-op until the feature is turned on.
+void runCleanup().catch((e) => {
+  console.error('Initial remediation cleanup failed:', e)
+})
+startCleanupInterval()
 
 // Health check — also serves as the root API response
 const startedAt = new Date()
