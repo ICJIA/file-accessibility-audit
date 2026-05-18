@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import multer from 'multer'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { promises as fs, existsSync } from 'node:fs'
+import { createReadStream, promises as fs, existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { authMiddleware, type AuthRequest } from '../middleware/authMiddleware.js'
@@ -286,36 +286,64 @@ router.get(
       return
     }
 
+    // Single-use enforcement: mark expired BEFORE we begin sending so a
+    // concurrent download request sees status='expired' and gets 410.
+    // The file is still on disk at this point; cleanup happens on
+    // stream close below. If the stream itself fails after this, the
+    // file gets deleted by the next cleanup sweep (orphan removal).
+    setExpired(job.id)
+
     const downloadName = sanitizeFilename(
       job.inputFilename.replace(/\.pdf$/i, '') + '_remediated.pdf',
     )
+    let fileSize = 0
+    try {
+      fileSize = statSync(job.outputPath).size
+    } catch {
+      // shouldn't happen; existsSync passed above
+    }
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${downloadName}"`,
     )
+    if (fileSize > 0) {
+      res.setHeader('Content-Length', String(fileSize))
+    }
 
+    // Stream the file instead of loading the full buffer into memory.
+    // 50MB+ outputs would otherwise blow through the API's PM2 memory
+    // cap (512MB) under concurrent downloads. Stream errors and
+    // client disconnects both trigger cleanup via the response 'close'
+    // event.
+    const stream = createReadStream(job.outputPath)
     let bytesSent = 0
-    const buffer = await fs.readFile(job.outputPath)
-    bytesSent = buffer.length
+    stream.on('data', (chunk) => {
+      bytesSent += chunk.length
+    })
 
-    // Delete the file after the response closes — whether due to a
-    // successful stream-end or client disconnect. Single-use is the
-    // privacy posture: no redownloads, no second chances.
     const cleanup = async (): Promise<void> => {
       recordEvent(job.id, 'downloaded', { bytes_sent: bytesSent })
-      // Make absolutely sure we have a path before passing to
-      // deleteAndVerify (TS narrowing — we already null-checked above)
       if (job.outputPath) {
         await deleteAndVerify(job.id, job.outputPath, 'download')
       }
-      setExpired(job.id)
     }
     res.once('close', () => {
       void cleanup()
     })
+    stream.on('error', (err) => {
+      recordEvent(job.id, 'error', {
+        error_type: 'download_stream_failed',
+        message: err.message,
+      })
+      if (!res.headersSent) {
+        res.status(500).end()
+      } else {
+        res.end()
+      }
+    })
 
-    res.send(buffer)
+    stream.pipe(res)
   },
 )
 
