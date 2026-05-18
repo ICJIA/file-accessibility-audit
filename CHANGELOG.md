@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.18.0] — 2026-05-18
+
+### Added — PDF auto-remediation feature
+
+Optional feature that produces a tagged, more-accessible PDF from an audited one. Gated behind `REMEDIATION_ENABLED=true`; disabled by default. Full architectural spec in [`docs/pdf-remediation-integration-plan.md`](docs/pdf-remediation-integration-plan.md); feasibility data behind every decision in [`docs/spike-remediation-results.md`](docs/spike-remediation-results.md); Phase 1 follow-up spec (interactive alt-text walkthrough) in [`docs/pdf-remediation-alt-text-walkthrough-spec.md`](docs/pdf-remediation-alt-text-walkthrough-spec.md).
+
+**Pipeline:**
+
+```
+upload → qpdf --object-streams=disable (preprocess)
+       → OpenDataLoader tagged-pdf (basic mode)
+       → qpdf --check (validate output is a parseable PDF)
+       → veraPDF --flavour ua1 (validate PDF/UA-1 conformance, optional)
+       → re-audit (verify scores didn't regress on Overall, Strict, OR Practical)
+       → finalize OR reject
+```
+
+**Privacy & retention:**
+
+- PDFs are never persistently cached between audit and remediation — re-upload required.
+- Inputs deleted between pipeline stages (after qpdf normalize, after ODL tag).
+- Output deleted on first successful download (single-use token) OR after a 30-minute TTL.
+- Lifecycle audit trail (`remediation_events` table) records every step including post-deletion `fs.stat` ENOENT verification (`verified_absent` event) — the auditor's evidence that the file is gone.
+
+**UI:**
+
+- "Auto-Remediate this PDF" button under the score on the audit results page, including in batch (per-tab) mode. Greyed-out + disabled with explanation for already-A files.
+- `/remediate/[jobId]` progress + result page with Before/After ScoreCards (vertical, infographic banners), Strict + Practical score comparison table, "What we fixed" / "Improved but still needs review" / "Outstanding by severity" sections, veraPDF verdict + IITAA disclaimer with manual-review-required notice + links to [verapdf.org](https://verapdf.org/) and Illinois DOIT, source-document accessibility recommendation, and a processing receipt panel.
+- Adobe Acrobat parity removed from the UI on both audit + remediation pages — visible metrics that can decrease (e.g., vacuous-pass dynamics) erode user trust. Backend still computes for data-shape stability.
+
+**Backend:**
+
+- New API routes: `POST /api/remediate`, `GET /:id/status`, `GET /:id/download`, `GET /:id/receipt`. All gated behind `REMEDIATION.ENABLED` (`404` when off).
+- Detached child worker (`apps/api/src/jobs/remediate.ts`) preserves synchronous audit-pipeline performance.
+- 5-step cleanup sweep on a configurable interval + on every API startup (expired outputs, stuck jobs, orphan files, purged old job + event rows).
+- Per-user concurrent-job limit (1), file-size cap (50 MB), page-count cap (500), JVM heap cap (`-Xmx768m`).
+- veraPDF integration via `REMEDIATION_VERAPDF_PATH` (optional; preflight warns when missing).
+- Per-profile regression guard: rejects output if Overall, Strict, or Practical scores decrease.
+
+**Deployment:**
+
+- `ecosystem.config.cjs` forwards `REMEDIATION_*` env vars from the parent shell so `REMEDIATION_ENABLED=true ./rebuild.sh` flips the feature on without code changes.
+- `rebuild.sh` preflight checks for OpenJDK 17, `qpdf --object-streams` support, and `REMEDIATION_VERAPDF_PATH` configuration. Non-blocking warnings except `pnpm` (hard requirement).
+
+**Security audit:** see [README § Security](README.md#security). Two P1 issues caught and fixed before tagging (download-endpoint memory exhaustion + concurrent-download token race), two P2s mitigated/accepted, no P0s.
+
+**Spike validation:** OpenDataLoader's basic mode tested against 12 representative ICJIA-style PDFs. Untagged inputs (5/5): avg +25 score, zero damaged outputs. Tagged inputs (4): two produced damaged outputs that the discovered qpdf preprocessing step fully mitigates. Hybrid mode and SmolVLM tested but deferred to roadmap.
+
+### Added — `content_hash` on `audit_log` and `remediation_jobs`
+
+SHA-256 of the input PDF bytes is recorded on every audit and remediation, enabling a future "did this file go through our tool?" verification endpoint (Phase 3 roadmap). Hash is pure metadata — no PDF content stored.
+
 ## [Unreleased]
 
 ### Added — `POST /api/analyze-url` and `?prefill=` web UI parameter

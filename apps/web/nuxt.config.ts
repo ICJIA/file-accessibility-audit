@@ -1,4 +1,4 @@
-import { BRANDING, DEPLOY } from '../../audit.config'
+import { BRANDING, DEPLOY, REMEDIATION } from '../../audit.config'
 import { version } from './package.json'
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -8,7 +8,7 @@ const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
 const appDesc = 'Upload a PDF and get an instant accessibility score across 9 WCAG 2.1 and ADA Title II categories with detailed findings and remediation guidance.'
 const datePublished = '2025-03-06'
-const dateModified = '2026-05-04'
+const dateModified = '2026-05-18'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
@@ -106,6 +106,9 @@ export default defineNuxtConfig({
       faqsUrl: BRANDING.FAQS_URL,
       githubUrl: BRANDING.GITHUB_URL,
       appVersion: version,
+      remediationEnabled: REMEDIATION.ENABLED,
+      iitaaUrl: BRANDING.IITAA_URL,
+      verapdfUrl: BRANDING.VERAPDF_URL,
     },
   },
 

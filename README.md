@@ -6,7 +6,26 @@
 
 A web tool that scores PDF accessibility readiness against [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Upload one or more PDFs (up to 5), get instant grades (A–F) with category-by-category findings and remediation guidance.
 
-**This tool is diagnostic only** — it identifies accessibility issues but does not fix them. The intended workflow is: upload → review findings → fix in Adobe Acrobat → re-upload to verify.
+**This tool is primarily diagnostic** — it identifies accessibility issues and grades them. As of v1.18.0 it also offers optional **auto-remediation** for PDFs that need structure tagging (gated behind `REMEDIATION_ENABLED=true`, disabled by default — see [docs/pdf-remediation-integration-plan.md](docs/pdf-remediation-integration-plan.md)). The intended workflow is: upload → review findings → either auto-remediate or fix in Adobe Acrobat → re-upload to verify. Manual review remains essential for IITAA compliance regardless of which path is taken.
+
+## Security
+
+Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
+
+### v1.18.0 — 2026-05-18 · PDF auto-remediation feature
+
+Reviewed the full remediation surface (API routes, worker, frontend, cleanup sweep, database schema).
+
+- **P1 / fixed**: Download endpoint loaded the full output PDF (up to 50 MB) into memory before sending. Could OOM the API process under concurrent downloads given the 512 MB PM2 cap. **Fix:** switched to `createReadStream` + `stream.pipe(res)`. Memory footprint per download is now constant regardless of output size.
+- **P1 / fixed**: Concurrent download requests could both pass the token check and both retrieve the file before either completed, violating the single-use guarantee. **Fix:** `setExpired(job.id)` is now called before the response stream is started, so concurrent requests see `status='expired'` and get `410 Gone`.
+- **P2 / mitigated**: When `AUTH.REQUIRE_LOGIN=false` (dev/internal mode), the per-job email guard on `/status`, `/download`, and `/receipt` is bypassed; a caller with a known UUID jobId could read job data. **Mitigation:** UUIDv4 jobIds (122 bits of entropy) make enumeration impractical; production runs with `REQUIRE_LOGIN=true`. **Status:** documented as the established posture in `docs/pdf-remediation-integration-plan.md` § Security.
+- **P2 / accepted**: Adobe Acrobat parity scoring is still computed server-side even though the UI no longer surfaces it. ~50 ms per audit. **Status:** intentional — keeps the data shape stable for existing tests and audit-log entries. May remove in a later release if the cost matters.
+- **P3 / accepted**: `qpdf --check` can flag some borderline-valid outputs as warnings, which we treat as failures. **Status:** preferred over the alternative — better to reject a borderline file than serve a damaged one.
+- **Pre-launch items still open**: external penetration test on the remediation surface; full Vitest coverage for the remediation pipeline (`remediation.test.ts`, `remediation-privacy.test.ts`, `remediation-receipt.test.ts`). Tracked in the Phase 4 roadmap.
+
+### v1.17.0 and earlier
+
+Security reviews for prior releases were not yet captured in this format. Going forward, every release lists findings and fixes here. Earlier releases focused on the synchronous audit pipeline and authentication flow; review history is available via commit messages on `main`.
 
 ## Quick Start
 

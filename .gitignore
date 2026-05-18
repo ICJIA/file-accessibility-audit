@@ -48,3 +48,12 @@ tmp/
 apps/cli/publist-audit.*
 apps/cli/reports/
 apps/web/public/publist.html
+
+# Remediation spike artifacts (research; output PDFs and Python venv not in source control)
+spike-out/
+spike-out-smolvlm/
+.venv-odl/
+.venv/
+
+# Remediation runtime artifacts (output PDFs, worker scratch dirs)
+apps/api/data/remediation/
