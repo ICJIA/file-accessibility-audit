@@ -2,7 +2,27 @@
 // Public page — no auth middleware. Agency staff, auditors, lawyers,
 // records-retention officers, and the general public should be able to
 // read this without logging in.
+import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+
 definePageMeta({ middleware: [] })
+
+const router = useRouter()
+// When opened in a new tab from the footer link, browser history is
+// empty — the back button has no useful destination. Detect that and
+// link home instead.
+const hasHistory = ref(false)
+onMounted(() => {
+  hasHistory.value = typeof window !== 'undefined' && window.history.length > 1
+})
+
+function goBack(): void {
+  if (hasHistory.value) {
+    router.back()
+  } else {
+    void router.push('/')
+  }
+}
 
 useHead({
   title: 'Data Retention Policy',
@@ -227,6 +247,33 @@ const redBlueTeamDiagram = `flowchart TD
 
 <template>
   <div class="max-w-4xl mx-auto px-4 py-10 space-y-10">
+    <!-- Back navigation (works whether user opened in a new tab from
+         the footer, navigated here directly, or arrived via a shared
+         link). When history exists we use it; otherwise we land them
+         on the home page. -->
+    <nav class="-mb-4">
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+        @click="goBack"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+          />
+        </svg>
+        <span>{{ hasHistory ? 'Back' : 'Back to home' }}</span>
+      </button>
+    </nav>
+
     <!-- Header -->
     <header>
       <p
