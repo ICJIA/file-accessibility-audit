@@ -1212,12 +1212,12 @@ function labelForEvent(name: string): string {
       <SourceDocumentNotice variant="result" />
     </section>
 
-    <!-- Issues summary on the remediated output (same component as audit page) -->
+    <!-- Issues summary on the remediated output (same component as audit page).
+         IssuesSummary is self-titled ('Issues to fix'), so no wrapping <h2> here. -->
     <section
       v-if="status?.status === 'complete' && receipt?.outputAudit?.categories"
       class="mb-6"
     >
-      <h2 class="text-lg font-medium mb-3">Issues in the remediated PDF</h2>
       <IssuesSummary :categories="receipt.outputAudit.categories" />
     </section>
 

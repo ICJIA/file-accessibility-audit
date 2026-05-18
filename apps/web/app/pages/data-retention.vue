@@ -1242,6 +1242,140 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.18.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.18.1
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-18</strong> · scope: veraPDF
+            integration correctness + remediation result-page UX
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          A patch release with four operational fixes against the v1.18.0
+          remediation feature. None of these findings expose private data
+          or change the file-retention guarantees described elsewhere on
+          this page. One finding is security-adjacent: an auditor who
+          consulted the PDF/UA-1 compliance card on the remediation
+          result page would have seen a silently wrong verdict in any
+          deployment running a recent veraPDF version. Note: at the time
+          of the fix, this feature flag was still off in production, so
+          no real audit was shown the wrong verdict.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Findings
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-red-700/30 text-red-200 mr-2">P1</span>
+              Fixed</strong
+            >
+            — PDF/UA-1 compliance verdict was always shown as "not
+            compliant," regardless of the actual PDF.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the tool calls a
+              third-party validator (veraPDF) to report whether the
+              remediated PDF technically conforms to the PDF/UA-1
+              accessibility standard. The newest version of that
+              validator changed the shape of its result data slightly
+              (it now returns a list of profile results rather than a
+              single one). The tool was reading the result in the old
+              shape, so the verdict was always missing, and the missing
+              verdict was treated as "not compliant." Any auditor
+              looking at the compliance card on the result page would
+              have been shown an incorrect technical verdict.<br />
+              <strong>How it was fixed:</strong> the tool now handles
+              both the new and old result shapes correctly. Verified
+              against a live install of the latest veraPDF version. No
+              production deployment had this feature enabled yet at the
+              time of the fix, so no real audit was actually shown the
+              wrong verdict.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Fixed</strong
+            >
+            — A second veraPDF shape change could have caused a crash
+            inside the validation routine.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> in the same shape change
+              that broke the verdict, veraPDF also moved its rule-by-rule
+              detail list. A defensive fallback in the tool would have
+              tried to read the new "count of failed rules" as if it
+              were a list, which would have crashed the validation
+              routine on certain inputs.<br />
+              <strong>How it was fixed:</strong> the unsafe fallback was
+              removed and the read order was updated to prefer the new
+              location first. No crashes were observed in production —
+              this was caught during the same review as the P1 above.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Fixed</strong
+            >
+            — Failure count under-reported on heavily-non-compliant
+            PDFs.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the tool reported a
+              compliance-failure total based on the top 20 issues it
+              displayed, rather than veraPDF's own total. On a deeply
+              non-compliant PDF the displayed total would have been
+              lower than reality.<br />
+              <strong>How it was fixed:</strong> the tool now uses
+              veraPDF's own total when available. Older veraPDF versions
+              still use the "sum the displayed list" fallback.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Fixed</strong
+            >
+            — The "Fix steps" links on the remediation result page were
+            dead.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> clicking "Fix steps" next
+              to an outstanding issue on the result page did nothing.
+              The link tried to jump to a card that exists on the audit
+              page but not the result page.<br />
+              <strong>How it was fixed:</strong> each issue row now
+              opens an inline accordion showing the detailed findings
+              and numbered Adobe Acrobat fix steps right there on the
+              result page — no navigation needed. Same content as the
+              audit-page cards. Not a privacy or security issue, but a
+              real usability problem for an auditor following up on
+              outstanding items.
+            </p>
+          </li>
+        </ul>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Operational improvements
+        </h4>
+        <ul class="space-y-1 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
+          <li>
+            The Ubuntu deploy script
+            (<code class="text-xs font-mono">rebuild.sh</code>) now
+            auto-detects an installed veraPDF and, when it isn't
+            installed, prints copy-paste install instructions including
+            the persistence command so the path survives a server
+            reboot. Reduces drift between development and production
+            installs.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.18.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

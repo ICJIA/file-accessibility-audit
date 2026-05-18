@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.18.1] — 2026-05-18
+
+### Fixed — PDF/UA-1 conformance verdict and remediation result UX
+
+Three correctness fixes against the v1.18.0 remediation feature, plus one preflight enhancement. All issues are operational; none affect data privacy or retention guarantees.
+
+- **veraPDF 1.30.x verdict was always reported as "not compliant"** regardless of the input PDF. In v1.30.x the validator output reshapes `validationResult` from a single object to a single-element array (`.report.jobs[0].validationResult[0]`); the v1.18.0 extractor read the array as an object, so `compliant` was always `undefined` and the truthy-check fell through to `passed: false` for every PDF. Auditors consulting the PDF/UA-1 disclaimer card on the remediation result page would have seen a silently wrong verdict in any deploy running veraPDF 1.30.x or newer. **Fixed** by detecting the array shape and unwrapping to `[0]` before extraction. Older veraPDF (≤ 1.26.x) keeps working unchanged.
+- **Rule-summary extraction could crash** on veraPDF 1.30.x output. The 1.30.x schema places rule data at `validationResult[0].details.ruleSummaries` (array) and `details.failedRules` (number, count of distinct rules — not an array). The extractor's fallback chain included `details.failedRules` as an array source; a `.map()` on a number would have thrown `TypeError`. **Fixed** by removing the `details.failedRules` fallback and reordering the chain newest-first.
+- **`totalFailureCount` under-reported failures on heavily-non-compliant PDFs.** Previously summed only the displayed (top-20) rule summaries. **Fixed** by preferring veraPDF's server-reported `details.failedChecks` when present; falls back to the old sum when not (older versions).
+- **"Fix steps" links on the remediation result page were dead.** The `IssuesSummary` component built `href="#cat-<id>"` anchors that only exist on the audit pages, not on the remediation result page. Clicks fell through to no-ops. **Fixed** by replacing the broken anchor links with inline accordion expansion — each row now opens a panel showing the full findings list and the numbered Adobe Acrobat fix steps directly. Same data source as the audit-page cards (`partitionCardFindings`), so the remediation page stays in sync without duplicating logic.
+
+### Added — rebuild.sh preflight auto-detects veraPDF
+
+The Ubuntu deploy script now auto-detects veraPDF at four common install paths (`/opt/verapdf`, `/home/forge/verapdf`, `$HOME/verapdf`, `/usr/local/bin`), exports `REMEDIATION_VERAPDF_PATH` for the deploy if found, and warns when the path isn't persisted in `/etc/environment` for PM2 to inherit across reboots. When veraPDF isn't installed at all, the script now prints inline copy-paste Ubuntu install instructions (download → izpack interactive installer → cleanup → persistence command) so a fresh server can get to PDF/UA-1 conformance reporting in one operator visit.
+
+### Commits
+
+- `49b9cca` — feat(deploy): rebuild.sh preflight auto-detects veraPDF + prints install instructions
+- `d35bc6b` — fix(remediation): handle veraPDF 1.30.x array-shaped validationResult
+- `6d9e193` — fix(remediation): correct veraPDF 1.30.x rule-summary path + use server total
+- `24a3cd0` — fix(remediation): inline fix-step expansion in IssuesSummary
+
 ## [1.18.0] — 2026-05-18
 
 ### Added — PDF auto-remediation feature
