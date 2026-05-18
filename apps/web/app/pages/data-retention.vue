@@ -1254,6 +1254,153 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.19.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.19.0
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-18</strong> · scope: fleet
+            integration + accessibility polish + retention-policy
+            change
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This release adds the fleet inventory integration (one HTTP
+          call per PDF returns strict + practical grades plus a
+          year-long shareable report link), expands the URL allowlist
+          to cover all
+          <code class="text-xs font-mono">*.illinois.gov</code>
+          state-agency subdomains, bumps the shared-report retention
+          window from 15 days to 365 days, and fixes seven accessibility
+          rule violations across the public policy + technical-details
+          pages. The most material policy change for an auditor reading
+          this page is the retention bump — see the first finding below.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Findings &amp; changes
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Accepted</strong
+            >
+            — Shared-report retention window extended from 15 days to
+            365 days.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What changed:</strong> when someone creates a
+              shareable audit-report link (either from the web UI's
+              "Create Shareable Link" button or via the new fleet
+              audit-by-URL automation), the resulting link now stays
+              valid for one year instead of 15 days. This applies to
+              the metadata record only — no PDF content is stored
+              alongside it. After 365 days the row becomes eligible
+              for the periodic cleanup sweep and the URL stops
+              working.<br />
+              <strong>Why:</strong> auditors and managers reviewing
+              fleet-inventory reports (which list every PDF across
+              ICJIA's sites) need report links that survive between
+              quarterly review cycles. A 15-day TTL caused most links
+              to break before the next review even happened.<br />
+              <strong>Storage cost:</strong> the row holds scores,
+              category findings, and timestamps — no PDF bytes. A
+              100-PDF fleet at roughly 50 KB per record grows the
+              database by about 5 MB per year. The tradeoff was
+              evaluated and accepted in favor of usability.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Accepted</strong
+            >
+            — URL allowlist expanded so the fleet automation can audit
+            PDFs across the full Illinois state-agency footprint.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What changed:</strong> the audit-by-URL endpoint
+              previously accepted only a handful of explicit ICJIA
+              subdomains. It now also accepts:
+              <code class="text-xs font-mono">illinois.gov</code> (every
+              state-agency subdomain),
+              <code class="text-xs font-mono">icjia.cloud</code>,
+              <code class="text-xs font-mono">icjia.app</code>, and
+              <code class="text-xs font-mono">ilheals.com</code> (each
+              including all subdomains).<br />
+              <strong>Why:</strong> the ICJIA fleet audit lists PDFs
+              across every site the agency operates and every partner
+              agency. The previous narrow allowlist couldn't cover that
+              fleet.<br />
+              <strong>What it doesn't change:</strong> all of the
+              existing protections still apply — the server still
+              blocks private / local / loopback addresses (no SSRF
+              into internal networks), still rejects oversized files
+              (100 MB cap), still requires the fetched bytes to begin
+              with the
+              <code class="text-xs font-mono">%PDF-</code> header, and
+              still rejects look-alike domains (a URL like
+              <code class="text-xs font-mono">illinois.gov.evil.com</code>
+              does <em>not</em> match the allowlist). The threat profile
+              is the same as a person pasting any one of these URLs
+              into the web interface.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Fixed</strong
+            >
+            — Seven accessibility rule violations on the public policy
+            and technical-details pages.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> a full axe + Lighthouse
+              audit found that the diagram boxes on these pages
+              couldn't be reached via keyboard, that an inline link in
+              this audit history section was distinguishable only by
+              color (a barrier for colorblind readers), and that
+              several scrollable code blocks couldn't be scrolled
+              without a mouse.<br />
+              <strong>How it was fixed:</strong> each scrollable region
+              is now keyboard-focusable, the inline link is now
+              underlined, and the diagram boxes' redundant ARIA labels
+              were replaced with proper structural markup. Both pages
+              now score a perfect 100 / 100 on both axe (no violations)
+              and Lighthouse's accessibility audit.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Fixed</strong
+            >
+            — The new fleet endpoint reported the strict score in both
+            the strict and practical slots of its response.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the new
+              <code class="text-xs font-mono">/api/audit-url</code>
+              endpoint had a key-name mismatch with the underlying
+              scoring engine — what the engine internally calls
+              "remediation" the user interface labels "practical." The
+              endpoint looked for the wrong name, found nothing, and
+              fell back to the strict score, so the practical column
+              in the fleet output would have shown the strict number
+              instead of the practical one.<br />
+              <strong>How it was fixed:</strong> caught in the local
+              smoke-test step before any caller integrated against
+              the endpoint, so no production fleet report ever
+              published the wrong number. The name mapping is now
+              correct (verified against three test PDFs whose strict
+              and practical scores genuinely differ).
+            </p>
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.18.1 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

@@ -4,6 +4,85 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.19.0] — 2026-05-18
+
+### Added — Fleet inventory integration
+
+The fleet-audit story is now end-to-end. ICJIA's fleet inventory tool (and any similar PDF enumerator across ICJIA / Illinois state agency sites) can enrich each PDF row in its HTML / CSV output with a strict score, a practical score, and a stable click-through link to the full audit report — one HTTP call per PDF.
+
+- **New endpoint: `POST /api/audit-url`** — combined "analyze a PDF by URL **and** persist a shareable report" route. Returns a trimmed scalar-only response shape (filename, pageCount, audited, strict score+grade, practical score+grade, reportId, reportUrl, reportExpiresAt, cached). Designed for direct flattening into CSV columns.
+- **Hash dedup (Policy A).** After fetching the PDF the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching `(email, content_hash)`. On a hit, the cached `reportUrl` is returned and no new audit runs (`cached: true`). On a miss, a fresh audit runs and a new report row is persisted. Re-running the fleet job for unchanged PDFs returns the same URL — quarterly CSV diffs cleanly distinguish "file changed" from "row unchanged" without client-side caching. Optional `force=true` (body field or `?force=true` query param) bypasses dedup.
+- **`docs/fleet-inventory-reporting.md`** — self-contained integration brief for the fleet tool author. Covers PAT setup, request/response shape, 8 recommended CSV columns mapped to response fields, HTML grade-cell color coding, per-PDF pseudocode, status-code matrix with retry policy, dedup behavior, pacing guidance (1-2 concurrent max), URL allowlist with look-alike rejection examples, TTL recommendations (< 11-month re-run cadence), and a smoke-test plan against three known production PDFs.
+- **README § "Fleet PDF Auditing (`POST /api/audit-url`)"** — endpoint comparison table vs `/api/analyze-url` and `/api/bulk-from-inventory`, the trimmed response example, hash-dedup explanation, and a jq one-liner to flatten the response into a CSV row.
+
+### Changed — URL allowlist (broader fleet coverage)
+
+Added four bare-domain entries to `DEFAULT_ALLOWED_HOSTS` in `apps/api/src/routes/analyze-url.ts`:
+
+- `illinois.gov` — covers every `*.illinois.gov` state agency subdomain (large surface but exactly the fleet-audit intent)
+- `icjia.cloud` — covers `*.icjia.cloud`
+- `icjia.app` — covers `*.icjia.app` (production `audit.icjia.app` + future siblings)
+- `ilheals.com` — covers `*.ilheals.com` (program partner)
+
+The matcher's `host === ah || host.endsWith('.' + ah)` rule means each bare-domain entry auto-covers all subdomains. Look-alike domains (`illinois.gov.evil.com`, `fakeillinois.gov`) are still rejected. Operators can extend per-deployment via the `ANALYZE_URL_ALLOWED_HOSTS` env var.
+
+### Changed — Shared-report TTL: 15 days → 365 days
+
+`SHARED_REPORTS.EXPIRY_DAYS` bumped from 15 to 365 in `audit.config.ts`. The auditor / fleet-inventory use case needs report links that stay valid for at least a year between scans. Database growth cost is real but accepted — the row payload is content-free metadata, and a 100-PDF fleet at 50 KiB per report adds ~5 MB per year.
+
+All five UI surfaces that hardcoded "15 days" were updated to "365 days" (`apps/web/app/pages/report/[id].vue`, `apps/web/app/pages/data-retention.vue`, three places in `apps/web/app/pages/index.vue`).
+
+### Fixed — `/api/audit-url` returned strict score in the practical slot
+
+The scoring engine emits `scoreProfiles.strict` and `scoreProfiles.remediation`; the UI labels the latter "Practical readiness score." The v1.19.0-pre `audit-url` extractor looked for `scoreProfiles.practical` (the user-facing name), found nothing, and fell back to the top-level `overallScore` — which is the strict score. Every audit-url response showed practical = strict.
+
+Fixed by mapping the user-facing `practical` → internal `remediation` key inside the extractor. The 8 inline test cases were updated to match. Verified post-fix against three ICJIA agency PDFs:
+
+```
+NCHIP_Live_Scan_NOFO_Instructions  16 pp  strict 52/F  practical 56/F
+ICJIA_Budget_Committee_Minutes     11 pp  strict 74/C  practical 74/C
+Winter_2026_Newsletter              2 pp  strict 93/A  practical 95/A
+```
+
+(PDF 2's identical pair is genuine — the file has no PDF/UA signals that would split the profiles. The other two show the expected 2-4 point divergence.)
+
+### Fixed — Accessibility violations across `/data-retention` and `/technical-details`
+
+A full `axecap + lightcap + viewcap` sweep across mobile, tablet, and desktop viewports caught seven axe-AA violations and three missing-canonical SEO failures. All fixed:
+
+- **`aria-prohibited-attr`** — 7 MermaidDiagram instances carried `aria-label="..."` on a plain inner `<div>`, which is prohibited per the ARIA spec when no widget/landmark role is present. Dropped the duplicative attribute (the parent `<figure>`'s `<figcaption>` already provides the accessible name) and added `tabindex="0"` so keyboard users can focus the scroll viewport.
+- **`scrollable-region-focusable`** — code-block wrappers and table wrappers on `/data-retention` (5 instances) and `/technical-details` (1 instance) were keyboard-inaccessible. Added `tabindex="0"` to all of them.
+- **`link-in-text-block`** — inline body link in `/data-retention` § 10 v1.17.0 article relied on color alone. Added `underline` to its class list.
+- **`canonical` missing** — `/data-retention` and `/technical-details` now emit per-page canonicals via `useHead` keyed off `runtimeConfig.public.siteUrl`. `/remediate/<id>` is correctly `noindex,nofollow` (private session-bound URL).
+
+Each MermaidDiagram instance also gets a unique `aria-describedby` target via `useId()`. Previously every diagram referenced `id="mermaid-desc"`, which produced duplicate IDs on any page with multiple diagrams (a latent a11y bug not flagged by today's audit but worth fixing).
+
+Post-fix scores:
+
+```
+/data-retention     desktop  axe 0  a11y 100  SEO 100   (was a11y 92, SEO 92)
+/data-retention     mobile   axe 0  a11y 100             (was a11y 92)
+/technical-details  desktop  axe 0  a11y 100  SEO 100   (was a11y 96, SEO 92)
+/technical-details  mobile   axe 0  a11y 100             (was a11y 96)
+/remediate/<id>     desktop  axe 0  a11y 100  SEO 58    (SEO low is intentional —
+                                                          private noindex page)
+```
+
+### Commits
+
+- `0ba8cf2` — fix(a11y,seo): resolve 7 axe violations + 3 canonical-missing pages
+- `b9e6578` — feat(api): POST /api/audit-url for fleet inventory enrichment
+- `017a2a1` — fix(audit-url,web): practical score mapping + stale 15-day TTL text
+- `78c2f72` — docs(fleet): integration brief + expanded URL allowlist (4 new domains)
+
+### Deferred to a later release
+
+- `/remediate/:id/download?name=` filename-choice option + UI dialog (CMS replacement workflow)
+- Audit report export to PDF / Markdown / HTML (new format dropdown next to the existing Word export)
+- `reportPdfUrl` / `reportMdUrl` / `reportHtmlUrl` fields on the `/api/audit-url` response
+- `AGENTS.md` at repo root to consolidate cross-tool agent guidance
+- CLS 0.252 investigation on `/remediate` (likely score-banner shift after content loads)
+
 ## [1.18.1] — 2026-05-18
 
 ### Fixed — PDF/UA-1 conformance verdict and remediation result UX
