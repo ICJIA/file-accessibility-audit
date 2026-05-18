@@ -323,13 +323,15 @@ function labelForEvent(name: string): string {
         </div>
       </div>
 
-      <!-- Up-arrow separator -->
-      <div class="flex flex-col items-center my-8 text-[var(--text-muted)]">
-        <span class="text-xs uppercase tracking-wider mb-1">
+      <!-- Down-pointing separator pointing to the original (below) -->
+      <div class="flex flex-col items-center my-12 sm:my-16 text-[var(--text-muted)]">
+        <p
+          class="text-lg sm:text-xl font-semibold uppercase tracking-[0.2em] mb-4"
+        >
           Improved from
-        </span>
+        </p>
         <svg
-          class="w-6 h-6"
+          class="w-10 h-10 sm:w-12 sm:h-12"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -338,7 +340,7 @@ function labelForEvent(name: string): string {
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            d="m4.5 15.75 7.5-7.5 7.5 7.5"
+            d="M19.5 8.25 12 15.75 4.5 8.25"
           />
         </svg>
       </div>
