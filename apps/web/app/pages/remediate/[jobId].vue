@@ -161,6 +161,33 @@ const needsManualCategories = computed(() =>
   ),
 )
 
+// "Low-improvement" detection: the remediated output is still below a
+// passing threshold AND the delta from input is small. This is the
+// signature of an input PDF whose accessibility problems live deeper
+// than what auto-tagging can reach — usually because the source
+// document (Word, InDesign, etc.) was authored without accessibility
+// in mind and the PDF was exported without structure tagging. Show the
+// big explainer card so users understand the modest score wasn't a
+// tool failure.
+const lowImprovement = computed(() => {
+  if (status.value?.status !== 'complete') return false
+  const input = status.value?.inputScore ?? null
+  const output = status.value?.outputScore ?? null
+  if (input === null || output === null) return false
+  const delta = output - input
+  return output < 70 && delta < 15
+})
+
+// Items that auto-remediation typically CAN fix (used to seed the
+// "what we were able to do automatically" list). Pulled from the
+// fixedCategories + improvedButLowCategories that actually moved this
+// run; falls back to a generic list if neither has anything.
+const automatedFixesThisRun = computed(() =>
+  [...fixedCategories.value, ...improvedButLowCategories.value].sort(
+    (a, b) => (b.delta ?? 0) - (a.delta ?? 0),
+  ),
+)
+
 // ------------------------------------------------------------------
 // Three-heuristic comparison rows
 // ------------------------------------------------------------------
@@ -629,6 +656,278 @@ function labelForEvent(name: string): string {
           </div>
         </div>
       </div>
+
+      <!-- Low-improvement explainer card (only shown when output is still
+           low AND delta is small — the "this is a source-document problem,
+           not a tool problem" case). -->
+      <section
+        v-if="lowImprovement"
+        class="mt-10 rounded-2xl border-2 border-amber-700/50 bg-amber-950/15 overflow-hidden"
+      >
+        <div
+          class="bg-amber-700/25 border-b border-amber-700/40 py-5 sm:py-6 px-5 sm:px-7 text-center"
+        >
+          <p
+            class="text-xl sm:text-2xl font-black uppercase tracking-[0.18em] text-amber-200 flex items-center justify-center gap-3 leading-tight"
+          >
+            <svg
+              class="w-6 h-6 sm:w-7 sm:h-7"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+              />
+            </svg>
+            About this modest score
+          </p>
+        </div>
+
+        <div class="p-5 sm:p-7 space-y-5">
+          <!-- Honest framing -->
+          <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+            Auto-remediation moved your score from
+            <strong>{{ status?.inputScore?.toFixed(0) }}</strong> to
+            <strong>{{ status?.outputScore?.toFixed(0) }}</strong> — a real
+            improvement, but a smaller one than you might have hoped for.
+            <strong class="text-amber-200">
+              This is almost always a signal that the underlying PDF was
+              exported from a non-accessible source document
+            </strong>
+            (Word, PowerPoint, InDesign, Pages) without the accessibility
+            options turned on. The tool did what it can; the limits of
+            what's possible live further upstream.
+          </p>
+
+          <!-- What we WERE able to fix -->
+          <div
+            v-if="automatedFixesThisRun.length > 0"
+            class="rounded-lg border border-emerald-700/30 bg-emerald-950/15 p-4 sm:p-5"
+          >
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-3">
+              ✓ What we were able to fix automatically
+            </h3>
+            <ul class="space-y-1.5 text-sm">
+              <li
+                v-for="cat in automatedFixesThisRun"
+                :key="cat.id"
+                class="flex items-baseline gap-3"
+              >
+                <span class="text-emerald-400 flex-shrink-0">✓</span>
+                <span class="flex-1">{{ cat.label }}</span>
+                <span class="font-mono text-[var(--text-muted)] text-xs">
+                  {{ cat.before === null ? 'N/A' : cat.before.toFixed(0) }} → {{ cat.after?.toFixed(0) }}
+                </span>
+                <span
+                  v-if="cat.delta !== null && cat.delta > 0"
+                  class="font-mono text-emerald-400 text-xs w-12 text-right"
+                >
+                  +{{ cat.delta.toFixed(0) }}
+                </span>
+              </li>
+            </ul>
+            <p class="text-xs text-[var(--text-muted)] mt-3 leading-relaxed">
+              These categories were improved by adding structural metadata
+              that the source file was missing. They're the parts of
+              accessibility a deterministic tool can address without
+              guessing at authorial intent.
+            </p>
+          </div>
+
+          <!-- What we COULDN'T fix automatically -->
+          <div
+            v-if="needsManualCategories.length > 0 || outstandingCritical.length > 0 || outstandingSerious.length > 0 || outstandingModerate.length > 0"
+            class="rounded-lg border border-amber-700/30 bg-amber-950/10 p-4 sm:p-5"
+          >
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-300 mb-3">
+              ⚠ What needs human judgment (and why)
+            </h3>
+            <p class="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
+              A few categories of accessibility issues cannot be remediated
+              automatically by any tool, including this one and every
+              commercial alternative. They require the original author's
+              knowledge of the content:
+            </p>
+            <ul class="space-y-3 text-sm">
+              <li class="flex gap-3">
+                <span class="text-amber-400 flex-shrink-0 mt-0.5">•</span>
+                <div>
+                  <strong>Meaningful alt text for images and charts.</strong>
+                  The tool can mark a figure as a
+                  <code class="text-xs font-mono">&lt;Figure&gt;</code>
+                  element, but it cannot describe what's in the image. "Bar
+                  chart showing arrest counts by month, 2024" is useful;
+                  "image" is not. Only the author knows what the chart
+                  represents.
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="text-amber-400 flex-shrink-0 mt-0.5">•</span>
+                <div>
+                  <strong>Reading order in complex layouts.</strong>
+                  Multi-column documents, pull quotes, sidebars, and other
+                  rich layouts can confuse heuristic ordering algorithms.
+                  Only a human reader knows whether "column 2 paragraph 1"
+                  comes before or after "column 1 paragraph 4."
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="text-amber-400 flex-shrink-0 mt-0.5">•</span>
+                <div>
+                  <strong>Decorative vs. informative images.</strong>
+                  An image of a horizontal-rule divider should be marked
+                  <em>decorative</em> (screen readers skip it); an
+                  organizational chart contains information and needs a
+                  description. The tool reports all images without alt
+                  text as a potential issue; deciding which are decorative
+                  is a judgment call.
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="text-amber-400 flex-shrink-0 mt-0.5">•</span>
+                <div>
+                  <strong>Document title and meaningful metadata.</strong>
+                  Many PDFs export with placeholder titles like "Document1"
+                  or the filename. Only the author can supply a meaningful
+                  title that reflects the document's actual content.
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="text-amber-400 flex-shrink-0 mt-0.5">•</span>
+                <div>
+                  <strong>Table semantics.</strong>
+                  Auto-remediation can wrap table cells in tags but cannot
+                  reliably know which row contains the column headers, or
+                  whether a cell spans multiple columns. The author's
+                  knowledge of the data structure is needed.
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="text-amber-400 flex-shrink-0 mt-0.5">•</span>
+                <div>
+                  <strong>Heading hierarchy correctness.</strong>
+                  A line of "14-pt bold text" might be a heading or
+                  emphasized body text. The tool guesses heuristically; the
+                  author knows for certain.
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Why PDF remediation is hard -->
+          <div class="rounded-lg border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-5">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-[var(--text-heading)] mb-3">
+              Why PDF remediation is fundamentally limited
+            </h3>
+            <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+              PDFs are an <em>export</em> format. They were designed in 1993
+              for print-fidelity — making a document look identical on every
+              printer and screen. PDFs store
+              <strong>where every glyph appears on the page</strong>, not
+              what those glyphs mean. There's no concept of "heading" or
+              "paragraph" or "image of a chart" baked into the format; the
+              semantic layer that makes a PDF accessible (the structure
+              tree, added optionally in PDF 1.4 from 2001) has to be added
+              on top.
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+              When a document is exported to PDF without that structure
+              layer, the semantic information from the source document is
+              effectively lost. A remediation tool reads the visual layer
+              and has to guess at the meaning: "this 14-pt bold line was
+              probably a heading," "this image probably has content,"
+              "these cells probably form a table." Some of those guesses
+              are right; some aren't. The result is a document that has
+              more structure than it did before — but still requires a
+              human to verify the guesses.
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+              For the deeper technical explanation, see the
+              <em>"Why Auditing Is Easy and Remediation Is Hard"</em>
+              section of the
+              <a
+                href="/"
+                class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
+                >audit page</a
+              >'s Technical Details dropdown.
+            </p>
+          </div>
+
+          <!-- The better path: source documents -->
+          <div class="rounded-lg border border-blue-700/40 bg-blue-950/20 p-4 sm:p-5">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-blue-200 mb-3">
+              ★ The better path: fix accessibility at the source
+            </h3>
+            <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+              PDF remediation is <strong>always a last resort</strong>. The
+              accessibility information the source document already has
+              (heading styles in Word, paragraph styles in InDesign, alt
+              text fields, table-header settings) doesn't survive the
+              export unless the "create tagged PDF" option is enabled.
+              Once you have an untagged PDF, you're trying to reconstruct
+              that information from visual cues.
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+              <strong>If you still have the source document</strong>
+              (.docx, .indd, .pages, Google Docs, etc.), the highest-quality
+              path is:
+            </p>
+            <ol class="space-y-2 text-sm text-[var(--text-secondary)] list-decimal list-inside ml-2 mb-3">
+              <li>
+                Open the source in its native authoring tool.
+              </li>
+              <li>
+                Use the built-in accessibility checker:
+                <em>Word: Review → Check Accessibility</em>
+                ·
+                <em>InDesign: Accessibility panel</em>
+                ·
+                <em>Google Docs: Tools → Accessibility</em>
+                ·
+                <em>Pages: Inspector → Accessibility</em>.
+              </li>
+              <li>
+                Fix the flagged issues: add alt text on every image, use
+                heading styles (not just bold larger text), use the
+                built-in table tools (not tab-stops), set the document
+                title.
+              </li>
+              <li>
+                Re-export as PDF with
+                <strong>"Best for electronic distribution / accessibility"</strong>
+                (Word, Pages) or
+                <strong>"Create Tagged PDF"</strong> (InDesign) selected.
+                Skipping this step is the #1 cause of remediable PDFs.
+              </li>
+              <li>Re-upload here to verify the fixes landed.</li>
+            </ol>
+            <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+              This path consistently produces a tagged PDF with a structure
+              tree that
+              <em>reflects what the author actually meant</em> — no
+              reverse-engineering, no heuristic guesses, no last-resort
+              remediation. Even when the audit + auto-remediation here got
+              you partway, fixing at the source remains the gold standard
+              for IITAA compliance.
+            </p>
+          </div>
+
+          <!-- Footer summary -->
+          <p
+            class="text-xs text-[var(--text-muted)] text-center pt-2 leading-relaxed"
+          >
+            Modest scores from auto-remediation reflect the limits of working
+            with an already-exported PDF — not a fault of the tool. The
+            remediation you got is still useful (download it, use it as your
+            starting point), but the most reliable accessibility outcomes
+            always trace back to an accessible source document.
+          </p>
+        </div>
+      </section>
 
       <!-- Down-pointing separator pointing to the original (below) -->
       <div class="flex flex-col items-center my-12 sm:my-16 text-[var(--text-muted)]">
