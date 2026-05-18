@@ -52,20 +52,64 @@ fi
 
 # veraPDF for PDF/UA-1 conformance reporting (optional but recommended
 # for IITAA compliance disclosure on the remediation result page).
-if [ -n "$REMEDIATION_VERAPDF_PATH" ]; then
-  if [ ! -x "$REMEDIATION_VERAPDF_PATH" ]; then
-    echo "WARNING: REMEDIATION_VERAPDF_PATH is set to '$REMEDIATION_VERAPDF_PATH'"
-    echo "  but that path is not executable. veraPDF conformance checks will"
-    echo "  be skipped and the result-page disclaimer will show 'veraPDF not"
-    echo "  configured'. Verify the path or unset the variable."
+# Auto-detects at common install locations if REMEDIATION_VERAPDF_PATH
+# isn't already set in the environment.
+if [ -z "$REMEDIATION_VERAPDF_PATH" ]; then
+  for candidate in \
+    /opt/verapdf/verapdf \
+    /home/forge/verapdf/verapdf \
+    "$HOME/verapdf/verapdf" \
+    /usr/local/bin/verapdf; do
+    if [ -x "$candidate" ]; then
+      REMEDIATION_VERAPDF_PATH="$candidate"
+      export REMEDIATION_VERAPDF_PATH
+      break
+    fi
+  done
+fi
+
+if [ -n "$REMEDIATION_VERAPDF_PATH" ] && [ -x "$REMEDIATION_VERAPDF_PATH" ]; then
+  VERAPDF_VERSION=$("$REMEDIATION_VERAPDF_PATH" --version 2>/dev/null | head -1 || echo "unknown")
+  echo "✓ veraPDF found: $REMEDIATION_VERAPDF_PATH ($VERAPDF_VERSION)"
+  # Warn if the path isn't persisted in /etc/environment — PM2 won't see
+  # it on a fresh server boot otherwise.
+  if [ -f /etc/environment ] && ! grep -q '^REMEDIATION_VERAPDF_PATH' /etc/environment 2>/dev/null; then
+    echo "  NOTE: this path is set in the current shell only. To persist it"
+    echo "  so PM2 inherits it across reboots, run:"
+    echo "    echo 'REMEDIATION_VERAPDF_PATH=$REMEDIATION_VERAPDF_PATH' | sudo tee -a /etc/environment"
     echo ""
   fi
+elif [ -n "$REMEDIATION_VERAPDF_PATH" ]; then
+  echo "WARNING: REMEDIATION_VERAPDF_PATH is set to '$REMEDIATION_VERAPDF_PATH'"
+  echo "  but that path is not executable. veraPDF conformance checks will"
+  echo "  be skipped. Verify the path or unset the variable."
+  echo ""
 else
-  echo "NOTE: veraPDF not configured (REMEDIATION_VERAPDF_PATH unset)."
-  echo "  PDF/UA-1 conformance reporting on the remediation result page will"
-  echo "  show 'veraPDF check was not run'. To enable: download from"
-  echo "  https://verapdf.org/ , install, and set REMEDIATION_VERAPDF_PATH"
-  echo "  to the installed 'verapdf' shell script."
+  echo "NOTE: veraPDF not installed. PDF/UA-1 conformance reporting on the"
+  echo "  remediation result page will show 'veraPDF check was not run'."
+  echo ""
+  echo "  To install on this Ubuntu server (one-time, ~30 MB download,"
+  echo "  requires OpenJDK 17+ which the Java check above already verifies):"
+  echo ""
+  echo "    cd /opt"
+  echo "    sudo curl -L -o verapdf-installer.zip \\"
+  echo "         https://software.verapdf.org/rel/verapdf-installer.zip"
+  echo "    sudo unzip verapdf-installer.zip"
+  echo "    cd verapdf-greenfield-*"
+  echo "    # Text-mode installer. Type 1 to accept license; press Enter for"
+  echo "    # each remaining prompt (default install path will be /opt/verapdf)."
+  echo "    sudo java -jar verapdf-izpack-installer-*.jar -console"
+  echo "    cd /opt && sudo rm -rf verapdf-greenfield-* verapdf-installer.zip"
+  echo "    /opt/verapdf/verapdf --version    # verify"
+  echo ""
+  echo "  Then make the path persistent for PM2 (one-time):"
+  echo ""
+  echo "    echo 'REMEDIATION_VERAPDF_PATH=/opt/verapdf/verapdf' | sudo tee -a /etc/environment"
+  echo "    source /etc/environment"
+  echo ""
+  echo "  Then re-run ./rebuild.sh — the preflight above will find veraPDF"
+  echo "  and the result-page disclaimer card will start showing the actual"
+  echo "  PDF/UA-1 verdict for every remediation."
   echo ""
 fi
 
