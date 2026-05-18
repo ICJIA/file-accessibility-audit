@@ -127,12 +127,17 @@ fi
 # --------------------------------------------------------------------
 print_header "qpdf"
 if command -v qpdf > /dev/null 2>&1; then
-  QPDF_VERSION=$(qpdf --version 2>/dev/null | head -1)
-  print_ok "${QPDF_VERSION}"
-  if ! qpdf --help 2>&1 | grep -q "object-streams"; then
-    print_warn "qpdf is missing --object-streams flag — remediation"
-    print_info "will skip the preprocessing step on tagged-input PDFs."
-    print_info "Upgrade qpdf (brew upgrade qpdf or apt upgrade qpdf)."
+  QPDF_VERSION_LINE=$(qpdf --version 2>/dev/null | head -1)
+  print_ok "${QPDF_VERSION_LINE}"
+  # qpdf 12.x reorganized help into topic pages, so grepping the
+  # top-level --help for 'object-streams' produces a false negative.
+  # Version-based check is reliable: --object-streams=disable shipped
+  # in qpdf 10.x and remains supported in every release since.
+  QPDF_MAJOR=$(echo "$QPDF_VERSION_LINE" | grep -oE '[0-9]+' | head -1)
+  if [ -z "$QPDF_MAJOR" ] || [ "$QPDF_MAJOR" -lt 10 ]; then
+    print_warn "qpdf < 10.x detected — --object-streams=disable may not be supported."
+    print_info "Remediation will skip preprocessing on tagged-input PDFs."
+    print_info "Upgrade: brew upgrade qpdf (macOS) or apt upgrade qpdf (Ubuntu)."
   fi
 else
   print_warn "qpdf not found on PATH."

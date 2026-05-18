@@ -35,10 +35,14 @@ else
   fi
 fi
 
-# Confirm qpdf supports --object-streams (used by remediation preprocessing)
+# Confirm qpdf supports --object-streams (used by remediation preprocessing).
+# qpdf 12.x reorganized help output, so version-based check is reliable.
+# --object-streams=disable shipped in qpdf 10.x.
 if command -v qpdf &> /dev/null; then
-  if ! qpdf --help 2>&1 | grep -q "object-streams"; then
-    echo "WARNING: qpdf is installed but does not advertise --object-streams."
+  QPDF_VERSION_LINE=$(qpdf --version 2>/dev/null | head -1)
+  QPDF_MAJOR=$(echo "$QPDF_VERSION_LINE" | grep -oE '[0-9]+' | head -1)
+  if [ -z "$QPDF_MAJOR" ] || [ "$QPDF_MAJOR" -lt 10 ]; then
+    echo "WARNING: qpdf < 10.x detected — --object-streams=disable may not be supported."
     echo "  PDF remediation will skip the preprocessing step on tagged-input"
     echo "  PDFs, which may cause output corruption on InDesign/Word inputs."
     echo "  Upgrade qpdf to 10.x or newer."
