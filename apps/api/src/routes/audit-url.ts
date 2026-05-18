@@ -3,14 +3,17 @@ import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { gateIdentity, recordAudit } from '../services/auditLog.js'
 import { DEPLOY, SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
 import {
   FETCH_TIMEOUT_MS,
   MAX_PDF_BYTES,
-  fetchWithTimeout,
   isAllowedUrl,
+  sendSafeFetchError,
+  validateUrlForFetch,
 } from './analyze-url.js'
+import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 
 const router: IRouter = Router()
 
@@ -90,33 +93,31 @@ router.post(
         return
       }
 
-      let fetchResp: globalThis.Response
+      // SSRF-hardened fetch (v1.20.1+). See safeFetch.ts for the
+      // DNS-rebinding + redirect-chain mitigations.
+      let fetched
       try {
-        fetchResp = await fetchWithTimeout(url, FETCH_TIMEOUT_MS)
-      } catch (err: any) {
-        const msg =
-          err?.name === 'AbortError'
-            ? `fetch timed out after ${FETCH_TIMEOUT_MS}ms`
-            : `fetch failed: ${err?.message ?? String(err)}`
-        res.status(502).json({ error: msg })
-        return
+        fetched = await safeFetch(url, {
+          timeoutMs: FETCH_TIMEOUT_MS,
+          maxBytes: MAX_PDF_BYTES,
+          validateUrl: validateUrlForFetch,
+        })
+      } catch (err) {
+        if (err instanceof SafeFetchError) {
+          sendSafeFetchError(res, err)
+          return
+        }
+        throw err
       }
 
-      if (!fetchResp.ok) {
+      if (!fetched.ok) {
         res.status(502).json({
-          error: `fetch returned ${fetchResp.status} ${fetchResp.statusText}`,
+          error: `fetch returned ${fetched.status} ${fetched.statusText}`,
         })
         return
       }
 
-      const buf = Buffer.from(await fetchResp.arrayBuffer())
-
-      if (buf.length > MAX_PDF_BYTES) {
-        res.status(413).json({
-          error: `PDF too large (${buf.length} bytes > ${MAX_PDF_BYTES} cap)`,
-        })
-        return
-      }
+      const buf = fetched.buffer
 
       const header = buf.subarray(0, 5).toString('ascii')
       if (header !== '%PDF-') {
@@ -195,6 +196,23 @@ router.post(
         contentHash,
         reportExpiresAt,
       )
+
+      // Canonical audit-log write so audit-url-audited content also
+      // counts for the remediation gate (v1.20.1+). The fleet flow
+      // typically uses this endpoint; without this write, remediating
+      // a fleet-audited PDF would fail the gate. shared_reports above
+      // is the durable / shareable record; audit_log is the gate
+      // record. Both intentionally exist.
+      recordAudit({
+        eventType: 'audit-url',
+        email: gateIdentity(req.user?.email ?? null, req.ip),
+        filename,
+        score: result.overallScore,
+        grade: result.grade,
+        contentHash,
+        ipAddress: req.ip ?? null,
+        userAgent: req.get('user-agent') ?? null,
+      })
 
       res.json({
         filename,

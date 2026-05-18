@@ -542,6 +542,25 @@ export const SHARED_REPORTS = {
   EXPIRY_DAYS: 365,
 
   /**
+   * Number of days before audit_log rows are eligible for cleanup.
+   *
+   * audit_log is the canonical "this content has been audited" record
+   * (v1.20.1+). Every audit path writes a row. Without retention,
+   * audit_log grows unbounded — a slow-burn DoS vector that the
+   * v1.20.1 red/blue review flagged as P2.3. 365 days matches the
+   * shared-report retention so audit-related records age out
+   * together.
+   *
+   * Rows store only metadata (hash, score, grade, IP, user-agent,
+   * timestamp) — no PDF content — so retention is cheap. A 100-PDF
+   * fleet at ~200 bytes per row adds ~7 MB per year of audits.
+   *
+   * SAFE TO CHANGE: Yes. Longer = better forensic trail; shorter =
+   * less DB storage. Coordinate with managers if you alter this.
+   */
+  AUDIT_LOG_RETENTION_DAYS: 365,
+
+  /**
    * Maximum size of the report JSON payload in bytes.
    * Enforced via express.json({ limit: ... }) on the reports route.
    * Prevents oversized payloads from inflating the SQLite database.
@@ -749,6 +768,40 @@ export const REMEDIATION = {
    * SAFE TO CHANGE: Yes — keep at 1 for v1; revisit if user volume grows.
    */
   MAX_CONCURRENT_JOBS_PER_USER: 1,
+
+  /**
+   * Maximum remediation jobs a single caller can start in a rolling
+   * 24-hour window. Enforced at POST /api/remediate after the
+   * audit-gate check (v1.20.1+). Prevents the "thousands of automated
+   * remediations" abuse case while leaving plenty of headroom for a
+   * legitimate agency clearing a backlog of ~50 PDFs.
+   *
+   * Sizing rationale: ICJIA's typical agency fleet runs into the
+   * tens of PDFs; an unusually large day is ~50. 100 covers a 2×
+   * burst without forcing legit users to coordinate. 3000 attempted
+   * by an attacker would take 30 days at the cap — meaningful
+   * friction without breaking real workflows.
+   *
+   * SAFE TO CHANGE: Yes — raise if a real fleet workload trips it,
+   * lower if abuse surfaces.
+   */
+  MAX_JOBS_PER_DAY_PER_USER: 100,
+
+  /**
+   * The "you must audit this PDF before remediating it" window, in
+   * milliseconds. Enforced at POST /api/remediate (v1.20.1+) by
+   * looking for a recent audit_log row matching the same content_hash
+   * for the same caller. Any audit path counts: browser upload via
+   * /api/analyze, URL audit via /api/analyze-url or /api/audit-url,
+   * fleet bulk via /api/bulk-from-inventory. 60 minutes is the
+   * sweet spot — long enough for a slow user to read results before
+   * clicking remediate; short enough that direct curl-bypass
+   * attempts need to re-audit each time.
+   *
+   * SAFE TO CHANGE: Yes — longer is friendlier to natural workflow;
+   * shorter is tighter against abuse. 60 min is conservative.
+   */
+  AUDIT_REQUIRED_WINDOW_MS: 60 * 60_000,
 
   /**
    * How long the remediated output PDF lives on disk after the job

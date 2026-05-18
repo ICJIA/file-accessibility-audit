@@ -4,8 +4,8 @@ import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter } from '../middleware/rateLimiter.js'
 import { uploadMiddleware } from '../middleware/uploadMiddleware.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
-import { AUTH, FILENAME } from '#config'
-import db from '../db/sqlite.js'
+import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
+import { FILENAME } from '#config'
 
 const router: IRouter = Router()
 
@@ -14,12 +14,6 @@ function sanitizeFilename(raw: string): string {
   name = name.slice(0, FILENAME.MAX_LENGTH)
   name = name.replace(new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, 'g'), '_')
   return name || 'unnamed.pdf'
-}
-
-function logAnalyze(email: string, filename: string, score: number | null, grade: string | null, req: AuthRequest) {
-  db.prepare(
-    'INSERT INTO audit_log (event_type, email, filename, score, grade, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run('analyze', email, filename, score, grade, req.ip || null, req.get('user-agent') || null)
 }
 
 // POST /api/analyze
@@ -48,13 +42,27 @@ router.post(
       }
 
       const filename = sanitizeFilename(file.originalname)
+      const contentHash = sha256Hex(file.buffer)
 
       const result = await analyzePDF(file.buffer, filename)
 
-      // Log the analysis (skip when auth is off — no meaningful user to record)
-      if (AUTH.REQUIRE_LOGIN) {
-        logAnalyze(req.user!.email, filename, result.overallScore, result.grade, req)
-      }
+      // Always record the audit — audit_log is the canonical "this
+      // content has been audited" record consulted by /api/remediate's
+      // audit-gate. Anonymous (no-auth) mode writes the row under the
+      // 'anonymous' sentinel email so the gate still functions.
+      recordAudit({
+        eventType: 'analyze',
+        // gateIdentity binds anonymous callers to their IP so the
+        // remediation gate (v1.20.1+) can't be exploited across users
+        // in shared-bucket dev/anonymous deployments.
+        email: gateIdentity(req.user?.email ?? null, req.ip),
+        filename,
+        score: result.overallScore,
+        grade: result.grade,
+        contentHash,
+        ipAddress: req.ip ?? null,
+        userAgent: req.get('user-agent') ?? null,
+      })
 
       res.json(result)
     } catch (err: any) {

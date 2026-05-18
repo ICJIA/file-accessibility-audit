@@ -3,6 +3,9 @@ import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { reportsLimiter } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
+import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
+import { validateUrlForFetch } from './analyze-url.js'
 import { SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
 
@@ -44,15 +47,19 @@ interface BulkResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function fetchWithTimeout(url: string, timeoutMs: number): Promise<globalThis.Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    return await fetch(url, { signal: controller.signal })
-  } finally {
-    clearTimeout(timer)
-  }
-}
+// v1.20.1 SECURITY FIX (red/blue team finding P1.4): the previous
+// implementation used a private `fetchWithTimeout` here with NO host
+// allowlist and NO private-IP rejection. Authenticated callers with
+// a PAT could submit an inventory containing arbitrary URLs —
+// including internal addresses — and the server would dutifully
+// fetch them, returning the response body and timing through the
+// per-entry result. That's a textbook SSRF vector even though the
+// endpoint required auth.
+//
+// Replaced with the centralized SSRF-hardened safeFetch + the same
+// allowlist (validateUrlForFetch) used by /api/analyze-url and
+// /api/audit-url. DNS resolution + private-IP rejection happens on
+// every hop including redirects.
 
 function parseInventory(
   inventoryText: string,
@@ -195,21 +202,32 @@ router.post(
         }
 
         try {
-          const fetchResp = await fetchWithTimeout(entry.publicUrl!, FETCH_TIMEOUT_MS)
+          // SSRF-hardened fetch — allowlist + DNS-rebinding + redirect
+          // chain mitigations (v1.20.1+). Errors propagate as a
+          // SafeFetchError which we map to a per-entry error string.
+          let fetched
+          try {
+            fetched = await safeFetch(entry.publicUrl!, {
+              timeoutMs: FETCH_TIMEOUT_MS,
+              maxBytes: MAX_PDF_BYTES,
+              validateUrl: validateUrlForFetch,
+            })
+          } catch (e) {
+            if (e instanceof SafeFetchError) {
+              result.error = `${e.code}: ${e.message}`
+              results.push(result)
+              continue
+            }
+            throw e
+          }
 
-          if (!fetchResp.ok) {
-            result.error = `fetch failed: ${fetchResp.status} ${fetchResp.statusText}`
+          if (!fetched.ok) {
+            result.error = `fetch failed: ${fetched.status} ${fetched.statusText}`
             results.push(result)
             continue
           }
 
-          const buf = Buffer.from(await fetchResp.arrayBuffer())
-
-          if (buf.length > MAX_PDF_BYTES) {
-            result.error = `PDF too large: ${buf.length} bytes (max ${MAX_PDF_BYTES} bytes)`
-            results.push(result)
-            continue
-          }
+          const buf = fetched.buffer
 
           // Magic bytes check
           const header = buf.subarray(0, 5).toString('ascii')
@@ -219,6 +237,7 @@ router.post(
             continue
           }
 
+          const contentHash = sha256Hex(buf)
           const analysis = await analyzePDF(buf, entry.filename)
 
           result.overallScore = analysis.overallScore
@@ -230,14 +249,28 @@ router.post(
           expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
 
           db.prepare(
-            'INSERT INTO shared_reports (id, email, filename, report_json, expires_at) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
           ).run(
             id,
             req.user!.email,
             entry.filename,
             JSON.stringify(analysis),
+            contentHash,
             expiresAt.toISOString(),
           )
+
+          // Canonical audit-log write so each bulk-audited entry
+          // counts for the remediation gate (v1.20.1+).
+          recordAudit({
+            eventType: 'bulk-from-inventory',
+            email: gateIdentity(req.user?.email ?? null, req.ip),
+            filename: entry.filename,
+            score: analysis.overallScore,
+            grade: analysis.grade,
+            contentHash,
+            ipAddress: req.ip ?? null,
+            userAgent: req.get('user-agent') ?? null,
+          })
 
           result.reportId = id
           result.reportUrl = `/api/reports/${id}`

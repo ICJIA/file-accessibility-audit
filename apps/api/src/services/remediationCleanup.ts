@@ -16,7 +16,7 @@
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import db from "../db/sqlite.js";
-import { REMEDIATION } from "#config";
+import { REMEDIATION, SHARED_REPORTS } from "#config";
 import {
   deleteAndVerify,
   recordEvent,
@@ -54,12 +54,24 @@ const purgeOldEvents = db.prepare(
   `DELETE FROM remediation_events WHERE occurred_at < ?`,
 );
 
+// v1.20.1+: audit_log retention. audit_log is the canonical "this
+// content has been audited" record used by the /api/remediate
+// audit-gate. Without retention it grows unbounded — the slow-burn
+// DoS vector flagged as P2.3 in the v1.20.1 red/blue review.
+// created_at is stored as a SQLite TEXT timestamp (DATETIME DEFAULT
+// CURRENT_TIMESTAMP), so the cutoff is an ISO string.
+const purgeOldAuditLog = db.prepare(
+  `DELETE FROM audit_log WHERE created_at < ?`,
+);
+
 export interface CleanupResult {
   expiredOutputs: number;
   stuckJobs: number;
   orphanDirs: number;
   purgedJobs: number;
   purgedEvents: number;
+  /** v1.20.1+: audit_log rows purged past AUDIT_LOG_RETENTION_DAYS. */
+  purgedAuditLog: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -71,6 +83,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     orphanDirs: 0,
     purgedJobs: 0,
     purgedEvents: 0,
+    purgedAuditLog: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -186,6 +199,22 @@ export async function runCleanup(): Promise<CleanupResult> {
   } catch (e) {
     result.errors.push({
       step: "purge_events",
+      message: (e as Error).message,
+    });
+  }
+
+  /* 6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS (v1.20.1+).
+   *    audit_log uses TEXT timestamps (DATETIME DEFAULT CURRENT_TIMESTAMP),
+   *    so the cutoff is an ISO 8601 string. */
+  try {
+    const cutoffMs =
+      now - SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS * 86_400_000;
+    const cutoffIso = new Date(cutoffMs).toISOString();
+    const info = purgeOldAuditLog.run(cutoffIso);
+    result.purgedAuditLog = info.changes;
+  } catch (e) {
+    result.errors.push({
+      step: "purge_audit_log",
       message: (e as Error).message,
     });
   }

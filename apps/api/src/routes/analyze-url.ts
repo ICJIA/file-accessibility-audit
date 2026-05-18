@@ -2,6 +2,8 @@ import { Router, Response, type IRouter } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
+import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 
 const router: IRouter = Router()
 
@@ -98,13 +100,53 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
   return { ok: true, parsed }
 }
 
-export async function fetchWithTimeout(url: string, timeoutMs: number): Promise<globalThis.Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    return await fetch(url, { signal: controller.signal, redirect: 'follow' })
-  } finally {
-    clearTimeout(timer)
+/**
+ * Map a SafeFetchError to an HTTP response. Centralizes the
+ * code→status mapping so all three URL-fetch endpoints behave
+ * consistently.
+ */
+export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
+  switch (err.code) {
+    case 'malformed_url':
+    case 'redirect_invalid':
+      res.status(400).json({ error: 'URL not allowed', details: err.message })
+      return
+    case 'private_ip':
+      // SSRF block. 400 to the client; the details message names the
+      // hostname + resolved IP, useful for the operator but not
+      // dangerous to expose since the attacker provided the hostname.
+      res.status(400).json({
+        error: 'URL resolves to a private/reserved address',
+        details: err.message,
+      })
+      return
+    case 'oversized':
+      res.status(413).json({ error: err.message })
+      return
+    case 'timeout':
+      res.status(504).json({ error: err.message })
+      return
+    case 'too_many_redirects':
+    case 'redirect_loop':
+      res.status(502).json({ error: err.message })
+      return
+    case 'dns_failed':
+    case 'network_error':
+    default:
+      res.status(502).json({ error: 'Fetch failed', details: err.message })
+      return
+  }
+}
+
+/**
+ * Wrap isAllowedUrl in the validateUrl shape that safeFetch expects.
+ * Throws SafeFetchError('malformed_url', ...) on a disallowed host so
+ * the same redirect-handling loop in safeFetch can reject mid-chain.
+ */
+export function validateUrlForFetch(u: URL): void {
+  const check = isAllowedUrl(u.toString())
+  if (!check.ok) {
+    throw new SafeFetchError('malformed_url', check.reason ?? 'URL not allowed')
   }
 }
 
@@ -129,42 +171,38 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
       return
     }
 
-    const check = isAllowedUrl(url)
-    if (!check.ok) {
-      res.status(400).json({
-        error: 'URL not allowed',
-        details: check.reason,
-      })
-      return
-    }
-
-    let fetchResp: globalThis.Response
+    // SSRF-hardened fetch. safeFetch handles:
+    //   - URL allowlist (re-checked on every redirect hop)
+    //   - DNS resolution + private-IP rejection on every hop
+    //   - Manual redirect handling (max 3 hops, no fetch-internal
+    //     blind follow)
+    //   - Size cap enforced during streaming (no oversized buffer)
+    //   - Timeout
+    // SafeFetchError carries a structured code that maps to the right
+    // HTTP status via sendSafeFetchError.
+    let fetched
     try {
-      fetchResp = await fetchWithTimeout(url, FETCH_TIMEOUT_MS)
-    } catch (err: any) {
-      const msg =
-        err?.name === 'AbortError'
-          ? `fetch timed out after ${FETCH_TIMEOUT_MS}ms`
-          : `fetch failed: ${err?.message ?? String(err)}`
-      res.status(502).json({ error: msg })
-      return
+      fetched = await safeFetch(url, {
+        timeoutMs: FETCH_TIMEOUT_MS,
+        maxBytes: MAX_PDF_BYTES,
+        validateUrl: validateUrlForFetch,
+      })
+    } catch (err) {
+      if (err instanceof SafeFetchError) {
+        sendSafeFetchError(res, err)
+        return
+      }
+      throw err
     }
 
-    if (!fetchResp.ok) {
+    if (!fetched.ok) {
       res.status(502).json({
-        error: `fetch returned ${fetchResp.status} ${fetchResp.statusText}`,
+        error: `fetch returned ${fetched.status} ${fetched.statusText}`,
       })
       return
     }
 
-    const buf = Buffer.from(await fetchResp.arrayBuffer())
-
-    if (buf.length > MAX_PDF_BYTES) {
-      res.status(413).json({
-        error: `PDF too large (${buf.length} bytes > ${MAX_PDF_BYTES} cap)`,
-      })
-      return
-    }
+    const buf = fetched.buffer
 
     // Magic bytes check: PDF must start with %PDF-
     const header = buf.subarray(0, 5).toString('ascii')
@@ -176,11 +214,31 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
       return
     }
 
-    // Derive a safe filename from the URL path
-    const rawName = check.parsed!.pathname.split('/').pop() ?? 'remote.pdf'
+    // Derive a safe filename from the final URL's path (after any
+    // followed redirects). safeFetch returns finalUrl so we use the
+    // redirect target's filename rather than the original.
+    const finalPath = new URL(fetched.finalUrl).pathname
+    const rawName = finalPath.split('/').pop() ?? 'remote.pdf'
     const filename = (rawName.slice(0, 200) || 'remote.pdf')
 
+    const contentHash = sha256Hex(buf)
     const result = await analyzePDF(buf, filename)
+
+    // Canonical audit-log write so this URL-audited content counts
+    // for the remediation gate (v1.20.1+). Doing it after analyzePDF
+    // ensures we only record successful audits — a 503 or parse
+    // failure leaves no audit_log row.
+    recordAudit({
+      eventType: 'analyze-url',
+      email: gateIdentity(req.user?.email ?? null, req.ip),
+      filename,
+      score: result.overallScore,
+      grade: result.grade,
+      contentHash,
+      ipAddress: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+    })
+
     res.json(result)
   } catch (err: any) {
     // Server busy (semaphore timeout)

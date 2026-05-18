@@ -1254,6 +1254,238 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.20.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.20.1
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-18</strong> · scope: post-feature
+            red/blue team review of the v1.20.0 fleet-integration
+            surface
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This is a dedicated security release that follows the team's
+          standing practice: <strong>every feature ships through a
+          fresh red/blue team review before tagging</strong>. The
+          v1.20.0 release introduced the fleet-audit-by-URL endpoint;
+          this review examined that new surface plus the related
+          existing endpoints, found seven issues worth flagging, and
+          fixed all of them before this release was tagged. The
+          purpose of this entry is to document those findings so an
+          auditor can see (a) what was looked at, (b) what was
+          discovered, (c) what was done about it, and (d) how the
+          team's iterative-review pattern works.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Findings &amp; what was done
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-red-700/30 text-red-200 mr-2">P1</span>
+              Fixed</strong
+            >
+            — A DNS-based trick could have let an attacker reach the
+            server's own internal network through our URL audit
+            endpoint.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> when someone submitted a
+              URL for audit, the tool checked whether the
+              <em>hostname</em> matched the allowlist of approved ICJIA
+              domains before fetching it. If an attacker could control
+              DNS for any subdomain of an approved domain — for
+              example, by compromising a partner agency that operates a
+              subdomain — they could point that hostname at the
+              server's loopback address (127.0.0.1) and trick us into
+              fetching our own internal services on their behalf.<br />
+              <strong>How it was fixed:</strong> the tool now resolves
+              the hostname's IP address itself, before fetching, and
+              refuses to connect to any IP in private, loopback,
+              link-local, or multicast ranges. The check repeats on
+              every redirect hop so a redirector planted on an approved
+              host can't chain us into a private address either. The
+              fix covers both IPv4 and IPv6.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-red-700/30 text-red-200 mr-2">P1</span>
+              Fixed</strong
+            >
+            — Redirects from approved hosts to private addresses were
+            silently followed.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> when the URL audit
+              endpoint encountered an HTTP redirect, it followed the
+              chain up to 20 hops without re-checking each hop against
+              the allowlist. An attacker who could place content on an
+              approved host could redirect us through to an internal
+              address.<br />
+              <strong>How it was fixed:</strong> redirects are now
+              handled manually with the full allowlist and DNS-IP check
+              on every hop, capped at three redirects total.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-red-700/30 text-red-200 mr-2">P1</span>
+              Fixed</strong
+            >
+            — The bulk-inventory endpoint had no allowlist check at
+            all.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> caught during the
+              security review while migrating the other URL-fetch
+              endpoints. The bulk-inventory endpoint accepts a list of
+              PDF URLs and fetches each one. It had its own private
+              fetcher with no allowlist — an authorized user could
+              submit a list containing internal addresses and the tool
+              would fetch them. Latent since the endpoint shipped, not
+              previously discovered.<br />
+              <strong>How it was fixed:</strong> the bulk endpoint now
+              uses the same allowlist-plus-private-IP-block plumbing as
+              the other URL endpoints.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Fixed</strong
+            >
+            — In no-login deployments, one user could unlock
+            remediation for content audited by a different user.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> when the tool is run
+              without requiring login, every user is treated as the
+              same "anonymous" identity. The new
+              <em>audit-before-remediation</em> check (added in this
+              release — see "Added" below) would have matched any
+              anonymous user's audit against any other anonymous
+              user's remediation attempt.<br />
+              <strong>How it was fixed:</strong> in no-login mode, the
+              identity now includes the user's IP address. The
+              production deployment requires login, so this issue
+              never affected real users.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Fixed</strong
+            >
+            — The audit-history table grew without limit.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the canonical
+              audit-history table had no retention policy. An attacker
+              repeatedly auditing unique files could slowly fill the
+              database.<br />
+              <strong>How it was fixed:</strong> records older than 365
+              days are now purged by the periodic cleanup sweep,
+              matching the share-link retention window.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">P2</span>
+              Fixed</strong
+            >
+            — A narrow race window let two simultaneous remediation
+            requests both pass the daily limit.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the daily-limit check
+              and the actual job-creation were two separate steps. Two
+              perfectly-simultaneous requests at the cap boundary could
+              both see "you're under the limit" and both proceed.<br />
+              <strong>How it was fixed:</strong> the limit check is now
+              repeated as part of the same atomic database transaction
+              that creates the job, so the cap can no longer be
+              exceeded by even one.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Verified clean</strong
+            >
+            — Browser cookie security flags.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was checked:</strong> the login session
+              cookie is set with the protective flags (HttpOnly,
+              Secure, SameSite-Strict) that prevent it from being
+              read by client-side scripts, transmitted over plain
+              HTTP, or sent with cross-site requests.<br />
+              <strong>Result:</strong> all three flags are correctly
+              set in production. No change needed; recorded in this
+              audit trail for completeness.
+            </p>
+          </li>
+        </ul>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Also added in this release — driven by the same security thinking
+        </h4>
+        <ul class="space-y-1 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
+          <li>
+            <strong>Audit required before remediation.</strong> Every
+            request to remediate a PDF must be preceded by an audit of
+            the same content within the previous 60 minutes. Any audit
+            path counts — direct upload, URL audit, or fleet bulk. This
+            prevents automated abuse where someone bypasses the audit
+            pipeline and floods the remediation worker directly.
+          </li>
+          <li>
+            <strong>Daily remediation cap.</strong> Up to 100
+            remediations per caller per 24 hours. Sized so a normal
+            agency workflow (~50 PDFs in a busy day) is unaffected,
+            but a flood of thousands is blocked.
+          </li>
+          <li>
+            <strong>Unified audit record.</strong> Every audit endpoint
+            now writes a row to the canonical audit-history table with
+            the content fingerprint (SHA-256 hash of the file's
+            bytes). Required so the audit-before-remediation gate
+            works uniformly across all audit paths. The hash is just a
+            fingerprint — it doesn't expose the PDF's contents and
+            can't be reversed back into the document.
+          </li>
+        </ul>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2 mt-4">
+          Methodology — for the auditor record
+        </h4>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
+          The team follows a deliberate practice: <strong>every feature
+          ships through a fresh red/blue team review before
+          tagging</strong>. The review examines the newly-introduced
+          surface from a sophisticated-adversary perspective, looks for
+          attack patterns like DNS rebinding, race conditions, identity
+          collapse, and slow-burn denial-of-service, and either fixes
+          findings in the same release window or documents them for
+          future work. This release (v1.20.1) is the security-followup
+          to v1.20.0, which added the fleet-audit-by-URL feature. The
+          pattern repeats with every feature release — earlier entries
+          in this audit history list the findings from prior reviews.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          For a manager reading this page: the intent here is
+          transparency. The tool is built and reviewed iteratively, and
+          this page is the auditor-readable trail of what was reviewed,
+          what was found, what was fixed, and what was deliberately
+          accepted with mitigation. The technical equivalent (with full
+          code references) lives in
+          <code class="font-mono text-xs">README.md § Security</code>
+          for engineers and security reviewers who need that level of
+          detail.
+        </p>
+      </article>
+
       <!-- v1.20.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

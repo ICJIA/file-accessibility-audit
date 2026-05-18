@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.20.1] — 2026-05-18
+
+### Added — Remediation audit-gate, daily-cap, and unified audit_log
+
+To address the "automated thousands-of-remediations" abuse case (and tighten the workflow generally), every call to `POST /api/remediate` now requires the same content to have been audited in the previous 60 minutes by the same caller. Identity is the authenticated email, or `anon:${ip}` in no-auth mode (see P2.1 below). The check matches on `sha256(bytes)` so any audit path counts — browser upload via `/api/analyze`, URL audit via `/api/analyze-url`, fleet bulk via `/api/bulk-from-inventory`, or persistent audit via `/api/audit-url`. Without a matching `audit_log` row in the window, the endpoint returns `403 { error: "Audit required before remediation." }` with a link back to the audit UI.
+
+A daily cap of **100 remediations per caller per rolling 24-hour window** sits on top of the gate. Sized to comfortably cover a normal agency workflow (~50 PDFs/day) while blocking abuse at scale (3000+ PDFs would take ~30 days at the cap). Returns `429` with `{ limit, used }` when exceeded.
+
+To make the gate work uniformly, **every audit endpoint now writes to `audit_log` with a content_hash**. Previously only the browser-upload path (`/api/analyze`) wrote to `audit_log`, and even that write omitted the hash. v1.20.1 wires `audit_log` writes — including the hash — into `/api/analyze`, `/api/analyze-url`, `/api/audit-url`, and `/api/bulk-from-inventory`. `audit_log` is now the canonical "this content has been audited by this caller" record.
+
+A new `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS = 365` constant adds a periodic purge of `audit_log` rows older than the window — matches the shared-report retention so audit-related records age out together. Closes the slow-burn growth vector (P2.3).
+
+### Fixed — Six security findings from the post-feature red/blue team review
+
+The v1.20.0 release added the `/api/audit-url` endpoint and the fleet integration story. The standard practice is to follow every feature with a fresh red/blue team review *before* tagging — we found six findings worth fixing, plus one previously-latent issue uncovered during the audit. All fixed in v1.20.1.
+
+- **P1.1 / fixed — DNS rebinding bypassed the URL allowlist.** The previous `isAllowedUrl()` check ran against the hostname *string* before DNS resolution. An attacker who controlled DNS for any subdomain of an allowlisted apex (e.g., `evil.icjia-api.cloud`) could point it at `127.0.0.1` (or the API's own internal address, or any future internal service). The hostname passed the allowlist; `fetch()` then resolved DNS and connected to loopback, turning the audit pipeline into an SSRF proxy. **Fix:** new `apps/api/src/services/safeFetch.ts` resolves DNS in-process, rejects any private/loopback/link-local/multicast IP (IPv4 + IPv6, including IPv4-mapped IPv6 variants), and dials the resolved IP directly with `Host:` header set to the original hostname.
+- **P1.2 / fixed — `redirect: 'follow'` chained into private networks.** Even with a strict allowlist, `fetch(..., { redirect: 'follow' })` followed up to 20 redirects *without re-validating*. An attacker who could plant content on an allowlisted host (e.g., a redirector at `https://agency.icjia-api.cloud/redirect.php`) could 302 us to `http://10.0.0.1/anything`. **Fix:** `safeFetch` handles redirects manually with the full allowlist + DNS check on every hop, capped at 3 hops.
+- **P1.4 / fixed — `/api/bulk-from-inventory` had its own private `fetchWithTimeout` with NO allowlist check.** Caught during the SSRF review while migrating the URL-fetch endpoints to `safeFetch`. Authenticated callers could submit an NDJSON inventory listing arbitrary URLs — including internal addresses — and the server would fetch them, returning the response body and timing through the per-entry result. Textbook authenticated-SSRF. **Fix:** replaced with the same `safeFetch` + `validateUrlForFetch` plumbing used by the other URL-fetch endpoints.
+- **P2.1 / fixed — Audit-gate identity collapse in anonymous mode.** With `AUTH.REQUIRE_LOGIN=false`, every caller's identity was a shared `'anonymous'` bucket. User A audits PDF X → User B can remediate PDF X because B's gate check matches A's `audit_log` row. **Fix:** new `gateIdentity()` helper returns `anon:${ip}` when not authenticated, so two different anonymous callers don't share a single bucket. Production deployments with `REQUIRE_LOGIN=true` were never affected.
+- **P2.3 / fixed — `audit_log` grew unbounded.** No retention policy on the canonical `audit_log` table — a slow-burn DoS where an attacker floods `/api/analyze-url` with unique-hash PDFs to bloat the table indefinitely. **Fix:** new `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS = 365` plus a step-6 cleanup pass in `remediationCleanup.runCleanup()` that purges expired rows alongside the existing remediation cleanup.
+- **P2.4 / fixed — Race window on the daily-cap check.** The fast-path cap check happened before the expensive `analyzePDF` preflight; a second concurrent request could pass the same check and both create the (cap+1)th job. **Fix:** the cap check is now repeated inside a `db.transaction()` immediately before `createJob()`. SQLite serializes writes, so two concurrent requests now reliably reject the cap-exceeding one. The earlier fast-path check remains as a cheap early-exit for the obvious case.
+- **P3.5 / verified clean — Cookie security flags.** `auth.ts` already sets `httpOnly: true`, `secure: isProduction`, `sameSite: 'strict'` in production. No change needed.
+
+### P3 — Accepted with documented mitigation
+
+These were reviewed and found to be theoretical, fully mitigated by existing controls, or accepted by design. Listed for transparency in the auditor record.
+
+- **P1.3 / mitigated, not fixed** — Download token in query string ends up in nginx access logs. Single-use enforcement (`setExpired()` before stream) shrinks the replay window to near-zero. A hardline fix (token in POST body) would break the `<a href>` download UX. Accepted as-is.
+- **P2.2 / partial mitigation** — Daily-cap bypass via multi-account creation. Mailgun has disposable-email signals; per-IP registration rate limit is reasonable future work. Not currently exploited; tracked for a future release if abuse surfaces.
+- **P2.5 / mitigated, not fixed** — Future CVE in OpenJDK, OpenDataLoader, or one of ODL's deps could enable RCE in the worker via a crafted PDF. Existing mitigations: JVM heap cap, 5-min worker timeout, detached child process, no `--hybrid` (no ODL network fetches), pinned Java major version. Future hardening (dedicated unprivileged user, egress block) tracked.
+- **P3.1 — SHA-256 collision in the audit-gate.** Computationally infeasible (2^128 work).
+- **P3.2 — IPv4-mapped IPv6 SSRF.** Verified not exploitable against current `safeFetch` (the new `isPrivateIPv6()` check handles `::ffff:127.0.0.1` and similar forms).
+- **P3.3 — Timing side-channel on gate check.** Indexed SQL SELECT is ~constant-time. Response code (200 vs 403) is the larger giveaway. Not meaningfully exploitable.
+- **P3.4 — PDF embedded URLs trigger fetches.** Neither qpdf nor pdfjs fetches external resources. ODL doesn't in non-hybrid mode (our default).
+- **P3.6 — Trust-proxy depth.** Production runs nginx directly behind DigitalOcean — no proxy chain to exploit.
+
+### Methodology note (for auditors)
+
+This release follows the team's standing practice: **every feature ships through a fresh red/blue team review before tagging**. The review examines the newly-introduced surface from a sophisticated-adversary perspective, catalogs findings by severity (P1 real-and-exploitable / P2 bounded / P3 theoretical or accepted), fixes everything that can be fixed in the same release window, and documents the rest for the audit record. v1.20.0 added the fleet-integration surface; v1.20.1 is the security-followup that resulted. The full review notes appear in `README.md` § Security and in plain language in the policy page (`/data-retention` § 10).
+
+### Commits
+
+(this section is filled in at commit time)
+
 ## [1.20.0] — 2026-05-18
 
 ### Added — CMS-aware remediation download dialog

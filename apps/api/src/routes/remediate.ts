@@ -23,7 +23,12 @@ import {
   getEventsForJob,
   deleteAndVerify,
 } from '../services/remediationEvents.js'
-import { AUTH, FILENAME, REMEDIATION } from '#config'
+import { AUTH, DEPLOY, FILENAME, REMEDIATION } from '#config'
+import {
+  gateIdentity,
+  hasRecentAudit,
+  countRecentRemediations,
+} from '../services/auditLog.js'
 
 const router: IRouter = Router()
 
@@ -146,6 +151,78 @@ router.post(
         }
       }
 
+      // v1.20.1+: gate remediation behind a prior audit and a daily
+      // cap. Both checks are cheap SQL lookups and run BEFORE the
+      // resource-intensive analyzePDF preflight so an unauthorized
+      // caller never gets to consume an analysis semaphore slot.
+      //
+      // Identity for both checks comes from gateIdentity(), which is
+      // the caller's email when auth is on and 'anon:${ip}' when off.
+      // The IP-binding in anonymous mode (v1.20.1+) closes P2.1 from
+      // the security review — a different anonymous caller can't
+      // unlock remediation for content audited by someone else just
+      // because they happen to share the 'anonymous' bucket.
+      const gateEmail = gateIdentity(email, req.ip)
+      const contentHash = sha256Hex(file.buffer)
+
+      // (1) Audit-gate. Reject if no audit_log row exists for this
+      // content from this caller within REMEDIATION.AUDIT_REQUIRED_
+      // WINDOW_MS. The hash is the identifier — any audit path
+      // counts (browser upload, URL audit, fleet bulk, audit-url
+      // persist). Forces every remediation to be preceded by an
+      // audit so abusers can't bypass the audit pipeline's rate
+      // limit by jumping straight to remediation.
+      if (
+        !hasRecentAudit(
+          contentHash,
+          gateEmail,
+          REMEDIATION.AUDIT_REQUIRED_WINDOW_MS,
+        )
+      ) {
+        const minutes = Math.round(
+          REMEDIATION.AUDIT_REQUIRED_WINDOW_MS / 60_000,
+        )
+        const auditUrl =
+          process.env.NODE_ENV === 'production'
+            ? DEPLOY.PRODUCTION_URL
+            : DEPLOY.DEV_FRONTEND_URL
+        res.status(403).json({
+          error: 'Audit required before remediation.',
+          details:
+            `This PDF must be audited first — upload it at ${auditUrl} ` +
+            `and click "Auto-Remediate" from the results page. The audit ` +
+            `must be within the last ${minutes} minutes. Any audit path ` +
+            `counts (browser upload, POST /api/analyze-url, or POST ` +
+            `/api/audit-url).`,
+          auditUrl,
+        })
+        return
+      }
+
+      // (2) Daily cap. Reject when this caller has already started
+      // REMEDIATION.MAX_JOBS_PER_DAY_PER_USER jobs in the past 24
+      // hours. Sized to comfortably cover a normal agency workflow
+      // (~50 PDFs/day) while blocking abuse at scale (3000+ PDFs
+      // would take a month at the cap).
+      const recentJobs = countRecentRemediations(
+        gateEmail,
+        24 * 60 * 60_000,
+      )
+      if (recentJobs >= REMEDIATION.MAX_JOBS_PER_DAY_PER_USER) {
+        res.status(429).json({
+          error: 'Daily remediation limit reached.',
+          details:
+            `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_USER} remediations ` +
+            `per caller per 24 hours. You've used ${recentJobs}. Wait for ` +
+            `older jobs to age out of the window, or contact the audit-tool ` +
+            `administrator if you need a higher cap for a legitimate ` +
+            `large-scale workflow.`,
+          limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_USER,
+          used: recentJobs,
+        })
+        return
+      }
+
       // Pre-flight audit — gives us inputScore and page count without
       // committing to a job yet. analyzePDF runs against the in-memory
       // buffer; nothing has been written to disk yet at this point.
@@ -162,16 +239,62 @@ router.post(
         return
       }
 
-      const contentHash = sha256Hex(file.buffer)
+      // contentHash was computed earlier for the audit-gate check.
 
-      // Create job + scratch dir, write input, then spawn worker
-      const { job, downloadToken } = createJob({
-        email,
-        inputFilename: filename,
-        originalFilename,
-        contentHash,
-        pageCount: preflight.pageCount ?? null,
-      })
+      // (v1.20.1+ — closes P2.4 from the security review)
+      // Wrap the daily-cap re-check and the createJob INSERT in a
+      // SQLite transaction so concurrent requests that both passed the
+      // earlier fast-path cap check still cannot both create the
+      // (cap+1)th job. better-sqlite3 transactions serialize writes,
+      // so the count + insert are atomic.
+      //
+      // The earlier (pre-preflight) cap check stays — it's a cheap
+      // fast-path that avoids running analyzePDF when the caller is
+      // obviously over cap. This in-transaction re-check is the
+      // authoritative enforcement that closes the race window.
+      let createdJob: ReturnType<typeof createJob>
+      try {
+        const dbMod = (await import('../db/sqlite.js')).default
+        const txn = dbMod.transaction(() => {
+          const nowCount = countRecentRemediations(
+            gateEmail,
+            24 * 60 * 60_000,
+          )
+          if (nowCount >= REMEDIATION.MAX_JOBS_PER_DAY_PER_USER) {
+            const err = new Error('cap_exceeded') as Error & {
+              code?: string
+              used?: number
+            }
+            err.code = 'cap_exceeded'
+            err.used = nowCount
+            throw err
+          }
+          return createJob({
+            email,
+            inputFilename: filename,
+            originalFilename,
+            contentHash,
+            pageCount: preflight.pageCount ?? null,
+          })
+        })
+        createdJob = txn()
+      } catch (e: any) {
+        if (e?.code === 'cap_exceeded') {
+          res.status(429).json({
+            error: 'Daily remediation limit reached.',
+            details:
+              `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_USER} ` +
+              `remediations per caller per 24 hours. You've used ` +
+              `${e.used}. (Detected at job-creation time after a ` +
+              `concurrent request consumed the last slot.)`,
+            limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_USER,
+            used: e.used,
+          })
+          return
+        }
+        throw e
+      }
+      const { job, downloadToken } = createdJob
 
       // Persist the pre-flight input score on the job row immediately so
       // the worker doesn't have to re-audit the input. Also persist the

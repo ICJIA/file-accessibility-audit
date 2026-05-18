@@ -27,6 +27,45 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.20.1 — 2026-05-18 · Security-followup release for v1.20.0 (audit-gate + SSRF hardening + 7 findings fixed)
+
+A dedicated patch release in the "every feature gets a fresh red/blue team review before tagging" practice. The v1.20.0 release added the fleet integration surface (`/api/audit-url`); this release is the post-feature review that resulted. Six findings were identified in the initial review plus one previously-latent issue uncovered during the SSRF migration — all fixed before tagging.
+
+**Reviewed surface:** the new `/api/audit-url` endpoint, the existing `/api/analyze-url` and `/api/bulk-from-inventory` SSRF posture, the `audit_log` table's role as a canonical record, and the remediation gate proposed by the user to slow automated abuse.
+
+#### Fixed
+
+- **P1.1 / fixed** — DNS rebinding bypassed the URL allowlist. `isAllowedUrl()` ran against the hostname *string* before DNS resolution. An attacker controlling DNS for any subdomain of an allowlisted apex could point it at `127.0.0.1` (or the API's loopback / internal address). `fetch()` then resolved DNS independently and connected to the private IP, turning the audit pipeline into an SSRF proxy. **Fix:** new `apps/api/src/services/safeFetch.ts` resolves DNS in-process, rejects any private/loopback/link-local/multicast IP (full IPv4 + IPv6 coverage including IPv4-mapped IPv6 forms like `::ffff:127.0.0.1`), and dials the resolved IP directly with `Host:` header preserved.
+- **P1.2 / fixed** — `redirect: 'follow'` chained into private networks. Even with the allowlist, `fetch(..., { redirect: 'follow' })` followed up to 20 redirects *without re-validating*. An attacker who could plant content on an allowlisted host could 302 us to `http://10.0.0.1/...`. **Fix:** `safeFetch` handles redirects manually with the full allowlist + DNS check on every hop, capped at 3 hops.
+- **P1.4 / fixed** — `/api/bulk-from-inventory` had a private `fetchWithTimeout` with NO allowlist check and no SSRF protection. Caught while migrating to `safeFetch`. Authenticated callers (PAT-bearing) could submit an NDJSON inventory containing arbitrary URLs — internal addresses included — and the server would fetch and return them. Textbook authenticated SSRF, latent since the endpoint shipped. **Fix:** replaced with the same `safeFetch + validateUrlForFetch` plumbing used by the other URL-fetch endpoints.
+- **P2.1 / fixed** — Audit-gate identity collapse in anonymous mode. With `AUTH.REQUIRE_LOGIN=false`, every caller's identity was a shared `'anonymous'` bucket. User A audits PDF X → User B (different IP, different machine) could remediate PDF X because B's gate check matched A's `audit_log` row. **Fix:** new `gateIdentity()` helper returns `anon:${ip}` when not authenticated. Production (`REQUIRE_LOGIN=true`) was never affected.
+- **P2.3 / fixed** — `audit_log` grew unbounded. No retention policy on the canonical audit record. Slow-burn DoS vector. **Fix:** new `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS = 365` plus a step-6 cleanup in `remediationCleanup.runCleanup()` that purges expired rows alongside the existing sweep. 365 days matches the shared-report retention so audit-related records age out together.
+- **P2.4 / fixed** — Race window on the daily-cap check. Concurrent `/api/remediate` requests could both pass the same fast-path cap check during the (slow) `analyzePDF` preflight, then both create jobs. **Fix:** the cap check is now repeated inside a `db.transaction()` immediately before `createJob()`. SQLite serializes writes, so the cap-exceeding request reliably loses. Fast-path check stays as cheap early-exit.
+- **P3.5 / verified clean** — Cookie security flags audit. `auth.ts` already sets `httpOnly: true`, `secure: isProduction`, `sameSite: 'strict'` in production. No change needed; recorded as part of the audit trail.
+
+#### Added (the feature this release also brings — driven by the same security thinking)
+
+- `POST /api/remediate` now requires a prior audit of the same content (same `sha256(bytes)`) from the same caller within `REMEDIATION.AUDIT_REQUIRED_WINDOW_MS` (default 60 minutes). Returns `403` with an explanatory body when not met. Closes the "automated thousands of remediations" vector the user flagged.
+- New `REMEDIATION.MAX_JOBS_PER_DAY_PER_USER = 100` daily cap as a second layer. Sized to cover a normal agency workflow (~50 PDFs) with 2× headroom while blocking 3000+ at scale. Returns `429` with `{ limit, used }` when exceeded.
+- Unified `audit_log` writes — every audit endpoint (`/api/analyze`, `/api/analyze-url`, `/api/audit-url`, `/api/bulk-from-inventory`) now writes a row with content_hash. Previously only `/api/analyze` wrote to `audit_log` (and without the hash). Required for the gate to work across all audit paths; documented in `AGENTS.md` and the integration brief.
+
+#### P3 — Accepted with documented mitigation
+
+Reviewed and either bounded by existing controls, theoretical, or accepted by design. Listed for the audit trail:
+
+- **P1.3 / mitigated** — Download token in `?token=` query string ends up in nginx access logs. Mitigated by single-use enforcement (`setExpired()` runs before stream begins; replay window near-zero). Hardline fix would require POST-body auth, breaking the `<a href>` download UX. Accepted.
+- **P2.2 / partial** — Daily-cap bypass via multi-account creation. Mailgun has disposable-email signals; per-IP registration throttle is future work. Not currently exploited.
+- **P2.5 / mitigated** — Future CVE in OpenJDK / ODL could allow RCE in the worker via crafted PDF. Existing: JVM heap cap, 5-min timeout, detached child process, no `--hybrid` (no ODL network), pinned Java major version. Dedicated unprivileged user + egress block tracked.
+- **P3.1** — SHA-256 collision in the audit-gate (2^128 work, computationally infeasible).
+- **P3.2** — IPv4-mapped IPv6 SSRF — verified not exploitable against the new `isPrivateIPv6()` check which handles `::ffff:127.0.0.1` and similar forms.
+- **P3.3** — Timing side-channel on the gate (response code is the larger giveaway, not query timing).
+- **P3.4** — PDF embedded URLs triggering fetches — neither qpdf nor pdfjs fetches external resources; ODL doesn't in non-hybrid mode (our default).
+- **P3.6** — Trust-proxy depth: production runs nginx directly behind DigitalOcean (no proxy chain).
+
+#### Methodology
+
+This release follows the team's standing practice: **every feature ships through a fresh red/blue team review before tagging.** The review examines the newly-introduced surface from a sophisticated-adversary perspective (DNS rebinding, redirect chaining, race conditions, identity collapse, slow-burn DoS, etc.), catalogs findings by severity, fixes everything fixable in the same release window, and documents the rest for the audit record. v1.20.0 added the surface; v1.20.1 is the security-followup that resulted. This pattern is repeated every release — see the prior entries below.
+
 ### v1.20.0 — 2026-05-18 · CMS-aware download + PDF export + agent docs
 
 Pre-release review focused on the new download surface (the filename-choice dialog) and the print-to-PDF affordance. No new attack surface; one operational note worth flagging (the dialog's "use a different filename" path actively breaks existing references, which is why it gates behind an "are you sure?" confirm).
