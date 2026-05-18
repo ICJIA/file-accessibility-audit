@@ -24,9 +24,17 @@ const pendingFile = ref<File | null>(null)
 
 const visible = computed(() => {
   if (!enabled) return false
-  if (props.inputScore !== null && props.inputScore >= 90) return false
   return true
 })
+
+// Already-accessible files (score ≥ 90) don't benefit from automated
+// remediation — the button stays visible but is disabled so the user
+// understands their file has been checked and is in good shape.
+const alreadyAccessible = computed(() =>
+  props.inputScore !== null && props.inputScore >= 90,
+)
+
+const disabledForClick = computed(() => submitting.value || alreadyAccessible.value)
 
 async function startRemediation(file: File): Promise<void> {
   submitting.value = true
@@ -83,16 +91,24 @@ async function handlePickerChange(e: Event): Promise<void> {
 <template>
   <div
     v-if="visible"
-    class="w-full max-w-2xl rounded-xl border border-blue-700/40 bg-blue-950/20 px-5 sm:px-8 py-5 sm:py-6 text-center"
+    class="w-full max-w-2xl rounded-xl px-5 sm:px-8 py-5 sm:py-6 text-center"
+    :class="
+      alreadyAccessible
+        ? 'border border-[var(--border)] bg-[var(--surface-card)]'
+        : 'border border-blue-700/40 bg-blue-950/20'
+    "
   >
-    <p class="text-xs uppercase tracking-wide text-blue-300/80 mb-3">
-      Optional next step
+    <p
+      class="text-xs uppercase tracking-wide mb-3"
+      :class="alreadyAccessible ? 'text-[var(--text-muted)]' : 'text-blue-300/80'"
+    >
+      {{ alreadyAccessible ? 'No further automated remediation needed' : 'Optional next step' }}
     </p>
     <UButton
       color="primary"
       size="xl"
       :loading="submitting"
-      :disabled="submitting"
+      :disabled="disabledForClick"
       class="w-full sm:w-auto"
       @click="handleClick"
     >
@@ -113,7 +129,16 @@ async function handlePickerChange(e: Event): Promise<void> {
       </template>
       Auto-Remediate this PDF
     </UButton>
-    <p class="text-sm text-[var(--text-muted)] mt-3">
+    <p
+      v-if="alreadyAccessible"
+      class="text-sm text-[var(--text-muted)] mt-3 max-w-lg mx-auto"
+    >
+      This PDF already scored {{ props.inputScore }} on the audit and won't
+      benefit from additional automated remediation. We still recommend a
+      manual review pass in Adobe Acrobat (Accessibility → Accessibility
+      Checker) to verify alt text, reading order, and table semantics.
+    </p>
+    <p v-else class="text-sm text-[var(--text-muted)] mt-3">
       Adds structure tags, fixes metadata, and re-audits. Most issues are
       fixed automatically — manual review is still recommended for alt
       text and table headers.
