@@ -9,6 +9,7 @@ import reportsRoutes from './routes/reports.js'
 import logsRoutes from './routes/logs.js'
 import bulkInventoryRoutes from './routes/bulk-from-inventory.js'
 import analyzeUrlRoutes from './routes/analyze-url.js'
+import auditUrlRoutes from './routes/audit-url.js'
 import tokensRoutes from './routes/tokens.js'
 import remediateRoutes from './routes/remediate.js'
 import {
@@ -58,6 +59,7 @@ app.use('/api', reportsRoutes)
 app.use('/api', logsRoutes)
 app.use('/api', bulkInventoryRoutes)
 app.use('/api', analyzeUrlRoutes)
+app.use('/api', auditUrlRoutes)
 app.use('/api', tokensRoutes)
 app.use('/api', remediateRoutes)
 

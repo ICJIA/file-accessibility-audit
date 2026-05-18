@@ -49,11 +49,16 @@ db.exec(`
     email TEXT NOT NULL,
     filename TEXT NOT NULL,
     report_json TEXT NOT NULL,
+    content_hash TEXT,
     expires_at DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
   CREATE INDEX IF NOT EXISTS idx_shared_reports_expires ON shared_reports(expires_at);
+  -- The partial index supporting /api/audit-url hash-dedup is created
+  -- after the ALTER TABLE backfill below — that block guarantees the
+  -- content_hash column exists on pre-1.19.0 databases before the index
+  -- references it.
 
   CREATE TABLE IF NOT EXISTS access_tokens (
     id TEXT PRIMARY KEY,
@@ -175,6 +180,31 @@ if (
   !remediationJobsColumns.some((c) => c.name === 'verapdf_summary_json')
 ) {
   db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_summary_json TEXT')
+}
+
+// Backfill: add content_hash to shared_reports if it doesn't exist yet.
+// Used by POST /api/audit-url for hash-based dedup so re-auditing an
+// unchanged URL returns the existing report instead of creating a new
+// row. v1.19.0+.
+const sharedReportsColumns = db
+  .prepare("PRAGMA table_info(shared_reports)")
+  .all() as { name: string }[]
+if (
+  sharedReportsColumns.length > 0 &&
+  !sharedReportsColumns.some((c) => c.name === 'content_hash')
+) {
+  db.exec('ALTER TABLE shared_reports ADD COLUMN content_hash TEXT')
+}
+// Always (re)attempt to create the dedup index. CREATE INDEX IF NOT
+// EXISTS is idempotent, and by the time we get here the column is
+// guaranteed to exist whether the table was freshly created or just
+// backfilled.
+if (sharedReportsColumns.length > 0) {
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_shared_reports_dedup ' +
+      'ON shared_reports(email, content_hash, expires_at) ' +
+      'WHERE content_hash IS NOT NULL',
+  )
 }
 
 export default db

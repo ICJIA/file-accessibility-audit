@@ -362,6 +362,75 @@ Even if a hostname passes the allowlist, the endpoint hard-rejects:
 | Fetch timeout | 30 s | Same as bulk-from-inventory |
 | Rate limit | shared with `/api/analyze` (`analyzeLimiter`) | |
 
+## Fleet PDF Auditing (`POST /api/audit-url`)
+
+Combined "audit a PDF by URL **and** persist a shareable report" endpoint — designed for fleet-audit automation that emits one row per PDF into an HTML/CSV inventory and needs both the scores and a stable link to the full report.
+
+The difference from `/api/analyze-url`:
+
+| Endpoint | Returns | Persisted? | Best for |
+| --- | --- | --- | --- |
+| `POST /api/analyze-url` | full `AnalysisResult` (every category + finding) | no | one-off browser auditing, deep programmatic inspection |
+| `POST /api/audit-url` | trimmed scalar payload + `reportUrl` | yes (365 days) | fleet inventory enrichment — CSV cells + click-through links |
+| `POST /api/bulk-from-inventory` | per-file scores in a manifest | yes | when you already have a filecap NDJSON inventory |
+
+### Request
+
+```bash
+curl -X POST https://audit.icjia.app/api/audit-url \
+  -H "Authorization: Bearer fap_yourtoken" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}'
+```
+
+Pass `"force": true` (body field) or `?force=true` (query) to bypass the hash dedup and force a fresh audit even if an unexpired cached report exists for the same content.
+
+### Response (`200 OK`)
+
+Every top-level field is a scalar or a `{ score, grade }` pair — ready to flatten into CSV without nested parsing.
+
+```json
+{
+  "filename":        "annual-report.pdf",
+  "pageCount":       42,
+  "audited":         "2026-05-18T15:32:11.000Z",
+  "strict":    { "score": 67, "grade": "D" },
+  "practical": { "score": 78, "grade": "C" },
+  "reportId":        "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "reportUrl":       "https://audit.icjia.app/report/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "reportExpiresAt": "2027-05-18T15:32:11.000Z",
+  "cached":          false
+}
+```
+
+`cached: true` indicates a hash-dedup hit — same PDF content was previously audited by the same caller, the existing `reportUrl` is being returned, and no new audit ran. `false` indicates a fresh audit + persist.
+
+### Hash dedup (Policy A)
+
+After fetching the PDF the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching the same hash for the same caller. On a hit, the cached `reportId` / `reportUrl` are returned and no new audit runs — your quarterly fleet runs will return the same URL for unchanged PDFs (clean CSV diffs).
+
+When the file content has changed (different hash) a fresh audit runs and produces a new `reportId`. The previous report stays accessible at its URL until its 365-day TTL elapses.
+
+### Flatten to CSV with `jq`
+
+```bash
+curl -sS https://audit.icjia.app/api/audit-url \
+  -H "Authorization: Bearer fap_yourtoken" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}' \
+  | jq -r '[.filename, .pageCount, .strict.score, .strict.grade, .practical.score, .practical.grade, .reportUrl, .reportExpiresAt] | @csv'
+```
+
+Header row to put at the top of your inventory CSV:
+
+```csv
+url,filename,pageCount,strictScore,strictGrade,practicalScore,practicalGrade,reportUrl,reportExpiresAt
+```
+
+### Limits
+
+Same as `/api/analyze-url` (100 MB PDF cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
+
 ## Bulk Inventory Scoring (`POST /api/bulk-from-inventory`)
 
 Accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every PDF in it server-side in one request. The server fetches each PDF by its public URL, runs the existing `analyzePDF` pipeline, saves a shareable report, and returns a manifest with per-file scores, grades, and report links.

@@ -532,9 +532,14 @@ export const SHARED_REPORTS = {
    * for cleanup.
    *
    * SAFE TO CHANGE: Yes. Longer = more useful for recipients but more
-   * database storage. 15 days balances utility with data hygiene.
+   * database storage. 365 days is sized for the auditor / fleet-inventory
+   * use case: ICJIA's fleet audit lists every PDF across all sites, runs
+   * on a multi-month cadence, and the resulting CSV / HTML report needs
+   * to stay valid for at least a year so reviewers can click through to
+   * the full audit details for any flagged file. The database growth cost
+   * is real but accepted — see the v1.19.0 release notes.
    */
-  EXPIRY_DAYS: 15,
+  EXPIRY_DAYS: 365,
 
   /**
    * Maximum size of the report JSON payload in bytes.
