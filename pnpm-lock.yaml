@@ -54,6 +54,9 @@ importers:
         specifier: ^4.10.38
         version: 4.10.38
     devDependencies:
+      '@opendataloader/pdf':
+        specifier: ^2.4.3
+        version: 2.4.3
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6
@@ -910,6 +913,11 @@ packages:
 
   '@one-ini/wasm@0.1.1':
     resolution: {integrity: sha512-XuySG1E38YScSJoMlqovLru4KTUNSjgVTIjyh7qMX6aNN5HY5Ct5LhRJdxO79JtTzKfzV/bnWpz+zquYrISsvw==}
+
+  '@opendataloader/pdf@2.4.3':
+    resolution: {integrity: sha512-Aqh00mdqAM6T2GWg1XWhGL6YKqG2YFtXXzeFb4/67hw6zNYcIe5zdxGioCcu8Np5ggQ9FBHgTaIun/q0WmACVg==}
+    engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@oxc-minify/binding-android-arm-eabi@0.112.0':
     resolution: {integrity: sha512-m7TGBR2hjsBJIN9UJ909KBoKsuogo6CuLsHKvUIBXdjI0JVHP8g4ZHeB+BJpGn5LJdeSGDfz9MWiuXrZDRzunw==}
@@ -2597,6 +2605,10 @@ packages:
   commander@11.1.0:
     resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
     engines: {node: '>=16'}
+
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
 
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
@@ -6361,6 +6373,10 @@ snapshots:
 
   '@one-ini/wasm@0.1.1': {}
 
+  '@opendataloader/pdf@2.4.3':
+    dependencies:
+      commander: 14.0.3
+
   '@oxc-minify/binding-android-arm-eabi@0.112.0':
     optional: true
 
@@ -7810,6 +7826,8 @@ snapshots:
   commander@10.0.1: {}
 
   commander@11.1.0: {}
+
+  commander@14.0.3: {}
 
   commander@2.20.3: {}
 
