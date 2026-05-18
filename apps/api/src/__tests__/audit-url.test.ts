@@ -28,11 +28,13 @@ function extractProfileScore(
   payload: any,
   mode: 'strict' | 'practical',
 ): { score: number | null; grade: string | null } {
-  const profile = payload?.scoreProfiles?.[mode]
+  // User-facing 'practical' maps to the internal 'remediation' key.
+  const internalKey = mode === 'practical' ? 'remediation' : 'strict'
+  const profile = payload?.scoreProfiles?.[internalKey]
   if (profile && typeof profile.overallScore === 'number') {
     return { score: profile.overallScore, grade: profile.grade ?? null }
   }
-  if (typeof payload?.overallScore === 'number') {
+  if (mode === 'strict' && typeof payload?.overallScore === 'number') {
     return { score: payload.overallScore, grade: payload.grade ?? null }
   }
   return { score: null, grade: null }
@@ -48,24 +50,37 @@ function buildReportUrl(id: string, productionUrl: string, devUrl: string): stri
 // ---------------------------------------------------------------------------
 
 describe('extractProfileScore', () => {
-  it('returns scoreProfiles.strict when present', () => {
+  it('reads scoreProfiles.strict for the strict mode', () => {
     const payload = {
       scoreProfiles: {
         strict: { overallScore: 49, grade: 'F' },
-        practical: { overallScore: 72, grade: 'C' },
+        remediation: { overallScore: 72, grade: 'C' },
       },
     }
     expect(extractProfileScore(payload, 'strict')).toEqual({ score: 49, grade: 'F' })
+  })
+
+  it('reads scoreProfiles.remediation for the practical mode (user-facing name maps to internal key)', () => {
+    const payload = {
+      scoreProfiles: {
+        strict: { overallScore: 49, grade: 'F' },
+        remediation: { overallScore: 72, grade: 'C' },
+      },
+    }
     expect(extractProfileScore(payload, 'practical')).toEqual({ score: 72, grade: 'C' })
   })
 
-  it('falls back to top-level overallScore when scoreProfiles is missing', () => {
+  it('strict falls back to top-level overallScore on pre-scoreProfiles payloads', () => {
     const payload = { overallScore: 85, grade: 'B' }
     expect(extractProfileScore(payload, 'strict')).toEqual({ score: 85, grade: 'B' })
-    expect(extractProfileScore(payload, 'practical')).toEqual({ score: 85, grade: 'B' })
   })
 
-  it('returns null pair when neither shape is present', () => {
+  it('practical returns nulls when scoreProfiles.remediation is missing (no safe fallback exists)', () => {
+    const payload = { overallScore: 85, grade: 'B' }
+    expect(extractProfileScore(payload, 'practical')).toEqual({ score: null, grade: null })
+  })
+
+  it('returns null pair when both shapes are absent', () => {
     expect(extractProfileScore({}, 'strict')).toEqual({ score: null, grade: null })
     expect(extractProfileScore(null, 'practical')).toEqual({ score: null, grade: null })
   })

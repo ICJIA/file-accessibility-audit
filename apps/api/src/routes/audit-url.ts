@@ -225,21 +225,30 @@ router.post(
 )
 
 // Extract the strict/practical scalar pair from an AnalysisResult-shaped
-// payload. Falls back to the top-level overallScore/grade when scoreProfiles
-// is absent (older persisted payloads).
+// payload.
+//
+// Naming gotcha: the user-facing name "Practical" maps to the *internal*
+// scoreProfiles key 'remediation'. The scoring engine emits
+// scoreProfiles.strict and scoreProfiles.remediation; the UI labels the
+// latter "Practical readiness score". The /api/audit-url contract uses
+// the user-facing name so callers don't need to know the legacy
+// terminology — we do the translation here.
 function extractProfileScore(
   payload: any,
   mode: 'strict' | 'practical',
 ): { score: number | null; grade: string | null } {
-  const profile = payload?.scoreProfiles?.[mode]
+  const internalKey = mode === 'practical' ? 'remediation' : 'strict'
+  const profile = payload?.scoreProfiles?.[internalKey]
   if (profile && typeof profile.overallScore === 'number') {
     return {
       score: profile.overallScore,
       grade: profile.grade ?? null,
     }
   }
-  // Fallback: legacy payload — strict and practical were the same.
-  if (typeof payload?.overallScore === 'number') {
+  // Fallback: pre-scoreProfiles payload (older persisted reports).
+  // The top-level overallScore corresponds to strict scoring; for
+  // 'practical' on such a payload we have nothing better to return.
+  if (mode === 'strict' && typeof payload?.overallScore === 'number') {
     return { score: payload.overallScore, grade: payload.grade ?? null }
   }
   return { score: null, grade: null }

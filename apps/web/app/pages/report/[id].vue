@@ -85,7 +85,7 @@
             {{ formatDate(data.createdAt) }}
           </p>
           <p class="text-xs text-[var(--text-muted)] mt-1">
-            Shareable links expire after 15 days
+            Shareable links expire after 365 days
           </p>
         </div>
 

@@ -1096,7 +1096,7 @@
               </UButton>
             </div>
             <p class="text-xs text-[var(--text-muted)] mt-2 text-center">
-              Creates a public link anyone can view. Expires in 15 days.
+              Creates a public link anyone can view. Expires in 365 days.
             </p>
             <p
               v-if="shareError"
@@ -3575,10 +3575,13 @@ pm2 restart ecosystem.config.cjs</div>
             <li class="flex gap-2">
               <span class="text-[var(--text-muted)]">•</span
               ><span
-                >Shared links expire after <strong>15 days</strong>. After
+                >Shared links expire after <strong>365 days</strong>. After
                 expiration, the stored results are eligible for permanent
-                deletion. The expiration exists to limit data retention — there
-                is no reason to store results indefinitely.</span
+                deletion. The 365-day window is sized for the auditor / fleet
+                inventory use case — fleet reports run on a multi-month cadence
+                and reviewers need report links to stay valid for at least a
+                year. Older results are deleted by the periodic cleanup
+                sweep.</span
               >
             </li>
             <li class="flex gap-2">
@@ -4536,7 +4539,7 @@ function emailShareUrl() {
     `Here is the accessibility report for "${result.value.filename}":\n\n` +
       `Score: ${result.value.overallScore}/100 (Grade ${result.value.grade})\n\n` +
       `View the full report:\n${shareUrl.value}\n\n` +
-      `This link expires in 15 days.`,
+      `This link expires in 365 days.`,
   );
   window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
 }

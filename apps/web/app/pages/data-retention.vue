@@ -966,7 +966,7 @@ CREATE TABLE remediation_jobs (
                 SQLite,
                 <code class="font-mono">shared_reports</code> table
               </td>
-              <td class="py-2.5 pr-4">15 days from share creation</td>
+              <td class="py-2.5 pr-4">365 days from share creation</td>
               <td class="py-2.5">
                 Yes —
                 <code class="font-mono">SHARED_REPORTS.EXPIRY_DAYS</code>
