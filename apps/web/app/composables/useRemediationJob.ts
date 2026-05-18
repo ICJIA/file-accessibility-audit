@@ -67,9 +67,28 @@ export interface AuditResultLite {
       manual: number
       skipped: number
       notComputed: number
+      vacuousPasses: number
       total: number
     }
   }
+}
+
+export interface VeraPdfResult {
+  available: boolean | null
+  passed: boolean | null
+  summary: {
+    available?: boolean
+    passed?: boolean
+    profile?: string
+    failures?: Array<{
+      ruleId: string
+      clause: string
+      description: string
+      count: number
+    }>
+    totalFailureCount?: number
+    error?: string
+  } | null
 }
 
 export interface Receipt {
@@ -83,6 +102,7 @@ export interface Receipt {
   completedAt: number | null
   inputAudit: AuditResultLite | null
   outputAudit: AuditResultLite | null
+  veraPdf: VeraPdfResult | null
   events: ReceiptEvent[]
 }
 

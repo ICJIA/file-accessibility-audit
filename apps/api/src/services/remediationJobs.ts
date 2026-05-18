@@ -242,6 +242,58 @@ export function getJobAuditPair(id: string): JobAuditPair {
   };
 }
 
+const setVeraStmt = db.prepare(
+  `UPDATE remediation_jobs
+   SET verapdf_available = ?, verapdf_passed = ?, verapdf_summary_json = ?
+   WHERE id = ?`,
+);
+
+/** Persist a veraPDF verdict on the job row. */
+export function setVeraPdfResult(
+  id: string,
+  available: boolean,
+  passed: boolean,
+  summaryJson: string,
+): void {
+  setVeraStmt.run(
+    available ? 1 : 0,
+    available ? (passed ? 1 : 0) : null,
+    summaryJson,
+    id,
+  );
+}
+
+export interface JobVeraPdf {
+  available: boolean | null;
+  passed: boolean | null;
+  summary: unknown | null;
+}
+
+const selectVeraStmt = db.prepare(
+  "SELECT verapdf_available, verapdf_passed, verapdf_summary_json FROM remediation_jobs WHERE id = ?",
+);
+
+export function getJobVeraPdf(id: string): JobVeraPdf {
+  const row = selectVeraStmt.get(id) as
+    | {
+        verapdf_available: number | null;
+        verapdf_passed: number | null;
+        verapdf_summary_json: string | null;
+      }
+    | undefined;
+  if (!row) {
+    return { available: null, passed: null, summary: null };
+  }
+  return {
+    available:
+      row.verapdf_available === null ? null : row.verapdf_available === 1,
+    passed: row.verapdf_passed === null ? null : row.verapdf_passed === 1,
+    summary: row.verapdf_summary_json
+      ? JSON.parse(row.verapdf_summary_json)
+      : null,
+  };
+}
+
 export function setFailed(id: string, reason: string): void {
   failJob.run(reason, Date.now(), id);
 }

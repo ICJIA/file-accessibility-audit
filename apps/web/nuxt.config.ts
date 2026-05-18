@@ -107,6 +107,8 @@ export default defineNuxtConfig({
       githubUrl: BRANDING.GITHUB_URL,
       appVersion: version,
       remediationEnabled: REMEDIATION.ENABLED,
+      iitaaUrl: BRANDING.IITAA_URL,
+      verapdfUrl: BRANDING.VERAPDF_URL,
     },
   },
 

@@ -226,15 +226,22 @@ const heuristicRows = computed<HeuristicRow[]>(() => {
   if (adBefore || adAfter) {
     const pB = adBefore?.passed ?? null
     const pA = adAfter?.passed ?? null
+    const vB = adBefore?.vacuousPasses ?? 0
+    const vA = adAfter?.vacuousPasses ?? 0
+    const mB = pB === null ? null : pB - vB
+    const mA = pA === null ? null : pA - vA
     const tot = adAfter?.total ?? adBefore?.total ?? 0
     rows.push({
       label: 'Adobe Acrobat checks',
-      description: 'The 32-rule parity check Adobe Acrobat itself runs.',
-      beforeText: pB === null ? '–' : `${pB}/${tot} passed`,
-      afterText: pA === null ? '–' : `${pA}/${tot} passed`,
+      description:
+        'The 32-rule parity check Adobe Acrobat runs. A rule passes "vacuously" when the document has no content of that type (e.g., "Table headers" auto-passes if there are no tables). Adding structure can DECREASE total passes while INCREASING meaningful (non-vacuous) passes.',
+      beforeText:
+        pB === null ? '–' : `${pB}/${tot} (${mB} meaningful)`,
+      afterText:
+        pA === null ? '–' : `${pA}/${tot} (${mA} meaningful)`,
       delta:
-        pA !== null && pB !== null
-          ? `${pA - pB >= 0 ? '+' : ''}${pA - pB}`
+        pA !== null && pB !== null && mA !== null && mB !== null
+          ? `${pA - pB >= 0 ? '+' : ''}${pA - pB} / ${mA - mB >= 0 ? '+' : ''}${mA - mB} meaningful`
           : '–',
     })
   }
@@ -292,6 +299,9 @@ const eventLabels: Record<string, string> = {
   intermediate_deleted: 'Intermediate files deleted from server',
   validation_passed: 'Output validated',
   validation_failed: 'Output failed validation',
+  verapdf_passed: 'veraPDF: PDF/UA-1 conformance passed',
+  verapdf_failed: 'veraPDF: PDF/UA-1 conformance not yet met',
+  verapdf_unavailable: 'veraPDF check skipped (not configured)',
   output_ready: 'Remediated PDF ready',
   downloaded: 'You downloaded the remediated PDF',
   output_deleted: 'Remediated PDF deleted from server',
@@ -300,6 +310,10 @@ const eventLabels: Record<string, string> = {
   error: 'Error',
   expired: 'Output expired',
 }
+
+const runtimeConfig = useRuntimeConfig()
+const iitaaUrl = computed(() => String(runtimeConfig.public.iitaaUrl ?? ''))
+const verapdfUrl = computed(() => String(runtimeConfig.public.verapdfUrl ?? ''))
 
 function labelForEvent(name: string): string {
   return eventLabels[name] ?? name
@@ -706,6 +720,124 @@ function labelForEvent(name: string): string {
         metadata; it can't write meaningful alt text for charts or verify complex
         reading order.
       </p>
+    </section>
+
+    <!-- Compliance disclaimer (veraPDF verdict + IITAA + manual review) -->
+    <section v-if="status?.status === 'complete' && receipt?.veraPdf" class="mb-6">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
+          Compliance disclaimer
+        </h3>
+
+        <!-- veraPDF verdict -->
+        <template v-if="receipt.veraPdf.available">
+          <div class="flex items-start gap-3 mb-4">
+            <span
+              class="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
+              :class="receipt.veraPdf.passed ? 'bg-emerald-700/40 text-emerald-200' : 'bg-amber-700/40 text-amber-200'"
+            >
+              {{ receipt.veraPdf.passed ? '✓' : '!' }}
+            </span>
+            <div class="flex-1 text-sm">
+              <p class="font-medium mb-1">
+                <template v-if="receipt.veraPdf.passed">
+                  veraPDF reported PDF/UA-1 conformance.
+                </template>
+                <template v-else>
+                  veraPDF found {{ receipt.veraPdf.summary?.totalFailureCount ?? 'some' }}
+                  PDF/UA-1 rule failures.
+                </template>
+              </p>
+              <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+                The remediated PDF was validated with
+                <a
+                  v-if="verapdfUrl"
+                  :href="verapdfUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-blue-300 hover:text-blue-200 underline"
+                >veraPDF</a>
+                <span v-else>veraPDF</span> — the open-source PDF/UA-1 validator
+                from the PDF Association + Dual Lab. It checks technical
+                conformance to ISO 14289-1 (tag presence, structure tree,
+                MarkInfo, language, title, etc.).
+              </p>
+            </div>
+          </div>
+
+          <!-- Top failing rules if any -->
+          <div
+            v-if="!receipt.veraPdf.passed && receipt.veraPdf.summary?.failures && receipt.veraPdf.summary.failures.length > 0"
+            class="mb-4 pl-10"
+          >
+            <p class="text-xs font-semibold uppercase tracking-wider text-amber-300 mb-2">
+              Top failing rules
+            </p>
+            <ul class="text-xs space-y-1.5 text-[var(--text-muted)]">
+              <li
+                v-for="f in receipt.veraPdf.summary.failures.slice(0, 5)"
+                :key="f.ruleId + f.clause"
+              >
+                <span class="font-mono text-[var(--text)]">{{ f.ruleId }}</span>
+                <span v-if="f.clause"> · {{ f.clause }}</span>
+                <span v-if="f.description"> — {{ f.description }}</span>
+                <span class="text-amber-400 ml-1">({{ f.count }})</span>
+              </li>
+            </ul>
+          </div>
+        </template>
+
+        <!-- veraPDF unavailable -->
+        <template v-else>
+          <div class="flex items-start gap-3 mb-4">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--border)] text-[var(--text-muted)] flex-shrink-0">
+              –
+            </span>
+            <div class="flex-1 text-sm">
+              <p class="font-medium mb-1">veraPDF check was not run.</p>
+              <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+                <a
+                  v-if="verapdfUrl"
+                  :href="verapdfUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-blue-300 hover:text-blue-200 underline"
+                >veraPDF</a>
+                <span v-else>veraPDF</span> (the open-source PDF/UA-1 validator)
+                isn't installed on this server. Configure
+                <span class="font-mono">REMEDIATION_VERAPDF_PATH</span> in the
+                environment to enable conformance reporting.
+              </p>
+            </div>
+          </div>
+        </template>
+
+        <!-- The non-negotiable manual review reminder -->
+        <div class="border-t border-[var(--border)] pt-4 text-sm">
+          <p class="font-medium text-amber-300 mb-2">
+            ⚠ Manual review is still required for IITAA compliance.
+          </p>
+          <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+            veraPDF (and any automated tool) can only check what's machine-verifiable:
+            tag presence, structure depth, metadata. It cannot judge whether your
+            <strong>alt text is meaningful</strong>, whether
+            <strong>reading order makes sense to a sighted reader</strong>, or
+            whether <strong>table semantics</strong> correctly model the data.
+            Those require a human pass — typically in Adobe Acrobat (Tools →
+            Accessibility → Accessibility Checker, plus the Reading Order and
+            Tags panels) or with a screen reader. Conformance with the
+            <a
+              v-if="iitaaUrl"
+              :href="iitaaUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-blue-300 hover:text-blue-200 underline"
+            >Illinois Information Technology Accessibility Act (IITAA)</a>
+            <span v-else>Illinois Information Technology Accessibility Act (IITAA)</span>
+            depends on both the machine-verifiable parts and that human review.
+          </p>
+        </div>
+      </div>
     </section>
 
     <!-- Source-document recommendation: PDF remediation is a fallback;

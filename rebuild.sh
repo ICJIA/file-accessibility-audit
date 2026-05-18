@@ -46,6 +46,25 @@ if command -v qpdf &> /dev/null; then
   fi
 fi
 
+# veraPDF for PDF/UA-1 conformance reporting (optional but recommended
+# for IITAA compliance disclosure on the remediation result page).
+if [ -n "$REMEDIATION_VERAPDF_PATH" ]; then
+  if [ ! -x "$REMEDIATION_VERAPDF_PATH" ]; then
+    echo "WARNING: REMEDIATION_VERAPDF_PATH is set to '$REMEDIATION_VERAPDF_PATH'"
+    echo "  but that path is not executable. veraPDF conformance checks will"
+    echo "  be skipped and the result-page disclaimer will show 'veraPDF not"
+    echo "  configured'. Verify the path or unset the variable."
+    echo ""
+  fi
+else
+  echo "NOTE: veraPDF not configured (REMEDIATION_VERAPDF_PATH unset)."
+  echo "  PDF/UA-1 conformance reporting on the remediation result page will"
+  echo "  show 'veraPDF check was not run'. To enable: download from"
+  echo "  https://verapdf.org/ , install, and set REMEDIATION_VERAPDF_PATH"
+  echo "  to the installed 'verapdf' shell script."
+  echo ""
+fi
+
 echo "Pulling latest changes..."
 git checkout -- .
 git pull origin main

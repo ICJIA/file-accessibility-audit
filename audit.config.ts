@@ -50,6 +50,23 @@ export const BRANDING = {
   /** GitHub repository URL shown in the footer. Set to '' to hide the link. */
   GITHUB_URL: "https://github.com/ICJIA/file-accessibility-audit",
 
+  /**
+   * URL for the Illinois Information Technology Accessibility Act
+   * (IITAA) reference. Shown in the post-remediation compliance
+   * disclaimer so users can read the standard our outputs aim to
+   * support. Update if the State of Illinois reorganizes the canonical
+   * page. Empty string hides the link.
+   */
+  IITAA_URL: "https://doit.illinois.gov/initiatives/accessibility.html",
+
+  /**
+   * URL for the veraPDF homepage. Shown in the post-remediation
+   * compliance disclaimer so users can learn what veraPDF is and why
+   * we use it (open-source PDF/UA-1 / PDF/UA-2 validator backed by
+   * the PDF Association and Dual Lab). Empty string hides the link.
+   */
+  VERAPDF_URL: "https://verapdf.org/",
+
   /** Default color mode for the UI. Users can toggle between light and dark via the nav.
    *  Set to 'dark' for a dark-first experience, or 'light' if your agency's branding
    *  requires a light default. Users can always switch modes via the toggle in the nav bar.
@@ -800,4 +817,30 @@ export const REMEDIATION = {
    * SAFE TO CHANGE: Yes.
    */
   JAVA_PATH: (process.env.REMEDIATION_JAVA_PATH || null) as string | null,
+
+  /**
+   * Optional path to the veraPDF CLI binary. veraPDF
+   * (https://verapdf.org/) is the open-source PDF/UA-1 / PDF/UA-2
+   * validator maintained by the PDF Association + Dual Lab. When set,
+   * the worker runs `verapdf --flavour ua1 --format json <output>` on
+   * the remediated PDF and records the verdict in remediation_jobs +
+   * remediation_events. The UI surfaces the result in the
+   * compliance-disclaimer card on the result page.
+   *
+   * On Ubuntu/DigitalOcean: install from
+   *   https://software.verapdf.org/rel/verapdf-installer.zip
+   * (Unzip, run ./verapdf-install verapdf-auto-install.xml,
+   *  set VERAPDF_PATH to the installed `verapdf` shell script.)
+   *
+   * On macOS: brew has no veraPDF formula; download the same installer
+   * and run it. Typical path:
+   *   /Applications/verapdf/verapdf
+   *
+   * Reads from env: REMEDIATION_VERAPDF_PATH. If null/missing, the
+   * worker skips veraPDF (event recorded as 'verapdf_unavailable')
+   * and the UI shows a "veraPDF not run" notice.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  VERAPDF_PATH: (process.env.REMEDIATION_VERAPDF_PATH || null) as string | null,
 } as const;

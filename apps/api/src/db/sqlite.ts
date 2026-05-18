@@ -89,6 +89,9 @@ db.exec(`
     failure_reason TEXT,
     input_audit_json TEXT,
     output_audit_json TEXT,
+    verapdf_available INTEGER,
+    verapdf_passed INTEGER,
+    verapdf_summary_json TEXT,
     created_at INTEGER NOT NULL,
     completed_at INTEGER,
     expires_at INTEGER NOT NULL
@@ -154,6 +157,24 @@ if (
   !remediationJobsColumns.some((c) => c.name === 'output_audit_json')
 ) {
   db.exec('ALTER TABLE remediation_jobs ADD COLUMN output_audit_json TEXT')
+}
+if (
+  remediationJobsColumns.length > 0 &&
+  !remediationJobsColumns.some((c) => c.name === 'verapdf_available')
+) {
+  db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_available INTEGER')
+}
+if (
+  remediationJobsColumns.length > 0 &&
+  !remediationJobsColumns.some((c) => c.name === 'verapdf_passed')
+) {
+  db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_passed INTEGER')
+}
+if (
+  remediationJobsColumns.length > 0 &&
+  !remediationJobsColumns.some((c) => c.name === 'verapdf_summary_json')
+) {
+  db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_summary_json TEXT')
 }
 
 export default db

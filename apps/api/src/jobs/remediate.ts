@@ -41,7 +41,9 @@ import {
   setRunning,
   setScores,
   setStep,
+  setVeraPdfResult,
 } from "../services/remediationJobs.js";
+import { runVeraPdf } from "../services/veraPdf.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -226,6 +228,46 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       return;
     }
     recordEvent(jobId, "validation_passed");
+
+    // 3b. veraPDF PDF/UA-1 conformance check (optional — only if
+    //     VERAPDF_PATH is configured). Result is informational, not
+    //     blocking: even if veraPDF reports non-conformance, the
+    //     remediated PDF is still served. The receipt + disclaimer
+    //     surface the verdict honestly.
+    try {
+      const vera = await runVeraPdf(taggedPath);
+      setVeraPdfResult(
+        jobId,
+        vera.available,
+        vera.passed,
+        JSON.stringify(vera),
+      );
+      if (vera.available) {
+        recordEvent(jobId, vera.passed ? "verapdf_passed" : "verapdf_failed", {
+          profile: vera.profile,
+          failure_count: vera.totalFailureCount,
+          top_failures: vera.failures.slice(0, 5).map((f) => f.ruleId),
+        });
+      } else {
+        recordEvent(jobId, "verapdf_unavailable", {
+          reason:
+            "VERAPDF_PATH not configured — skipping PDF/UA conformance check",
+        });
+      }
+    } catch (e) {
+      recordEvent(jobId, "error", {
+        error_type: "verapdf_threw",
+        message: (e as Error).message,
+      });
+      setVeraPdfResult(jobId, false, false, JSON.stringify({
+        available: false,
+        passed: false,
+        profile: "ua1",
+        failures: [],
+        totalFailureCount: 0,
+        error: (e as Error).message,
+      }));
+    }
 
     // 4. Comparing: re-audit and require score ≥ input
     setStep(jobId, "comparing", 90);

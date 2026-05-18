@@ -16,6 +16,7 @@ import {
   setExpired,
   setInputAudit,
   getJobAuditPair,
+  getJobVeraPdf,
 } from '../services/remediationJobs.js'
 import {
   recordEvent,
@@ -339,6 +340,7 @@ router.get(
 
     const events = getEventsForJob(job.id)
     const audits = getJobAuditPair(job.id)
+    const verapdf = getJobVeraPdf(job.id)
     res.json({
       jobId: job.id,
       filename: job.inputFilename,
@@ -350,6 +352,7 @@ router.get(
       completedAt: job.completedAt,
       inputAudit: audits.inputAudit,
       outputAudit: audits.outputAudit,
+      veraPdf: verapdf,
       events: events.map((e) => ({
         event: e.event,
         occurredAt: e.occurredAt,
