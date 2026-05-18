@@ -1254,6 +1254,141 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.20.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.20.0
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-18</strong> · scope: download
+            filename dialog, PDF export, accessibility polish
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          A feature release with two material auditor-facing changes:
+          remediated PDFs can now be downloaded under the
+          <em>exact</em> original filename (critical for CMS file
+          replacement, where existing links resolve by name), and the
+          audit report can be saved as a PDF using the browser's own
+          print dialog. No new data is collected, retained, or
+          transmitted. The retention policy described elsewhere on
+          this page is unchanged.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Findings &amp; changes
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Changed</strong
+            >
+            — Remediated PDF download now defaults to the user's exact
+            original filename.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What changed:</strong> when a user remediates a
+              PDF and clicks Download, the file is now saved under the
+              same filename they uploaded — including any spaces,
+              unicode, or punctuation. The download dialog presents
+              three options with "Keep original filename" pre-selected
+              and badged Recommended. The other two ("Add a
+              _remediated suffix" or "Use a different filename") are
+              opt-in.<br />
+              <strong>Why:</strong> the most common workflow for
+              remediating an agency PDF is to replace the file in the
+              CMS in place — every existing link on the website, in
+              old emails, in shared documents, keeps working as long
+              as the filename matches. The previous behavior
+              automatically appended <em>_remediated</em> to the
+              filename, which broke this workflow.<br />
+              <strong>Safeguards:</strong> the "use a different
+              filename" path explicitly warns the user that the change
+              will break existing links and requires a second click of
+              the Download button to confirm. There is no path
+              traversal risk — the custom filename is treated only as
+              a display name for the browser's save dialog and is
+              capped, encoded, and forced to <code class="text-xs font-mono">.pdf</code>
+              before being sent in the response header. The actual
+              file on disk is always located by job ID, never by
+              user-supplied filename.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Added</strong
+            >
+            — Audit reports can now be saved as PDF via the browser's
+            print dialog.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What changed:</strong> the audit report page and
+              the shared-report page each gained a "PDF (browser
+              print)" button. Clicking it opens the browser's own
+              print dialog, where the user picks "Save as PDF" as the
+              destination. The page applies a print stylesheet that
+              hides interactive controls, switches to black-on-white
+              text, expands collapsed technical sections, and arranges
+              page breaks cleanly.<br />
+              <strong>What this does <em>not</em> change:</strong> no
+              new server-side rendering happens — the PDF is created
+              entirely by the user's own browser, on the user's own
+              machine. No PDF content is transmitted to or stored on
+              our server as part of this feature. The chosen filename
+              is whatever the user types in the browser's save dialog
+              and is not visible to us.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">P3</span>
+              Fixed</strong
+            >
+            — Accessibility polish on the remediation result page.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What changed:</strong> the result page was
+              showing layout shift after content loaded (a known
+              accessibility annoyance for users on slow connections or
+              with reduced-motion preferences), and result sections
+              were appearing partway through the progress animation
+              rather than after it. Both fixed.<br />
+              <strong>Visible improvement:</strong> Lighthouse
+              performance score on the result page rose from 84 to 96
+              on desktop. No retention or privacy implications.
+            </p>
+          </li>
+        </ul>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          Operational improvements
+        </h4>
+        <ul class="space-y-1 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
+          <li>
+            New <code class="text-xs font-mono">AGENTS.md</code> at
+            the repository root documents the load-bearing conventions
+            for AI coding agents (Claude Code, Codex, Cursor, etc.) so
+            engineers using those tools to extend the code base get
+            oriented in one read. Not user-facing; reduces the chance
+            of a misconfigured agent committing the wrong thing.
+          </li>
+          <li>
+            The "Technical Details" expandable on the main results
+            page now includes the same four pipeline diagrams already
+            on the standalone
+            <a
+              href="/technical-details"
+              class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
+              >Technical Details</a
+            >
+            page.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.19.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

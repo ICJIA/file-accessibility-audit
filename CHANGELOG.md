@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.20.0] — 2026-05-18
+
+### Added — CMS-aware remediation download dialog
+
+Replaces the single "Download Remediated PDF" button with a three-option dialog that defaults to preserving the exact original filename — critical for CMS workflows where the file is replaced in place and existing links resolve by name.
+
+- **"Keep original filename"** is selected by default and badged **Recommended**. Downloads the remediated PDF under the user's exact uploaded filename (spaces, unicode, every byte). Server uses RFC 6266 dual-name `Content-Disposition` (`filename="<ascii-safe>"; filename*=UTF-8''<percent-encoded>`) so the original characters survive intact in modern browsers and curl.
+- **"Add a '_remediated' suffix"** is an opt-in for users who want to keep the original alongside the remediated copy (e.g., archive workflows, not CMS replacement).
+- **"Use a different filename"** is the destructive path — it shows a warning explaining that a different filename breaks every existing link to the PDF and requires a second click of the Download button to actually proceed (an "are you sure?" confirm gate).
+- Above the radios, an explainer paragraph states *why* keeping the name matters: CMS file replacement under the same name preserves every existing reference without redirects or fix-up.
+
+Schema change: added `original_filename TEXT` column to `remediation_jobs` via the existing ALTER TABLE probe pattern. The upload handler captures `file.originalname` before sanitization so the exact name survives end-to-end. Pre-v1.20.0 jobs have null `originalFilename` and fall back to the existing `<basename>_remediated.pdf` behavior — no breakage for in-flight rows during the rollout.
+
+### Added — PDF export for the audit report
+
+Adds a "PDF (browser print)" button next to the existing Word / HTML / Markdown / JSON export buttons on `/` and `/report/:id`. Calls `window.print()` and lets the OS save the report as PDF (default destination on macOS, Windows, ChromeOS). Zero new dependencies — avoids puppeteer / playwright / pdfkit (~100 MB combined).
+
+A print stylesheet in `apps/web/app/assets/css/main.css` (`@media print`) handles the visual switch to ink-on-paper:
+
+- Hides site chrome (header, nav, footer, buttons)
+- Switches to white background + black text
+- Expands all `<details>` so collapsed Technical Details prints in full
+- Scales mermaid SVGs to container width
+- Avoids page breaks inside headings and card sections
+- Surfaces external link `hrefs` as inline text on paper
+
+### Added — Mermaid diagrams in the Technical Details expandable
+
+The standalone `/technical-details` page already had four mermaid diagrams; the inline Technical Details `<details>` expandable on the main results page had none. Added matching diagrams at four subsections:
+
+- "How It Works" → audit pipeline
+- "Application Architecture" → architecture diagram
+- "Why Two Tools?" → two-tool parallel analysis
+- "PDF Auto-Remediation: Pipeline Overview" → remediation pipeline
+
+Same diagram sources as the standalone page so they stay in sync.
+
+### Added — `AGENTS.md` at repo root
+
+Cross-tool agent orientation for Claude Code, Codex, Cursor, Gemini CLI, etc. Consolidates the conventions that previously lived only in the user's private global `~/.claude/CLAUDE.md` (stack basics, the `./start-dev-server.sh` requirement, no-AI-co-author commit rule, `pnpm build` before push, `#config` path alias, the ALTER TABLE migration pattern, current API surface, common pitfalls like Nuxt 4 not 3 and mermaid render ordering). One short read orients any agent without trial-and-error.
+
+### Fixed — `/remediate` desktop CLS 0.252
+
+The result page rendered three discrete `v-if` regions (loading spinner / running progress / result content) and the page height jumped roughly 3000px when the third one mounted, pushing every subsequent paragraph down. Reserved space with `min-h-[calc(100vh-4rem)]` on the page container so the layout stays consistent between status transitions. Lighthouse perf score on `/remediate` desktop went **84 → 96**; CLS dropped out of the top issues entirely.
+
+### Fixed — Result sections appearing mid-animation
+
+Result sections (score banner, comparison table, issues, receipt) used `v-if="status?.status === 'complete'"` and appeared as soon as the server reported done — which could be roughly halfway through the local progress animator's walk through the four stages. New `isVisuallyComplete` computed (`status === 'complete' && !isVisuallyRunning`) gates all five result-page `v-if` guards so the progress arc finishes before any result content paints. One visual beat instead of two.
+
+### Commits
+
+- `8ec23a5` — feat(v1.20.0-pre): AGENTS.md, CLS fix, remediation filename dialog, PDF export, tech-details diagrams
+
 ## [1.19.0] — 2026-05-18
 
 ### Added — Fleet inventory integration
