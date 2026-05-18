@@ -39,210 +39,6 @@ const POLICY_VERSION = '1.0'
 const POLICY_EFFECTIVE = '2026-05-18'
 const TOOL_VERSION = '1.18.0'
 
-// Mermaid diagram sources kept as plain strings so they survive SSR
-// and remain readable in the no-JS fallback inside <MermaidDiagram>.
-
-const auditPipelineDiagram = `flowchart TD
-    A[Browser uploads PDF<br/>multipart/form-data over HTTPS] --> B[multer memoryStorage<br/>buffer in API memory only]
-    B --> C{Validate<br/>magic bytes = %PDF-<br/>file size ≤ 15 MB}
-    C -->|invalid| X[Reject<br/>HTTP 400]
-    C -->|valid| D[analyzePDF buffer]
-    D --> E[qpdf subprocess<br/>parses structure tree, language,<br/>outlines, images, tables]
-    D --> F[pdfjs library<br/>extracts text + metadata,<br/>per-page content order]
-    E --> G[scorer<br/>9 WCAG categories,<br/>weighted overall score]
-    F --> G
-    G --> H[HTTP response → client<br/>typically &lt; 10 s]
-    H --> I[Node garbage collector<br/>reclaims buffer]
-    I --> Z[PDF no longer exists<br/>in any form, anywhere]
-    style Z fill:#064e3b,stroke:#10b981,color:#d1fae5
-    style X fill:#7f1d1d,stroke:#ef4444,color:#fecaca`
-
-const remediationPipelineDiagram = `flowchart TD
-    A[Client uploads PDF<br/>multipart, re-upload required] --> B{Validate<br/>magic bytes, ≤ 50 MB,<br/>≤ 500 pages}
-    B -->|invalid| X1[Reject 400]
-    B -->|valid| C[Create remediation_jobs row<br/>status='pending'<br/>content_hash = SHA-256]
-    C --> D[Write work/input.pdf<br/>mode 0600]
-    D --> E[Spawn detached worker<br/>tsx src/jobs/remediate.ts]
-    E -.async respond 202.-> Client((Client polls<br/>/api/.../status))
-
-    E --> S1[Stage 1: PREPARING]
-    S1 --> S1a[qpdf --object-streams=disable<br/>→ normalized.pdf]
-    S1a --> S1b[DELETE input.pdf]
-    S1b --> S1c{fs.stat<br/>ENOENT?}
-    S1c -->|yes| V1[event: verified_absent]
-    S1c -->|no| FAIL[event: verify_failed<br/>compliance alert]
-
-    V1 --> S2[Stage 2: TAGGING]
-    S2 --> S2a[OpenDataLoader<br/>→ tagged.pdf]
-    S2a --> S2b[DELETE normalized.pdf]
-    S2b --> S2c{fs.stat<br/>ENOENT?}
-    S2c -->|yes| V2[event: verified_absent]
-    S2c -->|no| FAIL
-
-    V2 --> S3[Stage 3: VALIDATING]
-    S3 --> S3a[qpdf --check tagged.pdf]
-    S3a --> S3b[veraPDF --flavour ua1<br/>informational]
-    S3b -->|qpdf warnings| R[REJECT<br/>delete output<br/>mark failed]
-    S3b -->|valid| S4[Stage 4: COMPARING]
-
-    S4 --> S4a[Re-audit tagged.pdf]
-    S4a -->|score regresses<br/>Overall, Strict, or Practical| R
-    S4a -->|score holds or improves| F[Finalize output.pdf<br/>30-min TTL starts]
-
-    F --> D1[User downloads via<br/>single-use token]
-    F --> D2[30 min passes<br/>no download]
-    D1 --> DEL[Stream output then<br/>delete + verify ENOENT]
-    D2 --> DEL
-    DEL --> Z[All PDF artifacts gone<br/>events recorded]
-
-    R --> Z
-    FAIL --> Z
-
-    style Z fill:#064e3b,stroke:#10b981,color:#d1fae5
-    style R fill:#78350f,stroke:#f59e0b,color:#fde68a
-    style FAIL fill:#7f1d1d,stroke:#ef4444,color:#fecaca
-    style V1 fill:#064e3b,stroke:#10b981,color:#d1fae5
-    style V2 fill:#064e3b,stroke:#10b981,color:#d1fae5`
-
-const lifecycleSequenceDiagram = `sequenceDiagram
-    autonumber
-    participant C as Client
-    participant A as API process
-    participant W as Detached worker
-    participant FS as Filesystem
-    participant DB as remediation_events
-
-    C->>A: POST /api/remediate (multipart)
-    A->>FS: write work/input.pdf (mode 0600)
-    A->>DB: 'received' { filename, size, page_count }
-    A-->>C: 202 { jobId, downloadToken }
-    A->>W: spawn detached + unref
-
-    W->>DB: 'processing_started'
-    W->>FS: qpdf normalize → normalized.pdf
-    W->>DB: 'normalize_complete' { duration_ms }
-    W->>FS: unlink input.pdf
-    W->>FS: fs.stat input.pdf → ENOENT ✓
-    W->>DB: 'input_deleted' + 'verified_absent'
-
-    W->>FS: ODL convert → tagged.pdf
-    W->>DB: 'tagging_complete' { duration_ms }
-    W->>FS: unlink normalized.pdf + verify
-    W->>DB: 'intermediate_deleted' + 'verified_absent'
-
-    W->>FS: qpdf --check tagged.pdf
-    W->>DB: 'validation_passed'
-    W->>FS: verapdf --flavour ua1 (optional)
-    W->>DB: 'verapdf_passed' | 'verapdf_failed' | 'verapdf_unavailable'
-    W->>DB: 'output_ready' { input_score, output_score }
-
-    C->>A: GET /:jobId/status (polled every 2s)
-    A-->>C: { status: 'complete', scores }
-
-    C->>A: GET /:jobId/download?token=...
-    A->>A: setExpired BEFORE stream (single-use enforced)
-    A->>FS: createReadStream → pipe(res)
-    A-->>C: stream output.pdf
-    A->>FS: unlink output.pdf on stream 'close'
-    A->>FS: fs.stat output.pdf → ENOENT ✓
-    A->>DB: 'downloaded' + 'output_deleted' + 'verified_absent'
-
-    Note over DB: Append-only log retained 7 yrs<br/>(REMEDIATION.EVENT_LOG_RETENTION_DAYS)`
-
-// Network boundary — shows everything inside the dotted box stays on
-// the ICJIA-controlled server; the X marks indicate that no
-// AI-service traffic ever leaves the boundary. The only outbound call
-// is Mailgun for OTP delivery, which carries authentication codes
-// only — no PDF content.
-const networkBoundaryDiagram = `flowchart LR
-    Browser((User's<br/>browser)) -->|HTTPS upload| API
-
-    subgraph Server["ICJIA-controlled DigitalOcean server"]
-        API[API process<br/>Node.js + Express]
-        QPDF[qpdf<br/>local binary]
-        ODL[OpenDataLoader<br/>local Java]
-        VERA[veraPDF<br/>local Java]
-        DB[(SQLite<br/>local file)]
-        API <--> QPDF
-        API <--> ODL
-        API <--> VERA
-        API <--> DB
-    end
-
-    Server -.OTP code only.-> Mailgun{{Mailgun<br/>email relay}}
-
-    GPT[ChatGPT / GPT-4o]
-    Claude[Anthropic Claude]
-    Gemini[Google Gemini]
-    Copilot[Microsoft Copilot]
-
-    Server -.X NEVER X.-> GPT
-    Server -.X NEVER X.-> Claude
-    Server -.X NEVER X.-> Gemini
-    Server -.X NEVER X.-> Copilot
-
-    style Server fill:#0a1f0a,stroke:#10b981,stroke-width:2px
-    style GPT fill:#7f1d1d,stroke:#ef4444,color:#fecaca
-    style Claude fill:#7f1d1d,stroke:#ef4444,color:#fecaca
-    style Gemini fill:#7f1d1d,stroke:#ef4444,color:#fecaca
-    style Copilot fill:#7f1d1d,stroke:#ef4444,color:#fecaca`
-
-// Retention timeline — every storage location plotted on a log-scale
-// timeline so the eye immediately sees that PDF content lives only for
-// seconds-to-minutes, while content-free metadata (the audit trail)
-// is what persists long-term. Mermaid Gantt format.
-const retentionTimelineDiagram = `gantt
-    title Maximum retention by data category (log scale; PDF content vs metadata)
-    dateFormat X
-    axisFormat %s
-
-    section PDF content (deleted ASAP)
-    Audited PDF (memory only)            :a1, 0, 10s
-    Remediation input (scratch)          :a2, 0, 5s
-    Normalized intermediate              :a3, 0, 5s
-    Remediated output (until download)   :a4, 0, 1800s
-
-    section Metadata (content-free)
-    OTP code (single-use)                :b1, 0, 600s
-    Shared report (audit results only)   :b2, 0, 1296000s
-    Remediation job row                  :b3, 0, 2592000s
-    Lifecycle audit trail                :b4, 0, 220752000s
-    Plain audit log                      :b5, 0, 220752000s`
-
-// Red/blue team concept — flowchart showing the structure of a
-// pre-release security audit, for non-technical readers.
-const redBlueTeamDiagram = `flowchart TD
-    Start([Pre-release security review]) --> Split
-
-    Split{{Two perspectives}}
-
-    Split --> Red[RED TEAM<br/>thinks like an attacker<br/>what could go wrong?]
-    Split --> Blue[BLUE TEAM<br/>thinks like a defender<br/>what protections exist?]
-
-    Red --> RV["Lists attack vectors:<br/>• Malicious uploads<br/>• Memory exhaustion<br/>• Race conditions<br/>• Path traversal<br/>• Information disclosure<br/>• ..."]
-    Blue --> BV["Lists defenses:<br/>• Magic-byte validation<br/>• Size + page caps<br/>• File permissions<br/>• Token entropy<br/>• Audit trail<br/>• ..."]
-
-    RV --> Compare{Match vectors<br/>to defenses}
-    BV --> Compare
-
-    Compare -->|attack covered| Pass[Defense documented]
-    Compare -->|gap found| Finding[FINDING]
-
-    Finding --> Severity{Severity rating}
-    Severity -->|P0 critical| Fix0[Block release until fixed]
-    Severity -->|P1 serious| Fix1[Fix before release]
-    Severity -->|P2 moderate| Doc[Document + mitigate]
-    Severity -->|P3 minor| Track[Track for later]
-
-    Fix0 --> Release([Release tagged<br/>+ findings published])
-    Fix1 --> Release
-    Doc --> Release
-    Track --> Release
-    Pass --> Release
-
-    style Red fill:#7f1d1d,stroke:#ef4444,color:#fecaca
-    style Blue fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe
-    style Release fill:#064e3b,stroke:#10b981,color:#d1fae5`
 </script>
 
 <template>
@@ -558,13 +354,6 @@ HTTP response → client (typically &lt; 10 seconds total)
 Node.js garbage collector reclaims the buffer
 (file no longer exists in any form, anywhere)</div>
 
-      <div class="mt-4">
-        <MermaidDiagram
-          :source="auditPipelineDiagram"
-          title="Audit pipeline — visual flow"
-          desc="A flowchart of the audit pipeline. The uploaded PDF is held in memory only, validated, analyzed in parallel by qpdf and pdfjs, scored across 9 WCAG categories, and the buffer is discarded as soon as the HTTP response is sent. The PDF never touches disk."
-        />
-      </div>
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         Once the HTTP response has been sent, the in-memory buffer is
         unreferenced and garbage-collected by the Node.js runtime in the next
@@ -659,14 +448,6 @@ Client downloads via single-use token:
 [Emit: 'expired', 'output_deleted', 'verified_absent']
 
 ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
-
-      <div class="mt-4">
-        <MermaidDiagram
-          :source="remediationPipelineDiagram"
-          title="Remediation pipeline — visual flow"
-          desc="A flowchart of the remediation pipeline. Four stages — preparing, tagging, validating, comparing. After each stage, intermediate files are deleted and the deletion is verified by an fs.stat ENOENT check (shown as green 'verified_absent' nodes). Any validation failure or score regression rejects the output. Successful outputs are held only until first download or 30-minute TTL, then deleted with verification."
-        />
-      </div>
 
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         <strong>Key invariants of the remediation pipeline:</strong>
@@ -777,13 +558,6 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
         </p>
       </div>
 
-      <div class="mt-5">
-        <MermaidDiagram
-          :source="networkBoundaryDiagram"
-          title="Network boundary — what enters and leaves the server"
-          desc="A flowchart showing the user's browser uploading a PDF into the ICJIA-controlled server (the green-bordered box). Inside the box, the API talks to qpdf, OpenDataLoader, veraPDF, and SQLite — all local. The only outbound traffic is Mailgun for OTP-code delivery (no PDF content). All AI services — ChatGPT/GPT-4o, Claude, Gemini, Copilot — are explicitly outside the boundary with 'X NEVER X' arrows indicating no data ever crosses to them."
-        />
-      </div>
     </section>
 
     <!-- 5. Tools -->
@@ -975,14 +749,6 @@ CREATE TABLE remediation_jobs (
         <span>error</span>
       </div>
 
-      <div class="mt-4 mb-5">
-        <MermaidDiagram
-          :source="lifecycleSequenceDiagram"
-          title="Lifecycle audit trail — sequence diagram"
-          desc="A sequence diagram showing every message exchange between Client, API process, detached Worker, Filesystem, and the remediation_events database during a successful remediation + download. Every file deletion is followed by an fs.stat verification (ENOENT) and a 'verified_absent' event in the audit log. The audit trail is append-only and retained for 7 years by default."
-        />
-      </div>
-
       <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
         <strong>The <code class="text-xs font-mono">verified_absent</code>
         event is the critical compliance signal.</strong>
@@ -1153,14 +919,6 @@ CREATE TABLE remediation_jobs (
           </tbody>
         </table>
       </div>
-      <div class="mt-5">
-        <MermaidDiagram
-          :source="retentionTimelineDiagram"
-          title="Retention timeline at a glance"
-          desc="Gantt chart showing maximum retention for each data category. PDF content (top bars: audited PDF, remediation input, normalized intermediate, remediated output) lives only seconds to a maximum of 30 minutes. Metadata only (lower bars: OTP codes, shared reports, job rows, lifecycle audit trail, plain audit log) persists for longer windows — up to 7 years for the audit trail — but never contains PDF content."
-        />
-      </div>
-
       <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed">
         Retention periods marked "configurable" can be adjusted in the source
         configuration file
@@ -1419,13 +1177,6 @@ CREATE TABLE remediation_jobs (
           auditor, this section IS the documentation of that diligence.
         </p>
 
-        <div class="mt-5">
-          <MermaidDiagram
-            :source="redBlueTeamDiagram"
-            title="How a red/blue team audit works"
-            desc="A flowchart of the red/blue team audit process. Two perspectives — red team (attacker mindset, lists attack vectors) and blue team (defender mindset, lists protections) — meet to match each vector against existing defenses. Where a defense already exists, the protection is documented. Where a gap is found, a finding is created with a severity rating (P0 critical, P1 serious, P2 moderate, P3 minor) and an appropriate remediation path before the release is tagged."
-          />
-        </div>
       </div>
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
