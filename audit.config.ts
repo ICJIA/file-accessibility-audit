@@ -793,7 +793,11 @@ export const REMEDIATION = {
    * On Ubuntu/DigitalOcean with `apt install openjdk-17-jre-headless`,
    * leave null — `java` is already on PATH.
    *
+   * Reads from env: REMEDIATION_JAVA_PATH overrides this. For macOS
+   * local dev:
+   *   REMEDIATION_JAVA_PATH=/opt/homebrew/opt/openjdk@17/bin/java
+   *
    * SAFE TO CHANGE: Yes.
    */
-  JAVA_PATH: null as string | null,
+  JAVA_PATH: (process.env.REMEDIATION_JAVA_PATH || null) as string | null,
 } as const;
