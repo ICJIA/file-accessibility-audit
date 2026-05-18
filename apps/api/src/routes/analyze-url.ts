@@ -15,10 +15,27 @@ export const FETCH_TIMEOUT_MS = 30_000
 // SSRF vector. Only ICJIA-owned domains are in the default set; operators can
 // extend via the ANALYZE_URL_ALLOWED_HOSTS env var (comma-separated hostnames).
 
+// Each entry matches the host exactly OR any subdomain of it (the
+// matcher below uses `host === ah || host.endsWith('.' + ah)`). So
+// a bare 'illinois.gov' entry covers illinois.gov itself plus every
+// state subdomain (`icjia.illinois.gov`, `idph.illinois.gov`, etc.).
+// Operators can extend at runtime via the ANALYZE_URL_ALLOWED_HOSTS
+// env var (comma-separated hostnames).
 const DEFAULT_ALLOWED_HOSTS = [
+  // Illinois state government — covers every *.illinois.gov agency
+  // hosting PDFs (huge fleet surface).
+  'illinois.gov',
+  // ICJIA owned/operated domains
+  'icjia.cloud',
+  'icjia.app',
+  'icjia-api.cloud',
+  // Partner / program domains
+  'ilheals.com',
+  // Specific subdomains kept for documentation; the bare-domain
+  // entries above already cover them. Listed so operators reading
+  // the source can see what's known-good without grepping logs.
   'icjia.illinois.gov',
   'dvfr.icjia-api.cloud',
-  'icjia-api.cloud',
   'i2i.icjia-api.cloud',
   'vpp.icjia-api.cloud',
   'infonet.icjia-api.cloud',

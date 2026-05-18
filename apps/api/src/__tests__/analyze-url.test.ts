@@ -45,9 +45,13 @@ vi.mock('../services/pdfAnalyzer.js', () => ({
 // ---------------------------------------------------------------------------
 
 const DEFAULT_ALLOWED_HOSTS = [
+  'illinois.gov',
+  'icjia.cloud',
+  'icjia.app',
+  'icjia-api.cloud',
+  'ilheals.com',
   'icjia.illinois.gov',
   'dvfr.icjia-api.cloud',
-  'icjia-api.cloud',
   'i2i.icjia-api.cloud',
   'vpp.icjia-api.cloud',
   'infonet.icjia-api.cloud',
@@ -217,6 +221,29 @@ describe('isAllowedUrl: allowlist enforcement', () => {
   it('accepts a host added via the env-var extension', () => {
     const allowed = getAllowedHosts('partner.org')
     expect(isAllowedUrl('https://partner.org/a.pdf', allowed).ok).toBe(true)
+  })
+
+  it('accepts any *.illinois.gov subdomain (covers state agencies)', () => {
+    expect(isAllowedUrl('https://idph.illinois.gov/file.pdf').ok).toBe(true)
+    expect(isAllowedUrl('https://www.illinois.gov/file.pdf').ok).toBe(true)
+    expect(isAllowedUrl('https://illinois.gov/file.pdf').ok).toBe(true)
+  })
+
+  it('accepts any *.icjia.cloud and *.icjia.app subdomain', () => {
+    expect(isAllowedUrl('https://admin.icjia.cloud/file.pdf').ok).toBe(true)
+    expect(isAllowedUrl('https://audit.icjia.app/file.pdf').ok).toBe(true)
+  })
+
+  it('accepts ilheals.com and its subdomains', () => {
+    expect(isAllowedUrl('https://ilheals.com/file.pdf').ok).toBe(true)
+    expect(isAllowedUrl('https://www.ilheals.com/file.pdf').ok).toBe(true)
+  })
+
+  it('rejects look-alike domains that only contain illinois.gov as a substring', () => {
+    // 'illinois.gov.evil.com' must NOT match 'illinois.gov'
+    expect(isAllowedUrl('https://illinois.gov.evil.com/file.pdf').ok).toBe(false)
+    // 'fakeillinois.gov' must NOT match 'illinois.gov' (no subdomain dot)
+    expect(isAllowedUrl('https://fakeillinois.gov/file.pdf').ok).toBe(false)
   })
 })
 

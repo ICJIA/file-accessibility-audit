@@ -332,16 +332,17 @@ Auth required — send the session cookie or a Bearer PAT (same as `/api/analyze
 
 ### URL allowlist
 
-Only ICJIA-domain URLs are accepted by default:
+Only ICJIA-affiliated and Illinois state government URLs are accepted by default. Each entry matches the host exactly **or** any subdomain of it.
 
-| Allowed host | Matches |
+| Allowed host | Coverage |
 | --- | --- |
-| `icjia.illinois.gov` | exact |
-| `icjia-api.cloud` | exact and all subdomains |
-| `dvfr.icjia-api.cloud` | explicit subdomain |
-| `i2i.icjia-api.cloud` | explicit subdomain |
-| `vpp.icjia-api.cloud` | explicit subdomain |
-| `infonet.icjia-api.cloud` | explicit subdomain |
+| `illinois.gov` | every Illinois state agency subdomain (e.g., `icjia.illinois.gov`, `idph.illinois.gov`, `doit.illinois.gov`) |
+| `icjia.cloud` | `*.icjia.cloud` (ICJIA-owned services) |
+| `icjia.app` | `*.icjia.app` (production `audit.icjia.app` and siblings) |
+| `icjia-api.cloud` | `*.icjia-api.cloud` (`agency`, `dvfr`, `i2i`, `vpp`, `infonet`, etc.) |
+| `ilheals.com` | `*.ilheals.com` (program partner) |
+
+Look-alike domains are rejected — `illinois.gov.evil.com` does *not* match `illinois.gov` (no dot before the allowed host) and `fakeillinois.gov` does not match either (no subdomain separator).
 
 Operators can extend the list without a code change via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable (comma-separated hostnames).
 
