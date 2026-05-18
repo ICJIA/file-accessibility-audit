@@ -191,10 +191,12 @@
         </div>
 
         <!-- Auto-Remediate (visible right under the score; component
-             self-hides on score ≥ 90 or when REMEDIATION feature is off) -->
+             self-hides on score ≥ 90 or when REMEDIATION feature is off).
+             In batch mode this targets the currently-active tab — each
+             tab can be remediated independently. -->
         <div class="mb-6 flex justify-center">
           <RemediateButton
-            :file="singleFile"
+            :file="activeFile"
             :input-score="result?.overallScore ?? null"
           />
         </div>
@@ -2940,6 +2942,16 @@ const result = computed(() => {
     return activeItem.value?.result || null;
   }
   return singleResult.value;
+});
+
+// Active File — used by RemediateButton. In batch mode each tab carries
+// its own File; the button targets whichever tab is currently selected
+// so the user can remediate each batch entry independently.
+const activeFile = computed<File | null>(() => {
+  if (isBatchMode.value) {
+    return activeItem.value?.file || null;
+  }
+  return singleFile.value;
 });
 
 const selectedScoreMode = ref<ScoringMode>("strict");
