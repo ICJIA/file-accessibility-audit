@@ -1387,7 +1387,7 @@
             d="M8.25 4.5l7.5 7.5-7.5 7.5"
           />
         </svg>
-        Technical Details: How This Tool Analyzes PDFs
+        Technical Details: How This Tool Analyzes & Remediates PDFs
       </summary>
       <div
         class="px-3 sm:px-6 pb-6 space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border)]"
@@ -2528,6 +2528,408 @@
             combination means the document is an unremediated scanned image that
             screen readers cannot access at all.
           </p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- PDF AUTO-REMEDIATION (developer-facing technical reference)  -->
+        <!-- ============================================================ -->
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            PDF Auto-Remediation: Pipeline Overview
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            As of <strong>v1.18.0</strong>, the tool also exposes an optional
+            PDF auto-remediation feature behind the
+            <code class="text-xs font-mono">REMEDIATION_ENABLED=true</code> env
+            flag. When enabled, the audit results page surfaces an
+            <em>Auto-Remediate this PDF</em> button next to the score. Clicking
+            it spawns a detached worker that runs a four-stage pipeline,
+            validates the output, and either serves the remediated file to the
+            user (single-use download, deleted on stream close) or rejects it
+            and surfaces a fallback message. The user re-uploads to remediate;
+            no PDF is cached between the audit and remediation stages.
+          </p>
+          <div
+            class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+          >POST /api/remediate (multipart PDF) →
+  [magic-byte check] → [page count cap (500)] → [pre-flight audit] →
+  [job row created, sha256 content_hash recorded] →
+  [spawn detached child: tsx src/jobs/remediate.ts &lt;jobId&gt;] →
+  ◄ { jobId, downloadToken } (HTTP 202)
+
+Worker pipeline:
+  [Stage 1: preparing] qpdf --object-streams=disable input → normalized
+  [Stage 2: tagging]   OpenDataLoader convert(normalized) → tagged-pdf
+  [Stage 3: validating] qpdf --check tagged → validity verdict
+                        verapdf --flavour ua1 --format json tagged → conformance verdict
+  [Stage 4: comparing] re-audit tagged → output_audit
+                        guard: reject if Overall|Strict|Practical regress
+
+Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Tool 3: OpenDataLoader PDF (Auto-Tagging)
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            <a
+              href="https://github.com/opendataloader-project/opendataloader-pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >OpenDataLoader PDF</a
+            >
+            (ODL) is an Apache-2.0-licensed Java application that takes an
+            untagged PDF and writes a Tagged PDF with a populated
+            <code class="text-xs font-mono">StructTreeRoot</code>. It is the
+            first open-source tool to offer this transformation; it ranks #1
+            overall (0.907) in 2026 PDF-extraction benchmarks across reading
+            order, table extraction, and heading detection. ICJIA maintains a
+            fork at
+            <a
+              href="https://github.com/ICJIA/opendataloader-pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >ICJIA/opendataloader-pdf</a
+            >
+            as a hedge against future license changes upstream.
+          </p>
+          <ul class="space-y-1 text-xs text-[var(--text-muted)] mb-3">
+            <li>
+              <strong>Invocation:</strong>
+              <code class="font-mono"
+                >@opendataloader/pdf</code
+              >
+              v2.4.3 npm wrapper around a bundled JAR
+              (<code class="font-mono">lib/opendataloader-pdf-cli.jar</code>).
+            </li>
+            <li>
+              <strong>Runtime:</strong> OpenJDK 17+
+              (<code class="font-mono">java -version</code> ≥ 11 required;
+              install via
+              <code class="font-mono">apt install openjdk-17-jre-headless</code>
+              on Ubuntu 22.x).
+            </li>
+            <li>
+              <strong>JVM heap cap:</strong>
+              <code class="font-mono">JAVA_TOOL_OPTIONS=-Xmx768m</code>
+              set per-invocation by the worker as a safety rail against
+              pathological documents.
+            </li>
+            <li>
+              <strong>Convert options used:</strong>
+              <code class="font-mono"
+                >{ outputDir, format: 'tagged-pdf', quiet: true }</code
+              >. Hybrid mode (docling-fast + SmolVLM) is deliberately not
+              used in v1 — see the spike report for why.
+            </li>
+            <li>
+              <strong>Wall-clock timeout:</strong>
+              <code class="font-mono">REMEDIATION.WORKER_TIMEOUT_MS</code>
+              (5 min default); the JVM child is killed on overrun.
+            </li>
+          </ul>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>Why a Java tool</strong> in a Node.js codebase: every other
+            open-source PDF/UA-targeted auto-tagger is either commercial
+            (Apryse, Adobe PDF Services API), Java-only, or both. The
+            tradeoff is one additional system dependency (JRE) on the deploy
+            box in exchange for free, locally-hosted auto-tagging with no
+            outbound API calls.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            qpdf Preprocessing: <code class="text-xs font-mono">--object-streams=disable</code>
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            Stage 1 of the remediation pipeline pipes the input through
+            <code class="text-xs font-mono"
+              >qpdf --object-streams=disable INPUT NORMALIZED</code
+            >
+            before ODL ever touches it. This decompresses PDF 1.5+ compressed
+            object streams to traditional uncompressed objects. Without this
+            preprocessing, ODL's Java PDF writer corrupts the output xref
+            table on certain inputs — specifically, tagged PDFs emitted by
+            modern Adobe InDesign (18.x) and Microsoft Word 365.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            This bug was discovered during the OpenDataLoader feasibility spike
+            on the
+            <code class="text-xs font-mono">FY_22_ICJIA_Annual_Report</code>
+            (InDesign 18.2) and
+            <code class="text-xs font-mono">2022 SFS Process Evaluation Report</code>
+            (Word 365) fixtures. Without preprocessing, ODL emits a PDF that
+            <code class="text-xs font-mono">qpdf --check</code> reports as
+            damaged: <em>xref num N not found</em>,
+            <em>Invalid object stream</em>,
+            <em>Catalog object is wrong type (null)</em>. With preprocessing,
+            both PDFs round-trip cleanly and the score moves from F to D-grade
+            improvement. See
+            <code class="font-mono">docs/spike-remediation-results.md</code>
+            for the full reproducer + results.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Output Validation: qpdf --check + veraPDF
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            Every remediated PDF passes through two independent validators
+            before the worker is allowed to serve it. The output is rejected
+            (job marked <code class="font-mono">failed</code>, file deleted)
+            on any failure, even though the upstream pipeline succeeded.
+          </p>
+          <ul class="space-y-1 text-xs text-[var(--text-muted)] mb-3">
+            <li>
+              <strong
+                ><code class="font-mono">qpdf --check &lt;output&gt;</code
+                >:</strong
+              >
+              parses the entire PDF structure and reports warnings on damaged
+              xref tables, malformed object streams, broken catalogs, etc.
+              The worker treats <em>"operation succeeded with warnings"</em>
+              as a failure — better to discard a borderline file than serve
+              a damaged one.
+            </li>
+            <li>
+              <strong
+                ><code class="font-mono"
+                  >verapdf --flavour ua1 --format json &lt;output&gt;</code
+                >:</strong
+              >
+              runs the
+              <a
+                href="https://verapdf.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                >veraPDF</a
+              >
+              open-source PDF/UA-1 conformance validator (from the PDF
+              Association + Dual Lab). Configured via
+              <code class="font-mono">REMEDIATION_VERAPDF_PATH</code>;
+              optional — when not configured, the receipt records
+              <em>verapdf_unavailable</em> and skips this step. veraPDF's
+              verdict is <strong>informational, not blocking</strong>: even
+              a PDF that veraPDF flags as non-conformant is still served if
+              the audit score didn't regress. The result page surfaces this
+              honestly in the IITAA compliance disclaimer.
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Regression Guards
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            After successful tagging + validation, the worker re-audits the
+            output and compares against the pre-flight audit stored at job
+            creation time. Three independent comparisons run:
+          </p>
+          <div
+            class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+          >if (output.overallScore                                  &lt; input.overallScore                                  ||
+    output.scoreProfiles.strict.overallScore             &lt; input.scoreProfiles.strict.overallScore       ||
+    output.scoreProfiles.remediation.overallScore        &lt; input.scoreProfiles.remediation.overallScore) {
+  recordEvent(jobId, 'validation_failed', { regressed_profiles: [...] })
+  await deleteAndVerify(jobId, taggedPath, 'cleanup')
+  setFailed(jobId, `auto-remediation regressed: ${regressed.join(', ')}`)
+  return
+}</div>
+          <p class="text-[var(--text-muted)] mt-3">
+            <strong>Why all three:</strong> the headline overall score uses
+            whichever profile is the active scoring mode, which can mask a
+            regression on the other profile. Checking both profiles plus the
+            displayed overall ensures the user never sees a metric that
+            decreased. The
+            <code class="font-mono">validation_failed</code> event payload
+            records all six numbers (input/output × overall + strict +
+            practical) plus the
+            <code class="font-mono">regressed_profiles</code> array, so any
+            auditor query can identify exactly which profile failed and by
+            how much.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Lifecycle Audit Trail: <code class="text-xs font-mono">remediation_events</code>
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            Every remediation produces an append-only series of timestamped
+            lifecycle events in the <code class="font-mono">remediation_events</code>
+            SQLite table (<code class="font-mono">apps/api/data/audit.db</code>).
+            The table is the canonical source for the receipt displayed on
+            the result page, the auditor evidence trail, and any future
+            compliance reporting. PDF content is never stored — only structural
+            metadata.
+          </p>
+          <div
+            class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+          >CREATE TABLE remediation_events (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id        TEXT    NOT NULL,
+  event         TEXT    NOT NULL,
+  occurred_at   INTEGER NOT NULL,
+  details       TEXT,     -- JSON, content-free metadata only
+  FOREIGN KEY (job_id) REFERENCES remediation_jobs(id)
+);</div>
+          <p class="text-[var(--text-muted)] mt-3 mb-2">
+            <strong>Event vocabulary (closed set, typed at compile time):</strong>
+          </p>
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-[var(--text-muted)] font-mono">
+            <li>received</li>
+            <li>processing_started</li>
+            <li>normalize_complete</li>
+            <li>input_deleted</li>
+            <li>tagging_complete</li>
+            <li>intermediate_deleted</li>
+            <li>validation_passed</li>
+            <li>validation_failed</li>
+            <li>verapdf_passed</li>
+            <li>verapdf_failed</li>
+            <li>verapdf_unavailable</li>
+            <li>output_ready</li>
+            <li>downloaded</li>
+            <li>output_deleted</li>
+            <li>verified_absent</li>
+            <li>verify_failed</li>
+            <li>expired</li>
+            <li>error</li>
+          </ul>
+          <p class="text-[var(--text-muted)] mt-3">
+            The <code class="font-mono">verified_absent</code> event is the
+            critical compliance signal. It is emitted after the worker (or
+            cleanup sweep, or download handler) calls
+            <code class="font-mono">fs.unlink</code> on a job artifact AND
+            <code class="font-mono">fs.stat</code> returns
+            <code class="font-mono">ENOENT</code>. The details payload
+            contains a SHA-256 hash of the deleted path string (not file
+            content) so auditors can reconcile event entries against expected
+            paths without storing the paths themselves in the log.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Privacy & Retention (Remediation-Specific)
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            The remediation pipeline maintains the same posture as the audit
+            pipeline (no PDF content persisted) with three additional rules:
+          </p>
+          <ol class="space-y-2 text-xs text-[var(--text-muted)] list-decimal list-inside">
+            <li>
+              <strong>No between-stage cache.</strong> The just-audited PDF
+              is <em>not</em> cached on disk waiting for the user to click
+              Remediate. Clicking Remediate prompts a re-upload. UX cost:
+              one extra upload. Privacy cost of caching: declined.
+            </li>
+            <li>
+              <strong>Inputs deleted between pipeline stages.</strong> The
+              worker writes
+              <code class="font-mono">work/input.pdf</code>, normalizes it
+              to <code class="font-mono">work/normalized.pdf</code>, then
+              <code class="font-mono">deleteAndVerify(work/input.pdf)</code>.
+              Once ODL produces
+              <code class="font-mono">work/odl/&lt;name&gt;_tagged.pdf</code>,
+              the normalized intermediate is deleted. At any moment, at most
+              one copy of the PDF exists on disk per job. The entire scratch
+              dir is wiped in a <code class="font-mono">finally</code> block
+              regardless of pipeline outcome.
+            </li>
+            <li>
+              <strong>Output deleted on first download.</strong>
+              <code class="font-mono">GET /api/remediate/:id/download</code>
+              streams via <code class="font-mono">createReadStream + pipe</code>
+              (no memory buffering); the response
+              <code class="font-mono">'close'</code> handler triggers
+              <code class="font-mono">deleteAndVerify(outputPath, 'download')</code>.
+              The job row is marked
+              <code class="font-mono">status='expired'</code> <em>before</em>
+              the stream begins, so a concurrent second download request
+              sees <code class="font-mono">410 Gone</code>. Files not
+              downloaded within <code class="font-mono">REMEDIATION.OUTPUT_TTL_MS</code>
+              (30 min default) are deleted by the cleanup sweep.
+            </li>
+          </ol>
+          <p class="text-[var(--text-muted)] mt-3">
+            Filesystem permissions are
+            <code class="font-mono">0700</code> on
+            <code class="font-mono">apps/api/data/remediation/</code> and
+            <code class="font-mono">0600</code> on output files. Output
+            filenames are
+            <code class="font-mono">&lt;jobId&gt;.pdf</code> where
+            <code class="font-mono">jobId</code> is a UUIDv4 (122 bits of
+            entropy) — not derivable from the user's input. The
+            <code class="font-mono">remediation_events</code> rows are
+            retained per
+            <code class="font-mono">REMEDIATION.EVENT_LOG_RETENTION_DAYS</code>
+            (7 years default — typical state-agency records-retention
+            schedule); the
+            <code class="font-mono">remediation_jobs</code> row is purged
+            separately at
+            <code class="font-mono">REMEDIATION.JOB_ROW_RETENTION_DAYS</code>
+            (30 days default).
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
+            Deploy Topology (Ubuntu 22.04 + PM2 + Nginx + DigitalOcean)
+          </h3>
+          <p class="text-[var(--text-muted)] mb-3">
+            The API spawns the worker via
+            <code class="font-mono"
+              >spawn(process.execPath, ['--import', 'tsx', WORKER_PATH, jobId], { detached: true, stdio: 'ignore' }).unref()</code
+            >.
+            PM2 does not manage the worker — it's a transient child of the
+            API process, killed by the OS when the pipeline completes or
+            crashes. Worker stdout is suppressed; all signals flow through
+            the database (<code class="font-mono">remediation_jobs.status</code>,
+            <code class="font-mono">progress_pct</code>,
+            <code class="font-mono">step</code>) which the frontend polls
+            via
+            <code class="font-mono">GET /api/remediate/:id/status</code>
+            every 2 seconds.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            <strong>System packages required on the deploy box:</strong>
+            <code class="font-mono">qpdf ≥ 10.x</code>,
+            <code class="font-mono">openjdk-17-jre-headless</code>, and
+            (optional) the veraPDF CLI from
+            <a
+              href="https://verapdf.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >verapdf.org</a
+            >. The
+            <code class="font-mono">rebuild.sh</code> preflight verifies all
+            three on every deploy and emits warnings if any are missing or
+            below required version. The feature flag
+            <code class="font-mono">REMEDIATION_ENABLED</code> is forwarded
+            from the parent shell through
+            <code class="font-mono">ecosystem.config.cjs</code>'s env block,
+            so the deploy idiom is:
+          </p>
+          <div
+            class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+          >sudo apt install -y openjdk-17-jre-headless     # one-time
+echo 'REMEDIATION_ENABLED=true' | sudo tee -a /etc/environment
+source /etc/environment
+./rebuild.sh                                     # pulls, builds, pm2 restart
+
+# Rollback to audit-only without redeploying:
+sudo sed -i '/^REMEDIATION_ENABLED=/d' /etc/environment
+pm2 restart ecosystem.config.cjs</div>
         </div>
 
         <!-- Limitations -->
