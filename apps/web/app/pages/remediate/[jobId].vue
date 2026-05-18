@@ -31,9 +31,27 @@ interface CategoryPair {
   findings: string[]
 }
 
+// Mode-aware categories: when the user toggles the After ScoreCard's
+// scoring profile, the lists below use the matching profile's
+// categories so severities/scores stay consistent with what they're
+// looking at.
+const afterCategories = computed<CategoryResult[]>(() => {
+  const out = receipt.value?.outputAudit
+  if (!out) return []
+  const profile = (out.scoreProfiles as Record<string, { categories?: CategoryResult[] }> | undefined)?.[afterMode.value]
+  return profile?.categories ?? out.categories ?? []
+})
+
+const beforeCategories = computed<CategoryResult[]>(() => {
+  const inp = receipt.value?.inputAudit
+  if (!inp) return []
+  const profile = (inp.scoreProfiles as Record<string, { categories?: CategoryResult[] }> | undefined)?.[afterMode.value]
+  return profile?.categories ?? inp.categories ?? []
+})
+
 const categoryPairs = computed<CategoryPair[]>(() => {
-  const input = receipt.value?.inputAudit?.categories ?? []
-  const output = receipt.value?.outputAudit?.categories ?? []
+  const input = beforeCategories.value
+  const output = afterCategories.value
   const byId = new Map<string, CategoryResult>()
   for (const c of input) byId.set(c.id, c)
   return output.map((after) => {
@@ -53,6 +71,67 @@ const categoryPairs = computed<CategoryPair[]>(() => {
     }
   })
 })
+
+// Outstanding issues by severity (after remediation). Severity comes
+// from the audit's getSeverity() and lives on each CategoryResult.
+const outstandingCritical = computed(() =>
+  afterCategories.value.filter((c) => c.severity === 'Critical'),
+)
+const outstandingSerious = computed(() =>
+  afterCategories.value.filter((c) => c.severity === 'Serious'),
+)
+const outstandingModerate = computed(() =>
+  afterCategories.value.filter((c) => c.severity === 'Moderate'),
+)
+const outstandingCount = computed(
+  () =>
+    outstandingCritical.value.length +
+    outstandingSerious.value.length +
+    outstandingModerate.value.length,
+)
+
+// Acrobat next-steps hints per category id. Drawn from the actual
+// Acrobat menu paths so users know where to click. Generic fallback
+// at the end for categories not specifically mapped.
+const acrobatStepsByCategory: Record<string, string> = {
+  alt_text:
+    'Tools → Accessibility → Set Alternate Text. Walk through each figure and add a description, or mark decorative images as artifacts.',
+  reading_order:
+    'Tools → Accessibility → Reading Order. Verify the order matches how a sighted user would read; reorder blocks if needed.',
+  heading_structure:
+    'Open the Tags panel (View → Show/Hide → Navigation Panes → Tags). Verify <H1>, <H2>, etc. are present and nested correctly.',
+  table_markup:
+    'In the Tags panel, expand each <Table> and confirm <TH> cells have a Scope attribute (Row or Column). Add via right-click → Properties → Tag.',
+  title_language:
+    'File → Properties → Description tab (Title field). For language: File → Properties → Advanced → Language.',
+  bookmarks:
+    'View → Show/Hide → Navigation Panes → Bookmarks. Add bookmarks via the menu or by right-clicking text and choosing "Add Bookmark".',
+  form_accessibility:
+    'Tools → Prepare Form. Right-click each field → Properties → set Tooltip and Tab Order.',
+  pdf_ua_compliance:
+    'Run Tools → Print Production → Preflight → "Verify compliance with PDF/UA-1." Fix any reported issues.',
+  link_quality:
+    'Right-click links → Edit Hyperlink. Use descriptive text in the tag (Tags panel) rather than "click here".',
+  text_extractability:
+    'If the file is scanned: Tools → Scan & OCR → Recognize Text → In This File. Otherwise verify selectable text is correct.',
+  color_contrast:
+    'Adobe Acrobat does not enforce contrast directly. Use the original authoring tool (Word, InDesign) to adjust colors, or fix via a third-party color contrast checker.',
+}
+
+function acrobatStepFor(catId: string): string {
+  return (
+    acrobatStepsByCategory[catId] ??
+    'Open the Tags panel and verify the structure is meaningful; re-run Tools → Accessibility → Accessibility Checker.'
+  )
+}
+
+// Compact "what we fixed" summary for the After card (a short list,
+// distinct from the longer category breakdown sections below).
+const fixedSummaryItems = computed(() =>
+  categoryPairs.value
+    .filter((p) => p.delta !== null && p.delta >= 10)
+    .sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0)),
+)
 
 const fixedCategories = computed(() =>
   categoryPairs.value.filter(
@@ -320,6 +399,157 @@ function labelForEvent(name: string): string {
             v-model:selected-mode="afterMode"
             :result="receipt.outputAudit"
           />
+
+          <!-- Outstanding-issues callout + expandable detail -->
+          <div class="mt-6 pt-6 border-t border-emerald-700/30">
+            <!-- Inline summary -->
+            <p
+              v-if="outstandingCount === 0"
+              class="text-sm text-emerald-300 text-center"
+            >
+              ✓ No critical, serious, or moderate issues remain on the selected
+              scoring profile.
+            </p>
+            <p v-else class="text-sm text-amber-300 text-center">
+              <strong>{{ outstandingCount }}</strong>
+              {{ outstandingCount === 1 ? 'issue still needs attention' : 'issues still need attention' }}
+              ({{ outstandingCritical.length }} critical,
+              {{ outstandingSerious.length }} serious,
+              {{ outstandingModerate.length }} moderate).
+            </p>
+
+            <!-- Expandable detail -->
+            <details class="mt-4 group">
+              <summary
+                class="cursor-pointer text-sm font-medium text-emerald-200 hover:text-emerald-100 select-none text-center list-none flex items-center justify-center gap-2"
+              >
+                <span class="group-open:hidden">Show details: what was fixed, what's left, Adobe Acrobat next steps ▾</span>
+                <span class="hidden group-open:inline">Hide details ▴</span>
+              </summary>
+
+              <div class="mt-6 space-y-6">
+                <!-- What was fixed (compact) -->
+                <div v-if="fixedSummaryItems.length > 0">
+                  <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-2">
+                    Fixed this run
+                  </h3>
+                  <ul class="text-sm space-y-1">
+                    <li
+                      v-for="item in fixedSummaryItems"
+                      :key="item.id"
+                      class="flex items-baseline gap-3"
+                    >
+                      <span class="flex-1">{{ item.label }}</span>
+                      <span class="font-mono text-[var(--text-muted)] text-xs">
+                        {{ item.before === null ? 'N/A' : item.before.toFixed(0) }} → {{ item.after?.toFixed(0) }}
+                      </span>
+                      <span class="font-mono text-emerald-400 text-xs w-12 text-right">
+                        +{{ item.delta?.toFixed(0) }}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- Critical outstanding -->
+                <div v-if="outstandingCritical.length > 0">
+                  <h3 class="text-sm font-semibold uppercase tracking-wider text-red-400 mb-2">
+                    Critical issues still outstanding
+                  </h3>
+                  <ul class="space-y-4 text-sm">
+                    <li v-for="cat in outstandingCritical" :key="cat.id">
+                      <div class="flex items-baseline gap-3">
+                        <span class="font-medium flex-1">{{ cat.label }}</span>
+                        <span class="font-mono text-[var(--text-muted)] text-xs">
+                          {{ cat.score?.toFixed(0) ?? 'N/A' }}/100
+                        </span>
+                      </div>
+                      <ul
+                        v-if="cat.findings && cat.findings.length > 0"
+                        class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+                      >
+                        <li v-for="f in cat.findings.slice(0, 3)" :key="f">
+                          {{ f }}
+                        </li>
+                      </ul>
+                      <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
+                        <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
+                        {{ acrobatStepFor(cat.id) }}
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- Serious outstanding -->
+                <div v-if="outstandingSerious.length > 0">
+                  <h3 class="text-sm font-semibold uppercase tracking-wider text-orange-400 mb-2">
+                    Serious issues still outstanding
+                  </h3>
+                  <ul class="space-y-4 text-sm">
+                    <li v-for="cat in outstandingSerious" :key="cat.id">
+                      <div class="flex items-baseline gap-3">
+                        <span class="font-medium flex-1">{{ cat.label }}</span>
+                        <span class="font-mono text-[var(--text-muted)] text-xs">
+                          {{ cat.score?.toFixed(0) ?? 'N/A' }}/100
+                        </span>
+                      </div>
+                      <ul
+                        v-if="cat.findings && cat.findings.length > 0"
+                        class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+                      >
+                        <li v-for="f in cat.findings.slice(0, 3)" :key="f">
+                          {{ f }}
+                        </li>
+                      </ul>
+                      <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
+                        <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
+                        {{ acrobatStepFor(cat.id) }}
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- Moderate outstanding -->
+                <div v-if="outstandingModerate.length > 0">
+                  <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">
+                    Moderate issues still outstanding
+                  </h3>
+                  <ul class="space-y-4 text-sm">
+                    <li v-for="cat in outstandingModerate" :key="cat.id">
+                      <div class="flex items-baseline gap-3">
+                        <span class="font-medium flex-1">{{ cat.label }}</span>
+                        <span class="font-mono text-[var(--text-muted)] text-xs">
+                          {{ cat.score?.toFixed(0) ?? 'N/A' }}/100
+                        </span>
+                      </div>
+                      <ul
+                        v-if="cat.findings && cat.findings.length > 0"
+                        class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+                      >
+                        <li v-for="f in cat.findings.slice(0, 3)" :key="f">
+                          {{ f }}
+                        </li>
+                      </ul>
+                      <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
+                        <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
+                        {{ acrobatStepFor(cat.id) }}
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- General Adobe wrap-up tip -->
+                <div
+                  v-if="outstandingCount > 0"
+                  class="text-xs text-[var(--text-muted)] border-t border-emerald-700/20 pt-4"
+                >
+                  After your manual fixes in Adobe Acrobat, re-run
+                  <strong>Tools → Accessibility → Accessibility Checker</strong>
+                  to verify, then re-upload the file here to confirm the score
+                  moved.
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
 
