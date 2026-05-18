@@ -10,6 +10,7 @@ import logsRoutes from './routes/logs.js'
 import bulkInventoryRoutes from './routes/bulk-from-inventory.js'
 import analyzeUrlRoutes from './routes/analyze-url.js'
 import tokensRoutes from './routes/tokens.js'
+import remediateRoutes from './routes/remediate.js'
 
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
@@ -54,6 +55,7 @@ app.use('/api', logsRoutes)
 app.use('/api', bulkInventoryRoutes)
 app.use('/api', analyzeUrlRoutes)
 app.use('/api', tokensRoutes)
+app.use('/api', remediateRoutes)
 
 // Health check — also serves as the root API response
 const startedAt = new Date()
