@@ -291,7 +291,7 @@ function labelForEvent(name: string): string {
         ✓ Auto-remediation complete
       </h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="space-y-4">
         <!-- BEFORE -->
         <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6 relative">
           <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
