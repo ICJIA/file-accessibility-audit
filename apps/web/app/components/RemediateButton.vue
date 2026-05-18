@@ -105,11 +105,15 @@ async function handlePickerChange(e: Event): Promise<void> {
       {{ alreadyAccessible ? 'No further automated remediation needed' : 'Optional next step' }}
     </p>
     <UButton
-      color="primary"
+      :color="alreadyAccessible ? 'neutral' : 'primary'"
+      :variant="alreadyAccessible ? 'subtle' : 'solid'"
       size="xl"
       :loading="submitting"
       :disabled="disabledForClick"
-      class="w-full sm:w-auto"
+      :class="[
+        'w-full sm:w-auto',
+        alreadyAccessible ? 'opacity-60 cursor-not-allowed' : '',
+      ]"
       @click="handleClick"
     >
       <template #leading>
