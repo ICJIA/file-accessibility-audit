@@ -39,6 +39,39 @@ const POLICY_VERSION = '1.0'
 const POLICY_EFFECTIVE = '2026-05-18'
 const TOOL_VERSION = '1.18.0'
 
+// Mermaid diagram sources. Deliberately simple — flowchart TD only,
+// short labels, no subgraphs, no HTML in labels, no special chars.
+// Reliability over richness.
+
+const auditPipelineDiagram = `flowchart TD
+    A[Upload PDF] --> B[Validate file]
+    B --> C[Hold in memory only]
+    C --> D[qpdf + pdfjs analyze]
+    D --> E[Score 9 WCAG categories]
+    E --> F[Send result to browser]
+    F --> G[Memory buffer discarded]`
+
+const remediationPipelineDiagram = `flowchart TD
+    A[Upload PDF] --> B[Write to scratch]
+    B --> C[qpdf normalize]
+    C --> D[Delete original + verify]
+    D --> E[OpenDataLoader tag]
+    E --> F[Delete normalized + verify]
+    F --> G[qpdf check + veraPDF]
+    G --> H[Re-audit, guard regressions]
+    H --> I[Output ready, 30 min TTL]
+    I --> J[User downloads]
+    J --> K[Delete output + verify]`
+
+const noAiDiagram = `flowchart TD
+    A[Your PDF] --> B[ICJIA server]
+    B --> C[qpdf local]
+    B --> D[OpenDataLoader local]
+    B --> E[veraPDF local]
+    B --> F[SQLite local]
+    B -.OTP code only.-> G[Mailgun email]
+    B -.NEVER.-> X[ChatGPT, Claude, Gemini, Copilot]`
+
 </script>
 
 <template>
@@ -354,6 +387,14 @@ HTTP response → client (typically &lt; 10 seconds total)
 Node.js garbage collector reclaims the buffer
 (file no longer exists in any form, anywhere)</div>
 
+      <div class="mt-4">
+        <MermaidDiagram
+          :source="auditPipelineDiagram"
+          title="Audit pipeline — visual flow"
+          desc="Flowchart of the audit pipeline. The uploaded PDF is held in memory, validated, analyzed by qpdf and pdfjs, scored across 9 WCAG categories, and the memory buffer is discarded after the response is sent."
+        />
+      </div>
+
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         Once the HTTP response has been sent, the in-memory buffer is
         unreferenced and garbage-collected by the Node.js runtime in the next
@@ -448,6 +489,14 @@ Client downloads via single-use token:
 [Emit: 'expired', 'output_deleted', 'verified_absent']
 
 ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
+
+      <div class="mt-4">
+        <MermaidDiagram
+          :source="remediationPipelineDiagram"
+          title="Remediation pipeline — visual flow"
+          desc="Flowchart of the remediation pipeline. Eleven steps from upload through final delete + verify. Every intermediate file is deleted before the next stage starts, and every delete is fs.stat-verified."
+        />
+      </div>
 
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         <strong>Key invariants of the remediation pipeline:</strong>
@@ -556,6 +605,14 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
           before the feature is enabled in production</strong>, with a
           corresponding update to the policy version above.
         </p>
+      </div>
+
+      <div class="mt-5">
+        <MermaidDiagram
+          :source="noAiDiagram"
+          title="No AI services contacted"
+          desc="Flowchart showing the ICJIA server talks only to local tools (qpdf, OpenDataLoader, veraPDF, SQLite) and Mailgun (for OTP codes only). It NEVER sends data to ChatGPT, Claude, Gemini, or Copilot."
+        />
       </div>
 
     </section>
