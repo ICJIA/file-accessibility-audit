@@ -113,9 +113,14 @@ function extractVerdict(
   const jobs = (report.jobs ?? root.jobs) as
     | Array<Record<string, unknown>>
     | undefined;
-  const validation = jobs?.[0]?.validationResult as
-    | Record<string, unknown>
-    | undefined;
+  // veraPDF 1.30.x: validationResult is an array of per-profile results
+  // (one entry per --flavour passed on the command line). Older releases
+  // emit a single object. Normalize to the first element so downstream
+  // extraction works against either shape.
+  const validationRaw = jobs?.[0]?.validationResult;
+  const validation = Array.isArray(validationRaw)
+    ? (validationRaw[0] as Record<string, unknown> | undefined)
+    : (validationRaw as Record<string, unknown> | undefined);
 
   if (!validation) {
     // Try alternate path: parsed.jobs[0].itemDetails.validationResult
@@ -143,10 +148,15 @@ function extractVerdict(
       | undefined) ??
     "ua1";
 
-  // failureSummary or failedRules contains the meaty content
+  // failureSummary or failedRules contains the meaty content.
+  // veraPDF 1.30.x nests these under validation.details rather than
+  // putting them on the validation object directly, so try both.
+  const details = validation.details as Record<string, unknown> | undefined;
   const ruleSummariesRaw =
     (validation.ruleSummaries as Array<Record<string, unknown>> | undefined) ??
     (validation.failedRules as Array<Record<string, unknown>> | undefined) ??
+    (details?.ruleSummaries as Array<Record<string, unknown>> | undefined) ??
+    (details?.failedRules as Array<Record<string, unknown>> | undefined) ??
     [];
 
   const failures: VeraPdfRuleFailure[] = ruleSummariesRaw
