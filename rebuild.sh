@@ -3,6 +3,29 @@ set -e
 
 cd "$(dirname "$0")"
 
+# ---------------------------------------------------------------------
+# Remediation feature flag — default ON for production deploys.
+#
+# Setting it here (rather than relying on /etc/environment or PM2's
+# saved state) means every ./rebuild.sh invocation produces a PM2
+# process tree with remediation enabled, regardless of whether the
+# operator remembered to export the var first. This pairs with the
+# auto-detection of REMEDIATION_VERAPDF_PATH below so a fresh deploy
+# lights up the full pipeline without manual env setup.
+#
+# To deploy with remediation OFF (e.g., emergency rollback), run:
+#
+#   REMEDIATION_ENABLED=false ./rebuild.sh
+#
+# The shell's pre-set value wins because `export` only writes if the
+# var isn't already defined.
+# ---------------------------------------------------------------------
+: "${REMEDIATION_ENABLED:=true}"
+export REMEDIATION_ENABLED
+
+echo "Remediation feature: $REMEDIATION_ENABLED"
+echo ""
+
 # Check for required system dependencies
 echo "Checking system dependencies..."
 
