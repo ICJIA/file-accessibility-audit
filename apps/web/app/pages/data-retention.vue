@@ -24,6 +24,8 @@ function goBack(): void {
   }
 }
 
+const runtimeConfig = useRuntimeConfig()
+
 useHead({
   title: 'Data Retention Policy',
   meta: [
@@ -31,6 +33,12 @@ useHead({
       name: 'description',
       content:
         'Auditor-ready data retention policy: how PDFs are stored, processed, and deleted; AI usage statement; lifecycle audit trail; retention periods; contact information.',
+    },
+  ],
+  link: [
+    {
+      rel: 'canonical',
+      href: `${runtimeConfig.public.siteUrl}/data-retention`,
     },
   ],
 })
@@ -360,6 +368,7 @@ const noAiDiagram = `flowchart TD
       </p>
       <div
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        tabindex="0"
       >Client → HTTPS upload (multipart/form-data)
        │
        ▼
@@ -427,6 +436,7 @@ Node.js garbage collector reclaims the buffer
       </p>
       <div
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        tabindex="0"
       >Client → HTTPS multipart upload (re-upload required by design)
        │
        ▼
@@ -627,7 +637,7 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
         and runs locally on the ICJIA-controlled server. No commercial PDF SDK
         is licensed, and no per-document fees are paid. The tools are:
       </p>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto" tabindex="0">
         <table class="w-full text-sm">
           <thead>
             <tr
@@ -745,6 +755,7 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
       </p>
       <div
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        tabindex="0"
       >CREATE TABLE remediation_events (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id       TEXT    NOT NULL,
@@ -836,6 +847,7 @@ CREATE TABLE remediation_jobs (
       </p>
       <div
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        tabindex="0"
       >{
   "path_hash": "a3f5e7d2c4b6a8e9f1c3d5b7a9e1c3d5b7a9e1c3d5b7a9e1c3d5b7a9e1c3d5b7"
 }</div>
@@ -856,7 +868,7 @@ CREATE TABLE remediation_jobs (
       <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
         7. Retention periods by data category
       </h2>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto" tabindex="0">
         <table class="w-full text-sm">
           <thead>
             <tr
@@ -1552,7 +1564,7 @@ CREATE TABLE remediation_jobs (
             href="https://github.com/ICJIA/file-accessibility-audit/commits/main"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
             >commit history on GitHub</a
           >. Going forward — beginning with v1.18.0 — every release will
           have a corresponding entry in this section before tagging.
@@ -1573,6 +1585,7 @@ CREATE TABLE remediation_jobs (
       </p>
       <div
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        tabindex="0"
       >-- All remediations a specific user performed in a date range
 SELECT id, input_filename, status, input_score, output_score,
        datetime(created_at/1000, 'unixepoch', 'localtime') AS started,

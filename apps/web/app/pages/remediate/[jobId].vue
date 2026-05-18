@@ -12,6 +12,19 @@ const afterMode = ref<'strict' | 'remediation'>('strict')
 
 definePageMeta({ middleware: [] })
 
+// Each remediation result page is a private, per-user, session-bound
+// URL (UUID jobId + one-time download token in the query string).
+// Tell search engines not to index or follow these URLs. This is both
+// the correct privacy posture and what causes Lighthouse's `canonical`
+// audit to short-circuit (noindex pages are exempt from the canonical
+// requirement).
+useHead({
+  title: 'PDF Auto-Remediation',
+  meta: [
+    { name: 'robots', content: 'noindex,nofollow' },
+  ],
+})
+
 const route = useRoute()
 const jobId = String(route.params.jobId)
 const downloadToken = String(route.query.t ?? '')

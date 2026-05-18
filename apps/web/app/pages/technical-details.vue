@@ -8,6 +8,8 @@ import { onMounted, ref } from 'vue'
 
 definePageMeta({ middleware: [] })
 
+const runtimeConfig = useRuntimeConfig()
+
 useHead({
   title: 'Technical Details',
   meta: [
@@ -15,6 +17,12 @@ useHead({
       name: 'description',
       content:
         'How the ICJIA File Accessibility Audit tool analyzes and remediates PDFs — pipeline diagrams, open-source toolchain, and why PDF remediation is fundamentally limited.',
+    },
+  ],
+  link: [
+    {
+      rel: 'canonical',
+      href: `${runtimeConfig.public.siteUrl}/technical-details`,
     },
   ],
 })
@@ -328,7 +336,7 @@ const architectureDiagram = `flowchart TD
       <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
         8. The open-source toolchain
       </h2>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto" tabindex="0">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-[var(--text-muted)] border-b border-[var(--border)]">

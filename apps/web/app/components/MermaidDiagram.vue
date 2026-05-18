@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, useId } from 'vue'
 
 interface Props {
   /** Mermaid source code — keep it simple: flowchart TD with plain labels. */
@@ -15,6 +15,12 @@ const props = defineProps<Props>()
 const containerRef = ref<HTMLDivElement | null>(null)
 const error = ref<string | null>(null)
 const isClient = ref(false)
+
+// Stable, server/client-matched ID for aria-describedby on the desc <p>.
+// Without this each MermaidDiagram instance would write the same
+// `id="mermaid-desc"`, producing duplicate IDs on pages with multiple
+// diagrams (e.g. data-retention + technical-details).
+const descId = `mermaid-desc-${useId()}`
 
 let mermaidInitialized = false
 // Serialize renders across all instances on the page so concurrent
@@ -119,19 +125,24 @@ watch(
     >{{ source }}</pre>
 
     <!-- Client-mounted: mermaid renders into the inner div. Outer div
-         is the scroll viewport so a wider diagram still fits the page. -->
+         is the scroll viewport so a wider diagram still fits the page.
+         No `aria-label` here — the parent <figure>'s <figcaption>
+         already provides the accessible name, and aria-label is
+         prohibited on plain <div> per the ARIA spec. tabindex="0"
+         lets keyboard users focus the region to scroll a wide
+         diagram. -->
     <div
       v-else
       class="px-3 sm:px-5 py-4 overflow-x-auto overflow-y-hidden"
-      :aria-label="title || 'Diagram'"
-      :aria-describedby="desc ? 'mermaid-desc' : undefined"
+      tabindex="0"
+      :aria-describedby="desc ? descId : undefined"
     >
       <div ref="containerRef" class="mermaid-host" />
     </div>
 
     <p
       v-if="desc"
-      id="mermaid-desc"
+      :id="descId"
       class="px-4 sm:px-5 pb-4 text-xs text-[var(--text-muted)] leading-relaxed"
     >
       {{ desc }}
