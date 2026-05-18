@@ -665,9 +665,15 @@ export const REMEDIATION = {
    * frontend hides the Remediate button. Lets us merge plumbing without
    * exposing the feature until it's ready.
    *
-   * SAFE TO CHANGE: Yes — flip to true to enable the feature in production.
+   * Reads from env: set REMEDIATION_ENABLED=true to enable. Default is
+   * disabled. Both API and web pick up the same value at startup; the
+   * web app exposes it via runtimeConfig.public.remediationEnabled.
+   *
+   * SAFE TO CHANGE: Yes — flip via env var in your shell or in PM2's
+   * ecosystem.config.cjs env block. Don't hardcode `true` here unless
+   * you want it always-on in every environment.
    */
-  ENABLED: false,
+  ENABLED: process.env.REMEDIATION_ENABLED === "true",
 
   /**
    * Maximum file size for PDFs submitted to remediation, in megabytes.
