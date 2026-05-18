@@ -73,6 +73,14 @@ cp apps/web/.env.example.local apps/web/.env
 pnpm dev
 ```
 
+To start the dev server **with the auto-remediation feature enabled** (without having to remember the env vars each time), use the convenience wrapper:
+
+```bash
+./start-dev-server.sh
+```
+
+It auto-detects your Java install (brew openjdk on macOS, apt openjdk on Ubuntu), looks for an optional veraPDF install, and exports `REMEDIATION_ENABLED=true` before running `pnpm dev`. Safe to re-run; no sudo required.
+
 - **Frontend:** http://localhost:5102
 - **API:** http://localhost:5103
 
