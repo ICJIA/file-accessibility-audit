@@ -17,8 +17,6 @@
 // Grade brackets: A 90-100 / B 80-89 / C 70-79 / D 60-69 / F < 60.
 
 import puppeteer, { type Browser } from 'puppeteer'
-// @ts-expect-error — @axe-core/puppeteer ships ESM types that misalign with
-// our tsconfig moduleResolution; the runtime import is stable.
 import { AxePuppeteer } from '@axe-core/puppeteer'
 
 let browserPromise: Promise<Browser> | null = null
