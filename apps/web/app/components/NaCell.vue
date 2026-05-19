@@ -24,13 +24,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { naReason } from "~/utils/modeDivergence";
-import type { ScoringMode } from "~/utils/scoringProfiles";
 
 const props = defineProps<{
   catId: string;
-  mode: ScoringMode;
 }>();
 
-const reason = computed(() => naReason(props.catId, props.mode));
+const reason = computed(() => naReason(props.catId));
 const tooltipId = computed(() => `na-tooltip-${props.catId}`);
 </script>

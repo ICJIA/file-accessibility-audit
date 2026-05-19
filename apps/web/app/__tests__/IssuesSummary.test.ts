@@ -56,7 +56,7 @@ describe('IssuesSummary', () => {
     expect(wrapper.find('li').text()).toContain('5 images with no alt text')
   })
 
-  it('renders jump anchor href as #cat-<id>', () => {
+  it('exposes a toggle button with aria-controls linking to the fix-steps region', () => {
     const wrapper = mount(IssuesSummary, {
       props: {
         categories: [
@@ -64,9 +64,10 @@ describe('IssuesSummary', () => {
         ],
       },
     })
-    const a = wrapper.find('a')
-    expect(a.exists()).toBe(true)
-    expect(a.attributes('href')).toBe('#cat-alt_text_images')
+    const btn = wrapper.find('button')
+    expect(btn.exists()).toBe(true)
+    expect(btn.attributes('aria-controls')).toBe('fix-steps-alt_text_images')
+    expect(btn.attributes('aria-expanded')).toBe('false')
   })
 
   it('excludes Pass and null severity categories', () => {

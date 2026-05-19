@@ -219,12 +219,17 @@ describe('Link Accessibility', () => {
     }
   })
 
-  it('external links in default layout include rel="noopener noreferrer"', () => {
+  it('external (cross-origin) links in default layout include rel="noopener noreferrer"', () => {
     const content = readFileSync(resolve(__dirname, '..', 'layouts/default.vue'), 'utf-8')
-    const extLinks = content.match(/target="_blank"/g)
-    const relAttrs = content.match(/rel="noopener noreferrer"/g)
-    if (extLinks) {
-      expect(relAttrs?.length).toBe(extLinks.length)
+    // Count only anchors that target external origins. Same-origin
+    // navigations like /data-retention or /technical-details open in
+    // a new tab but use `rel="noopener"` only — `noreferrer` would
+    // unnecessarily strip referrer for our own pages.
+    const externalAnchors = content.match(
+      /<a[^>]*href="https?:[^"]*"[^>]*target="_blank"[^>]*>/g,
+    ) ?? []
+    for (const a of externalAnchors) {
+      expect(a).toMatch(/rel="noopener noreferrer"/)
     }
   })
 })

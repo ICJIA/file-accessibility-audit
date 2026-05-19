@@ -147,7 +147,7 @@ describe("ScoreCard", () => {
     expect(wrapper.text()).toContain("Good");
   });
 
-  it("shows score-profile toggle buttons when an alternate profile exists", () => {
+  it("does not render any score-profile toggle (single Strict view as of v1.21+)", () => {
     const wrapper = mount(ScoreCard, {
       props: {
         result: {
@@ -155,153 +155,62 @@ describe("ScoreCard", () => {
           scoreProfiles: {
             strict: {
               label: "Strict semantic score",
-              description: "Strict mode description",
               overallScore: 66,
               grade: "D",
               executiveSummary: "Strict summary",
             },
             remediation: {
-              label: "Practical readiness score",
-              description: "Practical mode description",
-              overallScore: 86,
-              grade: "B",
-              executiveSummary: "Remediation summary",
+              label: "Practical readiness score (alias)",
+              overallScore: 66,
+              grade: "D",
+              executiveSummary: "Strict summary",
             },
           },
         },
       },
     });
 
-    expect(wrapper.get('[data-testid="score-mode-strict"]').text()).toContain(
-      "Strict",
-    );
+    expect(wrapper.find('[data-testid="score-mode-strict"]').exists()).toBe(false);
     expect(
-      wrapper.get('[data-testid="score-mode-remediation"]').text(),
-    ).toContain("Practical");
+      wrapper.find('[data-testid="score-mode-remediation"]').exists(),
+    ).toBe(false);
     expect(
-      wrapper.get('[data-testid="alternate-score-summary"]').text(),
-    ).toContain("Practical readiness score");
+      wrapper.find('[data-testid="mode-recommendation-title"]').exists(),
+    ).toBe(false);
     expect(
-      wrapper.get('[data-testid="strict-mode-rationale"]').text(),
-    ).toContain("programmatically determinable");
-    expect(
-      wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("two WCAG-based scoring methodologies");
-    expect(
-      wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("both are valid");
-    expect(
-      wrapper.get('[data-testid="mode-recommendation-current"]').text(),
-    ).toContain("Current view: Strict");
-    expect(wrapper.text()).toContain("IITAA §E205.4");
+      wrapper.find('[data-testid="practical-disclaimer"]').exists(),
+    ).toBe(false);
   });
 
-  it("switches the displayed score and summary when remediation mode is selected", async () => {
+  it("prefers the strict profile overall score when scoreProfiles.strict is provided", () => {
     const wrapper = mount(ScoreCard, {
       props: {
         result: {
           ...baseResult,
-          overallScore: 66,
-          grade: "D",
-          executiveSummary: "Strict summary",
-          categories: [
-            {
-              id: "heading_structure",
-              label: "Heading Structure",
-              score: 0,
-              grade: "F",
-              severity: "Critical",
-              findings: ["No heading tags"],
-              explanation: "Heading explanation",
-            },
-          ],
+          overallScore: 87,
+          grade: "B",
+          executiveSummary: "Top-level summary",
           scoreProfiles: {
             strict: {
               label: "Strict semantic score",
-              description: "Strict mode description",
               overallScore: 66,
               grade: "D",
-              executiveSummary: "Strict summary",
+              executiveSummary: "Strict-profile summary",
             },
             remediation: {
-              label: "Practical readiness score",
-              description: "Practical mode description",
-              overallScore: 86,
-              grade: "B",
-              executiveSummary: "Remediation summary",
+              label: "alias of strict",
+              overallScore: 66,
+              grade: "D",
+              executiveSummary: "Strict-profile summary",
             },
           },
         },
       },
     });
 
-    await wrapper
-      .get('[data-testid="score-mode-remediation"]')
-      .trigger("click");
-
-    expect(wrapper.text()).toContain("86");
-    expect(wrapper.text()).toContain("Good");
-    expect(wrapper.text()).toContain("Remediation summary");
-    expect(
-      wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("two WCAG-based scoring methodologies");
-    expect(
-      wrapper.get('[data-testid="mode-recommendation-title"]').text(),
-    ).toContain("both are valid");
-    expect(
-      wrapper.get('[data-testid="mode-recommendation-current"]').text(),
-    ).toContain("Current view: Practical");
-    expect(
-      wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("PDF/UA Compliance Signals");
-    expect(
-      wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("PDF/UA identifiers");
-    expect(
-      wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("tracking PDF/UA tools");
-    expect(
-      wrapper.get('[data-testid="practical-disclaimer"]').text(),
-    ).toContain("§504.2.2 PDF Export");
-    expect(
-      wrapper.get('[data-testid="iitaa-pdfua-link"]').attributes("href"),
-    ).toBe(
-      "https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html",
-    );
-  });
-
-  it("emits selectedMode updates so parent category tables can follow the toggle", async () => {
-    const wrapper = mount(ScoreCard, {
-      props: {
-        result: {
-          ...baseResult,
-          scoreProfiles: {
-            strict: {
-              label: "Strict semantic score",
-              description: "Strict mode description",
-              overallScore: 66,
-              grade: "D",
-              executiveSummary: "Strict summary",
-            },
-            remediation: {
-              label: "Practical readiness score",
-              description: "Practical mode description",
-              overallScore: 86,
-              grade: "B",
-              executiveSummary: "Remediation summary",
-            },
-          },
-        },
-      },
-    });
-
-    await wrapper
-      .get('[data-testid="score-mode-remediation"]')
-      .trigger("click");
-
-    expect(wrapper.emitted("update:selectedMode")?.[0]).toEqual([
-      "remediation",
-    ]);
+    expect(wrapper.text()).toContain("66");
+    expect(wrapper.text()).toContain("Poor");
+    expect(wrapper.text()).toContain("Strict-profile summary");
   });
 
   it.each([

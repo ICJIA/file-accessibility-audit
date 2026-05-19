@@ -79,29 +79,28 @@ describe("buildAiAnalysis", () => {
     expect(outB).toContain("Verdict: Accessible");
   });
 
-  it("includes the practical-readiness score when alternate score profiles exist", () => {
+  it("emits only the Strict score header (v1.21+: Practical retired)", () => {
     const out = buildAiAnalysis(
       baseResult({
         scoreProfiles: {
           strict: {
             label: "Strict semantic score",
-            description: "Strict mode",
             overallScore: 66,
             grade: "D",
             executiveSummary: "Strict summary",
           },
           remediation: {
-            label: "Practical readiness score",
-            description: "Practical mode",
-            overallScore: 86,
-            grade: "B",
-            executiveSummary: "Remediation summary",
+            label: "Practical readiness score (alias)",
+            overallScore: 66,
+            grade: "D",
+            executiveSummary: "Strict summary",
           },
         },
       }),
     );
 
-    expect(out).toContain("Practical score (WCAG + PDF/UA): 86/100 (B)");
+    expect(out).not.toContain("Practical score (WCAG + PDF/UA)");
+    expect(out).toContain("Strict");
   });
 
   it("counts critical and moderate categories", () => {

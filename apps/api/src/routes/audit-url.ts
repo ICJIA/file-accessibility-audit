@@ -41,12 +41,17 @@ const router: IRouter = Router()
 //     "pageCount":       12,
 //     "audited":         "2026-05-18T15:32:11.000Z",
 //     "strict":   { "score": 49, "grade": "F" },
-//     "practical":{ "score": 49, "grade": "F" },
+//     "practical":{ "score": 49, "grade": "F" },   // v1.21+: alias of strict
 //     "reportId":        "<32 hex chars>",
 //     "reportUrl":       "https://audit.icjia.app/report/<id>",
 //     "reportExpiresAt": "2027-05-18T15:32:11.000Z",
 //     "cached":          false
 //   }
+//
+// As of v1.21.0 the UI shows only the Strict (WCAG + IITAA §E205.4)
+// score. `practical` is retained as an alias of `strict` so existing
+// fleet CSVs and external consumers keep parsing without changes — the
+// alias will be removed in a future release.
 // ---------------------------------------------------------------------------
 
 interface DedupRow {
@@ -157,8 +162,8 @@ router.post(
             filename: existing.filename,
             pageCount: cached.pageCount ?? null,
             audited: cached.audited ?? null,
-            strict: extractProfileScore(cached, 'strict'),
-            practical: extractProfileScore(cached, 'practical'),
+            strict: extractProfileScore(cached),
+            practical: extractProfileScore(cached),
             reportId: existing.id,
             reportUrl: buildReportUrl(existing.id),
             reportExpiresAt: existing.expires_at,
@@ -218,8 +223,8 @@ router.post(
         filename,
         pageCount: result.pageCount ?? null,
         audited,
-        strict: extractProfileScore(result, 'strict'),
-        practical: extractProfileScore(result, 'practical'),
+        strict: extractProfileScore(result),
+        practical: extractProfileScore(result),
         reportId: id,
         reportUrl: buildReportUrl(id),
         reportExpiresAt,
@@ -242,31 +247,21 @@ router.post(
   },
 )
 
-// Extract the strict/practical scalar pair from an AnalysisResult-shaped
-// payload.
-//
-// Naming gotcha: the user-facing name "Practical" maps to the *internal*
-// scoreProfiles key 'remediation'. The scoring engine emits
-// scoreProfiles.strict and scoreProfiles.remediation; the UI labels the
-// latter "Practical readiness score". The /api/audit-url contract uses
-// the user-facing name so callers don't need to know the legacy
-// terminology — we do the translation here.
+// Extract the Strict-profile scalar pair from an AnalysisResult-shaped
+// payload. As of v1.21.0 there is only one scoring profile; the
+// /api/audit-url response surfaces it under both `strict` and `practical`
+// keys for backward compatibility with existing fleet CSV consumers.
 function extractProfileScore(
   payload: any,
-  mode: 'strict' | 'practical',
 ): { score: number | null; grade: string | null } {
-  const internalKey = mode === 'practical' ? 'remediation' : 'strict'
-  const profile = payload?.scoreProfiles?.[internalKey]
+  const profile = payload?.scoreProfiles?.strict
   if (profile && typeof profile.overallScore === 'number') {
     return {
       score: profile.overallScore,
       grade: profile.grade ?? null,
     }
   }
-  // Fallback: pre-scoreProfiles payload (older persisted reports).
-  // The top-level overallScore corresponds to strict scoring; for
-  // 'practical' on such a payload we have nothing better to return.
-  if (mode === 'strict' && typeof payload?.overallScore === 'number') {
+  if (typeof payload?.overallScore === 'number') {
     return { score: payload.overallScore, grade: payload.grade ?? null }
   }
   return { score: null, grade: null }

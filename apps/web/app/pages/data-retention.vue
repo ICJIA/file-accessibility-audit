@@ -431,7 +431,7 @@ Node.js garbage collector reclaims the buffer
         The remediation pipeline is disabled by default. It can be enabled by
         setting <code class="text-xs font-mono">REMEDIATION_ENABLED=true</code>
         in the server's environment. When enabled, a new
-        <em>Auto-Remediate this PDF</em> action appears on the audit results
+        <em>Attempt remediation</em> action appears on the audit results
         page. Clicking it triggers the following lifecycle:
       </p>
       <div
@@ -477,7 +477,7 @@ Node.js garbage collector reclaims the buffer
        ▼
 [Stage 4: comparing]
   • Re-audit tagged.pdf  →  output score
-  • If Overall, Strict, OR Practical score regresses: REJECT
+  • If Overall OR Strict score regresses: REJECT
        │
        ▼  (success branch)
 [Move tagged.pdf → data/remediation/&lt;jobId&gt;.pdf (final, mode 0600)]
@@ -1173,9 +1173,9 @@ CREATE TABLE remediation_jobs (
         </li>
         <li>
           <strong>Regression guard on remediation</strong>: the output PDF is
-          rejected if its score regresses on Overall, Strict, or Practical
-          profiles relative to the input. The user never sees an output that
-          would make any visible metric worse.
+          rejected if its overall or Strict (WCAG + IITAA §E205.4) score
+          regresses relative to the input. The user never sees an output
+          that would make any visible metric worse.
         </li>
       </ul>
     </section>
@@ -1253,6 +1253,138 @@ CREATE TABLE remediation_jobs (
         first). Each entry lists the findings discovered during that
         release's review and what was done about them.
       </p>
+
+      <!-- v1.21.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.21.0
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-19</strong> · scope: simplification
+            release. Retired the dual Strict/Practical scoring toggle in
+            favor of a single canonical Strict score; promoted veraPDF
+            PDF/UA-1 verdict on the remediation result page.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This release is a <strong>UI simplification</strong>, not a
+          security change. Auditors and agency staff consistently
+          reported that the audit page was hard to read because it
+          showed two scoring profiles at once — "Strict" and "Practical"
+          — and asked users to choose between them. That cognitive load
+          got in the way of the actual accessibility findings. After
+          review, the team retired Practical and kept Strict, which is
+          the WCAG 2.1 AA + IITAA §E205.4-anchored score that maps
+          directly to Illinois accessibility law. The PDF/UA technical
+          conformance signal that Practical tried to summarize is now
+          surfaced more authoritatively on the remediation page via a
+          dedicated <em>veraPDF</em> Pass/Fail check.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2">UX</span>
+              Simplified</strong
+            >
+            — The audit results page shows one score, anchored to WCAG
+            and IITAA. No more "view by Strict / view by Practical"
+            toggle. The grade you see is the legally-relevant grade.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> showing two profiles
+              created an implicit "which one is correct?" question for
+              the reader. The Strict view is what Illinois IITAA and
+              the ADA point to; the Practical view layered a separate
+              PDF/UA-flavored weighting on top, which was useful for
+              tool reconciliation but not for publication decisions.
+              <br />
+              <strong>What this release does:</strong> the audit page
+              now shows only the Strict / WCAG-anchored score. The
+              underlying scoring engine is unchanged — same nine
+              categories, same weights, same WCAG-anchored thresholds.
+              Just less noise on the page.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2">UX</span>
+              Promoted</strong
+            >
+            — The remediation result page now surfaces a clear
+            <em>PDF/UA-1: Pass / Fail / Not run</em> badge right next to
+            the post-remediation score.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> the veraPDF conformance
+              verdict (an open-source check against the published
+              PDF/UA-1 / ISO 14289-1 standard) was already running as
+              part of every remediation, but it was buried in a section
+              labeled "Compliance disclaimer" further down the result
+              page. Auditors needing the PDF/UA verdict had to scroll.
+              <br />
+              <strong>What this release does:</strong> a compact
+              Pass/Fail badge appears immediately below the score; the
+              detailed section below was renamed to
+              "PDF/UA-1 conformance check" so its purpose is obvious;
+              the badge jumps to that section for the full rule
+              failure list when failures exist. When veraPDF isn't
+              installed on the server, the badge clearly reads
+              <em>"check not run"</em> rather than pretending the
+              check ran successfully.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">API</span>
+              Compatibility</strong
+            >
+            — Historical reports and external automation keep working
+            without changes.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> a hard removal of the
+              Practical profile would have broken the fleet-CSV
+              integration shipped in v1.20.0, which lists both Strict
+              and Practical columns per audited PDF.
+              <br />
+              <strong>What this release does:</strong> the
+              <code class="text-xs font-mono">scoreProfiles.remediation</code>
+              field and the
+              <code class="text-xs font-mono">practical</code> key in
+              the
+              <code class="text-xs font-mono">/api/audit-url</code>
+              response are kept as <strong>aliases of Strict</strong> —
+              same number, same grade. External CSV consumers see both
+              columns populated with the Strict score and don't need
+              updates. The alias will be removed in a future release
+              once we've confirmed no consumer depends on the values
+              differing.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">API</span>
+              No security regressions</strong
+            >
+            — All SSRF, rate-limit, audit-gate, daily-cap, and retention
+            controls from v1.20.1 remain in force. The cleanup pass
+            still purges remediation files, jobs, and audit-log rows
+            on schedule.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              The simplification is a UI and scoring-presentation
+              change. It does not modify the upload pipeline, the
+              authentication layer, the rate limiters, the audit-gate
+              hash check, the daily cap, the SSRF protections, or the
+              retention windows.
+            </p>
+          </li>
+        </ul>
+      </article>
 
       <!-- v1.20.1 audit entry -->
       <article

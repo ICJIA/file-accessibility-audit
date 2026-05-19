@@ -301,15 +301,14 @@ export async function runRemediationJob(jobId: string): Promise<void> {
 
     setScores(jobId, inputScore, outputScore, true);
 
-    // Per-profile regression guard. The headline overall score may go
-    // up on the default mode while one of the underlying profiles
-    // (Strict or Practical) regresses. Show users only net gains —
-    // if either profile regresses, reject the output.
+    // Regression guard. Strict is the canonical (and as of v1.21 the only)
+    // scoring profile, so we compare strict-to-strict and overall-to-overall.
+    // Net gains only — if either dips, reject the output and tell the user
+    // we couldn't help this file.
     const inputAuditRaw = getJobAuditPair(jobId).inputAudit as
       | {
           scoreProfiles?: {
             strict?: { overallScore?: number };
-            remediation?: { overallScore?: number };
           };
           overallScore?: number;
         }
@@ -318,37 +317,22 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       inputAuditRaw?.scoreProfiles?.strict?.overallScore ??
       inputAuditRaw?.overallScore ??
       inputScore;
-    const inputPractical =
-      inputAuditRaw?.scoreProfiles?.remediation?.overallScore ??
-      inputAuditRaw?.overallScore ??
-      inputScore;
     const outputStrict =
       outputAudit.scoreProfiles?.strict?.overallScore ?? outputScore;
-    const outputPractical =
-      outputAudit.scoreProfiles?.remediation?.overallScore ?? outputScore;
 
     const strictDelta = outputStrict - inputStrict;
-    const practicalDelta = outputPractical - inputPractical;
     const overallDelta = outputScore - inputScore;
 
-    if (
-      overallDelta < 0 ||
-      strictDelta < 0 ||
-      practicalDelta < 0
-    ) {
+    if (overallDelta < 0 || strictDelta < 0) {
       const regressed: string[] = [];
       if (overallDelta < 0) regressed.push(`overall ${overallDelta.toFixed(1)}`);
       if (strictDelta < 0) regressed.push(`strict ${strictDelta.toFixed(1)}`);
-      if (practicalDelta < 0)
-        regressed.push(`practical ${practicalDelta.toFixed(1)}`);
       recordEvent(jobId, "validation_failed", {
-        reason: "score regressed on one or more profiles",
+        reason: "score regressed after remediation",
         input_overall: inputScore,
         output_overall: outputScore,
         input_strict: inputStrict,
         output_strict: outputStrict,
-        input_practical: inputPractical,
-        output_practical: outputPractical,
         regressed_profiles: regressed,
       });
       await deleteAndVerify(jobId, taggedPath, "cleanup");

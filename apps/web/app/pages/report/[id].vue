@@ -93,10 +93,7 @@
         <div
           class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
         >
-          <ScoreCard
-            v-model:selected-mode="selectedScoreMode"
-            :result="(data as any).report"
-          />
+          <ScoreCard :result="(data as any).report" />
         </div>
 
         <ReportActionBanner
@@ -238,93 +235,12 @@
 
         <!-- Score Table -->
         <div
-          ref="categoryScoresAnchor"
           class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto"
         >
           <div class="px-3 sm:px-5 py-3 border-b border-[var(--border)]">
-            <div class="flex items-start justify-between gap-3 flex-wrap">
-              <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
-                Category Scores
-              </h2>
-              <div
-                v-if="
-                  data.report.scoreProfiles?.strict &&
-                  data.report.scoreProfiles?.remediation
-                "
-                data-testid="category-scores-mode-switch"
-                class="inline-flex shrink-0 rounded-lg border border-[var(--border)] overflow-hidden text-[11px]"
-                role="group"
-                aria-label="Switch scoring mode"
-              >
-                <button
-                  type="button"
-                  :aria-pressed="selectedScoreMode === 'strict'"
-                  class="px-2.5 py-1 font-semibold uppercase tracking-wide transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/60"
-                  :class="
-                    selectedScoreMode === 'strict'
-                      ? 'bg-emerald-500/20 text-emerald-200'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
-                  "
-                  @click="flipScoreTableMode('strict')"
-                >
-                  Strict
-                </button>
-                <button
-                  type="button"
-                  :aria-pressed="selectedScoreMode === 'remediation'"
-                  class="px-2.5 py-1 font-semibold uppercase tracking-wide transition-colors cursor-pointer border-l border-[var(--border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/60"
-                  :class="
-                    selectedScoreMode === 'remediation'
-                      ? 'bg-amber-500/20 text-amber-200'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
-                  "
-                  @click="flipScoreTableMode('remediation')"
-                >
-                  Practical
-                </button>
-              </div>
-            </div>
-            <p v-if="data.report.scoreProfiles?.remediation" class="mt-2 text-xs text-[var(--text-muted)]">
-              <template v-if="remediationModeActive">
-                Practical does not mean a different document. It is the same
-                document viewed through a valid remediation/progress lens. The
-                score, grade, and severity shown below now reflect the softer
-                practical-readiness scoring, while Strict remains the valid
-                semantics-first lens on that same file. Use Strict for agency
-                publication and ADA/WCAG/ITTAA-oriented legal accessibility
-                review. Practical also includes a dedicated PDF/UA-oriented
-                category. Illinois IITAA 2.1 expressly references PDF/UA in
-                <a
-                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >
-                for authoring tools, while E205.4 frames document-level
-                electronic content accessibility through WCAG 2.1 for non-web
-                documents.
-              </template>
-              <template v-else>
-                Switching to Practical does not switch to a different document.
-                It applies a different valid accessibility lens to the same
-                file. Strict remains the better primary view for agency
-                publication and ADA/WCAG/ITTAA-oriented legal accessibility
-                review, while Practical is a valid remediation/progress view
-                that adds a broader weighted schema including PDF/UA-oriented
-                audits. Illinois IITAA 2.1 expressly references PDF/UA in
-                <a
-                  href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                  >§504.2.2 PDF Export</a
-                >
-                for authoring tools, while E205.4 still frames non-web document
-                accessibility through WCAG 2.1, so Strict remains the better
-                primary view.
-              </template>
-            </p>
+            <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
+              Category Scores
+            </h2>
           </div>
           <table class="w-full text-sm min-w-[420px]">
             <thead>
@@ -358,7 +274,7 @@
                   {{ cat.score }}
                 </td>
                 <td v-else class="text-center px-2 sm:px-3 py-2.5 font-mono">
-                  <NaCell :cat-id="cat.id" :mode="selectedScoreMode" />
+                  <NaCell :cat-id="cat.id" />
                 </td>
                 <td class="text-center px-2 sm:px-3 py-2.5">
                   <span
@@ -416,7 +332,7 @@
                 <td
                   class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]"
                 >
-                  <NaCell :cat-id="cat.id" :mode="selectedScoreMode" />
+                  <NaCell :cat-id="cat.id" />
                 </td>
                 <td
                   class="text-center px-3 py-2.5 text-[var(--text-muted)]"
@@ -524,26 +440,6 @@
                 }"
                 >{{ cat.severity }}</span
               >
-              <span
-                data-testid="category-mode-badge"
-                :aria-label="`Scored under ${MODE_BUTTON_LABELS[selectedScoreMode]} mode`"
-                class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border"
-                :class="
-                  selectedScoreMode === 'strict'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                    : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                "
-                >{{ MODE_BUTTON_LABELS[selectedScoreMode] }}</span
-              >
-              <span
-                v-if="
-                  cat.id === 'pdf_ua_compliance' &&
-                  selectedScoreMode === 'remediation'
-                "
-                data-testid="pdf-ua-badge"
-                class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-400/60 bg-amber-400/15 text-amber-200"
-                >PDF/UA signals</span
-              >
               <div
                 v-if="partitionCardFindings(cat.findings).signalCount > 0"
                 class="flex items-center gap-2 ml-auto"
@@ -582,12 +478,6 @@
                 </button>
               </div>
             </div>
-
-            <ModeCompareBox
-              v-if="data?.report?.scoreProfiles"
-              v-bind="compareProps(cat.id)"
-              @update:selected-mode="selectedScoreMode = $event"
-            />
 
             <p v-if="cat.explanation" class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3">
               <span class="text-[var(--text-muted)] font-medium">What this checks:</span>
@@ -815,12 +705,6 @@
                 >
               </div>
 
-              <ModeCompareBox
-                v-if="data?.report?.scoreProfiles && hasCrossModeSignal(cat.id)"
-                v-bind="compareProps(cat.id)"
-                @update:selected-mode="selectedScoreMode = $event"
-              />
-
               <p
                 v-if="cat.explanation"
                 class="text-sm text-[var(--text-secondary)] bg-[var(--surface-deep)] rounded-lg px-4 py-3 border border-[var(--border-subtle)] mb-3"
@@ -1043,13 +927,8 @@
 
 <script setup lang="ts">
 import { getWcagCriteria } from "~/utils/wcag";
-import ModeCompareBox from "~/components/ModeCompareBox.vue";
 import NaCell from "~/components/NaCell.vue";
-import {
-  type ScoringMode,
-  categoriesForScoringMode,
-  MODE_BUTTON_LABELS,
-} from "~/utils/scoringProfiles";
+import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
@@ -1068,31 +947,6 @@ function toggleColorMode() {
 }
 
 const advancedCards = reactive<Record<string, boolean>>({});
-const selectedScoreMode = ref<ScoringMode>("strict");
-const categoryScoresAnchor = ref<HTMLElement | null>(null);
-
-// See index.vue for rationale — keep the Category Scores card visually
-// pinned when the mode switch flips, since the table rows and surrounding
-// copy re-render at different heights.
-async function flipScoreTableMode(mode: ScoringMode) {
-  if (mode === selectedScoreMode.value) return;
-  const el = categoryScoresAnchor.value;
-  const beforeTop = el?.getBoundingClientRect().top ?? null;
-  selectedScoreMode.value = mode;
-  if (beforeTop === null || typeof window === "undefined") return;
-  await nextTick();
-  await new Promise<null>((r) => requestAnimationFrame(() => r(null)));
-  const afterTop = el?.getBoundingClientRect().top ?? null;
-  if (afterTop === null) return;
-  const delta = afterTop - beforeTop;
-  if (Math.abs(delta) > 1) {
-    window.scrollBy({
-      top: delta,
-      left: 0,
-      behavior: "instant" as ScrollBehavior,
-    });
-  }
-}
 
 const { data, pending, error } = await useFetch(`/api/reports/${id}`);
 
@@ -1143,66 +997,19 @@ const errorMessage = computed(() => {
   return "Unable to load this report. Please try again later.";
 });
 
-watch(
-  data,
-  (value) => {
-    const report = (value as any)?.report;
-    selectedScoreMode.value =
-      report?.scoringMode === "remediation" &&
-      report?.scoreProfiles?.remediation
-        ? "remediation"
-        : "strict";
-  },
-  { immediate: true },
-);
-
 const displayedCategories = computed(() =>
   categoriesForScoringMode(
     (data.value as any)?.report?.categories,
     (data.value as any)?.report?.scoreProfiles,
-    selectedScoreMode.value,
+    "strict",
   ),
 );
-const remediationModeActive = computed(
-  () =>
-    selectedScoreMode.value === "remediation" &&
-    !!(data.value as any)?.report?.scoreProfiles?.remediation,
-);
 
-function compareProps(catId: string) {
-  const report = (data.value as any)?.report;
-  const strict = report?.scoreProfiles?.strict?.categories?.find(
-    (c: any) => c.id === catId,
-  );
-  const practical = report?.scoreProfiles?.remediation?.categories?.find(
-    (c: any) => c.id === catId,
-  );
-  return {
-    categoryId: catId,
-    strictScore: strict?.score ?? null,
-    strictGrade: strict?.grade ?? null,
-    practicalScore: practical?.score ?? null,
-    practicalGrade: practical?.grade ?? null,
-    selectedMode: selectedScoreMode.value,
-  };
-}
-
-function hasCrossModeSignal(catId: string): boolean {
-  const { strictScore, practicalScore } = compareProps(catId);
-  return strictScore !== practicalScore;
-}
-
-// See index.vue for rationale: anchor divergent categories in Detailed
-// Findings so clicking a mode-compare pill never yanks a card out of view.
 const scoredCategories = computed(() =>
-  displayedCategories.value.filter(
-    (c: any) => c.score !== null || hasCrossModeSignal(c.id),
-  ),
+  displayedCategories.value.filter((c: any) => c.score !== null),
 );
 const naCategories = computed(() =>
-  displayedCategories.value.filter(
-    (c: any) => c.score === null && !hasCrossModeSignal(c.id),
-  ),
+  displayedCategories.value.filter((c: any) => c.score === null),
 );
 const hasAnyNaRow = computed(
   () =>

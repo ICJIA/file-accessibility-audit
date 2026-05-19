@@ -508,7 +508,7 @@ export const RATE_LIMITS = {
 
   /** POST /api/analyze — keyed by email (from JWT).
    *  Prevents a single user from monopolizing analysis resources.
-   *  Sized for 6 full batches of BATCH.MAX_FILES (5) plus headroom
+   *  Sized for 6 full batches of BATCH.MAX_FILES (3) plus headroom
    *  for retries, errors, and cancelled-then-restarted sessions. */
   analyze: { max: 35, windowMs: 60 * 60 * 1000 }, // 35 per hour
 
@@ -581,11 +581,11 @@ export const BATCH = {
    * Files are processed sequentially server-side to avoid memory spikes.
    *
    * SAFE TO CHANGE: Yes — but more files = longer processing time.
-   * At ~5–10 seconds per PDF, 5 files means up to 50 seconds of
+   * At ~5–10 seconds per PDF, 3 files means up to ~30 seconds of
    * sequential processing. Don't exceed 20 without also implementing
    * a background job queue.
    */
-  MAX_FILES: 5,
+  MAX_FILES: 3,
 } as const;
 
 // ---------------------------------------------------------------------------

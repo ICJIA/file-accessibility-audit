@@ -159,7 +159,7 @@ describe("Score display — verdict explanation", () => {
     categories: severities.map(cat),
   });
 
-  it("shows strict-mode legal guidance with counts for a failing document", () => {
+  it("shows WCAG/IITAA-anchored guidance with counts for a failing document", () => {
     const wrapper = mount(ScoreCard, {
       props: {
         result: makeResult("D", 55, ["Critical", "Critical", "Moderate"]),
@@ -169,7 +169,8 @@ describe("Score display — verdict explanation", () => {
     expect(explanation.exists()).toBe(true);
     expect(explanation.text()).toContain("2 critical issues");
     expect(explanation.text()).toContain("1 moderate issue");
-    expect(explanation.text()).toContain("programmatically determinable");
+    expect(explanation.text()).toContain("WCAG 2.1 AA");
+    expect(explanation.text()).toContain("IITAA §E205.4");
   });
 
   it('renders singular "critical issue" when exactly one', () => {
@@ -368,95 +369,19 @@ describe("Score display — severity badges", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Detailed Findings card — profile badge & PDF/UA pill
+// Detailed Findings card — single-mode (v1.21+)
 // ---------------------------------------------------------------------------
-describe("Detailed Findings — profile badge and PDF/UA pill", () => {
+describe("Detailed Findings — single Strict view", () => {
   const indexSource = readPageSource("pages/index.vue");
   const reportSource = readPageSource("pages/report/[id].vue");
 
-  it("renders a strict profile badge on each scored category card when strict mode is selected", () => {
-    // Each Detailed Findings card carries a category-mode-badge pill whose
-    // text is driven by MODE_BUTTON_LABELS[selectedScoreMode] — so the badge
-    // reads "Strict" in strict mode and "Practical" in practical mode.
+  it("does not surface a strict/practical mode toggle on either page", () => {
     for (const source of [indexSource, reportSource]) {
-      expect(source).toContain('data-testid="category-mode-badge"');
-      expect(source).toContain(
-        "MODE_BUTTON_LABELS[selectedScoreMode]",
-      );
-      // Strict uses an emerald tint, Practical uses amber.
-      expect(source).toContain("border-emerald-500/40 bg-emerald-500/10 text-emerald-300");
-      expect(source).toContain("border-amber-500/40 bg-amber-500/10 text-amber-300");
-      // The mode badge is keyed off selectedScoreMode === 'strict'.
-      expect(source).toContain("selectedScoreMode === 'strict'");
+      expect(source).not.toContain("selectedScoreMode");
+      expect(source).not.toContain("MODE_BUTTON_LABELS");
+      expect(source).not.toContain("ModeCompareBox");
+      expect(source).not.toContain('data-testid="category-mode-badge"');
+      expect(source).not.toContain('data-testid="pdf-ua-badge"');
     }
-  });
-
-  it("renders a practical profile badge and a PDF/UA signals pill on the pdf_ua_compliance card when practical mode is selected", () => {
-    for (const source of [indexSource, reportSource]) {
-      expect(source).toContain('data-testid="pdf-ua-badge"');
-      // The pill is only shown when both the category is pdf_ua_compliance
-      // and the user has selected Practical (remediation) mode.
-      expect(source).toContain("cat.id === 'pdf_ua_compliance'");
-      expect(source).toContain("selectedScoreMode === 'remediation'");
-      // Stronger amber tint distinguishes it from the mode badge.
-      expect(source).toContain(
-        "border-amber-400/60 bg-amber-400/15 text-amber-200",
-      );
-      expect(source).toContain("PDF/UA signals");
-    }
-  });
-
-  it("renders a ModeCompareBox inside each Detailed Findings card on both pages", () => {
-    for (const source of [indexSource, reportSource]) {
-      expect(source).toContain("ModeCompareBox");
-      expect(source).toContain('v-bind="compareProps(cat.id)"');
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Mode divergence copy — per-category rationale
-// ---------------------------------------------------------------------------
-describe("Mode divergence copy — per-category rationale", () => {
-  const modulePath = "~/utils/modeDivergence";
-
-  it("provides Strict/Practical rationale copy for every category that branches on the scoring mode", async () => {
-    const { DIVERGENCE_COPY, canCategoryDiverge, getDivergenceCopy } =
-      await import("../utils/modeDivergence");
-    // Only these four category scorers branch on the scoring mode.
-    const divergingIds = [
-      "heading_structure",
-      "table_markup",
-      "reading_order",
-      "pdf_ua_compliance",
-    ];
-    for (const id of divergingIds) {
-      expect(canCategoryDiverge(id)).toBe(true);
-      expect(DIVERGENCE_COPY[id]).toBeDefined();
-      const copy = getDivergenceCopy(id);
-      expect(copy.whatPracticalCredits.length).toBeGreaterThan(40);
-      expect(copy.whyStrictMatters.length).toBeGreaterThan(40);
-      expect(copy.whyPracticalMatters.length).toBeGreaterThan(40);
-    }
-  });
-
-  it("falls back to a same-in-both-modes explanation for non-branching categories", async () => {
-    const { canCategoryDiverge, getDivergenceCopy } = await import(
-      "../utils/modeDivergence"
-    );
-    for (const id of [
-      "text_extractability",
-      "title_language",
-      "alt_text",
-      "bookmarks",
-      "link_quality",
-      "form_accessibility",
-      "color_contrast",
-    ]) {
-      expect(canCategoryDiverge(id)).toBe(false);
-      expect(getDivergenceCopy(id).label).toBe("Same score in both modes");
-    }
-    // Satisfy the "module path" reference to keep linting happy.
-    expect(modulePath).toContain("modeDivergence");
   });
 });

@@ -7,8 +7,10 @@ import {
 } from '~/composables/useRemediationJob'
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
-const beforeMode = ref<'strict' | 'remediation'>('strict')
-const afterMode = ref<'strict' | 'remediation'>('strict')
+// v1.21+: single Strict (WCAG + IITAA §E205.4) score. The historical
+// dual-mode toggle was retired — PDF/UA conformance is now surfaced via
+// the veraPDF Pass/Fail badge below the score (when veraPDF is configured).
+const AUDIT_MODE = 'strict' as const
 
 definePageMeta({ middleware: [] })
 
@@ -51,14 +53,14 @@ interface CategoryPair {
 const afterCategories = computed<CategoryResult[]>(() => {
   const out = receipt.value?.outputAudit
   if (!out) return []
-  const profile = (out.scoreProfiles as Record<string, { categories?: CategoryResult[] }> | undefined)?.[afterMode.value]
+  const profile = (out.scoreProfiles as Record<string, { categories?: CategoryResult[] }> | undefined)?.[AUDIT_MODE]
   return profile?.categories ?? out.categories ?? []
 })
 
 const beforeCategories = computed<CategoryResult[]>(() => {
   const inp = receipt.value?.inputAudit
   if (!inp) return []
-  const profile = (inp.scoreProfiles as Record<string, { categories?: CategoryResult[] }> | undefined)?.[afterMode.value]
+  const profile = (inp.scoreProfiles as Record<string, { categories?: CategoryResult[] }> | undefined)?.[AUDIT_MODE]
   return profile?.categories ?? inp.categories ?? []
 })
 
@@ -235,24 +237,6 @@ const heuristicRows = computed<HeuristicRow[]>(() => {
       description: 'The graded WCAG-aligned score shown on the audit page.',
       beforeText: fmtScoreGrade(dB, strictBefore?.grade),
       afterText: fmtScoreGrade(dA, strictAfter?.grade),
-      delta:
-        dA !== null && dB !== null
-          ? `${dA - dB >= 0 ? '+' : ''}${(dA - dB).toFixed(0)}`
-          : '–',
-    })
-  }
-
-  // Remediation (the "practical" profile)
-  const remBefore = inp.scoreProfiles?.remediation
-  const remAfter = out.scoreProfiles?.remediation
-  if (remBefore || remAfter) {
-    const dB = remBefore?.overallScore ?? null
-    const dA = remAfter?.overallScore ?? null
-    rows.push({
-      label: 'Remediation score',
-      description: 'Practical scoring profile (weights N/A categories more leniently).',
-      beforeText: fmtScoreGrade(dB, remBefore?.grade),
-      afterText: fmtScoreGrade(dA, remAfter?.grade),
       delta:
         dA !== null && dB !== null
           ? `${dA - dB >= 0 ? '+' : ''}${(dA - dB).toFixed(0)}`
@@ -618,10 +602,69 @@ function labelForEvent(name: string): string {
           </p>
         </div>
         <div class="p-4 sm:p-6">
-          <ScoreCard
-            v-model:selected-mode="afterMode"
-            :result="receipt.outputAudit"
-          />
+          <ScoreCard :result="receipt.outputAudit" />
+
+          <!-- Compact PDF/UA-1 conformance badge — surfaces the veraPDF
+               verdict right next to the headline score. Full details are
+               in the dedicated veraPDF section further down. -->
+          <div
+            v-if="receipt?.veraPdf"
+            class="mt-6 flex items-center justify-center"
+          >
+            <a
+              href="#verapdf-detail"
+              class="inline-flex items-center gap-3 rounded-full px-4 py-2 text-sm font-medium border transition-colors"
+              :class="
+                !receipt.veraPdf.available
+                  ? 'border-[var(--border)] bg-[var(--surface-deep)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
+                  : receipt.veraPdf.passed
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'
+              "
+              :aria-label="
+                !receipt.veraPdf.available
+                  ? 'PDF/UA-1 conformance check not run (veraPDF not configured)'
+                  : receipt.veraPdf.passed
+                    ? 'PDF/UA-1 conformance check passed'
+                    : 'PDF/UA-1 conformance check found failures'
+              "
+            >
+              <span
+                class="inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold"
+                :class="
+                  !receipt.veraPdf.available
+                    ? 'bg-[var(--surface-hover)] text-[var(--text-muted)]'
+                    : receipt.veraPdf.passed
+                      ? 'bg-emerald-500/30 text-emerald-200'
+                      : 'bg-amber-500/30 text-amber-200'
+                "
+              >
+                {{
+                  !receipt.veraPdf.available
+                    ? '–'
+                    : receipt.veraPdf.passed
+                      ? '✓'
+                      : '!'
+                }}
+              </span>
+              <span class="uppercase tracking-wider text-[11px]">PDF/UA-1</span>
+              <span class="text-xs">
+                {{
+                  !receipt.veraPdf.available
+                    ? 'check not run'
+                    : receipt.veraPdf.passed
+                      ? 'conformance passed'
+                      : `${receipt.veraPdf.summary?.totalFailureCount ?? 'some'} rule failure${(receipt.veraPdf.summary?.totalFailureCount ?? 0) === 1 ? '' : 's'}`
+                }}
+              </span>
+              <span
+                v-if="receipt.veraPdf.available"
+                class="text-[10px] uppercase tracking-wider opacity-70"
+              >
+                details ↓
+              </span>
+            </a>
+          </div>
 
           <!-- Three-heuristic comparison (visible by default — primary
                comparison story) -->
@@ -633,7 +676,8 @@ function labelForEvent(name: string): string {
               Score comparison
             </h3>
             <p class="text-xs text-[var(--text-muted)] mb-3">
-              Both scoring profiles before and after remediation.
+              Strict (WCAG + IITAA §E205.4) score before and after
+              remediation.
             </p>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
@@ -740,8 +784,7 @@ function labelForEvent(name: string): string {
               v-if="outstandingCount === 0"
               class="text-sm text-emerald-300 text-center"
             >
-              ✓ No critical, serious, or moderate issues remain on the selected
-              scoring profile.
+              ✓ No critical, serious, or moderate issues remain.
             </p>
             <p v-else class="text-sm text-amber-300 text-center">
               <strong>{{ outstandingCount }}</strong>
@@ -1172,7 +1215,6 @@ function labelForEvent(name: string): string {
         </div>
         <div class="p-4 sm:p-6">
           <ScoreCard
-            v-model:selected-mode="beforeMode"
             :result="receipt.inputAudit"
           />
         </div>
@@ -1318,11 +1360,11 @@ function labelForEvent(name: string): string {
       </p>
     </section>
 
-    <!-- Compliance disclaimer (veraPDF verdict + IITAA + manual review) -->
-    <section v-if="isVisuallyComplete && receipt?.veraPdf" class="mb-6">
+    <!-- PDF/UA-1 conformance (veraPDF verdict + IITAA + manual review) -->
+    <section v-if="isVisuallyComplete && receipt?.veraPdf" id="verapdf-detail" class="mb-6 scroll-mt-8">
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6">
         <h3 class="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-          Compliance disclaimer
+          PDF/UA-1 conformance check
         </h3>
 
         <!-- veraPDF verdict -->

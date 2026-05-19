@@ -98,54 +98,17 @@ export function scoreDocument(
   const isScanned = !pdfjs.error && !pdfjs.hasText && !qpdf.hasStructTree;
 
   const strictCategories = buildCategories(qpdf, pdfjs, "strict");
-  const remediationCategories = buildCategories(qpdf, pdfjs, "remediation");
-
   const strictAggregate = aggregateScore(strictCategories, isScanned, "strict");
-  const remediationAggregate = aggregateScore(
-    remediationCategories,
-    isScanned,
-    "remediation",
-  );
 
-  // Strict-is-floor invariant for Practical:
-  // Strict is the canonical WCAG / IITAA §E205.4 view. Practical layers
-  // different category weights plus a PDF/UA category on top of the same
-  // document evidence, so intuitively it should never scare lower than
-  // Strict — a "remediation readiness" profile shouldn't punish a
-  // document for things Strict overlooked.
+  // As of v1.21.0 only the Strict (WCAG + IITAA §E205.4) profile is
+  // surfaced to users. The previous Practical / PDF-UA flavored profile
+  // was retired — PDF/UA conformance is now surfaced more authoritatively
+  // by the optional veraPDF check on the remediation result page.
   //
-  // In practice the raw Practical weighted average CAN dip below Strict
-  // when the weight redistribution moves mass onto a category that scores
-  // low (e.g. alt_text carries 15% in Strict vs. 13% in Practical — a big
-  // Alt Text win lifts Strict slightly more in absolute points) or when
-  // PDF/UA is mid-tier. v1.14.1 capped the PDF/UA drag; this rule
-  // generalizes that idea: if Practical's math ends up below Strict, we
-  // floor Practical at Strict so the UX invariant is clean:
-  //
-  //     Strict ≤ Practical, always.
-  //
-  // The per-category Practical scores remain unchanged (they still reflect
-  // the raw math so auditors can reconstruct the weighted average), and
-  // the underlying "Practical raw" score is retained on the profile as
-  // `rawOverallScore` for transparency.
-  const remediationProfile = remediationAggregate.profile;
-  if (remediationProfile.overallScore < strictAggregate.overallScore) {
-    remediationProfile.rawOverallScore = remediationProfile.overallScore;
-    remediationProfile.flooredToStrict = true;
-    remediationProfile.overallScore = strictAggregate.overallScore;
-    remediationProfile.grade = strictAggregate.grade;
-    remediationProfile.executiveSummary = generateSummary(
-      strictAggregate.overallScore,
-      strictAggregate.grade,
-      isScanned,
-      remediationCategories,
-      "remediation",
-    );
-  } else {
-    remediationProfile.rawOverallScore = remediationProfile.overallScore;
-    remediationProfile.flooredToStrict = false;
-  }
-
+  // We still emit `scoreProfiles.remediation` as a structural alias of
+  // `scoreProfiles.strict` so historical consumers (shared-report JSON
+  // payloads, downstream tooling) keep round-tripping cleanly. The alias
+  // will be dropped in a future release once consumers have migrated.
   const adobeParity = buildAdobeParityReport(qpdf, pdfjs);
 
   return {
@@ -158,7 +121,7 @@ export function scoreDocument(
     scoringMode: "strict",
     scoreProfiles: {
       strict: strictAggregate.profile,
-      remediation: remediationProfile,
+      remediation: strictAggregate.profile,
     },
     adobeParity,
   };
@@ -175,7 +138,6 @@ function buildCategories(
   categories.push(scoreTitleLanguage(qpdf, pdfjs));
   categories.push(scoreHeadingStructure(qpdf, mode));
   categories.push(scoreAltText(qpdf, pdfjs));
-  categories.push(scorePdfUaCompliance(qpdf, mode));
   categories.push(scoreBookmarks(qpdf, pdfjs));
   categories.push(scoreTableMarkup(qpdf, mode));
   categories.push(scoreColorContrast());

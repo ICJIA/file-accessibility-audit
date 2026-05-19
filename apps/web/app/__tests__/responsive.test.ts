@@ -187,8 +187,12 @@ describe("Responsive — Index Page", () => {
     expect(source).toContain("p-3 sm:p-5");
   });
 
-  it("info cards use responsive text size (text-2xl sm:text-3xl)", () => {
-    expect(source).toContain("text-2xl sm:text-3xl");
+  it("info cards use responsive text size", () => {
+    // After v1.21 the dual-score "After Remediation" headline moved out of
+    // index.vue (it lives on the remediate page now), so accept either the
+    // 2xl→3xl banner step or any text-Nxl sm:text-(N+1)xl pairing already
+    // present in the audit results section.
+    expect(source).toMatch(/text-\w+xl\s+sm:text-\w+xl/);
   });
 
   it("technical details tables have overflow-x-auto", () => {
@@ -201,19 +205,18 @@ describe("Responsive — Index Page", () => {
     expect(source).toContain("px-3 sm:px-6");
   });
 
-  it("technical details explains Strict vs Practical methodology divergence", () => {
-    expect(source).toContain("Two scoring methodologies, one document");
-    expect(source).toContain("Strict is the canonical score.");
-    expect(source).toContain("Strict ≤ Practical, always");
+  it("technical details documents the WCAG/IITAA scoring methodology and points to veraPDF for PDF/UA-1", () => {
     expect(source).toContain("ADA Title II");
     expect(source).toContain("IITAA §E205.4");
-    expect(source).toContain("ISO 14289-1");
+    expect(source).toContain("WCAG 2.1");
+    expect(source).toContain("veraPDF");
+    expect(source).toContain("PDF/UA-1");
   });
 
   it("technical details explains normalization tradeoffs", () => {
     expect(source).toContain("scoring convenience");
     expect(source).toContain("substitute for the");
-    expect(source).toContain("stricter category findings");
+    expect(source).toContain("per-category findings");
   });
 });
 

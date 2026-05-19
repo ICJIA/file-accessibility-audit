@@ -184,10 +184,7 @@
         <div
           class="text-center mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
         >
-          <ScoreCard
-            v-model:selected-mode="selectedScoreMode"
-            :result="result"
-          />
+          <ScoreCard :result="result" />
         </div>
 
         <!-- Auto-Remediate (visible right under the score; component
@@ -302,86 +299,24 @@
           <p
             class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
           >
-            Both <strong>Strict</strong> and <strong>Practical</strong>
-            evaluate the same document using <strong>WCAG</strong>
-            guidelines. Strict weighs nine categories anchored to
-            <strong>WCAG 2.1 AA</strong> and <strong>IITAA §E205.4</strong>
-            and does not include a PDF/UA category. Practical uses different
-            category weights and adds a
-            <em>PDF/UA Compliance Signals</em> category plus partial-credit
-            floors on heading and table structure. Both methodologies are
-            valid — pick whichever view (or both) matches what you're trying
-            to learn. Categories that don't apply are excluded and weights
-            renormalized in both modes.
+            Nine categories are weighed against
+            <strong>WCAG 2.1 AA</strong> and <strong>IITAA §E205.4</strong> —
+            the rules that govern non-web document accessibility in Illinois.
+            Categories that don't apply (e.g. tables in a document with no
+            tables) are excluded and the remaining weights renormalized. For
+            a PDF/UA-1 conformance verdict, run the optional remediation
+            pipeline — it includes a veraPDF check.
           </p>
         </div>
 
         <!-- Score Table -->
         <div
-          ref="categoryScoresAnchor"
           class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto"
         >
           <div class="px-3 sm:px-5 py-3 border-b border-[var(--border)]">
-            <div class="flex items-start justify-between gap-3 flex-wrap">
-              <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
-                Category Scores
-              </h2>
-              <div
-                v-if="
-                  result.scoreProfiles?.strict &&
-                  result.scoreProfiles?.remediation
-                "
-                data-testid="category-scores-mode-switch"
-                class="inline-flex shrink-0 rounded-lg border border-[var(--border)] overflow-hidden text-[11px]"
-                role="group"
-                aria-label="Switch scoring mode"
-              >
-                <button
-                  type="button"
-                  :aria-pressed="selectedScoreMode === 'strict'"
-                  class="px-2.5 py-1 font-semibold uppercase tracking-wide transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/60"
-                  :class="
-                    selectedScoreMode === 'strict'
-                      ? 'bg-emerald-500/20 text-emerald-200'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
-                  "
-                  @click="flipScoreTableMode('strict')"
-                >
-                  Strict
-                </button>
-                <button
-                  type="button"
-                  :aria-pressed="selectedScoreMode === 'remediation'"
-                  class="px-2.5 py-1 font-semibold uppercase tracking-wide transition-colors cursor-pointer border-l border-[var(--border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/60"
-                  :class="
-                    selectedScoreMode === 'remediation'
-                      ? 'bg-amber-500/20 text-amber-200'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
-                  "
-                  @click="flipScoreTableMode('remediation')"
-                >
-                  Practical
-                </button>
-              </div>
-            </div>
-            <p v-if="result.scoreProfiles?.remediation" class="mt-2 text-xs text-[var(--text-muted)]">
-              {{
-                remediationModeActive
-                  ? CATEGORY_TABLE_PRACTICAL_PREFIX
-                  : CATEGORY_TABLE_STRICT_PREFIX
-              }}
-              <a
-                :href="IITAA_PDFUA_URL"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                >§504.2.2 PDF Export</a
-              >{{
-                remediationModeActive
-                  ? CATEGORY_TABLE_PRACTICAL_SUFFIX
-                  : CATEGORY_TABLE_STRICT_SUFFIX
-              }}
-            </p>
+            <h2 class="text-sm font-semibold text-[var(--text-secondary)]">
+              Category Scores
+            </h2>
           </div>
           <table class="w-full text-sm min-w-[420px]">
             <thead>
@@ -415,7 +350,7 @@
                   {{ cat.score }}
                 </td>
                 <td v-else class="text-center px-3 py-2.5 font-mono">
-                  <NaCell :cat-id="cat.id" :mode="selectedScoreMode" />
+                  <NaCell :cat-id="cat.id" />
                 </td>
                 <td class="text-center px-3 py-2.5">
                   <span
@@ -473,7 +408,7 @@
                 <td
                   class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]"
                 >
-                  <NaCell :cat-id="cat.id" :mode="selectedScoreMode" />
+                  <NaCell :cat-id="cat.id" />
                 </td>
                 <td
                   class="text-center px-3 py-2.5 text-[var(--text-muted)]"
@@ -581,26 +516,6 @@
                 }"
                 >{{ cat.severity }}</span
               >
-              <span
-                data-testid="category-mode-badge"
-                :aria-label="`Scored under ${MODE_BUTTON_LABELS[selectedScoreMode]} mode`"
-                class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border"
-                :class="
-                  selectedScoreMode === 'strict'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                    : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                "
-                >{{ MODE_BUTTON_LABELS[selectedScoreMode] }}</span
-              >
-              <span
-                v-if="
-                  cat.id === 'pdf_ua_compliance' &&
-                  selectedScoreMode === 'remediation'
-                "
-                data-testid="pdf-ua-badge"
-                class="text-[11px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-400/60 bg-amber-400/15 text-amber-200"
-                >PDF/UA signals</span
-              >
               <div
                 v-if="partitionCardFindings(cat.findings).signalCount > 0"
                 class="flex items-center gap-2 ml-auto"
@@ -639,12 +554,6 @@
                 </button>
               </div>
             </div>
-
-            <ModeCompareBox
-              v-if="result.scoreProfiles"
-              v-bind="compareProps(cat.id)"
-              @update:selected-mode="selectedScoreMode = $event"
-            />
 
             <p
               v-if="cat.explanation"
@@ -882,12 +791,6 @@
                   >N/A</span
                 >
               </div>
-
-              <ModeCompareBox
-                v-if="result.scoreProfiles && hasCrossModeSignal(cat.id)"
-                v-bind="compareProps(cat.id)"
-                @update:selected-mode="selectedScoreMode = $event"
-              />
 
               <p
                 v-if="cat.explanation"
@@ -2145,17 +2048,13 @@ PDF says:
             How Scores Are Calculated
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            The scorer evaluates up to eleven accessibility categories.
-            <strong>Strict</strong> weighs nine of them (anchored to
-            WCAG 2.1 AA and IITAA §E205.4) and does not include a PDF/UA
-            category. <strong>Practical</strong> uses different category
-            weights and additionally weights a PDF/UA Compliance Signals
-            category. Both methodologies evaluate the same document using
-            WCAG guidelines. Each category receives a score from 0 to 100
-            (or N/A if the category doesn't apply to the document). The
-            overall score is a <strong>weighted average</strong> of
-            applicable categories, with weights renormalized to exclude N/A
-            categories.
+            The scorer weighs nine accessibility categories anchored to
+            <strong>WCAG 2.1 AA</strong> and <strong>IITAA §E205.4</strong> —
+            the rules that govern non-web document accessibility in Illinois.
+            Each category receives a score from 0 to 100 (or N/A if the
+            category doesn't apply to the document). The overall score is a
+            <strong>weighted average</strong> of applicable categories, with
+            weights renormalized to exclude N/A categories.
           </p>
           <div class="overflow-x-auto mb-4">
             <table
@@ -2167,15 +2066,9 @@ PDF says:
                 >
                   <th class="text-left px-3 py-2 font-medium">Category</th>
                   <th class="text-right px-3 py-2 font-medium">
-                    Strict weight
+                    Weight
                     <span class="block text-[9px] normal-case text-emerald-300 font-normal"
                       >WCAG + IITAA §E205.4</span
-                    >
-                  </th>
-                  <th class="text-right px-3 py-2 font-medium">
-                    Practical weight
-                    <span class="block text-[9px] normal-case text-amber-300 font-normal"
-                      >WCAG + PDF/UA</span
                     >
                   </th>
                 </tr>
@@ -2186,68 +2079,43 @@ PDF says:
                 <tr>
                   <td class="px-3 py-1.5">Text Extractability</td>
                   <td class="px-3 py-1.5 text-right font-mono">20%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">17.5%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Title &amp; Language</td>
                   <td class="px-3 py-1.5 text-right font-mono">15%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">13%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Heading Structure</td>
                   <td class="px-3 py-1.5 text-right font-mono">15%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">13%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Alt Text on Images</td>
                   <td class="px-3 py-1.5 text-right font-mono">15%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">13%</td>
-                </tr>
-                <tr class="bg-amber-500/5">
-                  <td class="px-3 py-1.5 font-medium">
-                    PDF/UA Compliance Signals
-                    <span class="text-[10px] uppercase tracking-wide text-amber-400 ml-1"
-                      >Practical only</span
-                    >
-                  </td>
-                  <td class="px-3 py-1.5 text-right font-mono">N/A</td>
-                  <td class="px-3 py-1.5 text-right font-mono">9.5%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Bookmarks / Navigation</td>
                   <td class="px-3 py-1.5 text-right font-mono">10%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">8.5%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Table Markup</td>
                   <td class="px-3 py-1.5 text-right font-mono">10%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">8.5%</td>
-                </tr>
-                <tr>
-                  <td class="px-3 py-1.5">Color Contrast</td>
-                  <td class="px-3 py-1.5 text-right font-mono">N/A</td>
-                  <td class="px-3 py-1.5 text-right font-mono">4.5%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Link Quality</td>
                   <td class="px-3 py-1.5 text-right font-mono">5%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">4.5%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Reading Order</td>
                   <td class="px-3 py-1.5 text-right font-mono">5%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">4%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Form Accessibility</td>
                   <td class="px-3 py-1.5 text-right font-mono">5%</td>
-                  <td class="px-3 py-1.5 text-right font-mono">4%</td>
                 </tr>
                 <tr
                   class="bg-[var(--surface-deep)] text-[var(--text-secondary)] font-semibold"
                 >
                   <td class="px-3 py-1.5">Total</td>
-                  <td class="px-3 py-1.5 text-right font-mono">100%</td>
                   <td class="px-3 py-1.5 text-right font-mono">100%</td>
                 </tr>
               </tbody>
@@ -2257,73 +2125,36 @@ PDF says:
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-4 space-y-2"
           >
             <p class="font-medium text-[var(--text-secondary)]">
-              Two scoring methodologies, one document
+              About this score
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              Both <strong>Strict</strong> and <strong>Practical</strong>
-              correctly evaluate the <strong>same document</strong> using
-              <strong>WCAG</strong> guidelines. They differ in two ways:
-              category weights, and whether the
-              <strong>PDF/UA Compliance Signals</strong> category is scored.
-              Both are valid evaluations — neither is “right.”
-            </p>
-            <p class="text-xs text-[var(--text-muted)]">
-              <strong>Strict</strong> weighs nine categories anchored to
-              <strong>WCAG 2.1 AA</strong> and
-              <strong>IITAA §E205.4</strong>. It does not include a PDF/UA
-              category and emphasizes
-              <strong>programmatically determinable</strong> structure —
-              real headings, real table-header relationships, and logical
-              reading order.
-            </p>
-            <p class="text-xs text-[var(--text-muted)]">
-              <strong>Practical</strong> uses different category weights
-              than Strict and adds a dedicated PDF/UA Compliance Signals
-              category (MarkInfo, tab order, list/table legality, PDF/UA
-              identifiers). It also applies partial-credit floors on heading
-              and table structure. These floors and weights are judgment
-              calls built into this tool, not published standards.
-            </p>
-            <p class="text-xs text-[var(--text-muted)]">
-              <strong>How the two scores relate.</strong>
-              <strong>Strict is the canonical score.</strong> It aligns
+              This is a <strong>WCAG-based</strong> evaluation. It aligns
               with <strong>WCAG 2.1 Level AA</strong>,
               <strong>ADA Title II</strong>, and Illinois
-              <strong>IITAA §E205.4</strong> — the rules that actually
-              govern non-web document accessibility in Illinois.
-              <strong>Practical adds a PDF/UA layer</strong>
-              (<em>ISO 14289-1</em>) on top of Strict. PDF/UA is
-              <em>not</em> a legal requirement for final documents under
-              Illinois rules — IITAA references PDF/UA only in §504.2.2,
-              and only for authoring-tool export capability, not for the
-              PDF artifact itself. Groups like DoIT that want the WCAG /
-              IITAA / ADA picture without PDF/UA noise should cite the
-              Strict score.
+              <strong>IITAA §E205.4</strong> — the rules that govern non-web
+              document accessibility in Illinois. The scorer emphasizes
+              <strong>programmatically determinable</strong> structure (real
+              headings, real table-header relationships, logical reading
+              order) because that's what assistive technology can actually
+              use.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <strong>Strict ≤ Practical, always.</strong> Practical
-              starts from the same document evidence and can
-              <em>add</em> points for remediation scaffolding that
-              Strict deliberately ignores (70-point partial-credit
-              floors on heading and table structure) and for PDF/UA
-              signals (MarkInfo, tab order, PDF/UA identifiers). When
-              none of those bonuses apply, Practical equals Strict.
-              Practical can never drop below Strict — the scorer guards
-              that invariant explicitly.
-            </p>
-            <p class="text-xs text-[var(--text-muted)]">
-              Illinois IITAA 2.1 references PDF/UA in
+              For a formal <strong>PDF/UA-1 (ISO 14289-1) conformance
+              verdict</strong>, run the optional remediation pipeline — it
+              includes a <a
+                href="https://verapdf.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+                >veraPDF</a> check. PDF/UA is referenced by IITAA only in
               <a
                 href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-                >§504.2.2 PDF Export</a
-              >
-              for authoring-tool export capability, while
-              <strong>§E205.4</strong> frames final non-web document
-              accessibility through WCAG 2.1. Neither profile is a final
-              legal determination.
+                >§504.2.2</a> for authoring-tool export capability, not for
+              the final PDF artifact itself, so the WCAG-anchored score above
+              is what governs publication decisions.
             </p>
           </div>
 
@@ -2429,46 +2260,6 @@ PDF says:
                 category scores <strong>0</strong> (Critical) instead of N/A.
                 <strong>N/A</strong> only if no images are detected by either
                 tool.
-              </p>
-            </div>
-            <div
-              class="rounded-lg bg-[var(--surface-deep)] border border-amber-500/30 px-4 py-3"
-            >
-              <p class="font-medium text-[var(--text-secondary)] mb-1">
-                PDF/UA Compliance Signals
-                <span
-                  class="text-[10px] uppercase tracking-wide text-amber-400 ml-1"
-                  >Practical only — 9.5%</span
-                >
-              </p>
-              <p class="text-xs text-[var(--text-muted)] mb-2">
-                <em>What it means:</em> A family of PDF/UA-oriented structural
-                signals (tagging, MarkInfo, tab order, PDF/UA identifiers,
-                list/table legality) that some remediation vendors and
-                PAC-style tools weight explicitly. This category is scored
-                in <strong>Practical</strong> and not in Strict — Strict
-                does not include a PDF/UA category. IITAA §504.2.2
-                references PDF/UA for authoring-tool export capability,
-                while §E205.4 frames final-document accessibility through
-                WCAG 2.1. Strict therefore surfaces this category as N/A
-                with guidance; Practical includes it in its weighted
-                average.
-              </p>
-              <p class="text-xs text-[var(--text-muted)]">
-                <em>How it's scored:</em> <strong>0</strong> if the document
-                has no StructTreeRoot (untagged). Otherwise the score starts at
-                <strong>25</strong> for a tagged document and accumulates:
-                <strong>MarkInfo /Marked true</strong> (+20) or present-only
-                (+10), <strong>PDF/UA identifier</strong> in metadata (+15),
-                <strong>tab order</strong> on every page (+10) or some pages
-                (+5), <strong>list legality</strong> up to +15 based on
-                <code>&lt;Lbl&gt;</code>/<code>&lt;LBody&gt;</code> well-formedness,
-                and <strong>table legality</strong> up to +15 from row
-                structure, consistent columns, and no nested tables. The
-                numbers here are the original developer's judgment calls, not
-                a published standard, and the total is a readiness signal —
-                not a PDF/UA conformance verdict. PAC and Matterhorn remain
-                the formal conformance checks.
               </p>
             </div>
             <div
@@ -2735,12 +2526,11 @@ PDF says:
             This renormalization is useful because it prevents a text-only file
             from being unfairly penalized for lacking tables, images, links, or
             forms that are not present. But it does <strong>not</strong> make
-            the remaining categories less important. A higher normalized score —
-            especially in <strong>Practical</strong> mode — can still coexist
-            with unresolved semantic issues that matter for ADA/WCAG/ITTAA
-            review. For Illinois agency publication decisions, normalization is
-            best treated as a scoring convenience, not as a substitute for the
-            stricter category findings.
+            the remaining categories less important. A higher normalized score
+            can still coexist with unresolved semantic issues that matter for
+            ADA/WCAG/IITAA review. For Illinois agency publication decisions,
+            normalization is best treated as a scoring convenience, not as a
+            substitute for the per-category findings.
           </p>
         </div>
 
@@ -2772,7 +2562,7 @@ PDF says:
             PDF auto-remediation feature behind the
             <code class="text-xs font-mono">REMEDIATION_ENABLED=true</code> env
             flag. When enabled, the audit results page surfaces an
-            <em>Auto-Remediate this PDF</em> button next to the score. Clicking
+            <em>Attempt remediation</em> button next to the score. Clicking
             it spawns a detached worker that runs a four-stage pipeline,
             validates the output, and either serves the remediated file to the
             user (single-use download, deleted on stream close) or rejects it
@@ -2793,7 +2583,7 @@ Worker pipeline:
   [Stage 3: validating] qpdf --check tagged → validity verdict
                         verapdf --flavour ua1 --format json tagged → conformance verdict
   [Stage 4: comparing] re-audit tagged → output_audit
-                        guard: reject if Overall|Strict|Practical regress
+                        guard: reject if Overall|Strict regresses
 
 Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
 
@@ -4037,20 +3827,10 @@ pm2 restart ecosystem.config.cjs</div>
 
 <script setup lang="ts">
 import { getWcagCriteria } from "~/utils/wcag";
-import ModeCompareBox from "~/components/ModeCompareBox.vue";
 import NaCell from "~/components/NaCell.vue";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
-import {
-  type ScoringMode,
-  categoriesForScoringMode,
-  CATEGORY_TABLE_PRACTICAL_PREFIX,
-  CATEGORY_TABLE_PRACTICAL_SUFFIX,
-  CATEGORY_TABLE_STRICT_PREFIX,
-  CATEGORY_TABLE_STRICT_SUFFIX,
-  IITAA_PDFUA_URL,
-  MODE_BUTTON_LABELS,
-} from "~/utils/scoringProfiles";
+import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 
 definePageMeta({ middleware: "auth" });
@@ -4139,83 +3919,13 @@ const activeFile = computed<File | null>(() => {
   return singleFile.value;
 });
 
-const selectedScoreMode = ref<ScoringMode>("strict");
-const categoryScoresAnchor = ref<HTMLElement | null>(null);
-
-watch(
-  result,
-  (value) => {
-    selectedScoreMode.value =
-      value?.scoringMode === "remediation" && value?.scoreProfiles?.remediation
-        ? "remediation"
-        : "strict";
-  },
-  { immediate: true },
-);
-
-// Flip the active mode without shifting the Category Scores card out of
-// the viewport. The table rows and surrounding content re-render at
-// different heights when the mode changes; capture the anchor's top
-// before the flip and scroll by the delta after Vue has flushed the DOM
-// so the user's reading position stays put.
-async function flipScoreTableMode(mode: ScoringMode) {
-  if (mode === selectedScoreMode.value) return;
-  const el = categoryScoresAnchor.value;
-  const beforeTop = el?.getBoundingClientRect().top ?? null;
-  selectedScoreMode.value = mode;
-  if (beforeTop === null || typeof window === "undefined") return;
-  await nextTick();
-  await new Promise<null>((r) => requestAnimationFrame(() => r(null)));
-  const afterTop = el?.getBoundingClientRect().top ?? null;
-  if (afterTop === null) return;
-  const delta = afterTop - beforeTop;
-  if (Math.abs(delta) > 1) {
-    window.scrollBy({
-      top: delta,
-      left: 0,
-      behavior: "instant" as ScrollBehavior,
-    });
-  }
-}
-
 const displayedCategories = computed(() =>
   categoriesForScoringMode(
     result.value?.categories,
     result.value?.scoreProfiles,
-    selectedScoreMode.value,
+    "strict",
   ),
 );
-const remediationModeActive = computed(
-  () =>
-    selectedScoreMode.value === "remediation" &&
-    !!result.value?.scoreProfiles?.remediation,
-);
-
-function compareProps(catId: string) {
-  const strict = result.value?.scoreProfiles?.strict?.categories?.find(
-    (c: any) => c.id === catId,
-  );
-  const practical = result.value?.scoreProfiles?.remediation?.categories?.find(
-    (c: any) => c.id === catId,
-  );
-  return {
-    categoryId: catId,
-    strictScore: strict?.score ?? null,
-    strictGrade: strict?.grade ?? null,
-    practicalScore: practical?.score ?? null,
-    practicalGrade: practical?.grade ?? null,
-    selectedMode: selectedScoreMode.value,
-  };
-}
-
-// Show ModeCompareBox on an N/A card only when the two profiles actually
-// disagree for that category (so the user can still see the side-by-side
-// pills and click-to-switch mode without the box disappearing). Categories
-// that are N/A in both modes (e.g. color_contrast) skip the box.
-function hasCrossModeSignal(catId: string): boolean {
-  const { strictScore, practicalScore } = compareProps(catId);
-  return strictScore !== practicalScore;
-}
 
 // True when any batch item finished (done, error, or cancelled) or single result exists
 const hasAnyResult = computed(() => {
@@ -4424,20 +4134,11 @@ function clearResults() {
   clearShare();
 }
 
-// Keep categories anchored: a category that is scored in either profile (even
-// if N/A in the currently-selected one) stays in Detailed Findings so the
-// card does not jump sections when the user clicks a mode-compare pill that
-// flips the global mode. Only categories that are N/A in both profiles drop
-// to "Not Included in Scoring."
 const scoredCategories = computed(() =>
-  displayedCategories.value.filter(
-    (c: any) => c.score !== null || hasCrossModeSignal(c.id),
-  ),
+  displayedCategories.value.filter((c: any) => c.score !== null),
 );
 const naCategories = computed(() =>
-  displayedCategories.value.filter(
-    (c: any) => c.score === null && !hasCrossModeSignal(c.id),
-  ),
+  displayedCategories.value.filter((c: any) => c.score === null),
 );
 const hasAnyNaRow = computed(
   () =>

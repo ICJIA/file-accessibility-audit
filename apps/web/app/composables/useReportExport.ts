@@ -85,19 +85,19 @@ function gradeLabel(grade: string): string {
   return map[grade] || grade;
 }
 
-function profileLabel(mode: ScoringMode): string {
-  return mode === "remediation"
-    ? "Practical readiness score (WCAG + PDF/UA)"
-    : "Strict semantic score (WCAG + IITAA §E205.4)";
+function profileLabel(_mode: ScoringMode): string {
+  return "Strict semantic score (WCAG + IITAA §E205.4)";
 }
 
-function profileDescription(mode: ScoringMode): string {
-  return mode === "remediation"
-    ? "WCAG-based scoring methodology with different category weights than Strict and an added PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). Applies partial-credit floors on heading and table structure. IITAA §504.2.2 references PDF/UA in authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1."
-    : "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA category. Prioritizes programmatically determinable headings, table semantics, and logical structure.";
+function profileDescription(_mode: ScoringMode): string {
+  return "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure.";
 }
 
 function getScoreProfiles(result: ReportResult): ScoreProfile[] {
+  // v1.21+ exports a single Strict profile. Historical shared reports
+  // (stored before v1.21) may still carry a `scoreProfiles.remediation`
+  // that differs from strict; we ignore it to keep the downloaded
+  // document consistent with what the UI shows.
   const strictFallback: ScoreProfile = {
     mode: "strict",
     label: profileLabel("strict"),
@@ -116,16 +116,7 @@ function getScoreProfiles(result: ReportResult): ScoreProfile[] {
       }
     : strictFallback;
 
-  const remediation = result.scoreProfiles?.remediation
-    ? {
-        ...result.scoreProfiles.remediation,
-        mode: "remediation" as const,
-        label: profileLabel("remediation"),
-        description: profileDescription("remediation"),
-      }
-    : null;
-
-  return [strict, remediation].filter(Boolean) as ScoreProfile[];
+  return [strict];
 }
 
 function severityEmoji(severity: string | null): string {

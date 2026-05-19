@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-const MAX_FILES = 5
+const MAX_FILES = 3
 const MAX_SIZE = 15 * 1024 * 1024
 
 const emit = defineEmits<{

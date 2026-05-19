@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.21.0] — 2026-05-19
+
+### Changed — Single Strict score, veraPDF promoted on the remediation page
+
+User feedback consistently flagged the audit UI as information-dense — auditors and agency staff were toggling between two scoring profiles ("Strict" and "Practical") and trying to reconcile the difference instead of acting on the underlying findings. After review, **Practical was retired**. The remaining profile, **Strict (WCAG 2.1 AA + IITAA §E205.4)**, is the one anchored to actual legal accessibility requirements in Illinois, and is what every publication decision should be made on.
+
+The PDF/UA signal that Practical tried to summarize (MarkInfo, tab order, PDF/UA identifiers, list/table legality, partial-credit floors on headings and tables) is now surfaced more authoritatively on the **remediation result page** via the optional **veraPDF** check (ISO 14289-1 conformance). The veraPDF verdict is a binary Pass/Fail against the published PDF/UA-1 standard, which is more useful to an auditor than a synthetic weighted readiness number.
+
+Specifically:
+
+- **Audit page and shared-report page**: no more Strict/Practical toggle. The score card shows a single number anchored to WCAG + IITAA §E205.4. The dual-score audit row, mode badge pill, PDF/UA signals pill, and the cross-mode `ModeCompareBox` are gone.
+- **Remediation result page**: a compact **"PDF/UA-1: conformance passed / N rule failures / check not run"** badge now appears immediately below the After-remediation score, jumping to the existing veraPDF detail panel. The detail panel was renamed from "Compliance disclaimer" to "PDF/UA-1 conformance check" to match what it actually is.
+- **Per-card Basic/Advanced toggle** in the audit kept as-is — it's a per-category control over how much detail to show, not a separate scoring profile.
+- **`pdf_ua_compliance` category dropped from the audit** — its signals are still inspectable in the underlying audit JSON if needed, and veraPDF is the authoritative source on the remediation page.
+
+### Compatibility / API contract
+
+- `result.scoreProfiles.remediation` is emitted as a **structural alias of `scoreProfiles.strict`** (same score, same grade, same summary). Historical shared-report JSON, fleet CSVs, and any external `/api/audit-url` consumer keep parsing without changes — they just get the Strict number under both keys. The alias will be removed in a future release once consumers have migrated.
+- `/api/audit-url` response retains both `strict` and `practical` keys (same scalar pair) for the same reason.
+- `audit_log`, `shared_reports`, and `remediation_jobs` schemas are unchanged. Historical rows are not migrated.
+
+### Removed
+
+- `ScoreProfileBanner.vue` and `ModeCompareBox.vue` components (deleted).
+- Mode-toggle plumbing on `index.vue`, `report/[id].vue`, and `remediate/[jobId].vue` (`selectedScoreMode`, `flipScoreTableMode`, `compareProps`, `hasCrossModeSignal`, `remediationModeActive`).
+- `MODE_BUTTON_LABELS`, `MODE_PROFILE_DESCRIPTIONS`, `MODE_PROFILE_LABELS`, `MODE_RECOMMENDATION_*`, `CATEGORY_TABLE_PRACTICAL_*`, `STRICT_MODE_RATIONALE_TEXT`, `PRACTICAL_*` constants from `scoringProfiles.ts`.
+- `DIVERGENCE_COPY`, `canCategoryDiverge`, `getDivergenceCopy` from `modeDivergence.ts`.
+- `scorePdfUaCompliance` is no longer added to the audit categories list.
+- The dedicated "Practical aggregate" describe blocks and the Practical-mode regression check on the remediation worker.
+
+### Doc / changelog updates
+
+- `apps/web/app/pages/index.vue` "How Scores Are Derived" + "How Scores Are Calculated" sections rewritten — single-mode, links to veraPDF for the PDF/UA story.
+- `apps/web/app/pages/data-retention.vue` § 4 regression-guard pseudocode + § 9 regression-guard plain-language copy updated to drop the Practical reference. Historical v1.20.x audit entries left intact as the historical record at those versions.
+- README, dateModified, and three `package.json` files bumped to 1.21.0.
+
 ## [1.20.1] — 2026-05-18
 
 ### Added — Remediation audit-gate, daily-cap, and unified audit_log
