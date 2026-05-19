@@ -15,6 +15,7 @@
     "test:scoring": "vitest run src/__tests__/scorer.test.ts"
   },
   "dependencies": {
+    "@axe-core/puppeteer": "^4.10.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
     "cookie-parser": "^1.4.7",
@@ -25,7 +26,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "nodemailer": "^7.0.11",
-    "pdfjs-dist": "^4.10.38"
+    "pdfjs-dist": "^4.10.38",
+    "puppeteer": "^23.0.0"
   },
   "devDependencies": {
     "@opendataloader/pdf": "^2.4.3",
