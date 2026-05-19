@@ -1254,6 +1254,110 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.21.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">
+            v1.21.1
+          </h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-19</strong> · scope: shared-report
+            UI parity with the real-time audit page, plus a temporary
+            analyze rate-limit raise to support an in-flight ICJIA
+            fleet audit pass.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This is a small <strong>follow-up release</strong> to v1.21.0,
+          not a security change. v1.21.0 simplified the live audit page
+          by removing the Adobe Acrobat parity panel, but the same
+          panel was left in place on the shared-report page
+          (<code class="text-xs font-mono">/report/:id</code>) — so two
+          auditors looking at the same content via different URLs ended
+          up seeing two different summaries. This release fixes that
+          inconsistency. It also bumps the per-caller hourly analyze
+          rate limit to support an in-flight fleet audit pass.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2">UX</span>
+              Consistency</strong
+            >
+            — Shared and saved report pages now show exactly what the
+            live audit page shows. No more Acrobat parity panel on
+            <code class="text-xs font-mono">/report/:id</code>.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>What was wrong:</strong> v1.21.0 removed the
+              32-rule Adobe Acrobat parity card from the live audit
+              page in favor of a single WCAG-anchored Strict score,
+              but the same card kept rendering on the shared-report
+              page. Auditors comparing notes off a shared link saw a
+              presentation that didn't match the live audit, which
+              could read as a deliberate difference in scoring.
+              <br />
+              <strong>What this release does:</strong> the parity-card
+              block was removed from the shared-report template. The
+              underlying <em>data</em> is still saved in the database
+              (so historic API consumers that already parse it keep
+              working), but it's no longer rendered on the page.
+              No schema change. The per-finding "How to Fix in Adobe
+              Acrobat" remediation guidance inside each category card
+              is kept — that's per-finding remediation advice, not a
+              separate scoring profile, and it appears on the live
+              audit page too.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">OPS</span>
+              Temporary rate-limit raise</strong
+            >
+            — The per-caller hourly analyze rate limit was raised from
+            <strong>35/hour</strong> to <strong>5000/hour</strong> to
+            support an in-flight ICJIA fleet audit pass of roughly 5000
+            PDFs. The limit is documented to revert to a tighter
+            number once that pass completes.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              <strong>Why this is OK:</strong> the per-caller analyze
+              limit is a fair-use throttle. The actual abuse
+              mitigations live on the remediation side — the 100/day
+              remediation cap per caller, the 60-minute audit-gate
+              <code class="text-xs font-mono">sha256(bytes)</code>
+              hash check, the SSRF allowlist, the upload size cap, and
+              the auth gate are all unchanged. The audit pipeline does
+              not write user-supplied content to durable storage beyond
+              the lightweight <code class="text-xs font-mono">audit_log</code>
+              row (no PDF bytes; just metadata).
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2">API</span>
+              No security regressions</strong
+            >
+            — Every other defensive control from v1.20.1 and v1.21.0
+            remains in force. No schema migration. No change to the
+            authentication layer, the SSRF allowlist, the audit-gate
+            hash check, the daily remediation cap, the retention
+            windows, or the URL-fetch posture.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              The two changes in this release are a 5-line UI
+              deletion on the shared-report template and a single
+              numeric raise on one rate-limit constant. No other code
+              paths were touched.
+            </p>
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.21.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

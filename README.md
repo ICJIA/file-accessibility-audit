@@ -27,6 +27,26 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.21.1 — 2026-05-19 · Saved-report UI parity + temporary analyze rate-limit bump for ICJIA fleet pass
+
+Pre-release review focused on the post-v1.21.0 loose ends and the operational rate-limit change. No new attack surface; one UI consistency bug and one operational config change with documented rationale.
+
+- **P3 / fixed** — Saved reports still rendered the Adobe Acrobat parity card. The v1.21.0 dual-scoring removal cleaned up the real-time audit page (`/`) but left the `<AdobeParityCard>` block in place on the shared-report page (`/report/:id`). Anyone clicking a shared-report link got the 32-rule Acrobat panel that the live audit no longer showed — same underlying data, different presentation depending on the URL. Not a security finding; a UI consistency bug that confused auditors comparing notes against shared links. **Fix:** removed the card block from `report/[id].vue` (5 lines net). The `adobeParity` field is still persisted in `shared_reports.report_json` for backward compatibility with any external consumer that already parses it; only the rendered card is gone. No schema migration.
+- **Operational / accepted** — `RATE_LIMITS.analyze` temporarily raised from `35` to `5000` per hour per email to support an in-flight ICJIA fleet audit pass (~5000 PDFs). Documented in `audit.config.ts` with a revert reminder once the pass completes. The actual abuse mitigations live on the remediation side — the 100/day remediation cap, the 60-minute audit-gate `sha256(bytes)` hash check, the SSRF allowlist, the upload size cap, and the auth gate are all unchanged. The per-caller analyze limit is a fair-use throttle, not a defense-in-depth control.
+- **Pre-launch items still open** — external penetration test on the remediation surface (Phase 4 roadmap).
+
+#### Methodology
+
+Same as prior releases: every release runs through a fresh red/blue team review before tagging. This patch release was a small footprint (a 5-line UI deletion and a single rate-limit constant change), so the review was correspondingly scoped — the parity-card removal was inspected for any logic change (none; pure UI removal, the underlying `adobeParity` field is still persisted), and the rate-limit bump was inspected for whether it weakens a security control (no — the per-caller analyze limit is a fair-use limit, not a defense-in-depth control; the actual abuse mitigations sit on the remediation side via the audit-gate, the 100/day cap, and the SSRF allowlist).
+
+### v1.21.0 — 2026-05-19 · Single Strict score, veraPDF promoted on the remediation page
+
+UI simplification release, not a security release. Pre-release red/blue team review covered the audit-page surface that was being simplified, the persisted-report schema (unchanged), the back-compat alias of `scoreProfiles.remediation` → Strict for the fleet-CSV integration shipped in v1.20.0, and the regression-guard change on the remediation worker. **No new P1/P2 findings.** One P3 was accepted with documented rationale (the dropped Practical-mode regression check on the remediation worker — net-gains-only promise still holds on Strict, and veraPDF is now the authoritative PDF/UA signal on every remediation). Full simplification rationale and API back-compat notes are in `CHANGELOG.md` and `apps/web/app/pages/data-retention.vue` § 10.
+
+- **No security regressions.** All SSRF, rate-limit, audit-gate, daily-cap, and retention controls from v1.20.1 remain in force.
+- **Schema unchanged.** `audit_log`, `shared_reports`, and `remediation_jobs` keep their existing columns; historical rows are not migrated.
+- **API alias retained** — `result.scoreProfiles.remediation` and the `practical` key in `/api/audit-url` are kept as structural aliases of Strict for backward compatibility with the fleet-CSV integration. Removal tracked for a future release.
+
 ### v1.20.1 — 2026-05-18 · Security-followup release for v1.20.0 (audit-gate + SSRF hardening + 7 findings fixed)
 
 A dedicated patch release in the "every feature gets a fresh red/blue team review before tagging" practice. The v1.20.0 release added the fleet integration surface (`/api/audit-url`); this release is the post-feature review that resulted. Six findings were identified in the initial review plus one previously-latent issue uncovered during the SSRF migration — all fixed before tagging.

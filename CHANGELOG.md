@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.21.1] — 2026-05-19
+
+### Fixed — Saved-report UI now matches the real-time audit page
+
+v1.21.0 removed the Adobe Acrobat parity card from the real-time audit page when the dual Strict/Practical scoring toggle was retired, but the same card block was left behind on the shared-report page (`/report/:id`). Anyone receiving a saved-report link still saw the 32-rule Acrobat assessment that the live audit no longer showed, so two auditors comparing notes against the same content could end up looking at two different summaries depending on which URL they had.
+
+- **`apps/web/app/pages/report/[id].vue`** — removed the `<AdobeParityCard :parity="data.report.adobeParity" />` block (5 lines net). The saved report now renders the same single Strict score, category table, and detailed findings as the real-time audit page.
+- **No schema migration.** The `adobeParity` field is still persisted in `shared_reports.report_json` for backward compatibility with any external consumer that already parses it; only the rendered card is gone. Historical shared-report rows are unaffected.
+- The per-finding "How to Fix in Adobe Acrobat" remediation guidance inside each category card was intentionally kept — that guidance also appears on the real-time audit page and is per-finding remediation advice, not a separate scoring profile.
+
+### Changed — Analyze rate limit temporarily raised for the ICJIA fleet audit pass
+
+- **`RATE_LIMITS.analyze`** raised from `35` to `5000` per hour per email (`audit.config.ts`) to support an in-flight ICJIA fleet audit pass (~5000 PDFs). The comment in `audit.config.ts` documents the reason and the intent to revert once the pass completes. The daily remediation cap (`100/day/caller`), the 60-minute audit-gate hash check, the URL allowlist + SSRF protections, the upload size cap, and the auth gate are all unchanged.
+
+### Compatibility
+
+- `audit_log`, `shared_reports`, and `remediation_jobs` schemas unchanged.
+- `result.scoreProfiles.remediation` and the `practical` key in `/api/audit-url` continue to be structural aliases of Strict (carried forward from v1.21.0); the alias will be removed in a future release once consumers have migrated.
+
 ## [1.21.0] — 2026-05-19
 
 ### Changed — Single Strict score, veraPDF promoted on the remediation page
