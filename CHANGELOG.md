@@ -16,7 +16,7 @@ v1.21.0 removed the Adobe Acrobat parity card from the real-time audit page when
 
 ### Changed — Analyze rate limit temporarily raised for the ICJIA fleet audit pass
 
-- **`RATE_LIMITS.analyze`** raised from `35` to `5000` per hour per email (`audit.config.ts`) to support an in-flight ICJIA fleet audit pass (~5000 PDFs). The comment in `audit.config.ts` documents the reason and the intent to revert once the pass completes. The daily remediation cap (`100/day/caller`), the 60-minute audit-gate hash check, the URL allowlist + SSRF protections, the upload size cap, and the auth gate are all unchanged.
+- **`RATE_LIMITS.analyze`** raised from `35` to `5000` per hour per email (`audit.config.ts`) to support the in-flight ICJIA fleet audit campaign — the ~5000-PDF inventory is being re-audited across multiple passes over several days as content is remediated and re-checked, not a single one-shot pass. The comment in `audit.config.ts` documents the reason and the intent to revert once the campaign concludes. The daily remediation cap (`100/day/caller`), the 60-minute audit-gate hash check, the URL allowlist + SSRF protections, the upload size cap, and the auth gate are all unchanged.
 
 ### Compatibility
 

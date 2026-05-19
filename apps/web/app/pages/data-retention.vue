@@ -1264,9 +1264,9 @@ CREATE TABLE remediation_jobs (
           </h3>
           <span class="text-xs text-[var(--text-muted)]">
             Audited <strong>2026-05-19</strong> · scope: shared-report
-            UI parity with the real-time audit page, plus a temporary
-            analyze rate-limit raise to support an in-flight ICJIA
-            fleet audit pass.
+            UI parity with the real-time audit page, plus an elevated
+            analyze rate limit for the duration of the in-flight ICJIA
+            fleet audit campaign.
           </span>
         </header>
 
@@ -1318,13 +1318,17 @@ CREATE TABLE remediation_jobs (
           <li>
             <strong
               ><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2">OPS</span>
-              Temporary rate-limit raise</strong
+              Elevated analyze rate limit for the audit campaign</strong
             >
             — The per-caller hourly analyze rate limit was raised from
-            <strong>35/hour</strong> to <strong>5000/hour</strong> to
-            support an in-flight ICJIA fleet audit pass of roughly 5000
-            PDFs. The limit is documented to revert to a tighter
-            number once that pass completes.
+            <strong>35/hour</strong> to <strong>5000/hour</strong> for
+            the duration of the in-flight ICJIA fleet audit campaign.
+            The ~5000-PDF inventory is being re-audited across
+            multiple passes over several days as content is
+            remediated and re-checked, not a single one-shot pass.
+            The elevated limit will stay in place for the duration
+            of the campaign and revert to a tighter number once it
+            concludes.
             <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
               <strong>Why this is OK:</strong> the per-caller analyze
               limit is a fair-use throttle. The actual abuse

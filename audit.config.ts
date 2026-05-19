@@ -508,8 +508,10 @@ export const RATE_LIMITS = {
 
   /** POST /api/analyze — keyed by email (from JWT).
    *  Prevents a single user from monopolizing analysis resources.
-   *  Temporarily raised to support a fleet-wide ICJIA audit pass
-   *  (~5000 files); revert to a tighter limit once that pass completes. */
+   *  Elevated for the ICJIA fleet audit campaign — the inventory
+   *  (~5000 PDFs) is being re-audited across multiple passes over
+   *  several days as content is remediated and re-checked. Revert
+   *  to a tighter limit once the campaign concludes. */
   analyze: { max: 5000, windowMs: 60 * 60 * 1000 }, // 5000 per hour
 
   /** POST /api/reports — keyed by email (from JWT).
