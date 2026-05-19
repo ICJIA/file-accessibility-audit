@@ -508,9 +508,9 @@ export const RATE_LIMITS = {
 
   /** POST /api/analyze — keyed by email (from JWT).
    *  Prevents a single user from monopolizing analysis resources.
-   *  Sized for 6 full batches of BATCH.MAX_FILES (3) plus headroom
-   *  for retries, errors, and cancelled-then-restarted sessions. */
-  analyze: { max: 35, windowMs: 60 * 60 * 1000 }, // 35 per hour
+   *  Temporarily raised to support a fleet-wide ICJIA audit pass
+   *  (~5000 files); revert to a tighter limit once that pass completes. */
+  analyze: { max: 5000, windowMs: 60 * 60 * 1000 }, // 5000 per hour
 
   /** POST /api/reports — keyed by email (from JWT).
    *  Prevents a single user from filling the shared_reports table. */
