@@ -228,11 +228,6 @@
           </p>
         </div>
 
-        <!-- Adobe Acrobat parity — a third view alongside Strict and Practical. -->
-        <div v-if="data.report.adobeParity" class="mb-8">
-          <AdobeParityCard :parity="data.report.adobeParity" />
-        </div>
-
         <!-- Score Table -->
         <div
           class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto"
