@@ -517,8 +517,14 @@ export const RATE_LIMITS = {
   reports: { max: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
 
   /** All routes — keyed by IP address.
-   *  Catch-all safety net against request floods. */
-  global: { max: 100, windowMs: 60 * 1000 }, // 100 per minute
+   *  Catch-all safety net against request floods.
+   *
+   *  Temporary bump to 1000/min (was 100/min) for the ICJIA fleet
+   *  audit pass — icjia.illinois.gov has ~657 unique referenced
+   *  pages and the page-audit (axe-core via Puppeteer) burst hit
+   *  the previous cap with 499 HTTP 429 errors. Revert to 100/min
+   *  once the cache is warm and subsequent runs are incremental. */
+  global: { max: 1000, windowMs: 60 * 1000 }, // 1000 per minute (was 100)
 } as const;
 
 // ---------------------------------------------------------------------------
