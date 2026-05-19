@@ -35,6 +35,14 @@ async function getBrowser(): Promise<Browser> {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
       ],
+    }).catch((err) => {
+      // If launch fails (missing system libs, OOM, etc.), clear the cached
+      // promise so the NEXT request retries instead of being permanently
+      // poisoned. Without this, a transient launch failure (e.g. fixed by
+      // apt installing libatk-1.0.so.0 after the first request) requires a
+      // pm2 restart to recover.
+      browserPromise = null
+      throw err
     })
   }
   return browserPromise
