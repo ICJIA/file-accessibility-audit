@@ -15,10 +15,13 @@
 #
 # The database is backed up before anything is deleted.
 #
-# Run order on the production server:
-#     1. ./rebuild.sh                       deploy the new version first
-#     2. bash scripts/clear-fleet-data.sh   this script
-#     3. re-run the full fleet audit
+# Run order on the production server. The clear itself is version-agnostic
+# (audit_log / shared_reports are unchanged across versions); the only hard
+# rule is that the fleet RE-AUDIT runs on the deployed new build:
+#     git pull                              fetch the new code + this script
+#     bash scripts/clear-fleet-data.sh      this script (clear stale rows)
+#     ./rebuild.sh                          build + restart on the new code
+#     re-run the full fleet audit           produces fresh, current scores
 #
 set -euo pipefail
 
@@ -70,7 +73,19 @@ sqlite3 "$DB" ".backup '$BACKUP'"
   echo "ERROR: backup file is missing or empty — aborting, nothing deleted."
   exit 1
 }
-echo "    backup OK — $(du -h "$BACKUP" | cut -f1)"
+# Prove the backup is a sound, restorable SQLite database before we touch
+# the live one: a full integrity check, plus a read of both target tables.
+integrity="$(sqlite3 "$BACKUP" 'PRAGMA integrity_check;' 2>&1 || true)"
+if [ "$integrity" != "ok" ]; then
+  echo "ERROR: backup failed its integrity check — aborting, nothing deleted."
+  echo "       sqlite3 reported: $integrity"
+  exit 1
+fi
+sqlite3 "$BACKUP" 'SELECT COUNT(*) FROM audit_log; SELECT COUNT(*) FROM shared_reports;' >/dev/null 2>&1 || {
+  echo "ERROR: backup is unreadable or missing a table — aborting, nothing deleted."
+  exit 1
+}
+echo "    backup OK — $(du -h "$BACKUP" | cut -f1), integrity check passed"
 
 # --- stop the API, clear the tables, restart -------------------------------
 echo "==> Stopping $API_PROC (quiesce the database)..."
@@ -79,7 +94,12 @@ pm2 stop "$API_PROC"
 trap 'echo "==> Restarting $API_PROC after an error..."; pm2 start "$API_PROC" >/dev/null 2>&1 || true' EXIT
 
 echo "==> Clearing audit_log + shared_reports, then VACUUM..."
-sqlite3 "$DB" "DELETE FROM audit_log; DELETE FROM shared_reports; VACUUM;"
+# busy_timeout: if a detached remediation worker happens to hold a write
+# lock, wait for it rather than failing VACUUM with "database is locked".
+sqlite3 "$DB" "PRAGMA busy_timeout = 10000;
+               DELETE FROM audit_log;
+               DELETE FROM shared_reports;
+               VACUUM;"
 
 echo "==> Restarting $API_PROC..."
 pm2 start "$API_PROC"
