@@ -511,17 +511,13 @@ describe("grade thresholds", () => {
 // ---------------------------------------------------------------------------
 
 describe("severity thresholds", () => {
-  it("score 100 → Pass", () => {
+  it("score 100 → No issues found", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "text_extractability").severity).toBe("Pass");
-  });
-
-  it("score 90 → Pass", () => {
-    const { qpdf, pdfjs } = fullyAccessible();
-    const result = scoreDocument(qpdf, pdfjs);
-    // text_extractability = 100, severity = Pass
-    expect(findCategory(result, "text_extractability").severity).toBe("Pass");
+    // "No issues found" is reserved for a perfect 100 — see SEVERITY_THRESHOLDS.
+    expect(findCategory(result, "text_extractability").severity).toBe(
+      "No issues found",
+    );
   });
 
   it("score 0 → Critical", () => {
@@ -802,7 +798,7 @@ describe("scoreBookmarks edge cases", () => {
     expect(findCategory(result, "bookmarks").score).toBe(100);
   });
 
-  it("20 pages, outline structure but 0 entries → score 25", () => {
+  it("20 pages, outline structure but 0 entries → score 40", () => {
     const qpdf = makeQpdf({ hasOutlines: true, outlineCount: 0 });
     const pdfjs = makePdfjs({
       pageCount: 20,
@@ -810,10 +806,10 @@ describe("scoreBookmarks edge cases", () => {
       outlineCount: 0,
     });
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "bookmarks").score).toBe(25);
+    expect(findCategory(result, "bookmarks").score).toBe(40);
   });
 
-  it("20 pages, no outlines → score 0", () => {
+  it("20 pages, no outlines → score 45 (moderate, not critical)", () => {
     const qpdf = makeQpdf({ hasOutlines: false, outlineCount: 0 });
     const pdfjs = makePdfjs({
       pageCount: 20,
@@ -821,8 +817,11 @@ describe("scoreBookmarks edge cases", () => {
       outlineCount: 0,
     });
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "bookmarks").score).toBe(0);
+    // Missing bookmarks maps to WCAG 2.4.5 (Level AA), satisfiable other
+    // ways — so it is a moderate issue, not a critical 0.
+    expect(findCategory(result, "bookmarks").score).toBe(45);
     expect(findCategory(result, "bookmarks").grade).toBe("F");
+    expect(findCategory(result, "bookmarks").severity).toBe("Moderate");
   });
 
   it("9 pages → N/A", () => {
@@ -1450,16 +1449,88 @@ describe("scoreLinkQuality edge cases", () => {
     expect(findCategory(result, "link_quality").score).toBe(0);
   });
 
-  it("mix of raw and descriptive → proportional score", () => {
+  it("mix of descriptive and non-descriptive → proportional score", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs({
       links: [
-        { url: "https://a.com", text: "Click here" }, // descriptive
-        { url: "https://b.com", text: "https://b.com" }, // raw
+        { url: "https://a.com", text: "Annual Report 2024" }, // descriptive
+        { url: "https://b.com", text: "https://b.com" }, // raw URL
       ],
     });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "link_quality").score).toBe(50);
+  });
+
+  it("vague phrases ('click here', 'read more') count as non-descriptive (WCAG 2.4.4)", () => {
+    const qpdf = makeQpdf();
+    const pdfjs = makePdfjs({
+      links: [
+        { url: "https://a.com", text: "click here" },
+        { url: "https://b.com", text: "Read More" },
+        { url: "https://c.com", text: "Download the 2024 budget (PDF)" },
+      ],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    // Only the third link is genuinely descriptive → 1 of 3.
+    expect(findCategory(result, "link_quality").score).toBe(33);
+  });
+});
+
+describe("conformance gate", () => {
+  it("an untagged document fails WCAG 2.1 Level A", () => {
+    const result = scoreDocument(makeQpdf(), makePdfjs());
+    expect(result.conformance.status).toBe("fail");
+    expect(result.conformance.failures.some((f) => f.sc === "1.3.1")).toBe(
+      true,
+    );
+  });
+
+  it("reports 'incomplete' when an analyzer fails — no false accusations", () => {
+    const result = scoreDocument(
+      makeQpdf({ error: "qpdf failed to parse" }),
+      makePdfjs(),
+    );
+    expect(result.conformance.status).toBe("incomplete");
+    expect(result.conformance.failures).toHaveLength(0);
+  });
+
+  it("a tagged figure with no alt text triggers a 1.1.1 failure", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      hasLang: true,
+      lang: "en-US",
+      images: [
+        { ref: "10 0 R", hasAlt: true },
+        { ref: "11 0 R", hasAlt: false },
+      ],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      title: "Quarterly Report",
+      lang: "en-US",
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(result.conformance.status).toBe("fail");
+    expect(
+      result.conformance.failures.some(
+        (f) => f.sc === "1.1.1" && f.category === "alt_text",
+      ),
+    ).toBe(true);
+  });
+
+  it("a fully accessible document reports no automated failures", () => {
+    const { qpdf, pdfjs } = fullyAccessible();
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(result.conformance.status).toBe("no-automated-failures");
+    expect(result.conformance.failures).toHaveLength(0);
+  });
+
+  it("always lists color contrast (1.4.3) as not assessed", () => {
+    const { qpdf, pdfjs } = fullyAccessible();
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(
+      result.conformance.notAssessed.some((n) => n.sc === "1.4.3"),
+    ).toBe(true);
   });
 });
 

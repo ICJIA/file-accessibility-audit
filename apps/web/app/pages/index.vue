@@ -303,9 +303,11 @@
             <strong>WCAG 2.1 AA</strong> and <strong>IITAA §E205.4</strong> —
             the rules that govern non-web document accessibility in Illinois.
             Categories that don't apply (e.g. tables in a document with no
-            tables) are excluded and the remaining weights renormalized. For
-            a PDF/UA-1 conformance verdict, run the optional remediation
-            pipeline — it includes a veraPDF check.
+            tables) are excluded and the remaining weights renormalized. This
+            score is the compliance benchmark for publication.
+            <strong>PDF/UA-1 (ISO 14289-1)</strong> — a separate ISO standard
+            for tagged PDFs — is verified with veraPDF when you run the
+            optional remediation pipeline.
           </p>
         </div>
 
@@ -350,7 +352,7 @@
                   {{ cat.score }}
                 </td>
                 <td v-else class="text-center px-3 py-2.5 font-mono">
-                  <NaCell :cat-id="cat.id" />
+                  <NaCell :cat-id="cat.id" :not-assessed="cat.notAssessed" />
                 </td>
                 <td class="text-center px-3 py-2.5">
                   <span
@@ -408,7 +410,7 @@
                 <td
                   class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]"
                 >
-                  <NaCell :cat-id="cat.id" />
+                  <NaCell :cat-id="cat.id" :not-assessed="cat.notAssessed" />
                 </td>
                 <td
                   class="text-center px-3 py-2.5 text-[var(--text-muted)]"
@@ -2094,7 +2096,7 @@ PDF says:
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Bookmarks / Navigation</td>
-                  <td class="px-3 py-1.5 text-right font-mono">10%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">5%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Table Markup</td>
@@ -2106,7 +2108,7 @@ PDF says:
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Reading Order</td>
-                  <td class="px-3 py-1.5 text-right font-mono">5%</td>
+                  <td class="px-3 py-1.5 text-right font-mono">10%</td>
                 </tr>
                 <tr>
                   <td class="px-3 py-1.5">Form Accessibility</td>

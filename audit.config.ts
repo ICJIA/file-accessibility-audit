@@ -219,23 +219,28 @@ export const SCORING_PROFILES = {
       alt_text: 0.15,
 
       /** Does the document have bookmarks/outlines for navigation?
-       *  Only assessed for documents with 10+ pages (see ANALYSIS.BOOKMARKS_PAGE_THRESHOLD). */
-      bookmarks: 0.1,
+       *  Maps to WCAG 2.4.5 Multiple Ways (Level AA) — one of several ways to
+       *  navigate; a clear heading structure is a partial alternative, so it is
+       *  weighted below the Level-A categories. Only assessed for documents
+       *  with 10+ pages (see ANALYSIS.BOOKMARKS_PAGE_THRESHOLD). */
+      bookmarks: 0.05,
 
       /** Are data tables marked up with /Table, /TH, and /TD tags?
        *  Without these, screen readers can't convey table structure. */
       table_markup: 0.1,
 
-      /** Are hyperlinks descriptive (not raw URLs)?
-       *  "Click here" and raw URLs are unhelpful to screen reader users. */
+      /** Are hyperlinks descriptive (not raw URLs or vague phrases)?
+       *  "Click here", "read more", and raw URLs are unhelpful to screen
+       *  reader users. */
       link_quality: 0.05,
 
       /** Strict mode does not use PDF/UA/Matterhorn conformance as the primary
        *  document-level score. The category is surfaced as N/A guidance only. */
       pdf_ua_compliance: 0,
 
-      /** PDF color-contrast analysis is not implemented yet.
-       *  The category is surfaced as N/A guidance only. */
+      /** PDF color-contrast analysis is not implemented yet. The category is
+       *  surfaced as "Not Assessed" (distinct from "Not Applicable") so the
+       *  report never implies contrast was checked. */
       color_contrast: 0,
 
       /** Do form fields have accessible labels (/TU tooltip)?
@@ -243,9 +248,11 @@ export const SCORING_PROFILES = {
       form_accessibility: 0.05,
 
       /** Does the structure tree define a correct reading order?
+       *  Maps to WCAG 1.3.2 Meaningful Sequence (Level A) — out-of-order content
+       *  makes a document unusable, so it is weighted as a Level-A essential.
        *  Distinct from text_extractability: this checks ORDER quality, not just
        *  whether the StructTree exists. */
-      reading_order: 0.05,
+      reading_order: 0.1,
     },
   },
 
@@ -309,6 +316,11 @@ export const GRADE_THRESHOLDS = [
 // Map a per-category score (0–100) to a severity label. Used in the category
 // breakdown UI and API response. Array must be sorted descending by `min`.
 //
+// "No issues found" is intentionally reserved for a perfect 100. A category
+// scoring 90–99 still has at least one automated finding, so labelling it
+// issue-free would be inaccurate; 70–99 is "Minor". The document-level WCAG
+// verdict is carried by the separate conformance gate, never by this label.
+//
 // SAFE TO CHANGE:
 // - `min` thresholds: Yes — adjusts when a category flips between severities.
 // - `severity` labels: Carefully — these appear in API responses and may be
@@ -317,11 +329,57 @@ export const GRADE_THRESHOLDS = [
 // ---------------------------------------------------------------------------
 
 export const SEVERITY_THRESHOLDS = [
-  { min: 90, severity: "Pass" as const },
+  { min: 100, severity: "No issues found" as const },
   { min: 70, severity: "Minor" as const },
   { min: 40, severity: "Moderate" as const },
   { min: 0, severity: "Critical" as const },
 ] as const;
+
+// ---------------------------------------------------------------------------
+// WCAG 2.1 SUCCESS-CRITERIA MAP
+// ---------------------------------------------------------------------------
+// Explicit, published mapping of each scoring category to the WCAG 2.1
+// success criteria it evaluates, with conformance level (A or AA). This is
+// the auditable "what standard does each category implement" reference: it
+// is surfaced in the methodology UI and underpins the conformance gate.
+//
+// IITAA 2.1 and the 2024 ADA Title II rule both adopt WCAG 2.1 Level AA, so
+// these criteria are the operative standard for Illinois non-web documents.
+//
+// SAFE TO CHANGE: Yes — but keep it accurate; a wrong citation is a
+// credibility problem. Keys MUST match the SCORING category IDs above.
+// ---------------------------------------------------------------------------
+
+export const WCAG_CATEGORY_MAP: Record<
+  string,
+  ReadonlyArray<{ sc: string; name: string; level: "A" | "AA" }>
+> = {
+  text_extractability: [
+    { sc: "1.1.1", name: "Non-text Content", level: "A" },
+    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
+  ],
+  title_language: [
+    { sc: "2.4.2", name: "Page Titled", level: "A" },
+    { sc: "3.1.1", name: "Language of Page", level: "A" },
+  ],
+  heading_structure: [
+    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
+    { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
+  ],
+  alt_text: [{ sc: "1.1.1", name: "Non-text Content", level: "A" }],
+  bookmarks: [{ sc: "2.4.5", name: "Multiple Ways", level: "AA" }],
+  table_markup: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
+  link_quality: [
+    { sc: "2.4.4", name: "Link Purpose (In Context)", level: "A" },
+  ],
+  reading_order: [{ sc: "1.3.2", name: "Meaningful Sequence", level: "A" }],
+  form_accessibility: [
+    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
+    { sc: "3.3.2", name: "Labels or Instructions", level: "A" },
+    { sc: "4.1.2", name: "Name, Role, Value", level: "A" },
+  ],
+  color_contrast: [{ sc: "1.4.3", name: "Contrast (Minimum)", level: "AA" }],
+} as const;
 
 // ---------------------------------------------------------------------------
 // PDF ANALYSIS LIMITS

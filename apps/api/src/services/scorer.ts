@@ -4,6 +4,7 @@ import {
   GRADE_THRESHOLDS,
   SEVERITY_THRESHOLDS,
   ANALYSIS,
+  WCAG_CATEGORY_MAP,
 } from "#config";
 import type { QpdfResult } from "./qpdfService.js";
 import type { PdfjsResult } from "./pdfjsService.js";
@@ -13,22 +14,45 @@ import {
   buildAdobeParityReport,
   type AdobeParityResult,
 } from "./scoring/adobeParity.js";
+import {
+  evaluateConformance,
+  type ConformanceVerdict,
+} from "./scoring/conformance.js";
 
 export interface HelpLink {
   label: string;
   url: string;
 }
 
+export interface WcagCriterion {
+  /** WCAG 2.1 success criterion number, e.g. "1.3.1". */
+  sc: string;
+  /** Success criterion name. */
+  name: string;
+  level: "A" | "AA";
+}
+
 export interface CategoryResult {
   id: string;
   label: string;
   weight: number;
-  score: number | null; // null = N/A
+  score: number | null; // null = N/A — see `notAssessed` to disambiguate
   grade: string | null;
   severity: string | null;
   findings: string[];
   explanation: string;
   helpLinks: HelpLink[];
+  /**
+   * Disambiguates a null `score`. When false/undefined, a null score means
+   * "not applicable" — the document genuinely has no tables / forms / images
+   * / etc. When true, it means "not assessed" — the tool does not or could
+   * not evaluate this category (color contrast; reading order when the
+   * rigorous check had insufficient data; alt text when images are present
+   * but untagged). Surfaced as distinct states in the UI.
+   */
+  notAssessed?: boolean;
+  /** WCAG 2.1 success criteria this category maps to (see WCAG_CATEGORY_MAP). */
+  wcagCriteria?: WcagCriterion[];
 }
 
 export interface ScoringResult {
@@ -45,6 +69,10 @@ export interface ScoringResult {
   // mirrors that 32-rule output alongside our verdict so users can reconcile
   // the divergence. NOT an aggregated "Adobe score" — qualitative only.
   adobeParity: AdobeParityResult;
+  // Binary WCAG 2.1 conformance verdict, computed independently of the
+  // weighted score. The score is a prioritised-readiness metric with partial
+  // credit; this is the honest pass/fail answer. See conformance.ts.
+  conformance: ConformanceVerdict;
 }
 
 export type ScoringMode = keyof typeof SCORING_PROFILES;
@@ -110,6 +138,7 @@ export function scoreDocument(
   // payloads, downstream tooling) keep round-tripping cleanly. The alias
   // will be dropped in a future release once consumers have migrated.
   const adobeParity = buildAdobeParityReport(qpdf, pdfjs);
+  const conformance = evaluateConformance(qpdf, pdfjs, strictCategories);
 
   return {
     overallScore: strictAggregate.overallScore,
@@ -124,6 +153,7 @@ export function scoreDocument(
       remediation: strictAggregate.profile,
     },
     adobeParity,
+    conformance,
   };
 }
 
@@ -146,6 +176,7 @@ function buildCategories(
   categories.push(scoreFormAccessibility(qpdf));
 
   applyProfileWeights(categories, mode);
+  applyWcagCriteria(categories);
   appendSupplementaryFindings(qpdf, pdfjs, categories);
 
   return categories;
@@ -159,6 +190,15 @@ function applyProfileWeights(
   for (const category of categories) {
     const profileWeight = weights[category.id as keyof typeof weights];
     if (typeof profileWeight === "number") category.weight = profileWeight;
+  }
+}
+
+// Attach the published WCAG 2.1 success-criteria mapping to each category so
+// the methodology is auditable per-category and the UI can show it inline.
+function applyWcagCriteria(categories: CategoryResult[]): void {
+  for (const category of categories) {
+    const criteria = WCAG_CATEGORY_MAP[category.id];
+    if (criteria) category.wcagCriteria = criteria.map((c) => ({ ...c }));
   }
 }
 
@@ -628,7 +668,7 @@ function scoreHeadingStructure(
     weight: SCORING_WEIGHTS.heading_structure,
     score: 100,
     grade: "A",
-    severity: "Pass",
+    severity: "No issues found",
     findings,
     explanation: headingExplanation,
     helpLinks: headingLinks,
@@ -732,6 +772,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
+      notAssessed: true,
       findings: advisoryFindings,
       explanation: altExplanation,
       helpLinks: altLinks,
@@ -1030,6 +1071,7 @@ function scoreColorContrast(): CategoryResult {
     score: null,
     grade: null,
     severity: null,
+    notAssessed: true,
     findings: [
       "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
       "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
@@ -1093,7 +1135,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       weight: SCORING_WEIGHTS.bookmarks,
       score: 100,
       grade: "A",
-      severity: "Pass",
+      severity: "No issues found",
       findings,
       explanation: bookmarkExplanation,
       helpLinks: bookmarkLinks,
@@ -1105,9 +1147,9 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       id: "bookmarks",
       label: "Bookmarks / Navigation",
       weight: SCORING_WEIGHTS.bookmarks,
-      score: 25,
-      grade: getGrade(25),
-      severity: getSeverity(25),
+      score: 40,
+      grade: getGrade(40),
+      severity: getSeverity(40),
       findings: [
         "Outline structure present but contains no entries",
         "How to fix: In Adobe Acrobat, go to the Bookmarks panel (View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks from Structure).",
@@ -1121,11 +1163,12 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     id: "bookmarks",
     label: "Bookmarks / Navigation",
     weight: SCORING_WEIGHTS.bookmarks,
-    score: 0,
-    grade: "F",
-    severity: "Critical",
+    score: 45,
+    grade: getGrade(45),
+    severity: getSeverity(45),
     findings: [
       `Document has ${pdfjs.pageCount} pages but no bookmarks`,
+      "Bookmarks map to WCAG 2.4.5 Multiple Ways (Level AA). A clear heading structure is a partial alternative way to navigate, so missing bookmarks is treated as a moderate issue rather than a critical failure — but bookmarks remain best practice for long documents.",
       "How to fix: In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks from Structure).",
     ],
     explanation: bookmarkExplanation,
@@ -1406,6 +1449,48 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
   };
 }
 
+// WCAG 2.4.4 (Link Purpose) — visible link text that does not describe the
+// destination. Covers raw URLs *and* the canonical vague phrases ("click
+// here", "read more", …). 2.4.4 is judged "in context", so the surrounding
+// sentence can sometimes rescue a weak link — these are flagged for review,
+// not asserted as definite failures.
+const VAGUE_LINK_PHRASES = new Set([
+  "click here",
+  "click",
+  "here",
+  "read more",
+  "more",
+  "learn more",
+  "see more",
+  "this",
+  "this link",
+  "link",
+  "link here",
+  "go",
+  "go here",
+  "continue",
+  "details",
+  "see details",
+  "more info",
+  "more information",
+  "info",
+  "download",
+  "view",
+  "open",
+  "visit",
+  "click this link",
+]);
+
+function isNonDescriptiveLinkText(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (t.length === 0) return true; // empty link text — no purpose conveyed
+  if (/^(https?:\/\/|www\.)/i.test(t)) return true; // raw URL as link text
+  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return true;
+  // 1–2 alphanumeric characters cannot describe a destination.
+  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return true;
+  return false;
+}
+
 function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
   const linkLinks: CategoryResult["helpLinks"] = [
     {
@@ -1440,9 +1525,8 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
     };
   }
 
-  const rawUrlPattern = /^(https?:\/\/|www\.)/i;
   const descriptive = pdfjs.links.filter(
-    (l) => !rawUrlPattern.test(l.text.trim()),
+    (l) => !isNonDescriptiveLinkText(l.text),
   );
   const score = Math.round((descriptive.length / pdfjs.links.length) * 100);
   const findings: string[] = [];
@@ -1457,19 +1541,24 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
       findings.push(`  ... and ${pdfjs.links.length - 20} more link(s)`);
     }
   } else {
-    const rawCount = pdfjs.links.length - descriptive.length;
+    const weakLinks = pdfjs.links.filter((l) =>
+      isNonDescriptiveLinkText(l.text),
+    );
     findings.push(
-      `${rawCount} of ${pdfjs.links.length} link(s) display raw URLs instead of descriptive text`,
+      `${weakLinks.length} of ${pdfjs.links.length} link(s) use non-descriptive text — a raw URL, or a vague phrase such as "click here" / "read more"`,
     );
-    findings.push(`--- Links Using Raw URLs ---`);
-    const rawLinks = pdfjs.links.filter((l) =>
-      rawUrlPattern.test(l.text.trim()),
-    );
-    for (const link of rawLinks.slice(0, 15)) {
-      findings.push(`  "${link.text.trim()}" — raw URL displayed as link text`);
+    findings.push(`--- Links With Non-Descriptive Text ---`);
+    for (const link of weakLinks.slice(0, 15)) {
+      const t = link.text.trim();
+      const why = /^(https?:\/\/|www\.)/i.test(t)
+        ? "raw URL"
+        : t.length === 0
+          ? "empty link text"
+          : "vague phrase";
+      findings.push(`  "${t}" — ${why} → ${link.url}`);
     }
-    if (rawLinks.length > 15) {
-      findings.push(`  ... and ${rawLinks.length - 15} more raw URL link(s)`);
+    if (weakLinks.length > 15) {
+      findings.push(`  ... and ${weakLinks.length - 15} more`);
     }
     if (descriptive.length > 0) {
       findings.push(`--- Links With Descriptive Text ---`);
@@ -1482,6 +1571,9 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
         );
       }
     }
+    findings.push(
+      "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
+    );
     findings.push(
       "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.",
     );
@@ -1757,6 +1849,7 @@ function scoreReadingOrder(
     score: null,
     grade: null,
     severity: null,
+    notAssessed: true,
     findings,
     explanation: readingExplanation,
     helpLinks: readingLinks,

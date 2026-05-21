@@ -1254,6 +1254,100 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.22.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.22.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-21</strong> · scope: a scoring-methodology
+            release — a new WCAG conformance verdict, recalibrated category
+            weights, and clearer labels. Reviewed with an adversarial scoring
+            audit, not a red/blue-team security review.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.22.0 changes how the audit is <em>scored and explained</em> — it
+          does not change what data is collected, where it is stored, or how
+          long it is kept. No new endpoints, no authentication change, no
+          retention change. The headline addition is a plain pass/fail
+          <strong>WCAG 2.1 conformance verdict</strong> shown alongside the
+          0–100 score, because a high score is not the same thing as passing
+          WCAG. One correctness bug found during the review was fixed before
+          this release was tagged.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >New</span
+              >
+              WCAG conformance verdict</strong
+            >
+            — Every audit now states plainly whether the document has
+            confirmed failures against <strong>WCAG 2.1 Level AA</strong> —
+            the standard the Illinois IITAA and the federal ADA Title II rule
+            require. The verdict is separate from the 0–100 score and never
+            claims a document is "conformant"; when the automated checks find
+            nothing it says so, and still asks for manual review. Each cited
+            rule links to the official W3C explanation.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >Fix</span
+              >
+              No false verdicts on unreadable files</strong
+            >
+            — The review found that a damaged or password-protected PDF could
+            be handed a fabricated "fails WCAG" verdict because the analyzer
+            had not actually been able to read it. That is now fixed: an
+            unreadable file honestly reports that no verdict could be
+            determined.
+            <p class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              This was a correctness defect in brand-new code, caught and
+              fixed before tagging — no released version ever shipped it.
+            </p>
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Scores shifted — by design</strong
+            >
+            — Category weights and some labels were recalibrated to match WCAG
+            conformance levels more honestly. As a result, a score produced by
+            v1.22.0 is not directly comparable to a score from an earlier
+            version. An audit campaign that spans this upgrade will see numbers
+            move; that movement reflects the improved methodology, not a change
+            in the documents.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No security regressions</strong
+            >
+            — Every defensive control from prior releases remains in force. No
+            schema migration. The conformance verdict is computed from data the
+            audit already produced; the report exports gained a verdict section
+            but send no new data anywhere.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.21.1 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

@@ -43,6 +43,7 @@ interface ReportResult {
   warnings?: string[];
   scoringMode?: ScoringMode;
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
+  conformance?: ConformanceVerdict;
 }
 
 type ScoringMode = "strict" | "remediation";
@@ -55,6 +56,40 @@ interface ScoreProfile {
   grade: string;
   executiveSummary: string;
   categoryScores?: Record<string, number | null>;
+}
+
+interface ConformanceFinding {
+  sc: string;
+  name: string;
+  level: "A" | "AA";
+  category: string;
+  issue: string;
+  url: string;
+}
+
+interface NotAssessedCriterion {
+  sc: string;
+  name: string;
+  level: "A" | "AA";
+  reason: string;
+  url: string;
+}
+
+interface ConformanceVerdict {
+  status: "fail" | "no-automated-failures" | "incomplete";
+  failures: ConformanceFinding[];
+  notAssessed: NotAssessedCriterion[];
+  headline: string;
+}
+
+// Plain-language standards basis, shown in every export's conformance block.
+const STANDARDS_BASIS =
+  "This audit checks documents against WCAG 2.1 Level AA — the accessibility standard adopted by the Illinois Information Technology Accessibility Act (IITAA) and the U.S. Department of Justice's ADA Title II rule for state and local government.";
+
+function conformanceHeading(c: ConformanceVerdict): string {
+  if (c.status === "fail") return "Does not meet WCAG 2.1 Level AA";
+  if (c.status === "incomplete") return "WCAG verdict could not be determined";
+  return "No automated WCAG failures detected";
 }
 
 function timestamp(): string {
@@ -123,6 +158,7 @@ function severityEmoji(severity: string | null): string {
   if (!severity) return "";
   const map: Record<string, string> = {
     Pass: "✅",
+    "No issues found": "✅",
     Minor: "ℹ️",
     Moderate: "⚠️",
     Critical: "🔴",
@@ -150,6 +186,37 @@ function buildMarkdown(result: ReportResult, branding: BrandingInfo): string {
   lines.push(`**Grade:** ${result.grade} — ${gradeLabel(result.grade)}`);
   if (result.isScanned) lines.push(`**Status:** ⚠️ Scanned document detected`);
   lines.push("");
+
+  if (result.conformance) {
+    const c = result.conformance;
+    lines.push("## WCAG 2.1 Conformance");
+    lines.push("");
+    lines.push(`**${conformanceHeading(c)}**`);
+    lines.push("");
+    lines.push(c.headline);
+    lines.push("");
+    if (c.failures.length) {
+      lines.push("| Success criterion | Level | Confirmed issue |");
+      lines.push("|---|---|---|");
+      for (const f of c.failures) {
+        lines.push(
+          `| [${f.sc} ${f.name}](${f.url}) | ${f.level} | ${f.issue} |`,
+        );
+      }
+      lines.push("");
+    }
+    if (c.notAssessed.length) {
+      const na = c.notAssessed
+        .map((n) => `[${n.sc} ${n.name}](${n.url})`)
+        .join(", ");
+      lines.push(
+        `_Not evaluated automatically: ${na}. These require manual review._`,
+      );
+      lines.push("");
+    }
+    lines.push(`_${STANDARDS_BASIS}_`);
+    lines.push("");
+  }
 
   if (scoreProfiles.length > 1) {
     lines.push("## Score Profiles");
@@ -292,6 +359,7 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
     ),
     executiveSummary: result.executiveSummary,
     warnings: result.warnings || [],
+    conformance: result.conformance ?? null,
     categories: result.categories.map((cat) => {
       const wcag = WCAG_MAP[cat.id];
       return {
@@ -385,6 +453,7 @@ function gradeColor(grade: string): string {
 function severityColor(severity: string | null): string {
   const map: Record<string, string> = {
     Pass: "22c55e",
+    "No issues found": "22c55e",
     Minor: "3b82f6",
     Moderate: "eab308",
     Critical: "ef4444",
@@ -486,6 +555,104 @@ async function buildDocx(
         }),
       );
     }
+  }
+
+  if (result.conformance) {
+    const c = result.conformance;
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "WCAG 2.1 Conformance",
+            bold: true,
+            size: 24,
+            font: "Calibri",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 160, after: 80 },
+      }),
+    );
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: conformanceHeading(c),
+            bold: true,
+            size: 24,
+            font: "Calibri",
+            color: c.status === "fail" ? "dc2626" : "444444",
+          }),
+        ],
+        spacing: { after: 60 },
+      }),
+    );
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: c.headline, size: 21, font: "Calibri" }),
+        ],
+        spacing: { after: 100 },
+      }),
+    );
+    for (const f of c.failures) {
+      children.push(
+        new Paragraph({
+          children: [
+            new ExternalHyperlink({
+              children: [
+                new TextRun({
+                  text: `${f.sc} ${f.name}`,
+                  size: 21,
+                  font: "Calibri",
+                  color: "2563eb",
+                  underline: {},
+                }),
+              ],
+              link: f.url,
+            }),
+            new TextRun({
+              text: ` (Level ${f.level}) — ${f.issue}`,
+              size: 21,
+              font: "Calibri",
+            }),
+          ],
+          spacing: { after: 40 },
+        }),
+      );
+    }
+    if (c.notAssessed.length) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Not evaluated automatically: ${c.notAssessed
+                .map((n) => `${n.sc} ${n.name}`)
+                .join(", ")}. These require manual review.`,
+              size: 20,
+              font: "Calibri",
+              italics: true,
+              color: "666666",
+            }),
+          ],
+          spacing: { before: 60, after: 40 },
+        }),
+      );
+    }
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: STANDARDS_BASIS,
+            size: 18,
+            font: "Calibri",
+            italics: true,
+            color: "888888",
+          }),
+        ],
+        spacing: { after: 120 },
+      }),
+    );
   }
 
   if (result.isScanned) {
@@ -917,6 +1084,36 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// Renders the conformance verdict as a self-contained HTML block, mirroring
+// the on-screen gate. Every WCAG criterion links to its W3C "Understanding"
+// page.
+function conformanceHtmlBlock(c: ConformanceVerdict): string {
+  const fail = c.status === "fail";
+  const failuresHtml = c.failures.length
+    ? `<ul style="font-size:13px;color:#ccc;margin:12px 0 0;padding-left:20px">${c.failures
+        .map(
+          (f) =>
+            `<li style="margin-bottom:6px"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span> — ${escapeHtml(f.issue)}</li>`,
+        )
+        .join("")}</ul>`
+    : "";
+  const naHtml = c.notAssessed.length
+    ? `<p style="font-size:13px;color:#888;margin:12px 0 0">Not evaluated automatically: ${c.notAssessed
+        .map(
+          (n) =>
+            `<a href="${escapeHtml(n.url)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa">${escapeHtml(n.sc)} ${escapeHtml(n.name)}</a>`,
+        )
+        .join(", ")}. These still require manual review.</p>`
+    : "";
+  return `<div style="background:${fail ? "#ef444415" : "#1a1a1a"};border:1px solid ${fail ? "#ef4444" : "#333"};border-radius:12px;padding:16px 20px;margin-bottom:24px">
+    <p style="font-size:15px;font-weight:700;color:${fail ? "#ef4444" : "#aaa"};margin:0 0 8px">${fail ? "⚠ " : ""}${escapeHtml(conformanceHeading(c))}</p>
+    <p style="font-size:13px;color:#ccc;margin:0">${escapeHtml(c.headline)}</p>
+    ${failuresHtml}
+    ${naHtml}
+    <p style="font-size:12px;color:#777;margin:12px 0 0;padding-top:10px;border-top:1px solid #333">${escapeHtml(STANDARDS_BASIS)}</p>
+  </div>`;
+}
+
 function buildHtml(result: ReportResult, branding: BrandingInfo): string {
   const scoreProfiles = getScoreProfiles(result);
   const gc = (grade: string) => {
@@ -932,6 +1129,7 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
   const sc = (sev: string | null) => {
     const m: Record<string, string> = {
       Pass: "#22c55e",
+      "No issues found": "#22c55e",
       Minor: "#3b82f6",
       Moderate: "#eab308",
       Critical: "#ef4444",
@@ -1055,6 +1253,10 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
         </div>`
       : "";
 
+  const conformanceHtml = result.conformance
+    ? conformanceHtmlBlock(result.conformance)
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1083,6 +1285,7 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
     <p style="font-size:14px;color:${gc(result.grade)};font-weight:500;margin:0">${gradeLabel(result.grade)}</p>
   </div>
 
+  ${conformanceHtml}
   ${scannedHtml}
   ${warningsHtml}
   ${scoreProfilesHtml}

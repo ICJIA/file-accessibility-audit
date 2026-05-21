@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.22.0] — 2026-05-21
+
+### Added — WCAG 2.1 conformance gate
+
+Every audit now produces a binary **WCAG 2.1 conformance verdict** alongside the 0–100 score — on the audit page, on saved-report pages, and in all four export formats (Word, HTML, Markdown, JSON). The score is a weighted, partial-credit *prioritised-readiness* metric, but WCAG conformance is all-or-nothing per success criterion, so a document can score 90+ ("A") and still fail WCAG. The gate answers that pass/fail question honestly and separately.
+
+- **`apps/api/src/services/scoring/conformance.ts`** (new) — flags confirmed, machine-checkable WCAG 2.1 violations: untagged document (1.3.1), no extractable text (1.1.1), tagged figures missing alt text (1.1.1), no document language (3.1.1), no document title (2.4.2), malformed lists (1.3.1), tables without header cells (1.3.1), unlabeled form fields (4.1.2), and confirmed reading-order drift (1.3.2). Each failure links to its W3C "Understanding" page.
+- The verdict is framed around **Level AA** — the bar the Illinois IITAA and the ADA Title II rule require. It never claims "conformant": a clean automated run reports "no automated failures detected — manual review still required." When an analyzer cannot process a file (encrypted/damaged) it reports `incomplete` rather than guessing.
+- The verdict box names the standards basis in plain language (WCAG 2.1 AA / IITAA / ADA Title II) for non-technical reviewers.
+
+### Changed — Scoring rigor
+
+- **Reweighted** to match WCAG conformance levels: Reading Order 5% → 10% (1.3.2 is Level A — out-of-order content makes a document unusable), Bookmarks 10% → 5% (2.4.5 is Level AA and partly satisfiable by a clear heading structure). Weights still sum to 100%.
+- **Missing bookmarks** softened from 0 / Critical to 45 / Moderate — an absent navigation aid for a Level-AA criterion is no longer scored as a critical failure.
+- **Link Quality** now flags the canonical WCAG 2.4.4 failures — vague phrases such as "click here" and "read more" — not only raw URLs.
+- **Per-category severity** "Pass" renamed to **"No issues found"** and reserved for a perfect 100; 70–99 is now "Minor". A category at 90–99 still has at least one finding, so it is no longer labelled issue-free.
+- **N/A split** into "Not applicable" (the document genuinely has no tables/forms/links) and "Not assessed" (the tool did not or could not evaluate it). Color contrast now reads "Not assessed", never a silent pass.
+- **Published WCAG success-criteria map** — each category declares the exact WCAG 2.1 success criteria and conformance level it evaluates; surfaced on the Technical Details page.
+
+### Fixed
+
+- The conformance gate emitted fabricated WCAG failures when an analyzer errored on a damaged or encrypted PDF. It now returns an honest `incomplete` verdict. Found in this release's adversarial scoring review; regression test added.
+
+### Compatibility
+
+- **Score discontinuity.** Because category weights, the bookmarks penalty, and the severity labels changed, **v1.22.0 scores are not directly comparable to pre-v1.22.0 scores.** A fleet audit spanning the upgrade will show score movement that reflects the methodology change, not the documents — re-baseline any in-progress campaign against v1.22.0.
+- `audit_log`, `shared_reports`, and `remediation_jobs` schemas unchanged. The audit response gains a `conformance` object and each category gains optional `notAssessed` and `wcagCriteria` fields; consumers that ignore unknown fields are unaffected.
+- Saved reports created before v1.22.0 carry no `conformance` data — the verdict box is simply hidden on those.
+
 ## [1.21.1] — 2026-05-19
 
 ### Fixed — Saved-report UI now matches the real-time audit page

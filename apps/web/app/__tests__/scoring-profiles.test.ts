@@ -95,7 +95,7 @@ describe("scoringProfiles", () => {
   });
 
   it.each([
-    [95, "A", "Pass"],
+    [95, "A", "Minor"],
     [82, "B", "Minor"],
     [70, "C", "Minor"],
     [60, "D", "Moderate"],

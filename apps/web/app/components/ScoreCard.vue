@@ -32,6 +32,85 @@
       {{ gradeLabel }}
     </p>
 
+    <!-- WCAG conformance verdict — deliberately independent of the score
+         above. The score is a prioritised-readiness metric with partial
+         credit; this is the honest pass/fail answer. -->
+    <div
+      v-if="conformance"
+      data-testid="conformance-gate"
+      class="max-w-lg mx-auto mt-5 rounded-lg border px-5 py-4 text-left"
+      :style="{
+        borderColor: conformanceFail
+          ? 'var(--icon-fail)'
+          : 'var(--border-alt)',
+        backgroundColor: conformanceFail
+          ? 'rgba(239, 68, 68, 0.08)'
+          : 'var(--surface-hover)',
+      }"
+    >
+      <p
+        class="text-sm font-semibold flex items-start gap-2"
+        :style="{
+          color: conformanceFail
+            ? 'var(--icon-fail)'
+            : 'var(--text-secondary)',
+        }"
+      >
+        <span aria-hidden="true">{{ conformanceFail ? "⚠" : "ⓘ" }}</span>
+        <span>{{ conformanceHeading }}</span>
+      </p>
+      <p class="text-xs text-[var(--text-secondary)] leading-relaxed mt-2">
+        {{ conformance.headline }}
+      </p>
+      <ul
+        v-if="conformance.failures.length"
+        class="mt-3 space-y-1.5 list-none pl-0"
+      >
+        <li
+          v-for="(f, i) in conformance.failures"
+          :key="i"
+          class="text-xs text-[var(--text-secondary)] leading-relaxed"
+        >
+          <a
+            :href="f.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-mono font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >{{ f.sc }} {{ f.name }}</a
+          ><span class="text-[var(--text-muted)]"> (Level {{ f.level }})</span>
+          — {{ f.issue }}
+        </li>
+      </ul>
+      <p
+        v-if="conformance.notAssessed.length"
+        class="text-xs text-[var(--text-muted)] leading-relaxed mt-3"
+      >
+        Not evaluated automatically:
+        <template
+          v-for="(n, i) in conformance.notAssessed"
+          :key="n.sc"
+          ><a
+            :href="n.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >{{ n.sc }} {{ n.name }}</a
+          ><template v-if="i < conformance.notAssessed.length - 1"
+            >, </template
+          ></template
+        >. These still require manual review.
+      </p>
+      <p
+        class="text-xs text-[var(--text-muted)] leading-relaxed mt-3 pt-3 border-t"
+        :style="{ borderColor: 'var(--border-alt)' }"
+      >
+        This audit checks documents against <strong>WCAG 2.1 Level AA</strong>
+        — the accessibility standard adopted by the Illinois Information
+        Technology Accessibility Act (IITAA) and the U.S. Department of
+        Justice's ADA Title II rule for state and local government.
+      </p>
+    </div>
+
     <!-- Verdict explanation (counts) -->
     <p
       v-if="verdictExplanation"
@@ -84,6 +163,28 @@ interface Category {
   findings?: string[];
 }
 
+interface ConformanceFinding {
+  sc: string;
+  name: string;
+  level: "A" | "AA";
+  category: string;
+  issue: string;
+  url: string;
+}
+
+interface ConformanceVerdict {
+  status: "fail" | "no-automated-failures" | "incomplete";
+  failures: ConformanceFinding[];
+  notAssessed: {
+    sc: string;
+    name: string;
+    level: "A" | "AA";
+    reason: string;
+    url: string;
+  }[];
+  headline: string;
+}
+
 const props = defineProps<{
   result: {
     filename: string;
@@ -93,6 +194,7 @@ const props = defineProps<{
     executiveSummary: string;
     categories?: Category[];
     scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
+    conformance?: ConformanceVerdict;
   };
 }>();
 
@@ -128,6 +230,18 @@ const gradeColor = computed(
 const gradeLabel = computed(
   () => gradeMap[displayedProfile.value.grade]?.label || "",
 );
+
+// WCAG conformance verdict — independent of the numeric score. The score is a
+// prioritised-readiness metric with partial credit; this is the pass/fail
+// answer (a document can score 90+ and still fail WCAG Level A).
+const conformance = computed(() => props.result.conformance ?? null);
+const conformanceFail = computed(() => conformance.value?.status === "fail");
+const conformanceHeading = computed(() => {
+  const s = conformance.value?.status;
+  if (s === "fail") return "Does not meet WCAG 2.1 Level AA";
+  if (s === "incomplete") return "WCAG verdict could not be determined";
+  return "No automated WCAG failures detected";
+});
 
 const severityCounts = computed(() => {
   const cats = displayedCategories.value;

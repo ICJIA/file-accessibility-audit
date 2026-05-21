@@ -269,7 +269,7 @@
                   {{ cat.score }}
                 </td>
                 <td v-else class="text-center px-2 sm:px-3 py-2.5 font-mono">
-                  <NaCell :cat-id="cat.id" />
+                  <NaCell :cat-id="cat.id" :not-assessed="cat.notAssessed" />
                 </td>
                 <td class="text-center px-2 sm:px-3 py-2.5">
                   <span
@@ -327,7 +327,7 @@
                 <td
                   class="text-center px-3 py-2.5 font-mono text-[var(--text-muted)]"
                 >
-                  <NaCell :cat-id="cat.id" />
+                  <NaCell :cat-id="cat.id" :not-assessed="cat.notAssessed" />
                 </td>
                 <td
                   class="text-center px-3 py-2.5 text-[var(--text-muted)]"

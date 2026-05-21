@@ -141,8 +141,10 @@ const architectureDiagram = `flowchart TD
       <ul class="space-y-1.5 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-3">
         <li>
           <strong>Audit:</strong> "How accessible is this PDF, and what
-          specifically is wrong?" — scored across 9 WCAG-aligned categories,
-          A through F grade, with category-level findings.
+          specifically is wrong?" — a weighted 0–100 score (A–F grade) across
+          9 WCAG-aligned categories, a separate pass/fail
+          <strong>WCAG 2.1 conformance verdict</strong>, and category-level
+          findings.
         </li>
         <li>
           <strong>Auto-remediate</strong> (optional, opt-in): "Can we add
@@ -172,7 +174,7 @@ const architectureDiagram = `flowchart TD
       <MermaidDiagram
         :source="auditFlowDiagram"
         title="Audit pipeline"
-        desc="Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results in the scorer, produces a grade plus category findings, returns to the browser, and discards the memory buffer."
+        desc="Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results in the scorer, produces a grade, an independent WCAG conformance verdict, and category findings, returns to the browser, and discards the memory buffer."
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
@@ -181,6 +183,119 @@ const architectureDiagram = `flowchart TD
         screen reader cares about. pdfjs (Mozilla's PDF rendering library)
         is excellent at extracting visible text and content order. Running
         both gives the scorer a richer signal than either alone.
+      </p>
+
+      <h3 class="text-lg font-semibold text-[var(--text-heading)] mt-6 mb-2">
+        The score, and the conformance verdict
+      </h3>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+        The scorer produces <strong>two separate things</strong>, and the
+        distinction matters:
+      </p>
+      <ul
+        class="space-y-2 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-4"
+      >
+        <li>
+          <strong>The 0–100 score (A–F grade)</strong> is a weighted,
+          partial-credit <em>prioritised-readiness</em> metric — it shows how
+          close a document is and what to fix first. Weights reflect WCAG
+          priority: text extractability carries the most (a scanned PDF is
+          unusable, so nothing else matters), and reading order is weighted
+          as a Level-A essential because out-of-order content makes a
+          document unusable. Bookmarks — which map to the Level-AA "multiple
+          ways" criterion and can be partly substituted by a clear heading
+          structure — carry less.
+        </li>
+        <li>
+          <strong>The WCAG 2.1 conformance verdict</strong> is a separate,
+          binary pass/fail. WCAG conformance is all-or-nothing per success
+          criterion — one image without alt text fails 1.1.1 (Level A)
+          outright — so a weighted score with partial credit
+          <em>cannot</em> be a conformance claim. A document can score 90+
+          ("A") and still fail WCAG. The verdict reports confirmed,
+          machine-checkable failures; when it finds none it says exactly
+          that — <em>not</em> "conformant", because color contrast,
+          reading-order nuance, and the correctness of alt text and tags
+          still require a human reviewer.
+        </li>
+      </ul>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+        Each category maps to the specific WCAG 2.1 success criteria it
+        evaluates:
+      </p>
+      <div class="overflow-x-auto mb-3">
+        <table
+          class="w-full text-xs border border-[var(--border-subtle)] rounded-lg"
+        >
+          <thead>
+            <tr
+              class="bg-[var(--surface-deep)] text-[var(--text-secondary)] uppercase tracking-wide"
+            >
+              <th class="text-left px-3 py-2 font-medium">Category</th>
+              <th class="text-right px-3 py-2 font-medium">Weight</th>
+              <th class="text-left px-3 py-2 font-medium">
+                WCAG 2.1 success criteria
+              </th>
+            </tr>
+          </thead>
+          <tbody
+            class="text-[var(--text-muted)] divide-y divide-[var(--border-subtle)]"
+          >
+            <tr>
+              <td class="px-3 py-1.5">Text Extractability</td>
+              <td class="px-3 py-1.5 text-right font-mono">20%</td>
+              <td class="px-3 py-1.5">1.1.1, 1.3.1 (A)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Title &amp; Language</td>
+              <td class="px-3 py-1.5 text-right font-mono">15%</td>
+              <td class="px-3 py-1.5">2.4.2, 3.1.1 (A)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Heading Structure</td>
+              <td class="px-3 py-1.5 text-right font-mono">15%</td>
+              <td class="px-3 py-1.5">1.3.1 (A), 2.4.6 (AA)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Alt Text on Images</td>
+              <td class="px-3 py-1.5 text-right font-mono">15%</td>
+              <td class="px-3 py-1.5">1.1.1 (A)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Table Markup</td>
+              <td class="px-3 py-1.5 text-right font-mono">10%</td>
+              <td class="px-3 py-1.5">1.3.1 (A)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Reading Order</td>
+              <td class="px-3 py-1.5 text-right font-mono">10%</td>
+              <td class="px-3 py-1.5">1.3.2 (A)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Bookmarks / Navigation</td>
+              <td class="px-3 py-1.5 text-right font-mono">5%</td>
+              <td class="px-3 py-1.5">2.4.5 (AA)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Link Quality</td>
+              <td class="px-3 py-1.5 text-right font-mono">5%</td>
+              <td class="px-3 py-1.5">2.4.4 (A)</td>
+            </tr>
+            <tr>
+              <td class="px-3 py-1.5">Form Accessibility</td>
+              <td class="px-3 py-1.5 text-right font-mono">5%</td>
+              <td class="px-3 py-1.5">1.3.1, 3.3.2, 4.1.2 (A)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        Color contrast (WCAG 1.4.3) is shown as <strong>Not assessed</strong>
+        — the tool does not yet measure rendered contrast, and that is stated
+        plainly rather than hidden as a passing result. A category reads
+        <strong>Not applicable</strong> only when the document genuinely has
+        no such content (no tables, no forms, no links); its weight is then
+        redistributed across the categories that do apply.
       </p>
     </section>
 
@@ -199,7 +314,7 @@ const architectureDiagram = `flowchart TD
       <MermaidDiagram
         :source="twoToolDiagram"
         title="Two-tool parallel analysis"
-        desc="The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories."
+        desc="The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories and an independent WCAG 2.1 conformance verdict."
       />
     </section>
 

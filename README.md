@@ -10,14 +10,14 @@ A web tool that **audits and (optionally) remediates** PDF accessibility against
 
 | | Feature | Detail |
 |---|---------|--------|
-| **9** | WCAG categories audited | Each PDF scored across 9 accessibility categories. A–F letter grade plus Critical / Serious / Moderate severity per category. Strict + Practical scoring profiles. |
-| **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses any score profile. Manual review still recommended for IITAA compliance. |
+| **9** | WCAG categories audited | Each PDF scored across 9 accessibility categories — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.1 conformance verdict**. |
+| **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses the score. Manual review still recommended for IITAA compliance. |
 | **PDF/UA-1** | Standards aligned | WCAG 2.1 AA, ADA Title II (April 2026), Illinois IITAA, PDF/UA-1 via veraPDF. Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
 | **0** | PDFs retained | Audit: in-memory only, gone in seconds. Remediation: output deleted on first download or 30-minute TTL, then verified absent. |
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
-| **5** | PDFs per batch | Upload up to 5 PDFs at once; per-tab remediation. `POST /api/analyze-url` for programmatic auditing of public PDFs. |
-| **4** | Export formats | Word / HTML / Markdown / JSON report exports. 15-day shareable links (no login required to view). |
+| **3** | PDFs per batch | Upload up to 3 PDFs at once; per-tab remediation. `POST /api/analyze-url` for programmatic auditing of public PDFs. |
+| **4** | Export formats | Word / HTML / Markdown / JSON report exports. 1-year shareable links (no login required to view). |
 
 Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/pdf-remediation-integration-plan.md](docs/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/pdf-remediation-alt-text-walkthrough-spec.md](docs/pdf-remediation-alt-text-walkthrough-spec.md).
 
@@ -26,6 +26,14 @@ The intended workflow is: **upload → review findings → either auto-remediate
 ## Security
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
+
+### v1.22.0 — 2026-05-21 · WCAG conformance gate + scoring-rigor pass (Tier A+B)
+
+v1.22.0 is a scoring-methodology release, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. An adversarial *scoring* review (not a red/blue-team security review) was run against the new code; one correctness defect was found and fixed before tagging.
+
+- **P2 / fixed** — The new WCAG conformance gate evaluated structural signals (no structure tree, missing title, etc.) even when the qpdf or pdfjs analyzer had *errored*. A damaged or encrypted PDF would therefore have been issued a fabricated "Does not meet WCAG 2.1 Level AA" verdict citing specific failures the tool never actually confirmed — a false accusation against the document. **Fix:** `evaluateConformance` now returns an `"incomplete"` verdict when either analyzer errors; the UI and every export report "WCAG verdict could not be determined" instead of guessing. Regression test added.
+- **No new attack surface.** The conformance gate is pure computation over existing analyzer output. The audit pipeline still holds PDFs in memory only. The export change adds a rendered section to the Word/HTML/Markdown/JSON reports — no new data egress, no new persistence.
+- **Operational note (not a finding) — score discontinuity.** Category weights (Bookmarks 10%→5%, Reading Order 5%→10%), the missing-bookmarks penalty (0/Critical → 45/Moderate), and the per-category severity labels changed in this release. v1.22.0 scores are therefore **not directly comparable** to pre-v1.22.0 scores; a fleet audit spanning the upgrade will show score movement that reflects the methodology change, not the documents.
 
 ### v1.21.1 — 2026-05-19 · Saved-report UI parity + temporary analyze rate-limit bump for ICJIA fleet pass
 
@@ -248,99 +256,37 @@ Host and port are set automatically per provider.
 
 Each PDF is assessed across named accessibility categories based on [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
 
-### Two scoring methodologies, one document
+### One score, and a separate conformance verdict
 
-Every audit surfaces **two score profiles side-by-side**: a **Strict semantic score** and a **Practical readiness score**. Both use WCAG guidelines to evaluate the same document; they differ in category weights and whether PDF/UA signals are scored:
+Every audit produces **two distinct things**, and the distinction is deliberate:
 
-> **Strict** is WCAG-based, anchored to **WCAG 2.1 Level AA** and **Illinois IITAA §E205.4** for non-web documents. Nine categories, no PDF/UA category. Emphasizes programmatically determinable structure — real `H1`–`H6` headings, real `TH`/`Scope`/`Headers` table semantics, logical reading order.
->
-> **Practical** is also WCAG-based, but it uses **different category weights** than Strict and adds a dedicated **PDF/UA Compliance Signals** category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). It also applies partial-credit floors on heading and table structure.
+**A 0–100 score (A–F grade).** A weighted, partial-credit *prioritised-readiness* metric across nine WCAG-aligned categories — it shows how close a document is and what to fix first. The score is anchored to **WCAG 2.1 Level AA**, the **ADA Title II** rule (which requires state and local government digital content to meet WCAG 2.1 AA), and **Illinois IITAA §E205.4**.
 
-Both methodologies correctly evaluate the same document — neither is "right." They can produce different scores because they emphasize different signals. Pick whichever view (or both together) matches the question being asked.
+**A WCAG 2.1 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ ("A") and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
 
-#### Strict is the canonical score and the floor for Practical
+> Cite the **score** for tracking remediation progress; cite the **conformance verdict** for the pass/fail compliance question. Neither replaces review by a human accessibility specialist — pair the audit with PAC 2024 and an Adobe Acrobat Accessibility Full Check for a definitive determination.
 
-One invariant governs the relationship between the two overall scores:
-
-> **Strict ≤ Practical, always.**
-
-**Strict is the canonical number.** It aligns with the three standards that actually govern non-web document accessibility in Illinois:
-
-- **WCAG 2.1 Level AA** — the W3C Web Content Accessibility Guidelines
-- **ADA Title II** — the 2024 U.S. Department of Justice rule requiring state/local government digital content to meet WCAG 2.1 AA by April 2026
-- **Illinois IITAA §E205.4** — frames non-web document accessibility through WCAG 2.1 AA
-
-Cite the Strict score for legal-compliance decisions, Illinois agency publication sign-off, ADA Title II reviews, FOIA responses, and any audit conversation with a group (e.g. DoIT) that evaluates documents against IITAA without a PDF/UA overlay.
-
-**Practical adds a PDF/UA layer (ISO 14289-1) on top of Strict.** PDF/UA is an ISO standard for tagged-PDF structural integrity; it is *not* a legal requirement for final PDFs under Illinois accessibility rules. IITAA §504.2.2 references PDF/UA only for *authoring-tool* export capability (whether a tool can emit PDF/UA-1), not for the PDF artifact itself. Practical scores the PDF/UA signals alongside the WCAG signals because many commercial remediation tools report on them and because the signals correlate with assistive-technology behaviour — but the Practical score is a supplementary remediation-readiness view, not a legal-compliance answer.
-
-The floor rule ties the two together: Practical starts from the same document evidence as Strict and can add points for things Strict deliberately ignores — 70-point partial-credit floors on heading and table structure when the conditions apply, and the PDF/UA Compliance Signals category (MarkInfo, tab order, PDF/UA identifiers, list/table legality). When none of those bonuses apply, Practical simply equals Strict. Practical can never drop below Strict; if the raw weighted-average math would produce a lower number (because Practical's different category weights moved scoring mass toward a category that scored low, or because a weak PDF/UA score dragged the aggregate down), the scorer lifts Practical up to Strict.
-
-**Why this matters for auditing.** Both overall scores are always visible in the app (a dual-score audit row sits directly under the main grade circle) and in every export format (JSON, Word, HTML, Markdown). The JSON export also includes `scoreProfiles.remediation.rawOverallScore` (the pre-floor weighted-average result) and a `flooredToStrict` boolean so an auditor can reconstruct the math either way. Nothing about the per-category Practical scores changes when the floor kicks in — only the aggregate `overallScore` is lifted. That keeps the raw category math inspectable.
-
-**Effect on the control fixtures:**
-
-| Fixture | Strict | Practical | `rawOverallScore` | `flooredToStrict` |
-|---|---|---|---|---|
-| FY_22 Annual Report (baseline) | 39 | 57 | 57 | false |
-| FY_22 Annual Report (remediated) | 67 | 83 | 83 | false |
-| WomenInPolicing 2021 (baseline) | 65 | 65 | 65 | false |
-| WomenInPolicing 2021 (remediated) | 81 | 81 | 81 | false |
-
-In every fixture we have, `flooredToStrict` stays `false` — the Strict-floor rule is an insurance policy rather than a frequent intervention. It exists so users never encounter the counterintuitive "Practical scored 80 on a file Strict scored 81" result a future document could otherwise produce.
-
-**What Practical is (and isn't).** Practical is not "Strict plus a bonus" — it is "Strict with different category weights plus the extra `pdf_ua_compliance` category, floored at Strict." The weight differences can push individual category contributions in either direction; the floor handles the case where those differences conspire against the overall number.
-
-#### Why two profiles instead of one
-
-Most accessibility tools collapse these questions into a single number and quietly disagree with each other. The result is the common frustration of "Acrobat says my PDF passes but my audit tool fails it" — or vice versa. Exposing both lenses explicitly lets you:
-
-1. **See the whole picture at a glance.** If Strict and Practical agree, you have a high-confidence signal. If they diverge, the divergence itself is information about how the document scores under different methodologies.
-2. **Pick the right score for the right conversation.** Strict is the WCAG + IITAA §E205.4 view; Practical also includes PDF/UA signals. Use Strict when the question is about WCAG / IITAA §E205.4 alignment; use Practical when the question involves PDF/UA-focused tools or remediation progress tracking.
-3. **Avoid a false binary.** A PDF is rarely simply "accessible" or "not accessible." A file can improve meaningfully (more tags, more bookmarks, cleaner row structure) while still lacking the deep semantic evidence that assistive technology needs most. Strict refuses to round that up; Practical rewards the scaffolding. Both views are valid.
-
-#### Practical methodology notes
-
-- **Practical's weights and partial-credit floors are judgment calls built into this tool.** The 9.5% weight on PDF/UA Compliance Signals, the 70-point floors on `heading_structure` and `table_markup`, and the reading-order proxy bonuses (55 baseline + up to 40) are tool-level numbers. They are not published standards. Other tools using their own "practical" weighting will produce different numbers for the same PDF.
-- **PDF/UA is referenced differently in Illinois IITAA 2.1.** IITAA §504.2.2 references PDF/UA for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1. Practical's PDF/UA category surfaces the §504.2.2-style signals alongside the §E205.4/WCAG signals; Strict only surfaces the §E205.4/WCAG signals.
-- **Profile origin is machine-identifiable.** The JSON export includes an `origin` tag on each profile: `wcag.iitaa.strict` for Strict, `wcag.pdfua.practical` for Practical. Downstream consumers can filter on that when comparing against other tools.
-- **Matterhorn** is worth a one-line clarification: it is _not_ a separate law or accessibility standard. It is a detailed testing protocol / checklist used by some tools to evaluate PDF/UA-style conformance. In this app it only appears as context for Practical's PDF/UA category.
-- **Neither profile is a legal determination.** For a definitive compliance verdict, pair the audit with PAC 2024, an Adobe Acrobat Accessibility Full Check, and — where possible — review by a human accessibility specialist.
-
-Every report, export (Word, HTML, Markdown, JSON), shared report, and AI-analysis payload surfaces both profiles with their origin tags. See [docs/10-scoring-reconciliation.md](docs/10-scoring-reconciliation.md) for deeper rationale on when the profiles diverge.
-
-#### Adobe Acrobat parity panel — the third view
-
-Every report includes an **Adobe Acrobat parity** card that mirrors Acrobat's built-in Accessibility Checker 32 rules alongside this tool's Strict and Practical verdicts. The card sits **above** Category Scores on every report so the three lenses land in a single scan: grade circle → Strict/Practical dual-score row → Acrobat parity card → Category Scores.
-
-The card is a reconciliation view, not a scoring profile — **no aggregated "Adobe score" is exposed**, because anchoring on that number would defeat the purpose. The tallies are qualitative (passed / failed / manual / skipped / not computed) with a separate `vacuousPasses` count called out explicitly.
-
-**Interactive tallies.** Each of the five tally pills is a button with an `aria-pressed` state. Clicking a pill filters the full 32-rule detail list to just that bucket, auto-expands the detail section, and smooth-scrolls the body into view. Clicking the active pill again clears the filter; a "Show all 32" banner in the filtered state does the same thing. Pills with zero rules are disabled. Hovering a pill shows a native-title tooltip previewing the exact rule names in that bucket — vacuous passes are marked `(vacuous)` — so auditors can see what each tally is pointing at without needing to click. All pills are keyboard-navigable (Tab / Enter / Space) and ring-highlighted when active.
-
-**Why the card is there.** Acrobat's checker is the most visible PDF accessibility tool, so users anchor on "Acrobat says my PDF passes." In practice, Acrobat's 32 rules are mostly _existence-validators_: they check whether tags already present are well-formed, but rarely assert that a type of content _must exist_. On sparse documents most rules pass **vacuously** — no tables → 4 table rules pass, no figures → all 5 alt-text rules pass, no headings → "Appropriate nesting" passes. Acrobat reports these as "Passed" with no asterisk. On the ILHEAL control fixture Acrobat reports `28/32 passed` while ~20 of those 28 are vacuous passes against an essentially empty structure tree.
-
-**The authority callout inside the card** names the references that actually govern Illinois electronic-document accessibility: **WCAG 2.1 AA via IITAA §E205.4** is the legal bar. **PDF/UA (ISO 14289-1)** is industry-standard for broader PDF accessibility but is not required by Illinois law; IITAA §504.2.2 references PDF/UA only for authoring-tool export capability. **Matterhorn Protocol** is the PDF Association's formal 136-condition PDF/UA test — another reminder that Acrobat's 32 rules sit well below either canonical standard. Managers and authors who read "Acrobat: 28/32 passed" and assume the file is accessible can see the fuller picture without having to ask.
-
-Adobe's own documentation for the 32-rule checker is at [helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html](https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html); the parity card header and authority callout both link directly there so anyone can verify the rule set against Adobe's own reference with one click.
+> **Note —** prior to v1.21.0 the tool surfaced a second "Practical" (PDF/UA-flavoured) score profile alongside Strict. It was retired because auditors found two profiles confusing; PDF/UA-1 conformance is now verified authoritatively by the optional [veraPDF](https://verapdf.org/) check on the remediation result page. The score described here is the single canonical score.
 
 ### Categories & Weights
 
-The weights column shows both profiles. Strict weighs nine core categories. Practical renormalizes those nine _and_ adds PDF/UA Compliance Signals and Color Contrast (the latter reserved for future rendered-PDF analysis).
+Nine categories, weighted by WCAG conformance level and user impact. Categories that don't apply to a document (no tables, no forms, etc.) are excluded and the remaining weights renormalized. Each category is mapped to the exact WCAG 2.1 success criteria it evaluates.
 
-| Category                      |   Strict   | Practical  | WCAG Criteria | Why It Matters                                                                                                                                                                                                                   |
-| ----------------------------- | :--------: | :--------: | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Text Extractability           |    20%     |   17.5%    | 1.3.1, 1.4.5  | The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. Non-embedded fonts cap this category at 85 (Minor).                                                       |
-| Title & Language              |    15%     |    13%     | 2.4.2, 3.1.1  | The document title is the first thing a screen reader announces. The language tag controls pronunciation.                                                                                                                       |
-| Heading Structure             |    15%     |    13%     | 1.3.1, 2.4.6  | Headings (H1–H6) are the primary way screen reader users navigate and skim documents. Multiple H1 headings are flagged as a minor issue (75).                                                                                   |
-| Alt Text on Images            |    15%     |    13%     | 1.1.1         | Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows. Images are detected via QPDF tags; pdfjs-dist provides a fallback for untagged PDFs.                   |
-| **PDF/UA Compliance Signals** | _Practical only_ | **9.5%** | 1.3.1, 4.1.1  | Practical-only. Aggregates PDF/UA-oriented structural signals: StructTreeRoot, `MarkInfo`/`Marked`, PDF/UA identifiers, tab order, list legality, and table legality. Not a formal PDF/UA conformance verdict — use PAC for that. |
-| Bookmarks                     |    10%     |    8.5%    | 2.4.5         | For documents over 10 pages, bookmarks provide a navigable table of contents.                                                                                                                                                    |
-| Table Markup                  |    10%     |    8.5%    | 1.3.1         | Without header cells (TH), screen readers read table data in a flat stream with no context.                                                                                                                                      |
-| Color Contrast                | _N/A_      | _N/A (4.5% reserved)_ | 1.4.3     | Placeholder for future rendered-PDF contrast analysis. Surfaced transparently as N/A in both modes today.                                                                                                                       |
-| Link Quality                  |    5%      |    4.5%    | 2.4.4         | Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes.                                                                                                                                   |
-| Reading Order                 |    5%      |    4%      | 1.3.2         | The tag structure must define a logical reading sequence.                                                                                                                                                                        |
-| Form Fields                   |    5%      |    4%      | 1.3.1, 4.1.2  | Unlabeled form fields are unusable with assistive technology.                                                                                                                                                                    |
-| **Total**                     | **100%**   | **100%**   |               |                                                                                                                                                                                                                                  |
+| Category | Weight | WCAG 2.1 SC | Why it matters |
+| --- | :--: | --- | --- |
+| Text Extractability | 20% | 1.1.1, 1.3.1 (A) | The most fundamental requirement — a scanned image with no real text gives a screen reader nothing to read. Non-embedded fonts cap this category at 85. |
+| Title & Language | 15% | 2.4.2, 3.1.1 (A) | The document title is the first thing a screen reader announces; the language tag controls pronunciation. |
+| Heading Structure | 15% | 1.3.1 (A), 2.4.6 (AA) | Headings (H1–H6) are how screen reader users navigate and skim. |
+| Alt Text on Images | 15% | 1.1.1 (A) | Every informative image needs a text alternative. |
+| Table Markup | 10% | 1.3.1 (A) | Without header cells (TH), screen readers read table data as a flat, context-free stream. |
+| Reading Order | 10% | 1.3.2 (A) | The tag tree must define a logical reading sequence — out-of-order content makes a document unusable, so this Level-A category is weighted accordingly. |
+| Bookmarks | 5% | 2.4.5 (AA) | For documents over 10 pages, bookmarks provide a navigable table of contents — one of several "ways" to navigate (a clear heading structure is a partial alternative), so it is weighted below the Level-A categories. |
+| Link Quality | 5% | 2.4.4 (A) | Raw URLs and vague phrases ("click here", "read more") are meaningless read aloud. |
+| Form Accessibility | 5% | 1.3.1, 3.3.2, 4.1.2 (A) | Unlabeled form fields are unusable with assistive technology. |
+| Color Contrast | not scored | 1.4.3 (AA) | Rendered-PDF contrast analysis is not yet implemented. Surfaced as **"Not assessed"** — never as a pass — so the report never implies contrast was checked. |
+| **Total** | **100%** | | |
+
+The published category → success-criteria map also appears on the in-app Technical Details page.
 
 ### Grade Scale
 
@@ -356,12 +302,12 @@ The weights column shows both profiles. Strict weighs nine core categories. Prac
 
 Each category receives a severity based on its individual score:
 
-| Severity | Score Range | Meaning                                                     |
-| -------- | :---------: | ----------------------------------------------------------- |
-| Pass     |   90–100    | Meets accessibility standards.                              |
-| Minor    |    70–89    | Small improvements recommended.                             |
-| Moderate |    40–69    | Should be addressed before publishing.                      |
-| Critical |    0–39     | Must be fixed — represents a significant barrier to access. |
+| Severity | Score | Meaning |
+| --- | :--: | --- |
+| No issues found | 100 | The automated checks for this category found nothing. Reserved for a perfect 100 — a category scoring 90–99 still has at least one finding. |
+| Minor | 70–99 | Small improvements recommended. |
+| Moderate | 40–69 | Should be addressed before publishing. |
+| Critical | 0–39 | A significant barrier to access — must be fixed. |
 
 ### Reference Standards
 
@@ -374,7 +320,7 @@ Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital 
 
 ## Batch Upload
 
-Upload up to **5 PDF files** at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
+Upload up to **3 PDF files** at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
 
 ### How it works
 
@@ -649,7 +595,7 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 | **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform         |
 | **JSON (.json)**   | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
-Reports can also be shared via **shareable links** that expire after 15 days. Shared report pages include:
+Reports can also be shared via **shareable links** that expire after 1 year. Shared report pages include:
 
 - **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
@@ -840,7 +786,7 @@ All magic numbers, thresholds, weights, limits, and email provider settings are 
 - **Auth toggle** → `AUTH.REQUIRE_LOGIN` (`true` or `false`)
 - **Scoring profiles & weights** → `SCORING_PROFILES` (`SCORING_WEIGHTS` remains the strict-profile alias)
 - **Email provider** → `EMAIL.PROVIDER` (`'mailgun'` or `'smtp2go'`)
-- **Share link expiry** → `SHARING.EXPIRY_DAYS` (default: 15)
+- **Share link expiry** → `SHARED_REPORTS.EXPIRY_DAYS` (default: 365)
 - **Rate limits** → `RATE_LIMITS`
 - **Dev/prod URLs** → automatic based on `NODE_ENV`
 
@@ -1024,7 +970,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 | Threat                         | Mitigation                                                                                                                                                       |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Bypassing the 5-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
+| **Bypassing the 3-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
 | **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
 | **Filename XSS**               | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage.                   |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
