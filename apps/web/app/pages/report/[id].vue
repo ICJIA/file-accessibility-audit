@@ -1045,15 +1045,19 @@ const metadataItems = computed(() => {
   ];
 });
 
-const gradeColors: Record<string, string> = {
-  A: "#22c55e",
-  B: "#14b8a6",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
-};
-
 function catColor(cat: any): string {
+  // Keep this map INSIDE the function. As a top-level <script setup> const it
+  // gets dropped from catColor's scope in the production SSR build (only
+  // catColor is referenced by the template), throwing "ReferenceError:
+  // gradeColors is not defined" — a 500 on every report page. This has
+  // regressed before; see commit 0f39c96. Mirrors sevColor() below.
+  const gradeColors: Record<string, string> = {
+    A: "#22c55e",
+    B: "#14b8a6",
+    C: "#eab308",
+    D: "#f97316",
+    F: "#ef4444",
+  };
   if (cat.grade) return gradeColors[cat.grade] || "#666";
   return "#555";
 }
