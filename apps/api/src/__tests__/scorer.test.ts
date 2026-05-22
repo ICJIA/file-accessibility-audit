@@ -6,6 +6,8 @@ import {
 } from "../services/scorer.js";
 import type { QpdfResult, TableAnalysis } from "../services/qpdfService.js";
 import type { PdfjsResult } from "../services/pdfjsService.js";
+import { generateSummary } from "../services/scoring/summary.js";
+import type { ConformanceVerdict } from "../services/scoring/conformance.js";
 
 // ---------------------------------------------------------------------------
 // Helpers to build mock data
@@ -188,8 +190,11 @@ describe("scoreDocument — fully accessible PDF", () => {
     expect(result.warnings).toHaveLength(0);
   });
 
-  it("executive summary mentions ready for publication", () => {
-    expect(result.executiveSummary).toContain("ready for publication");
+  it("executive summary is positive but does not claim conformance", () => {
+    expect(result.executiveSummary).toContain("strong result");
+    expect(result.executiveSummary).toContain(
+      "not a determination of conformance",
+    );
   });
 
   it("all 10 categories are present (pdf_ua_compliance dropped in v1.21+)", () => {
@@ -561,29 +566,25 @@ describe("executive summary", () => {
     expect(result.executiveSummary).toContain("OCR");
   });
 
-  it('grade A gets "ready for publication" summary', () => {
+  it("grade A with no automated failures is summarised positively, with a manual-review caveat", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(result.executiveSummary).toContain("ready for publication");
+    expect(result.conformance.status).toBe("no-automated-failures");
+    expect(result.executiveSummary).toContain("strong result");
+    expect(result.executiveSummary).toContain("manual review");
   });
 
-  it('grade B mentions "good shape" and minor issues', () => {
+  it("a confirmed failure (missing title) drives the summary regardless of the grade", () => {
     const { qpdf, pdfjs } = fullyAccessible();
-    pdfjs.title = null;
-    qpdf.headings = [
-      { level: "H1", tag: "/H1" },
-      { level: "H3", tag: "/H3" },
-    ];
+    pdfjs.title = null; // → WCAG 2.4.2 (Page Titled) failure
     const result = scoreDocument(qpdf, pdfjs);
-    if (result.grade === "B") {
-      expect(result.executiveSummary).toContain("good shape");
-    }
-    // If not B due to weight math, just verify it's a string
-    expect(typeof result.executiveSummary).toBe("string");
+    expect(result.conformance.status).toBe("fail");
+    expect(result.executiveSummary).toContain(
+      "does not yet meet WCAG 2.1 Level AA",
+    );
   });
 
-  it("critical issues are named in the summary", () => {
-    // Force a document with critical severity in some categories
+  it("a document with multiple confirmed failures gets a failure summary", () => {
     const qpdf = makeQpdf({
       hasStructTree: true,
       structTreeDepth: 3,
@@ -594,17 +595,117 @@ describe("executive summary", () => {
       textLength: 500,
       pageCount: 20,
     });
-    // heading_structure = F (critical), bookmarks = F (critical)
     const result = scoreDocument(qpdf, pdfjs);
-    // Not scanned, not A or B, so should mention critical issues
-    if (result.grade !== "A" && result.grade !== "B") {
-      const critical = result.categories.filter(
-        (c) => c.severity === "Critical",
-      );
-      if (critical.length > 0) {
-        expect(result.executiveSummary).toContain("critical");
-      }
-    }
+    expect(result.conformance.status).toBe("fail");
+    expect(result.conformance.failures.length).toBeGreaterThan(1);
+    expect(result.executiveSummary).toContain(
+      "does not yet meet WCAG 2.1 Level AA",
+    );
+    expect(result.executiveSummary).toContain("WCAG 2.1 failures");
+  });
+
+  it("an unreadable document yields an incomplete-analysis summary", () => {
+    const result = scoreDocument(
+      makeQpdf({ error: "damaged or encrypted" }),
+      makePdfjs({ error: "damaged or encrypted" }),
+    );
+    expect(result.conformance.status).toBe("incomplete");
+    expect(result.executiveSummary).toContain("could not fully complete");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateSummary — direct unit tests (conformance reconciliation, v1.22.3)
+// ---------------------------------------------------------------------------
+
+function summaryVerdict(
+  status: ConformanceVerdict["status"],
+  failureCount = 0,
+): ConformanceVerdict {
+  return {
+    status,
+    failures: Array.from({ length: failureCount }, (_, i) => ({
+      sc: "1.1.1",
+      name: "Non-text Content",
+      level: "A" as const,
+      category: "alt_text",
+      issue: `confirmed failure ${i + 1}`,
+      url: "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+    })),
+    notAssessed: [],
+    headline: "",
+  };
+}
+
+function summaryCat(
+  severity: string | null,
+  score: number | null,
+): CategoryResult {
+  return {
+    id: "demo",
+    label: "Demo Category",
+    weight: 10,
+    score,
+    grade: null,
+    severity,
+    findings: [],
+    explanation: "",
+    helpLinks: [],
+  };
+}
+
+describe("generateSummary", () => {
+  it("a confirmed conformance failure outranks a high grade", () => {
+    const s = generateSummary(95, "A", false, [], summaryVerdict("fail", 1));
+    expect(s).toContain("does not yet meet WCAG 2.1 Level AA");
+    expect(s).toContain("1 WCAG 2.1 failure");
+    expect(s).not.toContain("strong result");
+  });
+
+  it("pluralises multiple confirmed failures", () => {
+    const s = generateSummary(70, "C", false, [], summaryVerdict("fail", 3));
+    expect(s).toContain("3 WCAG 2.1 failures");
+  });
+
+  it("an incomplete verdict makes no readiness claim", () => {
+    const s = generateSummary(40, "F", false, [], summaryVerdict("incomplete"));
+    expect(s).toContain("could not fully complete");
+  });
+
+  it("grade A with no automated failures never claims conformance", () => {
+    const cats = [
+      summaryCat("No issues found", 100),
+      summaryCat("No issues found", 100),
+    ];
+    const s = generateSummary(
+      96,
+      "A",
+      false,
+      cats,
+      summaryVerdict("no-automated-failures"),
+    );
+    expect(s).toContain("not a determination of conformance");
+  });
+
+  it("grade B counts issue-free categories by the current 'No issues found' severity", () => {
+    const cats = [
+      summaryCat("No issues found", 100),
+      summaryCat("No issues found", 100),
+      summaryCat("Minor", 85),
+    ];
+    const s = generateSummary(
+      85,
+      "B",
+      false,
+      cats,
+      summaryVerdict("no-automated-failures"),
+    );
+    expect(s).toContain("2 of 3 categories are fully issue-free");
+  });
+
+  it("a scanned PDF gets the OCR message regardless of the verdict", () => {
+    const s = generateSummary(0, "F", true, [], summaryVerdict("fail", 5));
+    expect(s).toContain("OCR");
   });
 });
 
@@ -759,7 +860,7 @@ describe("scoreAltText edge cases", () => {
     expect(findCategory(result, "alt_text").score).toBe(50);
   });
 
-  it("3 images, 2 with alt → score 67 (rounded)", () => {
+  it("3 images, 2 with alt → score 66 (floored, never rounded up)", () => {
     const qpdf = makeQpdf({
       images: [
         { ref: "10 0 R", hasAlt: true },
@@ -769,7 +870,20 @@ describe("scoreAltText edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "alt_text").score).toBe(67);
+    expect(findCategory(result, "alt_text").score).toBe(66);
+  });
+
+  it("a single missing alt among many never rounds up to a perfect 100", () => {
+    const qpdf = makeQpdf({
+      images: Array.from({ length: 200 }, (_, i) => ({
+        ref: `${i + 10} 0 R`,
+        hasAlt: i < 199,
+      })),
+    });
+    const result = scoreDocument(qpdf, makePdfjs());
+    const altText = findCategory(result, "alt_text");
+    expect(altText.score).toBe(99); // floor(99.5) — not round(99.5) = 100
+    expect(altText.severity).not.toBe("No issues found");
   });
 
   it("images with no ref are excluded", () => {

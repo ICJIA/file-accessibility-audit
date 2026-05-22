@@ -27,6 +27,13 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.22.3 — 2026-05-22 · Scoring-engine follow-ups (summary reconciliation, floor rounding, dead-code removal)
+
+v1.22.3 is a scoring-engine cleanup, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. The executive summary now honours the conformance verdict, coverage-ratio scores floor instead of round, and ~170 lines of confirmed-dead scoring code were deleted.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** Every change is internal to `scorer.ts` and `scoring/summary.ts` — pure computation over existing analyzer output. Deleting unreachable code (`scorePdfUaCompliance`, `refreshCategoryPresentation`) shrinks the attack surface rather than expanding it. No new inputs, endpoints, persistence, or data egress.
+- **Operational note (not a finding).** Coverage-ratio categories (alt text, link quality, form accessibility) now floor their score, so a document whose coverage is not a whole percentage may score up to 1 point lower in those categories. Minor, and far smaller than the v1.22.0 reweight — but worth noting for an in-flight fleet audit.
+
 ### v1.22.2 — 2026-05-22 · Conformance heading copy + README test-table correction
 
 v1.22.2 reworks the conformance verdict box copy for a failing document — both the heading and the body — and corrects stale per-file test counts in this README's Tests section. It is not a security release: no code paths, endpoints, authentication, retention windows, or data handling changed.
@@ -880,7 +887,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**622 tests** across 24 test files. Run all with a summary at the end:
+**630 tests** across 24 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -895,18 +902,18 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      342 passed (10 files)
+  ✔ API      350 passed (10 files)
   ✔ Web      280 passed (14 files)
 ────────────────────────────────────────────────────────────
-  ✔ 622 tests passed across 24 files
+  ✔ 630 tests passed across 24 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (342 tests)
+### API Tests (350 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
-| `scorer.test.ts` | 116 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
+| `scorer.test.ts` | 124 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
 | `qpdfParser.test.ts` | 68 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
 | `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement, and route-level input/PDF validation and fetch-error handling |
 | `integration.test.ts` | 28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |

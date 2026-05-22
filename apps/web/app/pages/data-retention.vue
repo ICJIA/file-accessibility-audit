@@ -1254,6 +1254,74 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.22.3 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.22.3</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-22</strong> · scope: a scoring-engine
+            cleanup — a more honest summary, a rounding fix, and removal of
+            dead code. No security review was required; nothing about data
+            handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.22.3 refines how the audit is scored and explained. It does not
+          change what the audit collects, where it is stored, or how long it
+          is kept. No new endpoints, no authentication change, no retention
+          change, no new attack surface.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              A more honest plain-language summary</strong
+            >
+            — The summary shown with the score now takes the WCAG conformance
+            verdict into account. Previously a document could be summarised as
+            "strong" while the verdict box separately reported a failure; a
+            confirmed failure is now reflected in the summary as well.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              A category one item short can no longer look perfect</strong
+            >
+            — Category scores for alt text, links, and form fields are now
+            rounded down. A document missing one item out of many — for
+            example one image without alternative text — can no longer round
+            up to a flawless score; it now scores just below 100, so the
+            report never implies a category is issue-free when it is not.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              Dead code removed; no new attack surface</strong
+            >
+            — About 170 lines of unreachable scoring code were deleted. This
+            release is internal computation only — no code path, endpoint, or
+            data-handling behaviour changed, and every defensive control from
+            prior releases remains in force.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.22.2 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

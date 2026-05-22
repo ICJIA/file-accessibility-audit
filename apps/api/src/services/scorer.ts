@@ -126,7 +126,13 @@ export function scoreDocument(
   const isScanned = !pdfjs.error && !pdfjs.hasText && !qpdf.hasStructTree;
 
   const strictCategories = buildCategories(qpdf, pdfjs, "strict");
-  const strictAggregate = aggregateScore(strictCategories, isScanned, "strict");
+  const conformance = evaluateConformance(qpdf, pdfjs, strictCategories);
+  const strictAggregate = aggregateScore(
+    strictCategories,
+    isScanned,
+    "strict",
+    conformance,
+  );
 
   // As of v1.21.0 only the Strict (WCAG + IITAA §E205.4) profile is
   // surfaced to users. The previous Practical / PDF-UA flavored profile
@@ -138,7 +144,6 @@ export function scoreDocument(
   // payloads, downstream tooling) keep round-tripping cleanly. The alias
   // will be dropped in a future release once consumers have migrated.
   const adobeParity = buildAdobeParityReport(qpdf, pdfjs);
-  const conformance = evaluateConformance(qpdf, pdfjs, strictCategories);
 
   return {
     overallScore: strictAggregate.overallScore,
@@ -202,18 +207,6 @@ function applyWcagCriteria(categories: CategoryResult[]): void {
   }
 }
 
-function refreshCategoryPresentation(category: CategoryResult): void {
-  if (category.score === null) {
-    category.grade = null;
-    category.severity = null;
-    return;
-  }
-
-  category.score = Math.max(0, Math.min(100, Math.round(category.score)));
-  category.grade = getGrade(category.score);
-  category.severity = getSeverity(category.score);
-}
-
 function listLegalityScore(lists: QpdfResult["lists"]): number {
   if (lists.length === 0) return 15;
   const wellFormed = lists.filter((list) => list.isWellFormed).length;
@@ -243,6 +236,7 @@ function aggregateScore(
   categories: CategoryResult[],
   isScanned: boolean,
   mode: ScoringMode,
+  conformance: ConformanceVerdict,
 ): {
   overallScore: number;
   grade: string;
@@ -300,7 +294,7 @@ function aggregateScore(
     grade,
     isScanned,
     categories,
-    mode,
+    conformance,
   );
 
   return {
@@ -798,7 +792,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
 
   const withAlt = figures.filter((f) => f.hasAlt).length;
   const score =
-    withAlt === 0 ? 0 : Math.round((withAlt / figures.length) * 100);
+    withAlt === 0 ? 0 : Math.floor((withAlt / figures.length) * 100);
   const findings: string[] = [];
 
   if (withAlt === figures.length) {
@@ -889,166 +883,6 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     findings,
     explanation: altExplanation,
     helpLinks: altLinks,
-  };
-}
-
-function scorePdfUaCompliance(
-  qpdf: QpdfResult,
-  mode: ScoringMode,
-): CategoryResult {
-  const pdfUaLinks: CategoryResult["helpLinks"] = [
-    {
-      label: "PDF/UA Overview",
-      url: "https://www.w3.org/WAI/WCAG21/Techniques/pdf/",
-    },
-    {
-      label: "PAC 2024",
-      url: "https://pac.pdf-accessibility.org/",
-    },
-    {
-      label: "Matterhorn Protocol",
-      url: "https://www.pdfa.org/resource/the-matterhorn-protocol-1-1/",
-    },
-    {
-      label: "Illinois IITAA 2.1 Standards (§504.2.2 / E205.4)",
-      url: "https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html",
-    },
-  ];
-  const pdfUaExplanation =
-    "This category groups PDF/UA-oriented structural checks that remediation tools often emphasize: tagged structure, MarkInfo/Marked, PDF/UA metadata claims, list legality, table legality, and tab order. Illinois IITAA 2.1 expressly references PDF/UA in §504.2.2 for authoring-tool PDF export capability, while E205.4 frames document-level electronic content accessibility through WCAG 2.1 for non-web documents. In this app the category is therefore scored only in Practical mode, while Strict remains the primary document-level publication lens.";
-
-  if (mode !== "remediation") {
-    return {
-      id: "pdf_ua_compliance",
-      label: "PDF/UA Compliance Signals",
-      weight: SCORING_WEIGHTS.pdf_ua_compliance,
-      score: null,
-      grade: null,
-      severity: null,
-      findings: [
-        "Strict mode does not use PDF/UA or Matterhorn conformance as the primary document-level publication/compliance score.",
-        "Illinois IITAA 2.1 §504.2.2 requires PDF/UA export capability for authoring tools, while E205.4 frames final electronic-content accessibility through WCAG 2.1.",
-        "Use Practical mode to review PDF/UA-oriented audit signals such as tagging, MarkInfo, PDF/UA identifiers, list/table legality, and tab order.",
-        "This category does not affect the Strict score.",
-      ],
-      explanation: pdfUaExplanation,
-      helpLinks: pdfUaLinks,
-    };
-  }
-
-  const findings: string[] = [];
-
-  if (!qpdf.hasStructTree) {
-    return {
-      id: "pdf_ua_compliance",
-      label: "PDF/UA Compliance Signals",
-      weight: SCORING_WEIGHTS.pdf_ua_compliance,
-      score: 0,
-      grade: "F",
-      severity: "Critical",
-      findings: [
-        "No StructTreeRoot found — the document is not tagged.",
-        "Without tags, major PDF/UA-oriented structure checks fail immediately.",
-        "How to fix: In Adobe Acrobat, run Accessibility → Add Tags to Document, then verify the resulting structure manually or in PAC.",
-      ],
-      explanation: pdfUaExplanation,
-      helpLinks: pdfUaLinks,
-    };
-  }
-
-  let score = 25;
-  findings.push("Tagged PDF detected (StructTreeRoot present).");
-
-  if (qpdf.hasMarkInfo && qpdf.isMarkedContent) {
-    score += 20;
-    findings.push(
-      "MarkInfo /Marked is true — real content is distinguished from artifacts.",
-    );
-  } else if (qpdf.hasMarkInfo) {
-    score += 10;
-    findings.push(
-      "MarkInfo is present, but /Marked is not true — artifact handling may be incomplete.",
-    );
-  } else {
-    findings.push("No MarkInfo dictionary found.");
-  }
-
-  if (qpdf.hasPdfUaIdentifier) {
-    score += 15;
-    findings.push(
-      `PDF/UA identifier found${qpdf.pdfUaPart ? ` (PDF/UA-${qpdf.pdfUaPart})` : ""}.`,
-    );
-  } else {
-    findings.push("No PDF/UA identifier found in metadata.");
-  }
-
-  if (qpdf.totalPageCount > 0) {
-    if (qpdf.tabOrderPages === qpdf.totalPageCount) {
-      score += 10;
-      findings.push(
-        `Tab order is set on all ${qpdf.totalPageCount} page(s) (/Tabs /S or equivalent page tab-order entries detected).`,
-      );
-    } else if (qpdf.tabOrderPages > 0) {
-      score += 5;
-      findings.push(
-        `Tab order is set on ${qpdf.tabOrderPages} of ${qpdf.totalPageCount} page(s).`,
-      );
-    } else {
-      findings.push("No page-level tab order entries detected.");
-    }
-  }
-
-  const listScore = listLegalityScore(qpdf.lists);
-  score += listScore;
-  if (qpdf.lists.length === 0) {
-    findings.push(
-      "No list structures present — no list-legality issues detected.",
-    );
-  } else {
-    const wellFormed = qpdf.lists.filter((list) => list.isWellFormed).length;
-    findings.push(
-      `List legality: ${wellFormed} of ${qpdf.lists.length} detected list(s) are well formed (${listScore}/15 points).`,
-    );
-  }
-
-  const tableScore = tableLegalityScore(qpdf.tables);
-  score += tableScore;
-  if (qpdf.tables.length === 0) {
-    findings.push(
-      "No table structures present — no table-legality issues detected.",
-    );
-  } else {
-    findings.push(
-      `Table legality: structural row nesting, non-nested tables, and consistent columns contributed ${tableScore}/15 points.`,
-    );
-  }
-
-  if (qpdf.actualTextCount + qpdf.expansionTextCount > 0) {
-    findings.push(
-      `Screen-reader text overrides detected: ${qpdf.actualTextCount} /ActualText and ${qpdf.expansionTextCount} /E expansion text attribute(s).`,
-    );
-  }
-
-  if (qpdf.hasRoleMap) {
-    findings.push(
-      `RoleMap present with ${qpdf.roleMapEntries.length} custom tag mapping(s).`,
-    );
-  }
-
-  findings.push(
-    "Practical mode scores this as a PDF/UA-oriented readiness signal, not a formal Matterhorn or PDF/UA conformance audit.",
-  );
-
-  return {
-    id: "pdf_ua_compliance",
-    label: "PDF/UA Compliance Signals",
-    weight: SCORING_WEIGHTS.pdf_ua_compliance,
-    score,
-    grade: getGrade(score),
-    severity: getSeverity(score),
-    findings,
-    explanation: pdfUaExplanation,
-    helpLinks: pdfUaLinks,
   };
 }
 
@@ -1528,7 +1362,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
   const descriptive = pdfjs.links.filter(
     (l) => !isNonDescriptiveLinkText(l.text),
   );
-  const score = Math.round((descriptive.length / pdfjs.links.length) * 100);
+  const score = Math.floor((descriptive.length / pdfjs.links.length) * 100);
   const findings: string[] = [];
 
   if (descriptive.length === pdfjs.links.length) {
@@ -1627,7 +1461,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   }
 
   const withLabels = qpdf.formFields.filter((f) => f.hasTU).length;
-  const score = Math.round((withLabels / qpdf.formFields.length) * 100);
+  const score = Math.floor((withLabels / qpdf.formFields.length) * 100);
   const findings: string[] = [];
 
   findings.push(`${qpdf.formFields.length} form field(s) detected`);

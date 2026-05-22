@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.22.3] — 2026-05-22
+
+### Changed — Scoring follow-ups
+
+A cleanup pass on the scoring engine following the v1.22.0 conformance-gate release. No category weights changed.
+
+- **Executive summary reconciled with the conformance verdict.** `generateSummary` now takes the WCAG conformance verdict into account: a confirmed conformance failure outranks the numeric grade, so the summary no longer reads positively while the verdict box separately reports a failure. An incomplete analysis (encrypted or damaged file) is now summarised honestly as such.
+- **Severity-label bug fixed in the summary.** The summary's issue-free category count filtered on the severity label `"Pass"`, which v1.22.0 renamed to `"No issues found"` — so for grade-B documents the count had silently read **0 of N** since v1.22.0. Fixed.
+- **Coverage ratios floor instead of round.** Alt-text, link-quality, and form-accessibility category scores are now `floor((covered / total) × 100)`. Previously `round()` could lift a 99.5%-coverage ratio to a perfect 100 and a "No issues found" severity — a category looked flawless with an item still missing. A sub-100% ratio now always scores at most 99. Per-category impact is ≤ 1 point.
+
+### Removed
+
+- Deleted two confirmed-unreachable scoring functions from `scorer.ts` — `scorePdfUaCompliance` (~159 lines; the PDF/UA category was dropped from the audit in v1.21.0) and `refreshCategoryPresentation` — trimming dead, auditable surface.
+
+### Compatibility
+
+- No category-weight, API, schema, or export-format changes. The only score movement is the ≤ 1-point `floor` adjustment on the alt-text / link-quality / form-accessibility categories when coverage is not a whole percentage; an overall document score may therefore shift by a fraction of a point.
+
 ## [1.22.2] — 2026-05-22
 
 ### Changed

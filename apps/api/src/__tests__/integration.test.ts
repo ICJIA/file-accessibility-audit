@@ -155,8 +155,11 @@ describe("integration: inaccessible PDF", () => {
     expect(criticals.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("executive summary mentions critical issues", () => {
-    expect(result.executiveSummary).toContain("critical");
+  it("executive summary reflects the confirmed WCAG failures", () => {
+    expect(result.conformance.status).toBe("fail");
+    expect(result.executiveSummary).toContain(
+      "does not yet meet WCAG 2.1 Level AA",
+    );
   });
 
   it("all categories have explanations and help links", () => {
