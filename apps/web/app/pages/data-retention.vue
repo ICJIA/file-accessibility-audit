@@ -1254,6 +1254,76 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.22.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.22.1</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-22</strong> · scope: a wording and
+            presentation change to the conformance verdict box. No security
+            review was required — nothing about data handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.22.1 changes how the v1.22.0
+          <strong>WCAG conformance verdict</strong> is <em>displayed</em>. It
+          does not change what the audit checks, what data is collected, where
+          it is stored, or how long it is kept. No new endpoints, no
+          authentication change, no retention change.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Clearer, less alarming verdict wording</strong
+            >
+            — When a document scores well (an A or B grade) but still has a
+            flagged accessibility issue, the verdict box now explains plainly
+            that WCAG is judged one criterion at a time — a single gap is still
+            worth fixing, but a strong grade still means the document is in good
+            shape. The box is shown in green for strong documents and red for
+            weak ones; every flagged issue is still listed in full, whatever
+            the color.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >New</span
+              >
+              Links to the official standards</strong
+            >
+            — The verdict box now links directly to the published WCAG 2.1,
+            Illinois IITAA, and ADA Title II standards, so a reader can check
+            the rules the audit measures against at their source.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No new data and no new attack surface</strong
+            >
+            — This release is presentation only. The verdict is still computed
+            from information the audit already produced, the downloadable
+            reports are unchanged, and no new information is sent or stored
+            anywhere. Every defensive control from prior releases remains in
+            force.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.22.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

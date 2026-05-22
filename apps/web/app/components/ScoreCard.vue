@@ -33,34 +33,27 @@
     </p>
 
     <!-- WCAG conformance verdict — deliberately independent of the score
-         above. The score is a prioritised-readiness metric with partial
-         credit; this is the honest pass/fail answer. -->
+         above. Colour follows the grade (green for A/B, red for C/D/F) so a
+         strong file is not alarmed by a single flagged criterion, while the
+         panel still lists every finding. See the conformance computeds below. -->
     <div
       v-if="conformance"
       data-testid="conformance-gate"
       class="max-w-lg mx-auto mt-5 rounded-lg border px-5 py-4 text-left"
       :style="{
-        borderColor: conformanceFail
-          ? 'var(--icon-fail)'
-          : 'var(--border-alt)',
-        backgroundColor: conformanceFail
-          ? 'rgba(239, 68, 68, 0.08)'
-          : 'var(--surface-hover)',
+        borderColor: conformanceStyle.border,
+        backgroundColor: conformanceStyle.background,
       }"
     >
       <p
         class="text-sm font-semibold flex items-start gap-2"
-        :style="{
-          color: conformanceFail
-            ? 'var(--icon-fail)'
-            : 'var(--text-secondary)',
-        }"
+        :style="{ color: conformanceStyle.heading }"
       >
-        <span aria-hidden="true">{{ conformanceFail ? "⚠" : "ⓘ" }}</span>
+        <span aria-hidden="true">{{ conformanceStyle.icon }}</span>
         <span>{{ conformanceHeading }}</span>
       </p>
       <p class="text-xs text-[var(--text-secondary)] leading-relaxed mt-2">
-        {{ conformance.headline }}
+        {{ conformanceBody }}
       </p>
       <ul
         v-if="conformance.failures.length"
@@ -104,10 +97,31 @@
         class="text-xs text-[var(--text-muted)] leading-relaxed mt-3 pt-3 border-t"
         :style="{ borderColor: 'var(--border-alt)' }"
       >
-        This audit checks documents against <strong>WCAG 2.1 Level AA</strong>
-        — the accessibility standard adopted by the Illinois Information
-        Technology Accessibility Act (IITAA) and the U.S. Department of
-        Justice's ADA Title II rule for state and local government.
+        This audit checks documents against
+        <a
+          href="https://www.w3.org/WAI/WCAG21/quickref/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+          >WCAG 2.1 Level AA</a
+        >
+        — the accessibility standard adopted by the
+        <a
+          href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+          >Illinois Information Technology Accessibility Act (IITAA)</a
+        >
+        and the U.S. Department of Justice's
+        <a
+          href="https://www.ada.gov/resources/title-ii-rule/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+          >ADA Title II rule</a
+        >
+        for state and local government.
       </p>
     </div>
 
@@ -233,14 +247,105 @@ const gradeLabel = computed(
 
 // WCAG conformance verdict — independent of the numeric score. The score is a
 // prioritised-readiness metric with partial credit; this is the pass/fail
-// answer (a document can score 90+ and still fail WCAG Level A).
+// answer (a document can score 90+ and still have a confirmed WCAG failure).
+//
+// Presentation is *tone*-driven, not pass/fail-driven. A strong document
+// (grade A or B) is shown a calm green panel even when a criterion is flagged:
+// WCAG is all-or-nothing per criterion, and a single gap should not alarm an
+// otherwise-solid file. A weak document (C/D/F) gets a red panel. Either way
+// the panel still lists every flagged criterion — tone never hides a finding.
+// "incomplete" (an analyzer could not run) stays neutral: a genuine "could not
+// check", neither a pass nor a fail.
 const conformance = computed(() => props.result.conformance ?? null);
-const conformanceFail = computed(() => conformance.value?.status === "fail");
+
+const conformanceTone = computed<"positive" | "warning" | "neutral">(() => {
+  const status = conformance.value?.status;
+  if (!status || status === "incomplete") return "neutral";
+  const grade = displayedProfile.value.grade;
+  return grade === "A" || grade === "B" ? "positive" : "warning";
+});
+
+const conformanceHasFailures = computed(
+  () => (conformance.value?.failures.length ?? 0) > 0,
+);
+
+// Border / background / heading colour + icon for each tone.
+const conformanceStyle = computed(() => {
+  switch (conformanceTone.value) {
+    case "positive":
+      return {
+        border: "var(--icon-pass)",
+        background: "rgba(34, 197, 94, 0.08)",
+        heading: "var(--icon-pass)",
+        icon: "ⓘ",
+      };
+    case "warning":
+      return {
+        border: "var(--icon-fail)",
+        background: "rgba(239, 68, 68, 0.08)",
+        heading: "var(--icon-fail)",
+        icon: "⚠",
+      };
+    default:
+      return {
+        border: "var(--border-alt)",
+        background: "var(--surface-hover)",
+        heading: "var(--text-secondary)",
+        icon: "ⓘ",
+      };
+  }
+});
+
 const conformanceHeading = computed(() => {
-  const s = conformance.value?.status;
-  if (s === "fail") return "Does not meet WCAG 2.1 Level AA";
-  if (s === "incomplete") return "WCAG verdict could not be determined";
-  return "No automated WCAG failures detected";
+  if (conformance.value?.status === "incomplete") {
+    return "WCAG verdict could not be determined";
+  }
+  if (conformanceTone.value === "positive") {
+    return conformanceHasFailures.value
+      ? "A few items still need attention"
+      : "No automated WCAG failures found";
+  }
+  return conformanceHasFailures.value
+    ? "This document needs remediation"
+    : "Some findings to review";
+});
+
+// Mirrors conformance.ts's Level-A/AA breakdown phrasing for the warning body.
+const conformanceFailBreakdown = computed(() => {
+  const failures = conformance.value?.failures ?? [];
+  const a = failures.filter((f) => f.level === "A").length;
+  const aa = failures.filter((f) => f.level === "AA").length;
+  if (aa === 0) return `${a} Level A failure${a === 1 ? "" : "s"}`;
+  if (a === 0) return `${aa} Level AA failure${aa === 1 ? "" : "s"}`;
+  return `${a} Level A and ${aa} Level AA failures`;
+});
+
+// Grade-aware body copy. Deliberately replaces the API's score-blind
+// `conformance.headline` on-page: a high-scoring file is reassured while still
+// being told plainly what is left to fix. The API headline is left untouched
+// for the formal exports (Word / Markdown / HTML), where the firmer
+// record-keeping language is wanted.
+const conformanceBody = computed(() => {
+  const c = conformance.value;
+  if (!c) return "";
+  if (c.status === "incomplete") return c.headline;
+
+  const grade = displayedProfile.value.grade;
+
+  if (conformanceTone.value === "positive") {
+    if (conformanceHasFailures.value) {
+      const n = c.failures.length;
+      const items = n === 1 ? "the 1 item" : `the ${n} items`;
+      return `This file earned a grade of ${grade} — a strong result overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG 2.1 to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
+    }
+    return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — color contrast is not evaluated here, and the correctness of alt text, headings, reading order, and tags can only be confirmed by manual review.`;
+  }
+
+  // warning tone (grade C / D / F)
+  if (conformanceHasFailures.value) {
+    return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG 2.1 Level AA — the standard required by the Illinois IITAA and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule.`;
+  }
+  return "The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing. Color contrast and the correctness of alt text and tags cannot be checked automatically and still require manual review.";
 });
 
 const severityCounts = computed(() => {

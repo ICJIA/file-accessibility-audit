@@ -109,7 +109,7 @@ const label = computed(() => {
       ? `Audit & remediation server online — uptime ${uptime.value}`
       : 'Audit & remediation server online'
   }
-  if (status.value === 'down') return 'Audit & remediation server unreachable'
+  if (status.value === 'down') return 'Audit & remediation server offline'
   return 'Checking audit & remediation server…'
 })
 
@@ -124,8 +124,8 @@ const pulseClass = computed(() =>
 )
 
 const statusText = computed(() => {
-  if (status.value === 'ok') return 'audit server up'
-  if (status.value === 'down') return 'audit server down'
+  if (status.value === 'ok') return 'audit server online'
+  if (status.value === 'down') return 'audit server offline'
   return 'audit server…'
 })
 

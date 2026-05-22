@@ -27,6 +27,13 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.22.1 — 2026-05-22 · Conformance-verdict presentation refinement
+
+v1.22.1 is a copy and presentation change to the WCAG conformance verdict box — the verdict color now follows the letter grade, the wording is grade-aware, and the standards named in the footer are clickable links. It is not a security release: no endpoints, authentication, retention windows, data-handling paths, or scoring logic changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The conformance verdict box is pure client-side computation over the audit response the page already holds. The three new footer links are static external references (W3C, Illinois DoIT, ADA.gov) and carry `rel="noopener noreferrer"`. No new inputs, endpoints, persistence, or data egress.
+- **Exports unchanged.** The softened wording is on-page only; the Word/HTML/Markdown/JSON reports keep the formal "does not meet WCAG 2.1 Level AA" verdict language. No change to what the exports contain or where they go.
+
 ### v1.22.0 — 2026-05-21 · WCAG conformance gate + scoring-rigor pass (Tier A+B)
 
 v1.22.0 is a scoring-methodology release, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. An adversarial *scoring* review (not a red/blue-team security review) was run against the new code; one correctness defect was found and fixed before tagging.

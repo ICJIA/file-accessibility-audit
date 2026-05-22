@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.22.1] — 2026-05-22
+
+### Changed — Conformance verdict presentation
+
+A copy and presentation refinement of the WCAG conformance verdict introduced in v1.22.0, plus a small wording tweak to the server-status indicator. The verdict logic, the success criteria it checks, and the export wording are all unchanged — only how the on-page verdict box looks and reads.
+
+- **The verdict box color now follows the grade**, not pass/fail: a green panel for an A or B grade, red for C/D/F, neutral grey when analysis could not complete. A strong document with a single flagged criterion is no longer shown an alarm-red box — but the box still lists every flagged criterion regardless of color, so nothing is hidden.
+- **Grade-aware verdict copy.** The headline softens to "A few items still need attention" for an A/B document and "This document needs remediation" for C/D/F. For a high-scoring document the body now explains *why* a strict reading still flags it — WCAG conformance is all-or-nothing per success criterion, so a single missing tag flags the whole document — while affirming that the grade reflects a document in good shape.
+- **The standards named in the verdict box footer are now clickable** — WCAG 2.1 Level AA links to the W3C quick reference, the **Illinois IITAA links to the IITAA 2.1 standards**, and ADA Title II links to the DOJ rule.
+- The Word / HTML / Markdown / JSON exports keep the formal "does not meet WCAG 2.1 Level AA" wording — a downloaded report is a compliance record, where firmer language is appropriate.
+- **Server status indicator** now reads "audit server online / offline" instead of "up / down".
+
+### Compatibility
+
+- No API, schema, or scoring changes. The `conformance` verdict data, the category fields, and all four export formats are byte-identical to v1.22.0; only the audit-page and saved-report-page rendering of the verdict box changed.
+
 ## [1.22.0] — 2026-05-21
 
 ### Added — WCAG 2.1 conformance gate
