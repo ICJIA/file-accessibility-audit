@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.22.2] — 2026-05-22
+
+### Changed
+
+- **Conformance verdict copy for a failing document.** For a failing document (grade C/D/F), the verdict box heading now reads "This document needs **additional manual** remediation" (was "This document needs remediation"), and the body spells out the next step — the remaining fixes are hands-on: run the file through Adobe Acrobat's Accessibility Checker, or repair the source document (Word, InDesign) and re-export, then re-run the audit to confirm. It makes explicit that the automated audit and auto-remediation only go so far.
+
+### Fixed
+
+- **`README.md` `## Tests` section.** The per-file test tables and totals had drifted stale — they reported 236 API / 238 Web tests against an actual suite of **342 API / 280 Web (622 tests across 24 files)**. The tables now list every test file with its current count and coverage.
+
+### Compatibility
+
+- No API, schema, scoring, or export changes — UI copy and documentation only.
+
 ## [1.22.1] — 2026-05-22
 
 ### Changed — Conformance verdict presentation

@@ -27,6 +27,12 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.22.2 — 2026-05-22 · Conformance heading copy + README test-table correction
+
+v1.22.2 reworks the conformance verdict box copy for a failing document — both the heading and the body — and corrects stale per-file test counts in this README's Tests section. It is not a security release: no code paths, endpoints, authentication, retention windows, or data handling changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The change is UI copy in `ScoreCard.vue` plus Markdown edits to `README.md`. No new inputs, endpoints, dependencies, persistence, or data flow.
+
 ### v1.22.1 — 2026-05-22 · Conformance-verdict presentation refinement
 
 v1.22.1 is a copy and presentation change to the WCAG conformance verdict box — the verdict color now follows the letter grade, the wording is grade-aware, and the standards named in the footer are clickable links. It is not a security release: no endpoints, authentication, retention windows, data-handling paths, or scoring logic changed.
@@ -874,7 +880,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**473 tests** across 13 test files. Run all with a summary at the end:
+**622 tests** across 24 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -889,35 +895,46 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      236 passed (5 files)
-  ✔ Web      238 passed (8 files)
+  ✔ API      342 passed (10 files)
+  ✔ Web      280 passed (14 files)
 ────────────────────────────────────────────────────────────
-  ✔ 474 tests passed across 13 files
+  ✔ 622 tests passed across 24 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (236 tests)
+### API Tests (342 tests)
 
-| File                  | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------- | ----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scorer.test.ts`      |   109 | All 11 named scoring categories, Strict vs Practical score profiles, grade/severity thresholds, N/A handling, weight renormalization, executive summary generation, edge cases, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text)                                   |
-| `qpdfParser.test.ts`  |    68 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1–H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
-| `auth.test.ts`        |    25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email domain validation (illinois.gov, subdomains, rejection of non-gov domains, ALLOWED_DOMAINS dev override)                                                                                                                                                                                                 |
-| `mailer.test.ts`      |     6 | Email config validation: production exits without credentials, development warns but continues, provider info logging                                                                                                                                                                                                                                                                                                               |
-| `integration.test.ts` |    28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring between documents                                                                                                                                                                                                                                                                           |
+| File | Tests | What it covers |
+| --- | ---: | --- |
+| `scorer.test.ts` | 116 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
+| `qpdfParser.test.ts` | 68 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
+| `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement, and route-level input/PDF validation and fetch-error handling |
+| `integration.test.ts` | 28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |
+| `tokens.test.ts` | 27 | Personal access tokens: token generation, name sanitization, the PAT branch of the auth middleware, and the create/list/revoke `/api/tokens` endpoints |
+| `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), and email-domain validation |
+| `audit-url.test.ts` | 18 | Fleet `audit-url` endpoint: profile-score extraction, report-URL building, Policy-A hash dedup, response shape, and filename derivation |
+| `bulk-from-inventory.test.ts` | 10 | Bulk inventory scoring: input validation, NDJSON parsing, and result-structure assertions |
+| `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
+| `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
 
-### Web Tests (238 tests)
+### Web Tests (280 tests)
 
-| File                       | Tests | What it covers                                                                                                                                                                                                                                                                                                                                                         |
-| -------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `accessibility.test.ts`    |    38 | WCAG 2.1 color contrast verification for dark and light modes (4.5:1 ratio for all text/bg combinations), regression guards against low-contrast classes (text-neutral-500/600), semantic HTML landmarks (main, header, footer, nav), link accessibility (rel attributes, underlines), component-level a11y (keyboard-accessible controls, caveat text, click targets) |
-| `color-mode.test.ts`       |    51 | Light mode WCAG 2.1 contrast (all text/bg combos), dark mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color mode toggle presence, no hardcoded dark-only colors in templates, branding configuration checks                                                                                                                     |
-| `ai-analysis.test.ts`      |    12 | AI analysis export/prompt generation, Practical/Strict profile labeling, and remediation-focused output                                                                                                                                                                                                                                                                |
-| `components.test.ts`       |    36 | DropZone (drag/drop, multi-file PDF validation, file size limits, batch staging), ScoreCard (grade display, profile toggle, recommendation copy, color coding for all 5 grades, score/filename/summary), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay (spinner, stage messages)                                 |
-| `login.test.ts`            |    13 | Two-step OTP flow (email → code), API call verification, error handling, back navigation                                                                                                                                                                                                                                                                               |
-| `responsive.test.ts`       |    50 | Shared-report and main-page responsive layout behavior, including mode-aware score displays and mobile export behavior                                                                                                                                                                                                                                                 |
-| `scoring-display.test.ts`  |    29 | Grade color mapping (A–F), N/A category rendering, severity badge colors (Pass/Minor/Moderate/Critical), and mode-aware display messaging                                                                                                                                                                                                                              |
-| `scoring-profiles.test.ts` |     9 | Strict vs Practical profile selection utilities, full per-profile category override (so PDF/UA-specific findings surface in Practical mode), and fallback behavior                                                                                                                                                                                                     |
+| File | Tests | What it covers |
+| --- | ---: | --- |
+| `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
+| `responsive.test.ts` | 50 | Responsive layout across mobile navigation, layout padding, ScoreCard, CategoryRow, the index/report/history pages, CSS transitions, and the scoring modal |
+| `accessibility.test.ts` | 38 | WCAG 2.1 color-contrast verification for dark and light modes (4.5:1 minimum across all text/background combinations), regression guards against low-contrast classes, semantic HTML landmarks, link accessibility, and component-level a11y |
+| `components.test.ts` | 35 | DropZone (drag/drop, multi-file PDF validation, size limits, batch staging), ScoreCard (grade display, recommendation copy, color coding for all five grades), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay |
+| `scoring-display.test.ts` | 30 | Grade color mapping (A-F), N/A category rendering, severity badges, the conformance-verdict explanation, and detailed-findings display |
+| `findings.test.ts` | 14 | Findings utilities: guidance-vs-actionable finding classification and per-card finding partitioning |
+| `login.test.ts` | 13 | Two-step OTP flow (email then code), API-call verification, error handling, back navigation |
+| `ai-analysis.test.ts` | 12 | `buildAiAnalysis` - AI-analysis export and prompt generation, and remediation-focused output |
+| `ReportActionBanner.test.ts` | 10 | The ReportActionBanner component - report-page action banner |
+| `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
+| `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
+| `IssuesSummary.test.ts` | 5 | The IssuesSummary component - issue-count summary |
+| `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |
+| `severityTally.test.ts` | 3 | The `tallySeverity` utility - per-severity finding counts |
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 

@@ -1254,6 +1254,61 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.22.2 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.22.2</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-05-22</strong> · scope: one verdict-box
+            heading string and a documentation correction. No security review
+            was required — nothing about data handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.22.2 reworks the wording shown in the conformance verdict box
+          when a document does not pass, and corrects stale test counts in the
+          project README. It does not change what the audit checks, what data
+          is collected, where it is stored, or how long it is kept. No new
+          endpoints, no authentication change, no retention change, no new
+          attack surface.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Clearer next-step wording on a failing document</strong
+            >
+            — When a document does not pass, the verdict box heading now says
+            it needs "additional manual remediation" — a plain signal that
+            automated tooling has done what it can and the remaining fixes are
+            hands-on (Adobe Acrobat's Accessibility Checker, or correcting the
+            source document and re-exporting).
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No new data and no new attack surface</strong
+            >
+            — This release is a copy and documentation change only. No code
+            path, endpoint, or data-handling behavior changed; every defensive
+            control from prior releases remains in force.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.22.1 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
