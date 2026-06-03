@@ -10,7 +10,8 @@
  *
  * It reports three states:
  *   - "fail"                  — at least one confirmed, machine-checkable
- *                               WCAG 2.1 violation was found.
+ *                               WCAG violation was found (against the operative
+ *                               version — WCAG 2.1 or 2.2; see WCAG.VERSION).
  *   - "no-automated-failures" — none were found. This is NOT a statement of
  *                               conformance: color contrast, reading-order
  *                               nuance, and the *correctness* of alt text and
@@ -25,9 +26,10 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { CategoryResult } from "../scorer.js";
+import { WCAG, WCAG_22_NEW_AA } from "#config";
 
 export interface ConformanceFinding {
-  /** WCAG 2.1 success criterion number, e.g. "1.1.1". */
+  /** WCAG success criterion number, e.g. "1.1.1" (2.1 or 2.2). */
   sc: string;
   /** Success criterion name. */
   name: string;
@@ -66,8 +68,10 @@ export interface ConformanceVerdict {
   headline: string;
 }
 
-// WCAG 2.1 "Understanding" page slugs, so every criterion the gate reports
+// WCAG "Understanding" page slugs, so every criterion the gate reports
 // links to the exact, authoritative W3C explanation of the rule.
+// Slugs are identical across WCAG 2.1 and 2.2 for carried-forward criteria;
+// the new 2.2 criteria are appended at the bottom.
 const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
   "1.1.1": "non-text-content",
   "1.3.1": "info-and-relationships",
@@ -80,14 +84,17 @@ const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
   "3.1.1": "language-of-page",
   "3.3.2": "labels-or-instructions",
   "4.1.2": "name-role-value",
+  // New in WCAG 2.2 (form-relevant):
+  "2.5.8": "target-size-minimum",
+  "3.3.7": "redundant-entry",
+  "3.3.8": "accessible-authentication-minimum",
 };
 
-/** URL of the W3C "Understanding" page for a WCAG 2.1 success criterion. */
+/** URL of the W3C "Understanding" page for a WCAG success criterion. */
 function wcagUrl(sc: string): string {
   const slug = WCAG_UNDERSTANDING_SLUGS[sc];
-  return slug
-    ? `https://www.w3.org/WAI/WCAG21/Understanding/${slug}.html`
-    : "https://www.w3.org/WAI/WCAG21/quickref/";
+  const base = WCAG.UNDERSTANDING_BASE[WCAG.VERSION];
+  return slug ? `${base}${slug}.html` : WCAG.QUICKREF[WCAG.VERSION];
 }
 
 /**
@@ -266,6 +273,25 @@ export function evaluateConformance(
     });
   }
 
+  // New in WCAG 2.2: surface the form-relevant new A/AA criteria as
+  // "not assessed — manual review" when this document has interactive form
+  // fields. Never as failures (no automated evidence). Skipped entirely when
+  // reverted to WCAG 2.1. Web-UI-only new criteria (focus, dragging, consistent
+  // help) are documented on the /wcag-2-2 page instead, not per-document.
+  if (WCAG.VERSION === "2.2" && qpdf.hasAcroForm) {
+    for (const c of WCAG_22_NEW_AA) {
+      if (!c.pdfFormRelevant) continue;
+      notAssessed.push({
+        sc: c.sc,
+        name: c.name,
+        level: c.level as "A" | "AA",
+        reason:
+          "New in WCAG 2.2. Applies to interactive PDF form controls/processes; this tool does not assess it automatically — manual review required.",
+        url: wcagUrl(c.sc),
+      });
+    }
+  }
+
   const status: ConformanceVerdict["status"] =
     failures.length > 0 ? "fail" : "no-automated-failures";
 
@@ -284,8 +310,8 @@ export function evaluateConformance(
 
   const headline =
     status === "fail"
-      ? `This document does not meet WCAG 2.1 Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA and the ADA Title II rule) requires every Level A and Level AA success criterion to pass.`
-      : "No automated WCAG failures were detected. This is not a determination of conformance — WCAG 2.1 Level AA also requires color contrast (not evaluated here) and the correctness of alt text, headings, reading order, and tags, all of which require manual review.";
+      ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
+      : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA also requires color contrast (not evaluated here) and the correctness of alt text, headings, reading order, and tags, all of which require manual review.`;
 
   return { status, failures, notAssessed, headline };
 }
