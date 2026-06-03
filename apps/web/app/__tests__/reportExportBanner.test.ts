@@ -9,6 +9,8 @@ import {
 const branding = {
   appName: "ICJIA Publication Accessibility Audit",
   siteUrl: "https://audit.icjia.app",
+  wcagVersion: "2.2",
+  wcagUnderstandingBase: "https://www.w3.org/WAI/WCAG22/Understanding/",
 };
 
 function baseResult(overrides: any = {}) {

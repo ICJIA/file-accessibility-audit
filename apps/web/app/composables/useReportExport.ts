@@ -85,11 +85,22 @@ interface ConformanceVerdict {
 }
 
 // Plain-language standards basis, shown in every export's conformance block.
-const STANDARDS_BASIS =
-  "This audit checks documents against WCAG 2.1 Level AA — the accessibility standard adopted by the Illinois Information Technology Accessibility Act (IITAA) and the U.S. Department of Justice's ADA Title II rule for state and local government.";
+// WCAG 2.2 is a superset of 2.1 AA; IITAA 2.1 still mandates WCAG 2.1 AA as the
+// legal minimum for Illinois state/local government. ADA Title II (effective April
+// 2026) requires WCAG 2.1 AA for state and local government digital content.
+function standardsBasis(wcagVersion: string): string {
+  const versionNote =
+    wcagVersion === "2.2"
+      ? ` (WCAG 2.2 is a superset of WCAG 2.1 AA, which remains the IITAA 2.1 legal minimum)`
+      : "";
+  return (
+    `This audit checks documents against WCAG ${wcagVersion} Level AA — the accessibility standard adopted by the Illinois Information Technology Accessibility Act (IITAA 2.1) and the U.S. Department of Justice's ADA Title II rule for state and local government.` +
+    versionNote
+  );
+}
 
-function conformanceHeading(c: ConformanceVerdict): string {
-  if (c.status === "fail") return "Does not meet WCAG 2.1 Level AA";
+function conformanceHeading(c: ConformanceVerdict, wcagVersion: string): string {
+  if (c.status === "fail") return `Does not meet WCAG ${wcagVersion} Level AA`;
   if (c.status === "incomplete") return "WCAG verdict could not be determined";
   return "No automated WCAG failures detected";
 }
@@ -126,11 +137,12 @@ function profileLabel(_mode: ScoringMode): string {
   return "Strict semantic score (WCAG + IITAA §E205.4)";
 }
 
-function profileDescription(_mode: ScoringMode): string {
-  return "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure.";
+function profileDescription(_mode: ScoringMode, wcagVersion?: string): string {
+  const ver = wcagVersion ?? "2.2";
+  return `WCAG-based scoring methodology. Anchored to WCAG ${ver} Level AA and Illinois IITAA 2.1 §E205.4 for non-web documents. Prioritizes programmatically determinable headings, table semantics, and logical structure.`;
 }
 
-function getScoreProfiles(result: ReportResult): ScoreProfile[] {
+function getScoreProfiles(result: ReportResult, wcagVersion?: string): ScoreProfile[] {
   // v1.21+ exports a single Strict profile. Historical shared reports
   // (stored before v1.21) may still carry a `scoreProfiles.remediation`
   // that differs from strict; we ignore it to keep the downloaded
@@ -138,7 +150,7 @@ function getScoreProfiles(result: ReportResult): ScoreProfile[] {
   const strictFallback: ScoreProfile = {
     mode: "strict",
     label: profileLabel("strict"),
-    description: profileDescription("strict"),
+    description: profileDescription("strict", wcagVersion),
     overallScore: result.overallScore,
     grade: result.grade,
     executiveSummary: result.executiveSummary,
@@ -149,7 +161,7 @@ function getScoreProfiles(result: ReportResult): ScoreProfile[] {
         ...result.scoreProfiles.strict,
         mode: "strict" as const,
         label: profileLabel("strict"),
-        description: profileDescription("strict"),
+        description: profileDescription("strict", wcagVersion),
       }
     : strictFallback;
 
@@ -173,6 +185,8 @@ function severityEmoji(severity: string | null): string {
 interface BrandingInfo {
   appName: string;
   siteUrl: string;
+  wcagVersion: string;
+  wcagUnderstandingBase: string;
 }
 
 export function buildMarkdown(
@@ -180,7 +194,7 @@ export function buildMarkdown(
   branding: BrandingInfo,
 ): string {
   const lines: string[] = [];
-  const scoreProfiles = getScoreProfiles(result);
+  const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
 
   // The filename leads as the H1 so the document a Markdown reader opens is
   // unmistakably tied to the audited file; the generic report label drops to a
@@ -197,9 +211,9 @@ export function buildMarkdown(
 
   if (result.conformance) {
     const c = result.conformance;
-    lines.push("## WCAG 2.1 Conformance");
+    lines.push(`## WCAG ${branding.wcagVersion} Conformance`);
     lines.push("");
-    lines.push(`**${conformanceHeading(c)}**`);
+    lines.push(`**${conformanceHeading(c, branding.wcagVersion)}**`);
     lines.push("");
     lines.push(c.headline);
     lines.push("");
@@ -222,7 +236,7 @@ export function buildMarkdown(
       );
       lines.push("");
     }
-    lines.push(`_${STANDARDS_BASIS}_`);
+    lines.push(`_${standardsBasis(branding.wcagVersion)}_`);
     lines.push("");
   }
 
@@ -331,7 +345,7 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
     (c) => c.score !== null && c.score >= 90,
   );
   const naCategories = result.categories.filter((c) => c.score === null);
-  const scoreProfiles = getScoreProfiles(result);
+  const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
 
   const report = {
     reportMeta: {
@@ -392,7 +406,10 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
         wcag: wcag
           ? {
               successCriteria: getWcagCriteriaStrings(cat.id),
-              successCriteriaDetailed: wcag.criteria,
+              successCriteriaDetailed: wcag.criteria.map((c) => ({
+                ...c,
+                url: `${branding.wcagUnderstandingBase}${c.slug}.html`,
+              })),
               principle: wcag.principle,
               remediation: wcag.remediation,
             }
@@ -427,10 +444,11 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
           ? `The following categories need remediation: ${failingCategories.map((c) => `${c.label} (${c.score}/100)`).join(", ")}. `
           : "All scored categories pass. ") +
         `Use the remediationPlan.prioritizedSteps array for ordered fix instructions. ` +
-        `Each category includes WCAG 2.1 success criteria references and tool-specific remediation steps for Adobe Acrobat.`,
+        `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for Adobe Acrobat.`,
       standards: [
-        "WCAG 2.1 Level AA",
+        `WCAG ${branding.wcagVersion} Level AA`,
         "ADA Title II (effective April 2026)",
+        "Illinois IITAA 2.1 (§E205.4)",
         "Section 508",
         "PDF/UA (ISO 14289-1)",
       ],
@@ -474,7 +492,7 @@ export async function buildDocx(
   branding: BrandingInfo,
 ): Promise<Blob> {
   const children: Paragraph[] = [];
-  const scoreProfiles = getScoreProfiles(result);
+  const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
 
   // Prominent filename banner — mirrors the on-screen ReportFileBanner so the
   // exported document is unmistakably tied to the audited file. Eyebrow,
@@ -607,7 +625,7 @@ export async function buildDocx(
       new Paragraph({
         children: [
           new TextRun({
-            text: "WCAG 2.1 Conformance",
+            text: `WCAG ${branding.wcagVersion} Conformance`,
             bold: true,
             size: 24,
             font: "Calibri",
@@ -621,7 +639,7 @@ export async function buildDocx(
       new Paragraph({
         children: [
           new TextRun({
-            text: conformanceHeading(c),
+            text: conformanceHeading(c, branding.wcagVersion),
             bold: true,
             size: 24,
             font: "Calibri",
@@ -687,7 +705,7 @@ export async function buildDocx(
       new Paragraph({
         children: [
           new TextRun({
-            text: STANDARDS_BASIS,
+            text: standardsBasis(branding.wcagVersion),
             size: 18,
             font: "Calibri",
             italics: true,
@@ -1131,7 +1149,7 @@ function escapeHtml(text: string): string {
 // Renders the conformance verdict as a self-contained HTML block, mirroring
 // the on-screen gate. Every WCAG criterion links to its W3C "Understanding"
 // page.
-function conformanceHtmlBlock(c: ConformanceVerdict): string {
+function conformanceHtmlBlock(c: ConformanceVerdict, wcagVersion: string): string {
   const fail = c.status === "fail";
   const failuresHtml = c.failures.length
     ? `<ul style="font-size:13px;color:#ccc;margin:12px 0 0;padding-left:20px">${c.failures
@@ -1150,11 +1168,11 @@ function conformanceHtmlBlock(c: ConformanceVerdict): string {
         .join(", ")}. These still require manual review.</p>`
     : "";
   return `<div style="background:${fail ? "#ef444415" : "#1a1a1a"};border:1px solid ${fail ? "#ef4444" : "#333"};border-radius:12px;padding:16px 20px;margin-bottom:24px">
-    <p style="font-size:15px;font-weight:700;color:${fail ? "#ef4444" : "#aaa"};margin:0 0 8px">${fail ? "⚠ " : ""}${escapeHtml(conformanceHeading(c))}</p>
+    <p style="font-size:15px;font-weight:700;color:${fail ? "#ef4444" : "#aaa"};margin:0 0 8px">${fail ? "⚠ " : ""}${escapeHtml(conformanceHeading(c, wcagVersion))}</p>
     <p style="font-size:13px;color:#ccc;margin:0">${escapeHtml(c.headline)}</p>
     ${failuresHtml}
     ${naHtml}
-    <p style="font-size:12px;color:#777;margin:12px 0 0;padding-top:10px;border-top:1px solid #333">${escapeHtml(STANDARDS_BASIS)}</p>
+    <p style="font-size:12px;color:#777;margin:12px 0 0;padding-top:10px;border-top:1px solid #333">${escapeHtml(standardsBasis(wcagVersion))}</p>
   </div>`;
 }
 
@@ -1162,7 +1180,7 @@ export function buildHtml(
   result: ReportResult,
   branding: BrandingInfo,
 ): string {
-  const scoreProfiles = getScoreProfiles(result);
+  const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
   const gc = (grade: string) => {
     const m: Record<string, string> = {
       A: "#22c55e",
@@ -1301,7 +1319,7 @@ export function buildHtml(
       : "";
 
   const conformanceHtml = result.conformance
-    ? conformanceHtmlBlock(result.conformance)
+    ? conformanceHtmlBlock(result.conformance, branding.wcagVersion)
     : "";
 
   return `<!DOCTYPE html>
@@ -1385,9 +1403,10 @@ export function buildHtml(
 
 // ── AI-ready analysis ─────────────────────────────────────────────────────
 
-export function buildAiAnalysis(result: ReportResult): string {
+export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingInfo, "wcagVersion">): string {
+  const wcagVersion = branding?.wcagVersion ?? "2.2";
   const lines: string[] = [];
-  const scoreProfiles = getScoreProfiles(result);
+  const scoreProfiles = getScoreProfiles(result, wcagVersion);
   const remediationProfile = scoreProfiles.find(
     (profile) => profile.mode === "remediation",
   );
@@ -1407,7 +1426,7 @@ export function buildAiAnalysis(result: ReportResult): string {
 
   if (failing.length === 0) {
     lines.push(
-      `An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG 2.1 Level AA and ADA Title II requirements. No remediation is needed at this time.`,
+      `An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG ${wcagVersion} Level AA and ADA Title II requirements. No remediation is needed at this time.`,
     );
     lines.push("");
     lines.push(`## File`);
@@ -1438,7 +1457,7 @@ export function buildAiAnalysis(result: ReportResult): string {
   }
 
   lines.push(
-    `I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG 2.1 Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+    `I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG ${wcagVersion} Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
   );
   lines.push("");
   lines.push(
@@ -1494,7 +1513,7 @@ export function buildAiAnalysis(result: ReportResult): string {
     const wcagRefs = getWcagCriteriaStrings(c.id);
     if (wcagRefs.length) {
       lines.push("");
-      lines.push(`**WCAG 2.1 references:**`);
+      lines.push(`**WCAG ${wcagVersion} references:**`);
       for (const ref of wcagRefs) lines.push(`- ${ref}`);
     }
     if (c.findings?.length) {
@@ -1532,6 +1551,8 @@ export function useReportExport() {
   const branding: BrandingInfo = {
     appName: config.public.appName as string,
     siteUrl: config.public.siteUrl as string,
+    wcagVersion: String(config.public.wcagVersion ?? "2.2"),
+    wcagUnderstandingBase: String(config.public.wcagUnderstandingBase ?? "https://www.w3.org/WAI/WCAG22/Understanding/"),
   };
   const exporting = ref(false);
   const sharing = ref(false);
@@ -1619,11 +1640,11 @@ export function useReportExport() {
   }
 
   function buildAiAnalysisText(result: ReportResult): string {
-    return buildAiAnalysis(result);
+    return buildAiAnalysis(result, branding);
   }
 
   async function copyAiAnalysis(result: ReportResult): Promise<boolean> {
-    const text = buildAiAnalysis(result);
+    const text = buildAiAnalysis(result, branding);
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);

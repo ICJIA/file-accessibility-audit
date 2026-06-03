@@ -130,8 +130,8 @@ describe("buildAiAnalysis", () => {
 
   it("includes WCAG references for failing categories", () => {
     const out = buildAiAnalysis(baseResult());
-    // alt_text maps to WCAG 1.1.1
-    expect(out).toContain("WCAG 2.1 references");
+    // alt_text maps to WCAG 1.1.1; default version is 2.2
+    expect(out).toContain("WCAG 2.2 references");
     expect(out).toMatch(/1\.1\.1/);
   });
 
@@ -177,7 +177,7 @@ describe("buildAiAnalysis", () => {
     expect(out).not.toContain("## Failing categories");
     expect(out).not.toContain("## What I'd like from you");
     expect(out).not.toContain("Findings");
-    expect(out).not.toContain("WCAG 2.1 references");
+    expect(out).not.toContain("WCAG 2.2 references");
   });
 
   it("includes the four remediation questions at the end", () => {
