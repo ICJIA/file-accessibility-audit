@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.23.0] — 2026-06-03
+
+### Added — Prominent filename banner on every report
+
+Every downloadable and shareable report now leads with a full-width banner across the top that names the audited file, so a saved or forwarded report can never be mistaken for another document.
+
+- **New `ReportFileBanner` component** shows an `ACCESSIBILITY REPORT FOR` eyebrow, the filename in bold (wrapping, never truncated), and an `N pages · PDF` line. It sits at the top of the live audit result — including each batch tab — and the shared `/report/:id` page, and is inherited by the browser print / Save-as-PDF path.
+- **Exports carry the same prominence.** The HTML export gains a styled banner above the title with a print-legible rule; the Word export gains a shaded, bordered filename block before the title; the Markdown export now leads with the filename as its top-level `#` heading. JSON is unchanged — it already carries `file.name`.
+- **No duplicated filename.** `ScoreCard` gains a `showFilename` prop (default on); the live and shared pages turn it off so the filename is not repeated in gray beneath the new banner. The remediation before/after cards are unchanged.
+
+### Tests
+
+- Web suite grows to **301 tests** (from 280): new `reportBanner`, `ReportFileBanner`, and `reportExportBanner` suites plus a `ScoreCard` `showFilename` case. Project total: **651 tests** across 27 files.
+
 ## [1.22.3] — 2026-05-22
 
 ### Changed — Scoring follow-ups

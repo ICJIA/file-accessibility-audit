@@ -137,6 +137,18 @@ describe("ScoreCard", () => {
     expect(wrapper.text()).not.toContain("1 pages");
   });
 
+  it("hides the filename and page-count line when showFilename is false", () => {
+    // The prominent ReportFileBanner now carries the filename above the card,
+    // so the page passes showFilename: false to avoid duplicating it here.
+    const wrapper = mount(ScoreCard, {
+      props: { result: baseResult, showFilename: false },
+    });
+    expect(wrapper.text()).not.toContain("test-report.pdf");
+    expect(wrapper.text()).not.toContain("12 pages");
+    // The grade/score still render — only the filename line is suppressed.
+    expect(wrapper.text()).toContain("87");
+  });
+
   it("renders the executive summary", () => {
     const wrapper = mount(ScoreCard, { props: { result: baseResult } });
     expect(wrapper.text()).toContain("Overall the document is in good shape.");

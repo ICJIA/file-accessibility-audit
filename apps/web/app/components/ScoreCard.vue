@@ -1,6 +1,6 @@
 <template>
   <div class="text-center space-y-4">
-    <p class="text-sm text-[var(--text-muted)]">
+    <p v-if="showFilename" class="text-sm text-[var(--text-muted)]">
       {{ result.filename }} — {{ result.pageCount }} page{{
         result.pageCount !== 1 ? "s" : ""
       }}
@@ -199,18 +199,26 @@ interface ConformanceVerdict {
   headline: string;
 }
 
-const props = defineProps<{
-  result: {
-    filename: string;
-    pageCount: number;
-    overallScore: number;
-    grade: string;
-    executiveSummary: string;
-    categories?: Category[];
-    scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
-    conformance?: ConformanceVerdict;
-  };
-}>();
+const props = withDefaults(
+  defineProps<{
+    result: {
+      filename: string;
+      pageCount: number;
+      overallScore: number;
+      grade: string;
+      executiveSummary: string;
+      categories?: Category[];
+      scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
+      conformance?: ConformanceVerdict;
+    };
+    // The prominent ReportFileBanner now carries the filename above the card on
+    // the live + shared report pages, which pass showFilename: false to avoid
+    // duplicating it. Defaults true so other callers (e.g. the remediation
+    // before/after cards) keep showing the filename line unchanged.
+    showFilename?: boolean;
+  }>(),
+  { showFilename: true },
+);
 
 const gradeMap: Record<string, { color: string; label: string }> = {
   A: { color: "#22c55e", label: "Excellent" },

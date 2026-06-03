@@ -24,6 +24,14 @@
 
       <!-- Report -->
       <div v-else-if="data">
+        <!-- Prominent filename banner — leaves no doubt which file this
+             shared report (and its PDF print) refers to -->
+        <ReportFileBanner
+          :filename="(data as any).report.filename"
+          :page-count="(data as any).report.pageCount"
+          :is-scanned="(data as any).report.isScanned"
+          class="mb-6"
+        />
         <!-- Header -->
         <div class="text-center mb-8">
           <div class="flex justify-end items-center gap-2 mb-4">
@@ -93,7 +101,7 @@
         <div
           class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
         >
-          <ScoreCard :result="(data as any).report" />
+          <ScoreCard :result="(data as any).report" :show-filename="false" />
         </div>
 
         <ReportActionBanner
@@ -927,6 +935,7 @@ import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
+import ReportFileBanner from "~/components/ReportFileBanner.vue";
 
 definePageMeta({ layout: false });
 

@@ -155,6 +155,14 @@
 
       <!-- Active tab result -->
       <template v-if="result">
+        <!-- Prominent filename banner — first thing identifying which file
+             this result (and any download/print) belongs to, incl. batch tabs -->
+        <ReportFileBanner
+          :filename="result.filename"
+          :page-count="result.pageCount"
+          :is-scanned="result.isScanned"
+          class="mb-6"
+        />
         <!-- Scanned warning banner -->
         <div
           v-if="result.isScanned"
@@ -184,7 +192,7 @@
         <div
           class="text-center mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
         >
-          <ScoreCard :result="result" />
+          <ScoreCard :result="result" :show-filename="false" />
         </div>
 
         <!-- Auto-Remediate (visible right under the score; component
@@ -3832,6 +3840,7 @@ import { getWcagCriteria } from "~/utils/wcag";
 import NaCell from "~/components/NaCell.vue";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
+import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 

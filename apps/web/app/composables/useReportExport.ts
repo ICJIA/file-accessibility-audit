@@ -1,5 +1,6 @@
 import fileSaver from "file-saver";
 import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
+import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
 const { saveAs } = fileSaver;
 import {
   Document,
@@ -14,6 +15,7 @@ import {
   Table,
   WidthType,
   ExternalHyperlink,
+  ShadingType,
 } from "docx";
 
 interface HelpLink {
@@ -173,14 +175,20 @@ interface BrandingInfo {
   siteUrl: string;
 }
 
-function buildMarkdown(result: ReportResult, branding: BrandingInfo): string {
+export function buildMarkdown(
+  result: ReportResult,
+  branding: BrandingInfo,
+): string {
   const lines: string[] = [];
   const scoreProfiles = getScoreProfiles(result);
 
-  lines.push(`# PDF Accessibility Report`);
+  // The filename leads as the H1 so the document a Markdown reader opens is
+  // unmistakably tied to the audited file; the generic report label drops to a
+  // subtitle alongside the page/type line.
+  lines.push(`# ${result.filename}`);
   lines.push("");
-  lines.push(`**File:** ${result.filename}`);
-  lines.push(`**Pages:** ${result.pageCount}`);
+  lines.push(`**Accessibility Report** · ${bannerMetaLine(result.pageCount)}`);
+  lines.push("");
   lines.push(`**Date:** ${timestamp()}`);
   lines.push(`**Overall Score:** ${result.overallScore}/100`);
   lines.push(`**Grade:** ${result.grade} — ${gradeLabel(result.grade)}`);
@@ -461,12 +469,50 @@ function severityColor(severity: string | null): string {
   return map[severity || ""] || "999999";
 }
 
-async function buildDocx(
+export async function buildDocx(
   result: ReportResult,
   branding: BrandingInfo,
 ): Promise<Blob> {
   const children: Paragraph[] = [];
   const scoreProfiles = getScoreProfiles(result);
+
+  // Prominent filename banner — mirrors the on-screen ReportFileBanner so the
+  // exported document is unmistakably tied to the audited file. Eyebrow,
+  // filename, and page/type line stack inside one shaded, bottom-bordered block.
+  children.push(
+    new Paragraph({
+      shading: { type: ShadingType.CLEAR, color: "auto", fill: "F3F4F6" },
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 6, color: "D1D5DB" },
+      },
+      spacing: { after: 240 },
+      children: [
+        new TextRun({
+          text: BANNER_EYEBROW,
+          bold: true,
+          size: 16,
+          color: "6B7280",
+          font: "Calibri",
+        }),
+        new TextRun({
+          text: result.filename,
+          bold: true,
+          size: 32,
+          font: "Calibri",
+          break: 1,
+        }),
+        new TextRun({
+          text:
+            bannerMetaLine(result.pageCount) +
+            (result.isScanned ? " · Scanned" : ""),
+          size: 20,
+          color: "6B7280",
+          font: "Calibri",
+          break: 1,
+        }),
+      ],
+    }),
+  );
 
   // Title
   children.push(
@@ -484,10 +530,8 @@ async function buildDocx(
     }),
   );
 
-  // Metadata block
+  // Metadata block (filename + pages now live in the banner above)
   const metaLines = [
-    { label: "File:", value: result.filename },
-    { label: "Pages:", value: String(result.pageCount) },
     { label: "Date:", value: timestamp() },
     { label: "Overall Score:", value: `${result.overallScore}/100` },
     { label: "Grade:", value: `${result.grade} — ${gradeLabel(result.grade)}` },
@@ -1114,7 +1158,10 @@ function conformanceHtmlBlock(c: ConformanceVerdict): string {
   </div>`;
 }
 
-function buildHtml(result: ReportResult, branding: BrandingInfo): string {
+export function buildHtml(
+  result: ReportResult,
+  branding: BrandingInfo,
+): string {
   const scoreProfiles = getScoreProfiles(result);
   const gc = (grade: string) => {
     const m: Record<string, string> = {
@@ -1267,17 +1314,31 @@ function buildHtml(result: ReportResult, branding: BrandingInfo): string {
   body { background:#0a0a0a; color:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; margin:0; padding:40px 20px; line-height:1.5 }
   .container { max-width:800px; margin:0 auto }
   a { color:#60a5fa }
-  @media print { body { background:#fff; color:#000 } .container { max-width:100% } }
+  .file-banner { display:flex; align-items:flex-start; gap:14px; border:1px solid #333; border-radius:12px; padding:16px 20px; margin-bottom:28px }
+  .file-banner .doc { font-size:28px; line-height:1.2 }
+  .file-banner .eyebrow { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin:0 }
+  .file-banner .fname { font-size:20px; font-weight:700; color:#fff; margin:2px 0; word-break:break-word }
+  .file-banner .meta { font-size:13px; color:#888; margin:0 }
+  @media print { body { background:#fff; color:#000 } .container { max-width:100% }
+    .file-banner { border-color:#bbb } .file-banner .fname { color:#000 } .file-banner .eyebrow, .file-banner .meta { color:#333 } }
 </style>
 </head>
 <body>
 <div class="container">
 
+  <div class="file-banner">
+    <span class="doc" aria-hidden="true">📄</span>
+    <div>
+      <p class="eyebrow">${BANNER_EYEBROW}</p>
+      <p class="fname">${escapeHtml(result.filename)}</p>
+      <p class="meta">${bannerMetaLine(result.pageCount)}${result.isScanned ? " · Scanned" : ""}</p>
+    </div>
+  </div>
+
   <h1 style="text-align:center;font-size:24px;margin-bottom:4px">PDF Accessibility Report</h1>
   <p style="text-align:center;font-size:13px;color:#888;margin-top:0">${timestamp()}</p>
 
   <div style="text-align:center;margin:30px 0">
-    <p style="font-size:14px;color:#aaa;margin-bottom:12px">${escapeHtml(result.filename)} — ${result.pageCount} page${result.pageCount !== 1 ? "s" : ""}</p>
     <div style="width:120px;height:120px;border-radius:50%;border:4px solid ${gc(result.grade)};background:${gc(result.grade)}15;display:inline-flex;align-items:center;justify-content:center">
       <span style="font-size:56px;font-weight:900;color:${gc(result.grade)}">${result.grade}</span>
     </div>

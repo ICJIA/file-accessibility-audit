@@ -27,6 +27,12 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.23.0 — 2026-06-03 · Prominent filename banner on every report
+
+v1.23.0 adds a full-width banner across the top of every report — the live result, the shared `/report/:id` page, and the HTML / Word / Markdown exports — naming the audited file so a saved or forwarded report cannot be mistaken for another document. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The banner is presentational — a new `ReportFileBanner.vue` and a shared `reportBanner` helper render values (`filename`, `pageCount`) the page and exports already held. The filename is escaped in the HTML export via `escapeHtml` and auto-escaped in Vue templates; no new inputs, endpoints, dependencies, persistence, or data egress.
+
 ### v1.22.3 — 2026-05-22 · Scoring-engine follow-ups (summary reconciliation, floor rounding, dead-code removal)
 
 v1.22.3 is a scoring-engine cleanup, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. The executive summary now honours the conformance verdict, coverage-ratio scores floor instead of round, and ~170 lines of confirmed-dead scoring code were deleted.
@@ -887,7 +893,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**630 tests** across 24 test files. Run all with a summary at the end:
+**651 tests** across 27 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -903,9 +909,9 @@ pnpm test:scoring        # Scoring model tests only
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      350 passed (10 files)
-  ✔ Web      280 passed (14 files)
+  ✔ Web      301 passed (17 files)
 ────────────────────────────────────────────────────────────
-  ✔ 630 tests passed across 24 files
+  ✔ 651 tests passed across 27 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -924,23 +930,26 @@ pnpm test:scoring        # Scoring model tests only
 | `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
 
-### Web Tests (280 tests)
+### Web Tests (301 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
 | `responsive.test.ts` | 50 | Responsive layout across mobile navigation, layout padding, ScoreCard, CategoryRow, the index/report/history pages, CSS transitions, and the scoring modal |
 | `accessibility.test.ts` | 38 | WCAG 2.1 color-contrast verification for dark and light modes (4.5:1 minimum across all text/background combinations), regression guards against low-contrast classes, semantic HTML landmarks, link accessibility, and component-level a11y |
-| `components.test.ts` | 35 | DropZone (drag/drop, multi-file PDF validation, size limits, batch staging), ScoreCard (grade display, recommendation copy, color coding for all five grades), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay |
+| `components.test.ts` | 36 | DropZone (drag/drop, multi-file PDF validation, size limits, batch staging), ScoreCard (grade display, recommendation copy, color coding for all five grades), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay |
 | `scoring-display.test.ts` | 30 | Grade color mapping (A-F), N/A category rendering, severity badges, the conformance-verdict explanation, and detailed-findings display |
 | `findings.test.ts` | 14 | Findings utilities: guidance-vs-actionable finding classification and per-card finding partitioning |
 | `login.test.ts` | 13 | Two-step OTP flow (email then code), API-call verification, error handling, back navigation |
 | `ai-analysis.test.ts` | 12 | `buildAiAnalysis` - AI-analysis export and prompt generation, and remediation-focused output |
 | `ReportActionBanner.test.ts` | 10 | The ReportActionBanner component - report-page action banner |
+| `reportExportBanner.test.ts` | 10 | The exported report banners - Markdown leads with the filename as its H1, the HTML export's banner sits above the title and keeps the filename in the document title, and the Word document builds without error |
 | `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
+| `ReportFileBanner.test.ts` | 7 | The ReportFileBanner component - the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) |
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
 | `IssuesSummary.test.ts` | 5 | The IssuesSummary component - issue-count summary |
 | `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |
+| `reportBanner.test.ts` | 3 | The `reportBanner` helper - the shared eyebrow label and the singular/plural `N pages · PDF` line |
 | `severityTally.test.ts` | 3 | The `tallySeverity` utility - per-severity finding counts |
 
 ### Accessibility Compliance (WCAG 2.1 AA)
