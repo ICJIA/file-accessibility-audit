@@ -99,11 +99,11 @@
       >
         This audit checks documents against
         <a
-          href="https://www.w3.org/WAI/WCAG21/quickref/"
+          :href="wcag.quickref"
           target="_blank"
           rel="noopener noreferrer"
           class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
-          >WCAG 2.1 Level AA</a
+          >{{ wcag.label }}</a
         >
         — the accessibility standard adopted by the
         <a
@@ -167,6 +167,8 @@ import {
   type ScoreProfile,
   type ScoringMode,
 } from "~/utils/scoringProfiles";
+
+const wcag = useWcag();
 
 interface Category {
   id: string;
@@ -344,14 +346,14 @@ const conformanceBody = computed(() => {
     if (conformanceHasFailures.value) {
       const n = c.failures.length;
       const items = n === 1 ? "the 1 item" : `the ${n} items`;
-      return `This file earned a grade of ${grade} — a strong result overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG 2.1 to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
+      return `This file earned a grade of ${grade} — a strong result overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
     }
     return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — color contrast is not evaluated here, and the correctness of alt text, headings, reading order, and tags can only be confirmed by manual review.`;
   }
 
   // warning tone (grade C / D / F)
   if (conformanceHasFailures.value) {
-    return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG 2.1 Level AA — the standard required by the Illinois IITAA and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule. Correcting them is manual work — fix the document in Adobe Acrobat's Accessibility Checker, or repair the source file (Word, InDesign) and re-export the PDF, then re-run this audit to confirm the fixes landed.`;
+    return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG ${wcag.version} Level AA — the standard required by the Illinois IITAA 2.1 and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule. Correcting them is manual work — fix the document in Adobe Acrobat's Accessibility Checker, or repair the source file (Word, InDesign) and re-export the PDF, then re-run this audit to confirm the fixes landed.`;
   }
   return "The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing. Color contrast and the correctness of alt text and tags cannot be checked automatically and still require manual review.";
 });
@@ -389,13 +391,13 @@ const verdictExplanation = computed(() => {
   }
 
   if (!props.result.categories || props.result.categories.length === 0) {
-    return "Scored against WCAG 2.1 AA and IITAA §E205.4 — the rules that govern non-web document accessibility in Illinois. Emphasizes programmatically determinable structure: real headings, real table-header relationships, logical reading order.";
+    return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4 — the rules that govern non-web document accessibility in Illinois. Emphasizes programmatically determinable structure: real headings, real table-header relationships, logical reading order.`;
   }
 
   if (parts.length === 0) {
-    return "Scored against WCAG 2.1 AA and IITAA §E205.4. Every scored category passed with no critical or moderate issues — a strong structural signal, though not a final legal determination.";
+    return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. Every scored category passed with no critical or moderate issues — a strong structural signal, though not a final legal determination.`;
   }
-  return `Scored against WCAG 2.1 AA and IITAA §E205.4. The scored categories below show ${joinParts(parts)} — review the detailed findings before treating the file as publication-ready.`;
+  return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. The scored categories below show ${joinParts(parts)} — review the detailed findings before treating the file as publication-ready.`;
 });
 
 function escapeHtml(text: string): string {

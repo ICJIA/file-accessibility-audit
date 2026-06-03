@@ -22,6 +22,38 @@ _global.onUnmounted = onUnmounted
 _global.definePageMeta = () => {}
 _global.navigateTo = () => {}
 _global.$fetch = async () => ({})
+// Mirror the full runtimeConfig.public surface exposed in nuxt.config.ts so any
+// component mounted in tests gets defined values (not just the WCAG keys).
+_global.useRuntimeConfig = () => ({
+  public: {
+    appName: 'Accessibility Audit',
+    siteUrl: 'https://audit.example.test',
+    orgName: 'Test Org',
+    orgUrl: 'https://example.test',
+    faqsUrl: '',
+    githubUrl: '',
+    appVersion: '0.0.0-test',
+    remediationEnabled: false,
+    iitaaUrl: 'https://doit.illinois.gov/initiatives/accessibility/iitaa.html',
+    verapdfUrl: 'https://verapdf.org/',
+    wcagVersion: '2.2',
+    wcagLevel: 'AA',
+    wcagQuickref: 'https://www.w3.org/WAI/WCAG22/quickref/',
+    wcagUnderstandingBase: 'https://www.w3.org/WAI/WCAG22/Understanding/',
+    announcements: [],
+  },
+})
+_global.useWcag = () => {
+  const version = '2.2'
+  const level = 'AA'
+  return {
+    version,
+    level,
+    quickref: 'https://www.w3.org/WAI/WCAG22/quickref/',
+    label: `WCAG ${version} Level ${level}`,
+    understandingUrl: (slug: string) => `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
+  }
+}
 
 // Stub Nuxt/UI components globally so every mount picks them up.
 config.global.stubs = {
