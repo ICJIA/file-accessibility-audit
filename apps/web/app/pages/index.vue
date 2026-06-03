@@ -238,11 +238,11 @@
             This tool uses established open-source libraries to extract and
             analyze PDF structure. Scores are calculated against
             <a
-              href="https://www.w3.org/WAI/WCAG21/quickref/"
+              href="https://www.w3.org/WAI/WCAG22/quickref/"
               target="_blank"
               rel="noopener noreferrer"
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >WCAG 2.1 Level AA</a
+              >WCAG 2.2 Level AA</a
             >
             success criteria and
             <a
@@ -252,7 +252,15 @@
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
               >ADA Title II</a
             >
-            digital accessibility requirements.
+            digital accessibility requirements, as adopted in Illinois by the
+            <a
+              href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >IITAA 2.1</a
+            >
+            standard.
           </p>
           <div class="flex flex-wrap justify-center gap-2 mb-4">
             <a
@@ -308,7 +316,8 @@
             class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
           >
             Nine categories are weighed against
-            <strong>WCAG 2.1 AA</strong> and <strong>IITAA §E205.4</strong> —
+            <strong>WCAG 2.2 AA</strong> (a superset of the WCAG 2.1 AA required by
+            <strong>IITAA 2.1 §E205.4</strong> and ADA Title II) —
             the rules that govern non-web document accessibility in Illinois.
             Categories that don't apply (e.g. tables in a document with no
             tables) are excluded and the remaining weights renormalized. This
@@ -1157,7 +1166,7 @@
             <li class="flex items-start gap-2">
               <span class="text-purple-400 mt-0.5">•</span
               ><span
-                >Failing categories with findings and WCAG 2.1 references</span
+                >Failing categories with findings and WCAG 2.2 references</span
               >
             </li>
             <li class="flex items-start gap-2">
@@ -1278,11 +1287,11 @@
         >
           Upload a PDF to get an instant accessibility score based on
           <a
-            href="https://www.w3.org/WAI/WCAG21/quickref/"
+            href="https://www.w3.org/WAI/WCAG22/quickref/"
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
-            >WCAG 2.1</a
+            >WCAG 2.2</a
           >
           and
           <a
@@ -1292,7 +1301,15 @@
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >ADA Title II</a
           >
-          requirements. The audit checks nine categories — text extractability,
+          requirements (and the Illinois
+          <a
+            href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
+            >IITAA 2.1</a
+          >
+          standard). The audit checks nine categories — text extractability,
           heading structure, alt text, table markup, and more — and returns a
           detailed report with actionable findings.
         </p>
@@ -1355,11 +1372,11 @@
           <p class="text-[var(--text-muted)] mb-3">
             The tool evaluates PDFs against
             <a
-              href="https://www.w3.org/WAI/WCAG21/quickref/"
+              href="https://www.w3.org/WAI/WCAG22/quickref/"
               target="_blank"
               rel="noopener noreferrer"
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >WCAG 2.1 Level AA</a
+              >WCAG 2.2 Level AA</a
             >
             (the international standard for web content accessibility) and
             <a
@@ -1371,7 +1388,7 @@
             >
             digital accessibility requirements (U.S. federal law requiring state
             and local government digital content to be accessible, effective
-            April 2026).
+            April 2026), as adopted in Illinois by the IITAA 2.1 standard.
           </p>
 
           <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">
@@ -2068,7 +2085,7 @@ PDF says:
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
             The scorer weighs nine accessibility categories anchored to
-            <strong>WCAG 2.1 AA</strong> and <strong>IITAA §E205.4</strong> —
+            <strong>WCAG 2.2 AA</strong> and <strong>IITAA 2.1 §E205.4</strong> —
             the rules that govern non-web document accessibility in Illinois.
             Each category receives a score from 0 to 100 (or N/A if the
             category doesn't apply to the document). The overall score is a
@@ -2148,9 +2165,9 @@ PDF says:
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               This is a <strong>WCAG-based</strong> evaluation. It aligns
-              with <strong>WCAG 2.1 Level AA</strong>,
+              with <strong>WCAG 2.2 Level AA</strong>,
               <strong>ADA Title II</strong>, and Illinois
-              <strong>IITAA §E205.4</strong> — the rules that govern non-web
+              <strong>IITAA 2.1 §E205.4</strong> — the rules that govern non-web
               document accessibility in Illinois. The scorer emphasizes
               <strong>programmatically determinable</strong> structure (real
               headings, real table-header relationships, logical reading
@@ -3695,7 +3712,7 @@ pm2 restart ecosystem.config.cjs</div>
         What This Tool Does
       </h2>
       <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Audit any PDF for WCAG 2.1 AA accessibility — and (optionally) auto-remediate
+        Audit any PDF for WCAG 2.2 AA accessibility — and (optionally) auto-remediate
         it, all on infrastructure you control, with no AI and no per-document fees.
       </p>
     </div>
@@ -3715,7 +3732,7 @@ pm2 restart ecosystem.config.cjs</div>
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Each PDF scored across 9 categories aligned with
-          <strong>WCAG 2.1 Level AA</strong> and ADA Title II. A–F letter grade plus
+          <strong>WCAG 2.2 Level AA</strong> and ADA Title II. A–F letter grade plus
           Critical / Serious / Moderate severity per category so you know what to
           fix first.
         </p>
@@ -3768,7 +3785,7 @@ pm2 restart ecosystem.config.cjs</div>
           Standards aligned
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          WCAG 2.1 Level AA, ADA Title II (effective April 2026), Illinois IITAA,
+          WCAG 2.2 Level AA, ADA Title II (effective April 2026), Illinois IITAA 2.1,
           and PDF/UA-1 (ISO 14289-1) via veraPDF. Full lifecycle audit trail with
           deletion verification for compliance reporting.
         </p>

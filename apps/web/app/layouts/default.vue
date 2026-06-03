@@ -45,9 +45,10 @@
                   <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
                     <p class="text-[var(--text-muted)] leading-relaxed">
                       Each PDF is scored across nine accessibility categories based on
-                      <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.1</a>
+                      <a href="https://www.w3.org/WAI/WCAG22/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.2</a>
                       and
                       <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">ADA Title II</a>
+                      and <a href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">IITAA 2.1</a>
                       requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
                     </p>
 
@@ -105,7 +106,7 @@
                     </div>
 
                     <p class="text-[var(--text-muted)] text-xs leading-relaxed">
-                      Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. The highest-weighted categories reflect the most fundamental barriers to access — if a document has no extractable text, no other accessibility feature can compensate.
+                      Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the WCAG 2.1 AA required by ADA Title II and the Illinois IITAA 2.1 standard (the legal minimum; WCAG 2.2 is stricter and optional/forward-looking). The highest-weighted categories reflect the most fundamental barriers to access — if a document has no extractable text, no other accessibility feature can compensate.
                     </p>
                   </div>
                 </div>
@@ -314,8 +315,10 @@ const grades = [
 ]
 
 const referenceLinks = [
-  { label: 'WCAG 2.1 Quick Reference', url: 'https://www.w3.org/WAI/WCAG21/quickref/' },
+  { label: 'WCAG 2.2 Quick Reference', url: 'https://www.w3.org/WAI/WCAG22/quickref/' },
+  { label: "What's New in WCAG 2.2 (W3C)", url: 'https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/' },
   { label: 'ADA Title II Final Rule (2024)', url: 'https://www.ada.gov/resources/title-ii-rule/' },
+  { label: 'Illinois IITAA 2.1 Standards', url: 'https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html' },
   { label: 'Section 508 Standards', url: 'https://www.section508.gov/manage/laws-and-policies/' },
   { label: 'PDF/UA (ISO 14289-1)', url: 'https://pdfa.org/resource/pdfua-in-a-nutshell/' },
   { label: 'Adobe: Creating Accessible PDFs', url: 'https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html' },

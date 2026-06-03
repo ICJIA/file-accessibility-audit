@@ -27,6 +27,8 @@ useHead({
   ],
 })
 
+const wcag = useWcag()
+
 const router = useRouter()
 const hasHistory = ref(false)
 onMounted(() => {
@@ -143,7 +145,7 @@ const architectureDiagram = `flowchart TD
           <strong>Audit:</strong> "How accessible is this PDF, and what
           specifically is wrong?" — a weighted 0–100 score (A–F grade) across
           9 WCAG-aligned categories, a separate pass/fail
-          <strong>WCAG 2.1 conformance verdict</strong>, and category-level
+          <strong>WCAG {{ wcag.version }} conformance verdict</strong>, and category-level
           findings.
         </li>
         <li>
@@ -174,7 +176,7 @@ const architectureDiagram = `flowchart TD
       <MermaidDiagram
         :source="auditFlowDiagram"
         title="Audit pipeline"
-        desc="Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results in the scorer, produces a grade, an independent WCAG conformance verdict, and category findings, returns to the browser, and discards the memory buffer."
+        :desc="`Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results in the scorer, produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, returns to the browser, and discards the memory buffer.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
@@ -207,7 +209,7 @@ const architectureDiagram = `flowchart TD
           structure — carry less.
         </li>
         <li>
-          <strong>The WCAG 2.1 conformance verdict</strong> is a separate,
+          <strong>The WCAG {{ wcag.version }} conformance verdict</strong> is a separate,
           binary pass/fail. WCAG conformance is all-or-nothing per success
           criterion — one image without alt text fails 1.1.1 (Level A)
           outright — so a weighted score with partial credit
@@ -220,7 +222,7 @@ const architectureDiagram = `flowchart TD
         </li>
       </ul>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        Each category maps to the specific WCAG 2.1 success criteria it
+        Each category maps to the specific WCAG {{ wcag.version }} success criteria it
         evaluates:
       </p>
       <div class="overflow-x-auto mb-3">
@@ -234,7 +236,7 @@ const architectureDiagram = `flowchart TD
               <th class="text-left px-3 py-2 font-medium">Category</th>
               <th class="text-right px-3 py-2 font-medium">Weight</th>
               <th class="text-left px-3 py-2 font-medium">
-                WCAG 2.1 success criteria
+                WCAG {{ wcag.version }} success criteria
               </th>
             </tr>
           </thead>
@@ -297,6 +299,28 @@ const architectureDiagram = `flowchart TD
         no such content (no tables, no forms, no links); its weight is then
         redistributed across the categories that do apply.
       </p>
+
+        <section class="mt-8">
+          <h3 class="text-lg font-bold text-[var(--text-heading)] mb-2">
+            WCAG 2.2 alignment
+          </h3>
+          <p class="text-[var(--text-muted)] leading-relaxed mb-3">
+            This tool reports against <strong>WCAG {{ wcag.version }} Level AA</strong>, a strict
+            superset of the WCAG 2.1 AA that IITAA 2.1 (§E205.4) and ADA Title II require. WCAG 2.2
+            adds nine success criteria (six at Level A/AA) and removes one (4.1.1 Parsing, obsolete).
+            The automated checks are unchanged — every machine-checkable criterion carried forward
+            from 2.1. The new 2.2 criteria are interactive/manual; we never report them as automated
+            failures. For documents with interactive form fields, the form-relevant new criteria
+            (Target Size 2.5.8, Redundant Entry 3.3.7, Accessible Authentication 3.3.8) are listed in
+            the verdict as <em>"not assessed — manual review"</em>.
+          </p>
+          <p class="text-[var(--text-muted)] leading-relaxed">
+            For a plain-language manager summary, see
+            <NuxtLink to="/wcag-2-2" class="text-[var(--link)] hover:text-[var(--link-hover)] underline">how WCAG 2.2 differs from 2.1</NuxtLink>.
+            IITAA 2.1 does not yet reference WCAG 2.2, so 2.2 conformance is optional/forward-looking;
+            WCAG 2.1 AA remains the legal minimum.
+          </p>
+        </section>
     </section>
 
     <!-- Two-tool parallel diagram -->
@@ -314,7 +338,7 @@ const architectureDiagram = `flowchart TD
       <MermaidDiagram
         :source="twoToolDiagram"
         title="Two-tool parallel analysis"
-        desc="The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories and an independent WCAG 2.1 conformance verdict."
+        :desc="`The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories and an independent WCAG ${wcag.version} conformance verdict.`"
       />
     </section>
 
