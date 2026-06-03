@@ -155,11 +155,11 @@
             This tool uses established open-source libraries to extract and
             analyze PDF structure. Scores are calculated against
             <a
-              href="https://www.w3.org/WAI/WCAG21/quickref/"
+              :href="wcag.quickref"
               target="_blank"
               rel="noopener noreferrer"
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >WCAG 2.1 Level AA</a
+              >{{ wcag.label }}</a
             >
             success criteria and
             <a
@@ -169,7 +169,15 @@
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
               >ADA Title II</a
             >
-            digital accessibility requirements.
+            digital accessibility requirements, as adopted in Illinois by the
+            <a
+              href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >IITAA 2.1</a
+            >
+            standard.
           </p>
           <div class="flex flex-wrap justify-center gap-2 mb-4">
             <a

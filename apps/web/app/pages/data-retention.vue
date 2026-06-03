@@ -2767,10 +2767,10 @@ WHERE event = 'output_deleted'
       </p>
       <ul class="space-y-2 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
         <li>
-          <strong>WCAG 2.1 Level AA</strong> (Web Content Accessibility
-          Guidelines, W3C) — the audit scores PDFs against the nine
-          categories that map to WCAG 2.1 AA success criteria for non-web
-          documents.
+          <strong>WCAG 2.2 Level AA</strong> (Web Content Accessibility
+          Guidelines, W3C) — a superset of the WCAG 2.1 AA that IITAA 2.1 and
+          ADA Title II require; the audit scores PDFs against the nine
+          categories that map to these success criteria for non-web documents.
         </li>
         <li>
           <strong>ADA Title II</strong> (U.S. federal law, effective April

@@ -150,9 +150,9 @@
         class="mt-2 ml-4 list-disc text-xs sm:text-sm leading-relaxed space-y-1"
       >
         <li>
-          <strong>WCAG 2.1 Level AA</strong> — the W3C standard, the legal
+          <strong>WCAG 2.1 Level AA</strong> — the W3C standard and current legal
           basis for ADA case law, Section 508, EU EN 301 549, and Illinois
-          IITAA §E205.4.
+          IITAA 2.1 §E205.4. This tool audits against the stricter WCAG 2.2 superset.
         </li>
         <li>
           <strong>PDF/UA (ISO 14289-1)</strong> — the ISO standard specifically

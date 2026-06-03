@@ -14,6 +14,8 @@ const props = defineProps<{
 
 const tally = computed(() => tallySeverity(props.categories))
 
+const wcag = useWcag()
+
 const copy = computed<string | null>(() => {
   const t = tally.value
   if (t.total === 0) return null
@@ -36,7 +38,7 @@ const copy = computed<string | null>(() => {
     return `${t.minor} minor ${noun} found. Optional fixes — PDF passes Illinois accessibility.`
   }
 
-  return 'This PDF passes Illinois IITAA + WCAG 2.1 AA accessibility checks.'
+  return `This PDF passes Illinois IITAA 2.1 + WCAG ${wcag.version} AA accessibility checks.`
 })
 
 const severityClass = computed(() => {

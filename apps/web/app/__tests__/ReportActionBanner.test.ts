@@ -76,7 +76,7 @@ describe('ReportActionBanner', () => {
     const wrapper = mount(ReportActionBanner, {
       props: { categories: [cat('Pass'), cat('Pass'), cat('Pass')] },
     })
-    expect(wrapper.text()).toBe('This PDF passes Illinois IITAA + WCAG 2.1 AA accessibility checks.')
+    expect(wrapper.text()).toBe('This PDF passes Illinois IITAA 2.1 + WCAG 2.2 AA accessibility checks.')
     expect(wrapper.classes()).toContain('pass')
   })
 })
