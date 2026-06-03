@@ -302,9 +302,9 @@ Every audit produces **two distinct things**, and the distinction is deliberate:
 
 ### Categories & Weights
 
-Nine categories, weighted by WCAG conformance level and user impact. Categories that don't apply to a document (no tables, no forms, etc.) are excluded and the remaining weights renormalized. Each category is mapped to the exact WCAG 2.1 success criteria it evaluates.
+Nine categories, weighted by WCAG conformance level and user impact. Categories that don't apply to a document (no tables, no forms, etc.) are excluded and the remaining weights renormalized. Each category is mapped to the exact WCAG success criteria it evaluates — all carried forward unchanged from WCAG 2.1 into 2.2.
 
-| Category | Weight | WCAG 2.1 SC | Why it matters |
+| Category | Weight | WCAG 2.2 SC | Why it matters |
 | --- | :--: | --- | --- |
 | Text Extractability | 20% | 1.1.1, 1.3.1 (A) | The most fundamental requirement — a scanned image with no real text gives a screen reader nothing to read. Non-embedded fonts cap this category at 85. |
 | Title & Language | 15% | 2.4.2, 3.1.1 (A) | The document title is the first thing a screen reader announces; the language tag controls pronunciation. |
@@ -343,12 +343,14 @@ Each category receives a severity based on its individual score:
 
 ### Reference Standards
 
-- [WCAG 2.1 Quick Reference](https://www.w3.org/WAI/WCAG21/quickref/)
+- [WCAG 2.2 Quick Reference](https://www.w3.org/WAI/WCAG22/quickref/)
+- [What's New in WCAG 2.2 (W3C)](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/)
 - [ADA Title II Final Rule (2024)](https://www.ada.gov/resources/title-ii-rule/)
+- [Illinois IITAA 2.1 Standards](https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html)
 - [Section 508 Standards](https://www.section508.gov/manage/laws-and-policies/)
 - [PDF/UA (ISO 14289-1)](https://pdfa.org/resource/pdfua-in-a-nutshell/)
 
-Scoring aligns with WCAG 2.1 Level AA success criteria and ADA Title II digital accessibility requirements effective April 2026. All scoring constants live in `audit.config.ts`.
+Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the WCAG 2.1 AA that ADA Title II and the Illinois IITAA 2.1 standard require (WCAG 2.1 AA is the legal minimum; WCAG 2.2 is stricter and optional/forward-looking). ADA Title II digital accessibility requirements take effect April 2026. All scoring constants live in `audit.config.ts`. To revert the displayed standard to 2.1, set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; the web UI reverts on rebuild).
 
 ## Batch Upload
 
@@ -631,9 +633,9 @@ Reports can also be shared via **shareable links** that expire after 1 year. Sha
 
 - **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
-- **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.1 and ADA Title II references, and a link to the full scoring rubric
+- **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.2 and ADA Title II references, and a link to the full scoring rubric
 - **Recommendation card** — a prominent Strict vs Practical explainer near the score hero that recommends Strict for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review
-- **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.1 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
+- **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.2 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — recommendation to verify with Adobe Acrobat and make source documents accessible before PDF export
 
