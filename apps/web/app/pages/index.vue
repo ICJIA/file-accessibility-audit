@@ -1265,6 +1265,8 @@
 
     <!-- Drop zone (idle state) -->
     <div v-else>
+      <AnnouncementBanner />
+
       <div class="mb-8 text-center">
         <h2
           class="text-xl sm:text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]"
