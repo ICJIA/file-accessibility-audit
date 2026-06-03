@@ -57,7 +57,7 @@ export const BRANDING = {
    * support. Update if the State of Illinois reorganizes the canonical
    * page. Empty string hides the link.
    */
-  IITAA_URL: "https://doit.illinois.gov/initiatives/accessibility.html",
+  IITAA_URL: "https://doit.illinois.gov/initiatives/accessibility/iitaa.html",
 
   /**
    * URL for the veraPDF homepage. Shown in the post-remediation
@@ -73,6 +73,88 @@ export const BRANDING = {
    *  SAFE TO CHANGE: 'light' | 'dark' */
   DEFAULT_COLOR_MODE: "dark" as "light" | "dark",
 } as const;
+
+// ---------------------------------------------------------------------------
+// WCAG STANDARD VERSION
+// ---------------------------------------------------------------------------
+// The operative reference standard the whole app displays and links to.
+//
+// We audit against WCAG 2.2 Level AA — a SUPERSET of the WCAG 2.1 AA that
+// IITAA 2.1 (§E205.4) and the ADA Title II rule actually require. Auditing to
+// 2.2 is stricter than the Illinois legal minimum; 2.2 is optional/forward-
+// looking under IITAA today. The automated checks are unchanged — every
+// machine-checkable criterion carried forward from 2.1 into 2.2. The new 2.2
+// criteria are interactive/manual and are surfaced as "not assessed", never as
+// automated failures.
+//
+// REVERT PATH: set WCAG_VERSION=2.1 in the environment (PM2 env block or
+// /etc/environment) and restart — no rebuild. Every label, link, and the 2.2
+// "not assessed" additions revert to WCAG 2.1.
+//
+// SAFE TO CHANGE: VERSION via env only ("2.1" | "2.2"). Keep URLs accurate —
+// a wrong citation is a credibility problem.
+// ---------------------------------------------------------------------------
+
+export const WCAG = {
+  /** Operative version. Defaults to "2.2"; only "2.1" reverts. */
+  VERSION: (process.env.WCAG_VERSION === "2.1" ? "2.1" : "2.2") as "2.1" | "2.2",
+  LEVEL: "AA" as const,
+  /** "Understanding" page base URL, version-keyed. Carried-forward criteria
+   *  keep identical slugs across 2.1 and 2.2. */
+  UNDERSTANDING_BASE: {
+    "2.1": "https://www.w3.org/WAI/WCAG21/Understanding/",
+    "2.2": "https://www.w3.org/WAI/WCAG22/Understanding/",
+  },
+  /** Quick-reference base, version-keyed. */
+  QUICKREF: {
+    "2.1": "https://www.w3.org/WAI/WCAG21/quickref/",
+    "2.2": "https://www.w3.org/WAI/WCAG22/quickref/",
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// WCAG 2.2 NEW A/AA SUCCESS CRITERIA
+// ---------------------------------------------------------------------------
+// The six new Level A/AA success criteria introduced in WCAG 2.2 (the three
+// AAA additions are described in the /wcag-2-2 page copy but not used by the
+// conformance gate). `pdfFormRelevant` marks the ones that can apply to an
+// interactive PDF FORM; these are the ones the gate surfaces as "not assessed"
+// when a document has form fields (balanced-strict).
+//
+// SAFE TO CHANGE: Criteria data is locked to the published WCAG 2.2 spec — only
+// update if W3C errata change a criterion number, name, level, or slug. Do not
+// remove an entry to silence a false positive (the gate already lists these as
+// "not assessed", never as failures). Add a future "2.3" set as a new constant
+// rather than mutating this one.
+// ---------------------------------------------------------------------------
+export const WCAG_22_NEW_AA = [
+  { sc: "2.4.11", name: "Focus Not Obscured (Minimum)", level: "AA", slug: "focus-not-obscured-minimum", pdfFormRelevant: false },
+  { sc: "2.5.7", name: "Dragging Movements", level: "AA", slug: "dragging-movements", pdfFormRelevant: false },
+  { sc: "2.5.8", name: "Target Size (Minimum)", level: "AA", slug: "target-size-minimum", pdfFormRelevant: true },
+  { sc: "3.2.6", name: "Consistent Help", level: "A", slug: "consistent-help", pdfFormRelevant: false },
+  { sc: "3.3.7", name: "Redundant Entry", level: "A", slug: "redundant-entry", pdfFormRelevant: true },
+  { sc: "3.3.8", name: "Accessible Authentication (Minimum)", level: "AA", slug: "accessible-authentication-minimum", pdfFormRelevant: true },
+] as const;
+
+// ---------------------------------------------------------------------------
+// LANDING-PAGE ANNOUNCEMENTS
+// ---------------------------------------------------------------------------
+// A reusable slot for "what's new" on the landing page. To announce a future
+// improvement, PREPEND a new entry (index 0 is rendered). Dismissal is
+// permanent per `id` (stored client-side); bump the `id` to re-show.
+// ---------------------------------------------------------------------------
+
+export const ANNOUNCEMENTS = [
+  {
+    id: "wcag-2.2-2026-06",
+    badge: "New",
+    text: "Now checking against WCAG 2.2 AA. Note: IITAA 2.1 still requires WCAG 2.1 AA as the legal minimum.",
+    linkText: "See how 2.2 differs from 2.1",
+    linkTo: "/wcag-2-2",
+    /** Only shown while the app is on this WCAG version. */
+    requiresWcagVersion: "2.2" as "2.1" | "2.2" | null,
+  },
+] as const;
 
 // ---------------------------------------------------------------------------
 // DEPLOYMENT
@@ -336,15 +418,17 @@ export const SEVERITY_THRESHOLDS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// WCAG 2.1 SUCCESS-CRITERIA MAP
+// WCAG SUCCESS-CRITERIA MAP (operative version set by WCAG.VERSION above)
 // ---------------------------------------------------------------------------
 // Explicit, published mapping of each scoring category to the WCAG 2.1
 // success criteria it evaluates, with conformance level (A or AA). This is
 // the auditable "what standard does each category implement" reference: it
 // is surfaced in the methodology UI and underpins the conformance gate.
 //
-// IITAA 2.1 and the 2024 ADA Title II rule both adopt WCAG 2.1 Level AA, so
-// these criteria are the operative standard for Illinois non-web documents.
+// IITAA 2.1 and the 2024 ADA Title II rule both adopt WCAG 2.1 Level AA. The
+// criteria below are all carried forward UNCHANGED into WCAG 2.2 (their numbers
+// and slugs are identical), so this map is correct under both versions; the new
+// 2.2 criteria (see WCAG_22_NEW_AA) are manual/interactive and not mapped here.
 //
 // SAFE TO CHANGE: Yes — but keep it accurate; a wrong citation is a
 // credibility problem. Keys MUST match the SCORING category IDs above.
