@@ -88,8 +88,14 @@ export const BRANDING = {
 // automated failures.
 //
 // REVERT PATH: set WCAG_VERSION=2.1 in the environment (PM2 env block or
-// /etc/environment) and restart — no rebuild. Every label, link, and the 2.2
-// "not assessed" additions revert to WCAG 2.1.
+// /etc/environment), then:
+//   - API: restart only (tsx re-reads this file at startup — no rebuild). The
+//     conformance verdict (labels, links, and the 2.2 "not assessed" additions)
+//     reverts immediately.
+//   - Web: rebuild + restart. Nuxt bakes runtimeConfig.public at `nuxt build`
+//     time (same as REMEDIATION.ENABLED), so the front end picks up 2.1 only
+//     after `pnpm build` and a restart — not on a bare env change.
+// A normal redeploy (which rebuilds the web app) does both at once.
 //
 // SAFE TO CHANGE: VERSION via env only ("2.1" | "2.2"). Keep URLs accurate —
 // a wrong citation is a credibility problem.
