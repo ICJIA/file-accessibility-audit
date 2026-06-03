@@ -2,17 +2,17 @@ export interface WcagCriterion {
   id: string;
   name: string;
   level: "A" | "AA" | "AAA";
-  url: string;
+  /** W3C "Understanding" page slug (version-agnostic; identical in 2.1 and 2.2). */
+  slug: string;
 }
 
 export interface CategoryWcagMeta {
   criteria: WcagCriterion[];
   principle: string;
   remediation: string;
+  /** Optional note rendered when the app is on WCAG 2.2 (manual-review hint). */
+  wcag22Note?: string;
 }
-
-const U = (slug: string) =>
-  `https://www.w3.org/WAI/WCAG21/Understanding/${slug}.html`;
 
 export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
   text_extractability: {
@@ -21,13 +21,13 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.3.1",
         name: "Info and Relationships",
         level: "A",
-        url: U("info-and-relationships"),
+        slug: "info-and-relationships",
       },
       {
         id: "1.4.5",
         name: "Images of Text",
         level: "AA",
-        url: U("images-of-text"),
+        slug: "images-of-text",
       },
     ],
     principle: "Perceivable",
@@ -36,12 +36,12 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
   },
   title_language: {
     criteria: [
-      { id: "2.4.2", name: "Page Titled", level: "A", url: U("page-titled") },
+      { id: "2.4.2", name: "Page Titled", level: "A", slug: "page-titled" },
       {
         id: "3.1.1",
         name: "Language of Page",
         level: "A",
-        url: U("language-of-page"),
+        slug: "language-of-page",
       },
     ],
     principle: "Operable / Understandable",
@@ -54,13 +54,13 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.3.1",
         name: "Info and Relationships",
         level: "A",
-        url: U("info-and-relationships"),
+        slug: "info-and-relationships",
       },
       {
         id: "2.4.6",
         name: "Headings and Labels",
         level: "AA",
-        url: U("headings-and-labels"),
+        slug: "headings-and-labels",
       },
     ],
     principle: "Perceivable / Operable",
@@ -73,7 +73,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.1.1",
         name: "Non-text Content",
         level: "A",
-        url: U("non-text-content"),
+        slug: "non-text-content",
       },
     ],
     principle: "Perceivable",
@@ -86,9 +86,8 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.3.1",
         name: "Info and Relationships",
         level: "A",
-        url: U("info-and-relationships"),
+        slug: "info-and-relationships",
       },
-      { id: "4.1.1", name: "Parsing", level: "A", url: U("parsing") },
     ],
     principle: "Robust / Perceivable",
     remediation:
@@ -100,7 +99,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "2.4.5",
         name: "Multiple Ways",
         level: "AA",
-        url: U("multiple-ways"),
+        slug: "multiple-ways",
       },
     ],
     principle: "Operable",
@@ -113,7 +112,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.3.1",
         name: "Info and Relationships",
         level: "A",
-        url: U("info-and-relationships"),
+        slug: "info-and-relationships",
       },
     ],
     principle: "Perceivable",
@@ -126,7 +125,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.4.3",
         name: "Contrast (Minimum)",
         level: "AA",
-        url: U("contrast-minimum"),
+        slug: "contrast-minimum",
       },
     ],
     principle: "Perceivable",
@@ -139,7 +138,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "2.4.4",
         name: "Link Purpose (In Context)",
         level: "A",
-        url: U("link-purpose-in-context"),
+        slug: "link-purpose-in-context",
       },
     ],
     principle: "Operable",
@@ -152,18 +151,20 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.3.1",
         name: "Info and Relationships",
         level: "A",
-        url: U("info-and-relationships"),
+        slug: "info-and-relationships",
       },
       {
         id: "4.1.2",
         name: "Name, Role, Value",
         level: "A",
-        url: U("name-role-value"),
+        slug: "name-role-value",
       },
     ],
     principle: "Perceivable / Robust",
     remediation:
       "Right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label announced by screen readers.",
+    wcag22Note:
+      "New in WCAG 2.2: interactive PDF forms may also implicate Target Size (2.5.8), Redundant Entry (3.3.7), and Accessible Authentication (3.3.8). These are not automatically assessed — confirm by manual review.",
   },
   reading_order: {
     criteria: [
@@ -171,7 +172,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
         id: "1.3.2",
         name: "Meaningful Sequence",
         level: "A",
-        url: U("meaningful-sequence"),
+        slug: "meaningful-sequence",
       },
     ],
     principle: "Perceivable",

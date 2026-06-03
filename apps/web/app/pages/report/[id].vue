@@ -606,7 +606,7 @@
                 </svg>
                 <div class="flex-1 min-w-0">
                   <div class="text-sm font-semibold text-indigo-200">
-                    WCAG 2.1 References
+                    WCAG {{ wcag.version }} References
                   </div>
                   <div class="text-xs text-[var(--text-muted)] mt-0.5">
                     This score is tied to the following Web Content
@@ -618,7 +618,7 @@
               <ul class="divide-y divide-indigo-500/15">
                 <li v-for="c in getWcagCriteria(cat.id)" :key="c.id + c.name">
                   <a
-                    :href="c.url"
+                    :href="wcag.understandingUrl(c.slug)"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-500/10 transition-colors group"
@@ -651,6 +651,13 @@
                   </a>
                 </li>
               </ul>
+              <p
+                v-if="wcag.version === '2.2' && getWcagMeta(cat.id)?.wcag22Note"
+                role="note"
+                class="px-4 py-2.5 text-xs text-amber-200/90 bg-amber-500/10 border-t border-amber-500/20"
+              >
+                {{ getWcagMeta(cat.id)?.wcag22Note }}
+              </p>
             </div>
 
             <div v-if="cat.helpLinks?.length" class="mt-3 pt-3 border-t border-[var(--border-subtle)]">
@@ -929,13 +936,15 @@
 </template>
 
 <script setup lang="ts">
-import { getWcagCriteria } from "~/utils/wcag";
+import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
 import NaCell from "~/components/NaCell.vue";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
+
+const wcag = useWcag();
 
 definePageMeta({ layout: false });
 
