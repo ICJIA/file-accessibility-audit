@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.24.0] - 2026-06-03
+
+### Added
+- **WCAG 2.2 re-anchor.** The audit now reports against WCAG 2.2 Level AA (a strict superset of WCAG 2.1 AA). New 2.2 criteria are surfaced honestly as "not assessed — manual review"; the form-relevant ones (2.5.8 Target Size, 3.3.7 Redundant Entry, 3.3.8 Accessible Authentication) appear in the verdict only for PDFs with interactive form fields. Automated checks and score weights are unchanged.
+- **Illinois IITAA 2.1** cited alongside WCAG + ADA Title II across the homepage, footer, conformance box, exports, and meta.
+- **Reusable landing-page announcement banner** (permanently dismissible per announcement id).
+- **New `/wcag-2-2` page** — plain-language manager guide to how WCAG 2.2 differs from 2.1.
+- **`WCAG_VERSION` env flag** — set to `2.1` to revert all labels, links, and the 2.2 not-assessed criteria. The API reverts on restart; the web UI reverts on rebuild (Nuxt bakes runtimeConfig at build time). A normal redeploy does both.
+
+### Changed
+- 4.1.1 "Parsing" removed from criterion references (obsolete in WCAG 2.2).
+
 ## [1.23.0] — 2026-06-03
 
 ### Added — Prominent filename banner on every report

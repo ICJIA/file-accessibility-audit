@@ -4,15 +4,15 @@
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
-A web tool that **audits and (optionally) remediates** PDF accessibility against [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/), [ADA Title II](https://www.ada.gov/resources/title-ii-rule/), [Illinois IITAA](https://doit.illinois.gov/initiatives/accessibility.html), and [PDF/UA-1 (ISO 14289-1)](https://www.iso.org/standard/64599.html) — all on infrastructure you control, with no AI and no per-document fees.
+A web tool that **audits and (optionally) remediates** PDF accessibility against [WCAG 2.2 AA](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/), the legal minimum under [IITAA 2.1 §E205.4](https://doit.illinois.gov/initiatives/accessibility.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. To revert to WCAG 2.1 labels: set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; web UI on rebuild).
 
 ## What it does
 
 | | Feature | Detail |
 |---|---------|--------|
-| **9** | WCAG categories audited | Each PDF scored across 9 accessibility categories — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.1 conformance verdict**. |
+| **9** | WCAG categories audited | Each PDF scored across 9 accessibility categories — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.2 conformance verdict**. |
 | **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses the score. Manual review still recommended for IITAA compliance. |
-| **PDF/UA-1** | Standards aligned | WCAG 2.1 AA, ADA Title II (April 2026), Illinois IITAA, PDF/UA-1 via veraPDF. Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
+| **PDF/UA-1** | Standards aligned | WCAG 2.2 AA (superset of 2.1 AA), ADA Title II (April 2026), Illinois IITAA 2.1, PDF/UA-1 via veraPDF. Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
 | **0** | PDFs retained | Audit: in-memory only, gone in seconds. Remediation: output deleted on first download or 30-minute TTL, then verified absent. |
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
@@ -26,6 +26,12 @@ The intended workflow is: **upload → review findings → either auto-remediate
 ## Security
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
+
+### v1.24.0 — 2026-06-03 · WCAG 2.2 re-anchor, IITAA 2.1, announcement banner, /wcag-2-2
+
+v1.24.0 re-anchors the displayed standard to **WCAG 2.2 Level AA** (a strict superset of WCAG 2.1 AA, which remains the legal minimum under IITAA 2.1 §E205.4 and ADA Title II), adds **Illinois IITAA 2.1** citations throughout, introduces a reusable announcement banner, and adds a new `/wcag-2-2` manager-guide page. No automated check changed and no score weight changed. A `WCAG_VERSION=2.1` environment flag reverts all labels, links, and 2.2 not-assessed criteria; set it and redeploy (API reverts on restart; web UI on rebuild). It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** All changes are presentational — UI labels, copy, a new static page, and a dismissible banner. No new inputs, endpoints, persistence, or data egress. The `WCAG_VERSION` env flag controls text and criteria display only; it touches no data-handling or security code paths.
 
 ### v1.23.0 — 2026-06-03 · Prominent filename banner on every report
 
@@ -280,15 +286,15 @@ Host and port are set automatically per provider.
 
 ## Scoring Rubric
 
-Each PDF is assessed across named accessibility categories based on [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
+Each PDF is assessed across named accessibility categories based on [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
 
 ### One score, and a separate conformance verdict
 
 Every audit produces **two distinct things**, and the distinction is deliberate:
 
-**A 0–100 score (A–F grade).** A weighted, partial-credit *prioritised-readiness* metric across nine WCAG-aligned categories — it shows how close a document is and what to fix first. The score is anchored to **WCAG 2.1 Level AA**, the **ADA Title II** rule (which requires state and local government digital content to meet WCAG 2.1 AA), and **Illinois IITAA §E205.4**.
+**A 0–100 score (A–F grade).** A weighted, partial-credit *prioritised-readiness* metric across nine WCAG-aligned categories — it shows how close a document is and what to fix first. The score is anchored to **WCAG 2.2 Level AA** (a strict superset of WCAG 2.1 AA, the legal minimum under **Illinois IITAA 2.1 §E205.4** and **ADA Title II**). Automated checks and score weights are unchanged from WCAG 2.1; the new 2.2 criteria are interactive/manual and are shown separately as "not assessed — manual review".
 
-**A WCAG 2.1 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ ("A") and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
+**A WCAG 2.2 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ ("A") and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
 
 > Cite the **score** for tracking remediation progress; cite the **conformance verdict** for the pass/fail compliance question. Neither replaces review by a human accessibility specialist — pair the audit with PAC 2024 and an Adobe Acrobat Accessibility Full Check for a definitive determination.
 
@@ -893,7 +899,7 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Tests
 
-**651 tests** across 27 test files. Run all with a summary at the end:
+**662 tests** across 29 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -908,14 +914,14 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      350 passed (10 files)
-  ✔ Web      301 passed (17 files)
+  ✔ API      354 passed (11 files)
+  ✔ Web      308 passed (18 files)
 ────────────────────────────────────────────────────────────
-  ✔ 651 tests passed across 27 files
+  ✔ 662 tests passed across 29 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (350 tests)
+### API Tests (354 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -929,8 +935,9 @@ pnpm test:scoring        # Scoring model tests only
 | `bulk-from-inventory.test.ts` | 10 | Bulk inventory scoring: input validation, NDJSON parsing, and result-structure assertions |
 | `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
+| `conformance.test.ts` | 4 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria |
 
-### Web Tests (301 tests)
+### Web Tests (308 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -946,6 +953,7 @@ pnpm test:scoring        # Scoring model tests only
 | `reportExportBanner.test.ts` | 10 | The exported report banners - Markdown leads with the filename as its H1, the HTML export's banner sits above the title and keeps the filename in the document title, and the Word document builds without error |
 | `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
 | `ReportFileBanner.test.ts` | 7 | The ReportFileBanner component - the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) |
+| `AnnouncementBanner.test.ts` | 7 | The AnnouncementBanner component - permanent dismissal per announcement id, localStorage key scoping, and re-show after clear |
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
 | `IssuesSummary.test.ts` | 5 | The IssuesSummary component - issue-count summary |
 | `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |

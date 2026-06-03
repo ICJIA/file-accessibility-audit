@@ -338,7 +338,7 @@ const noAiDiagram = `flowchart TD
       <ul class="text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 space-y-1.5">
         <li>
           The <strong>audit pipeline</strong> (always available) — analyzes a
-          PDF for WCAG 2.1 AA / ADA Title II / Illinois IITAA accessibility
+          PDF for WCAG 2.2 AA (a superset of 2.1 AA) / ADA Title II / Illinois IITAA 2.1 accessibility
           conformance signals and returns a score and findings.
         </li>
         <li>
@@ -1238,7 +1238,7 @@ CREATE TABLE remediation_jobs (
         </ul>
         <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
           <strong>Why this matters for compliance:</strong> ADA Title II,
-          Illinois IITAA, and most state-agency procurement standards require
+          Illinois IITAA 2.1, and most state-agency procurement standards require
           a "reasonable" level of security. A documented red/blue team audit
           before each release is concrete evidence of due diligence — it
           demonstrates that the development team didn't just hope nothing
@@ -1253,6 +1253,70 @@ CREATE TABLE remediation_jobs (
         first). Each entry lists the findings discovered during that
         release's review and what was done about them.
       </p>
+
+      <!-- v1.24.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.24.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-06-03</strong> · scope: WCAG 2.2 re-anchor,
+            IITAA 2.1 citations, announcement banner, and a new /wcag-2-2 page.
+            No security review was required — nothing about data handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.24.0 re-anchors the displayed standard to WCAG 2.2 Level AA, a superset of the WCAG 2.1 AA that IITAA 2.1 (§E205.4) and ADA Title II require. No automated check changed and no score weight changed; the new 2.2 criteria are interactive/manual and are shown as "not assessed — manual review" (only for documents with interactive form fields). The audit can be reverted to WCAG 2.1 by an administrator via the WCAG_VERSION environment setting. No security-relevant behavior changed.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              WCAG 2.2 Level AA is now the displayed standard</strong
+            >
+            — The audit labels, conformance verdict, exports, and UI copy all
+            reference WCAG 2.2 AA (a strict superset of WCAG 2.1 AA). New 2.2
+            criteria are shown as "not assessed — manual review" rather than
+            pass or fail. WCAG 2.1 AA remains the legal minimum under IITAA 2.1
+            §E205.4 and ADA Title II; WCAG 2.2 is the newer, stricter version.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              IITAA 2.1 cited throughout</strong
+            >
+            — Illinois IITAA 2.1 is now cited alongside WCAG and ADA Title II
+            across the homepage, footer, conformance box, exports, and meta.
+            This page's §1 description and the compliance-explainer in §10 have
+            been updated to include "IITAA 2.1".
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No new data and no new attack surface</strong
+            >
+            — All changes are presentational. No code path, endpoint, or
+            data-handling behavior changed; every defensive control from prior
+            releases remains in force. The WCAG_VERSION env flag controls text
+            and criteria display only.
+          </li>
+        </ul>
+      </article>
 
       <!-- v1.22.3 audit entry -->
       <article
