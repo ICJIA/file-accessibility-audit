@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
 import type { AnalysisResult } from "../services/pdfAnalyzer.js";
+import { WCAG } from "#config";
 
 // ---------------------------------------------------------------------------
 // Full pipeline integration tests using real PDF files
@@ -158,7 +159,7 @@ describe("integration: inaccessible PDF", () => {
   it("executive summary reflects the confirmed WCAG failures", () => {
     expect(result.conformance.status).toBe("fail");
     expect(result.executiveSummary).toContain(
-      "does not yet meet WCAG 2.1 Level AA",
+      `does not yet meet WCAG ${WCAG.VERSION} Level AA`,
     );
   });
 

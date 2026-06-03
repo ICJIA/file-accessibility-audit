@@ -8,6 +8,7 @@ import type { QpdfResult, TableAnalysis } from "../services/qpdfService.js";
 import type { PdfjsResult } from "../services/pdfjsService.js";
 import { generateSummary } from "../services/scoring/summary.js";
 import type { ConformanceVerdict } from "../services/scoring/conformance.js";
+import { WCAG } from "#config";
 
 // ---------------------------------------------------------------------------
 // Helpers to build mock data
@@ -580,7 +581,7 @@ describe("executive summary", () => {
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("fail");
     expect(result.executiveSummary).toContain(
-      "does not yet meet WCAG 2.1 Level AA",
+      `does not yet meet WCAG ${WCAG.VERSION} Level AA`,
     );
   });
 
@@ -599,9 +600,9 @@ describe("executive summary", () => {
     expect(result.conformance.status).toBe("fail");
     expect(result.conformance.failures.length).toBeGreaterThan(1);
     expect(result.executiveSummary).toContain(
-      "does not yet meet WCAG 2.1 Level AA",
+      `does not yet meet WCAG ${WCAG.VERSION} Level AA`,
     );
-    expect(result.executiveSummary).toContain("WCAG 2.1 failures");
+    expect(result.executiveSummary).toContain(`WCAG ${WCAG.VERSION} failures`);
   });
 
   it("an unreadable document yields an incomplete-analysis summary", () => {
@@ -657,14 +658,14 @@ function summaryCat(
 describe("generateSummary", () => {
   it("a confirmed conformance failure outranks a high grade", () => {
     const s = generateSummary(95, "A", false, [], summaryVerdict("fail", 1));
-    expect(s).toContain("does not yet meet WCAG 2.1 Level AA");
-    expect(s).toContain("1 WCAG 2.1 failure");
+    expect(s).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
+    expect(s).toContain(`1 WCAG ${WCAG.VERSION} failure`);
     expect(s).not.toContain("strong result");
   });
 
   it("pluralises multiple confirmed failures", () => {
     const s = generateSummary(70, "C", false, [], summaryVerdict("fail", 3));
-    expect(s).toContain("3 WCAG 2.1 failures");
+    expect(s).toContain(`3 WCAG ${WCAG.VERSION} failures`);
   });
 
   it("an incomplete verdict makes no readiness claim", () => {

@@ -1,5 +1,6 @@
 import type { CategoryResult } from "../scorer.js";
 import type { ConformanceVerdict } from "./conformance.js";
+import { WCAG } from "#config";
 
 /**
  * Build the one-paragraph executive summary shown alongside the score.
@@ -23,7 +24,7 @@ export function generateSummary(
   // grade with a confirmed failure is still a failure.
   if (conformance.status === "fail") {
     const n = conformance.failures.length;
-    return `This PDF scored ${score}/100 (grade ${grade}) for overall readiness, but automated checks confirmed ${n} WCAG 2.1 ${n === 1 ? "failure" : "failures"} — so it does not yet meet WCAG 2.1 Level AA. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
+    return `This PDF scored ${score}/100 (grade ${grade}) for overall readiness, but automated checks confirmed ${n} WCAG ${WCAG.VERSION} ${n === 1 ? "failure" : "failures"} — so it does not yet meet WCAG ${WCAG.VERSION} Level AA. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
   }
 
   // Analysis could not complete — no honest verdict, and no readiness claim.
