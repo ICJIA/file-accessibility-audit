@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.25.0] - 2026-06-05
+
+Accuracy fixes and a new PDF/UA-1 conformance-signals panel, prompted by a user auditing four PDF/UA-tagged ICJIA reports against PAC. Full write-up in [docs/pdfua-artifacts-fonts-and-scoring-fixes.md](docs/pdfua-artifacts-fonts-and-scoring-fixes.md).
+
+### Fixed
+
+- **"No PDF/UA identifier" reported on PDF/UA-1 files.** The detector read a `qpdf --json` stream field that flag never emits (and the XMP is Flate-compressed), so the check could never succeed. The PDF/UA identifier (`pdfuaid:part`) is now read from the parsed XMP via pdf.js. Findings text only — no score impact.
+- **"No artifact tags" reported on artifact-tagged files.** The detector counted structure-tree `/S=/Artifact` elements (almost always zero); real artifacts are content-stream marked content (`/Artifact BDC … EMC`). Artifact runs are now counted from the pdf.js operator list. Findings text only.
+- **Type3 fonts mis-flagged as not embedded.** Type3 fonts define their glyphs inline (`/CharProcs`) and never carry a `/FontFile`; they are now correctly treated as embedded. Verified against `pdffonts` across the control set.
+- **Reading Order docked points silently.** A near-perfect document (98% tag-vs-visual reading-order fidelity) was dropped from 100 to 90 with no visible reason, and the category still carried stale boilerplate claiming it could not perform the comparison it had just performed. The top fidelity band is now ≥97% (absorbing MCID-extraction jitter), the stale text is gone, and any remaining deduction is stated explicitly.
+
+### Changed
+
+- **Raw URLs as link text are no longer penalized.** A visible URL satisfies WCAG 2.4.4 (the destination is determinable) and PAC does not flag it; it is now surfaced as a best-practice advisory rather than scored as a failure. Genuinely non-descriptive text ("click here", empty) is still penalized. Documents that cite full URLs score higher (e.g. four PDF/UA control files moved 95/95/96/98 → 100).
+- **The Acrobat "How to Fix" guide no longer appears on categories scoring 100.** A guard checked a severity label that never existed, so the remediation card attached to every scored category, including perfect ones. It now appears only below 100.
+
+### Added
+
+- **PDF/UA-1 conformance-signals panel.** A new section on every report (live and shared) summarizes the machine-checkable PDF/UA-1 signals — identifier, tagging, marked content, artifacts, embedded fonts, structure depth, language, title — and explains honestly that these are *signals, not a verdict*, pointing to PAC and veraPDF for the full Matterhorn Protocol conformance test.
+
+### Tests
+
+- API suite **358 → 373** (PDF/UA + artifact sourcing, Type3 fonts, link recalibration, reading-order band/transparency, PDF/UA signals). Web suite **308 → 311** (PdfUaSignalsCard). `tsc --noEmit` and `nuxt build` both clean.
+
 ## [1.24.2] - 2026-06-05
 
 Follow-up to 1.24.1: a table-scoring refinement and a docs reorganization.

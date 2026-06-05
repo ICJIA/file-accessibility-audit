@@ -1617,7 +1617,10 @@ describe("scoreLinkQuality edge cases", () => {
     expect(findCategory(result, "link_quality").score).toBe(100);
   });
 
-  it("all raw URL links → score 0", () => {
+  it("all raw URL links → score 100 (advisory, not a WCAG 2.4.4 failure)", () => {
+    // A visible URL conveys a determinable destination, so WCAG 2.4.4 is met
+    // (and PAC does not flag it). It is surfaced as a best-practice advisory,
+    // not penalized.
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs({
       links: [
@@ -1626,19 +1629,35 @@ describe("scoreLinkQuality edge cases", () => {
       ],
     });
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "link_quality").score).toBe(0);
+    const cat = findCategory(result, "link_quality");
+    expect(cat.score).toBe(100);
+    expect(
+      cat.findings.some((f) => /raw URL|advisory|not penalized/i.test(f)),
+    ).toBe(true);
   });
 
-  it("mix of descriptive and non-descriptive → proportional score", () => {
+  it("mix of descriptive and vague → proportional score (vague penalized)", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs({
       links: [
         { url: "https://a.com", text: "Annual Report 2024" }, // descriptive
-        { url: "https://b.com", text: "https://b.com" }, // raw URL
+        { url: "https://b.com", text: "click here" }, // vague → penalized
       ],
     });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "link_quality").score).toBe(50);
+  });
+
+  it("raw URLs do not drag the score when mixed with descriptive links", () => {
+    const qpdf = makeQpdf();
+    const pdfjs = makePdfjs({
+      links: [
+        { url: "https://a.com", text: "Annual Report 2024" }, // descriptive
+        { url: "https://b.com", text: "https://b.com" }, // raw URL → advisory
+      ],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "link_quality").score).toBe(100);
   });
 
   it("vague phrases ('click here', 'read more') count as non-descriptive (WCAG 2.4.4)", () => {
@@ -1821,5 +1840,197 @@ describe("scoreReadingOrder edge cases", () => {
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "reading_order").score).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PDF/UA identifier and artifacts are sourced from pdfjs (XMP + content
+// stream), because `qpdf --json` (no stream-data flag) exposes neither.
+// ---------------------------------------------------------------------------
+
+describe("PDF/UA + artifacts sourced from pdfjs", () => {
+  it("detects the PDF/UA identifier from pdfjs XMP even when qpdf misses it", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      hasPdfUaIdentifier: false, // qpdf cannot see the compressed XMP
+      structTreeDepth: 3,
+      contentOrder: [0, 1],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      hasPdfUaIdentifier: true,
+      pdfUaPart: "1",
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.findings.some((f) => f.includes("PDF/UA-1"))).toBe(true);
+    expect(
+      textCat.findings.some((f) => f.includes("No PDF/UA identifier")),
+    ).toBe(false);
+  });
+
+  it("detects artifacts from pdfjs content stream even when qpdf struct count is 0", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      artifactCount: 0, // no /S=/Artifact struct elements (the common case)
+      structTreeDepth: 3,
+      contentOrder: [0, 1],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      artifactRunCount: 17,
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(
+      textCat.findings.some((f) => f.includes("tagged as artifacts")),
+    ).toBe(true);
+    expect(
+      textCat.findings.some((f) => f.includes("No artifact tags found")),
+    ).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Acrobat "How to Fix" guide visibility — only on categories below 100.
+// ---------------------------------------------------------------------------
+
+describe("pdfUa conformance signals", () => {
+  it("summarizes machine-checkable PDF/UA-1 signals from qpdf + pdfjs", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      hasMarkInfo: true,
+      isMarkedContent: true,
+      structTreeDepth: 4,
+      hasLang: true,
+      lang: "en-US",
+      fonts: [
+        { name: "A", embedded: true },
+        { name: "B", embedded: true },
+      ],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      title: "Quarterly Report",
+      hasPdfUaIdentifier: true,
+      pdfUaPart: "1",
+      artifactRunCount: 17,
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(result.pdfUa.hasIdentifier).toBe(true);
+    expect(result.pdfUa.part).toBe("1");
+    expect(result.pdfUa.isTagged).toBe(true);
+    expect(result.pdfUa.isMarkedContent).toBe(true);
+    expect(result.pdfUa.artifactRunCount).toBe(17);
+    expect(result.pdfUa.fontCount).toBe(2);
+    expect(result.pdfUa.embeddedFontCount).toBe(2);
+    expect(result.pdfUa.allFontsEmbedded).toBe(true);
+    expect(result.pdfUa.structTreeDepth).toBe(4);
+    expect(result.pdfUa.hasLanguage).toBe(true);
+    expect(result.pdfUa.hasTitle).toBe(true);
+  });
+
+  it("reports absence honestly when signals are missing", () => {
+    const result = scoreDocument(makeQpdf(), makePdfjs());
+    expect(result.pdfUa.hasIdentifier).toBe(false);
+    expect(result.pdfUa.part).toBeNull();
+    expect(result.pdfUa.isTagged).toBe(false);
+    expect(result.pdfUa.isMarkedContent).toBe(false);
+    expect(result.pdfUa.artifactRunCount).toBe(0);
+  });
+});
+
+describe("Acrobat How-to-Fix guide visibility", () => {
+  it("is NOT appended to categories scoring 100", () => {
+    const { qpdf, pdfjs } = fullyAccessible();
+    const result = scoreDocument(qpdf, pdfjs);
+    for (const cat of result.categories) {
+      if (cat.score === 100) {
+        expect(
+          cat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("is appended to a category scoring below 100", () => {
+    // Untagged document → text_extractability scores 50 (text but no tags).
+    const qpdf = makeQpdf({ hasStructTree: false });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.score).toBeLessThan(100);
+    expect(
+      textCat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reading-order fidelity: noise-tolerant top band + transparent deduction.
+// ---------------------------------------------------------------------------
+
+describe("reading_order — noise tolerance & deduction transparency", () => {
+  const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+  const withSwaps = (arr: number[], pairs: Array<[number, number]>) => {
+    const c = [...arr];
+    for (const [i, j] of pairs) {
+      const t = c[i];
+      c[i] = c[j];
+      c[j] = t;
+    }
+    return c;
+  };
+  function build(struct: number[], stream: number[]) {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      totalPageCount: 1,
+      tabOrderPages: 1,
+      paragraphCount: 10,
+      structTreeMcidsByPage: { 1: struct },
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      contentStreamMcidsByPage: { 1: stream },
+    });
+    return { qpdf, pdfjs };
+  }
+
+  it("scores 100 when fidelity is in the 97–99% band (extraction jitter tolerated)", () => {
+    const struct = range(100);
+    const stream = withSwaps(struct, [
+      [10, 11],
+      [60, 61],
+    ]); // 2 transpositions → ~98% LCS
+    const { qpdf, pdfjs } = build(struct, stream);
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(
+      100,
+    );
+  });
+
+  it("explains the point deduction when fidelity is below the 100 threshold", () => {
+    const struct = range(20);
+    const stream = withSwaps(struct, [[10, 11]]); // 19/20 = 95% → below 100
+    const { qpdf, pdfjs } = build(struct, stream);
+    const cat = findCategory(scoreDocument(qpdf, pdfjs), "reading_order");
+    expect(cat.score).not.toBe(100);
+    expect(cat.findings.some((f) => /reading order scored/i.test(f))).toBe(true);
+  });
+
+  it("does not contradict itself by claiming it cannot compare order when it just did", () => {
+    const seq = range(10);
+    const { qpdf, pdfjs } = build(seq, seq);
+    const cat = findCategory(scoreDocument(qpdf, pdfjs), "reading_order");
+    expect(
+      cat.findings.some((f) =>
+        f.includes("does not yet compare per-page marked-content order"),
+      ),
+    ).toBe(false);
   });
 });

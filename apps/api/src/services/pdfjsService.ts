@@ -24,6 +24,16 @@ export interface PdfjsResult {
   links: Array<{ url: string; text: string }>
   imageCount: number
   emptyPages: number[]
+  // PDF/UA-1 identifier from the XMP metadata (pdfuaid:part). pdfjs parses the
+  // XMP stream; `qpdf --json` (no stream-data flag) cannot expose it, so this
+  // is the authoritative source for the PDF/UA conformance claim.
+  hasPdfUaIdentifier?: boolean
+  pdfUaPart?: string | null
+  // Count of /Artifact marked-content runs across page content streams
+  // (headers, footers, page numbers, watermarks). Real artifacts live in the
+  // content stream, not the structure tree, so this is the authoritative
+  // artifact signal — qpdf's struct-tree /S=/Artifact count is almost always 0.
+  artifactRunCount?: number
   metadata: PdfMetadata
   // Per-page MCID sequence as encountered while walking each page's content
   // stream (i.e. visual draw order). Populated from pdfjs's operator list —
@@ -53,6 +63,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     links: [],
     imageCount: 0,
     emptyPages: [],
+    hasPdfUaIdentifier: false,
+    pdfUaPart: null,
+    artifactRunCount: 0,
     contentStreamMcidsByPage: {},
     metadata: {
       creator: null,
@@ -99,6 +112,21 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       result.metadata.subject = info.Subject || null
     }
     result.metadata.pageCount = doc.numPages
+
+    // PDF/UA identifier — read pdfuaid:part from the parsed XMP metadata.
+    // (qpdf --json cannot surface the compressed XMP stream, so pdfjs is the
+    // authoritative source for the PDF/UA conformance claim.)
+    try {
+      const xmp = (metadata as any)?.metadata
+      if (xmp && typeof xmp.getAll === 'function') {
+        const all = xmp.getAll() || {}
+        const part = all['pdfuaid:part']
+        if (part !== undefined && part !== null && `${part}`.trim() !== '') {
+          result.hasPdfUaIdentifier = true
+          result.pdfUaPart = `${part}`.trim()
+        }
+      }
+    } catch {}
 
     // Check if title looks like a filename (not useful for accessibility)
     if (result.title) {
@@ -156,6 +184,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     const MIN_IMAGE_DIM = 50 // pixels — skip spacers, borders, tiny decorative elements
     const seenPerPage = new Set<string>()
     let imageCount = 0
+    // Count top-level /Artifact marked-content runs (a run nested inside
+    // another artifact is not counted twice). This is the real artifact signal
+    // — artifacts live in the content stream, not the structure tree.
+    let artifactRunCount = 0
     // Marked-content operators surface MCIDs in visual/draw order. We
     // capture them per page so the scorer can compare this content-stream
     // sequence against the struct-tree sequence from QPDF (reading-order
@@ -181,11 +213,14 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         // a dict for non-MCID property sets, or null.
         if (fn === bmcOp) {
           const tag = ops.argsArray[j]?.[0]
-          artifactStack.push(isArtifactTag(tag))
+          const isArtifact = isArtifactTag(tag)
+          if (isArtifact && !artifactStack.some((f) => f)) artifactRunCount++
+          artifactStack.push(isArtifact)
         } else if (fn === bdcOp) {
           const tag = ops.argsArray[j]?.[0]
           const props = ops.argsArray[j]?.[1]
           const isArtifact = isArtifactTag(tag)
+          if (isArtifact && !artifactStack.some((f) => f)) artifactRunCount++
           artifactStack.push(isArtifact)
           if (!isArtifact) {
             // Check if *any enclosing* run is an artifact (exclude the
@@ -229,6 +264,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       }
     }
     result.imageCount = imageCount
+    result.artifactRunCount = artifactRunCount
 
     result.textLength = totalText.trim().length
     result.hasText = result.textLength > 50 // Minimum meaningful text

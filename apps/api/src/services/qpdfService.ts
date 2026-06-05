@@ -276,6 +276,22 @@ function parseQpdfJson(json: any): QpdfResult {
     // row count in the report.
     const tableCandidates: Array<{ ref: string; obj: any }> = [];
 
+    // Type3 fonts define their glyphs inline as PDF content streams
+    // (/CharProcs) and therefore never carry a /FontFile*, yet they ARE
+    // self-contained ("embedded"). Collect the /FontDescriptor refs of any
+    // Type3 font so the FontFile-only embedding check below does not wrongly
+    // flag them as non-embedded. (qpdf v2 keys objects as "obj:N 0 R" but
+    // stores indirect-reference values as "N 0 R", so normalize both.)
+    const normRef = (r: string): string => r.replace(/^obj:/, "");
+    const type3DescriptorRefs = new Set<string>();
+    for (const obj of Object.values(objects)) {
+      const o = obj as any;
+      if (o && o["/Type"] === "/Font" && o["/Subtype"] === "/Type3") {
+        const fd = o["/FontDescriptor"];
+        if (typeof fd === "string") type3DescriptorRefs.add(normRef(fd));
+      }
+    }
+
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
       if (!obj || typeof obj !== "object") continue;
@@ -339,11 +355,9 @@ function parseQpdfJson(json: any): QpdfResult {
           typeof o["/FontName"] === "string"
             ? o["/FontName"].replace(/^\//, "").replace(/^u:/, "")
             : "Unknown";
-        const embedded = !!(
-          o["/FontFile"] ||
-          o["/FontFile2"] ||
-          o["/FontFile3"]
-        );
+        const embedded =
+          !!(o["/FontFile"] || o["/FontFile2"] || o["/FontFile3"]) ||
+          type3DescriptorRefs.has(normRef(ref));
         result.fonts.push({ name: fontName, embedded });
       }
 

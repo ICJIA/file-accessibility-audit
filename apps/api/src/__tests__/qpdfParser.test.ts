@@ -720,6 +720,48 @@ describe("font embedding detection", () => {
     expect(result.fonts[0].name).toBe("ComicSans");
     expect(result.fonts[0].embedded).toBe(false);
   });
+
+  it("treats a Type3 font (inline CharProcs, no FontFile) as embedded", () => {
+    // Type3 fonts define their glyphs as inline PDF content streams
+    // (/CharProcs), so they are self-contained ("embedded") yet never carry a
+    // /FontFile*. The FontFile-only check wrongly flagged them as not embedded.
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/Type3",
+            "/FontDescriptor": "3 0 R",
+          },
+          "3 0 R": { "/Type": "/FontDescriptor", "/FontName": "/MyType3Font" },
+        },
+      ],
+    });
+    const font = result.fonts.find((f) => f.name === "MyType3Font");
+    expect(font).toBeDefined();
+    expect(font!.embedded).toBe(true);
+  });
+
+  it("still flags a non-embedded simple (non-Type3) font as not embedded", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/FontDescriptor": "3 0 R",
+          },
+          "3 0 R": { "/Type": "/FontDescriptor", "/FontName": "/ArialMT" },
+        },
+      ],
+    });
+    const font = result.fonts.find((f) => f.name === "ArialMT");
+    expect(font!.embedded).toBe(false);
+  });
 });
 
 describe("paragraph and language span detection", () => {
