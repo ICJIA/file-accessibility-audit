@@ -167,6 +167,27 @@ describe("heading detection", () => {
     ]);
   });
 
+  it("returns headings in document (structure-tree) order, not object-number order", () => {
+    // Object numbers are assigned in REVERSE of document order: the H1 has the
+    // highest object number (6 0 R) but is the first child in the /K array.
+    // A flat object-map scan would yield [H3, H2, H1]; a document-order walk
+    // of the structure tree must yield [H1, H2, H3].
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": "3 0 R" },
+          "3 0 R": { "/S": "/Document", "/K": ["6 0 R", "5 0 R", "4 0 R"] },
+          "4 0 R": { "/S": "/H3" },
+          "5 0 R": { "/S": "/H2" },
+          "6 0 R": { "/S": "/H1" },
+        },
+      ],
+    });
+    expect(result.headings.map((h) => h.level)).toEqual(["H1", "H2", "H3"]);
+  });
+
   it("detects generic /H heading", () => {
     const result = parseJson({
       qpdf: [
@@ -364,6 +385,39 @@ describe("table detection", () => {
       ],
     });
     expect(result.tables[0].hasNestedTable).toBe(true);
+    // A nested table must NOT be reported as a second top-level table.
+    expect(result.tables).toHaveLength(1);
+  });
+
+  it("does not inflate row counts by hoisting a nested table to top level", () => {
+    // One visible 2-row table whose cell contains a nested 3-row table.
+    // The report must show ONE table with 2 rows — not two tables totalling
+    // 5 rows ("more rows than what's actually in the pdf").
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": { "/S": "/Table", "/K": ["3 0 R", "6 0 R"] }, // outer: 2 rows
+          "3 0 R": { "/S": "/TR", "/K": ["4 0 R"] },
+          "4 0 R": { "/S": "/TD", "/K": ["7 0 R"] }, // cell holds nested table
+          "6 0 R": { "/S": "/TR", "/K": ["8 0 R"] },
+          "8 0 R": { "/S": "/TD" },
+          "7 0 R": { "/S": "/Table", "/K": ["9 0 R", "10 0 R", "11 0 R"] }, // nested: 3 rows
+          "9 0 R": { "/S": "/TR", "/K": ["12 0 R"] },
+          "10 0 R": { "/S": "/TR", "/K": ["13 0 R"] },
+          "11 0 R": { "/S": "/TR", "/K": ["14 0 R"] },
+          "12 0 R": { "/S": "/TD" },
+          "13 0 R": { "/S": "/TD" },
+          "14 0 R": { "/S": "/TD" },
+        },
+      ],
+    });
+    expect(result.tables).toHaveLength(1);
+    expect(result.tables[0].rowCount).toBe(2);
+    expect(result.tables[0].hasNestedTable).toBe(true);
+    const totalRows = result.tables.reduce((sum, t) => sum + t.rowCount, 0);
+    expect(totalRows).toBe(2);
   });
 
   it("detects caption element", () => {

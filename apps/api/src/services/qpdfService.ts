@@ -269,6 +269,13 @@ function parseQpdfJson(json: any): QpdfResult {
         .map((k) => `${k.slice(1)} → ${roleMap[k].replace(/^\//, "")}`);
     };
 
+    // Top-level /Table struct elements are collected with their object ref so
+    // that tables nested inside another table's cell can be filtered out once
+    // the whole object map is known (see below). Counting nested tables as
+    // separate top-level tables inflates both the table count and the summed
+    // row count in the report.
+    const tableCandidates: Array<{ ref: string; obj: any }> = [];
+
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
       if (!obj || typeof obj !== "object") continue;
@@ -390,9 +397,10 @@ function parseQpdfJson(json: any): QpdfResult {
         ) {
           result.headings.push({ level: tag.replace("/", ""), tag: o["/S"] });
         }
-        // Tables
+        // Tables — collected as candidates; nested ones are filtered after the
+        // loop so they don't inflate the top-level table/row counts.
         if (tag === "/Table") {
-          result.tables.push(analyzeTable(o, objects, roleMap));
+          tableCandidates.push({ ref, obj: o });
         }
         // Lists
         if (tag === "/L") {
@@ -445,6 +453,19 @@ function parseQpdfJson(json: any): QpdfResult {
       }
     }
 
+    // Resolve table candidates into top-level tables. A /Table that appears in
+    // the subtree of another /Table is a nested table: the parent already
+    // records it via analyzeTable's hasNestedTable flag, so it must not also be
+    // reported as its own top-level table (which would over-count rows).
+    const nestedTableRefs = new Set<string>();
+    for (const candidate of tableCandidates) {
+      collectDescendantTableRefs(candidate.obj, objects, roleMap, nestedTableRefs);
+    }
+    for (const candidate of tableCandidates) {
+      if (nestedTableRefs.has(candidate.ref)) continue;
+      result.tables.push(analyzeTable(candidate.obj, objects, roleMap));
+    }
+
     // Also check for form fields via AcroForm
     if (result.hasAcroForm) {
       const knownRefs = new Set(
@@ -483,6 +504,21 @@ function parseQpdfJson(json: any): QpdfResult {
     // Calculate structure tree depth
     if (result.hasStructTree) {
       result.structTreeDepth = calculateTreeDepth(objects);
+    }
+
+    // Re-collect headings in document (reading) order by walking the structure
+    // tree, rather than the object-number order produced by the flat scan
+    // above. Object-number order is not reading order — e.g. an H1 tagged last
+    // during remediation gets a high object number and would otherwise appear
+    // at the END of the outline, and out-of-order levels can trigger false
+    // "heading hierarchy skip" findings. Falls back to the flat-scan order when
+    // the tree yields no headings (untagged/malformed input or test fixtures
+    // whose elements are not linked into the tree).
+    if (result.hasStructTree) {
+      const orderedHeadings = collectHeadingsInOrder(objects, roleMap);
+      if (orderedHeadings.length > 0) {
+        result.headings = orderedHeadings;
+      }
     }
 
     // Collect per-page MCID sequences from the structure tree. Used by the
@@ -532,6 +568,95 @@ function mapToStandardTag(
 ): string | null {
   if (!tag) return null;
   return roleMap[tag] || tag;
+}
+
+// Walk a /Table struct element's subtree and record the object refs of any
+// DESCENDANT /Table elements (nested tables). Only ref-string children can be
+// top-level objects in the map, so only those need to be recorded for the
+// nested-table filter; inline nested tables are never top-level candidates.
+function collectDescendantTableRefs(
+  tableObj: any,
+  objects: Record<string, any>,
+  roleMap: Record<string, string>,
+  out: Set<string>,
+): void {
+  const visited = new Set<any>();
+  const walk = (node: any, depth: number): void => {
+    if (depth > 50 || !node || typeof node !== "object") return;
+    if (visited.has(node)) return;
+    visited.add(node);
+    const kids = node["/K"];
+    if (kids === undefined || kids === null) return;
+    const items = Array.isArray(kids) ? kids : [kids];
+    for (const item of items) {
+      if (typeof item === "number") continue;
+      if (item && typeof item === "object" && item["/MCID"] !== undefined)
+        continue;
+      if (typeof item === "string") {
+        const child = resolveRef(item, objects);
+        if (!child) continue;
+        if (mapToStandardTag(child["/S"], roleMap) === "/Table") out.add(item);
+        walk(child, depth + 1);
+      } else if (item && typeof item === "object") {
+        // Inline child: can't be a top-level candidate, but recurse so a
+        // ref-based nested table deeper inside it is still found.
+        walk(item, depth + 1);
+      }
+    }
+  };
+  walk(tableObj, 0);
+}
+
+// Walk the structure tree from StructTreeRoot in document (reading) order and
+// return headings in that order. Mirrors the heading detection in the flat
+// object scan (mapToStandardTag + H/H1–H6) but preserves /K traversal order.
+// Returns [] when there is no StructTreeRoot or no reachable headings, letting
+// the caller keep the flat-scan result as a fallback.
+function collectHeadingsInOrder(
+  objects: Record<string, any>,
+  roleMap: Record<string, string>,
+): Array<{ level: string; tag: string }> {
+  let root: any = null;
+  for (const obj of Object.values(objects)) {
+    if ((obj as any)?.["/Type"] === "/StructTreeRoot") {
+      root = obj;
+      break;
+    }
+  }
+  if (!root) return [];
+
+  const headings: Array<{ level: string; tag: string }> = [];
+  const visited = new Set<any>();
+  const walk = (node: any, depth: number): void => {
+    if (depth > 200 || !node || typeof node !== "object") return;
+    if (visited.has(node)) return;
+    visited.add(node);
+
+    const rawS = node["/S"];
+    if (typeof rawS === "string") {
+      const tag = mapToStandardTag(rawS, roleMap);
+      if (tag === "/H" || /^\/H[1-6]$/.test(tag || "")) {
+        headings.push({ level: tag!.replace("/", ""), tag: rawS });
+      }
+    }
+
+    const kids = node["/K"];
+    if (kids === undefined || kids === null) return;
+    const items = Array.isArray(kids) ? kids : [kids];
+    for (const item of items) {
+      if (typeof item === "number") continue;
+      if (item && typeof item === "object" && item["/MCID"] !== undefined)
+        continue;
+      if (typeof item === "string") {
+        const child = resolveRef(item, objects);
+        if (child) walk(child, depth + 1);
+      } else if (item && typeof item === "object") {
+        walk(item, depth + 1);
+      }
+    }
+  };
+  walk(root, 0);
+  return headings;
 }
 
 function countOutlineEntries(

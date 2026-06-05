@@ -304,7 +304,7 @@ Every audit produces **two distinct things**, and the distinction is deliberate:
 
 Nine categories, weighted by WCAG conformance level and user impact. Categories that don't apply to a document (no tables, no forms, etc.) are excluded and the remaining weights renormalized. Each category is mapped to the exact WCAG success criteria it evaluates — all carried forward unchanged from WCAG 2.1 into 2.2.
 
-| Category | Weight | WCAG 2.2 SC | Why it matters |
+| Category | Weight | WCAG 2.1/2.2 SC | Why it matters |
 | --- | :--: | --- | --- |
 | Text Extractability | 20% | 1.1.1, 1.3.1 (A) | The most fundamental requirement — a scanned image with no real text gives a screen reader nothing to read. Non-embedded fonts cap this category at 85. |
 | Title & Language | 15% | 2.4.2, 3.1.1 (A) | The document title is the first thing a screen reader announces; the language tag controls pronunciation. |
@@ -887,21 +887,23 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 | Doc                                                                        | Description                                                                             |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [00 — Master Design](docs/00-master-design.md)                             | Architecture, scoring model, API, auth, security                                        |
-| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md)                | Phase 1 deliverables and testing checklist                                              |
-| [02 — Phase 2: Enhanced Features](docs/02-phase-2-enhanced-features.md)    | Batch upload, shareable reports                                                         |
-| [03 — Phase 3: Admin & Monitoring](docs/03-phase-3-admin-monitoring.md)    | Admin dashboard, scheduled re-checks                                                    |
-| [04 — Deployment Guide](docs/04-deployment-guide.md)                       | Infrastructure, env vars, nginx, firewall                                               |
-| [05 — Use Cases](docs/05-use-cases.md)                                     | End-user scenarios and workflows                                                        |
-| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md)                 | Email provider setup and gotchas                                                        |
-| [07 — Mailgun Integration](docs/07-mailgun-integration.md)                 | Mailgun setup (default provider)                                                        |
-| [08 — Phase 4: DOCX Support](docs/08-phase-4-docx-support.md)              | DOCX accessibility analysis via jszip + XML parsing                                     |
-| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script                    |
-| [10 — Scoring Reconciliation](docs/10-scoring-reconciliation.md)           | Strict vs Practical scoring, PDF/UA rationale, WCAG/ADA interpretation, Matterhorn note |
+| [00 — Master Design](docs/00-master-design.md) | Architecture, scoring model, API, auth, security (single source of truth) |
+| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md) | Core grader deliverables and testing checklist |
+| [04 — Deployment Guide](docs/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
+| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md) | Email provider setup (alternative provider) |
+| [07 — Mailgun Integration](docs/07-mailgun-integration.md) | Mailgun setup (default provider) |
+| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script |
+| [10 — Scoring Reconciliation](docs/10-scoring-reconciliation.md) | Strict vs Practical scoring, PDF/UA rationale, WCAG/ADA interpretation, Matterhorn note |
+| [Fleet Inventory Reporting](docs/fleet-inventory-reporting.md) | The `/api/audit-url` fleet endpoint: profile scores, report URLs, hash dedup |
+| [PDF Remediation Integration Plan](docs/pdf-remediation-integration-plan.md) | Auto-remediation architecture, privacy, threat model, audit trail |
+| [PDF Remediation — Alt-Text Walkthrough Spec](docs/pdf-remediation-alt-text-walkthrough-spec.md) | Spec for the in-progress interactive alt-text walkthrough |
+| [Table & Heading Accuracy Fixes](docs/table-and-heading-accuracy-fixes.md) | v1.24.1 diagnosis & fixes: table over-count, scope-based table scoring, heading order |
+
+Superseded and roadmap-only documents are kept in [docs/archive/](docs/archive/).
 
 ## Tests
 
-**662 tests** across 29 test files. Run all with a summary at the end:
+**665 tests** across 29 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -916,19 +918,19 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      354 passed (11 files)
+  ✔ API      357 passed (11 files)
   ✔ Web      308 passed (18 files)
 ────────────────────────────────────────────────────────────
-  ✔ 662 tests passed across 29 files
+  ✔ 665 tests passed across 29 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (354 tests)
+### API Tests (357 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
-| `scorer.test.ts` | 124 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
-| `qpdfParser.test.ts` | 68 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H), table analysis (TH/scope/rows/nesting/caption/columns/headers), list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
+| `scorer.test.ts` | 125 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
+| `qpdfParser.test.ts` | 70 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count, list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
 | `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement, and route-level input/PDF validation and fetch-error handling |
 | `integration.test.ts` | 28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |
 | `tokens.test.ts` | 27 | Personal access tokens: token generation, name sanitization, the PAT branch of the auth middleware, and the create/list/revoke `/api/tokens` endpoints |

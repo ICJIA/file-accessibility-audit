@@ -295,15 +295,15 @@ function toggleColorMode() {
 }
 
 const rubricCategories = [
-  { id: 'text_extractability', label: 'Text Extractability', weight: 20, rationale: 'WCAG 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.' },
-  { id: 'title_language', label: 'Title & Language', weight: 15, rationale: 'WCAG 2.4.2 & 3.1.1 — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II.' },
-  { id: 'heading_structure', label: 'Heading Structure', weight: 15, rationale: 'WCAG 1.3.1 & 2.4.6 — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles.' },
-  { id: 'alt_text', label: 'Alt Text on Images', weight: 15, rationale: 'WCAG 1.1.1 — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows.' },
-  { id: 'bookmarks', label: 'Bookmarks', weight: 10, rationale: 'WCAG 2.4.5 — For documents over 10 pages, bookmarks provide a navigable table of contents. Required under Title II for longer documents.' },
-  { id: 'table_markup', label: 'Table Markup', weight: 10, rationale: 'WCAG 1.3.1 — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to.' },
-  { id: 'link_quality', label: 'Link Quality', weight: 5, rationale: 'WCAG 2.4.4 — Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes without needing to see the URL.' },
-  { id: 'form_accessibility', label: 'Form Fields', weight: 5, rationale: 'WCAG 1.3.1 & 4.1.2 — Unlabeled form fields are unusable with assistive technology. Users hear "text field" with no indication of what to enter.' },
-  { id: 'reading_order', label: 'Reading Order', weight: 5, rationale: 'WCAG 1.3.2 — The tag structure must define a logical reading sequence. Without it, screen readers may announce sidebar content before the main body.' },
+  { id: 'text_extractability', label: 'Text Extractability', weight: 20, rationale: 'WCAG 2.1/2.2 SC 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.' },
+  { id: 'title_language', label: 'Title & Language', weight: 15, rationale: 'WCAG 2.1/2.2 SC 2.4.2 & 3.1.1 — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II.' },
+  { id: 'heading_structure', label: 'Heading Structure', weight: 15, rationale: 'WCAG 2.1/2.2 SC 1.3.1 & 2.4.6 — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles.' },
+  { id: 'alt_text', label: 'Alt Text on Images', weight: 15, rationale: 'WCAG 2.1/2.2 SC 1.1.1 — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows.' },
+  { id: 'bookmarks', label: 'Bookmarks', weight: 10, rationale: 'WCAG 2.1/2.2 SC 2.4.5 — For documents over 10 pages, bookmarks provide a navigable table of contents. Required under Title II for longer documents.' },
+  { id: 'table_markup', label: 'Table Markup', weight: 10, rationale: 'WCAG 2.1/2.2 SC 1.3.1 — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to.' },
+  { id: 'link_quality', label: 'Link Quality', weight: 5, rationale: 'WCAG 2.1/2.2 SC 2.4.4 — Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes without needing to see the URL.' },
+  { id: 'form_accessibility', label: 'Form Fields', weight: 5, rationale: 'WCAG 2.1/2.2 SC 1.3.1 & 4.1.2 — Unlabeled form fields are unusable with assistive technology. Users hear "text field" with no indication of what to enter.' },
+  { id: 'reading_order', label: 'Reading Order', weight: 5, rationale: 'WCAG 2.1/2.2 SC 1.3.2 — The tag structure must define a logical reading sequence. Without it, screen readers may announce sidebar content before the main body.' },
 ]
 
 const grades = [

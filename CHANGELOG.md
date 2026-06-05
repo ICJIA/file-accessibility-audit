@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.24.1] - 2026-06-05
+
+Accuracy fixes for table-structure and heading diagnostics, reported by users. Full write-up in [docs/table-and-heading-accuracy-fixes.md](docs/table-and-heading-accuracy-fixes.md).
+
+### Fixed
+
+- **Inflated table and row counts.** A table nested inside another table's cell was counted as a separate top-level table, inflating both the table count and the summed row count shown in the report ("more rows than the PDF actually has"). Nested tables are now excluded from the top-level list; the parent table still reports the nested-table flag.
+- **Heading outline shown out of order.** Headings were listed in PDF object-number order rather than document reading order, so an H1 tagged late (e.g. during remediation) could appear at the *end* of the outline. Headings are now collected by walking the structure tree in reading order. This also removes a latent mis-scoring: object-order headings could trigger a false "heading hierarchy skip" and wrongly lower the Heading Structure category.
+- **Table scored below 100 while passing every check.** The 5-point header-association check credited only the explicit `/Headers` attribute and ignored `/Scope`. A simple table correctly built with `/Scope` (the recommended technique for simple tables) was docked 5 points it should have earned. Header association is now satisfied by `/Scope` **or** `/Headers`, per **WCAG 2.1/2.2** Level AA (Success Criterion 1.3.1, Info and Relationships — unchanged between the two versions). This satisfies the IITAA 2.1 legal floor and the app's 2.2 anchor equally; no version dependence.
+
+### Changed
+
+- `parseQpdfJson` now collects headings and tables by traversing the structure tree (`StructTreeRoot` → `/K`) in document order, falling back to the flat object scan only when the tree yields nothing. Tables are also analyzed after the full object map is read, so custom-role tables map correctly regardless of object number.
+- WCAG references in the scoring-rubric tooltips, the README category table, and the new accuracy doc now name the version explicitly ("WCAG 2.1/2.2 SC 1.3.1" rather than a bare "1.3.1"), so a reader scanning for WCAG 2.1/2.2 sees it up front. This is presentational only — the version-neutral criterion data that powers the version-aware UI and the `WCAG_VERSION` 2.1↔2.2 switch is unchanged.
+
+### Compatibility
+
+- No category-weight, API, schema, or export-format changes. Scores may move for affected files: a table using `/Scope` without `/Headers` gains up to 5 points in the Table Markup category (e.g. the inconsistent-columns + scope case now scores 90, was 85); documents whose headings were mis-ordered no longer incur false hierarchy-skip penalties; and table/row counts in the detail decrease where nested tables were previously over-counted.
+
+### Tests
+
+- API suite **354 → 357**: new coverage for document-order heading collection, nested-table exclusion, and `/Scope`-based header association; the inconsistent-columns expectation was corrected (85 → 90).
+
+### Docs
+
+- Added `docs/table-and-heading-accuracy-fixes.md` (diagnosis, fixes, tests, follow-ups).
+- Trimmed `/docs` to the currently-applicable set; superseded and roadmap-only documents moved to `docs/archive/` (Phase 2/3/4, use-cases, the remediation feasibility spike, and the Adobe-parity note).
+
 ## [1.24.0] - 2026-06-03
 
 ### Added

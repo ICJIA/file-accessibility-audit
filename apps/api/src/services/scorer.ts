@@ -1240,13 +1240,30 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
     );
   }
 
-  // 7. Header association bonus (5 points)
-  const withAssoc = qpdf.tables.filter((t) => t.hasHeaderAssociation).length;
+  // 7. Header association (5 points) — header cells must be programmatically
+  // associated with their data cells. WCAG 2.1/2.2 SC 1.3.1 Info and
+  // Relationships (Level A — unchanged between the two versions) accepts
+  // either technique:
+  // /Scope is the recommended approach for simple tables, while the explicit
+  // /Headers attribute is intended for complex tables. Crediting only /Headers
+  // would wrongly dock a fully-conformant scope-based simple table 5 points.
+  const withExplicitHeaders = qpdf.tables.filter(
+    (t) => t.hasHeaderAssociation,
+  ).length;
+  const withAssoc = qpdf.tables.filter(
+    (t) => t.hasHeaderAssociation || t.hasScope,
+  ).length;
   if (withAssoc > 0) {
     score += 5;
-    findings.push(
-      `${withAssoc} table(s) use explicit header-cell associations (/Headers attribute)`,
-    );
+    if (withExplicitHeaders > 0) {
+      findings.push(
+        `${withExplicitHeaders} table(s) use explicit header-cell associations (/Headers attribute)`,
+      );
+    } else {
+      findings.push(
+        "Header cells are programmatically associated with data cells via /Scope",
+      );
+    }
   }
 
   const qualifiesForRemediationPartialCredit =

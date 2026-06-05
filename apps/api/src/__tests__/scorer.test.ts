@@ -998,6 +998,35 @@ describe("scoreTableMarkup edge cases", () => {
     expect(findCategory(result, "table_markup").score).toBe(80);
   });
 
+  it("scope-only conformant table reaches 100 (scope satisfies header association)", () => {
+    // A simple data table that is fully conformant under WCAG 2.1/2.2 SC 1.3.1 via /Scope:
+    // TH headers with scope, TR rows, consistent columns, a caption, no nesting.
+    // It uses /Scope (the recommended technique for simple tables) rather than
+    // the explicit /Headers attribute, so hasHeaderAssociation is false.
+    // Such a table passes every applicable check and must score 100 — it must
+    // NOT be docked 5 points for lacking the /Headers attribute.
+    const qpdf = makeQpdf({
+      tables: [
+        makeTable({
+          hasHeaders: true,
+          headerCount: 3,
+          dataCellCount: 9,
+          hasScope: true,
+          scopeMissingCount: 0,
+          hasRowStructure: true,
+          rowCount: 4,
+          hasCaption: true,
+          hasConsistentColumns: true,
+          columnCounts: [3, 3, 3, 3],
+          hasHeaderAssociation: false,
+        }),
+      ],
+    });
+    const pdfjs = makePdfjs();
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "table_markup").score).toBe(100);
+  });
+
   it("no headers at all → low score, can still earn structure points", () => {
     const qpdf = makeQpdf({
       tables: [
@@ -1110,8 +1139,11 @@ describe("scoreTableMarkup edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // 40 + 20 + 10 + 10 + 5 + 0 (inconsistent) = 85
-    expect(findCategory(result, "table_markup").score).toBe(85);
+    // 40 + 20 + 10 (scope) + 10 (no nesting) + 5 (caption) + 0 (inconsistent)
+    // + 5 (header association via /Scope) = 90. Inconsistent columns are the
+    // only defect; a scope-based table is not separately docked for lacking
+    // the explicit /Headers attribute.
+    expect(findCategory(result, "table_markup").score).toBe(90);
   });
 });
 
