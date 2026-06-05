@@ -55,6 +55,34 @@ export interface CategoryResult {
   wcagCriteria?: WcagCriterion[];
 }
 
+// Machine-checkable PDF/UA-1 (ISO 14289-1) signals, summarized for the report's
+// "Conformance signals" panel. These are SIGNALS, not a conformance verdict —
+// a full PDF/UA-1 validation (the Matterhorn Protocol's failure conditions,
+// many requiring human judgment) needs PAC or veraPDF. Sourced from pdfjs (XMP
+// + content stream) and qpdf (structure tree, MarkInfo, fonts).
+export interface PdfUaSignals {
+  /** A PDF/UA identifier (pdfuaid:part) is declared in the XMP metadata. */
+  hasIdentifier: boolean;
+  /** The declared part number, e.g. "1" for PDF/UA-1. */
+  part: string | null;
+  /** Document has a logical structure tree (StructTreeRoot). */
+  isTagged: boolean;
+  /** MarkInfo /Marked true — real content is distinguished from artifacts. */
+  isMarkedContent: boolean;
+  /** Count of /Artifact marked-content runs (headers, footers, page numbers). */
+  artifactRunCount: number;
+  /** Depth of the structure tree (flat ≈ 1; richly nested ≥ 3). */
+  structTreeDepth: number;
+  fontCount: number;
+  embeddedFontCount: number;
+  /** All fonts are embedded (vacuously true when the document has no fonts). */
+  allFontsEmbedded: boolean;
+  /** A default document language is declared. */
+  hasLanguage: boolean;
+  /** A document title is present in the metadata. */
+  hasTitle: boolean;
+}
+
 export interface ScoringResult {
   overallScore: number;
   grade: string;
@@ -73,6 +101,9 @@ export interface ScoringResult {
   // weighted score. The score is a prioritised-readiness metric with partial
   // credit; this is the honest pass/fail answer. See conformance.ts.
   conformance: ConformanceVerdict;
+  // Machine-checkable PDF/UA-1 signals, surfaced as a "conformance signals"
+  // panel alongside the WCAG verdict. Signals, not a verdict — see PdfUaSignals.
+  pdfUa: PdfUaSignals;
 }
 
 export type ScoringMode = keyof typeof SCORING_PROFILES;
@@ -144,6 +175,7 @@ export function scoreDocument(
   // payloads, downstream tooling) keep round-tripping cleanly. The alias
   // will be dropped in a future release once consumers have migrated.
   const adobeParity = buildAdobeParityReport(qpdf, pdfjs);
+  const pdfUa = computePdfUaSignals(qpdf, pdfjs);
 
   return {
     overallScore: strictAggregate.overallScore,
@@ -159,6 +191,31 @@ export function scoreDocument(
     },
     adobeParity,
     conformance,
+    pdfUa,
+  };
+}
+
+// Summarize the machine-checkable PDF/UA-1 signals for the report panel.
+// PDF/UA identifier + artifacts come from pdfjs (XMP + content stream), which
+// `qpdf --json` cannot expose; structure/MarkInfo/fonts come from qpdf.
+function computePdfUaSignals(
+  qpdf: QpdfResult,
+  pdfjs: PdfjsResult,
+): PdfUaSignals {
+  const fontCount = qpdf.fonts.length;
+  const embeddedFontCount = qpdf.fonts.filter((f) => f.embedded).length;
+  return {
+    hasIdentifier: (pdfjs.hasPdfUaIdentifier ?? false) || qpdf.hasPdfUaIdentifier,
+    part: pdfjs.pdfUaPart ?? qpdf.pdfUaPart,
+    isTagged: qpdf.hasStructTree,
+    isMarkedContent: qpdf.isMarkedContent,
+    artifactRunCount: qpdf.artifactCount + (pdfjs.artifactRunCount ?? 0),
+    structTreeDepth: qpdf.structTreeDepth,
+    fontCount,
+    embeddedFontCount,
+    allFontsEmbedded: embeddedFontCount === fontCount,
+    hasLanguage: qpdf.hasLang || !!pdfjs.lang,
+    hasTitle: !!(pdfjs.title && pdfjs.title.trim().length > 0),
   };
 }
 
@@ -1329,14 +1386,23 @@ const VAGUE_LINK_PHRASES = new Set([
   "click this link",
 ]);
 
-function isNonDescriptiveLinkText(text: string): boolean {
+// Classify visible link text for WCAG 2.4.4 (Link Purpose).
+//   - "rawUrl"      — the visible text is the URL itself. The destination is
+//                     determinable, so 2.4.4 is met (and PAC does not flag it).
+//                     Surfaced as a best-practice advisory, NOT penalized.
+//   - "needsFix"    — empty, a vague phrase ("click here"), or 1–2 chars. The
+//                     purpose is not conveyed; this is penalized.
+//   - "descriptive" — self-describing text.
+type LinkClass = "descriptive" | "rawUrl" | "needsFix";
+
+function classifyLinkText(text: string): LinkClass {
   const t = text.trim().toLowerCase();
-  if (t.length === 0) return true; // empty link text — no purpose conveyed
-  if (/^(https?:\/\/|www\.)/i.test(t)) return true; // raw URL as link text
-  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return true;
+  if (t.length === 0) return "needsFix"; // empty link text — no purpose conveyed
+  if (/^(https?:\/\/|www\.)/i.test(t)) return "rawUrl"; // visible URL — advisory
+  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return "needsFix";
   // 1–2 alphanumeric characters cannot describe a destination.
-  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return true;
-  return false;
+  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return "needsFix";
+  return "descriptive";
 }
 
 function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
@@ -1373,44 +1439,62 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
     };
   }
 
-  const descriptive = pdfjs.links.filter(
-    (l) => !isNonDescriptiveLinkText(l.text),
+  const classified = pdfjs.links.map((link) => ({
+    link,
+    cls: classifyLinkText(link.text),
+  }));
+  const needsFix = classified.filter((c) => c.cls === "needsFix");
+  const rawUrls = classified.filter((c) => c.cls === "rawUrl");
+  const descriptive = classified.filter((c) => c.cls === "descriptive");
+
+  // Only genuinely non-descriptive text (empty / vague phrase / 1–2 chars) is
+  // penalized. A visible raw URL satisfies WCAG 2.4.4 (the destination is
+  // determinable) and is surfaced as advisory only — it does not lower the
+  // score. This keeps the verdict aligned with WCAG and with PAC.
+  const score = Math.floor(
+    ((pdfjs.links.length - needsFix.length) / pdfjs.links.length) * 100,
   );
-  const score = Math.floor((descriptive.length / pdfjs.links.length) * 100);
   const findings: string[] = [];
 
-  if (descriptive.length === pdfjs.links.length) {
+  if (needsFix.length === 0 && rawUrls.length === 0) {
     findings.push(`All ${pdfjs.links.length} link(s) use descriptive text`);
     findings.push(`--- Link Details ---`);
-    for (const link of pdfjs.links.slice(0, 20)) {
+    for (const { link } of classified.slice(0, 20)) {
       findings.push(`  "${link.text.trim()}" → ${link.url}`);
     }
     if (pdfjs.links.length > 20) {
       findings.push(`  ... and ${pdfjs.links.length - 20} more link(s)`);
     }
   } else {
-    const weakLinks = pdfjs.links.filter((l) =>
-      isNonDescriptiveLinkText(l.text),
-    );
-    findings.push(
-      `${weakLinks.length} of ${pdfjs.links.length} link(s) use non-descriptive text — a raw URL, or a vague phrase such as "click here" / "read more"`,
-    );
-    findings.push(`--- Links With Non-Descriptive Text ---`);
-    for (const link of weakLinks.slice(0, 15)) {
-      const t = link.text.trim();
-      const why = /^(https?:\/\/|www\.)/i.test(t)
-        ? "raw URL"
-        : t.length === 0
-          ? "empty link text"
-          : "vague phrase";
-      findings.push(`  "${t}" — ${why} → ${link.url}`);
+    if (needsFix.length > 0) {
+      findings.push(
+        `${needsFix.length} of ${pdfjs.links.length} link(s) use non-descriptive text — empty, or a vague phrase such as "click here" / "read more"`,
+      );
+      findings.push(`--- Links With Non-Descriptive Text ---`);
+      for (const { link } of needsFix.slice(0, 15)) {
+        const t = link.text.trim();
+        const why = t.length === 0 ? "empty link text" : "vague phrase";
+        findings.push(`  "${t}" — ${why} → ${link.url}`);
+      }
+      if (needsFix.length > 15) {
+        findings.push(`  ... and ${needsFix.length - 15} more`);
+      }
     }
-    if (weakLinks.length > 15) {
-      findings.push(`  ... and ${weakLinks.length - 15} more`);
+    if (rawUrls.length > 0) {
+      findings.push(`--- Raw URL Link Text (advisory — not penalized) ---`);
+      findings.push(
+        `${rawUrls.length} link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.`,
+      );
+      for (const { link } of rawUrls.slice(0, 10)) {
+        findings.push(`  "${link.text.trim()}" → ${link.url}`);
+      }
+      if (rawUrls.length > 10) {
+        findings.push(`  ... and ${rawUrls.length - 10} more`);
+      }
     }
     if (descriptive.length > 0) {
       findings.push(`--- Links With Descriptive Text ---`);
-      for (const link of descriptive.slice(0, 10)) {
+      for (const { link } of descriptive.slice(0, 10)) {
         findings.push(`  "${link.text.trim()}" → ${link.url}`);
       }
       if (descriptive.length > 10) {
@@ -1419,12 +1503,14 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
         );
       }
     }
-    findings.push(
-      "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
-    );
-    findings.push(
-      "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.",
-    );
+    if (needsFix.length > 0) {
+      findings.push(
+        "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
+      );
+      findings.push(
+        "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.",
+      );
+    }
   }
 
   return {
@@ -1605,17 +1691,6 @@ function scoreReadingOrder(
     };
   }
 
-  // Check MCID ordering
-  findings.push(
-    "Automated reading-order verification is currently limited to structure-tree depth and tag presence.",
-  );
-  findings.push(
-    "This analyzer does not yet compare per-page marked-content order against actual page content streams, so a precise reading-order verdict would be unreliable.",
-  );
-  findings.push(
-    "Manual review recommended: verify the tag order in Adobe Acrobat's Reading Order / Order panels or in PAC before publishing.",
-  );
-
   // Strict: compare struct-tree MCID order (logical) against content-stream
   // MCID order (visual) per page. When both sequences are available and
   // non-trivial, emit a real score. Fall back to null only when extraction
@@ -1668,6 +1743,11 @@ function scoreReadingOrder(
     if (rigorous.pagesWithDrift > 0) {
       findings.push(
         `${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match). Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
+      );
+    }
+    if (rigorous.score < 100) {
+      findings.push(
+        `Reading order scored ${rigorous.score}/100 — the tagged order matched the visual draw order on ${rigorous.similarityPct}% of comparable content (a perfect 100 requires ≥ 97%). The gap is usually a few tags whose order differs slightly from the visual flow; review the page(s) noted above in Acrobat's Order panel.`,
       );
     }
     return {
@@ -1771,9 +1851,12 @@ function computeReadingOrderFidelity(
   const similarity = weightedSum / totalShared;
   const similarityPct = Math.round(similarity * 100);
 
+  // Top band is 0.97 (not 0.99) so a near-perfect document is not docked for a
+  // 1–2% longest-common-subsequence wobble that is really MCID-extraction
+  // jitter (artifact handling, multi-MCID runs) rather than genuine disorder.
   let score: number;
-  if (similarity >= 0.99) score = 100;
-  else if (similarity >= 0.95) score = 90;
+  if (similarity >= 0.97) score = 100;
+  else if (similarity >= 0.9) score = 90;
   else if (similarity >= 0.8) score = 70;
   else if (similarity >= 0.5) score = 40;
   else score = 10;

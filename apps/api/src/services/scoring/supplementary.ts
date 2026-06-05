@@ -234,10 +234,15 @@ export function appendSupplementaryFindings(
   }
 
   if (textCat) {
+    // PDF/UA identifier and artifact tagging are sourced primarily from pdfjs
+    // (XMP + content stream); qpdf's struct-tree-only signals are kept as a
+    // fallback but are almost always empty in practice.
+    const hasPdfUa = (pdfjs.hasPdfUaIdentifier ?? false) || qpdf.hasPdfUaIdentifier;
+    const pdfUaPart = pdfjs.pdfUaPart ?? qpdf.pdfUaPart;
     textCat.findings.push(`--- PDF/UA Compliance ---`);
-    if (qpdf.hasPdfUaIdentifier) {
+    if (hasPdfUa) {
       textCat.findings.push(
-        `  Document declares PDF/UA conformance${qpdf.pdfUaPart ? ` (PDF/UA-${qpdf.pdfUaPart})` : ""}`,
+        `  Document declares PDF/UA conformance${pdfUaPart ? ` (PDF/UA-${pdfUaPart})` : ""}`,
       );
       textCat.findings.push(
         "  PDF/UA (ISO 14289) is the accessibility standard for PDF — this document claims to meet it",
@@ -253,10 +258,11 @@ export function appendSupplementaryFindings(
   }
 
   if (textCat && qpdf.hasStructTree) {
+    const artifactCount = qpdf.artifactCount + (pdfjs.artifactRunCount ?? 0);
     textCat.findings.push(`--- Artifact Tagging ---`);
-    if (qpdf.artifactCount > 0) {
+    if (artifactCount > 0) {
       textCat.findings.push(
-        `  ${qpdf.artifactCount} element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content`,
+        `  ${artifactCount} element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content`,
       );
     } else {
       textCat.findings.push(
@@ -319,7 +325,10 @@ export function appendSupplementaryFindings(
   for (const cat of categories) {
     const guide = acrobatGuide[cat.id];
     if (!guide) continue;
-    if (cat.score === null || cat.severity === "Pass") continue;
+    // Only attach the step-by-step Acrobat remediation guide to categories that
+    // actually have something to fix. A perfect (100) or N/A category does not
+    // need a "How to Fix" section — it is just noise to sift through.
+    if (cat.score === null || cat.score === 100) continue;
     cat.findings.push(...guide);
   }
 }

@@ -27,6 +27,12 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.25.0 — 2026-06-05 · PDF/UA + artifact + font detection fixes, link/reading-order calibration, PDF/UA-1 signals panel
+
+v1.25.0 corrects three findings-text false negatives (the PDF/UA identifier, artifact tagging, and Type3-font embedding — each now read from the extractor that can actually see it), recalibrates two score items (raw-URL link text is advisory rather than a 2.4.4 failure; the reading-order fidelity top band was widened to absorb extraction jitter), stops the Acrobat "How to Fix" card from rendering on perfect categories, and adds a PDF/UA-1 conformance-signals panel to every report. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The detection fixes read output the pdf.js / qpdf analyzers already produce, and the new panel renders booleans already computed in the analysis result. No new inputs, endpoints, persistence, or data egress; every defensive control from prior releases remains in force.
+
 ### v1.24.0 — 2026-06-03 · WCAG 2.2 re-anchor, IITAA 2.1, announcement banner, /wcag-2-2
 
 v1.24.0 re-anchors the displayed standard to **WCAG 2.2 Level AA** (a strict superset of WCAG 2.1 AA, which remains the legal minimum under IITAA 2.1 §E205.4 and ADA Title II), adds **Illinois IITAA 2.1** citations throughout, introduces a reusable announcement banner, and adds a new `/wcag-2-2` manager-guide page. No automated check changed and no score weight changed. A `WCAG_VERSION=2.1` environment flag reverts all labels, links, and 2.2 not-assessed criteria; set it and redeploy (API reverts on restart; web UI on rebuild). It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.

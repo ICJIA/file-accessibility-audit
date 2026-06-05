@@ -104,6 +104,34 @@ describe("integration: accessible PDF", () => {
   it("executive summary describes document quality", () => {
     expect(result.executiveSummary.length).toBeGreaterThan(20);
   });
+
+  it("detects the PDF/UA identifier from XMP metadata (pdfjs, not qpdf)", () => {
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.findings.some((f) => f.includes("PDF/UA"))).toBe(true);
+    expect(cat.findings.some((f) => f.includes("No PDF/UA identifier"))).toBe(
+      false,
+    );
+  });
+
+  it("detects artifact tagging from the page content stream", () => {
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.findings.some((f) => f.includes("tagged as artifacts"))).toBe(
+      true,
+    );
+    expect(cat.findings.some((f) => f.includes("No artifact tags found"))).toBe(
+      false,
+    );
+  });
+
+  it("does not append the Acrobat How-to-Fix guide to categories scoring 100", () => {
+    for (const cat of result.categories) {
+      if (cat.score === 100) {
+        expect(
+          cat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
+        ).toBe(false);
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

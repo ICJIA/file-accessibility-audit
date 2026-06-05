@@ -1254,6 +1254,76 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.25.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.25.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-06-05</strong> · scope: PDF/UA + artifact +
+            font detection fixes, link and reading-order scoring calibration,
+            and a new PDF/UA-1 conformance-signals panel. No security review was
+            required — nothing about data handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.25.0 corrects how the audit reads three signals it had been
+          reporting incorrectly (the PDF/UA identifier, artifact tagging, and
+          embedded Type3 fonts), softens two score rules to match WCAG and PAC
+          (a visible web address used as link text is no longer treated as a
+          failure; an essentially-correct reading order is no longer docked for
+          a tiny measurement difference), and adds a panel summarizing the
+          document's PDF/UA-1 signals. No security-relevant behavior changed.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              More accurate findings</strong
+            >
+            — The report no longer claims a PDF/UA-tagged file "has no PDF/UA
+            identifier" or "no artifact tags," and it no longer flags embedded
+            Type3 fonts as missing. These were wording/display errors; document
+            scores were not affected by them.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Two score rules relaxed</strong
+            >
+            — A link whose visible text is a full web address now counts as
+            acceptable (it tells the reader where it goes), and a document whose
+            reading order is essentially correct is no longer docked for a 1–2%
+            measurement difference. Some documents score slightly higher.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No new data and no new attack surface</strong
+            >
+            — The fixes read data the analyzers already produced; the new
+            PDF/UA-1 panel displays values already computed during the audit. No
+            code path, endpoint, retention window, or data-handling behavior
+            changed.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.24.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

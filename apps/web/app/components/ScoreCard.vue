@@ -125,6 +125,15 @@
       </p>
     </div>
 
+    <!-- PDF/UA-1 conformance signals — paired with the WCAG verdict above.
+         Signals only, not a verdict; the card points to PAC / veraPDF for the
+         formal PDF/UA-1 (ISO 14289-1) conformance test. -->
+    <PdfUaSignalsCard
+      v-if="result.pdfUa"
+      :signals="result.pdfUa"
+      class="max-w-2xl mx-auto mt-5"
+    />
+
     <!-- Verdict explanation (counts) -->
     <p
       v-if="verdictExplanation"
@@ -167,6 +176,7 @@ import {
   type ScoreProfile,
   type ScoringMode,
 } from "~/utils/scoringProfiles";
+import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
 
@@ -201,6 +211,20 @@ interface ConformanceVerdict {
   headline: string;
 }
 
+interface PdfUaSignals {
+  hasIdentifier: boolean;
+  part: string | null;
+  isTagged: boolean;
+  isMarkedContent: boolean;
+  artifactRunCount: number;
+  structTreeDepth: number;
+  fontCount: number;
+  embeddedFontCount: number;
+  allFontsEmbedded: boolean;
+  hasLanguage: boolean;
+  hasTitle: boolean;
+}
+
 const props = withDefaults(
   defineProps<{
     result: {
@@ -212,6 +236,7 @@ const props = withDefaults(
       categories?: Category[];
       scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
       conformance?: ConformanceVerdict;
+      pdfUa?: PdfUaSignals;
     };
     // The prominent ReportFileBanner now carries the filename above the card on
     // the live + shared report pages, which pass showFilename: false to avoid
