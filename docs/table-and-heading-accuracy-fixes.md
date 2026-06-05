@@ -10,7 +10,7 @@
 
 ## 1. Executive summary
 
-SA user reported that the audit was **mis-diagnosing tables and headings**:
+A user reported that the audit was **mis-diagnosing tables and headings**:
 
 1. **Tables showed more rows than the PDF actually contained.**
 2. **A table passed every visible check but still lost 5 points.**
