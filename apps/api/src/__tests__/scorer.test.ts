@@ -994,8 +994,8 @@ describe("scoreTableMarkup edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // 40 (headers) + 20 (rows) + 0 (no scope) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 80
-    expect(findCategory(result, "table_markup").score).toBe(80);
+    // 40 (headers) + 20 (rows) + 0 (no scope) + 10 (no nesting) + 5 (caption always credited) + 10 (consistent) = 85
+    expect(findCategory(result, "table_markup").score).toBe(85);
   });
 
   it("scope-only conformant table reaches 100 (scope satisfies header association)", () => {
@@ -1027,6 +1027,38 @@ describe("scoreTableMarkup edge cases", () => {
     expect(findCategory(result, "table_markup").score).toBe(100);
   });
 
+  it("captionless but otherwise-conformant table still reaches 100 (caption is a non-blocking note)", () => {
+    // Same fully-conformant simple table as above, but with NO <Caption>.
+    // A caption is not a WCAG 2.1/2.2 requirement, so its absence must not
+    // cap the category below 100 — the points are awarded regardless, and the
+    // missing caption is surfaced only as an advisory note.
+    const qpdf = makeQpdf({
+      tables: [
+        makeTable({
+          hasHeaders: true,
+          headerCount: 3,
+          dataCellCount: 9,
+          hasScope: true,
+          scopeMissingCount: 0,
+          hasRowStructure: true,
+          rowCount: 4,
+          hasCaption: false,
+          hasConsistentColumns: true,
+          columnCounts: [3, 3, 3, 3],
+          hasHeaderAssociation: false,
+        }),
+      ],
+    });
+    const pdfjs = makePdfjs();
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "table_markup");
+    expect(cat.score).toBe(100);
+    // The missing caption is still mentioned as an (optional) recommendation.
+    expect(cat.findings.some((f) => f.toLowerCase().includes("caption"))).toBe(
+      true,
+    );
+  });
+
   it("no headers at all → low score, can still earn structure points", () => {
     const qpdf = makeQpdf({
       tables: [
@@ -1041,8 +1073,8 @@ describe("scoreTableMarkup edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // 0 (no headers) + 20 (rows) + 0 (no scope, N/A) + 10 (no nesting) + 0 (no caption) + 10 (consistent) = 40
-    expect(findCategory(result, "table_markup").score).toBe(40);
+    // 0 (no headers) + 20 (rows) + 0 (no scope, N/A) + 10 (no nesting) + 5 (caption always credited) + 10 (consistent) = 45
+    expect(findCategory(result, "table_markup").score).toBe(45);
   });
 
   it("Strict does not give partial credit to a well-formed grid without TH cells", () => {
@@ -1063,7 +1095,8 @@ describe("scoreTableMarkup edge cases", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 5000 });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "table_markup");
-    expect(cat.score).toBe(40);
+    // 0 (no headers) + 20 (rows) + 10 (no nesting) + 5 (caption always credited) + 10 (consistent) = 45
+    expect(cat.score).toBe(45);
     expect(
       cat.findings.some((f) =>
         f.includes(
@@ -1118,8 +1151,8 @@ describe("scoreTableMarkup edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // 20 (some headers) + 20 (all rows) + 10 (all TH-bearing tables have scope) + 10 (no nesting) + 2 (some caption) + 10 (all consistent) + 5 (some assoc) = 77
-    expect(findCategory(result, "table_markup").score).toBe(77);
+    // 20 (some headers) + 20 (all rows) + 10 (all TH-bearing tables have scope) + 10 (no nesting) + 5 (caption always credited) + 10 (all consistent) + 5 (some assoc) = 80
+    expect(findCategory(result, "table_markup").score).toBe(80);
   });
 
   it("inconsistent columns reduces score", () => {

@@ -1189,25 +1189,22 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
     );
   }
 
-  // 5. Caption (5 points) — nice to have, not a WCAG requirement
+  // 5. Caption (5 points) — a best-practice enhancement, NOT a WCAG 2.1/2.2
+  // requirement (no success criterion mandates a table caption). Its absence
+  // must not cap an otherwise-conformant table below 100, so the points are
+  // awarded unconditionally; a missing caption is surfaced as an optional
+  // recommendation only.
+  score += 5;
   const withCaption = qpdf.tables.filter((t) => t.hasCaption).length;
   if (withCaption === n) {
-    score += 5;
     findings.push(`All ${n} table(s) have <Caption> elements`);
   } else if (withCaption > 0) {
-    score += 2;
     findings.push(
-      `${withCaption} of ${n} table(s) have <Caption> — ${n - withCaption} missing`,
-    );
-    findings.push(
-      "Fix: Add a <Caption> tag as the first child of each <Table> with a brief description",
+      `${withCaption} of ${n} table(s) have a <Caption>; ${n - withCaption} do not. A caption is optional (not required by WCAG 2.1/2.2), but it helps screen readers announce a table's purpose.`,
     );
   } else {
     findings.push(
-      "No tables have <Caption> elements — adding a caption helps screen readers announce table purpose",
-    );
-    findings.push(
-      "Fix: Add a <Caption> tag as the first child of each <Table> in the Tags panel",
+      "No tables have a <Caption> element. A caption is optional (not required by WCAG 2.1/2.2), but adding one as the first child of each <Table> helps screen readers announce the table's purpose.",
     );
   }
 

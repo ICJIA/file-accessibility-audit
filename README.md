@@ -19,7 +19,7 @@ A web tool that **audits and (optionally) remediates** PDF accessibility against
 | **3** | PDFs per batch | Upload up to 3 PDFs at once; per-tab remediation. `POST /api/analyze-url` for programmatic auditing of public PDFs. |
 | **4** | Export formats | Word / HTML / Markdown / JSON report exports. 1-year shareable links (no login required to view). |
 
-Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/pdf-remediation-integration-plan.md](docs/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/pdf-remediation-alt-text-walkthrough-spec.md](docs/pdf-remediation-alt-text-walkthrough-spec.md).
+Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/archive/pdf-remediation-integration-plan.md](docs/archive/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/archive/pdf-remediation-alt-text-walkthrough-spec.md](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md).
 
 The intended workflow is: **upload → review findings → either auto-remediate or fix at the source (Word, InDesign, etc.) and re-export → re-upload to verify.** Manual review remains essential for full IITAA compliance regardless of which path is taken — the tool's job is to find issues and reduce the manual remediation surface, not replace human review.
 
@@ -168,7 +168,7 @@ Reviewed the full remediation surface (API routes, worker, frontend, cleanup swe
 
 - **P1 / fixed**: Download endpoint loaded the full output PDF (up to 50 MB) into memory before sending. Could OOM the API process under concurrent downloads given the 512 MB PM2 cap. **Fix:** switched to `createReadStream` + `stream.pipe(res)`. Memory footprint per download is now constant regardless of output size.
 - **P1 / fixed**: Concurrent download requests could both pass the token check and both retrieve the file before either completed, violating the single-use guarantee. **Fix:** `setExpired(job.id)` is now called before the response stream is started, so concurrent requests see `status='expired'` and get `410 Gone`.
-- **P2 / mitigated**: When `AUTH.REQUIRE_LOGIN=false` (dev/internal mode), the per-job email guard on `/status`, `/download`, and `/receipt` is bypassed; a caller with a known UUID jobId could read job data. **Mitigation:** UUIDv4 jobIds (122 bits of entropy) make enumeration impractical; production runs with `REQUIRE_LOGIN=true`. **Status:** documented as the established posture in `docs/pdf-remediation-integration-plan.md` § Security.
+- **P2 / mitigated**: When `AUTH.REQUIRE_LOGIN=false` (dev/internal mode), the per-job email guard on `/status`, `/download`, and `/receipt` is bypassed; a caller with a known UUID jobId could read job data. **Mitigation:** UUIDv4 jobIds (122 bits of entropy) make enumeration impractical; production runs with `REQUIRE_LOGIN=true`. **Status:** documented as the established posture in `docs/archive/pdf-remediation-integration-plan.md` § Security.
 - **P2 / accepted**: Adobe Acrobat parity scoring is still computed server-side even though the UI no longer surfaces it. ~50 ms per audit. **Status:** intentional — keeps the data shape stable for existing tests and audit-log entries. May remove in a later release if the cost matters.
 - **P3 / accepted**: `qpdf --check` can flag some borderline-valid outputs as warnings, which we treat as failures. **Status:** preferred over the alternative — better to reject a borderline file than serve a damaged one.
 - **Pre-launch items still open**: external penetration test on the remediation surface; full Vitest coverage for the remediation pipeline (`remediation.test.ts`, `remediation-privacy.test.ts`, `remediation-receipt.test.ts`). Tracked in the Phase 4 roadmap.
@@ -264,8 +264,8 @@ When authentication is enabled, the app sends one-time passcodes via email. This
 
 | Provider          | Docs                                                             |
 | ----------------- | ---------------------------------------------------------------- |
-| Mailgun (default) | [docs/07-mailgun-integration.md](docs/07-mailgun-integration.md) |
-| SMTP2GO           | [docs/06-smtp2go-integration.md](docs/06-smtp2go-integration.md) |
+| Mailgun (default) | [docs/archive/07-mailgun-integration.md](docs/archive/07-mailgun-integration.md) |
+| SMTP2GO           | [docs/archive/06-smtp2go-integration.md](docs/archive/06-smtp2go-integration.md) |
 
 The provider is controlled in `audit.config.ts` → `EMAIL.PROVIDER`. Credentials go in `apps/api/.env`:
 
@@ -885,25 +885,27 @@ The only file not covered by the script is `apps/cli/package.json` (package `nam
 
 ## Design Documents
 
+The app's current behavior is defined by the code and [`audit.config.ts`](audit.config.ts). The most recent design write-up is the accuracy doc below (in `docs/`); the earlier design, deployment, integration, and roadmap documents have been moved to [`docs/archive/`](docs/archive/) for reference.
+
 | Doc                                                                        | Description                                                                             |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [00 — Master Design](docs/00-master-design.md) | Architecture, scoring model, API, auth, security (single source of truth) |
-| [01 — Phase 1: Core Grader](docs/01-phase-1-core-grader.md) | Core grader deliverables and testing checklist |
-| [04 — Deployment Guide](docs/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
-| [06 — SMTP2GO Integration](docs/06-smtp2go-integration.md) | Email provider setup (alternative provider) |
-| [07 — Mailgun Integration](docs/07-mailgun-integration.md) | Mailgun setup (default provider) |
-| [09 — Forge Deployment Cheatsheet](docs/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script |
-| [10 — Scoring Reconciliation](docs/10-scoring-reconciliation.md) | Strict vs Practical scoring, PDF/UA rationale, WCAG/ADA interpretation, Matterhorn note |
-| [Fleet Inventory Reporting](docs/fleet-inventory-reporting.md) | The `/api/audit-url` fleet endpoint: profile scores, report URLs, hash dedup |
-| [PDF Remediation Integration Plan](docs/pdf-remediation-integration-plan.md) | Auto-remediation architecture, privacy, threat model, audit trail |
-| [PDF Remediation — Alt-Text Walkthrough Spec](docs/pdf-remediation-alt-text-walkthrough-spec.md) | Spec for the in-progress interactive alt-text walkthrough |
+| [00 — Master Design](docs/archive/00-master-design.md) | Architecture, scoring model, API, auth, security — original design reference |
+| [01 — Phase 1: Core Grader](docs/archive/01-phase-1-core-grader.md) | Core grader deliverables and testing checklist |
+| [04 — Deployment Guide](docs/archive/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
+| [06 — SMTP2GO Integration](docs/archive/06-smtp2go-integration.md) | Email provider setup (alternative provider) |
+| [07 — Mailgun Integration](docs/archive/07-mailgun-integration.md) | Mailgun setup (default provider) |
+| [09 — Forge Deployment Cheatsheet](docs/archive/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script |
+| [10 — Scoring Reconciliation](docs/archive/10-scoring-reconciliation.md) | Strict vs Practical scoring, PDF/UA rationale, WCAG/ADA interpretation, Matterhorn note |
+| [Fleet Inventory Reporting](docs/archive/fleet-inventory-reporting.md) | The `/api/audit-url` fleet endpoint: profile scores, report URLs, hash dedup |
+| [PDF Remediation Integration Plan](docs/archive/pdf-remediation-integration-plan.md) | Auto-remediation architecture, privacy, threat model, audit trail |
+| [PDF Remediation — Alt-Text Walkthrough Spec](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md) | Spec for the in-progress interactive alt-text walkthrough |
 | [Table & Heading Accuracy Fixes](docs/table-and-heading-accuracy-fixes.md) | v1.24.1 diagnosis & fixes: table over-count, scope-based table scoring, heading order |
 
-Superseded and roadmap-only documents are kept in [docs/archive/](docs/archive/).
+All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see its [README](docs/archive/README.md) for what each document is and whether it's superseded or still-accurate reference.
 
 ## Tests
 
-**665 tests** across 29 test files. Run all with a summary at the end:
+**666 tests** across 29 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -918,18 +920,18 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      357 passed (11 files)
+  ✔ API      358 passed (11 files)
   ✔ Web      308 passed (18 files)
 ────────────────────────────────────────────────────────────
-  ✔ 665 tests passed across 29 files
+  ✔ 666 tests passed across 29 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (357 tests)
+### API Tests (358 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
-| `scorer.test.ts` | 125 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
+| `scorer.test.ts` | 126 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text) |
 | `qpdfParser.test.ts` | 70 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count, list analysis (LI/Lbl/LBody), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON |
 | `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement, and route-level input/PDF validation and fetch-error handling |
 | `integration.test.ts` | 28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |
@@ -992,7 +994,7 @@ The `accessibility.test.ts` (38 tests) and `color-mode.test.ts` (51 tests) suite
 
 **Target:** DigitalOcean droplet (2 vCPU / 4GB RAM, ~$24/mo) → Laravel Forge → PM2 → nginx
 
-See [docs/04-deployment-guide.md](docs/04-deployment-guide.md) for full instructions (server setup, nginx config, firewall, SSL). Short version:
+See [docs/archive/04-deployment-guide.md](docs/archive/04-deployment-guide.md) for full instructions (server setup, nginx config, firewall, SSL). Short version:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -1014,7 +1016,7 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 - Rate limiting on all endpoints
 - Helmet + nginx security headers
 - CORS locked to same origin in production
-- See **docs/00-master-design.md, Section 9** for the full security model
+- See **docs/archive/00-master-design.md, Section 9** for the full security model
 
 ### Batch upload security
 

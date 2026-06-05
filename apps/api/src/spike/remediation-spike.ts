@@ -20,7 +20,7 @@ process.env.JAVA_HOME = process.env.JAVA_HOME ?? JDK_HOME;
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../../..");
 const SPIKE_OUT = resolve(REPO_ROOT, "spike-out");
-const REPORT_PATH = resolve(REPO_ROOT, "docs/spike-remediation-results.md");
+const REPORT_PATH = resolve(REPO_ROOT, "docs/archive/spike-remediation-results.md");
 const HYBRID_URL = process.env.ODL_HYBRID_URL ?? "http://localhost:5002";
 const ENABLE_HYBRID = (process.env.ODL_ENABLE_HYBRID ?? "1") !== "0";
 

@@ -33,7 +33,7 @@ export function validateMailConfig(): void {
       console.error('\n✖ Email provider is not configured.')
       console.error(`  Provider: ${EMAIL.PROVIDER} (${host}:${port})`)
       console.error('  Missing: SMTP_USER and/or SMTP_PASS in .env')
-      console.error('  See: docs/07-mailgun-integration.md or docs/06-smtp2go-integration.md\n')
+      console.error('  See: docs/archive/07-mailgun-integration.md or docs/archive/06-smtp2go-integration.md\n')
       process.exit(1)
     } else {
       console.warn(`[WARN] SMTP credentials not set — OTP codes will only be logged to console.`)

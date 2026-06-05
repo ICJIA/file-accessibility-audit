@@ -4,7 +4,7 @@
  * ============================================================================
  * EVERY magic number, threshold, weight, limit, and display constant in this
  * project lives here. The API imports this directly. The frontend references it
- * via shared types. The design documents (docs/00-master-design.md) describe
+ * via shared types. The design documents (docs/archive/00-master-design.md) describe
  * the "why" — this file defines the "what".
  *
  * RULES:
@@ -849,7 +849,7 @@ export const UI = {
 // ---------------------------------------------------------------------------
 // Tunables for the "Remediate this PDF" feature. v1 ships basic ODL only;
 // hybrid mode and AI alt text are on the roadmap (see
-// docs/pdf-remediation-integration-plan.md).
+// docs/archive/pdf-remediation-integration-plan.md).
 //
 // The privacy posture is the load-bearing decision here: PDFs are NOT cached
 // between audit and remediation. The user re-uploads to remediate. Inputs are

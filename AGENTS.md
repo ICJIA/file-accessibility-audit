@@ -3,7 +3,7 @@
 Short, opinionated orientation for AI coding agents (Claude Code, Codex,
 Cursor, Gemini CLI, etc.) working on this repository.
 
-If something here conflicts with `docs/00-master-design.md`, the master
+If something here conflicts with `docs/archive/00-master-design.md`, the master
 design wins — that doc is the single source of truth for architecture
 decisions. This file captures the load-bearing conventions and the
 gotchas that tend to bite agents on their first contact.
@@ -273,10 +273,10 @@ deploy, edit that file + `pm2 restart ecosystem.config.cjs`.
 
 ## When in doubt
 
-- `docs/00-master-design.md` — architecture decisions, rationale, the
+- `docs/archive/00-master-design.md` — architecture decisions, rationale, the
   full feature catalog
 - `audit.config.ts` — every tunable with a SAFE TO CHANGE / DO NOT
   CHANGE label
 - `CHANGELOG.md` — release-by-release history with commit references
 - `README.md` § Security — pre-release red/blue-team audit findings
-- `docs/fleet-inventory-reporting.md` — fleet-tool integration brief
+- `docs/archive/fleet-inventory-reporting.md` — fleet-tool integration brief

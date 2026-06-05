@@ -4,9 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.24.2] - 2026-06-05
+
+Follow-up to 1.24.1: a table-scoring refinement and a docs reorganization.
+
+### Changed
+
+- **Table captions no longer reduce the score.** A `<Caption>` is a best-practice enhancement, not a WCAG 2.1/2.2 requirement (no success criterion mandates one). Previously a fully-conformant simple table without a caption capped at 95; the 5 caption points are now awarded unconditionally, and a missing caption is surfaced as an optional recommendation only. Combined with the 1.24.1 header-association fix, a simple table that is fully conformant via `/Scope` now scores 100. (Category impact: +5 for any table without a caption; small upward movement on affected documents' overall scores.)
+- **`/docs` trimmed to the current set.** Only `table-and-heading-accuracy-fixes.md` remains in the `docs/` root; all design, deployment, integration, and roadmap documents now live in `docs/archive/` (with a README distinguishing the superseded docs from still-accurate reference docs). References in the README, `AGENTS.md`, `audit.config.ts`, API code comments, and the data-retention page's GitHub links were repointed to `docs/archive/`.
+
+### Tests
+
+- API suite **357 → 358**: new "captionless-but-conformant table scores 100" case; four existing table-scoring expectations updated because captions no longer deduct.
+
 ## [1.24.1] - 2026-06-05
 
-Accuracy fixes for table-structure and heading diagnostics, reported by users. Full write-up in [docs/table-and-heading-accuracy-fixes.md](docs/table-and-heading-accuracy-fixes.md).
+Accuracy fixes for table-structure and heading diagnostics, reported by a user. Full write-up in [docs/table-and-heading-accuracy-fixes.md](docs/table-and-heading-accuracy-fixes.md).
 
 ### Fixed
 
@@ -296,7 +309,7 @@ The fleet-audit story is now end-to-end. ICJIA's fleet inventory tool (and any s
 
 - **New endpoint: `POST /api/audit-url`** — combined "analyze a PDF by URL **and** persist a shareable report" route. Returns a trimmed scalar-only response shape (filename, pageCount, audited, strict score+grade, practical score+grade, reportId, reportUrl, reportExpiresAt, cached). Designed for direct flattening into CSV columns.
 - **Hash dedup (Policy A).** After fetching the PDF the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching `(email, content_hash)`. On a hit, the cached `reportUrl` is returned and no new audit runs (`cached: true`). On a miss, a fresh audit runs and a new report row is persisted. Re-running the fleet job for unchanged PDFs returns the same URL — quarterly CSV diffs cleanly distinguish "file changed" from "row unchanged" without client-side caching. Optional `force=true` (body field or `?force=true` query param) bypasses dedup.
-- **`docs/fleet-inventory-reporting.md`** — self-contained integration brief for the fleet tool author. Covers PAT setup, request/response shape, 8 recommended CSV columns mapped to response fields, HTML grade-cell color coding, per-PDF pseudocode, status-code matrix with retry policy, dedup behavior, pacing guidance (1-2 concurrent max), URL allowlist with look-alike rejection examples, TTL recommendations (< 11-month re-run cadence), and a smoke-test plan against three known production PDFs.
+- **`docs/archive/fleet-inventory-reporting.md`** — self-contained integration brief for the fleet tool author. Covers PAT setup, request/response shape, 8 recommended CSV columns mapped to response fields, HTML grade-cell color coding, per-PDF pseudocode, status-code matrix with retry policy, dedup behavior, pacing guidance (1-2 concurrent max), URL allowlist with look-alike rejection examples, TTL recommendations (< 11-month re-run cadence), and a smoke-test plan against three known production PDFs.
 - **README § "Fleet PDF Auditing (`POST /api/audit-url`)"** — endpoint comparison table vs `/api/analyze-url` and `/api/bulk-from-inventory`, the trimmed response example, hash-dedup explanation, and a jq one-liner to flatten the response into a CSV row.
 
 ### Changed — URL allowlist (broader fleet coverage)
@@ -393,7 +406,7 @@ The Ubuntu deploy script now auto-detects veraPDF at four common install paths (
 
 ### Added — PDF auto-remediation feature
 
-Optional feature that produces a tagged, more-accessible PDF from an audited one. Gated behind `REMEDIATION_ENABLED=true`; disabled by default. Full architectural spec in [`docs/pdf-remediation-integration-plan.md`](docs/pdf-remediation-integration-plan.md); feasibility data behind every decision in [`docs/spike-remediation-results.md`](docs/spike-remediation-results.md); Phase 1 follow-up spec (interactive alt-text walkthrough) in [`docs/pdf-remediation-alt-text-walkthrough-spec.md`](docs/pdf-remediation-alt-text-walkthrough-spec.md).
+Optional feature that produces a tagged, more-accessible PDF from an audited one. Gated behind `REMEDIATION_ENABLED=true`; disabled by default. Full architectural spec in [`docs/archive/pdf-remediation-integration-plan.md`](docs/archive/pdf-remediation-integration-plan.md); feasibility data behind every decision in [`docs/archive/spike-remediation-results.md`](docs/archive/spike-remediation-results.md); Phase 1 follow-up spec (interactive alt-text walkthrough) in [`docs/archive/pdf-remediation-alt-text-walkthrough-spec.md`](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md).
 
 **Pipeline:**
 
@@ -785,7 +798,7 @@ This release rewrites how the two scoring profiles are described throughout the 
 
 Motivation: ICJIA has not yet formally adopted a rubric, so framing Strict as "ICJIA's rubric" was premature. The previous messaging also unnecessarily positioned Practical as a "developer extension" with less standing than Strict. The new framing describes both profiles neutrally as two scoring methodologies that evaluate the same document using WCAG guidelines — differing only in category weights and whether PDF/UA signals are included.
 
-- **Removed "ICJIA's rubric" and "developer extension / developer-added" language** from all user-facing copy: `apps/web/app/pages/index.vue`, `ScoreProfileBanner.vue`, `ScoreCard.vue`, `scoringProfiles.ts`, `modeDivergence.ts`, `useReportExport.ts`, `audit.config.ts`, `public/llms.txt`, `public/llms-full.txt`, `README.md`, `docs/00-master-design.md`, `docs/10-scoring-reconciliation.md`.
+- **Removed "ICJIA's rubric" and "developer extension / developer-added" language** from all user-facing copy: `apps/web/app/pages/index.vue`, `ScoreProfileBanner.vue`, `ScoreCard.vue`, `scoringProfiles.ts`, `modeDivergence.ts`, `useReportExport.ts`, `audit.config.ts`, `public/llms.txt`, `public/llms-full.txt`, `README.md`, `docs/archive/00-master-design.md`, `docs/archive/10-scoring-reconciliation.md`.
 - **Profile labels** changed:
   - Strict: `Strict semantic score (ICJIA rubric)` → `Strict semantic score (WCAG + IITAA §E205.4)`
   - Practical: `Practical readiness score (developer extension)` → `Practical readiness score (WCAG + PDF/UA)`
@@ -808,7 +821,7 @@ Motivation: ICJIA has not yet formally adopted a rubric, so framing Strict as "I
 
 ### Changed
 
-- **`docs/00-master-design.md` updated to match v1.12.9 attribution** (doc version bumped from 1.7 → 1.8). Project Overview now states explicitly that the app computes two attributed profiles (Strict = ICJIA's rubric, Practical = developer-introduced extension) and that only Strict speaks for ICJIA. A new **Scoring Profiles & Attribution** table at the top of §5 Scoring Model pins the origin tags (`icjia.iitaa.wcag21` / `developer-extension.pdfua`), authority, weight scope, and role of each profile. Added "Attribution-first scoring" to the Core Principles list so the architectural invariant is surfaced at the top of the design doc.
+- **`docs/archive/00-master-design.md` updated to match v1.12.9 attribution** (doc version bumped from 1.7 → 1.8). Project Overview now states explicitly that the app computes two attributed profiles (Strict = ICJIA's rubric, Practical = developer-introduced extension) and that only Strict speaks for ICJIA. A new **Scoring Profiles & Attribution** table at the top of §5 Scoring Model pins the origin tags (`icjia.iitaa.wcag21` / `developer-extension.pdfua`), authority, weight scope, and role of each profile. Added "Attribution-first scoring" to the Core Principles list so the architectural invariant is surfaced at the top of the design doc.
 
 ## [1.12.9] - 2026-04-19
 
@@ -834,7 +847,7 @@ The correction is: **Strict is ICJIA's rubric** (anchored to WCAG 2.1 AA and Ill
 - **AI-analysis payload** (`useReportExport.ts` → `buildAiAnalysis`) now emits a parenthetical disclaimer next to the Practical readiness score line so anything pasted into ChatGPT/Claude carries the attribution correction.
 - **Export profile labels and descriptions** (`useReportExport.ts` → `profileLabel`, `profileDescription`) updated to qualify each profile with its origin. Exports to Word, HTML, Markdown, and JSON now display "Strict semantic score (ICJIA rubric)" and "Practical readiness score (developer extension)".
 - **README "Two scoring modes, one document" section** renamed to "Two profiles, one document — and only one of them is ICJIA's rubric" and rewritten with a prominent attribution block, a "Caveats about Practical" checklist, and explicit guidance that Strict is the score to cite in Illinois accessibility-law contexts.
-- **`docs/10-scoring-reconciliation.md`** rewritten with a new "Attribution" section at the top, rewritten profile descriptions, rewritten Matterhorn / PDF-UA note, a specific worked example (the ICJIA annual-report fixture), and stricter "Recommended usage" guidance (do not cite Practical for Illinois publication decisions).
+- **`docs/archive/10-scoring-reconciliation.md`** rewritten with a new "Attribution" section at the top, rewritten profile descriptions, rewritten Matterhorn / PDF-UA note, a specific worked example (the ICJIA annual-report fixture), and stricter "Recommended usage" guidance (do not cite Practical for Illinois publication decisions).
 - **`llms.txt` and `llms-full.txt`** updated so that LLMs consuming these files describe Strict as ICJIA's rubric and Practical as a developer extension — preventing downstream tools from citing Practical as an Illinois accessibility-law signal.
 
 ### Fixed

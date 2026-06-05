@@ -13,7 +13,7 @@ process.env.JAVA_HOME = process.env.JAVA_HOME ?? JDK_HOME;
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../../..");
 const SPIKE_OUT = resolve(REPO_ROOT, "spike-out-smolvlm");
-const REPORT_PATH = resolve(REPO_ROOT, "docs/spike-remediation-results.md");
+const REPORT_PATH = resolve(REPO_ROOT, "docs/archive/spike-remediation-results.md");
 const HYBRID_URL = "http://localhost:5002";
 
 // Pick PDFs with images that have room to improve on alt_text scoring.

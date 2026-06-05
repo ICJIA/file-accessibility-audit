@@ -5,7 +5,7 @@
  * `remediation_jobs` and `remediation_events` tables, which the
  * frontend polls.
  *
- * Pipeline (see docs/pdf-remediation-integration-plan.md):
+ * Pipeline (see docs/archive/pdf-remediation-integration-plan.md):
  *   preparing  → qpdf normalize, delete input
  *   tagging    → ODL convert tagged-pdf, delete normalized
  *   validating → qpdf --check the output

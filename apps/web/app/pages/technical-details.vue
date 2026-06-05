@@ -448,7 +448,7 @@ const architectureDiagram = `flowchart TD
         step decompresses object streams before ODL touches the file,
         which works around the bug entirely. This was discovered during
         the v1.18.0 feasibility spike — see
-        <code class="text-xs font-mono">docs/spike-remediation-results.md</code>.
+        <code class="text-xs font-mono">docs/archive/spike-remediation-results.md</code>.
       </p>
     </section>
 

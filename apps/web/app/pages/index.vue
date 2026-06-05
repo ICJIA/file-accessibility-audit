@@ -2766,7 +2766,7 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
             informative classification). The roadmap for this tool
             (see
             <code class="text-xs font-mono"
-              >docs/pdf-remediation-alt-text-walkthrough-spec.md</code
+              >docs/archive/pdf-remediation-alt-text-walkthrough-spec.md</code
             >) is an interactive walkthrough that augments the
             machine-checkable foundation with human-authored alt text —
             without any AI in the loop, because the regulatory durability
@@ -3026,7 +3026,7 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
             <em>Catalog object is wrong type (null)</em>. With preprocessing,
             both PDFs round-trip cleanly and the score moves from F to D-grade
             improvement. See
-            <code class="font-mono">docs/spike-remediation-results.md</code>
+            <code class="font-mono">docs/archive/spike-remediation-results.md</code>
             for the full reproducer + results.
           </p>
         </div>
@@ -3565,7 +3565,7 @@ pm2 restart ecosystem.config.cjs</div>
                 AI-based alt text generation (which would call a hosted
                 vision API) is explicitly not used in v1 — see the
                 <code class="text-xs font-mono"
-                  >docs/pdf-remediation-alt-text-walkthrough-spec.md</code
+                  >docs/archive/pdf-remediation-alt-text-walkthrough-spec.md</code
                 >
                 roadmap document for the AI-free Phase 1 approach.</span
               >

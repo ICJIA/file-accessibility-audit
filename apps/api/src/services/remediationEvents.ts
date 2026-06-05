@@ -7,7 +7,7 @@ import db from "../db/sqlite.js";
  * render the user-facing processing receipt, the auditor compliance
  * report, and the cleanup-on-startup reconciliation.
  *
- * See docs/pdf-remediation-integration-plan.md → "Lifecycle audit trail"
+ * See docs/archive/pdf-remediation-integration-plan.md → "Lifecycle audit trail"
  * for the canonical event list and meaning.
  */
 export type RemediationEvent =

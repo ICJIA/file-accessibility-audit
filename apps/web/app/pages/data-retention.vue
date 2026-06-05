@@ -592,7 +592,7 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
         <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
           A future feature on the project roadmap (Phase 1, documented at
           <code class="text-xs font-mono"
-            >docs/pdf-remediation-alt-text-walkthrough-spec.md</code
+            >docs/archive/pdf-remediation-alt-text-walkthrough-spec.md</code
           >)
           adds an interactive walkthrough that lets users manually author
           alt-text for figures in their remediated PDFs. This feature is
@@ -2514,7 +2514,7 @@ CREATE TABLE remediation_jobs (
           sweep, the database schema, and the file lifecycle. The 15-row
           threat-model checklist documented in
           <code class="text-xs font-mono"
-            >docs/pdf-remediation-integration-plan.md</code
+            >docs/archive/pdf-remediation-integration-plan.md</code
           >
           (§ Security) was the basis of the review.
         </p>
@@ -2999,7 +2999,7 @@ WHERE event = 'output_deleted'
           </p>
         </a>
         <a
-          href="https://github.com/ICJIA/file-accessibility-audit/blob/main/docs/pdf-remediation-integration-plan.md"
+          href="https://github.com/ICJIA/file-accessibility-audit/blob/main/docs/archive/pdf-remediation-integration-plan.md"
           target="_blank"
           rel="noopener noreferrer"
           class="rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] p-4 hover:border-blue-700/40 transition-colors"
@@ -3018,7 +3018,7 @@ WHERE event = 'output_deleted'
           </p>
         </a>
         <a
-          href="https://github.com/ICJIA/file-accessibility-audit/blob/main/docs/spike-remediation-results.md"
+          href="https://github.com/ICJIA/file-accessibility-audit/blob/main/docs/archive/spike-remediation-results.md"
           target="_blank"
           rel="noopener noreferrer"
           class="rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] p-4 hover:border-blue-700/40 transition-colors"
@@ -3038,7 +3038,7 @@ WHERE event = 'output_deleted'
           </p>
         </a>
         <a
-          href="https://github.com/ICJIA/file-accessibility-audit/blob/main/docs/pdf-remediation-alt-text-walkthrough-spec.md"
+          href="https://github.com/ICJIA/file-accessibility-audit/blob/main/docs/archive/pdf-remediation-alt-text-walkthrough-spec.md"
           target="_blank"
           rel="noopener noreferrer"
           class="rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] p-4 hover:border-blue-700/40 transition-colors"
