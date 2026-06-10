@@ -62,7 +62,10 @@ export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
     const result = await execFileAsync(
       bin,
       ["--flavour", "ua1", "--format", "json", pdfPath],
-      { maxBuffer: 32 * 1024 * 1024 },
+      // Bound the veraPDF JVM so a pathological tagged output can't hang the
+      // remediation pipeline. A timeout surfaces as a non-zero exit handled
+      // by the catch below (treated as "could not validate"), never blocking.
+      { maxBuffer: 32 * 1024 * 1024, timeout: REMEDIATION.VERAPDF_TIMEOUT_MS },
     );
     stdout = result.stdout;
   } catch (e) {

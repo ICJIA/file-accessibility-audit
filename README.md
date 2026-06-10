@@ -25,7 +25,35 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 ## Security
 
-Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
+Security is reviewed before every release, and standalone comprehensive audits are run periodically. Entries are listed in reverse chronological order — most recent first. The latest audit is shown in full; earlier per-release reviews are collapsed below to cut visual noise.
+
+### v1.27.0 — 2026-06-10 · Comprehensive adversarial red/blue audit + hardening (full app + server, audit + remediation pipelines)
+
+A full adversarial security audit of the entire application — the Nuxt frontend, the Express API, the synchronous audit pipeline, and the optional auto-remediation pipeline — covering injection, authentication/authorization, SSRF, untrusted-document parsing, secrets handling, and denial-of-service. Conducted with a lead reviewer plus four parallel red-team passes (injection/path/process, auth/secrets, SSRF/parse/DoS, frontend XSS), with every finding verified against the code. **All identified items were fixed in v1.27.0** — test-first; 803 tests pass, `tsc --noEmit` and `nuxt build` clean.
+
+**Headline: no live critical-severity issue.** The classic high-impact vulnerability classes were each examined adversarially and verified clean:
+
+- **No SQL injection** — every database statement is a parameterized better-sqlite3 prepared statement; no string-built queries anywhere.
+- **No command or argument injection** — all subprocess calls (qpdf, OpenDataLoader, veraPDF) use `execFile`/`spawn` with array arguments and no shell; user-supplied filenames never reach argv or a path component (scratch paths use server-generated UUIDs).
+- **No path traversal** — request-supplied job/report ids are used only as parameterized database keys, never joined into filesystem paths; download paths come from the database row, not the request.
+- **No insecure deserialization** — subprocess and stored data are parsed with `JSON.parse` only; no `eval`/`new Function`/`vm`.
+- **No reachable stored/DOM XSS** — Vue auto-escaping covers all PDF-derived metadata; the few `v-html` sinks are fed by escaped or non-document data; URL sinks resolve to server-fixed allowlists (a malicious PDF's link/title/alt-text cannot reach an `href` or script context).
+- **SSRF on the PDF-fetch paths is hardened** — in-process DNS resolution, private/reserved-range rejection (IPv4 + IPv6), connection pinned to the validated IP (closing DNS-rebinding), and per-redirect-hop re-validation.
+- **Authentication primitives are sound** (when login is enabled) — OTP via CSPRNG + bcrypt with attempt-limiting and expiry; JWT with a pinned algorithm and expiry; personal access tokens are 128-bit, stored only as SHA-256, looked up by indexed hash, and cannot mint or revoke other tokens; the single-use download token is 256-bit and compared in constant time. CORS is locked to a single fixed origin; Helmet, body-size caps, upload caps, and magic-byte checks are all in place.
+
+**Hardening applied in v1.27.0 (the identified items were denial-of-service or misconfiguration/forward-looking in nature — no live critical):**
+
+- **Headless-browser page-audit SSRF closed** — the page-audit path now installs a Chromium request interceptor that blocks non-http(s) schemes, resolves and rejects private/reserved-IP targets on *every* request (navigation, redirect, and subresource), and re-checks document navigations against the host allowlist on each hop. Verified end-to-end: a loopback navigation is blocked, while a legitimate allowlisted page still renders. Page audits are also bounded by a concurrency cap.
+- **Auto-remediation worker is now time-bounded** — every pipeline subprocess (qpdf normalize, qpdf check, veraPDF) has a wall-clock `timeout`, and the worker arms a master self-timer that SIGKILLs its entire process group (worker + the OpenDataLoader JVM) if the budget is exceeded, so a pathological PDF can no longer spin a never-ending process.
+- **Resource bounds tightened** — the in-process content extractor now has a parse timeout (freeing its concurrency slot on a pathological document), and URL-fetched PDFs are capped at the same size as direct uploads instead of 6.6× larger.
+- **Fail-closed startup + admin gate** — the API refuses to start if login is enabled without a strong session secret, and the admin gate now rejects the anonymous sentinel and an empty admin list unconditionally instead of by coincidence.
+- **Defense-in-depth** — a Content-Security-Policy and related security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) on the web app; the IPv6 private-range classifier no longer fails open on bracketed/IPv4-mapped forms; the HTML-export escaper now covers the single quote; the public share endpoint no longer returns the sharer's email; and the dev OTP bypass is gated on an explicit opt-in flag rather than `NODE_ENV`.
+
+Per responsible-disclosure practice, step-by-step exploit detail is held privately rather than published here. A follow-up hardening item (nonce-based `script-src` to drop `'unsafe-inline'`) is tracked for a future release.
+
+<details>
+<summary><strong>Previous security reviews</strong> (per-release, v1.26.1 and earlier) — click to expand</summary>
+
 
 ### v1.26.1 — 2026-06-10 · Remediation exit-3 parity, filename-title discriminators, bundled icons
 
@@ -194,6 +222,8 @@ Reviewed the full remediation surface (API routes, worker, frontend, cleanup swe
 ### v1.17.0 and earlier
 
 Security reviews for prior releases were not yet captured in this format. Going forward, every release lists findings and fixes here. Earlier releases focused on the synchronous audit pipeline and authentication flow; review history is available via commit messages on `main`.
+
+</details>
 
 ## Quick Start
 
@@ -923,7 +953,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**758 tests** across 34 test files. Run all with a summary at the end:
+**803 tests** across 39 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -938,14 +968,14 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      447 passed (15 files)
-  ✔ Web      311 passed (19 files)
+  ✔ API      487 passed (19 files)
+  ✔ Web      316 passed (20 files)
 ────────────────────────────────────────────────────────────
-  ✔ 758 tests passed across 34 files
+  ✔ 803 tests passed across 39 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (447 tests)
+### API Tests (487 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -961,11 +991,15 @@ pnpm test:scoring        # Scoring model tests only
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
 | `pdfjsTitle.test.ts` | 33 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
 | `conformance.test.ts` | 6 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria, and 1.3.2 Meaningful Sequence asserted only from the rigorous MCID order comparison (never from heuristic category scores) |
-| `qpdfNormalize.test.ts` | 4 | Remediation normalize step: qpdf exit 3 (repaired recoverable damage, output written) counts as success, mirroring the audit's exit-3 recovery; hard failures still throw |
+| `qpdfNormalize.test.ts` | 5 | Remediation normalize step: qpdf exit 3 (repaired recoverable damage, output written) counts as success, mirroring the audit's exit-3 recovery; hard failures still throw; a wall-clock timeout is passed to qpdf |
 | `veraPdf.test.ts` | 4 | veraPDF JSON verdict extraction: rule identifiers built from clause + test number (never the "FAILED" status string), per-rule counts, and the authoritative failed-checks total |
 | `pdfuaXmp.test.ts` | 3 | PDF/UA identifier detection from XMP through real pdfjs parsing — element form and RDF attribute form (`pdfuaid:part="1"`), which pdfjs's own parser misses |
+| `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
+| `pageAuditGuard.test.ts` | 7 | The headless-browser SSRF interceptor's decision logic: data:/blob:/about: allowed, non-http(s) blocked, document navigations allowlist-gated (open-redirect targets rejected), subresources IP-checked but not allowlist-gated |
+| `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
+| `pdfAnalyzerTimeout.test.ts` | 2 | The in-process pdfjs parse timeout abandons a pathological document and frees its concurrency slot |
 
-### Web Tests (311 tests)
+### Web Tests (316 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |

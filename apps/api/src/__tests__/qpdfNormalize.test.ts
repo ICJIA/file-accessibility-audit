@@ -58,6 +58,13 @@ describe("qpdfNormalize", () => {
     });
   });
 
+  it("passes a wall-clock timeout to qpdf so a hung normalize is killed", async () => {
+    execResolves();
+    await qpdfNormalize("/in.pdf", "/out.pdf", 12345);
+    const opts = mockExecFile.mock.calls[0][2] as { timeout?: number };
+    expect(opts.timeout).toBe(12345);
+  });
+
   it("treats exit 3 with output present as success (repaired input)", async () => {
     execRejectsWith(3, "WARNING: file is damaged");
     mockExists.mockReturnValue(true);

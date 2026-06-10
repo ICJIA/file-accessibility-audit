@@ -44,7 +44,7 @@ function goBack(): void {
 
 const auditFlowDiagram = `flowchart TD
     A[Browser uploads PDF] --> B[Magic-byte + size check]
-    B --> C[Hold in memory only]
+    B --> C[In memory + short-lived qpdf temp copy]
     C --> D[qpdf analyzes structure]
     C --> E[pdfjs extracts content]
     D --> F[Combined results]
@@ -167,16 +167,18 @@ const architectureDiagram = `flowchart TD
         2. The audit pipeline
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-        The audit holds the uploaded PDF in memory only — never written
-        to disk. Two open-source tools (qpdf for structure, pdfjs for
-        content) run in parallel against the in-memory buffer; their
-        combined output feeds the scorer.
+        The audit holds the uploaded PDF in memory and never persists it:
+        pdfjs reads the in-memory buffer directly, while qpdf (a command-line
+        tool that needs a file path) gets a short-lived temp copy under a
+        random name, deleted in the same request — even when analysis fails.
+        Nothing is uploaded to a directory, cached, or retained. The two
+        tools run in parallel; their combined output feeds the scorer.
       </p>
 
       <MermaidDiagram
         :source="auditFlowDiagram"
         title="Audit pipeline"
-        :desc="`Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results in the scorer, produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, returns to the browser, and discards the memory buffer.`"
+        :desc="`Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory (with a short-lived temp copy for the qpdf subprocess, deleted in the same request), runs qpdf and pdfjs in parallel, combines the results in the scorer, produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, returns to the browser, and discards the memory buffer.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
@@ -292,12 +294,16 @@ const architectureDiagram = `flowchart TD
         </table>
       </div>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
-        Color contrast (WCAG 1.4.3) is shown as <strong>Not assessed</strong>
-        — the tool does not yet measure rendered contrast, and that is stated
-        plainly rather than hidden as a passing result. A category reads
-        <strong>Not applicable</strong> only when the document genuinely has
-        no such content (no tables, no forms, no links); its weight is then
-        redistributed across the categories that do apply.
+        Color contrast (WCAG 1.4.3) is always shown as
+        <strong>Not assessed</strong> — the tool does not yet measure rendered
+        contrast, and that is stated plainly rather than hidden as a passing
+        result. Reading Order and Alt Text can also report
+        <strong>Not assessed</strong> when the tool lacks the data to judge
+        them honestly (no comparable tag/content order; images present but
+        none tagged). A category reads <strong>Not applicable</strong> only
+        when the document genuinely has no such content (no tables, no forms,
+        no links). In both cases the category's weight is redistributed
+        across the categories that were actually scored.
       </p>
 
         <section class="mt-8">
@@ -446,8 +452,12 @@ const architectureDiagram = `flowchart TD
         InDesign 18 and Microsoft Word 365 inputs. The
         <code class="text-xs font-mono">qpdf --object-streams=disable</code>
         step decompresses object streams before ODL touches the file,
-        which works around the bug entirely. This was discovered during
-        the v1.18.0 feasibility spike — see
+        which works around the bug entirely. The same step also repairs
+        recoverably damaged uploads (qpdf rewrites a clean cross-reference
+        table, exiting with a warning that the pipeline accepts as of
+        v1.26.1) — so the slightly broken files most in need of remediation
+        are repaired at intake rather than rejected. The ODL workaround was
+        discovered during the v1.18.0 feasibility spike — see
         <code class="text-xs font-mono">docs/archive/spike-remediation-results.md</code>.
       </p>
     </section>

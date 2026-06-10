@@ -176,6 +176,7 @@ import {
   type ScoreProfile,
   type ScoringMode,
 } from "~/utils/scoringProfiles";
+import { escapeHtml } from "~/utils/escapeHtml";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
@@ -424,14 +425,6 @@ const verdictExplanation = computed(() => {
   }
   return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. The scored categories below show ${joinParts(parts)} — review the detailed findings before treating the file as publication-ready.`;
 });
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function highlightSeverities(raw: string): string {
   let text = escapeHtml(raw);

@@ -130,11 +130,22 @@ router.post(
         }
       }
 
-      // Fresh audit + persist
+      // Fresh audit + persist. isAllowedUrl is passed through to the
+      // Chromium request interceptor so document navigations (including any
+      // redirect hops) are re-validated against the allowlist, and every
+      // request is checked for private/reserved-IP targets (SSRF block).
       let result: PageAuditResult
       try {
-        result = await auditPage(url)
+        result = await auditPage(url, (u) => isAllowedUrl(u).ok)
       } catch (err: any) {
+        if (err?.status === 503) {
+          res.status(503).json({
+            error: 'Server busy',
+            details:
+              'Too many page audits are in progress. Please retry shortly.',
+          })
+          return
+        }
         const msg = err?.message ?? String(err)
         if (/timeout|Timeout|net::ERR_/i.test(msg)) {
           res.status(504).json({

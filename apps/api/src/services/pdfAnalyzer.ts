@@ -52,6 +52,28 @@ export interface AnalysisResult extends ScoringResult {
   pdfMetadata: PdfMetadata;
 }
 
+/**
+ * Reject if `promise` doesn't settle within `ms`. The rejection carries
+ * `killed: true` and `code: 'ETIMEDOUT'` so the analyze routes map it to a
+ * 504 the same way a QPDF timeout is handled. The underlying in-process work
+ * may linger briefly, but the caller stops awaiting it and frees its slot.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(label) as Error & {
+        killed?: boolean;
+        code?: string;
+      };
+      err.killed = true;
+      err.code = "ETIMEDOUT";
+      reject(err);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
+}
+
 export async function analyzePDF(
   buffer: Buffer,
   filename: string,
@@ -59,10 +81,19 @@ export async function analyzePDF(
   await acquireSemaphore();
 
   try {
-    // Run QPDF and pdfjs-dist in parallel
+    // Run QPDF and pdfjs-dist in parallel. QPDF self-bounds via its
+    // subprocess timeout; pdfjs runs in-process, so wrap it in a wall-clock
+    // timeout — otherwise a pathological PDF (millions of operators, huge
+    // page count) pins this concurrency slot indefinitely. On timeout we
+    // reject with a killed-style error so the route maps it to HTTP 504,
+    // and the `finally` below releases the semaphore slot.
     const [qpdfResult, pdfjsResult] = await Promise.all([
       analyzeWithQpdfAsync(buffer),
-      analyzeWithPdfjs(buffer),
+      withTimeout(
+        analyzeWithPdfjs(buffer),
+        ANALYSIS.PDFJS_TIMEOUT_MS,
+        "pdfjs extraction timed out",
+      ),
     ]);
 
     if (qpdfResult.error && pdfjsResult.error) {

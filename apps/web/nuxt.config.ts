@@ -127,6 +127,45 @@ export default defineNuxtConfig({
     },
   },
 
+  // Security headers on every frontend response. Production-only so the dev
+  // server's HMR (inline eval + websockets) isn't broken; in production
+  // nginx routes /api directly to the Express API (which sets its own
+  // Helmet headers), so these apply to the Nuxt-served HTML/asset routes.
+  //
+  // The app is fully self-contained — no external scripts, analytics, fonts,
+  // or cross-origin fetches — so the CSP is tight on the high-value
+  // directives (object-src/base-uri/frame-ancestors 'none'). script-src and
+  // style-src keep 'unsafe-inline' because Nuxt's hydration scripts, the
+  // JSON-LD block, and Mermaid's inline SVG/styles require it; nonce-based
+  // script-src is the documented follow-up hardening.
+  $production: {
+    routeRules: {
+      '/**': {
+        headers: {
+          'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self'",
+            "object-src 'none'",
+            "base-uri 'none'",
+            "frame-ancestors 'none'",
+            "frame-src 'none'",
+            "form-action 'self'",
+            'upgrade-insecure-requests',
+          ].join('; '),
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'Permissions-Policy':
+            'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+        },
+      },
+    },
+  },
+
   nitro: {
     esbuild: {
       options: {

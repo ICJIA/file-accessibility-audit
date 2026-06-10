@@ -118,8 +118,12 @@ function isPrivateIPv4(ip: string): boolean {
 }
 
 function isPrivateIPv6(ip: string): boolean {
-  if (isIP(ip) !== 6) return false
-  const lower = ip.toLowerCase()
+  // A URL hostname for an IPv6 address arrives bracketed ("[::1]"), and
+  // isIP() returns 0 for the bracketed string — so strip the brackets
+  // before classifying, or the guard fails OPEN on every IPv6 literal.
+  const unbracketed = ip.replace(/^\[/, '').replace(/\]$/, '')
+  if (isIP(unbracketed) !== 6) return false
+  const lower = unbracketed.toLowerCase()
   // Loopback
   if (lower === '::1' || lower === '[::1]') return true
   // Unspecified

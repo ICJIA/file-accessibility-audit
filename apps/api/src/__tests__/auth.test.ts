@@ -252,6 +252,22 @@ describe('adminMiddleware', () => {
 
     expect(next.called).toBe(true)
   })
+
+  it('NEVER admits the anonymous sentinel, even if misconfigured into ADMIN_EMAILS', () => {
+    // In no-auth mode authMiddleware injects email:'anonymous'. The admin
+    // gate must reject it unconditionally so an operator can't accidentally
+    // expose the cross-tenant audit log by adding 'anonymous' to the list.
+    process.env.ADMIN_EMAILS = 'anonymous,boss@illinois.gov'
+    const req = makeReq()
+    req.user = { email: 'anonymous' }
+    const res = makeRes()
+    const next = makeNext()
+
+    adminMiddleware(req, res, next)
+
+    expect((res as any)._status).toBe(403)
+    expect(next.called).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

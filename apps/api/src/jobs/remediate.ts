@@ -101,6 +101,7 @@ async function qpdfCheckPasses(path: string): Promise<{
   try {
     const { stdout, stderr } = await execFileAsync("qpdf", ["--check", path], {
       maxBuffer: 8 * 1024 * 1024,
+      timeout: REMEDIATION.WORKER_TIMEOUT_MS,
     });
     const combined = `${stdout}\n${stderr}`;
     if (/operation succeeded with warnings/i.test(combined)) {
@@ -150,6 +151,34 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     return;
   }
 
+  // Master wall-clock cap for the whole pipeline. WORKER_TIMEOUT_MS was
+  // previously defined but never enforced: per-step execFile timeouts cover
+  // qpdf/veraPDF, but OpenDataLoader's JVM (convert(), no timeout option) and
+  // any wedged child could otherwise run forever. The worker is spawned
+  // `detached`, so it is its own process-group leader — killing the negative
+  // PID takes down the worker AND every descendant (the JVM, any qpdf child)
+  // in one shot. We record the failure to the DB (synchronous better-sqlite3
+  // write) before the kill so the UI shows a clean "timed out" outcome.
+  const killTimer = setTimeout(() => {
+    try {
+      recordEvent(jobId, "error", {
+        error_type: "worker_timeout",
+        message: `pipeline exceeded ${REMEDIATION.WORKER_TIMEOUT_MS}ms budget`,
+      });
+      setFailed(jobId, "auto-remediation timed out");
+    } catch {
+      // best effort — proceed to the kill regardless
+    }
+    try {
+      // Kill the whole process group (worker + JVM + qpdf children).
+      process.kill(-process.pid, "SIGKILL");
+    } catch {
+      process.exit(1);
+    }
+  }, REMEDIATION.WORKER_TIMEOUT_MS);
+  // Don't let the timer itself keep the event loop alive.
+  if (typeof killTimer.unref === "function") killTimer.unref();
+
   setRunning(jobId);
   recordEvent(jobId, "processing_started");
 
@@ -162,6 +191,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       const normalized = await qpdfNormalize(
         paths.inputPath,
         paths.normalizedPath,
+        REMEDIATION.WORKER_TIMEOUT_MS,
       );
       normalizeRepaired = normalized.repairedWithWarnings;
     } catch (e) {
@@ -363,6 +393,8 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     });
     setFailed(jobId, `worker crashed: ${(e as Error).message}`);
   } finally {
+    // Pipeline finished within budget — disarm the master kill timer.
+    clearTimeout(killTimer);
     // Always remove the scratch dir; the final output (if any) is at
     // paths.finalOutputPath, outside workDir.
     await cleanScratch(paths.workDir);
