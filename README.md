@@ -1,5 +1,7 @@
 # ICJIA File Accessibility Audit
 
+[![Version](https://img.shields.io/badge/version-1.27.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-803%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
@@ -23,207 +25,16 @@ Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` i
 
 The intended workflow is: **upload → review findings → either auto-remediate or fix at the source (Word, InDesign, etc.) and re-export → re-upload to verify.** Manual review remains essential for full IITAA compliance regardless of which path is taken — the tool's job is to find issues and reduce the manual remediation surface, not replace human review.
 
-## Security
-
-Security is reviewed before every release, and standalone comprehensive audits are run periodically. Entries are listed in reverse chronological order — most recent first. The latest audit is shown in full; earlier per-release reviews are collapsed below to cut visual noise.
-
-### v1.27.0 — 2026-06-10 · Comprehensive adversarial red/blue audit + hardening (full app + server, audit + remediation pipelines)
-
-A full adversarial security audit of the entire application — the Nuxt frontend, the Express API, the synchronous audit pipeline, and the optional auto-remediation pipeline — covering injection, authentication/authorization, SSRF, untrusted-document parsing, secrets handling, and denial-of-service. Conducted with a lead reviewer plus four parallel red-team passes (injection/path/process, auth/secrets, SSRF/parse/DoS, frontend XSS), with every finding verified against the code. **All identified items were fixed in v1.27.0** — test-first; 803 tests pass, `tsc --noEmit` and `nuxt build` clean.
-
-**Headline: no live critical-severity issue.** The classic high-impact vulnerability classes were each examined adversarially and verified clean:
-
-- **No SQL injection** — every database statement is a parameterized better-sqlite3 prepared statement; no string-built queries anywhere.
-- **No command or argument injection** — all subprocess calls (qpdf, OpenDataLoader, veraPDF) use `execFile`/`spawn` with array arguments and no shell; user-supplied filenames never reach argv or a path component (scratch paths use server-generated UUIDs).
-- **No path traversal** — request-supplied job/report ids are used only as parameterized database keys, never joined into filesystem paths; download paths come from the database row, not the request.
-- **No insecure deserialization** — subprocess and stored data are parsed with `JSON.parse` only; no `eval`/`new Function`/`vm`.
-- **No reachable stored/DOM XSS** — Vue auto-escaping covers all PDF-derived metadata; the few `v-html` sinks are fed by escaped or non-document data; URL sinks resolve to server-fixed allowlists (a malicious PDF's link/title/alt-text cannot reach an `href` or script context).
-- **SSRF on the PDF-fetch paths is hardened** — in-process DNS resolution, private/reserved-range rejection (IPv4 + IPv6), connection pinned to the validated IP (closing DNS-rebinding), and per-redirect-hop re-validation.
-- **Authentication primitives are sound** (when login is enabled) — OTP via CSPRNG + bcrypt with attempt-limiting and expiry; JWT with a pinned algorithm and expiry; personal access tokens are 128-bit, stored only as SHA-256, looked up by indexed hash, and cannot mint or revoke other tokens; the single-use download token is 256-bit and compared in constant time. CORS is locked to a single fixed origin; Helmet, body-size caps, upload caps, and magic-byte checks are all in place.
-
-**Hardening applied in v1.27.0 (the identified items were denial-of-service or misconfiguration/forward-looking in nature — no live critical):**
-
-- **Headless-browser page-audit SSRF closed** — the page-audit path now installs a Chromium request interceptor that blocks non-http(s) schemes, resolves and rejects private/reserved-IP targets on *every* request (navigation, redirect, and subresource), and re-checks document navigations against the host allowlist on each hop. Verified end-to-end: a loopback navigation is blocked, while a legitimate allowlisted page still renders. Page audits are also bounded by a concurrency cap.
-- **Auto-remediation worker is now time-bounded** — every pipeline subprocess (qpdf normalize, qpdf check, veraPDF) has a wall-clock `timeout`, and the worker arms a master self-timer that SIGKILLs its entire process group (worker + the OpenDataLoader JVM) if the budget is exceeded, so a pathological PDF can no longer spin a never-ending process.
-- **Resource bounds tightened** — the in-process content extractor now has a parse timeout (freeing its concurrency slot on a pathological document), and URL-fetched PDFs are capped at the same size as direct uploads instead of 6.6× larger.
-- **Fail-closed startup + admin gate** — the API refuses to start if login is enabled without a strong session secret, and the admin gate now rejects the anonymous sentinel and an empty admin list unconditionally instead of by coincidence.
-- **Defense-in-depth** — a Content-Security-Policy and related security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) on the web app; the IPv6 private-range classifier no longer fails open on bracketed/IPv4-mapped forms; the HTML-export escaper now covers the single quote; the public share endpoint no longer returns the sharer's email; and the dev OTP bypass is gated on an explicit opt-in flag rather than `NODE_ENV`.
-
-Per responsible-disclosure practice, step-by-step exploit detail is held privately rather than published here. A follow-up hardening item (nonce-based `script-src` to drop `'unsafe-inline'`) is tracked for a future release.
-
-<details>
-<summary><strong>Previous security reviews</strong> (per-release, v1.26.1 and earlier) — click to expand</summary>
-
-
-### v1.26.1 — 2026-06-10 · Remediation exit-3 parity, filename-title discriminators, bundled icons
-
-v1.26.1 brings the remediation pipeline in line with the v1.26.0 audit fix (qpdf normalization now accepts exit code 3 when the repaired output was written, so damaged-but-recoverable PDFs — remediation's primary input — no longer fail at step 1), tightens the filename-like-title classifier (timestamped export filenames are flagged; "COVID-19"-style titles remain protected), and bundles `@iconify-json/lucide` so Nuxt UI's default icons stop 404ing. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** The normalize tolerance is gated on exit code 3 plus the presence of the output file qpdf itself wrote inside the job's scratch directory; hard failures (exit 2, missing output) still abort the job and clean up. The icon collection is a build-time asset bundled by `nuxt build` — no runtime fetches to external icon APIs. Every defensive control from prior releases remains in force.
-
-### v1.26.0 — 2026-06-10 · qpdf warning recovery, JSON-v2 ref fixes, conformance-evidence gating, form/table/list/title accuracy
-
-v1.26.0 fixes two verified extraction bugs (qpdf exit-code-3 output was discarded, falsely reporting tagged documents as untagged; the nested-table exclusion never matched on qpdf ≥ 11's `obj:`-prefixed JSON keys), removes several false-positive generators (erased titles, radio-group field counting, span-blind column checks, Lbl-required lists), tightens the conformance gate to assert 1.3.2 only from the measured MCID order comparison, and corrects the veraPDF rule-ID display plus every drifted How-to-Fix step and help link. Independently code-reviewed before tagging. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** The exit-3 recovery parses stdout the process already captured from the same qpdf invocation, through the same `JSON.parse` path and buffer limits as the success branch, and is gated on exit code 3 plus a document-shaped payload (exit 2 — "errors" — is never recovered, so the conformance gate cannot be fed disclaimed data). The XMP fallback applies two anchored regexes to a string pdf.js already exposes. No new inputs, endpoints, persistence, or data egress; every defensive control from prior releases remains in force.
-
-### v1.25.0 — 2026-06-05 · PDF/UA + artifact + font detection fixes, link/reading-order calibration, PDF/UA-1 signals panel
-
-v1.25.0 corrects three findings-text false negatives (the PDF/UA identifier, artifact tagging, and Type3-font embedding — each now read from the extractor that can actually see it), recalibrates two score items (raw-URL link text is advisory rather than a 2.4.4 failure; the reading-order fidelity top band was widened to absorb extraction jitter), stops the Acrobat "How to Fix" card from rendering on perfect categories, and adds a PDF/UA-1 conformance-signals panel to every report. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** The detection fixes read output the pdf.js / qpdf analyzers already produce, and the new panel renders booleans already computed in the analysis result. No new inputs, endpoints, persistence, or data egress; every defensive control from prior releases remains in force.
-
-### v1.24.0 — 2026-06-03 · WCAG 2.2 re-anchor, IITAA 2.1, announcement banner, /wcag-2-2
-
-v1.24.0 re-anchors the displayed standard to **WCAG 2.2 Level AA** (a strict superset of WCAG 2.1 AA, which remains the legal minimum under IITAA 2.1 §E205.4 and ADA Title II), adds **Illinois IITAA 2.1** citations throughout, introduces a reusable announcement banner, and adds a new `/wcag-2-2` manager-guide page. No automated check changed and no score weight changed. A `WCAG_VERSION=2.1` environment flag reverts all labels, links, and 2.2 not-assessed criteria; set it and redeploy (API reverts on restart; web UI on rebuild). It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** All changes are presentational — UI labels, copy, a new static page, and a dismissible banner. No new inputs, endpoints, persistence, or data egress. The `WCAG_VERSION` env flag controls text and criteria display only; it touches no data-handling or security code paths.
-
-### v1.23.0 — 2026-06-03 · Prominent filename banner on every report
-
-v1.23.0 adds a full-width banner across the top of every report — the live result, the shared `/report/:id` page, and the HTML / Word / Markdown exports — naming the audited file so a saved or forwarded report cannot be mistaken for another document. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** The banner is presentational — a new `ReportFileBanner.vue` and a shared `reportBanner` helper render values (`filename`, `pageCount`) the page and exports already held. The filename is escaped in the HTML export via `escapeHtml` and auto-escaped in Vue templates; no new inputs, endpoints, dependencies, persistence, or data egress.
-
-### v1.22.3 — 2026-05-22 · Scoring-engine follow-ups (summary reconciliation, floor rounding, dead-code removal)
-
-v1.22.3 is a scoring-engine cleanup, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. The executive summary now honours the conformance verdict, coverage-ratio scores floor instead of round, and ~170 lines of confirmed-dead scoring code were deleted.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** Every change is internal to `scorer.ts` and `scoring/summary.ts` — pure computation over existing analyzer output. Deleting unreachable code (`scorePdfUaCompliance`, `refreshCategoryPresentation`) shrinks the attack surface rather than expanding it. No new inputs, endpoints, persistence, or data egress.
-- **Operational note (not a finding).** Coverage-ratio categories (alt text, link quality, form accessibility) now floor their score, so a document whose coverage is not a whole percentage may score up to 1 point lower in those categories. Minor, and far smaller than the v1.22.0 reweight — but worth noting for an in-flight fleet audit.
-
-### v1.22.2 — 2026-05-22 · Conformance heading copy + README test-table correction
-
-v1.22.2 reworks the conformance verdict box copy for a failing document — both the heading and the body — and corrects stale per-file test counts in this README's Tests section. It is not a security release: no code paths, endpoints, authentication, retention windows, or data handling changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** The change is UI copy in `ScoreCard.vue` plus Markdown edits to `README.md`. No new inputs, endpoints, dependencies, persistence, or data flow.
-
-### v1.22.1 — 2026-05-22 · Conformance-verdict presentation refinement
-
-v1.22.1 is a copy and presentation change to the WCAG conformance verdict box — the verdict color now follows the letter grade, the wording is grade-aware, and the standards named in the footer are clickable links. It is not a security release: no endpoints, authentication, retention windows, data-handling paths, or scoring logic changed.
-
-- **No new attack surface introduced; pre-existing posture re-verified.** The conformance verdict box is pure client-side computation over the audit response the page already holds. The three new footer links are static external references (W3C, Illinois DoIT, ADA.gov) and carry `rel="noopener noreferrer"`. No new inputs, endpoints, persistence, or data egress.
-- **Exports unchanged.** The softened wording is on-page only; the Word/HTML/Markdown/JSON reports keep the formal "does not meet WCAG 2.1 Level AA" verdict language. No change to what the exports contain or where they go.
-
-### v1.22.0 — 2026-05-21 · WCAG conformance gate + scoring-rigor pass (Tier A+B)
-
-v1.22.0 is a scoring-methodology release, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. An adversarial *scoring* review (not a red/blue-team security review) was run against the new code; one correctness defect was found and fixed before tagging.
-
-- **P2 / fixed** — The new WCAG conformance gate evaluated structural signals (no structure tree, missing title, etc.) even when the qpdf or pdfjs analyzer had *errored*. A damaged or encrypted PDF would therefore have been issued a fabricated "Does not meet WCAG 2.1 Level AA" verdict citing specific failures the tool never actually confirmed — a false accusation against the document. **Fix:** `evaluateConformance` now returns an `"incomplete"` verdict when either analyzer errors; the UI and every export report "WCAG verdict could not be determined" instead of guessing. Regression test added.
-- **No new attack surface.** The conformance gate is pure computation over existing analyzer output. The audit pipeline still holds PDFs in memory only. The export change adds a rendered section to the Word/HTML/Markdown/JSON reports — no new data egress, no new persistence.
-- **Operational note (not a finding) — score discontinuity.** Category weights (Bookmarks 10%→5%, Reading Order 5%→10%), the missing-bookmarks penalty (0/Critical → 45/Moderate), and the per-category severity labels changed in this release. v1.22.0 scores are therefore **not directly comparable** to pre-v1.22.0 scores; a fleet audit spanning the upgrade will show score movement that reflects the methodology change, not the documents.
-
-### v1.21.1 — 2026-05-19 · Saved-report UI parity + temporary analyze rate-limit bump for ICJIA fleet pass
-
-Pre-release review focused on the post-v1.21.0 loose ends and the operational rate-limit change. No new attack surface; one UI consistency bug and one operational config change with documented rationale.
-
-- **P3 / fixed** — Saved reports still rendered the Adobe Acrobat parity card. The v1.21.0 dual-scoring removal cleaned up the real-time audit page (`/`) but left the `<AdobeParityCard>` block in place on the shared-report page (`/report/:id`). Anyone clicking a shared-report link got the 32-rule Acrobat panel that the live audit no longer showed — same underlying data, different presentation depending on the URL. Not a security finding; a UI consistency bug that confused auditors comparing notes against shared links. **Fix:** removed the card block from `report/[id].vue` (5 lines net). The `adobeParity` field is still persisted in `shared_reports.report_json` for backward compatibility with any external consumer that already parses it; only the rendered card is gone. No schema migration.
-- **Operational / accepted** — `RATE_LIMITS.analyze` elevated from `35` to `5000` per hour per email to support the in-flight ICJIA fleet audit campaign. The ~5000-PDF inventory is being re-audited across multiple passes over several days as content is remediated and re-checked, not a single one-shot pass — the elevated limit will stay in place for the duration of the campaign and revert once it concludes. Documented in `audit.config.ts`. The actual abuse mitigations live on the remediation side — the 100/day remediation cap, the 60-minute audit-gate `sha256(bytes)` hash check, the SSRF allowlist, the upload size cap, and the auth gate are all unchanged. The per-caller analyze limit is a fair-use throttle, not a defense-in-depth control.
-- **Pre-launch items still open** — external penetration test on the remediation surface (Phase 4 roadmap).
-
-#### Methodology
-
-Same as prior releases: every release runs through a fresh red/blue team review before tagging. This patch release was a small footprint (a 5-line UI deletion and a single rate-limit constant change), so the review was correspondingly scoped — the parity-card removal was inspected for any logic change (none; pure UI removal, the underlying `adobeParity` field is still persisted), and the rate-limit bump was inspected for whether it weakens a security control (no — the per-caller analyze limit is a fair-use limit, not a defense-in-depth control; the actual abuse mitigations sit on the remediation side via the audit-gate, the 100/day cap, and the SSRF allowlist).
-
-### v1.21.0 — 2026-05-19 · Single Strict score, veraPDF promoted on the remediation page
-
-UI simplification release, not a security release. Pre-release red/blue team review covered the audit-page surface that was being simplified, the persisted-report schema (unchanged), the back-compat alias of `scoreProfiles.remediation` → Strict for the fleet-CSV integration shipped in v1.20.0, and the regression-guard change on the remediation worker. **No new P1/P2 findings.** One P3 was accepted with documented rationale (the dropped Practical-mode regression check on the remediation worker — net-gains-only promise still holds on Strict, and veraPDF is now the authoritative PDF/UA signal on every remediation). Full simplification rationale and API back-compat notes are in `CHANGELOG.md` and `apps/web/app/pages/data-retention.vue` § 10.
-
-- **No security regressions.** All SSRF, rate-limit, audit-gate, daily-cap, and retention controls from v1.20.1 remain in force.
-- **Schema unchanged.** `audit_log`, `shared_reports`, and `remediation_jobs` keep their existing columns; historical rows are not migrated.
-- **API alias retained** — `result.scoreProfiles.remediation` and the `practical` key in `/api/audit-url` are kept as structural aliases of Strict for backward compatibility with the fleet-CSV integration. Removal tracked for a future release.
-
-### v1.20.1 — 2026-05-18 · Security-followup release for v1.20.0 (audit-gate + SSRF hardening + 7 findings fixed)
-
-A dedicated patch release in the "every feature gets a fresh red/blue team review before tagging" practice. The v1.20.0 release added the fleet integration surface (`/api/audit-url`); this release is the post-feature review that resulted. Six findings were identified in the initial review plus one previously-latent issue uncovered during the SSRF migration — all fixed before tagging.
-
-**Reviewed surface:** the new `/api/audit-url` endpoint, the existing `/api/analyze-url` and `/api/bulk-from-inventory` SSRF posture, the `audit_log` table's role as a canonical record, and the remediation gate proposed by the user to slow automated abuse.
-
-#### Fixed
-
-- **P1.1 / fixed** — DNS rebinding bypassed the URL allowlist. `isAllowedUrl()` ran against the hostname *string* before DNS resolution. An attacker controlling DNS for any subdomain of an allowlisted apex could point it at `127.0.0.1` (or the API's loopback / internal address). `fetch()` then resolved DNS independently and connected to the private IP, turning the audit pipeline into an SSRF proxy. **Fix:** new `apps/api/src/services/safeFetch.ts` resolves DNS in-process, rejects any private/loopback/link-local/multicast IP (full IPv4 + IPv6 coverage including IPv4-mapped IPv6 forms like `::ffff:127.0.0.1`), and dials the resolved IP directly with `Host:` header preserved.
-- **P1.2 / fixed** — `redirect: 'follow'` chained into private networks. Even with the allowlist, `fetch(..., { redirect: 'follow' })` followed up to 20 redirects *without re-validating*. An attacker who could plant content on an allowlisted host could 302 us to `http://10.0.0.1/...`. **Fix:** `safeFetch` handles redirects manually with the full allowlist + DNS check on every hop, capped at 3 hops.
-- **P1.4 / fixed** — `/api/bulk-from-inventory` had a private `fetchWithTimeout` with NO allowlist check and no SSRF protection. Caught while migrating to `safeFetch`. Authenticated callers (PAT-bearing) could submit an NDJSON inventory containing arbitrary URLs — internal addresses included — and the server would fetch and return them. Textbook authenticated SSRF, latent since the endpoint shipped. **Fix:** replaced with the same `safeFetch + validateUrlForFetch` plumbing used by the other URL-fetch endpoints.
-- **P2.1 / fixed** — Audit-gate identity collapse in anonymous mode. With `AUTH.REQUIRE_LOGIN=false`, every caller's identity was a shared `'anonymous'` bucket. User A audits PDF X → User B (different IP, different machine) could remediate PDF X because B's gate check matched A's `audit_log` row. **Fix:** new `gateIdentity()` helper returns `anon:${ip}` when not authenticated. Production (`REQUIRE_LOGIN=true`) was never affected.
-- **P2.3 / fixed** — `audit_log` grew unbounded. No retention policy on the canonical audit record. Slow-burn DoS vector. **Fix:** new `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS = 365` plus a step-6 cleanup in `remediationCleanup.runCleanup()` that purges expired rows alongside the existing sweep. 365 days matches the shared-report retention so audit-related records age out together.
-- **P2.4 / fixed** — Race window on the daily-cap check. Concurrent `/api/remediate` requests could both pass the same fast-path cap check during the (slow) `analyzePDF` preflight, then both create jobs. **Fix:** the cap check is now repeated inside a `db.transaction()` immediately before `createJob()`. SQLite serializes writes, so the cap-exceeding request reliably loses. Fast-path check stays as cheap early-exit.
-- **P3.5 / verified clean** — Cookie security flags audit. `auth.ts` already sets `httpOnly: true`, `secure: isProduction`, `sameSite: 'strict'` in production. No change needed; recorded as part of the audit trail.
-
-#### Added (the feature this release also brings — driven by the same security thinking)
-
-- `POST /api/remediate` now requires a prior audit of the same content (same `sha256(bytes)`) from the same caller within `REMEDIATION.AUDIT_REQUIRED_WINDOW_MS` (default 60 minutes). Returns `403` with an explanatory body when not met. Closes the "automated thousands of remediations" vector the user flagged.
-- New `REMEDIATION.MAX_JOBS_PER_DAY_PER_USER = 100` daily cap as a second layer. Sized to cover a normal agency workflow (~50 PDFs) with 2× headroom while blocking 3000+ at scale. Returns `429` with `{ limit, used }` when exceeded.
-- Unified `audit_log` writes — every audit endpoint (`/api/analyze`, `/api/analyze-url`, `/api/audit-url`, `/api/bulk-from-inventory`) now writes a row with content_hash. Previously only `/api/analyze` wrote to `audit_log` (and without the hash). Required for the gate to work across all audit paths; documented in `AGENTS.md` and the integration brief.
-
-#### P3 — Accepted with documented mitigation
-
-Reviewed and either bounded by existing controls, theoretical, or accepted by design. Listed for the audit trail:
-
-- **P1.3 / mitigated** — Download token in `?token=` query string ends up in nginx access logs. Mitigated by single-use enforcement (`setExpired()` runs before stream begins; replay window near-zero). Hardline fix would require POST-body auth, breaking the `<a href>` download UX. Accepted.
-- **P2.2 / partial** — Daily-cap bypass via multi-account creation. Mailgun has disposable-email signals; per-IP registration throttle is future work. Not currently exploited.
-- **P2.5 / mitigated** — Future CVE in OpenJDK / ODL could allow RCE in the worker via crafted PDF. Existing: JVM heap cap, 5-min timeout, detached child process, no `--hybrid` (no ODL network), pinned Java major version. Dedicated unprivileged user + egress block tracked.
-- **P3.1** — SHA-256 collision in the audit-gate (2^128 work, computationally infeasible).
-- **P3.2** — IPv4-mapped IPv6 SSRF — verified not exploitable against the new `isPrivateIPv6()` check which handles `::ffff:127.0.0.1` and similar forms.
-- **P3.3** — Timing side-channel on the gate (response code is the larger giveaway, not query timing).
-- **P3.4** — PDF embedded URLs triggering fetches — neither qpdf nor pdfjs fetches external resources; ODL doesn't in non-hybrid mode (our default).
-- **P3.6** — Trust-proxy depth: production runs nginx directly behind DigitalOcean (no proxy chain).
-
-#### Methodology
-
-This release follows the team's standing practice: **every feature ships through a fresh red/blue team review before tagging.** The review examines the newly-introduced surface from a sophisticated-adversary perspective (DNS rebinding, redirect chaining, race conditions, identity collapse, slow-burn DoS, etc.), catalogs findings by severity, fixes everything fixable in the same release window, and documents the rest for the audit record. v1.20.0 added the surface; v1.20.1 is the security-followup that resulted. This pattern is repeated every release — see the prior entries below.
-
-### v1.20.0 — 2026-05-18 · CMS-aware download + PDF export + agent docs
-
-Pre-release review focused on the new download surface (the filename-choice dialog) and the print-to-PDF affordance. No new attack surface; one operational note worth flagging (the dialog's "use a different filename" path actively breaks existing references, which is why it gates behind an "are you sure?" confirm).
-
-- **P3 / fixed** — Cumulative Layout Shift of 0.252 on `/remediate` desktop. Cause: three discrete `v-if` regions on the page made it grow ~3000px when status flipped to "complete." Fix: reserved page height via `min-h-[calc(100vh-4rem)]`. Lighthouse perf score on `/remediate` rose 84 → 96.
-- **P3 / fixed** — Result-page sections appeared mid-progress-animation. New `isVisuallyComplete` computed gates all 5 result `v-if`s so the indicator finishes its arc before results paint.
-- **P3 / fixed** — Download endpoint sanitized the filename, stripping spaces and unicode. Material for CMS replacement workflows where the filename is the identifier. Schema change: added `original_filename TEXT` to `remediation_jobs` via ALTER TABLE backfill (nullable; pre-v1.20.0 jobs keep their existing behavior). Download endpoint accepts `?name=<custom>` and emits RFC 6266 dual-name `Content-Disposition` so spaces and unicode survive intact in modern browsers and curl. The frontend dialog defaults to "Keep original filename" with a Recommended badge; the rename path requires a second-click confirm.
-- **Defense in depth / unchanged** — `?name=` parameter is still treated as a filename, not a path. The server caps length at 250 chars, forces a `.pdf` extension, and percent-encodes for the response header. The actual on-disk file location is derived from the immutable `jobId`, never from caller-supplied input — there's no path traversal vector via the `name` param.
-- **P3 / accepted** — PDF export uses `window.print()` rather than a server-side renderer (puppeteer / playwright / pdfkit, ~100 MB). The user-driven approach has zero new dependencies and produces output visually faithful to the report page. Tradeoff: fleet automation cannot fetch PDFs directly via API — they get HTML / Markdown / JSON instead and rely on user-driven printing for PDF. Acceptable given the audit-tool's UX positioning (the API surface for fleet inventory already returns scores + report URL, and the report page itself can be printed).
-- **Defense in depth / unchanged** — Print stylesheet hides buttons and chrome to avoid leaking interactive controls into the saved PDF. Open `<details>` blocks expand on print so collapsed technical details are included. The page doesn't load any third-party fonts or assets during print rendering.
-- **Documentation / added** — `AGENTS.md` at repo root consolidates cross-tool agent guidance previously only in private dotfiles. Lists the load-bearing conventions (no AI co-author trailers, `pnpm build` before push, `./start-dev-server.sh` requirement, `#config` path alias, ALTER TABLE migration pattern) so future agents can orient in one read rather than re-discovering through trial and error. Not security-relevant per se, but reduces the chance of a misconfigured agent committing the wrong thing.
-- **Pre-launch items still open** — external penetration test on the remediation surface (Phase 4 roadmap); CLS investigation on `/remediate` complete in this release.
-
-### v1.19.0 — 2026-05-18 · Fleet integration + a11y polish + retention-policy change
-
-Pre-release review covered the new `/api/audit-url` surface (auth, allowlist, SSRF posture, hash-dedup logic), the URL allowlist expansion (added `illinois.gov` opens a large state-agency surface), the retention-policy bump (15 days → 365 days), and the accessibility / SEO fixes against `/data-retention` and `/technical-details`. No new attack surface findings; one operational tradeoff worth flagging (TTL bump).
-
-- **P2 / accepted — `SHARED_REPORTS.EXPIRY_DAYS` bumped from 15 to 365.** Shared-report rows now live in SQLite for one year instead of 15 days. The `report_json` payload is content-free metadata (scores, category findings, timestamps) — no PDF bytes — so growth is bounded: a 100-PDF fleet at ~50 KiB per row adds ~5 MB per year. **Status:** intentional; the auditor / fleet-inventory use case requires year-long link stability. Documented in `audit.config.ts` and on the `/data-retention` policy page.
-- **P3 / fixed — `aria-prohibited-attr` on 7 MermaidDiagram instances** (4 on `/technical-details`, 3 on `/data-retention`). Inner scroll `<div>` carried `aria-label` without a widget/landmark role. Not exploitable; a real a11y conformance issue caught by axe + Lighthouse during pre-release sweep. Fixed by dropping the duplicative attribute (figcaption already names the figure) and adding `tabindex="0"` for keyboard scrolling.
-- **P3 / fixed — `scrollable-region-focusable` on 6 code-block / table containers.** Same kind of keyboard accessibility gap as the mermaid wrappers. Fixed with `tabindex="0"`.
-- **P3 / fixed — `link-in-text-block` on `/data-retention` § 10 v1.17.0 article.** Inline body link relied on color alone. Added `underline`.
-- **P3 / fixed — missing `rel=canonical` on `/data-retention`, `/technical-details`.** Per-page canonicals via `useHead` keyed off `runtimeConfig.public.siteUrl`. `/remediate/<id>` correctly switched to `noindex,nofollow` (private session-bound URL).
-- **P3 / fixed — `/api/audit-url` returned strict score in the practical slot** because of a key-name mismatch (`scoreProfiles.practical` vs internal `scoreProfiles.remediation`). Caught in the local curl smoke test before any caller integrated against it; no production data ever exposed the wrong values. Fixed by mapping the user-facing name to the internal key in the extractor.
-- **Allowlist expansion / accepted — added `illinois.gov`, `icjia.cloud`, `icjia.app`, `ilheals.com`** to the URL allowlist for `/api/analyze-url` and `/api/audit-url`. The `illinois.gov` entry is the largest surface bump — every state-agency subdomain is now reachable. Mitigated by: existing SSRF blocks (RFC1918, link-local, `*.local`, `*.internal`, IPv6 loopback), magic-bytes check, 100 MB cap, 30-second fetch timeout, look-alike-domain rejection (`illinois.gov.evil.com` does not match). Threat model summary: any fetch worker is constrained to public PDFs ≤ 100 MB on real .gov / .cloud / .com domains — the same posture as a user pasting a URL into the web UI. **Status:** intentional for fleet-audit coverage.
-- **Pre-launch items still open:** external penetration test on the remediation surface (Phase 4 roadmap); full automated test coverage for the remediation pipeline; CLS 0.252 investigation on `/remediate` desktop.
-
-### v1.18.1 — 2026-05-18 · veraPDF integration correctness
-
-Patch release. The pre-release review focused on the veraPDF 1.30.x integration path and the remediation result page's fix-step affordance. No new attack surface; one finding is security-adjacent in that an auditor consulting the PDF/UA-1 disclaimer card would have been shown a silently wrong compliance verdict.
-
-- **P1 / fixed**: veraPDF compliance verdict was always reported as `passed: false` on deploys running veraPDF 1.30.x or newer. In v1.30.x the validator JSON output reshapes `validationResult` from a single object into a single-element array; the v1.18.0 extractor read the array as an object, so `validation.compliant === true` was always `false` and every PDF was marked non-conformant in the result-page disclaimer card and in the persisted `verapdf_passed` column. Security-adjacent: an auditor relying on the disclaimer card to corroborate manual review would have been shown an incorrect verdict. **Fix:** detect `Array.isArray(validationResult)` and unwrap to `[0]` before extraction; older shapes pass through unchanged. The fix is verified against a live veraPDF 1.30.1 install. Note that no production deploy was shipping the wrong verdict yet — the feature flag was off in production at the time of the fix.
-- **P2 / fixed**: Rule-summary extraction could throw `TypeError` on veraPDF 1.30.x output. The 1.30.x schema places per-rule detail at `details.ruleSummaries` (array) and a separate `details.failedRules` (number — count of distinct rules failed, not an array). The v1.18.0 extractor's fallback chain included `details.failedRules` as an array source; if `details.ruleSummaries` were ever missing while `details.failedRules` were present, `.map()` would throw on the number. **Fix:** removed the unsafe fallback; reordered the chain newest-first (`details.ruleSummaries` → `validation.ruleSummaries` → `validation.failedRules`).
-- **P3 / fixed**: `totalFailureCount` under-reported failures on heavily-non-compliant PDFs because it summed only the displayed (top-20) rule summaries instead of using veraPDF's own aggregate. **Fix:** prefer `details.failedChecks` (server-reported total) when present; sum-the-list fallback retained for older versions.
-- **P3 / fixed**: "Fix steps" links on the remediation result page were dead. The `IssuesSummary` component built `#cat-<id>` anchors that only exist on the audit pages (`index.vue`, `report/[id].vue`), so `document.getElementById()` returned `null` and clicks silently failed. Not a security finding — user-facing UX bug. **Fix:** rewrote each row as an inline accordion (`<button>` with `aria-expanded` / `aria-controls`) that reveals the findings list + numbered Acrobat fix steps directly. Same `partitionCardFindings` data source as the audit-page cards.
-- **Operational hardening / added**: `rebuild.sh` preflight now auto-detects veraPDF at four common install paths and prints copy-paste Ubuntu install instructions when it isn't found, including the `/etc/environment` persistence command so PM2 inherits the path across reboots. Reduces operator drift between dev and production veraPDF installs.
-
-### v1.18.0 — 2026-05-18 · PDF auto-remediation feature
-
-Reviewed the full remediation surface (API routes, worker, frontend, cleanup sweep, database schema).
-
-- **P1 / fixed**: Download endpoint loaded the full output PDF (up to 50 MB) into memory before sending. Could OOM the API process under concurrent downloads given the 512 MB PM2 cap. **Fix:** switched to `createReadStream` + `stream.pipe(res)`. Memory footprint per download is now constant regardless of output size.
-- **P1 / fixed**: Concurrent download requests could both pass the token check and both retrieve the file before either completed, violating the single-use guarantee. **Fix:** `setExpired(job.id)` is now called before the response stream is started, so concurrent requests see `status='expired'` and get `410 Gone`.
-- **P2 / mitigated**: When `AUTH.REQUIRE_LOGIN=false` (dev/internal mode), the per-job email guard on `/status`, `/download`, and `/receipt` is bypassed; a caller with a known UUID jobId could read job data. **Mitigation:** UUIDv4 jobIds (122 bits of entropy) make enumeration impractical; production runs with `REQUIRE_LOGIN=true`. **Status:** documented as the established posture in `docs/archive/pdf-remediation-integration-plan.md` § Security.
-- **P2 / accepted**: Adobe Acrobat parity scoring is still computed server-side even though the UI no longer surfaces it. ~50 ms per audit. **Status:** intentional — keeps the data shape stable for existing tests and audit-log entries. May remove in a later release if the cost matters.
-- **P3 / accepted**: `qpdf --check` can flag some borderline-valid outputs as warnings, which we treat as failures. **Status:** preferred over the alternative — better to reject a borderline file than serve a damaged one.
-- **Pre-launch items still open**: external penetration test on the remediation surface; full Vitest coverage for the remediation pipeline (`remediation.test.ts`, `remediation-privacy.test.ts`, `remediation-receipt.test.ts`). Tracked in the Phase 4 roadmap.
-
-### v1.17.0 and earlier
-
-Security reviews for prior releases were not yet captured in this format. Going forward, every release lists findings and fixes here. Earlier releases focused on the synchronous audit pipeline and authentication flow; review history is available via commit messages on `main`.
-
-</details>
+## Contents
+
+New here? The live tool is at **[audit.icjia.app](https://audit.icjia.app)**; this README is the technical companion. Jump to:
+
+- **Overview** — [What it does](#what-it-does) · [Scoring rubric](#scoring-rubric)
+- **Run it** — [Quick Start](#quick-start) · [Authentication](#authentication) · [Configuration](#configuration) · [Deployment](#deployment)
+- **APIs & automation** — [Batch Upload](#batch-upload) · [Analyze from URL](#analyze-from-url) · [Fleet PDF Auditing](#fleet-pdf-auditing) · [Bulk Inventory Scoring](#bulk-inventory-scoring) · [Personal Access Tokens](#personal-access-tokens-pats) · [CLI Tool](#cli-tool)
+- **Reports & data** — [Report Exports](#report-exports) · [Document Metadata](#document-metadata) · [SEO](#seo) · [AI Readiness](#ai-readiness)
+- **Project** — [Structure](#project-structure) · [Tech Stack](#tech-stack) · [Branding & White-Labeling](#branding-and-white-labeling) · [Design Documents](#design-documents) · [Tests](#tests)
+- **Security & history** — [Security](#security) · [Changelog](#changelog) · [License](#license)
 
 ## Quick Start
 
@@ -280,7 +91,7 @@ pnpm start:all  # Start both production servers (kills stale ports, API :5103, W
 pnpm rebrand    # Regenerate static files after changing BRANDING in audit.config.ts
 ```
 
-## Authentication (Optional)
+## Authentication
 
 Authentication is **off by default**. The app can be used without any login, email provider, or credentials. This is controlled by a single toggle in `audit.config.ts`:
 
@@ -423,9 +234,9 @@ Upload up to **3 PDF files** at once. Files are analyzed in parallel (2 at a tim
 
 **Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
 
-## Analyze from URL (`POST /api/analyze-url`)
+## Analyze from URL
 
-Audits a PDF by URL instead of upload. Two surfaces:
+`POST /api/analyze-url` — audits a PDF by URL instead of upload. Two surfaces:
 
 1. **API** — `POST /api/analyze-url` with body `{ "url": "..." }` returns the same `AnalysisResult` shape as `POST /api/analyze`.
 2. **Web UI** — visiting `https://audit.icjia.app/?prefill=<url>` auto-fetches the file on page load and displays the result in the existing analysis UI.
@@ -472,13 +283,13 @@ Even if a hostname passes the allowlist, the endpoint hard-rejects:
 
 | Constraint | Value | Note |
 | --- | --- | --- |
-| Max PDF size | 100 MB | Fetched content |
+| Max PDF size | 15 MB | Fetched content (matches the direct-upload cap as of v1.27.0) |
 | Fetch timeout | 30 s | Same as bulk-from-inventory |
 | Rate limit | shared with `/api/analyze` (`analyzeLimiter`) | |
 
-## Fleet PDF Auditing (`POST /api/audit-url`)
+## Fleet PDF Auditing
 
-Combined "audit a PDF by URL **and** persist a shareable report" endpoint — designed for fleet-audit automation that emits one row per PDF into an HTML/CSV inventory and needs both the scores and a stable link to the full report.
+`POST /api/audit-url` — combined "audit a PDF by URL **and** persist a shareable report" endpoint — designed for fleet-audit automation that emits one row per PDF into an HTML/CSV inventory and needs both the scores and a stable link to the full report.
 
 The difference from `/api/analyze-url`:
 
@@ -543,11 +354,11 @@ url,filename,pageCount,strictScore,strictGrade,practicalScore,practicalGrade,rep
 
 ### Limits
 
-Same as `/api/analyze-url` (100 MB PDF cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
+Same as `/api/analyze-url` (15 MB PDF cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
 
-## Bulk Inventory Scoring (`POST /api/bulk-from-inventory`)
+## Bulk Inventory Scoring
 
-Accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every PDF in it server-side in one request. The server fetches each PDF by its public URL, runs the existing `analyzePDF` pipeline, saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
+`POST /api/bulk-from-inventory` — accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every PDF in it server-side in one request. The server fetches each PDF by its public URL, runs the existing `analyzePDF` pipeline, saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
 
 **Auth required.** Send the session cookie or an `Authorization` header as you would for `/api/analyze`.
 
@@ -874,7 +685,7 @@ All magic numbers, thresholds, weights, limits, and email provider settings are 
 
 Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
 
-## White-Labeling / Branding
+## Branding and White-Labeling
 
 All organization-specific branding is centralized in the `BRANDING` section of **`audit.config.ts`**. Change these values to rebrand the tool for any organization:
 
@@ -1067,13 +878,15 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 
 ## Security
 
-- **Auth is optional** — all other security protections apply regardless of the auth toggle
-- Files processed in memory (QPDF temp file deleted immediately)
-- `execFileSync` (no shell) for QPDF invocation
-- Rate limiting on all endpoints
-- Helmet + nginx security headers
-- CORS locked to same origin in production
-- See **docs/archive/00-master-design.md, Section 9** for the full security model
+The application undergoes a security review before every release plus periodic standalone comprehensive audits; the running history is in [Review history](#review-history) below. Current posture:
+
+- **Auth is optional** — all other protections apply regardless of the auth toggle; the API fails closed at startup if login is enabled without a strong `JWT_SECRET`.
+- **Files processed in memory** — the QPDF temp file is written under a random name and deleted in the same request, even on failure.
+- **No shell** — QPDF / OpenDataLoader / veraPDF are invoked via `execFile` with array arguments; user-supplied filenames never reach a shell or a path component.
+- **SSRF-hardened URL fetching** — URL and fleet PDF fetches resolve DNS in-process, reject private/reserved IPs (IPv4 + IPv6), pin the connection to the validated IP, and re-validate every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
+- **Bounded work** — per-request size caps, a 2-slot analysis semaphore, a pdfjs parse timeout, and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
+- **Rate limiting** on all endpoints; **Helmet + nginx headers** on the API and a **Content-Security-Policy** on the web app; **CORS** locked to a single origin in production.
+- Full security model: **docs/archive/00-master-design.md, Section 9**.
 
 ### Batch upload security
 
@@ -1081,12 +894,214 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 | Threat                         | Mitigation                                                                                                                                                       |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Bypassing the 3-file limit** | The limit is UX (frontend). The real gate is the server rate limiter (35/hour per IP). A malicious client sending more requests just hits the rate limit faster. |
+| **Bypassing the 3-file limit** | The limit is UX (frontend). The real server-side gates are the per-caller analyze rate limit (`RATE_LIMITS.analyze`) and the global per-IP catch-all (`RATE_LIMITS.global`); a client sending more requests just hits those faster, and the 2-slot analysis semaphore caps actual concurrent work regardless. |
 | **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
-| **Filename XSS**               | Filenames render via Vue `{{ }}` text interpolation (auto-escaped). No `v-html` used anywhere. Server also sanitizes filenames before storage.                   |
+| **Filename XSS**               | Filenames and all PDF-derived text render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data (verified in the 2026-06-10 audit), and HTML exports run untrusted text through a shared `escapeHtml` helper. Server also sanitizes filenames before storage. |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
 | **Auth bypass during batch**   | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items.                                           |
 | **Concurrent upload flood**    | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP.                                         |
+
+### Review history
+
+Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.27.0 — 2026-06-10 · Comprehensive adversarial red/blue audit + hardening (full app + server, audit + remediation pipelines)
+
+A full adversarial security audit of the entire application — the Nuxt frontend, the Express API, the synchronous audit pipeline, and the optional auto-remediation pipeline — covering injection, authentication/authorization, SSRF, untrusted-document parsing, secrets handling, and denial-of-service. Conducted with a lead reviewer plus four parallel red-team passes (injection/path/process, auth/secrets, SSRF/parse/DoS, frontend XSS), with every finding verified against the code. **All identified items were fixed in v1.27.0** — test-first; 803 tests pass, `tsc --noEmit` and `nuxt build` clean.
+
+**Headline: no live critical-severity issue.** The classic high-impact vulnerability classes were each examined adversarially and verified clean:
+
+- **No SQL injection** — every database statement is a parameterized better-sqlite3 prepared statement; no string-built queries anywhere.
+- **No command or argument injection** — all subprocess calls (qpdf, OpenDataLoader, veraPDF) use `execFile`/`spawn` with array arguments and no shell; user-supplied filenames never reach argv or a path component (scratch paths use server-generated UUIDs).
+- **No path traversal** — request-supplied job/report ids are used only as parameterized database keys, never joined into filesystem paths; download paths come from the database row, not the request.
+- **No insecure deserialization** — subprocess and stored data are parsed with `JSON.parse` only; no `eval`/`new Function`/`vm`.
+- **No reachable stored/DOM XSS** — Vue auto-escaping covers all PDF-derived metadata; the few `v-html` sinks are fed by escaped or non-document data; URL sinks resolve to server-fixed allowlists (a malicious PDF's link/title/alt-text cannot reach an `href` or script context).
+- **SSRF on the PDF-fetch paths is hardened** — in-process DNS resolution, private/reserved-range rejection (IPv4 + IPv6), connection pinned to the validated IP (closing DNS-rebinding), and per-redirect-hop re-validation.
+- **Authentication primitives are sound** (when login is enabled) — OTP via CSPRNG + bcrypt with attempt-limiting and expiry; JWT with a pinned algorithm and expiry; personal access tokens are 128-bit, stored only as SHA-256, looked up by indexed hash, and cannot mint or revoke other tokens; the single-use download token is 256-bit and compared in constant time. CORS is locked to a single fixed origin; Helmet, body-size caps, upload caps, and magic-byte checks are all in place.
+
+**Hardening applied in v1.27.0 (the identified items were denial-of-service or misconfiguration/forward-looking in nature — no live critical):**
+
+- **Headless-browser page-audit SSRF closed** — the page-audit path now installs a Chromium request interceptor that blocks non-http(s) schemes, resolves and rejects private/reserved-IP targets on *every* request (navigation, redirect, and subresource), and re-checks document navigations against the host allowlist on each hop. Verified end-to-end: a loopback navigation is blocked, while a legitimate allowlisted page still renders. Page audits are also bounded by a concurrency cap.
+- **Auto-remediation worker is now time-bounded** — every pipeline subprocess (qpdf normalize, qpdf check, veraPDF) has a wall-clock `timeout`, and the worker arms a master self-timer that SIGKILLs its entire process group (worker + the OpenDataLoader JVM) if the budget is exceeded, so a pathological PDF can no longer spin a never-ending process.
+- **Resource bounds tightened** — the in-process content extractor now has a parse timeout (freeing its concurrency slot on a pathological document), and URL-fetched PDFs are capped at the same size as direct uploads instead of 6.6× larger.
+- **Fail-closed startup + admin gate** — the API refuses to start if login is enabled without a strong session secret, and the admin gate now rejects the anonymous sentinel and an empty admin list unconditionally instead of by coincidence.
+- **Defense-in-depth** — a Content-Security-Policy and related security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) on the web app; the IPv6 private-range classifier no longer fails open on bracketed/IPv4-mapped forms; the HTML-export escaper now covers the single quote; the public share endpoint no longer returns the sharer's email; and the dev OTP bypass is gated on an explicit opt-in flag rather than `NODE_ENV`.
+
+Per responsible-disclosure practice, step-by-step exploit detail is held privately rather than published here. A follow-up hardening item (nonce-based `script-src` to drop `'unsafe-inline'`) is tracked for a future release.
+
+<details>
+<summary><strong>Previous security reviews</strong> (per-release, v1.26.1 and earlier) — click to expand</summary>
+
+
+### v1.26.1 — 2026-06-10 · Remediation exit-3 parity, filename-title discriminators, bundled icons
+
+v1.26.1 brings the remediation pipeline in line with the v1.26.0 audit fix (qpdf normalization now accepts exit code 3 when the repaired output was written, so damaged-but-recoverable PDFs — remediation's primary input — no longer fail at step 1), tightens the filename-like-title classifier (timestamped export filenames are flagged; "COVID-19"-style titles remain protected), and bundles `@iconify-json/lucide` so Nuxt UI's default icons stop 404ing. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The normalize tolerance is gated on exit code 3 plus the presence of the output file qpdf itself wrote inside the job's scratch directory; hard failures (exit 2, missing output) still abort the job and clean up. The icon collection is a build-time asset bundled by `nuxt build` — no runtime fetches to external icon APIs. Every defensive control from prior releases remains in force.
+
+### v1.26.0 — 2026-06-10 · qpdf warning recovery, JSON-v2 ref fixes, conformance-evidence gating, form/table/list/title accuracy
+
+v1.26.0 fixes two verified extraction bugs (qpdf exit-code-3 output was discarded, falsely reporting tagged documents as untagged; the nested-table exclusion never matched on qpdf ≥ 11's `obj:`-prefixed JSON keys), removes several false-positive generators (erased titles, radio-group field counting, span-blind column checks, Lbl-required lists), tightens the conformance gate to assert 1.3.2 only from the measured MCID order comparison, and corrects the veraPDF rule-ID display plus every drifted How-to-Fix step and help link. Independently code-reviewed before tagging. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The exit-3 recovery parses stdout the process already captured from the same qpdf invocation, through the same `JSON.parse` path and buffer limits as the success branch, and is gated on exit code 3 plus a document-shaped payload (exit 2 — "errors" — is never recovered, so the conformance gate cannot be fed disclaimed data). The XMP fallback applies two anchored regexes to a string pdf.js already exposes. No new inputs, endpoints, persistence, or data egress; every defensive control from prior releases remains in force.
+
+### v1.25.0 — 2026-06-05 · PDF/UA + artifact + font detection fixes, link/reading-order calibration, PDF/UA-1 signals panel
+
+v1.25.0 corrects three findings-text false negatives (the PDF/UA identifier, artifact tagging, and Type3-font embedding — each now read from the extractor that can actually see it), recalibrates two score items (raw-URL link text is advisory rather than a 2.4.4 failure; the reading-order fidelity top band was widened to absorb extraction jitter), stops the Acrobat "How to Fix" card from rendering on perfect categories, and adds a PDF/UA-1 conformance-signals panel to every report. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The detection fixes read output the pdf.js / qpdf analyzers already produce, and the new panel renders booleans already computed in the analysis result. No new inputs, endpoints, persistence, or data egress; every defensive control from prior releases remains in force.
+
+### v1.24.0 — 2026-06-03 · WCAG 2.2 re-anchor, IITAA 2.1, announcement banner, /wcag-2-2
+
+v1.24.0 re-anchors the displayed standard to **WCAG 2.2 Level AA** (a strict superset of WCAG 2.1 AA, which remains the legal minimum under IITAA 2.1 §E205.4 and ADA Title II), adds **Illinois IITAA 2.1** citations throughout, introduces a reusable announcement banner, and adds a new `/wcag-2-2` manager-guide page. No automated check changed and no score weight changed. A `WCAG_VERSION=2.1` environment flag reverts all labels, links, and 2.2 not-assessed criteria; set it and redeploy (API reverts on restart; web UI on rebuild). It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** All changes are presentational — UI labels, copy, a new static page, and a dismissible banner. No new inputs, endpoints, persistence, or data egress. The `WCAG_VERSION` env flag controls text and criteria display only; it touches no data-handling or security code paths.
+
+### v1.23.0 — 2026-06-03 · Prominent filename banner on every report
+
+v1.23.0 adds a full-width banner across the top of every report — the live result, the shared `/report/:id` page, and the HTML / Word / Markdown exports — naming the audited file so a saved or forwarded report cannot be mistaken for another document. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The banner is presentational — a new `ReportFileBanner.vue` and a shared `reportBanner` helper render values (`filename`, `pageCount`) the page and exports already held. The filename is escaped in the HTML export via `escapeHtml` and auto-escaped in Vue templates; no new inputs, endpoints, dependencies, persistence, or data egress.
+
+### v1.22.3 — 2026-05-22 · Scoring-engine follow-ups (summary reconciliation, floor rounding, dead-code removal)
+
+v1.22.3 is a scoring-engine cleanup, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. The executive summary now honours the conformance verdict, coverage-ratio scores floor instead of round, and ~170 lines of confirmed-dead scoring code were deleted.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** Every change is internal to `scorer.ts` and `scoring/summary.ts` — pure computation over existing analyzer output. Deleting unreachable code (`scorePdfUaCompliance`, `refreshCategoryPresentation`) shrinks the attack surface rather than expanding it. No new inputs, endpoints, persistence, or data egress.
+- **Operational note (not a finding).** Coverage-ratio categories (alt text, link quality, form accessibility) now floor their score, so a document whose coverage is not a whole percentage may score up to 1 point lower in those categories. Minor, and far smaller than the v1.22.0 reweight — but worth noting for an in-flight fleet audit.
+
+### v1.22.2 — 2026-05-22 · Conformance heading copy + README test-table correction
+
+v1.22.2 reworks the conformance verdict box copy for a failing document — both the heading and the body — and corrects stale per-file test counts in this README's Tests section. It is not a security release: no code paths, endpoints, authentication, retention windows, or data handling changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The change is UI copy in `ScoreCard.vue` plus Markdown edits to `README.md`. No new inputs, endpoints, dependencies, persistence, or data flow.
+
+### v1.22.1 — 2026-05-22 · Conformance-verdict presentation refinement
+
+v1.22.1 is a copy and presentation change to the WCAG conformance verdict box — the verdict color now follows the letter grade, the wording is grade-aware, and the standards named in the footer are clickable links. It is not a security release: no endpoints, authentication, retention windows, data-handling paths, or scoring logic changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The conformance verdict box is pure client-side computation over the audit response the page already holds. The three new footer links are static external references (W3C, Illinois DoIT, ADA.gov) and carry `rel="noopener noreferrer"`. No new inputs, endpoints, persistence, or data egress.
+- **Exports unchanged.** The softened wording is on-page only; the Word/HTML/Markdown/JSON reports keep the formal "does not meet WCAG 2.1 Level AA" verdict language. No change to what the exports contain or where they go.
+
+### v1.22.0 — 2026-05-21 · WCAG conformance gate + scoring-rigor pass (Tier A+B)
+
+v1.22.0 is a scoring-methodology release, not a security release — no endpoints, authentication, retention windows, or data-handling paths changed. An adversarial *scoring* review (not a red/blue-team security review) was run against the new code; one correctness defect was found and fixed before tagging.
+
+- **P2 / fixed** — The new WCAG conformance gate evaluated structural signals (no structure tree, missing title, etc.) even when the qpdf or pdfjs analyzer had *errored*. A damaged or encrypted PDF would therefore have been issued a fabricated "Does not meet WCAG 2.1 Level AA" verdict citing specific failures the tool never actually confirmed — a false accusation against the document. **Fix:** `evaluateConformance` now returns an `"incomplete"` verdict when either analyzer errors; the UI and every export report "WCAG verdict could not be determined" instead of guessing. Regression test added.
+- **No new attack surface.** The conformance gate is pure computation over existing analyzer output. The audit pipeline still holds PDFs in memory only. The export change adds a rendered section to the Word/HTML/Markdown/JSON reports — no new data egress, no new persistence.
+- **Operational note (not a finding) — score discontinuity.** Category weights (Bookmarks 10%→5%, Reading Order 5%→10%), the missing-bookmarks penalty (0/Critical → 45/Moderate), and the per-category severity labels changed in this release. v1.22.0 scores are therefore **not directly comparable** to pre-v1.22.0 scores; a fleet audit spanning the upgrade will show score movement that reflects the methodology change, not the documents.
+
+### v1.21.1 — 2026-05-19 · Saved-report UI parity + temporary analyze rate-limit bump for ICJIA fleet pass
+
+Pre-release review focused on the post-v1.21.0 loose ends and the operational rate-limit change. No new attack surface; one UI consistency bug and one operational config change with documented rationale.
+
+- **P3 / fixed** — Saved reports still rendered the Adobe Acrobat parity card. The v1.21.0 dual-scoring removal cleaned up the real-time audit page (`/`) but left the `<AdobeParityCard>` block in place on the shared-report page (`/report/:id`). Anyone clicking a shared-report link got the 32-rule Acrobat panel that the live audit no longer showed — same underlying data, different presentation depending on the URL. Not a security finding; a UI consistency bug that confused auditors comparing notes against shared links. **Fix:** removed the card block from `report/[id].vue` (5 lines net). The `adobeParity` field is still persisted in `shared_reports.report_json` for backward compatibility with any external consumer that already parses it; only the rendered card is gone. No schema migration.
+- **Operational / accepted** — `RATE_LIMITS.analyze` elevated from `35` to `5000` per hour per email to support the in-flight ICJIA fleet audit campaign. The ~5000-PDF inventory is being re-audited across multiple passes over several days as content is remediated and re-checked, not a single one-shot pass — the elevated limit will stay in place for the duration of the campaign and revert once it concludes. Documented in `audit.config.ts`. The actual abuse mitigations live on the remediation side — the 100/day remediation cap, the 60-minute audit-gate `sha256(bytes)` hash check, the SSRF allowlist, the upload size cap, and the auth gate are all unchanged. The per-caller analyze limit is a fair-use throttle, not a defense-in-depth control.
+- **Pre-launch items still open** — external penetration test on the remediation surface (Phase 4 roadmap).
+
+#### Methodology
+
+Same as prior releases: every release runs through a fresh red/blue team review before tagging. This patch release was a small footprint (a 5-line UI deletion and a single rate-limit constant change), so the review was correspondingly scoped — the parity-card removal was inspected for any logic change (none; pure UI removal, the underlying `adobeParity` field is still persisted), and the rate-limit bump was inspected for whether it weakens a security control (no — the per-caller analyze limit is a fair-use limit, not a defense-in-depth control; the actual abuse mitigations sit on the remediation side via the audit-gate, the 100/day cap, and the SSRF allowlist).
+
+### v1.21.0 — 2026-05-19 · Single Strict score, veraPDF promoted on the remediation page
+
+UI simplification release, not a security release. Pre-release red/blue team review covered the audit-page surface that was being simplified, the persisted-report schema (unchanged), the back-compat alias of `scoreProfiles.remediation` → Strict for the fleet-CSV integration shipped in v1.20.0, and the regression-guard change on the remediation worker. **No new P1/P2 findings.** One P3 was accepted with documented rationale (the dropped Practical-mode regression check on the remediation worker — net-gains-only promise still holds on Strict, and veraPDF is now the authoritative PDF/UA signal on every remediation). Full simplification rationale and API back-compat notes are in `CHANGELOG.md` and `apps/web/app/pages/data-retention.vue` § 10.
+
+- **No security regressions.** All SSRF, rate-limit, audit-gate, daily-cap, and retention controls from v1.20.1 remain in force.
+- **Schema unchanged.** `audit_log`, `shared_reports`, and `remediation_jobs` keep their existing columns; historical rows are not migrated.
+- **API alias retained** — `result.scoreProfiles.remediation` and the `practical` key in `/api/audit-url` are kept as structural aliases of Strict for backward compatibility with the fleet-CSV integration. Removal tracked for a future release.
+
+### v1.20.1 — 2026-05-18 · Security-followup release for v1.20.0 (audit-gate + SSRF hardening + 7 findings fixed)
+
+A dedicated patch release in the "every feature gets a fresh red/blue team review before tagging" practice. The v1.20.0 release added the fleet integration surface (`/api/audit-url`); this release is the post-feature review that resulted. Six findings were identified in the initial review plus one previously-latent issue uncovered during the SSRF migration — all fixed before tagging.
+
+**Reviewed surface:** the new `/api/audit-url` endpoint, the existing `/api/analyze-url` and `/api/bulk-from-inventory` SSRF posture, the `audit_log` table's role as a canonical record, and the remediation gate proposed by the user to slow automated abuse.
+
+#### Fixed
+
+- **P1.1 / fixed** — DNS rebinding bypassed the URL allowlist. `isAllowedUrl()` ran against the hostname *string* before DNS resolution. An attacker controlling DNS for any subdomain of an allowlisted apex could point it at `127.0.0.1` (or the API's loopback / internal address). `fetch()` then resolved DNS independently and connected to the private IP, turning the audit pipeline into an SSRF proxy. **Fix:** new `apps/api/src/services/safeFetch.ts` resolves DNS in-process, rejects any private/loopback/link-local/multicast IP (full IPv4 + IPv6 coverage including IPv4-mapped IPv6 forms like `::ffff:127.0.0.1`), and dials the resolved IP directly with `Host:` header preserved.
+- **P1.2 / fixed** — `redirect: 'follow'` chained into private networks. Even with the allowlist, `fetch(..., { redirect: 'follow' })` followed up to 20 redirects *without re-validating*. An attacker who could plant content on an allowlisted host could 302 us to `http://10.0.0.1/...`. **Fix:** `safeFetch` handles redirects manually with the full allowlist + DNS check on every hop, capped at 3 hops.
+- **P1.4 / fixed** — `/api/bulk-from-inventory` had a private `fetchWithTimeout` with NO allowlist check and no SSRF protection. Caught while migrating to `safeFetch`. Authenticated callers (PAT-bearing) could submit an NDJSON inventory containing arbitrary URLs — internal addresses included — and the server would fetch and return them. Textbook authenticated SSRF, latent since the endpoint shipped. **Fix:** replaced with the same `safeFetch + validateUrlForFetch` plumbing used by the other URL-fetch endpoints.
+- **P2.1 / fixed** — Audit-gate identity collapse in anonymous mode. With `AUTH.REQUIRE_LOGIN=false`, every caller's identity was a shared `'anonymous'` bucket. User A audits PDF X → User B (different IP, different machine) could remediate PDF X because B's gate check matched A's `audit_log` row. **Fix:** new `gateIdentity()` helper returns `anon:${ip}` when not authenticated. Production (`REQUIRE_LOGIN=true`) was never affected.
+- **P2.3 / fixed** — `audit_log` grew unbounded. No retention policy on the canonical audit record. Slow-burn DoS vector. **Fix:** new `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS = 365` plus a step-6 cleanup in `remediationCleanup.runCleanup()` that purges expired rows alongside the existing sweep. 365 days matches the shared-report retention so audit-related records age out together.
+- **P2.4 / fixed** — Race window on the daily-cap check. Concurrent `/api/remediate` requests could both pass the same fast-path cap check during the (slow) `analyzePDF` preflight, then both create jobs. **Fix:** the cap check is now repeated inside a `db.transaction()` immediately before `createJob()`. SQLite serializes writes, so the cap-exceeding request reliably loses. Fast-path check stays as cheap early-exit.
+- **P3.5 / verified clean** — Cookie security flags audit. `auth.ts` already sets `httpOnly: true`, `secure: isProduction`, `sameSite: 'strict'` in production. No change needed; recorded as part of the audit trail.
+
+#### Added (the feature this release also brings — driven by the same security thinking)
+
+- `POST /api/remediate` now requires a prior audit of the same content (same `sha256(bytes)`) from the same caller within `REMEDIATION.AUDIT_REQUIRED_WINDOW_MS` (default 60 minutes). Returns `403` with an explanatory body when not met. Closes the "automated thousands of remediations" vector the user flagged.
+- New `REMEDIATION.MAX_JOBS_PER_DAY_PER_USER = 100` daily cap as a second layer. Sized to cover a normal agency workflow (~50 PDFs) with 2× headroom while blocking 3000+ at scale. Returns `429` with `{ limit, used }` when exceeded.
+- Unified `audit_log` writes — every audit endpoint (`/api/analyze`, `/api/analyze-url`, `/api/audit-url`, `/api/bulk-from-inventory`) now writes a row with content_hash. Previously only `/api/analyze` wrote to `audit_log` (and without the hash). Required for the gate to work across all audit paths; documented in `AGENTS.md` and the integration brief.
+
+#### P3 — Accepted with documented mitigation
+
+Reviewed and either bounded by existing controls, theoretical, or accepted by design. Listed for the audit trail:
+
+- **P1.3 / mitigated** — Download token in `?token=` query string ends up in nginx access logs. Mitigated by single-use enforcement (`setExpired()` runs before stream begins; replay window near-zero). Hardline fix would require POST-body auth, breaking the `<a href>` download UX. Accepted.
+- **P2.2 / partial** — Daily-cap bypass via multi-account creation. Mailgun has disposable-email signals; per-IP registration throttle is future work. Not currently exploited.
+- **P2.5 / mitigated** — Future CVE in OpenJDK / ODL could allow RCE in the worker via crafted PDF. Existing: JVM heap cap, 5-min timeout, detached child process, no `--hybrid` (no ODL network), pinned Java major version. Dedicated unprivileged user + egress block tracked.
+- **P3.1** — SHA-256 collision in the audit-gate (2^128 work, computationally infeasible).
+- **P3.2** — IPv4-mapped IPv6 SSRF — verified not exploitable against the new `isPrivateIPv6()` check which handles `::ffff:127.0.0.1` and similar forms.
+- **P3.3** — Timing side-channel on the gate (response code is the larger giveaway, not query timing).
+- **P3.4** — PDF embedded URLs triggering fetches — neither qpdf nor pdfjs fetches external resources; ODL doesn't in non-hybrid mode (our default).
+- **P3.6** — Trust-proxy depth: production runs nginx directly behind DigitalOcean (no proxy chain).
+
+#### Methodology
+
+This release follows the team's standing practice: **every feature ships through a fresh red/blue team review before tagging.** The review examines the newly-introduced surface from a sophisticated-adversary perspective (DNS rebinding, redirect chaining, race conditions, identity collapse, slow-burn DoS, etc.), catalogs findings by severity, fixes everything fixable in the same release window, and documents the rest for the audit record. v1.20.0 added the surface; v1.20.1 is the security-followup that resulted. This pattern is repeated every release — see the prior entries below.
+
+### v1.20.0 — 2026-05-18 · CMS-aware download + PDF export + agent docs
+
+Pre-release review focused on the new download surface (the filename-choice dialog) and the print-to-PDF affordance. No new attack surface; one operational note worth flagging (the dialog's "use a different filename" path actively breaks existing references, which is why it gates behind an "are you sure?" confirm).
+
+- **P3 / fixed** — Cumulative Layout Shift of 0.252 on `/remediate` desktop. Cause: three discrete `v-if` regions on the page made it grow ~3000px when status flipped to "complete." Fix: reserved page height via `min-h-[calc(100vh-4rem)]`. Lighthouse perf score on `/remediate` rose 84 → 96.
+- **P3 / fixed** — Result-page sections appeared mid-progress-animation. New `isVisuallyComplete` computed gates all 5 result `v-if`s so the indicator finishes its arc before results paint.
+- **P3 / fixed** — Download endpoint sanitized the filename, stripping spaces and unicode. Material for CMS replacement workflows where the filename is the identifier. Schema change: added `original_filename TEXT` to `remediation_jobs` via ALTER TABLE backfill (nullable; pre-v1.20.0 jobs keep their existing behavior). Download endpoint accepts `?name=<custom>` and emits RFC 6266 dual-name `Content-Disposition` so spaces and unicode survive intact in modern browsers and curl. The frontend dialog defaults to "Keep original filename" with a Recommended badge; the rename path requires a second-click confirm.
+- **Defense in depth / unchanged** — `?name=` parameter is still treated as a filename, not a path. The server caps length at 250 chars, forces a `.pdf` extension, and percent-encodes for the response header. The actual on-disk file location is derived from the immutable `jobId`, never from caller-supplied input — there's no path traversal vector via the `name` param.
+- **P3 / accepted** — PDF export uses `window.print()` rather than a server-side renderer (puppeteer / playwright / pdfkit, ~100 MB). The user-driven approach has zero new dependencies and produces output visually faithful to the report page. Tradeoff: fleet automation cannot fetch PDFs directly via API — they get HTML / Markdown / JSON instead and rely on user-driven printing for PDF. Acceptable given the audit-tool's UX positioning (the API surface for fleet inventory already returns scores + report URL, and the report page itself can be printed).
+- **Defense in depth / unchanged** — Print stylesheet hides buttons and chrome to avoid leaking interactive controls into the saved PDF. Open `<details>` blocks expand on print so collapsed technical details are included. The page doesn't load any third-party fonts or assets during print rendering.
+- **Documentation / added** — `AGENTS.md` at repo root consolidates cross-tool agent guidance previously only in private dotfiles. Lists the load-bearing conventions (no AI co-author trailers, `pnpm build` before push, `./start-dev-server.sh` requirement, `#config` path alias, ALTER TABLE migration pattern) so future agents can orient in one read rather than re-discovering through trial and error. Not security-relevant per se, but reduces the chance of a misconfigured agent committing the wrong thing.
+- **Pre-launch items still open** — external penetration test on the remediation surface (Phase 4 roadmap); CLS investigation on `/remediate` complete in this release.
+
+### v1.19.0 — 2026-05-18 · Fleet integration + a11y polish + retention-policy change
+
+Pre-release review covered the new `/api/audit-url` surface (auth, allowlist, SSRF posture, hash-dedup logic), the URL allowlist expansion (added `illinois.gov` opens a large state-agency surface), the retention-policy bump (15 days → 365 days), and the accessibility / SEO fixes against `/data-retention` and `/technical-details`. No new attack surface findings; one operational tradeoff worth flagging (TTL bump).
+
+- **P2 / accepted — `SHARED_REPORTS.EXPIRY_DAYS` bumped from 15 to 365.** Shared-report rows now live in SQLite for one year instead of 15 days. The `report_json` payload is content-free metadata (scores, category findings, timestamps) — no PDF bytes — so growth is bounded: a 100-PDF fleet at ~50 KiB per row adds ~5 MB per year. **Status:** intentional; the auditor / fleet-inventory use case requires year-long link stability. Documented in `audit.config.ts` and on the `/data-retention` policy page.
+- **P3 / fixed — `aria-prohibited-attr` on 7 MermaidDiagram instances** (4 on `/technical-details`, 3 on `/data-retention`). Inner scroll `<div>` carried `aria-label` without a widget/landmark role. Not exploitable; a real a11y conformance issue caught by axe + Lighthouse during pre-release sweep. Fixed by dropping the duplicative attribute (figcaption already names the figure) and adding `tabindex="0"` for keyboard scrolling.
+- **P3 / fixed — `scrollable-region-focusable` on 6 code-block / table containers.** Same kind of keyboard accessibility gap as the mermaid wrappers. Fixed with `tabindex="0"`.
+- **P3 / fixed — `link-in-text-block` on `/data-retention` § 10 v1.17.0 article.** Inline body link relied on color alone. Added `underline`.
+- **P3 / fixed — missing `rel=canonical` on `/data-retention`, `/technical-details`.** Per-page canonicals via `useHead` keyed off `runtimeConfig.public.siteUrl`. `/remediate/<id>` correctly switched to `noindex,nofollow` (private session-bound URL).
+- **P3 / fixed — `/api/audit-url` returned strict score in the practical slot** because of a key-name mismatch (`scoreProfiles.practical` vs internal `scoreProfiles.remediation`). Caught in the local curl smoke test before any caller integrated against it; no production data ever exposed the wrong values. Fixed by mapping the user-facing name to the internal key in the extractor.
+- **Allowlist expansion / accepted — added `illinois.gov`, `icjia.cloud`, `icjia.app`, `ilheals.com`** to the URL allowlist for `/api/analyze-url` and `/api/audit-url`. The `illinois.gov` entry is the largest surface bump — every state-agency subdomain is now reachable. Mitigated by: existing SSRF blocks (RFC1918, link-local, `*.local`, `*.internal`, IPv6 loopback), magic-bytes check, 100 MB cap, 30-second fetch timeout, look-alike-domain rejection (`illinois.gov.evil.com` does not match). Threat model summary: any fetch worker is constrained to public PDFs ≤ 100 MB on real .gov / .cloud / .com domains — the same posture as a user pasting a URL into the web UI. **Status:** intentional for fleet-audit coverage.
+- **Pre-launch items still open:** external penetration test on the remediation surface (Phase 4 roadmap); full automated test coverage for the remediation pipeline; CLS 0.252 investigation on `/remediate` desktop.
+
+### v1.18.1 — 2026-05-18 · veraPDF integration correctness
+
+Patch release. The pre-release review focused on the veraPDF 1.30.x integration path and the remediation result page's fix-step affordance. No new attack surface; one finding is security-adjacent in that an auditor consulting the PDF/UA-1 disclaimer card would have been shown a silently wrong compliance verdict.
+
+- **P1 / fixed**: veraPDF compliance verdict was always reported as `passed: false` on deploys running veraPDF 1.30.x or newer. In v1.30.x the validator JSON output reshapes `validationResult` from a single object into a single-element array; the v1.18.0 extractor read the array as an object, so `validation.compliant === true` was always `false` and every PDF was marked non-conformant in the result-page disclaimer card and in the persisted `verapdf_passed` column. Security-adjacent: an auditor relying on the disclaimer card to corroborate manual review would have been shown an incorrect verdict. **Fix:** detect `Array.isArray(validationResult)` and unwrap to `[0]` before extraction; older shapes pass through unchanged. The fix is verified against a live veraPDF 1.30.1 install. Note that no production deploy was shipping the wrong verdict yet — the feature flag was off in production at the time of the fix.
+- **P2 / fixed**: Rule-summary extraction could throw `TypeError` on veraPDF 1.30.x output. The 1.30.x schema places per-rule detail at `details.ruleSummaries` (array) and a separate `details.failedRules` (number — count of distinct rules failed, not an array). The v1.18.0 extractor's fallback chain included `details.failedRules` as an array source; if `details.ruleSummaries` were ever missing while `details.failedRules` were present, `.map()` would throw on the number. **Fix:** removed the unsafe fallback; reordered the chain newest-first (`details.ruleSummaries` → `validation.ruleSummaries` → `validation.failedRules`).
+- **P3 / fixed**: `totalFailureCount` under-reported failures on heavily-non-compliant PDFs because it summed only the displayed (top-20) rule summaries instead of using veraPDF's own aggregate. **Fix:** prefer `details.failedChecks` (server-reported total) when present; sum-the-list fallback retained for older versions.
+- **P3 / fixed**: "Fix steps" links on the remediation result page were dead. The `IssuesSummary` component built `#cat-<id>` anchors that only exist on the audit pages (`index.vue`, `report/[id].vue`), so `document.getElementById()` returned `null` and clicks silently failed. Not a security finding — user-facing UX bug. **Fix:** rewrote each row as an inline accordion (`<button>` with `aria-expanded` / `aria-controls`) that reveals the findings list + numbered Acrobat fix steps directly. Same `partitionCardFindings` data source as the audit-page cards.
+- **Operational hardening / added**: `rebuild.sh` preflight now auto-detects veraPDF at four common install paths and prints copy-paste Ubuntu install instructions when it isn't found, including the `/etc/environment` persistence command so PM2 inherits the path across reboots. Reduces operator drift between dev and production veraPDF installs.
+
+### v1.18.0 — 2026-05-18 · PDF auto-remediation feature
+
+Reviewed the full remediation surface (API routes, worker, frontend, cleanup sweep, database schema).
+
+- **P1 / fixed**: Download endpoint loaded the full output PDF (up to 50 MB) into memory before sending. Could OOM the API process under concurrent downloads given the 512 MB PM2 cap. **Fix:** switched to `createReadStream` + `stream.pipe(res)`. Memory footprint per download is now constant regardless of output size.
+- **P1 / fixed**: Concurrent download requests could both pass the token check and both retrieve the file before either completed, violating the single-use guarantee. **Fix:** `setExpired(job.id)` is now called before the response stream is started, so concurrent requests see `status='expired'` and get `410 Gone`.
+- **P2 / mitigated**: When `AUTH.REQUIRE_LOGIN=false` (dev/internal mode), the per-job email guard on `/status`, `/download`, and `/receipt` is bypassed; a caller with a known UUID jobId could read job data. **Mitigation:** UUIDv4 jobIds (122 bits of entropy) make enumeration impractical; production runs with `REQUIRE_LOGIN=true`. **Status:** documented as the established posture in `docs/archive/pdf-remediation-integration-plan.md` § Security.
+- **P2 / accepted**: Adobe Acrobat parity scoring is still computed server-side even though the UI no longer surfaces it. ~50 ms per audit. **Status:** intentional — keeps the data shape stable for existing tests and audit-log entries. May remove in a later release if the cost matters.
+- **P3 / accepted**: `qpdf --check` can flag some borderline-valid outputs as warnings, which we treat as failures. **Status:** preferred over the alternative — better to reject a borderline file than serve a damaged one.
+- **Pre-launch items still open**: external penetration test on the remediation surface; full Vitest coverage for the remediation pipeline (`remediation.test.ts`, `remediation-privacy.test.ts`, `remediation-receipt.test.ts`). Tracked in the Phase 4 roadmap.
+
+### v1.17.0 and earlier
+
+Security reviews for prior releases were not yet captured in this format. Going forward, every release lists findings and fixes here. Earlier releases focused on the synchronous audit pipeline and authentication flow; review history is available via commit messages on `main`.
+
+</details>
 
 ## Changelog
 
