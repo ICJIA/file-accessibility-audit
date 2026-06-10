@@ -814,7 +814,7 @@
                     d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
                   />
                 </svg>
-                Word
+                Text
               </button>
               <button
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
@@ -895,7 +895,7 @@
               </button>
             </div>
             <p class="text-xs text-[var(--text-muted)]">
-              Word, HTML, and Markdown for reading; PDF via your browser's print dialog; JSON for LLMs.
+              Text, HTML, and Markdown for reading; PDF via your browser's print dialog; JSON for LLMs.
             </p>
           </div>
           <div class="mt-4 pt-4 border-t border-[var(--border-subtle)]">
@@ -974,7 +974,7 @@ const { data, pending, error } = await useFetch(`/api/reports/${id}`);
 const {
   exportJSON,
   exportMarkdown,
-  exportDocx,
+  exportText,
   exportHtml,
   exportPdfViaBrowserPrint,
 } = useReportExport();
@@ -993,7 +993,7 @@ function downloadMarkdown() {
 
 function downloadDocx() {
   if (data.value) {
-    exportDocx((data.value as any).report);
+    exportText((data.value as any).report);
   }
 }
 

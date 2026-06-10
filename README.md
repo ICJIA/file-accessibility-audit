@@ -19,7 +19,7 @@ A web tool that **audits and (optionally) remediates** PDF accessibility against
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
 | **3** | PDFs per batch | Upload up to 3 PDFs at once; per-tab remediation. `POST /api/analyze-url` for programmatic auditing of public PDFs. |
-| **4** | Export formats | Word / HTML / Markdown / JSON report exports. 1-year shareable links (no login required to view). |
+| **4** | Export formats | Text / HTML / Markdown / JSON report exports. 1-year shareable links (no login required to view). |
 
 Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/archive/pdf-remediation-integration-plan.md](docs/archive/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/archive/pdf-remediation-alt-text-walkthrough-spec.md](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md).
 
@@ -483,14 +483,14 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 
 | Format             | Contents                                                                                       |
 | ------------------ | ---------------------------------------------------------------------------------------------- |
-| **Word (.docx)**   | Formatted report with score table, detailed findings, help links, and grade colors             |
+| **Text (.txt)**    | Plain-text report with score, conformance verdict, category scores, and detailed findings — opens in any editor, no dependencies |
 | **HTML (.html)**   | Standalone dark-themed page with full report — works offline, printable                        |
 | **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform         |
 | **JSON (.json)**   | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
 Reports can also be shared via **shareable links** that expire after 1 year. Shared report pages include:
 
-- **Export buttons** — download the report as Word, Markdown, or JSON directly from the shared link
+- **Export buttons** — download the report as Text, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
 - **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.2 and ADA Title II references, and a link to the full scoring rubric
 - **Recommendation card** — a prominent Strict vs Practical explainer near the score hero that recommends Strict for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review
@@ -764,7 +764,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**803 tests** across 39 test files. Run all with a summary at the end:
+**804 tests** across 39 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -780,9 +780,9 @@ pnpm test:scoring        # Scoring model tests only
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      487 passed (19 files)
-  ✔ Web      316 passed (20 files)
+  ✔ Web      317 passed (20 files)
 ────────────────────────────────────────────────────────────
-  ✔ 803 tests passed across 39 files
+  ✔ 804 tests passed across 39 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -810,7 +810,7 @@ pnpm test:scoring        # Scoring model tests only
 | `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
 | `pdfAnalyzerTimeout.test.ts` | 2 | The in-process pdfjs parse timeout abandons a pathological document and frees its concurrency slot |
 
-### Web Tests (316 tests)
+### Web Tests (317 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -823,7 +823,7 @@ pnpm test:scoring        # Scoring model tests only
 | `login.test.ts` | 13 | Two-step OTP flow (email then code), API-call verification, error handling, back navigation |
 | `ai-analysis.test.ts` | 12 | `buildAiAnalysis` - AI-analysis export and prompt generation, and remediation-focused output |
 | `ReportActionBanner.test.ts` | 10 | The ReportActionBanner component - report-page action banner |
-| `reportExportBanner.test.ts` | 10 | The exported report banners - Markdown leads with the filename as its H1, the HTML export's banner sits above the title and keeps the filename in the document title, and the Word document builds without error |
+| `reportExportBanner.test.ts` | 11 | The exported report banners - Markdown leads with the filename as its H1, the HTML export's banner sits above the title and keeps the filename in the document title, and the plain-text export leads with the filename |
 | `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
 | `ReportFileBanner.test.ts` | 7 | The ReportFileBanner component - the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) |
 | `AnnouncementBanner.test.ts` | 7 | The AnnouncementBanner component - permanent dismissal per announcement id, localStorage key scoping, and re-show after clear |
@@ -904,6 +904,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.28.0 — 2026-06-10 · Front-end perf/export simplification (not a security release)
+
+v1.28.0 replaces the Word/.docx export with a dependency-free plain-text export and pre-renders the Mermaid diagrams to static SVG, removing the `docx` (~0.5 MB) and `mermaid` (~640 KB) client libraries. No endpoint, authentication, retention window, or data-handling path changed; Lighthouse accessibility stays 100 and axe-core reports 0 WCAG AA violations across all pages.
+
+- **No new attack surface.** Two dependencies were *removed*; the new text export is plain `String` concatenation and the diagrams are static assets. The `/history` and `/my-history` pages had their now-redundant auth-middleware declarations removed — they already passed through in the default no-auth mode, so behavior is unchanged and re-gating is a one-line restore.
 
 ### v1.27.0 — 2026-06-10 · Comprehensive adversarial red/blue audit + hardening (full app + server, audit + remediation pipelines)
 

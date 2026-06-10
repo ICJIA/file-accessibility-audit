@@ -42,48 +42,6 @@ function goBack(): void {
 // Diagrams — kept deliberately simple: flowchart TD, short labels,
 // no subgraphs, no HTML-in-labels. Reliability over richness.
 
-const auditFlowDiagram = `flowchart TD
-    A[Browser uploads PDF] --> B[Magic-byte + size check]
-    B --> C[In memory + short-lived qpdf temp copy]
-    C --> D[qpdf analyzes structure]
-    C --> E[pdfjs extracts content]
-    D --> F[Combined results]
-    E --> F
-    F --> G[Scorer applies 9 categories]
-    G --> H[A-F grade + findings]
-    H --> I[Return to browser]`
-
-const twoToolDiagram = `flowchart TD
-    A[Uploaded PDF buffer] --> B[Run in parallel]
-    B --> C[qpdf: structure tree, language, outlines, images, tables]
-    B --> D[pdfjs: text, metadata, content order, per-page details]
-    C --> E[QpdfResult]
-    D --> F[PdfjsResult]
-    E --> G[Scorer]
-    F --> G
-    G --> H[Weighted score across 9 categories]`
-
-const remediationFlowDiagram = `flowchart TD
-    A[User clicks Remediate] --> B[Re-upload PDF]
-    B --> C[qpdf normalize]
-    C --> D[Delete original + verify]
-    D --> E[OpenDataLoader tags]
-    E --> F[Delete normalized + verify]
-    F --> G[qpdf check + veraPDF]
-    G --> H[Re-audit + regression guard]
-    H --> I[Output ready, 30 min TTL]
-    I --> J[Single-use download]
-    J --> K[Delete + verify ENOENT]`
-
-const architectureDiagram = `flowchart TD
-    A[Browser] --> B[Nginx reverse proxy]
-    B --> C[Nuxt web app on port 5102]
-    B --> D[Express API on port 5103]
-    C --> D
-    D --> E[qpdf binary]
-    D --> F[OpenDataLoader Java]
-    D --> G[veraPDF Java]
-    D --> H[SQLite database]`
 </script>
 
 <template>
@@ -175,8 +133,8 @@ const architectureDiagram = `flowchart TD
         tools run in parallel; their combined output feeds the scorer.
       </p>
 
-      <MermaidDiagram
-        :source="auditFlowDiagram"
+      <DiagramFigure
+        name="audit-flow"
         title="Audit pipeline"
         :desc="`Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory (with a short-lived temp copy for the qpdf subprocess, deleted in the same request), runs qpdf and pdfjs in parallel, combines the results in the scorer, produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, returns to the browser, and discards the memory buffer.`"
       />
@@ -341,8 +299,8 @@ const architectureDiagram = `flowchart TD
         it doesn't actually have, or vice versa.
       </p>
 
-      <MermaidDiagram
-        :source="twoToolDiagram"
+      <DiagramFigure
+        name="two-tool"
         title="Two-tool parallel analysis"
         :desc="`The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories and an independent WCAG ${wcag.version} conformance verdict.`"
       />
@@ -440,8 +398,8 @@ const architectureDiagram = `flowchart TD
         <code class="font-mono text-xs">fs.stat</code> ENOENT check.
       </p>
 
-      <MermaidDiagram
-        :source="remediationFlowDiagram"
+      <DiagramFigure
+        name="remediation-flow"
         title="Remediation pipeline"
         desc="The user re-uploads the PDF. qpdf normalizes it; original deleted with verification. OpenDataLoader adds structure tags; normalized intermediate deleted with verification. qpdf check + veraPDF validate the output. A re-audit confirms no score profile regressed. If all clear, output is held for 30 minutes; user downloads via single-use token; output deleted with verification."
       />
@@ -473,8 +431,8 @@ const architectureDiagram = `flowchart TD
         source and runs locally.
       </p>
 
-      <MermaidDiagram
-        :source="architectureDiagram"
+      <DiagramFigure
+        name="architecture"
         title="Application architecture"
         desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; it reads and writes SQLite locally. No external services."
       />

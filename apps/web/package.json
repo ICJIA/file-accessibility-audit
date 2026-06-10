@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,9 +13,7 @@
   "dependencies": {
     "@nuxt/ui": "^4.5.1",
     "@tailwindcss/vite": "^4.2.1",
-    "docx": "^9.6.0",
     "file-saver": "^2.0.5",
-    "mermaid": "^11.15.0",
     "nuxt": "^4.3.1",
     "tailwindcss": "^4.2.1"
   },

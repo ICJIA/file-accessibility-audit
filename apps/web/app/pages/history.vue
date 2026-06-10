@@ -59,7 +59,11 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ middleware: 'auth' })
+// Auth gating removed — this app runs un-gated (AUTH.REQUIRE_LOGIN=false).
+// To re-gate this page in the future, restore:
+//   definePageMeta({ middleware: 'auth' })
+// The `auth` middleware (app/middleware/auth.ts) is kept in place and stays
+// a no-op until AUTH.REQUIRE_LOGIN is flipped to true server-side.
 
 const page = ref(1)
 

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.28.0] - 2026-06-10
+
+Front-end simplification and performance: two heavy client dependencies removed, diagrams made static. No change to the audit/scoring engine.
+
+### Changed
+
+- **Word (.docx) export replaced with plain text (.txt).** The Word export pulled in the ~0.5 MB `docx` library for no real benefit over the existing Markdown/HTML/JSON formats. It is replaced with a dependency-free plain-text report (filename, scores, conformance verdict, category scores, detailed findings). The `docx` dependency is removed entirely.
+- **Mermaid diagrams are now pre-rendered to static SVG.** The diagram sources never change at runtime, so they are rendered once at dev time (`scripts/generate-diagrams.mjs`) to dark-theme SVGs, SVGO-optimized, and served as lazy-loaded, cached `<img>` assets. This removes the ~640 KB mermaid runtime from the browser (the 7 SVGs gzip to ~11 KB total). Diagrams render identically, now with zero diagram JS.
+- **Auth gating removed from `/history` and `/my-history`.** These already passed through in the default no-auth mode (`AUTH.REQUIRE_LOGIN=false`); the now-pointless `middleware: 'auth'` declarations are removed (also dropping a per-navigation `/api/auth/config` round-trip). The `auth` middleware is kept dormant — re-gate by restoring the one-line declaration and/or flipping `REQUIRE_LOGIN`.
+
+### Performance
+
+- ~1.1 MB of client JavaScript dependencies eliminated (`docx` + `mermaid`). Lighthouse accessibility stays **100** and axe-core reports **0 WCAG AA violations** across all pages (audited against production). The remaining mobile-perf ceiling on the content pages is the Nuxt UI + Vue framework baseline (documented for a future Astro-hybrid evaluation).
+
+### Tests
+
+- Web suite **316 → 317** (new `buildText` export tests replace the docx-banner tests). API unchanged. `tsc --noEmit` and `nuxt build` clean.
+
 ## [1.27.0] - 2026-06-10
 
 Security-hardening release. Implements every fix identified by the 2026-06-10 comprehensive adversarial red/blue audit of the whole application (Nuxt frontend, Express API, audit pipeline, and the optional auto-remediation pipeline). The audit found **no live critical-severity issue** — SQL injection, command/argument injection, path traversal, insecure deserialization, stored/DOM XSS, and authentication bypass were each examined and verified clean — so the items below are denial-of-service or misconfiguration/forward-looking hardening. Running review history is in [README § Security](README.md#security). Per responsible disclosure, step-by-step exploit detail is kept private.

@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildMarkdown,
   buildHtml,
-  buildDocx,
+  buildText,
 } from "../composables/useReportExport";
 
 const branding = {
@@ -89,21 +89,27 @@ describe("buildHtml banner", () => {
   });
 });
 
-describe("buildDocx banner", () => {
-  // Binary OOXML is not asserted on directly; this exercises the new banner
-  // paragraph (shading / border / break runs) so a malformed docx option
-  // throws here rather than only in the browser download.
-  it("builds a non-empty Word document without throwing", async () => {
-    const blob = await buildDocx(baseResult(), branding);
-    expect(blob).toBeTruthy();
-    expect(blob.size).toBeGreaterThan(0);
+describe("buildText export", () => {
+  it("leads with the filename and includes the score and grade", () => {
+    const text = buildText(baseResult(), branding);
+    expect(text.startsWith("sample.pdf")).toBe(true);
+    expect(text).toContain("Overall score: 58/100");
+    expect(text).toContain("CATEGORY SCORES");
+    expect(text).toContain("DETAILED FINDINGS");
   });
 
-  it("builds for a scanned, single-page document too", async () => {
-    const blob = await buildDocx(
+  it("builds for a scanned, single-page document too", () => {
+    const text = buildText(
       baseResult({ isScanned: true, pageCount: 1 }),
       branding,
     );
-    expect(blob.size).toBeGreaterThan(0);
+    expect(text).toContain("Scanned document detected");
+    expect(text.length).toBeGreaterThan(0);
+  });
+
+  it("is plain text — no markdown table pipes or HTML tags", () => {
+    const text = buildText(baseResult(), branding);
+    expect(text).not.toMatch(/<[a-z]+>/i);
+    expect(text).not.toContain("|---");
   });
 });
