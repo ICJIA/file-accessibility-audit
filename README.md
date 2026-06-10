@@ -905,6 +905,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
 
+### v1.28.1 — 2026-06-10 · Loading-spinner icon routing fix (not a security release)
+
+v1.28.1 fixes a missing UI icon: `@nuxt/icon`'s data endpoint defaulted to `/api/_nuxt_icon`, which this app's `/api/**` proxy forwarded to the Express backend (404), and the v1.27.0 CSP blocked the external Iconify fallback. The endpoint was moved off `/api`, the used icons were client-bundled, and the external API fallback was disabled. No endpoint, authentication, retention window, or data-handling path changed — and the CSP is now even tighter in effect (no external icon fetch attempted).
+
 ### v1.28.0 — 2026-06-10 · Front-end perf/export simplification (not a security release)
 
 v1.28.0 replaces the Word/.docx export with a dependency-free plain-text export and pre-renders the Mermaid diagrams to static SVG, removing the `docx` (~0.5 MB) and `mermaid` (~640 KB) client libraries. No endpoint, authentication, retention window, or data-handling path changed; Lighthouse accessibility stays 100 and axe-core reports 0 WCAG AA violations across all pages.

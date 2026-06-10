@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.28.1] - 2026-06-10
+
+### Fixed
+
+- **Missing loading-spinner icon (404 on `/api/_nuxt_icon/...`).** `@nuxt/icon` (bundled by Nuxt UI) defaults its icon-data endpoint to `/api/_nuxt_icon`, which this app's `/api/**` proxy forwards to the Express backend — so icon requests (e.g. the Nuxt UI `:loading` spinner `lucide:loader-circle`, seen when starting an auto-remediation) 404'd. The v1.27.0 CSP (`connect-src 'self'`) also blocked the external Iconify fallback. Fixed by moving the icon endpoint off `/api` (`localApiEndpoint: '/_nuxt_icon'`), client-bundling the icons we use (so the spinner needs no runtime fetch), and disabling the external API fallback. Verified: the new endpoint returns the icon data and `lucide:loader-circle` is bundled into the client.
+
 ## [1.28.0] - 2026-06-10
 
 Front-end simplification and performance: two heavy client dependencies removed, diagrams made static. No change to the audit/scoring engine.

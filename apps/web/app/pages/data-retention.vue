@@ -1228,6 +1228,26 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.28.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.28.1</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            <strong>2026-06-10</strong> · scope: a small fix to make a loading
+            spinner icon appear. No security review was required — nothing
+            about data handling changed.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          v1.28.1 restores a loading-spinner icon that was failing to load on
+          the auto-remediation screen. <strong>No data is collected, stored,
+          transmitted, or retained any differently</strong>; no retention
+          window, endpoint, or permission changed.
+        </p>
+      </article>
+
       <!-- v1.28.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

@@ -13,6 +13,24 @@ const dateModified = '2026-06-10'
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
 
+  // @nuxt/icon (bundled by @nuxt/ui) defaults its data endpoint to
+  // /api/_nuxt_icon — which this app's `/api/**` proxy forwards to the
+  // Express backend, so icon requests 404 (e.g. the Nuxt UI `:loading`
+  // spinner, lucide:loader-circle). Move the endpoint off /api, bundle the
+  // icons we use into the client so they need no runtime fetch, and disable
+  // the external Iconify API fallback (the CSP's `connect-src 'self'` blocks
+  // it anyway, and we ship the @iconify-json/lucide collection locally).
+  icon: {
+    localApiEndpoint: '/_nuxt_icon',
+    fallbackToApi: false,
+    clientBundle: {
+      scan: true,
+      // Nuxt UI sets these internally, so `scan` doesn't see them in templates.
+      icons: ['lucide:loader-circle'],
+      sizeLimitKb: 512,
+    },
+  },
+
   colorMode: {
     preference: BRANDING.DEFAULT_COLOR_MODE,
     fallback: BRANDING.DEFAULT_COLOR_MODE,
