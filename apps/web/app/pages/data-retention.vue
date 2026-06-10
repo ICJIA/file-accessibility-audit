@@ -51,35 +51,6 @@ const TOOL_VERSION = '1.18.0'
 // short labels, no subgraphs, no HTML in labels, no special chars.
 // Reliability over richness.
 
-const auditPipelineDiagram = `flowchart TD
-    A[Upload PDF] --> B[Validate file]
-    B --> C[In memory + short-lived qpdf temp copy]
-    C --> D[qpdf + pdfjs analyze]
-    D --> E[Score 9 WCAG categories]
-    E --> F[Send result to browser]
-    F --> G[Memory buffer discarded]`
-
-const remediationPipelineDiagram = `flowchart TD
-    A[Upload PDF] --> B[Write to scratch]
-    B --> C[qpdf normalize]
-    C --> D[Delete original + verify]
-    D --> E[OpenDataLoader tag]
-    E --> F[Delete normalized + verify]
-    F --> G[qpdf check + veraPDF]
-    G --> H[Re-audit, guard regressions]
-    H --> I[Output ready, 30 min TTL]
-    I --> J[User downloads]
-    J --> K[Delete output + verify]`
-
-const noAiDiagram = `flowchart TD
-    A[Your PDF] --> B[ICJIA server]
-    B --> C[qpdf local]
-    B --> D[OpenDataLoader local]
-    B --> E[veraPDF local]
-    B --> F[SQLite local]
-    B -.OTP code only.-> G[Mailgun email]
-    B -.NEVER.-> X[ChatGPT, Claude, Gemini, Copilot]`
-
 </script>
 
 <template>
@@ -397,8 +368,8 @@ Node.js garbage collector reclaims the buffer
 (file no longer exists in any form, anywhere)</div>
 
       <div class="mt-4">
-        <MermaidDiagram
-          :source="auditPipelineDiagram"
+        <DiagramFigure
+          name="audit-pipeline"
           title="Audit pipeline — visual flow"
           desc="Flowchart of the audit pipeline. The uploaded PDF is held in memory and validated; qpdf analyzes a short-lived temp copy (deleted in the same request) while pdfjs reads the buffer directly; results are scored across 9 WCAG categories, and the memory buffer is discarded after the response is sent."
         />
@@ -504,8 +475,8 @@ Client downloads via single-use token:
 ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
 
       <div class="mt-4">
-        <MermaidDiagram
-          :source="remediationPipelineDiagram"
+        <DiagramFigure
+          name="remediation-pipeline"
           title="Remediation pipeline — visual flow"
           desc="Flowchart of the remediation pipeline. Eleven steps from upload through final delete + verify. Every intermediate file is deleted before the next stage starts, and every delete is fs.stat-verified."
         />
@@ -621,8 +592,8 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
       </div>
 
       <div class="mt-5">
-        <MermaidDiagram
-          :source="noAiDiagram"
+        <DiagramFigure
+          name="no-ai"
           title="No AI services contacted"
           desc="Flowchart showing the ICJIA server talks only to local tools (qpdf, OpenDataLoader, veraPDF, SQLite) and Mailgun (for OTP codes only). It NEVER sends data to ChatGPT, Claude, Gemini, or Copilot."
         />
@@ -1256,6 +1227,28 @@ CREATE TABLE remediation_jobs (
         first). Each entry lists the findings discovered during that
         release's review and what was done about them.
       </p>
+
+      <!-- v1.28.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.28.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            <strong>2026-06-10</strong> · scope: front-end performance and a
+            change to one export format. No security review was required —
+            nothing about data handling changed.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          v1.28.0 replaces the Microsoft Word download with a plain-text
+          download and makes the explanatory diagrams load faster, by removing
+          two large code libraries from the website. <strong>No data is
+          collected, stored, transmitted, or retained any differently</strong>;
+          no retention window, endpoint, or permission changed. Your audited
+          files are still held in memory only and discarded in seconds.
+        </p>
+      </article>
 
       <!-- v1.27.0 audit entry -->
       <article
