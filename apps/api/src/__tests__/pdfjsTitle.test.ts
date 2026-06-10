@@ -86,3 +86,24 @@ describe("analyzeWithPdfjs title wiring", () => {
     expect(r.titleLooksLikeFilename).toBeUndefined();
   });
 });
+
+// Real-world case from the WomenInPolicing control file: the remediation
+// tool set /Title to the export filename ("Name-210525T15080148"). A
+// timestamped or very long no-space token is a filename, even with only one
+// hyphen — while short tokens like "COVID-19" stay unflagged.
+describe("isFilenameLikeTitle — timestamped export filenames", () => {
+  it.each([
+    "WomenInPolicing2021-210525T15080148",
+    "AnnualReport-230207T16344430",
+    "CrimeStats2024Final20240115120000",
+  ])("flags %j", (title) => {
+    expect(isFilenameLikeTitle(title)).toBe(true);
+  });
+
+  it.each(["COVID-19", "Section-508", "2024-2025", "Budget2024"])(
+    "still does NOT flag %j",
+    (title) => {
+      expect(isFilenameLikeTitle(title)).toBe(false);
+    },
+  );
+});

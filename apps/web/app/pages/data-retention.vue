@@ -1254,6 +1254,74 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.26.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.26.1</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-06-10</strong> · scope: follow-up fixes to
+            v1.26.0 — the auto-remediation intake, one title-quality check,
+            and a missing interface icon. No security review was required —
+            nothing about data handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.26.1 lets auto-remediation accept documents with minor,
+          repairable file defects (previously these failed immediately, even
+          though they are exactly the files remediation is for), flags
+          machine-generated download filenames used as document titles so
+          they are not mistaken for real titles, and restores the loading
+          spinner icon. No security-relevant behavior changed.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Remediation accepts repairable files</strong
+            >
+            — A document with a small file defect is repaired during intake
+            instead of being rejected, matching how the audit itself reads
+            such files since v1.26.0.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Filename titles are called out</strong
+            >
+            — A title like "Report-210525T15080148" (a download filename) now
+            earns partial credit with a note to write a real title; short
+            legitimate titles like "COVID-19" are unaffected. Some documents'
+            Title &amp; Language score may move slightly.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No new data and no new attack surface</strong
+            >
+            — The remediation change reads a status code and a file the tool
+            already wrote inside the job's own working folder; the icon fix
+            bundles an image set at build time. No endpoint, retention
+            window, or permission changed.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.26.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
