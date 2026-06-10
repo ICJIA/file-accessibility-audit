@@ -27,6 +27,12 @@ The intended workflow is: **upload → review findings → either auto-remediate
 
 Security is reviewed before every release. Entries are listed in reverse chronological order — most recent first. Each entry lists findings from the release's red/blue-team review and the fixes applied before tagging.
 
+### v1.26.1 — 2026-06-10 · Remediation exit-3 parity, filename-title discriminators, bundled icons
+
+v1.26.1 brings the remediation pipeline in line with the v1.26.0 audit fix (qpdf normalization now accepts exit code 3 when the repaired output was written, so damaged-but-recoverable PDFs — remediation's primary input — no longer fail at step 1), tightens the filename-like-title classifier (timestamped export filenames are flagged; "COVID-19"-style titles remain protected), and bundles `@iconify-json/lucide` so Nuxt UI's default icons stop 404ing. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
+
+- **No new attack surface introduced; pre-existing posture re-verified.** The normalize tolerance is gated on exit code 3 plus the presence of the output file qpdf itself wrote inside the job's scratch directory; hard failures (exit 2, missing output) still abort the job and clean up. The icon collection is a build-time asset bundled by `nuxt build` — no runtime fetches to external icon APIs. Every defensive control from prior releases remains in force.
+
 ### v1.26.0 — 2026-06-10 · qpdf warning recovery, JSON-v2 ref fixes, conformance-evidence gating, form/table/list/title accuracy
 
 v1.26.0 fixes two verified extraction bugs (qpdf exit-code-3 output was discarded, falsely reporting tagged documents as untagged; the nested-table exclusion never matched on qpdf ≥ 11's `obj:`-prefixed JSON keys), removes several false-positive generators (erased titles, radio-group field counting, span-blind column checks, Lbl-required lists), tightens the conformance gate to assert 1.3.2 only from the measured MCID order comparison, and corrects the veraPDF rule-ID display plus every drifted How-to-Fix step and help link. Independently code-reviewed before tagging. It is not a security release: no endpoints, authentication, retention windows, or data-handling paths changed.
@@ -917,7 +923,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**747 tests** across 33 test files. Run all with a summary at the end:
+**758 tests** across 34 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -932,14 +938,14 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      436 passed (14 files)
+  ✔ API      447 passed (15 files)
   ✔ Web      311 passed (19 files)
 ────────────────────────────────────────────────────────────
-  ✔ 747 tests passed across 33 files
+  ✔ 758 tests passed across 34 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (436 tests)
+### API Tests (447 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -953,8 +959,9 @@ pnpm test:scoring        # Scoring model tests only
 | `bulk-from-inventory.test.ts` | 10 | Bulk inventory scoring: input validation, NDJSON parsing, and result-structure assertions |
 | `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
-| `pdfjsTitle.test.ts` | 26 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
+| `pdfjsTitle.test.ts` | 33 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
 | `conformance.test.ts` | 6 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria, and 1.3.2 Meaningful Sequence asserted only from the rigorous MCID order comparison (never from heuristic category scores) |
+| `qpdfNormalize.test.ts` | 4 | Remediation normalize step: qpdf exit 3 (repaired recoverable damage, output written) counts as success, mirroring the audit's exit-3 recovery; hard failures still throw |
 | `veraPdf.test.ts` | 4 | veraPDF JSON verdict extraction: rule identifiers built from clause + test number (never the "FAILED" status string), per-rule counts, and the authoritative failed-checks total |
 | `pdfuaXmp.test.ts` | 3 | PDF/UA identifier detection from XMP through real pdfjs parsing — element form and RDF attribute form (`pdfuaid:part="1"`), which pdfjs's own parser misses |
 

@@ -44,6 +44,7 @@ import {
   setStep,
   setVeraPdfResult,
 } from "../services/remediationJobs.js";
+import { qpdfNormalize } from "../services/qpdfNormalize.js";
 import { runVeraPdf } from "../services/veraPdf.js";
 
 const execFileAsync = promisify(execFile);
@@ -88,13 +89,10 @@ function setupJavaEnv(): void {
   }
 }
 
-async function qpdfNormalize(input: string, output: string): Promise<void> {
-  await execFileAsync(
-    "qpdf",
-    ["--object-streams=disable", input, output],
-    { maxBuffer: 16 * 1024 * 1024 },
-  );
-}
+// qpdf normalization lives in services/qpdfNormalize.ts — it treats qpdf
+// exit 3 (repaired recoverable damage, valid output written) as success,
+// matching the audit's exit-3 recovery. Damaged-but-recoverable PDFs are
+// the primary remediation input and must not fail at step 1.
 
 async function qpdfCheckPasses(path: string): Promise<{
   ok: boolean;
@@ -159,8 +157,13 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     // 1. Preparing: qpdf normalize
     setStep(jobId, "preparing", 10);
     const normalizeStart = Date.now();
+    let normalizeRepaired = false;
     try {
-      await qpdfNormalize(paths.inputPath, paths.normalizedPath);
+      const normalized = await qpdfNormalize(
+        paths.inputPath,
+        paths.normalizedPath,
+      );
+      normalizeRepaired = normalized.repairedWithWarnings;
     } catch (e) {
       recordEvent(jobId, "error", {
         error_type: "qpdf_normalize_failed",
@@ -171,6 +174,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     }
     recordEvent(jobId, "normalize_complete", {
       duration_ms: Date.now() - normalizeStart,
+      repaired_with_warnings: normalizeRepaired,
     });
 
     // Delete the original input now that we have a normalized copy

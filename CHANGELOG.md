@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.26.1] - 2026-06-10
+
+Follow-up fixes to 1.26.0, surfaced by testing remediation on a damaged PDF and by the WomenInPolicing control pair.
+
+### Fixed
+
+- **Remediation no longer fails on damaged-but-recoverable PDFs.** Step 1 of the pipeline (qpdf normalization) treated qpdf exit code 3 — "operation succeeded with warnings", i.e. qpdf *repaired* the file and wrote valid output — as a hard failure, so exactly the files remediation exists for died with "qpdf normalization failed". Normalization now succeeds when the repaired output exists (mirroring the audit's 1.26.0 exit-3 recovery) and the job event log records `repaired_with_warnings`. The strict `qpdf --check` gate on the *output* is unchanged — a freshly written tagged PDF should be pristine.
+- **Timestamped export filenames used as titles are now flagged.** The 1.26.0 calibration that protects legitimate single-hyphen titles ("COVID-19", "Section-508", "2024-2025") also let `Report-210525T15080148`-style export filenames through with full title credit — caught live on the remediated WomenInPolicing control, which scored 100 on a filename title. Timestamp patterns and long no-space tokens containing digits now get the filename advisory and partial credit (25/50); the protected titles remain unflagged.
+- **Missing loading spinner / icon 404 in the dev console.** Nuxt UI 4's default loading icon (`lucide:loader-circle`, used by every button with a `:loading` state, e.g. the Remediate button) was never bundled because `@iconify-json/lucide` was not installed; the icon endpoint returned 404. The collection is now a web dependency so all Nuxt UI default icons are served locally.
+
+### Tests
+
+- API suite **436 → 447** (qpdf-normalize exit-3 contract — new `qpdfNormalize.test.ts`; timestamped-filename discriminators incl. the WomenInPolicing regression). Total **758** across 34 files. `tsc --noEmit` and `nuxt build` clean.
+
 ## [1.26.0] - 2026-06-10
 
 Accuracy and trust fixes across the auditing algorithms, from a full review of the qpdf/pdfjs extraction and scoring pipeline: two production bugs verified end-to-end against real qpdf output, several false-positive/false-negative generators removed, and every "How to Fix" step and help link re-verified against current Adobe, WebAIM, and W3C documentation. Independently code-reviewed before tagging. Full write-up in [docs/qpdf-warning-recovery-and-evidence-fixes.md](docs/qpdf-warning-recovery-and-evidence-fixes.md).

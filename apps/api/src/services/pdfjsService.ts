@@ -316,13 +316,18 @@ export function isFilenameLikeTitle(title: string): boolean {
   if (/^(microsoft (word|excel|powerpoint) - |untitled\b|document\d+$|scan[ _-]?\d|img[ _-]?\d|dsc[ _-]?\d)/i.test(t)) {
     return true
   }
+  // Export/download timestamps ("Report-210525T15080148") and long datetime
+  // digit runs ("…20240115120000") — filename machinery, never prose.
+  if (/\d{6}t\d{6,}/i.test(t) || /\d{12,}/.test(t)) return true
   // No whitespace + filename separators: "annual_report", "budget-2024-final".
   // A single hyphen is NOT enough even with digits — "COVID-19",
-  // "Section-508", "2024-2025" are legitimate document titles.
+  // "Section-508", "2024-2025" are legitimate document titles — but a LONG
+  // no-space token containing digits is a filename shape, not a title.
   if (!/\s/.test(t)) {
     if (t.includes('_')) return true
     const hyphens = (t.match(/-/g) || []).length
     if (hyphens >= 2) return true
+    if (t.length >= 20 && /\d/.test(t)) return true
   }
   return false
 }
