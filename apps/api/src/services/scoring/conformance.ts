@@ -26,6 +26,7 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { CategoryResult } from "../scorer.js";
+import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
 
 export interface ConformanceFinding {
@@ -191,7 +192,10 @@ export function evaluateConformance(
     );
   }
 
-  // 6. Malformed tagged lists (1.3.1, Level A).
+  // 6. Malformed tagged lists (1.3.1, Level A). isWellFormed requires every
+  //    <LI> to contain an <LBody>; a missing <Lbl> alone is advisory and must
+  //    NOT be asserted as a confirmed failure (ISO 32000 permits label-less
+  //    items, and common tooling emits LBody-only lists).
   const malformedLists = qpdf.lists.filter((l) => !l.isWellFormed).length;
   if (qpdf.lists.length > 0 && malformedLists > 0) {
     add(
@@ -199,7 +203,7 @@ export function evaluateConformance(
       "Info and Relationships",
       "A",
       "reading_order",
-      `${malformedLists} tagged list(s) are missing the required <Lbl>/<LBody> structure, so list relationships are not programmatically conveyed.`,
+      `${malformedLists} tagged list(s) have items without the required <LBody> structure, so list item content is not programmatically associated with the list.`,
     );
   }
 
@@ -229,22 +233,22 @@ export function evaluateConformance(
     }
   }
 
-  // 9. Confirmed reading-order drift — only when the rigorous struct-tree vs.
-  //    content-stream check actually ran and found substantial disorder.
-  //    Guarded by hasStructTree so we do not double-count finding #1.
+  // 9. Confirmed reading-order drift — asserted ONLY from the rigorous
+  //    struct-tree vs. content-stream MCID comparison itself, never from the
+  //    reading_order category score. The category can be low for heuristic
+  //    reasons (e.g. a flat structure tree scores 30) that say nothing about
+  //    whether the order actually matches — asserting 1.3.2 from those would
+  //    be an unconfirmed claim. Guarded by hasStructTree so we do not
+  //    double-count finding #1.
   if (qpdf.hasStructTree) {
-    const readingOrder = categories.find((c) => c.id === "reading_order");
-    if (
-      readingOrder &&
-      readingOrder.score !== null &&
-      readingOrder.score <= 40
-    ) {
+    const fidelity = computeReadingOrderFidelity(qpdf, pdfjs);
+    if (fidelity.score !== null && fidelity.score <= 40) {
       add(
         "1.3.2",
         "Meaningful Sequence",
         "A",
         "reading_order",
-        "The tagged reading order differs substantially from the visual order of the page content, so assistive technology will read the document out of sequence.",
+        `The tagged reading order matched the visual order on only ${fidelity.similarityPct}% of comparable content (${fidelity.pagesAnalyzed} page(s) compared), so assistive technology will read the document out of sequence.`,
       );
     }
   }

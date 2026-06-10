@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.26.0] - 2026-06-10
+
+Accuracy and trust fixes across the auditing algorithms, from a full review of the qpdf/pdfjs extraction and scoring pipeline: two production bugs verified end-to-end against real qpdf output, several false-positive/false-negative generators removed, and every "How to Fix" step and help link re-verified against current Adobe, WebAIM, and W3C documentation. Independently code-reviewed before tagging. Full write-up in [docs/qpdf-warning-recovery-and-evidence-fixes.md](docs/qpdf-warning-recovery-and-evidence-fixes.md).
+
+### Fixed
+
+- **A recoverable qpdf warning no longer wipes out the entire structural analysis.** qpdf exits with code 3 ("succeeded with warnings") on damaged-but-readable files — damaged xref, missing trailer `/Size` — while still writing complete JSON to stdout; that output was discarded as a failure. Verified A/B: the *identical* tagged document scored **100 (A)** clean vs **42 (F)** with one trivial warning, with false "Document is NOT tagged" / "No heading tags found" Critical findings. Recovery is gated on exit code 3 and a document-shaped payload; exit 2 ("errors") is deliberately still treated as a failure so the conformance gate never asserts findings from disclaimed data.
+- **Nested tables were double-counted again on modern qpdf (JSON v2).** The 1.24.1 exclusion compared object-map keys (`obj:N 0 R`) against reference values (`N 0 R`) and never matched on qpdf ≥ 11 — its regression tests passed only because the fixtures used a hybrid JSON shape real qpdf never emits. Verified: a one-table PDF reported 2 tables / 3 rows; now 1 table / 2 rows. All key↔value comparisons are normalized, which also revived the AcroForm `/Fields` fallback (additionally fixed to resolve an indirect `/AcroForm` ref) and the `/Pages`-tree page-map fallback. New fixtures mirror real qpdf-v2 output exactly.
+- **Real document titles were erased and reported as confirmed WCAG 2.4.2 failures.** Any no-space title ("Budget2024", "Introduction") was nulled as "filename-like", producing a false *confirmed* "no title in its metadata" conformance failure (−50 in Title & Language). Titles are now always preserved; a narrowed classifier flags genuinely filename-like titles ("report_v3_final.pdf", "Microsoft Word - …") for partial credit (25/50) with an advisory, and 2.4.2 fires only when no title exists. Single-token hyphenated titles ("COVID-19", "Section-508", "2024-2025") are never flagged.
+- **1.3.2 Meaningful Sequence was asserted without evidence.** A flat-but-correctly-ordered structure tree (heuristic score 30) tripped the "confirmed reading-order violation" gate although no order comparison had run. The gate now consumes the rigorous struct-tree vs. content-stream MCID comparison directly (shared module `scoring/readingOrderFidelity.ts`) — and conversely, flat documents with *measured* drift are now caught.
+- **Radio groups were reported as N unlabeled form fields.** `/TU` lives on the parent field dict in the split field/widget pattern; each kid widget was counted as its own unlabeled field, so a 5-option radio group produced five false "missing tooltip" findings plus a false 4.1.2 confirmed failure. Kid widgets now resolve their owning field via the `/Parent` chain and the field is counted once.
+- **Correctly spanned tables were flagged "inconsistent column counts".** Per-row cell counts ignored `/ColSpan` and `/RowSpan`; rows are now measured in effective grid columns, with row-span carryover into following rows.
+- **PDF/UA identifiers written in XMP attribute form were invisible** (`<rdf:Description … pdfuaid:part="1"/>`): pdf.js's metadata parser only reads child elements, so the signals panel denied valid claims. A raw-XMP fallback now reads both forms.
+- **veraPDF failure rows showed "FAILED" as the rule identifier** — the mapping read `ruleStatus` (a status string) instead of the rule's identity. Rows now read `clause-testNumber` ("7.1-1"), matching veraPDF's own rendering.
+- **The Acrobat "How to Fix" guide for forms never rendered** — the guide was keyed `form_fields` but the category id is `form_accessibility`.
+- **Help links and Acrobat instructions corrected.** Five WebAIM links used a nonexistent `#702` anchor (verified against the live site) and now point to the correct series pages; W3C "Understanding" links follow the active `WCAG_VERSION` instead of hardcoded 2.1; Acrobat steps name the current tools (All tools → Prepare for accessibility → Check for accessibility / Automatically tag PDF / Fix reading order) with classic-UI fallbacks; the table-Scope instruction now describes the real path (Reading Order tool → Table Editor → Table Cell Properties); the bookmarks-from-structure and form-tooltip (Prepare a form) paths were also corrected.
+
+### Changed
+
+- **Lists: `<LBody>` required, `<Lbl>` advisory.** ISO 32000 permits label-less list items and common tooling emits LBody-only lists; requiring `<Lbl>` on every item produced over-strict *confirmed* 1.3.1 failures. A missing `<Lbl>` is now an optional, non-penalized note; an `<LI>` without `<LBody>` remains a confirmed failure (content not programmatically associated — matches PAC/Acrobat).
+
+### Tests
+
+- API suite **373 → 436** (qpdf exit-3 recovery + exit-code gating, real qpdf-v2 fixtures, span-aware column grids incl. multi-row RowSpan carry, multi-widget fields incl. merged-dict dedupe, LBody-only lists, title classifier + real-pdfjs wiring, XMP element/attribute forms through real pdfjs, veraPDF verdict mapping, 1.3.2 evidence gating, help-link accuracy). Web suite **311** (unchanged behavior; veraPDF clause display tweak). Total **747**. `tsc --noEmit` and `nuxt build` both clean.
+
 ## [1.25.0] - 2026-06-05
 
 Accuracy fixes and a new PDF/UA-1 conformance-signals panel, prompted by a user auditing four PDF/UA-tagged ICJIA reports against PAC. Full write-up in [docs/pdfua-artifacts-fonts-and-scoring-fixes.md](docs/pdfua-artifacts-fonts-and-scoring-fixes.md).

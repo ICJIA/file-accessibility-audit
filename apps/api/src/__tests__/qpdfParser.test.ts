@@ -562,7 +562,9 @@ describe("list detection", () => {
     expect(result.lists[0].isWellFormed).toBe(true);
   });
 
-  it("detects list without labels as not well-formed", () => {
+  it("treats a list without labels as well-formed (Lbl is optional)", () => {
+    // Policy change: <Lbl> is optional per ISO 32000 — LBody-only items are
+    // structurally complete. hasLabels stays false as the advisory signal.
     const result = parseJson({
       qpdf: [
         null,
@@ -574,7 +576,7 @@ describe("list detection", () => {
         },
       ],
     });
-    expect(result.lists[0].isWellFormed).toBe(false);
+    expect(result.lists[0].isWellFormed).toBe(true);
     expect(result.lists[0].hasLabels).toBe(false);
     expect(result.lists[0].hasBodies).toBe(true);
   });
@@ -1301,5 +1303,576 @@ describe("ActualText and Expansion text", () => {
     });
     expect(result.actualTextCount).toBe(0);
     expect(result.expansionTextCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// qpdf exit code 3 — "operation succeeded with warnings"
+// ---------------------------------------------------------------------------
+// qpdf exits 3 when the input had recoverable defects (damaged xref, missing
+// trailer /Size, …) but STILL writes the complete document JSON to stdout.
+// That JSON must be recovered — discarding it falsely reports a tagged
+// document as untagged.
+
+describe("qpdf exit code 3 (success with warnings)", () => {
+  it("recovers the full analysis from stdout when qpdf exits 3", () => {
+    const json = {
+      qpdf: [
+        null,
+        {
+          "obj:1 0 R": {
+            value: {
+              "/Type": "/Catalog",
+              "/StructTreeRoot": "2 0 R",
+              "/Lang": "u:en-US",
+            },
+          },
+          "obj:2 0 R": { value: { "/Type": "/StructTreeRoot" } },
+        },
+      ],
+    };
+    const err: any = new Error("qpdf: operation succeeded with warnings");
+    err.status = 3;
+    err.stdout = JSON.stringify(json);
+    err.stderr = "WARNING: file is damaged";
+    mockExec.mockImplementation(() => {
+      throw err;
+    });
+
+    const result = analyzeWithQpdf(Buffer.from("fake"));
+    expect(result.error).toBeNull();
+    expect(result.hasStructTree).toBe(true);
+    expect(result.hasLang).toBe(true);
+    expect(result.lang).toBe("en-US");
+  });
+
+  it("falls back to the error result when stdout is not valid JSON", () => {
+    const err: any = new Error("qpdf: real failure");
+    err.status = 2;
+    err.stdout = "partial garbage";
+    err.stderr = "qpdf: some hard error";
+    mockExec.mockImplementation(() => {
+      throw err;
+    });
+
+    const result = analyzeWithQpdf(Buffer.from("fake"));
+    expect(result.error).toBe("QPDF parsing failed");
+    expect(result.hasStructTree).toBe(false);
+  });
+
+  it("still throws for encrypted files even when stdout is present", () => {
+    const err: any = new Error("invalid password");
+    err.stderr = "file is encrypted";
+    err.stdout = "{}";
+    mockExec.mockImplementation(() => {
+      throw err;
+    });
+
+    expect(() => analyzeWithQpdf(Buffer.from("fake"))).toThrow("encrypted");
+  });
+
+  it("still throws for timeouts even when partial stdout is present", () => {
+    const err: any = new Error("spawnSync qpdf ETIMEDOUT");
+    err.killed = true;
+    err.stdout = "{";
+    mockExec.mockImplementation(() => {
+      throw err;
+    });
+
+    expect(() => analyzeWithQpdf(Buffer.from("fake"))).toThrow("QPDF timeout");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// qpdf JSON v2 key format — REAL qpdf ≥ 11 output
+// ---------------------------------------------------------------------------
+// Real v2 output keys the object map as "obj:N 0 R" while reference VALUES
+// inside objects stay "N 0 R". Any comparison between a map key and a value
+// ref must normalize the "obj:" prefix. These fixtures mirror the real
+// format exactly (obj: keys + { value: ... } wrappers) — unlike the older
+// fixtures above, which use a v1-style hybrid qpdf never emits.
+
+describe("qpdf JSON v2 format (obj:-prefixed keys)", () => {
+  it("does not report a nested table as a second top-level table", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": {
+            value: { "/S": "/Table", "/K": ["3 0 R", "6 0 R"] }, // outer: 2 rows
+          },
+          "obj:3 0 R": { value: { "/S": "/TR", "/K": ["4 0 R"] } },
+          "obj:4 0 R": { value: { "/S": "/TD", "/K": ["5 0 R"] } }, // holds nested
+          "obj:5 0 R": { value: { "/S": "/Table", "/K": ["9 0 R"] } }, // nested: 1 row
+          "obj:9 0 R": { value: { "/S": "/TR", "/K": ["10 0 R", "11 0 R"] } },
+          "obj:10 0 R": { value: { "/S": "/TD" } },
+          "obj:11 0 R": { value: { "/S": "/TD" } },
+          "obj:6 0 R": { value: { "/S": "/TR", "/K": ["8 0 R"] } },
+          "obj:8 0 R": { value: { "/S": "/TD" } },
+        },
+      ],
+    });
+    expect(result.tables).toHaveLength(1);
+    expect(result.tables[0].hasNestedTable).toBe(true);
+    expect(result.tables[0].rowCount).toBe(2);
+    const totalRows = result.tables.reduce((sum, t) => sum + t.rowCount, 0);
+    expect(totalRows).toBe(2);
+  });
+
+  it("discovers non-widget fields via the AcroForm /Fields fallback", () => {
+    // The field dict is not a /Widget annotation (split field/widget pattern),
+    // so only the AcroForm fallback can find it. /AcroForm is an indirect ref,
+    // as written by real producers.
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": {
+            value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" },
+          },
+          "obj:2 0 R": { value: { "/Fields": ["3 0 R"] } },
+          "obj:3 0 R": {
+            value: { "/T": "u:firstName", "/TU": "u:First Name", "/FT": "/Tx" },
+          },
+        },
+      ],
+    });
+    expect(result.hasAcroForm).toBe(true);
+    expect(result.formFields).toHaveLength(1);
+    expect(result.formFields[0].name).toBe("firstName");
+    expect(result.formFields[0].hasTU).toBe(true);
+  });
+
+  it("maps struct-tree MCIDs to pages via the /Pages-tree fallback", () => {
+    // No top-level `pages` array → the parser must walk Catalog → /Pages and
+    // key the page map with normalized refs so /Pg lookups resolve.
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": {
+            value: {
+              "/Type": "/Catalog",
+              "/Pages": "2 0 R",
+              "/StructTreeRoot": "4 0 R",
+            },
+          },
+          "obj:2 0 R": {
+            value: { "/Type": "/Pages", "/Kids": ["3 0 R"], "/Count": 1 },
+          },
+          "obj:3 0 R": { value: { "/Type": "/Page", "/Parent": "2 0 R" } },
+          "obj:4 0 R": {
+            value: { "/Type": "/StructTreeRoot", "/K": ["5 0 R"] },
+          },
+          "obj:5 0 R": {
+            value: { "/S": "/P", "/Pg": "3 0 R", "/K": [0, 1] },
+          },
+        },
+      ],
+    });
+    expect(result.structTreeMcidsByPage).toEqual({ 1: [0, 1] });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-widget fields (radio groups, split field/widget pattern)
+// ---------------------------------------------------------------------------
+// In the split pattern, /TU (the accessible tooltip) lives on the PARENT
+// field dict while each option is a kid /Widget annotation without /T or
+// /TU. Counting each kid widget as its own unlabeled field manufactured
+// false "missing tooltip" findings (a 5-option radio group reported five
+// unlabeled fields).
+
+describe("multi-widget form fields", () => {
+  it("counts a radio group as ONE field, labeled via the parent's /TU", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": {
+            value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" },
+          },
+          "obj:2 0 R": { value: { "/Fields": ["3 0 R"] } },
+          "obj:3 0 R": {
+            value: {
+              "/T": "u:contactMethod",
+              "/TU": "u:Preferred contact method",
+              "/FT": "/Btn",
+              "/Kids": ["4 0 R", "5 0 R", "6 0 R"],
+            },
+          },
+          "obj:4 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget", "/Parent": "3 0 R" },
+          },
+          "obj:5 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget", "/Parent": "3 0 R" },
+          },
+          "obj:6 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget", "/Parent": "3 0 R" },
+          },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(1);
+    expect(result.formFields[0].name).toBe("contactMethod");
+    expect(result.formFields[0].hasTU).toBe(true);
+  });
+
+  it("reports a radio group whose parent lacks /TU as ONE unlabeled field", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": {
+            value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" },
+          },
+          "obj:2 0 R": { value: { "/Fields": ["3 0 R"] } },
+          "obj:3 0 R": {
+            value: { "/T": "u:choice", "/FT": "/Btn", "/Kids": ["4 0 R", "5 0 R"] },
+          },
+          "obj:4 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget", "/Parent": "3 0 R" },
+          },
+          "obj:5 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget", "/Parent": "3 0 R" },
+          },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(1);
+    expect(result.formFields[0].hasTU).toBe(false);
+  });
+
+  it("still counts merged field+widget dicts individually", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": {
+            value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" },
+          },
+          "obj:2 0 R": { value: { "/Fields": ["3 0 R", "4 0 R"] } },
+          "obj:3 0 R": {
+            value: {
+              "/Type": "/Annot",
+              "/Subtype": "/Widget",
+              "/T": "u:firstName",
+              "/TU": "u:First Name",
+            },
+          },
+          "obj:4 0 R": {
+            value: {
+              "/Type": "/Annot",
+              "/Subtype": "/Widget",
+              "/T": "u:lastName",
+            },
+          },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(2);
+    const byName = Object.fromEntries(
+      result.formFields.map((f) => [f.name, f.hasTU]),
+    );
+    expect(byName).toEqual({ firstName: true, lastName: false });
+  });
+
+  it("does not double-count a non-terminal parent field from the /Fields fallback", () => {
+    // "address" is a container whose kids are real fields; only the kid
+    // terminal fields should be counted.
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": {
+            value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" },
+          },
+          "obj:2 0 R": { value: { "/Fields": ["3 0 R"] } },
+          "obj:3 0 R": {
+            value: { "/T": "u:address", "/Kids": ["4 0 R", "5 0 R"] },
+          },
+          "obj:4 0 R": {
+            value: {
+              "/Type": "/Annot",
+              "/Subtype": "/Widget",
+              "/T": "u:line1",
+              "/TU": "u:Address line 1",
+              "/Parent": "3 0 R",
+            },
+          },
+          "obj:5 0 R": {
+            value: {
+              "/Type": "/Annot",
+              "/Subtype": "/Widget",
+              "/T": "u:city",
+              "/TU": "u:City",
+              "/Parent": "3 0 R",
+            },
+          },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(2);
+    expect(result.formFields.every((f) => f.hasTU)).toBe(true);
+  });
+
+  it("still counts an orphan widget (no /T, no /Parent) as a field", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" } },
+          "obj:2 0 R": { value: { "/Fields": [] } },
+          "obj:3 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget" },
+          },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(1);
+    expect(result.formFields[0].hasTU).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ColSpan / RowSpan in column-consistency
+// ---------------------------------------------------------------------------
+// A header cell with /ColSpan 2 occupies two grid columns; a cell with
+// /RowSpan 2 occupies a column in the following row. Ignoring the spans
+// flagged correctly built tables as "inconsistent column counts".
+
+describe("table column consistency with spans", () => {
+  it("treats a ColSpan'd header row as consistent with its data rows", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": { value: { "/S": "/Table", "/K": ["3 0 R", "6 0 R"] } },
+          "obj:3 0 R": { value: { "/S": "/TR", "/K": ["4 0 R"] } },
+          "obj:4 0 R": {
+            value: {
+              "/S": "/TH",
+              "/A": { "/O": "/Table", "/ColSpan": 2, "/Scope": "/Column" },
+            },
+          },
+          "obj:6 0 R": { value: { "/S": "/TR", "/K": ["7 0 R", "8 0 R"] } },
+          "obj:7 0 R": { value: { "/S": "/TD" } },
+          "obj:8 0 R": { value: { "/S": "/TD" } },
+        },
+      ],
+    });
+    expect(result.tables[0].columnCounts).toEqual([2, 2]);
+    expect(result.tables[0].hasConsistentColumns).toBe(true);
+  });
+
+  it("treats a RowSpan'd cell as occupying the following row", () => {
+    // Row 1: [TD rowspan=2][TD]  → 2 columns
+    // Row 2: [TD]                → 1 cell + 1 carried = 2 columns
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": { value: { "/S": "/Table", "/K": ["3 0 R", "7 0 R"] } },
+          "obj:3 0 R": { value: { "/S": "/TR", "/K": ["4 0 R", "5 0 R"] } },
+          "obj:4 0 R": {
+            value: { "/S": "/TD", "/A": { "/O": "/Table", "/RowSpan": 2 } },
+          },
+          "obj:5 0 R": { value: { "/S": "/TD" } },
+          "obj:7 0 R": { value: { "/S": "/TR", "/K": ["8 0 R"] } },
+          "obj:8 0 R": { value: { "/S": "/TD" } },
+        },
+      ],
+    });
+    expect(result.tables[0].columnCounts).toEqual([2, 2]);
+    expect(result.tables[0].hasConsistentColumns).toBe(true);
+  });
+
+  it("reads spans from an /A attribute ARRAY", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": { value: { "/S": "/Table", "/K": ["3 0 R", "6 0 R"] } },
+          "obj:3 0 R": { value: { "/S": "/TR", "/K": ["4 0 R", "5 0 R"] } },
+          "obj:4 0 R": {
+            value: {
+              "/S": "/TH",
+              "/A": [{ "/O": "/Layout" }, { "/O": "/Table", "/ColSpan": 3 }],
+            },
+          },
+          "obj:5 0 R": { value: { "/S": "/TH" } },
+          "obj:6 0 R": {
+            value: { "/S": "/TR", "/K": ["7 0 R", "8 0 R", "9 0 R", "10 0 R"] },
+          },
+          "obj:7 0 R": { value: { "/S": "/TD" } },
+          "obj:8 0 R": { value: { "/S": "/TD" } },
+          "obj:9 0 R": { value: { "/S": "/TD" } },
+          "obj:10 0 R": { value: { "/S": "/TD" } },
+        },
+      ],
+    });
+    expect(result.tables[0].columnCounts).toEqual([4, 4]);
+    expect(result.tables[0].hasConsistentColumns).toBe(true);
+  });
+
+  it("still flags genuinely inconsistent tables", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": { value: { "/S": "/Table", "/K": ["3 0 R", "7 0 R"] } },
+          "obj:3 0 R": {
+            value: { "/S": "/TR", "/K": ["4 0 R", "5 0 R", "6 0 R"] },
+          },
+          "obj:4 0 R": { value: { "/S": "/TD" } },
+          "obj:5 0 R": { value: { "/S": "/TD" } },
+          "obj:6 0 R": { value: { "/S": "/TD" } },
+          "obj:7 0 R": { value: { "/S": "/TR", "/K": ["8 0 R"] } },
+          "obj:8 0 R": { value: { "/S": "/TD" } },
+        },
+      ],
+    });
+    expect(result.tables[0].columnCounts).toEqual([3, 1]);
+    expect(result.tables[0].hasConsistentColumns).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// List well-formedness — LBody required, Lbl optional
+// ---------------------------------------------------------------------------
+// ISO 32000 allows an <LI> whose label is absent (or folded into the body);
+// common tagging tools emit LBody-only items. Requiring <Lbl> on every item
+// produced false "confirmed WCAG 1.3.1 failure" verdicts for conformant
+// lists. <Lbl> presence is still reported (hasLabels) as an advisory.
+
+describe("list well-formedness", () => {
+  it("treats an LBody-only list (no Lbl) as well-formed", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": { value: { "/S": "/L", "/K": ["3 0 R", "5 0 R"] } },
+          "obj:3 0 R": { value: { "/S": "/LI", "/K": ["4 0 R"] } },
+          "obj:4 0 R": { value: { "/S": "/LBody" } },
+          "obj:5 0 R": { value: { "/S": "/LI", "/K": ["6 0 R"] } },
+          "obj:6 0 R": { value: { "/S": "/LBody" } },
+        },
+      ],
+    });
+    expect(result.lists).toHaveLength(1);
+    expect(result.lists[0].isWellFormed).toBe(true);
+    expect(result.lists[0].hasLabels).toBe(false);
+    expect(result.lists[0].hasBodies).toBe(true);
+  });
+
+  it("still treats an LI without LBody as malformed", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": { value: { "/S": "/L", "/K": ["3 0 R"] } },
+          "obj:3 0 R": { value: { "/S": "/LI", "/K": ["4 0 R"] } },
+          "obj:4 0 R": { value: { "/S": "/Lbl" } },
+        },
+      ],
+    });
+    expect(result.lists[0].isWellFormed).toBe(false);
+  });
+});
+
+describe("qpdf exit-code gating for recovery", () => {
+  it("does NOT recover stdout from exit code 2 (errors) even when it parses", () => {
+    // Exit 2 means "errors — file not processed correctly". Recovering its
+    // output would let the conformance gate assert confirmed WCAG failures
+    // from data qpdf itself disclaimed.
+    const err: any = new Error("qpdf: hard error");
+    err.status = 2;
+    err.stdout = JSON.stringify({
+      qpdf: [{}, { "obj:1 0 R": { value: { "/Type": "/Catalog" } } }],
+    });
+    err.stderr = "qpdf: some error";
+    mockExec.mockImplementation(() => {
+      throw err;
+    });
+
+    const result = analyzeWithQpdf(Buffer.from("fake"));
+    expect(result.error).toBe("QPDF parsing failed");
+  });
+
+  it("does NOT treat a degenerate JSON object as a recovered analysis", () => {
+    const err: any = new Error("qpdf: operation succeeded with warnings");
+    err.status = 3;
+    err.stdout = "{}";
+    mockExec.mockImplementation(() => {
+      throw err;
+    });
+
+    const result = analyzeWithQpdf(Buffer.from("fake"));
+    expect(result.error).toBe("QPDF parsing failed");
+  });
+});
+
+describe("merged field+widget with kid widgets (review hardening)", () => {
+  it("counts the field once when the merged dict is also the kids' /Parent", () => {
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog", "/AcroForm": "2 0 R" } },
+          "obj:2 0 R": { value: { "/Fields": ["3 0 R"] } },
+          // Malformed-but-occurring: the field dict is itself a widget AND
+          // has kid widgets pointing back at it.
+          "obj:3 0 R": {
+            value: {
+              "/Type": "/Annot",
+              "/Subtype": "/Widget",
+              "/T": "u:choice",
+              "/TU": "u:Pick one",
+              "/Kids": ["4 0 R"],
+            },
+          },
+          "obj:4 0 R": {
+            value: { "/Type": "/Annot", "/Subtype": "/Widget", "/Parent": "3 0 R" },
+          },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(1);
+    expect(result.formFields[0].hasTU).toBe(true);
+  });
+});
+
+describe("multi-row RowSpan carry", () => {
+  it("carries a RowSpan=3 cell through both following rows", () => {
+    // Row 1: [TD rowspan=3][TD] → 2 | Row 2: [TD] + carry → 2 | Row 3: [TD] + carry → 2
+    const result = parseJson({
+      qpdf: [
+        {},
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:2 0 R": {
+            value: { "/S": "/Table", "/K": ["3 0 R", "7 0 R", "9 0 R"] },
+          },
+          "obj:3 0 R": { value: { "/S": "/TR", "/K": ["4 0 R", "5 0 R"] } },
+          "obj:4 0 R": {
+            value: { "/S": "/TD", "/A": { "/O": "/Table", "/RowSpan": 3 } },
+          },
+          "obj:5 0 R": { value: { "/S": "/TD" } },
+          "obj:7 0 R": { value: { "/S": "/TR", "/K": ["8 0 R"] } },
+          "obj:8 0 R": { value: { "/S": "/TD" } },
+          "obj:9 0 R": { value: { "/S": "/TR", "/K": ["10 0 R"] } },
+          "obj:10 0 R": { value: { "/S": "/TD" } },
+        },
+      ],
+    });
+    expect(result.tables[0].columnCounts).toEqual([2, 2, 2]);
+    expect(result.tables[0].hasConsistentColumns).toBe(true);
   });
 });

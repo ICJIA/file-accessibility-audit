@@ -79,3 +79,37 @@ describe("conformance gate — WCAG 2.2", () => {
     expect(scs).not.toContain("3.3.8");
   });
 });
+
+describe("conformance gate — 1.3.2 Meaningful Sequence evidence", () => {
+  it("does NOT assert 1.3.2 from a low heuristic category score alone", async () => {
+    // A flat-but-correctly-ordered structure tree scores 30 in the
+    // reading_order category (flat-tree heuristic) WITHOUT any actual
+    // order comparison having run. That is not evidence of a confirmed
+    // Meaningful Sequence violation.
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ hasStructTree: true }), // no MCID data → rigorous check can't run
+      makePdfjs(),
+      [{ id: "reading_order", score: 30 }] as any,
+    );
+    expect(v.failures.some((f: any) => f.sc === "1.3.2")).toBe(false);
+  });
+
+  it("asserts 1.3.2 when the rigorous MCID comparison finds substantial disorder", async () => {
+    // Struct-tree order is the exact reverse of the content-stream order on
+    // the only page — the rigorous comparison itself proves the disorder,
+    // regardless of what the category score happens to be.
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({
+        hasStructTree: true,
+        structTreeMcidsByPage: { 1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+      }),
+      makePdfjs({
+        contentStreamMcidsByPage: { 1: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] },
+      }),
+      [{ id: "reading_order", score: 100 }] as any,
+    );
+    expect(v.failures.some((f: any) => f.sc === "1.3.2")).toBe(true);
+  });
+});

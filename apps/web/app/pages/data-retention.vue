@@ -1254,6 +1254,92 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.26.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.26.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-06-10</strong> · scope: accuracy fixes across
+            the PDF analysis engine — how the document file is read, how
+            tables, forms, lists, and titles are judged, and when the report
+            may claim a confirmed WCAG failure. No security review was
+            required — nothing about data handling changed.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.26.0 corrects cases where the audit reported things that were not
+          true about a document. The most important: a PDF with a minor,
+          repairable file defect (common in older or re-saved documents) was
+          scored as if it had no accessibility tagging at all — the identical
+          document could score 100 or 42 depending on that one defect. The
+          release also stops several false alarms, closes a detection gap, and
+          re-verifies every "How to fix" instruction against Adobe's current
+          documentation. An independent code review was completed before
+          release.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              Slightly damaged files are now read correctly</strong
+            >
+            — A document with a small, automatically repairable file defect is
+            no longer falsely reported as untagged. Some previously low scores
+            on tagged documents will rise to reflect their real structure.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              False alarms removed</strong
+            >
+            — A multiple-choice (radio button) question no longer counts as
+            several unlabeled form fields; tables with merged cells are no
+            longer flagged as irregular; one-word document titles
+            ("Budget2024") are no longer treated as missing; lists without a
+            separate bullet label are no longer failed; and a table nested
+            inside another is no longer counted twice.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-700/30 text-amber-200 mr-2"
+                >Note</span
+              >
+              "Confirmed failure" now means measured, not guessed</strong
+            >
+            — The conformance verdict only claims a reading-order failure when
+            the tool actually measured the tag order against the visual order,
+            and only claims a missing title when the document truly has none.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              No new data and no new attack surface</strong
+            >
+            — Every fix reads output the analysis tools already produced for
+            the same document. No code path that stores, transmits, or retains
+            data changed; no endpoint, retention window, or permission
+            changed.
+          </li>
+        </ul>
+      </article>
+
       <!-- v1.25.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

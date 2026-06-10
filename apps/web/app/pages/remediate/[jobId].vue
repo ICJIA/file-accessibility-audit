@@ -1417,7 +1417,9 @@ function labelForEvent(name: string): string {
                 :key="f.ruleId + f.clause"
               >
                 <span class="font-mono text-[var(--text)]">{{ f.ruleId }}</span>
-                <span v-if="f.clause"> · {{ f.clause }}</span>
+                <!-- ruleId is "clause-testNumber" (e.g. 7.1-1) on veraPDF ≥1.30;
+                     repeat the clause only when it isn't already the prefix -->
+                <span v-if="f.clause && !String(f.ruleId).startsWith(f.clause)"> · {{ f.clause }}</span>
                 <span v-if="f.description"> — {{ f.description }}</span>
                 <span class="text-amber-400 ml-1">({{ f.count }})</span>
               </li>

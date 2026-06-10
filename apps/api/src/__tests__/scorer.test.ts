@@ -323,6 +323,35 @@ describe("scoreDocument — mixed results", () => {
     expect(findCategory(result, "title_language").score).toBe(50);
   });
 
+  it("filename-like title earns partial credit (25 of 50) with an advisory", () => {
+    const qpdf = makeQpdf({ hasLang: true, lang: "en" });
+    const pdfjs = makePdfjs({
+      title: "report_v3_final.pdf",
+      titleLooksLikeFilename: true,
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "title_language");
+    expect(cat.score).toBe(75); // 25 title + 50 lang
+    expect(cat.findings.join(" ")).toContain("filename");
+    // The title EXISTS — it must never be reported as a confirmed 2.4.2
+    // "no title in metadata" conformance failure.
+    expect(result.conformance.failures.some((f) => f.sc === "2.4.2")).toBe(
+      false,
+    );
+  });
+
+  it("filename-like title still beats no title at all", () => {
+    const qpdf = makeQpdf();
+    const withFilename = scoreDocument(
+      qpdf,
+      makePdfjs({ title: "scan_20240115", titleLooksLikeFilename: true }),
+    );
+    const withNone = scoreDocument(qpdf, makePdfjs({ title: null }));
+    expect(
+      findCategory(withFilename, "title_language").score!,
+    ).toBeGreaterThan(findCategory(withNone, "title_language").score!);
+  });
+
   it("qpdf error adds a warning", () => {
     const qpdf = makeQpdf({ error: "QPDF parsing failed" });
     const pdfjs = makePdfjs();
@@ -1211,7 +1240,30 @@ describe("supplementary findings — list markup", () => {
     );
   });
 
-  it("reports malformed lists", () => {
+  it("reports malformed lists (items without LBody)", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1],
+      lists: [
+        {
+          itemCount: 2,
+          hasLabels: true,
+          hasBodies: false,
+          isWellFormed: false,
+          nestingDepth: 0,
+        },
+      ],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const readingCat = findCategory(result, "reading_order");
+    expect(
+      readingCat.findings.some((f) => f.includes("missing <LBody>")),
+    ).toBe(true);
+  });
+
+  it("flags missing Lbl as advisory only on well-formed lists", () => {
     const qpdf = makeQpdf({
       hasStructTree: true,
       structTreeDepth: 3,
@@ -1221,7 +1273,7 @@ describe("supplementary findings — list markup", () => {
           itemCount: 2,
           hasLabels: false,
           hasBodies: true,
-          isWellFormed: false,
+          isWellFormed: true,
           nestingDepth: 0,
         },
       ],
@@ -1229,9 +1281,13 @@ describe("supplementary findings — list markup", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(readingCat.findings.some((f) => f.includes("missing <Lbl>"))).toBe(
-      true,
-    );
+    expect(readingCat.findings.some((f) => f.includes("optional"))).toBe(true);
+    // No confirmed WCAG failure may be asserted for a missing-Lbl list.
+    expect(
+      result.conformance.failures.some((f) =>
+        f.issue.includes("list"),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -2032,5 +2088,63 @@ describe("reading_order — noise tolerance & deduction transparency", () => {
         f.includes("does not yet compare per-page marked-content order"),
       ),
     ).toBe(false);
+  });
+});
+
+describe("supplementary findings — Acrobat fix guide", () => {
+  it("appends the Acrobat guide to a failing form_accessibility category", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      hasAcroForm: true,
+      formFields: [
+        { ref: "5 0 R", hasTU: false, name: "firstName" },
+        { ref: "6 0 R", hasTU: true, name: "lastName" },
+      ],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const formCat = findCategory(result, "form_accessibility");
+    expect(formCat.score).toBeLessThan(100);
+    expect(
+      formCat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
+    ).toBe(true);
+  });
+});
+
+describe("help links and How-to-fix accuracy", () => {
+  // WebAIM's PDF series has no "#702" anchor (verified 2026-06-10 against
+  // webaim.org/techniques/acrobat/*) — links using it silently scroll to the
+  // top of the wrong page.
+  it("contains no broken WebAIM #702 anchors in help links", () => {
+    const { qpdf, pdfjs } = fullyAccessible();
+    // Force every category to emit (failures produce the most links/findings)
+    const result = scoreDocument(makeQpdf(), makePdfjs());
+    const all = [result, scoreDocument(qpdf, pdfjs)];
+    for (const r of all) {
+      for (const cat of r.categories) {
+        for (const link of cat.helpLinks) {
+          expect(link.url).not.toContain("#702");
+          expect(link.url).not.toContain("acrobat#document");
+        }
+      }
+    }
+  });
+
+  // The app audits against WCAG.VERSION (2.2 by default); category help
+  // links to W3C "Understanding" pages must use the same version base as
+  // the conformance gate, not a hardcoded 2.1.
+  it("links W3C Understanding pages for the active WCAG version", () => {
+    // Mirrors the WCAG version flag (defaults to 2.2; WCAG_VERSION=2.1
+    // reverts) so the suite stays green under either setting.
+    const expected =
+      process.env.WCAG_VERSION === "2.1" ? "/WCAG21/" : "/WCAG22/";
+    const result = scoreDocument(makeQpdf(), makePdfjs());
+    for (const cat of result.categories) {
+      for (const link of cat.helpLinks) {
+        if (link.url.includes("/Understanding/")) {
+          expect(link.url).toContain(expected);
+        }
+      }
+    }
   });
 });

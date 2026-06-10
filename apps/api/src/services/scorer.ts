@@ -5,6 +5,7 @@ import {
   SEVERITY_THRESHOLDS,
   ANALYSIS,
   WCAG_CATEGORY_MAP,
+  WCAG,
 } from "#config";
 import type { QpdfResult } from "./qpdfService.js";
 import type { PdfjsResult } from "./pdfjsService.js";
@@ -18,6 +19,7 @@ import {
   evaluateConformance,
   type ConformanceVerdict,
 } from "./scoring/conformance.js";
+import { computeReadingOrderFidelity } from "./scoring/readingOrderFidelity.js";
 
 export interface HelpLink {
   label: string;
@@ -125,6 +127,13 @@ export interface ScoreProfileResult {
   // the pre-floor math when needed.
   rawOverallScore?: number;
   flooredToStrict?: boolean;
+}
+
+// W3C "Understanding" URL for the ACTIVE WCAG version (2.2 by default,
+// 2.1 via WCAG_VERSION) — help links must match the version the conformance
+// gate audits against, not a hardcoded 2.1.
+function wcagUnderstandingUrl(slug: string): string {
+  return `${WCAG.UNDERSTANDING_BASE[WCAG.VERSION]}${slug}.html`;
 }
 
 function getGrade(score: number): string {
@@ -393,7 +402,7 @@ function scoreTextExtractability(
     findings.push("PDF contains extractable text");
     findings.push("Document is NOT tagged — no StructTreeRoot found");
     findings.push(
-      "How to fix: In Adobe Acrobat, go to Accessibility → Add Tags to Document. Tags create a hidden structure that tells screen readers the reading order, headings, and other elements.",
+      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document). Tags create a hidden structure that tells screen readers the reading order, headings, and other elements.",
     );
   } else if (!pdfjs.hasText && qpdf.hasStructTree) {
     score = 25;
@@ -402,7 +411,7 @@ function scoreTextExtractability(
       "This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.",
     );
     findings.push(
-      "How to fix: In Adobe Acrobat, go to Scan & OCR → Recognize Text → In This File.",
+      "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In This File.",
     );
   } else {
     score = 0;
@@ -412,7 +421,7 @@ function scoreTextExtractability(
       "This PDF appears to be a scanned image — it is essentially a photograph of text. Screen readers cannot read it at all.",
     );
     findings.push(
-      "How to fix: (1) Run OCR in Adobe Acrobat: Scan & OCR → Recognize Text. (2) Then add tags: Accessibility → Add Tags to Document.",
+      "How to fix: (1) Run OCR in Adobe Acrobat: All tools → Scan & OCR → Recognize Text. (2) Then add tags: All tools → Prepare for accessibility → Automatically tag PDF.",
     );
   }
 
@@ -487,10 +496,22 @@ function scoreTitleLanguage(
   let score = 0;
   const findings: string[] = [];
 
-  // Title check (50 points)
+  // Title check (50 points; 25 when the title looks like a filename —
+  // present, so not a conformance failure, but weak for screen reader users)
   if (pdfjs.title && pdfjs.title.trim().length > 0) {
-    score += 50;
-    findings.push(`Document title: "${pdfjs.title}"`);
+    if (pdfjs.titleLooksLikeFilename) {
+      score += 25;
+      findings.push(`Document title: "${pdfjs.title}"`);
+      findings.push(
+        "The title looks like a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
+      );
+      findings.push(
+        'How to fix: In Adobe Acrobat, go to File → Properties → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
+      );
+    } else {
+      score += 50;
+      findings.push(`Document title: "${pdfjs.title}"`);
+    }
   } else {
     findings.push("No document title found in metadata");
     findings.push(
@@ -535,11 +556,11 @@ function scoreTitleLanguage(
       },
       {
         label: "WCAG 3.1.1: Language of Page",
-        url: "https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html",
+        url: wcagUnderstandingUrl("language-of-page"),
       },
       {
         label: "WebAIM: Document Properties",
-        url: "https://webaim.org/techniques/acrobat/acrobat#document",
+        url: "https://webaim.org/techniques/acrobat/other",
       },
     ],
   };
@@ -566,11 +587,11 @@ function scoreHeadingStructure(
     },
     {
       label: "WCAG 1.3.1: Info and Relationships",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html",
+      url: wcagUnderstandingUrl("info-and-relationships"),
     },
     {
       label: "WebAIM: Headings in PDFs",
-      url: "https://webaim.org/techniques/acrobat/acrobat#702",
+      url: "https://webaim.org/techniques/acrobat/reviewing#repairs",
     },
   ];
 
@@ -615,7 +636,7 @@ function scoreHeadingStructure(
     }
 
     findings.push(
-      "How to fix: In Adobe Acrobat, open the Tags panel (View → Show/Hide → Navigation Panes → Tags). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.",
+      "How to fix: In Adobe Acrobat, open the Tags panel (classic UI: View → Show/Hide → Navigation Panes → Tags; new UI: the Accessibility tags panel in the left rail). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.",
     );
     return {
       id: "heading_structure",
@@ -778,11 +799,11 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     },
     {
       label: "WCAG 1.1.1: Non-text Content",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html",
+      url: wcagUnderstandingUrl("non-text-content"),
     },
     {
       label: "WebAIM: Alt Text in PDFs",
-      url: "https://webaim.org/techniques/acrobat/acrobat#702",
+      url: "https://webaim.org/techniques/acrobat/reviewing#repairs",
     },
   ];
   const altExplanation =
@@ -947,10 +968,10 @@ function scoreColorContrast(): CategoryResult {
   const contrastLinks: CategoryResult["helpLinks"] = [
     {
       label: "WCAG 1.4.3: Contrast (Minimum)",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html",
+      url: wcagUnderstandingUrl("contrast-minimum"),
     },
     {
-      label: "Adobe: Accessibility Full Check",
+      label: "Adobe: Check accessibility (Full Check)",
       url: "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html",
     },
   ];
@@ -986,7 +1007,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     },
     {
       label: "WebAIM: PDF Navigation",
-      url: "https://webaim.org/techniques/acrobat/acrobat#702",
+      url: "https://webaim.org/techniques/acrobat/other#bookmarks",
     },
   ];
   const bookmarkExplanation =
@@ -1075,11 +1096,11 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
     },
     {
       label: "WCAG 1.3.1: Info and Relationships",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html",
+      url: wcagUnderstandingUrl("info-and-relationships"),
     },
     {
       label: "WebAIM: Table Accessibility in PDFs",
-      url: "https://webaim.org/techniques/acrobat/acrobat#702",
+      url: "https://webaim.org/techniques/acrobat/reviewing#repairs",
     },
     {
       label: "PAC 2024: Table Structure",
@@ -1224,7 +1245,7 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
       }
     }
     findings.push(
-      'Fix: In Adobe Acrobat, select each <TH> tag → Properties → Scope → set to "Column" or "Row"',
+      'Fix: In Adobe Acrobat, open the Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to "Column" or "Row"',
     );
   }
 
@@ -1285,12 +1306,12 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
       if (t.hasConsistentColumns === false) {
         const unique = [...new Set(t.columnCounts)];
         findings.push(
-          `  Table ${ti + 1}: inconsistent column counts — rows have [${t.columnCounts.join(", ")}] cells (expected uniform ${unique[0]})`,
+          `  Table ${ti + 1}: inconsistent column counts — rows span [${t.columnCounts.join(", ")}] grid columns (expected uniform ${unique[0]}; ColSpan/RowSpan are already accounted for)`,
         );
       }
     }
     findings.push(
-      "Fix: Ensure all rows have the same number of cells. Use empty cells or colspan/rowspan where needed.",
+      "Fix: Ensure every row covers the same number of grid columns — add the missing cells, or set correct /ColSpan//RowSpan attributes on spanning cells.",
     );
   }
 
@@ -1413,7 +1434,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
     },
     {
       label: "WCAG 2.4.4: Link Purpose",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/link-purpose-in-context.html",
+      url: wcagUnderstandingUrl("link-purpose-in-context"),
     },
     {
       label: "WebAIM: Links and Hypertext",
@@ -1534,7 +1555,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
     },
     {
       label: "WCAG 1.3.1: Labels for Form Fields",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/info-and-relationships.html",
+      url: wcagUnderstandingUrl("info-and-relationships"),
     },
     {
       label: "WebAIM: Accessible PDF Forms",
@@ -1606,7 +1627,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
       }
     }
     findings.push(
-      "How to fix: In Adobe Acrobat, right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.",
+      "How to fix: In Adobe Acrobat, open All tools → Prepare a form, then right-click each field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.",
     );
   }
 
@@ -1635,11 +1656,11 @@ function scoreReadingOrder(
     },
     {
       label: "WCAG 1.3.2: Meaningful Sequence",
-      url: "https://www.w3.org/WAI/WCAG21/Understanding/meaningful-sequence.html",
+      url: wcagUnderstandingUrl("meaningful-sequence"),
     },
     {
       label: "WebAIM: Reading Order",
-      url: "https://webaim.org/techniques/acrobat/acrobat#702",
+      url: "https://webaim.org/techniques/acrobat/reviewing#order",
     },
   ];
   const readingExplanation =
@@ -1656,7 +1677,7 @@ function scoreReadingOrder(
       findings: [
         "No structure tree present — reading order cannot be determined",
         "Without a tag structure, screen readers fall back to the raw drawing order, which may not match the visual layout at all.",
-        "How to fix: First add tags (Accessibility → Add Tags to Document), then use the Reading Order tool (Accessibility → Reading Order) to verify and correct the sequence.",
+        "How to fix: First add tags (All tools → Prepare for accessibility → Automatically tag PDF), then use Fix reading order (classic UI: Accessibility → Reading Order) to verify and correct the sequence.",
       ],
       explanation: readingExplanation,
       helpLinks: readingLinks,
@@ -1676,7 +1697,7 @@ function scoreReadingOrder(
       "Structure tree is flat (no meaningful nesting) — the document has tags but they don't define a nested hierarchy.",
     );
     findings.push(
-      "How to fix: Use the Reading Order tool in Adobe Acrobat (Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
+      "How to fix: Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
     );
     return {
       id: "reading_order",
@@ -1784,108 +1805,8 @@ function scoreReadingOrder(
   };
 }
 
-// Rigorous reading-order fidelity check. For each page that has both a
-// struct-tree MCID sequence (from QPDF) and a content-stream MCID sequence
-// (from pdfjs), compute the longest-common-subsequence ratio — i.e. how
-// many MCIDs appear in the same relative order in both sequences. Aggregate
-// weighted by the number of shared MCIDs per page, then map to 0-100.
-//
-// Returns score=null when fewer than 1 page can be meaningfully compared
-// so the caller can fall back to an honest N/A instead of a noise-level
-// verdict.
-interface ReadingOrderFidelity {
-  score: number | null;
-  similarityPct: number;
-  pagesAnalyzed: number;
-  pagesWithDrift: number;
-}
-
-function computeReadingOrderFidelity(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): ReadingOrderFidelity {
-  const emptyResult: ReadingOrderFidelity = {
-    score: null,
-    similarityPct: 0,
-    pagesAnalyzed: 0,
-    pagesWithDrift: 0,
-  };
-
-  const structByPage = qpdf.structTreeMcidsByPage;
-  const streamByPage = pdfjs.contentStreamMcidsByPage;
-  if (!structByPage || !streamByPage) return emptyResult;
-
-  const pageNumbers = new Set<number>([
-    ...Object.keys(structByPage).map(Number),
-    ...Object.keys(streamByPage).map(Number),
-  ]);
-
-  let totalShared = 0;
-  let weightedSum = 0;
-  let pagesAnalyzed = 0;
-  let pagesWithDrift = 0;
-
-  for (const pageNum of pageNumbers) {
-    const struct = structByPage[pageNum] ?? [];
-    const stream = streamByPage[pageNum] ?? [];
-    if (struct.length === 0 || stream.length === 0) continue;
-
-    const shared = new Set<number>(struct.filter((m) => stream.includes(m)));
-    if (shared.size < 2) continue; // <2 shared MCIDs = no order signal
-
-    const filteredStruct = struct.filter((m) => shared.has(m));
-    const filteredStream = stream.filter((m) => shared.has(m));
-
-    const lcs = longestCommonSubsequence(filteredStruct, filteredStream);
-    const denom = Math.max(filteredStruct.length, filteredStream.length);
-    const pageSimilarity = denom > 0 ? lcs / denom : 1;
-
-    totalShared += shared.size;
-    weightedSum += pageSimilarity * shared.size;
-    pagesAnalyzed++;
-    if (pageSimilarity < 0.8) pagesWithDrift++;
-  }
-
-  if (pagesAnalyzed === 0 || totalShared === 0) return emptyResult;
-
-  const similarity = weightedSum / totalShared;
-  const similarityPct = Math.round(similarity * 100);
-
-  // Top band is 0.97 (not 0.99) so a near-perfect document is not docked for a
-  // 1–2% longest-common-subsequence wobble that is really MCID-extraction
-  // jitter (artifact handling, multi-MCID runs) rather than genuine disorder.
-  let score: number;
-  if (similarity >= 0.97) score = 100;
-  else if (similarity >= 0.9) score = 90;
-  else if (similarity >= 0.8) score = 70;
-  else if (similarity >= 0.5) score = 40;
-  else score = 10;
-
-  return {
-    score,
-    similarityPct,
-    pagesAnalyzed,
-    pagesWithDrift,
-  };
-}
-
-// Length of the longest common subsequence of two integer arrays.
-// Standard O(m*n) DP. For typical PDF pages (tens to low hundreds of MCIDs)
-// this is negligible. Used to measure how "out of order" two MCID sequences
-// are relative to each other.
-function longestCommonSubsequence(a: number[], b: number[]): number {
-  const m = a.length;
-  const n = b.length;
-  if (m === 0 || n === 0) return 0;
-  const prev = new Array<number>(n + 1).fill(0);
-  const curr = new Array<number>(n + 1).fill(0);
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (a[i - 1] === b[j - 1]) curr[j] = prev[j - 1] + 1;
-      else curr[j] = Math.max(prev[j], curr[j - 1]);
-    }
-    for (let k = 0; k <= n; k++) prev[k] = curr[k];
-  }
-  return prev[n];
-}
+// The rigorous reading-order fidelity check lives in
+// scoring/readingOrderFidelity.ts so the conformance gate can consume the
+// same evidence (1.3.2 may only be asserted from an actual order comparison,
+// never from heuristic category scores).
 
