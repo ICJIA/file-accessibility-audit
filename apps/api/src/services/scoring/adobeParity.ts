@@ -608,8 +608,8 @@ export function buildAdobeParityReport(
       listsVacuous
         ? "No lists found — rule passes vacuously."
         : listsMalformed === 0
-          ? `All ${listCount} list(s) have well-formed <Lbl>/<LBody> children.`
-          : `${listsMalformed} of ${listCount} list(s) have missing <Lbl> or <LBody> elements.`,
+          ? `All ${listCount} list(s) have well-formed <LBody> children (Acrobat's rule checks placement, not <Lbl> presence).`
+          : `${listsMalformed} of ${listCount} list(s) have items missing <LBody> elements.`,
     ),
   );
 

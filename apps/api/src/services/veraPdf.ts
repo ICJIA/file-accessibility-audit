@@ -103,7 +103,9 @@ export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
   return extractVerdict(parsed, exitWasError);
 }
 
-function extractVerdict(
+// Exported for tests — pure mapping from veraPDF's JSON output (which
+// varies by version) to the stable VeraPdfVerdict shape.
+export function extractVerdict(
   parsed: unknown,
   fellbackToErrorStdout: boolean,
 ): VeraPdfVerdict {
@@ -163,26 +165,34 @@ function extractVerdict(
     [];
 
   const failures: VeraPdfRuleFailure[] = ruleSummariesRaw
-    .map((r) => ({
-      ruleId:
-        (r.ruleStatus as string | undefined) ??
-        (r.specification as string | undefined) ??
-        (r.ruleId as string | undefined) ??
-        (r.id as string | undefined) ??
-        "unknown",
-      clause:
-        (r.clause as string | undefined) ??
-        (r.testNumber as string | undefined) ??
-        "",
-      description:
-        (r.description as string | undefined) ??
-        (r.message as string | undefined) ??
-        "",
-      count:
-        (r.failedChecks as number | undefined) ??
-        (r.count as number | undefined) ??
-        1,
-    }))
+    .map((r) => {
+      // veraPDF identifies a rule by specification + clause + testNumber
+      // (its GUI renders "7.1-1"). `ruleStatus` is the status string
+      // ("FAILED"/"PASSED") — never use it as an identifier.
+      const clause = typeof r.clause === "string" ? r.clause : "";
+      const testNumber = r.testNumber;
+      const composite =
+        clause && testNumber !== undefined && testNumber !== null
+          ? `${clause}-${testNumber}`
+          : null;
+      return {
+        ruleId:
+          composite ??
+          (r.specification as string | undefined) ??
+          (r.ruleId as string | undefined) ??
+          (r.id as string | undefined) ??
+          "unknown",
+        clause,
+        description:
+          (r.description as string | undefined) ??
+          (r.message as string | undefined) ??
+          "",
+        count:
+          (r.failedChecks as number | undefined) ??
+          (r.count as number | undefined) ??
+          1,
+      };
+    })
     .filter((f) => f.count > 0);
 
   // Prefer the authoritative server-reported count when veraPDF exposes

@@ -2,13 +2,14 @@ import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { CategoryResult } from "../scorer.js";
 
-// Adobe Acrobat Full Check rule names and step-by-step fix paths per category.
+// Adobe Acrobat Accessibility Checker rule names and step-by-step fix paths
+// per category (new UI: Check for accessibility; classic UI: Full Check).
 // Appended to failing categories so users have a concrete remediation path.
 const acrobatGuide: Record<string, string[]> = {
   text_extractability: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Document" → "Tagged PDF"',
-    'If Tagged PDF fails: File → Properties → ensure "Tagged PDF: Yes" in Description tab',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Tagged PDF"',
+    'If Tagged PDF fails: File → Properties → Description shows "Tagged PDF: Yes/No" (status only) — to add tags, run All tools → Prepare for accessibility → Automatically tag PDF',
     "If text is unreadable (scanned): Recognize Text → In This File (runs OCR)",
     "Then: Accessibility → Reading Order tool → verify content tags are correct",
     'Check font embedding: File → Properties → Fonts tab — all fonts should say "(Embedded)" or "(Embedded Subset)"',
@@ -17,7 +18,7 @@ const acrobatGuide: Record<string, string[]> = {
   ],
   title_language: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Document" → "Title" and "Primary Language"',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Title" and "Primary Language"',
     "Set title: File → Properties → Description tab → Title field (enter a meaningful document title)",
     'Set title display: File → Properties → Initial View tab → Window Options → Show → "Document Title"',
     "Set language: File → Properties → Advanced tab → Reading Options → Language dropdown",
@@ -25,8 +26,8 @@ const acrobatGuide: Record<string, string[]> = {
   ],
   heading_structure: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Page Content" → "Tagged Content" and "Document" → "Logical Reading Order"',
-    "Open the Tags panel: View → Show/Hide → Navigation Panes → Tags",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Page Content" → "Tagged Content" and "Document" → "Logical Reading Order"',
+    "Open the Tags panel: View → Show/Hide → Navigation Panes → Tags (new UI: Accessibility tags panel in the left rail)",
     "To tag a heading: select text with Reading Order tool → click H1, H2, H3, etc.",
     "To fix heading level: right-click the tag in Tags panel → Properties → Type → select correct heading level (H1–H6)",
     "Multiple H1s: keep only the document title as H1 — right-click each extra H1 tag → Properties → change Type to H2 (or appropriate level)",
@@ -34,52 +35,52 @@ const acrobatGuide: Record<string, string[]> = {
   ],
   alt_text: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Alternate Text" → "Figures alternate text"',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Alternate Text" → "Figures alternate text"',
     "To add alt text: open Tags panel → find the <Figure> tag → right-click → Properties → Alternate Text field",
-    "Or: Accessibility → Reading Order tool → right-click an image → Edit Alternate Text",
+    "Or: All tools → Prepare for accessibility → Fix reading order → select the image → right-click → Edit Alternate Text",
     'Good alt text: describes the purpose/content ("Bar chart showing 2024 crime rates"), not appearance ("colorful chart")',
-    'Decorative images: right-click the tag → Properties → check "Artifact" (removes from reading order)',
+    'Decorative images: select with the Reading Order tool → click "Background/Artifact", or in the Accessibility tags panel right-click the tag → Change Tag to Artifact (removes it from the reading order)',
   ],
   bookmarks: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Document" → "Bookmarks"',
-    "Auto-generate from headings: All tools → Edit a PDF → More → Add Bookmarks (from structure)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Bookmarks"',
+    "Auto-generate from headings: open the Bookmarks panel → Options menu (⋮) → New Bookmarks from Structure → select the heading tags (requires a tagged PDF)",
     "Or manually: navigate to each section → Ctrl/Cmd+B → name the bookmark",
     "Organize: drag bookmarks in the Bookmarks panel to create parent/child nesting",
     "Verify: open Bookmarks panel (View → Show/Hide → Navigation Panes → Bookmarks)",
   ],
   table_markup: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Tables" → "Rows", "TH and TD", "Headers"',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Tables" → "Rows", "TH and TD", "Headers"',
     "Open Tags panel and expand the <Table> tag to see structure",
     'To add header cells: right-click a <TD> tag → Properties → Type → change to "Table Header Cell (TH)"',
-    'To set scope: right-click <TH> → Properties → Attributes tab → add Scope attribute → "Column" or "Row"',
+    'To set scope: Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type "Header Cell" + Scope "Column" or "Row"',
     "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
     "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)",
   ],
   link_quality: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Alternate Text" → "Other elements alternate text"',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Alternate Text" → "Other elements alternate text"',
     "To fix link text: open Tags panel → find the <Link> tag → expand to see the text",
     "If link text is a raw URL: edit the visible text in the source document (Word, InDesign) before re-exporting to PDF",
     "In Acrobat: Edit PDF tool → select the link text → retype with descriptive text",
     "Best practice: fix link text in the source document, then re-export — Acrobat edits are fragile",
   ],
-  form_fields: [
+  form_accessibility: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Forms" → "Tagged form fields" and "Field descriptions"',
-    "To add a label: right-click the form field → Properties → General tab → Tooltip field (this is the accessible label)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Forms" → "Tagged form fields" and "Field descriptions"',
+    "To add a label: open All tools → Prepare a form → right-click the field → Properties → General tab → Tooltip field (this is the accessible label)",
     "The Tooltip (/TU attribute) is what screen readers announce — make it match the visible label",
     'For checkboxes/radios: Tooltip should describe the option (e.g., "Agree to terms")',
     "Verify: Tab through the form with a screen reader to confirm each field is announced correctly",
   ],
   reading_order: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run: Accessibility → Full Check → look under "Document" → "Tab order" and "Logical Reading Order"',
-    "Open Reading Order tool: Accessibility → Reading Order (or All tools → Prepare for accessibility → Reading Order)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Tab order" and "Logical Reading Order"',
+    "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Accessibility → Reading Order)",
     "The Reading Order tool shows numbered regions — verify the sequence matches how a human would read the page",
     "To reorder: drag items in the Tags panel, or use the Order panel (View → Show/Hide → Navigation Panes → Order)",
-    'Set tab order on all pages: select all pages in Pages panel → right-click → Page Properties → Tab Order → "Use Document Structure"',
+    'Set tab order on all pages: open the Page Thumbnails panel → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
   ],
 };
 
@@ -112,15 +113,21 @@ export function appendSupplementaryFindings(
     }
     if (wellFormed === qpdf.lists.length) {
       readingCatForLists.findings.push(
-        `All lists are well-formed (each <LI> has <Lbl> and <LBody>)`,
+        `All lists are well-formed (each <LI> has an <LBody>)`,
       );
+      const withoutLabels = qpdf.lists.filter((l) => !l.hasLabels).length;
+      if (withoutLabels > 0) {
+        readingCatForLists.findings.push(
+          `${withoutLabels} list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker`,
+        );
+      }
     } else {
       const malformed = qpdf.lists.length - wellFormed;
       readingCatForLists.findings.push(
-        `${malformed} list(s) are missing <Lbl> or <LBody> elements — screen readers may not announce list items correctly`,
+        `${malformed} list(s) have items missing <LBody> elements — screen readers may not announce list item content correctly`,
       );
       readingCatForLists.findings.push(
-        "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains both <Lbl> (bullet/number) and <LBody> (text content)",
+        "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
       );
     }
   } else if (
@@ -147,7 +154,7 @@ export function appendSupplementaryFindings(
           "  MarkInfo present but /Marked is not true — the document may not properly distinguish content from artifacts",
         );
         textCat.findings.push(
-          "  Fix: In Adobe Acrobat, run Accessibility → Full Check, then use the Reading Order tool to mark decorative elements as artifacts",
+          "  Fix: In Adobe Acrobat, run Check for accessibility (classic UI: Full Check), then use the Fix reading order tool to mark decorative elements as artifacts",
         );
       }
     } else if (qpdf.hasStructTree) {

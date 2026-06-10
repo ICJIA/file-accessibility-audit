@@ -241,6 +241,41 @@ function handleQpdfError(err: any): QpdfResult {
     error.killed = true;
     throw error;
   }
+  // qpdf exits 3 ("operation succeeded with warnings") for recoverable input
+  // defects — damaged xref, missing trailer /Size, etc. — while still writing
+  // the COMPLETE document JSON to stdout. execFile/execFileSync surface any
+  // non-zero exit as an error, so recover the analysis from the captured
+  // stdout in exactly that case. Without this, a tagged document with a
+  // trivial warning is falsely reported as untagged (no StructTreeRoot, no
+  // headings) and scored as a critical failure.
+  //
+  // Recovery is deliberately gated on exit code 3 AND a document-shaped
+  // payload: exit 2 means "errors — file not processed correctly", and
+  // recovering ITS output would let the conformance gate assert confirmed
+  // WCAG failures from data qpdf itself disclaimed.
+  const exitCode = err.status ?? err.code; // execFileSync uses .status, execFile .code
+  if (exitCode === 3) {
+    const stdout: unknown =
+      typeof err.stdout === "string"
+        ? err.stdout
+        : Buffer.isBuffer(err.stdout)
+          ? err.stdout.toString("utf-8")
+          : null;
+    if (typeof stdout === "string" && stdout.length > 0) {
+      try {
+        const parsed = JSON.parse(stdout);
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          (parsed.qpdf || parsed.objects)
+        ) {
+          return parseQpdfJson(parsed);
+        }
+      } catch {
+        // stdout was empty/partial — fall through to the failure result
+      }
+    }
+  }
   return emptyQpdfResult("QPDF parsing failed");
 }
 
@@ -276,13 +311,16 @@ function parseQpdfJson(json: any): QpdfResult {
     // row count in the report.
     const tableCandidates: Array<{ ref: string; obj: any }> = [];
 
+    // Parent FIELD refs already credited via one of their kid widgets — a
+    // radio group's widgets must collapse into one field, not N unlabeled ones.
+    const seenWidgetFieldRefs = new Set<string>();
+
     // Type3 fonts define their glyphs inline as PDF content streams
     // (/CharProcs) and therefore never carry a /FontFile*, yet they ARE
     // self-contained ("embedded"). Collect the /FontDescriptor refs of any
     // Type3 font so the FontFile-only embedding check below does not wrongly
     // flag them as non-embedded. (qpdf v2 keys objects as "obj:N 0 R" but
-    // stores indirect-reference values as "N 0 R", so normalize both.)
-    const normRef = (r: string): string => r.replace(/^obj:/, "");
+    // stores indirect-reference values as "N 0 R" — normRef bridges the two.)
     const type3DescriptorRefs = new Set<string>();
     for (const obj of Object.values(objects)) {
       const o = obj as any;
@@ -412,9 +450,11 @@ function parseQpdfJson(json: any): QpdfResult {
           result.headings.push({ level: tag.replace("/", ""), tag: o["/S"] });
         }
         // Tables — collected as candidates; nested ones are filtered after the
-        // loop so they don't inflate the top-level table/row counts.
+        // loop so they don't inflate the top-level table/row counts. The ref
+        // is normalized because it is later compared against value-side refs
+        // collected from /K arrays ("N 0 R", never "obj:N 0 R").
         if (tag === "/Table") {
-          tableCandidates.push({ ref, obj: o });
+          tableCandidates.push({ ref: normRef(ref), obj: o });
         }
         // Lists
         if (tag === "/L") {
@@ -452,18 +492,79 @@ function parseQpdfJson(json: any): QpdfResult {
           const altText =
             typeof rawAlt === "string" ? decodeQpdfString(rawAlt) : undefined;
           const hasAlt = altText !== undefined && altText !== "";
-          result.images.push({ ref, hasAlt, altText });
+          result.images.push({ ref: normRef(ref), hasAlt, altText });
         }
 
         // Collect MCIDs for reading order
         collectMCIDs(o, result.contentOrder);
       }
 
-      // Form fields
+      // Form fields. Two layouts exist:
+      //   merged — one dict is both the field (/T, /TU) and the widget; count it.
+      //   split  — the field dict holds /T and /TU, and each option/appearance
+      //            is a kid /Widget with only /Parent. The kid widgets of one
+      //            field (e.g. every option of a radio group) must collapse
+      //            into ONE field, with /TU read from the parent chain —
+      //            otherwise each option is falsely reported as an unlabeled
+      //            field.
       if (o["/Type"] === "/Annot" && o["/Subtype"] === "/Widget") {
-        const name =
-          typeof o["/T"] === "string" ? o["/T"].replace(/^u:/, "") : undefined;
-        result.formFields.push({ ref, hasTU: !!o["/TU"], name });
+        if (typeof o["/T"] === "string") {
+          // Merged field+widget dict — a terminal field in its own right.
+          // Seed the seen-set: malformed-but-real PDFs sometimes give the
+          // merged dict kid widgets whose /Parent points back at it, and the
+          // kid walk must not count the same field a second time.
+          if (!seenWidgetFieldRefs.has(normRef(ref))) {
+            seenWidgetFieldRefs.add(normRef(ref));
+            result.formFields.push({
+              ref: normRef(ref),
+              hasTU: !!o["/TU"],
+              name: o["/T"].replace(/^u:/, ""),
+            });
+          }
+        } else if (typeof o["/Parent"] === "string") {
+          // Kid widget — walk up to the owning field (nearest ancestor with
+          // /T) and credit that field once across all of its widgets.
+          let fieldRef: string | null = null;
+          let fieldDict: any = null;
+          let hasTU = !!o["/TU"];
+          let cursor = o["/Parent"] as string;
+          for (let hop = 0; hop < 5 && typeof cursor === "string"; hop++) {
+            const parent = resolveRef(cursor, objects);
+            if (!parent) break;
+            if (!hasTU && parent["/TU"]) hasTU = true;
+            if (typeof parent["/T"] === "string") {
+              fieldRef = normRef(cursor);
+              fieldDict = parent;
+              break;
+            }
+            cursor = parent["/Parent"];
+          }
+          if (fieldRef && fieldDict) {
+            if (!seenWidgetFieldRefs.has(fieldRef)) {
+              seenWidgetFieldRefs.add(fieldRef);
+              result.formFields.push({
+                ref: fieldRef,
+                hasTU,
+                name: fieldDict["/T"].replace(/^u:/, ""),
+              });
+            }
+          } else {
+            // Parent chain unresolvable — fall back to counting the widget.
+            result.formFields.push({
+              ref: normRef(ref),
+              hasTU: !!o["/TU"],
+              name: undefined,
+            });
+          }
+        } else {
+          // Orphan widget with no field dict at all — still a control a
+          // screen reader user will land on; count it.
+          result.formFields.push({
+            ref: normRef(ref),
+            hasTU: !!o["/TU"],
+            name: undefined,
+          });
+        }
       }
     }
 
@@ -480,7 +581,10 @@ function parseQpdfJson(json: any): QpdfResult {
       result.tables.push(analyzeTable(candidate.obj, objects, roleMap));
     }
 
-    // Also check for form fields via AcroForm
+    // Also check for form fields via AcroForm. /AcroForm is usually an
+    // indirect ref to the form dictionary, so resolve it before reading
+    // /Fields; field refs are value-form ("N 0 R") and must be resolved via
+    // resolveRef (the object map is keyed "obj:N 0 R" on qpdf ≥ 11).
     if (result.hasAcroForm) {
       const knownRefs = new Set(
         result.formFields
@@ -489,15 +593,30 @@ function parseQpdfJson(json: any): QpdfResult {
       );
       for (const [_ref, obj] of Object.entries(objects)) {
         const o = obj as any;
-        if (o?.["/AcroForm"]?.["/Fields"]) {
-          const fieldRefs = o["/AcroForm"]["/Fields"];
+        const acroForm =
+          typeof o?.["/AcroForm"] === "string"
+            ? resolveRef(o["/AcroForm"], objects)
+            : o?.["/AcroForm"];
+        if (acroForm?.["/Fields"]) {
+          const fieldRefs = acroForm["/Fields"];
           if (Array.isArray(fieldRefs)) {
             for (const fieldRef of fieldRefs) {
               const fieldKey =
                 typeof fieldRef === "string" ? fieldRef : fieldRef?.toString();
               if (!fieldKey || knownRefs.has(fieldKey)) continue;
-              const field = objects[fieldKey] as any;
+              const field = resolveRef(fieldKey, objects) as any;
               if (field) {
+                // Skip non-terminal container fields (kids are fields with
+                // their own /T): the kid fields are counted individually, so
+                // counting the container too would double-report.
+                const kids = field["/Kids"];
+                const isContainer =
+                  Array.isArray(kids) &&
+                  kids.some((k: any) => {
+                    const kid = typeof k === "string" ? resolveRef(k, objects) : k;
+                    return kid && typeof kid["/T"] === "string";
+                  });
+                if (isContainer) continue;
                 const name =
                   typeof field["/T"] === "string"
                     ? field["/T"].replace(/^u:/, "")
@@ -552,6 +671,14 @@ function parseQpdfJson(json: any): QpdfResult {
   }
 
   return result;
+}
+
+// Normalize an object-map KEY to the reference-VALUE form: qpdf JSON v2 keys
+// the object map as "obj:N 0 R" while indirect-reference values inside
+// objects are "N 0 R". Every comparison between a map key and a value ref
+// must go through this, or it silently never matches on qpdf ≥ 11.
+function normRef(r: string): string {
+  return r.replace(/^obj:/, "");
 }
 
 // Resolve a ref like "9 0 R" to its object, trying both "obj:9 0 R" and "9 0 R" key formats
@@ -770,18 +897,29 @@ function analyzeTable(
     return checkAttr(attrs);
   };
 
-  // Count cells in a TR row
-  const countRowCells = (trNode: any): number => {
-    const resolved = resolve(trNode);
-    const rowKids = resolved?.["/K"];
-    if (!rowKids) return 0;
-    const items = Array.isArray(rowKids) ? rowKids : [rowKids];
-    let count = 0;
-    for (const item of items) {
-      const tag = getTag(item);
-      if (tag === "/TH" || tag === "/TD") count++;
+  // Read a cell's /ColSpan or /RowSpan. Spans live in the cell's /A
+  // attribute dict(s) per ISO 32000 (owner /Table); accept a direct key too
+  // for leniency, mirroring hasNodeScope. Defaults to 1.
+  const spanOf = (cellNode: any, key: "/ColSpan" | "/RowSpan"): number => {
+    const resolved = resolve(cellNode);
+    if (!resolved) return 1;
+    let v: any = resolved[key];
+    if (v === undefined && resolved["/A"]) {
+      const attrs = resolved["/A"];
+      const read = (a: any): any => resolve(a)?.[key];
+      if (Array.isArray(attrs)) {
+        for (const a of attrs) {
+          const c = read(a);
+          if (c !== undefined) {
+            v = c;
+            break;
+          }
+        }
+      } else {
+        v = read(attrs);
+      }
     }
-    return count;
+    return typeof v === "number" && v >= 1 ? Math.floor(v) : 1;
   };
 
   // Walk the table subtree collecting all signals in a single pass
@@ -861,26 +999,51 @@ function analyzeTable(
   result.rowCount = trCount;
   result.hasRowStructure = trCount > 0;
 
-  // Column consistency: count cells per TR
-  const countTRCells = (trNode: any): void => {
-    result.columnCounts.push(countRowCells(trNode));
-  };
-
-  // Gather all TRs (from direct children or inside THead/TBody/TFoot)
+  // Column consistency: effective grid columns per TR, honoring /ColSpan and
+  // /RowSpan. A cell with /ColSpan n occupies n columns in its row; a cell
+  // with /RowSpan m also occupies its column(s) in the following m-1 rows
+  // (tracked via carryover). Counting raw cells instead flagged correctly
+  // spanned tables as "inconsistent column counts".
+  const trNodes: any[] = [];
   for (const kid of directKids) {
     const tag = getTag(kid);
     if (tag === "/TR") {
-      countTRCells(kid);
+      trNodes.push(kid);
     } else if (tag === "/THead" || tag === "/TBody" || tag === "/TFoot") {
       const sectionResolved = resolve(kid);
       const sectionKids = sectionResolved?.["/K"];
       if (sectionKids) {
         const sItems = Array.isArray(sectionKids) ? sectionKids : [sectionKids];
         for (const s of sItems) {
-          if (getTag(s) === "/TR") countTRCells(s);
+          if (getTag(s) === "/TR") trNodes.push(s);
         }
       }
     }
+  }
+
+  let rowSpanCarry: Array<{ rowsLeft: number; cols: number }> = [];
+  for (const trNode of trNodes) {
+    let effectiveCols = rowSpanCarry.reduce((sum, c) => sum + c.cols, 0);
+    rowSpanCarry = rowSpanCarry
+      .map((c) => ({ rowsLeft: c.rowsLeft - 1, cols: c.cols }))
+      .filter((c) => c.rowsLeft > 0);
+
+    const trResolved = resolve(trNode);
+    const rowKids = trResolved?.["/K"];
+    if (rowKids) {
+      const items = Array.isArray(rowKids) ? rowKids : [rowKids];
+      for (const item of items) {
+        const tag = getTag(item);
+        if (tag !== "/TH" && tag !== "/TD") continue;
+        const colSpan = spanOf(item, "/ColSpan");
+        const rowSpan = spanOf(item, "/RowSpan");
+        effectiveCols += colSpan;
+        if (rowSpan > 1) {
+          rowSpanCarry.push({ rowsLeft: rowSpan - 1, cols: colSpan });
+        }
+      }
+    }
+    result.columnCounts.push(effectiveCols);
   }
 
   if (result.columnCounts.length > 0) {
@@ -910,7 +1073,6 @@ function analyzeList(
   };
 
   let maxNesting = 0;
-  let itemsWithLabel = 0;
   let itemsWithBody = 0;
 
   const walk = (node: any, depth: number, isCountingNesting: boolean): void => {
@@ -922,7 +1084,6 @@ function analyzeList(
     if (tag === "/LI") {
       result.itemCount++;
       // Check children for /Lbl and /LBody
-      let hasLbl = false;
       let hasLBody = false;
       const kids = resolved["/K"];
       if (kids) {
@@ -930,7 +1091,6 @@ function analyzeList(
         for (const kid of items) {
           const kidResolved = resolve(kid);
           if (mapToStandardTag(kidResolved?.["/S"], roleMap) === "/Lbl") {
-            hasLbl = true;
             result.hasLabels = true;
           }
           if (mapToStandardTag(kidResolved?.["/S"], roleMap) === "/LBody") {
@@ -939,7 +1099,6 @@ function analyzeList(
           }
         }
       }
-      if (hasLbl) itemsWithLabel++;
       if (hasLBody) itemsWithBody++;
     }
 
@@ -962,10 +1121,12 @@ function analyzeList(
 
   walk(listObj, 0, false);
   result.nestingDepth = maxNesting;
+  // Well-formed = every <LI> has an <LBody>. <Lbl> is deliberately NOT
+  // required: ISO 32000 permits items without a separate label (common
+  // tooling emits LBody-only items), so missing <Lbl> is an advisory signal
+  // (hasLabels) — not grounds for a confirmed structural failure.
   result.isWellFormed =
-    result.itemCount > 0 &&
-    itemsWithLabel === result.itemCount &&
-    itemsWithBody === result.itemCount;
+    result.itemCount > 0 && itemsWithBody === result.itemCount;
 
   return result;
 }
@@ -1065,11 +1226,12 @@ function buildPageRefToNum(
   const walk = (node: any): void => {
     const type = node?.["/Type"];
     if (type === "/Page") {
-      // Find the ref for this object by matching in objects dict.
+      // Find the ref for this object by matching in objects dict. The key is
+      // normalized so lookups by /Pg value refs ("N 0 R") resolve on qpdf ≥ 11.
       for (const [ref, candidate] of Object.entries(objects)) {
         if (candidate === node) {
           pageCounter++;
-          map.set(ref, pageCounter);
+          map.set(normRef(ref), pageCounter);
           return;
         }
       }

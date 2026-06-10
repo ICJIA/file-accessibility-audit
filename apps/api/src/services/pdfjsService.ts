@@ -16,6 +16,11 @@ export interface PdfjsResult {
   hasText: boolean
   textLength: number
   title: string | null
+  // The title is present but looks like a filename / tool-generated string
+  // ("report_v3_final.pdf", "Microsoft Word - …"). Advisory signal: the
+  // title is ALWAYS preserved in `title` — never nulled — so conformance
+  // checks remain truthful about whether a title exists.
+  titleLooksLikeFilename?: boolean
   author: string | null
   subject: string | null
   lang: string | null
@@ -126,14 +131,30 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           result.pdfUaPart = `${part}`.trim()
         }
       }
+      // Fallback: XMP simple properties may be written in RDF ATTRIBUTE form
+      // (<rdf:Description … pdfuaid:part="1"/>). pdfjs's MetadataParser only
+      // iterates child elements of rdf:Description, so attribute-form
+      // properties never reach getAll() — scan the raw packet for them.
+      if (!result.hasPdfUaIdentifier && xmp && typeof xmp.getRaw === 'function') {
+        const raw = xmp.getRaw()
+        if (typeof raw === 'string' && raw.includes('pdfuaid')) {
+          const m =
+            raw.match(/pdfuaid:part\s*=\s*["']\s*(\d+)\s*["']/i) ??
+            raw.match(/<pdfuaid:part[^>]*>\s*(\d+)\s*</i)
+          if (m) {
+            result.hasPdfUaIdentifier = true
+            result.pdfUaPart = m[1]
+          }
+        }
+      }
     } catch {}
 
-    // Check if title looks like a filename (not useful for accessibility)
-    if (result.title) {
-      const t = result.title.toLowerCase()
-      if (t.endsWith('.pdf') || t.endsWith('.docx') || /^[a-z0-9_-]+$/.test(t)) {
-        result.title = null // Treat filename-like titles as absent
-      }
+    // Classify (but never erase) titles that look like filenames. The old
+    // behavior nulled any no-space title (/^[a-z0-9_-]+$/), which erased
+    // legitimate titles like "Introduction" or "Budget2024" and produced a
+    // false "no title in metadata" WCAG 2.4.2 conformance failure.
+    if (result.title && isFilenameLikeTitle(result.title)) {
+      result.titleLooksLikeFilename = true
     }
 
     // Outlines/bookmarks
@@ -278,6 +299,32 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
   }
 
   return result
+}
+
+// Heuristic: does a /Info title look like a filename or tool-generated
+// string rather than a human-written title? Used as an ADVISORY signal only
+// (partial scoring credit + a finding) — a flagged title still counts as
+// present for conformance purposes, since WCAG 2.4.2 title *quality* is a
+// human judgment. Deliberately narrow: plain single words ("Introduction",
+// "Budget2024") and hyphenated words ("Well-Being") are NOT flagged.
+export function isFilenameLikeTitle(title: string): boolean {
+  const t = title.trim()
+  if (!t) return false
+  // Ends in a common document-file extension.
+  if (/\.(pdf|docx?|xlsx?|pptx?|rtf|odt|indd|txt|html?)$/i.test(t)) return true
+  // Classic tool-generated titles (Office prepends "<app> - <filename>").
+  if (/^(microsoft (word|excel|powerpoint) - |untitled\b|document\d+$|scan[ _-]?\d|img[ _-]?\d|dsc[ _-]?\d)/i.test(t)) {
+    return true
+  }
+  // No whitespace + filename separators: "annual_report", "budget-2024-final".
+  // A single hyphen is NOT enough even with digits — "COVID-19",
+  // "Section-508", "2024-2025" are legitimate document titles.
+  if (!/\s/.test(t)) {
+    if (t.includes('_')) return true
+    const hyphens = (t.match(/-/g) || []).length
+    if (hyphens >= 2) return true
+  }
+  return false
 }
 
 function findLinkText(annot: any, textItems: any[]): string {
