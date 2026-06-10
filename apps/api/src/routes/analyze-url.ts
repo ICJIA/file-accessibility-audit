@@ -4,10 +4,16 @@ import { analyzeLimiter } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
 import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
+import { ANALYSIS } from '#config'
 
 const router: IRouter = Router()
 
-export const MAX_PDF_BYTES = 100 * 1024 * 1024 // 100 MB
+// Cap URL-fetched PDFs at the same size as direct uploads. safeFetch buffers
+// the body in memory before the analysis semaphore is acquired, so an
+// oversized cap (the old 100 MB — 6.6× the upload cap) let a handful of
+// concurrent fetches blow past the process memory ceiling. Matching the
+// upload cap keeps the memory budget consistent across all audit paths.
+export const MAX_PDF_BYTES = ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024
 export const FETCH_TIMEOUT_MS = 30_000
 
 // ---------------------------------------------------------------------------
@@ -159,7 +165,7 @@ export function validateUrlForFetch(u: URL): void {
 //
 // Security notes:
 // - URL must pass isAllowedUrl() — scheme, SSRF block, and hostname allowlist
-// - 100 MB cap on fetched content (same cap as direct upload)
+// - Size cap on fetched content matches the direct-upload cap (ANALYSIS.MAX_FILE_SIZE_MB)
 // - Magic-bytes check: first 5 bytes must be %PDF-
 // ---------------------------------------------------------------------------
 

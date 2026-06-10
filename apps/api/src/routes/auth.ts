@@ -115,8 +115,14 @@ router.post('/verify', authVerifyLimiter, async (req: Request, res: Response) =>
     // Increment attempts
     db.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').run(row.id)
 
-    // In development, accept 000000 as a universal bypass code
-    const isDevBypass = !isProduction && otp === '000000'
+    // Universal dev bypass code. Gated on an EXPLICIT opt-in flag, not just
+    // the absence of production — so a misconfigured staging box or a
+    // hand-started non-prod deploy can't be logged into with 000000 unless
+    // someone deliberately set ALLOW_DEV_OTP_BYPASS=true.
+    const isDevBypass =
+      !isProduction &&
+      process.env.ALLOW_DEV_OTP_BYPASS === 'true' &&
+      otp === '000000'
 
     // Verify OTP
     const isValid = isDevBypass || await bcrypt.compare(otp, row.otp_hash)

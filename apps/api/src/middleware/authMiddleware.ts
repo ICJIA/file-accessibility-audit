@@ -73,10 +73,22 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 }
 
 export function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
-  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
+  const adminEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
   const userEmail = req.user?.email?.toLowerCase()
 
-  if (!userEmail || !adminEmails.includes(userEmail)) {
+  // Never admit the anonymous sentinel that authMiddleware injects in
+  // no-auth mode, even if an operator accidentally lists it — and never
+  // admit anyone when no admins are configured. The admin gate must hold
+  // by design, not by the coincidence that 'anonymous' isn't in the list.
+  if (
+    !userEmail ||
+    userEmail === 'anonymous' ||
+    adminEmails.length === 0 ||
+    !adminEmails.includes(userEmail)
+  ) {
     res.status(403).json({ error: 'Admin access required' })
     return
   }

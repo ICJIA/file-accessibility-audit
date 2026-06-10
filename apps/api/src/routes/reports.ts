@@ -63,9 +63,12 @@ router.get('/reports/:id', (req: Request, res: Response) => {
 
     const report = JSON.parse(row.report_json)
 
+    // Note: the sharer's email is intentionally NOT returned. This endpoint
+    // is public (share links are bearer-style), and the creator's identity
+    // is not needed by recipients — exposing it would leak PII to anyone
+    // holding the link.
     res.json({
       report,
-      sharedBy: row.email,
       createdAt: row.created_at,
       expiresAt: row.expires_at,
     })

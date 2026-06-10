@@ -24,10 +24,15 @@ export interface NormalizeResult {
 export async function qpdfNormalize(
   input: string,
   output: string,
+  timeoutMs?: number,
 ): Promise<NormalizeResult> {
   try {
     await execFileAsync("qpdf", ["--object-streams=disable", input, output], {
       maxBuffer: 16 * 1024 * 1024,
+      // Bound the rewrite so an object-stream "bomb" (a small input whose
+      // streams expand massively) can't pin CPU/disk indefinitely. Node
+      // SIGTERMs qpdf when this elapses, surfacing as a normalize failure.
+      ...(timeoutMs ? { timeout: timeoutMs } : {}),
     });
     return { repairedWithWarnings: false };
   } catch (e: any) {

@@ -16,8 +16,10 @@
 //   clamped to [0, 100]
 // Grade brackets: A 90-100 / B 80-89 / C 70-79 / D 60-69 / F < 60.
 
-import puppeteer, { type Browser } from 'puppeteer'
+import puppeteer, { type Browser, type HTTPRequest } from 'puppeteer'
 import { AxePuppeteer } from '@axe-core/puppeteer'
+import { resolvePublicIp } from './safeFetch.js'
+import { shouldAllowPageRequest } from './pageAuditGuard.js'
 
 let browserPromise: Promise<Browser> | null = null
 
@@ -26,10 +28,13 @@ async function getBrowser(): Promise<Browser> {
     browserPromise = puppeteer.launch({
       headless: true,
       // --no-sandbox is required for many container / CI environments
-      // (incl. typical PM2 deploys on Linux). audit.icjia.app's threat
-      // model already gates the page-audit endpoint behind safeFetch's
-      // URL allowlist + SSRF block, so the loss of the Chromium sandbox
-      // is a localised concern.
+      // (incl. typical PM2 deploys on Linux, where Chromium refuses to run
+      // as root with the sandbox on). The SSRF control for this endpoint is
+      // NOT the sandbox and is NOT safeFetch (Chromium does its own DNS and
+      // redirects) — it is the per-request interceptor installed in
+      // auditPage() below, which blocks non-http(s) schemes, resolves and
+      // rejects private/reserved IPs on every request, and keeps document
+      // navigations on the allowlist. See pageAuditGuard.ts.
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -123,10 +128,82 @@ const PAGE_NAV_TIMEOUT_MS = 30_000
 const HYDRATION_WAIT_MS = 2_000
 const MAX_VIOLATIONS_PERSISTED = 50
 
-export async function auditPage(url: string): Promise<PageAuditResult> {
+// Bound concurrent headless-Chromium page renders. Each render opens a tab,
+// navigates with a 30s budget, waits for hydration, and runs axe-core (~32s),
+// holding memory the whole time. Without a cap, a burst of page-audit
+// requests would spawn unbounded tabs and exhaust the box. Excess callers get
+// a busy error (mapped to 503 by the route) rather than queueing forever.
+const MAX_CONCURRENT_PAGE_AUDITS = 2
+let activePageAudits = 0
+
+export class PageAuditBusyError extends Error {
+  readonly status = 503
+  constructor() {
+    super('Server busy — too many page audits in progress. Try again shortly.')
+  }
+}
+
+// Install the SSRF interceptor on a page: every request (main navigation,
+// redirects, subresources) is classified by shouldAllowPageRequest, and any
+// http(s) request whose host resolves to a private/reserved IP is aborted.
+// Per-page resolution cache avoids re-resolving the same host repeatedly.
+async function installRequestGuard(
+  page: import('puppeteer').Page,
+  isUrlAllowed: (url: string) => boolean,
+): Promise<void> {
+  await page.setRequestInterception(true)
+  const resolveCache = new Map<string, Promise<boolean>>() // host → isPublic
+
+  const isPublicHost = (host: string): Promise<boolean> => {
+    let cached = resolveCache.get(host)
+    if (!cached) {
+      cached = resolvePublicIp(host).then(
+        () => true,
+        () => false, // resolvePublicIp throws on private/reserved or DNS failure
+      )
+      resolveCache.set(host, cached)
+    }
+    return cached
+  }
+
+  page.on('request', (req: HTTPRequest) => {
+    void (async () => {
+      try {
+        const reqUrl = req.url()
+        const isDocument = req.resourceType() === 'document'
+        const decision = shouldAllowPageRequest(reqUrl, isDocument, isUrlAllowed)
+        if (!decision.allow) {
+          await req.abort('blockedbyclient').catch(() => {})
+          return
+        }
+        if (decision.needsIpCheck) {
+          const host = new URL(reqUrl).hostname
+          if (!(await isPublicHost(host))) {
+            await req.abort('blockedbyclient').catch(() => {})
+            return
+          }
+        }
+        await req.continue().catch(() => {})
+      } catch {
+        // Fail closed: anything unexpected aborts the request.
+        await req.abort('blockedbyclient').catch(() => {})
+      }
+    })()
+  })
+}
+
+export async function auditPage(
+  url: string,
+  isUrlAllowed: (url: string) => boolean,
+): Promise<PageAuditResult> {
+  if (activePageAudits >= MAX_CONCURRENT_PAGE_AUDITS) {
+    throw new PageAuditBusyError()
+  }
+  activePageAudits++
   const browser = await getBrowser()
   const page = await browser.newPage()
   try {
+    await installRequestGuard(page, isUrlAllowed)
     await page.setUserAgent(
       'Mozilla/5.0 (compatible; ICJIA-File-Audit/audit.icjia.app)',
     )
@@ -167,5 +244,6 @@ export async function auditPage(url: string): Promise<PageAuditResult> {
     }
   } finally {
     await page.close().catch(() => {})
+    activePageAudits--
   }
 }

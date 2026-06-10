@@ -518,6 +518,20 @@ export const ANALYSIS = {
   QPDF_MAX_BUFFER: 50 * 1024 * 1024,
 
   /**
+   * Wall-clock cap for the pdfjs extraction pass, in milliseconds.
+   * Unlike QPDF (a subprocess with its own timeout), pdfjs runs in-process,
+   * so a pathological PDF — millions of operators, a huge page count — can
+   * otherwise pin one of the MAX_CONCURRENT_ANALYSES slots indefinitely. On
+   * timeout the analysis is abandoned (HTTP 504) and the slot is freed so a
+   * single adversarial upload can't starve the queue.
+   *
+   * SAFE TO CHANGE: Yes — raise if legitimate large documents time out;
+   * lower for faster failure on adversarial inputs. 60s comfortably covers
+   * real government reports while bounding abuse.
+   */
+  PDFJS_TIMEOUT_MS: 60_000,
+
+  /**
    * Maximum number of PDFs being analyzed simultaneously.
    * Implemented as a semaphore in pdfAnalyzer.ts. Requests beyond this limit
    * wait in a queue (or return 503 if the queue is also full).
@@ -902,8 +916,23 @@ export const REMEDIATION = {
    *
    * SAFE TO CHANGE: Yes — lower for stricter resource use, higher only
    * if you regularly hit the cap on legitimate documents.
+   *
+   * Enforced (v1.27.0) as: (1) a `timeout` on every pipeline subprocess
+   * (qpdf normalize, qpdf --check, veraPDF), and (2) a master self-timer in
+   * the worker that SIGKILLs its entire process group — worker + the
+   * OpenDataLoader JVM + any qpdf child — when this budget elapses.
    */
   WORKER_TIMEOUT_MS: 300_000,
+
+  /**
+   * Wall-clock timeout for the optional veraPDF conformance check, in ms.
+   * Separate from WORKER_TIMEOUT_MS so the (informational, non-blocking)
+   * veraPDF JVM can be bounded more tightly than the whole pipeline. On
+   * timeout the check is recorded as unavailable and remediation proceeds.
+   *
+   * SAFE TO CHANGE: Yes — raise if legitimate large outputs time out.
+   */
+  VERAPDF_TIMEOUT_MS: 120_000,
 
   /**
    * JVM max heap size for the OpenDataLoader child process.

@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.27.0] - 2026-06-10
+
+Security-hardening release. Implements every fix identified by the 2026-06-10 comprehensive adversarial red/blue audit of the whole application (Nuxt frontend, Express API, audit pipeline, and the optional auto-remediation pipeline). The audit found **no live critical-severity issue** — SQL injection, command/argument injection, path traversal, insecure deserialization, stored/DOM XSS, and authentication bypass were each examined and verified clean — so the items below are denial-of-service or misconfiguration/forward-looking hardening. Running review history is in [README § Security](README.md#security). Per responsible disclosure, step-by-step exploit detail is kept private.
+
+### Fixed (security)
+
+- **Headless-browser page-audit SSRF.** `/api/audit-url-page` rendered a URL in Chromium behind only a string allowlist; Chromium resolved DNS and followed redirects itself. It now installs a request interceptor that blocks non-http(s) schemes, resolves and rejects private/reserved-IP targets on every request (navigation, redirect, subresource), and re-checks document navigations against the allowlist per hop. Verified end-to-end: loopback navigation blocked, legitimate allowlisted pages still render. A concurrency cap bounds simultaneous renders.
+- **Auto-remediation worker had no enforced timeout.** `WORKER_TIMEOUT_MS` was defined but never used. Every pipeline subprocess (qpdf normalize, qpdf check, veraPDF) now passes a `timeout`, and the worker arms a master self-timer that SIGKILLs its whole process group (worker + the OpenDataLoader JVM) when the budget elapses.
+- **In-process extractor parse timeout.** pdfjs had no wall-clock bound; a pathological PDF could pin an analysis slot. It now times out (HTTP 504) and frees the slot.
+- **URL-fetch size cap.** URL-fetched PDFs were capped at 100 MB (6.6× the direct-upload cap), buffered before the concurrency gate. Lowered to match the upload cap.
+- **Fail-closed auth startup + admin gate.** The API refuses to start when login is enabled without a strong `JWT_SECRET` (mirroring the SMTP check); the admin gate now rejects the anonymous sentinel and an empty admin list unconditionally.
+- **IPv6 private-range classifier fail-open.** `isPrivateIP` returned false for bracketed/IPv4-mapped IPv6 forms (`[::1]`, `[::ffff:127.0.0.1]`); fixed with regression tests.
+- **Defense-in-depth.** Content-Security-Policy + `X-Content-Type-Options`/`X-Frame-Options`/`Referrer-Policy`/`Permissions-Policy` on the web app (production); the HTML-export escaper now covers the single quote (shared, tested helper); the public share endpoint no longer returns the sharer's email; the dev OTP `000000` bypass is gated on an explicit `ALLOW_DEV_OTP_BYPASS` flag instead of `NODE_ENV`.
+
+### Tests
+
+- API suite **447 → 487**, Web **311 → 316**, total **803** across 39 files. New: `safeFetch`, `authConfig`, `pageAuditGuard`, `pdfAnalyzerTimeout`, `escapeHtml`, plus admin-gate and qpdf-normalize-timeout cases. `tsc --noEmit` and `nuxt build` clean.
+
+### Follow-up
+
+- Nonce-based `script-src` to drop `'unsafe-inline'` from the CSP is tracked for a later release; the headless-browser still runs `--no-sandbox` (deploy constraint) with the request interceptor as the SSRF control.
+
 ## [1.26.1] - 2026-06-10
 
 Follow-up fixes to 1.26.0, surfaced by testing remediation on a damaged PDF and by the WomenInPolicing control pair.

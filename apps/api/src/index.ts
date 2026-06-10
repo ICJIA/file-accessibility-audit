@@ -21,11 +21,19 @@ import {
 // Import db to trigger table creation on startup
 import './db/sqlite.js'
 import { validateMailConfig } from './mailer.js'
+import { checkAuthConfig } from './services/authConfig.js'
 import { ANALYSIS, AUTH, DEPLOY } from '#config'
 
-// Validate email config before starting — only needed when auth requires OTP emails
+// Validate email + auth-secret config before starting — only needed when
+// auth requires OTP emails and JWT sessions. Fail closed: a missing/default
+// JWT_SECRET with login enabled would let anyone forge session cookies.
 if (AUTH.REQUIRE_LOGIN) {
   validateMailConfig()
+  const authConfigError = checkAuthConfig(AUTH.REQUIRE_LOGIN)
+  if (authConfigError) {
+    console.error(`[API] Refusing to start: ${authConfigError}`)
+    process.exit(1)
+  }
 }
 
 const app = express()

@@ -53,7 +53,7 @@ const TOOL_VERSION = '1.18.0'
 
 const auditPipelineDiagram = `flowchart TD
     A[Upload PDF] --> B[Validate file]
-    B --> C[Hold in memory only]
+    B --> C[In memory + short-lived qpdf temp copy]
     C --> D[qpdf + pdfjs analyze]
     D --> E[Score 9 WCAG categories]
     E --> F[Send result to browser]
@@ -400,15 +400,18 @@ Node.js garbage collector reclaims the buffer
         <MermaidDiagram
           :source="auditPipelineDiagram"
           title="Audit pipeline — visual flow"
-          desc="Flowchart of the audit pipeline. The uploaded PDF is held in memory, validated, analyzed by qpdf and pdfjs, scored across 9 WCAG categories, and the memory buffer is discarded after the response is sent."
+          desc="Flowchart of the audit pipeline. The uploaded PDF is held in memory and validated; qpdf analyzes a short-lived temp copy (deleted in the same request) while pdfjs reads the buffer directly; results are scored across 9 WCAG categories, and the memory buffer is discarded after the response is sent."
         />
       </div>
 
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         Once the HTTP response has been sent, the in-memory buffer is
         unreferenced and garbage-collected by the Node.js runtime in the next
-        collection cycle. The PDF content does not persist on disk, in a
-        cache, in a log file, or in any other location. The only records
+        collection cycle. The qpdf analyzer (a command-line tool that needs a
+        file path) works from a short-lived, randomly named temp copy that is
+        deleted within the same request, even when analysis fails. The PDF
+        content does not persist on disk, in a cache, in a log file, or in
+        any other location. The only records
         produced by an audit are entries in the
         <code class="text-xs font-mono">audit_log</code> table — described in
         § 8 — which contain metadata only (filename, score, grade, email if
@@ -883,7 +886,7 @@ CREATE TABLE remediation_jobs (
           <tbody class="text-[var(--text-secondary)] text-xs">
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-medium">Uploaded PDF (audit)</td>
-              <td class="py-2.5 pr-4">Server memory only</td>
+              <td class="py-2.5 pr-4">Server memory + short-lived qpdf temp copy (deleted same request)</td>
               <td class="py-2.5 pr-4">Seconds; discarded after HTTP response</td>
               <td class="py-2.5">No</td>
             </tr>
@@ -1253,6 +1256,79 @@ CREATE TABLE remediation_jobs (
         first). Each entry lists the findings discovered during that
         release's review and what was done about them.
       </p>
+
+      <!-- v1.27.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.27.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-06-10</strong> · scope: a full, independent
+            red-team security review of the entire application — the website,
+            the server, the audit pipeline, and the optional auto-remediation
+            pipeline.
+          </span>
+        </header>
+
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          A comprehensive adversarial security audit was performed across the
+          whole application. It found <strong>no critical issue and no way for
+          one user to reach another user's data</strong>: the high-impact
+          vulnerability classes (database injection, command injection, file-path
+          escape, cross-site scripting, and login bypass) were each tested and
+          verified clean. The items found were hardening against
+          denial-of-service and against future misconfiguration, and
+          <strong>all of them were fixed in this release</strong>.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Stronger protection against server-side request abuse</strong
+            >
+            — The feature that checks a web page's accessibility now strictly
+            confirms, on every request the page makes, that it is only reaching
+            approved public addresses — never an internal or cloud-metadata
+            address. Verified to still load legitimate state-government pages
+            normally.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Hard time limits on document processing</strong
+            >
+            — The audit and remediation steps now have enforced time limits and
+            will cleanly stop a document that is deliberately crafted to run
+            forever, so one upload can't degrade the service for everyone.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-blue-700/30 text-blue-200 mr-2"
+                >API</span
+              >
+              Additional safe-by-default protections</strong
+            >
+            — Stricter browser security headers on the website, a fail-safe
+            refusal to start if the login secret is ever misconfigured, removal
+            of the sharer's email from public share links, and several smaller
+            defensive fixes. No code path that stores, transmits, or retains
+            your data changed; no retention window, endpoint, or permission
+            changed.
+          </li>
+        </ul>
+      </article>
 
       <!-- v1.26.1 audit entry -->
       <article

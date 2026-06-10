@@ -1,6 +1,7 @@
 import fileSaver from "file-saver";
 import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
 import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
+import { escapeHtml } from "~/utils/escapeHtml";
 const { saveAs } = fileSaver;
 import {
   Document,
@@ -1137,14 +1138,8 @@ export async function buildDocx(
 }
 
 // ── HTML ──────────────────────────────────────────────────────────────────
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+// escapeHtml is imported from ~/utils/escapeHtml (shared, tested, covers the
+// single quote) — see the import block at the top of this file.
 
 // Renders the conformance verdict as a self-contained HTML block, mirroring
 // the on-screen gate. Every WCAG criterion links to its W3C "Understanding"

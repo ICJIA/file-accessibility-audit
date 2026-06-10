@@ -3410,8 +3410,10 @@ pm2 restart ecosystem.config.cjs</div>
               <span class="text-[var(--text-secondary)] font-bold flex-shrink-0"
                 >2.</span
               ><span
-                >The file exists in server memory only for the duration of
-                analysis (typically under 10 seconds).</span
+                >The file exists in server memory for the duration of
+                analysis (typically under 10 seconds); the qpdf analyzer
+                briefly works from a randomly named temp copy that is deleted
+                in the same request.</span
               >
             </li>
             <li class="flex gap-2">
@@ -4351,7 +4353,7 @@ function emailShareUrl() {
 
 const td_auditFlowDiagram = `flowchart TD
     A[Browser uploads PDF] --> B[Magic-byte + size check]
-    B --> C[Hold in memory only]
+    B --> C[In memory + short-lived qpdf temp copy]
     C --> D[qpdf analyzes structure]
     C --> E[pdfjs extracts content]
     D --> F[Combined results]
