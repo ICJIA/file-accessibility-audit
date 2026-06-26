@@ -40,7 +40,9 @@ const router: IRouter = Router()
 //       score:          87,
 //       grade:          "B",
 //       violationCount: 5,
-//       bySeverity:     { critical: 0, serious: 2, moderate: 2, minor: 1 }
+//       bySeverity:     { critical: 0, serious: 2, moderate: 2, minor: 1 },
+//       violations:     [ { id, impact, description, helpUrl, tags, nodeCount, nodes } … ],
+//       incomplete:     [ { id, impact, description, helpUrl, tags, nodeCount, nodes } … ]
 //     },
 //     reportId:        "<32 hex chars>",
 //     reportUrl:       "https://audit.icjia.app/page-report/<id>",
@@ -120,6 +122,8 @@ router.post(
               grade: cached.grade,
               violationCount: cached.violationCount,
               bySeverity: cached.bySeverity,
+              violations: cached.violations ?? [],
+              incomplete: (cached as any).incomplete ?? [],
             },
             reportId: existing.id,
             reportUrl: buildPageReportUrl(existing.id),
@@ -201,6 +205,8 @@ router.post(
           grade: result.grade,
           violationCount: result.violationCount,
           bySeverity: result.bySeverity,
+          violations: result.violations,
+          incomplete: result.incomplete,
         },
         reportId: id,
         reportUrl: buildPageReportUrl(id),
