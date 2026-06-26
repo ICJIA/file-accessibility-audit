@@ -62,12 +62,14 @@ export async function closeBrowser(): Promise<void> {
   }
 }
 
-export interface PageAuditViolationSummary {
+export interface PageAuditIssue {
   id: string
   impact: string | null
   description: string
   helpUrl: string
-  nodes: number
+  tags: string[]
+  nodeCount: number               // mirrors the score's per-node basis (max(1, nodes)) so downstream breakdowns reconcile with bySeverity
+  nodes: { target: string[] }[]   // capped to MAX_NODES_PER_RULE — for stable issue identity
 }
 
 export interface PageAuditResult {
@@ -83,10 +85,8 @@ export interface PageAuditResult {
     moderate: number
     minor: number
   }
-  // Top-N violations summarised. Full per-node detail is intentionally
-  // omitted from the persisted JSON to keep shared_reports rows small;
-  // the report URL surfaces a deeper view if needed.
-  violations: PageAuditViolationSummary[]
+  violations: PageAuditIssue[]
+  incomplete: PageAuditIssue[]
 }
 
 const SEVERITY_WEIGHTS = {
@@ -122,6 +122,23 @@ function gradeFromScore(score: number): string {
   if (score >= 70) return 'C'
   if (score >= 60) return 'D'
   return 'F'
+}
+
+const MAX_NODES_PER_RULE = 25
+
+export function slimIssue(v: any): PageAuditIssue {
+  const allNodes = Array.isArray(v?.nodes) ? v.nodes : []
+  return {
+    id: String(v?.id ?? ''),
+    impact: typeof v?.impact === 'string' ? v.impact : null,
+    description: String(v?.description ?? ''),
+    helpUrl: String(v?.helpUrl ?? ''),
+    tags: Array.isArray(v?.tags) ? v.tags.filter((t: unknown): t is string => typeof t === 'string') : [],
+    nodeCount: Math.max(1, allNodes.length),
+    nodes: allNodes.slice(0, MAX_NODES_PER_RULE).map((n: any) => ({
+      target: Array.isArray(n?.target) ? n.target.map((s: unknown) => String(s)) : [],
+    })),
+  }
 }
 
 const PAGE_NAV_TIMEOUT_MS = 30_000
@@ -222,15 +239,8 @@ export async function auditPage(
     const { score, bySeverity } = computeScore(results.violations)
     const grade = gradeFromScore(score)
 
-    const violations = results.violations
-      .slice(0, MAX_VIOLATIONS_PERSISTED)
-      .map((v: any): PageAuditViolationSummary => ({
-        id: String(v.id ?? ''),
-        impact: typeof v.impact === 'string' ? v.impact : null,
-        description: String(v.description ?? ''),
-        helpUrl: String(v.helpUrl ?? ''),
-        nodes: Array.isArray(v.nodes) ? v.nodes.length : 0,
-      }))
+    const violations = results.violations.slice(0, MAX_VIOLATIONS_PERSISTED).map(slimIssue)
+    const incomplete = (results.incomplete ?? []).slice(0, MAX_VIOLATIONS_PERSISTED).map(slimIssue)
 
     return {
       url,
@@ -241,6 +251,7 @@ export async function auditPage(
       violationCount: results.violations.length,
       bySeverity,
       violations,
+      incomplete,
     }
   } finally {
     await page.close().catch(() => {})
