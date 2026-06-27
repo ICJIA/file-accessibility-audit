@@ -1,7 +1,7 @@
 import { Router, Response, type IRouter } from 'express'
 import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
-import { analyzeLimiter } from '../middleware/rateLimiter.js'
+import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.js'
 import { gateIdentity, recordAudit } from '../services/auditLog.js'
 import { DEPLOY, SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
@@ -82,8 +82,13 @@ router.post(
         req.body?.force === 'true' ||
         req.query?.force === 'true'
 
+      // Privileged (API_PRIVILEGED_TOKEN) callers may audit any public page;
+      // anonymous callers are restricted to the ICJIA / illinois.gov allowlist.
+      // The Chromium interceptor's private/reserved-IP block runs on every
+      // request regardless, so internal targets stay unreachable either way.
+      const privileged = isPrivilegedRequest(req)
       const check = isAllowedUrl(url)
-      if (!check.ok) {
+      if (!privileged && !check.ok) {
         res
           .status(400)
           .json({ error: 'URL not allowed', details: check.reason })
@@ -140,7 +145,10 @@ router.post(
       // request is checked for private/reserved-IP targets (SSRF block).
       let result: PageAuditResult
       try {
-        result = await auditPage(url, (u) => isAllowedUrl(u).ok)
+        result = await auditPage(
+          url,
+          privileged ? () => true : (u) => isAllowedUrl(u).ok,
+        )
       } catch (err: any) {
         if (err?.status === 503) {
           res.status(503).json({

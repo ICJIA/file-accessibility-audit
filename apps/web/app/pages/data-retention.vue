@@ -1228,6 +1228,37 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.29.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.29.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            <strong>2026-06-27</strong> · scope: how often the tool will accept
+            automated audit requests, and an optional access key for a trusted
+            partner system. Reviewed for security; no change to what data is
+            collected or how long it is kept.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          v1.29.0 tightens the limit on how many audits an anonymous visitor can
+          request per hour — back down from a temporary increase used during a
+          large internal audit campaign — so the public tool can't be hammered
+          with thousands of automated requests an hour. A trusted ICJIA system
+          can present a secret access key to get a higher limit and to check
+          ICJIA pages that live on non-Illinois web addresses.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong>No data is collected, stored, transmitted, or retained any
+          differently</strong>; no retention window changed. The access key only
+          raises rate limits and widens which web addresses can be checked — it
+          never lets anyone reach internal or private systems (those stay blocked
+          for everyone), and it is held only as a server environment secret,
+          never in the database or in any report.
+        </p>
+      </article>
+
       <!-- v1.28.1 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

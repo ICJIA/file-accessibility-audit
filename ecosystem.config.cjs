@@ -32,6 +32,9 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 5103,
+        // Privileged rate-limit + allowlist-bypass token (see audit.config.ts).
+        // Forwarded from the shell / Forge / /etc/environment; empty = off.
+        API_PRIVILEGED_TOKEN: process.env.API_PRIVILEGED_TOKEN || '',
         ...remediationEnv,
       },
       watch: false,
