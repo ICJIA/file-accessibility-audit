@@ -170,8 +170,32 @@ pnpm install --frozen-lockfile
 echo "Building..."
 pnpm build
 
+# Load app secrets persisted in /etc/environment so PM2 inherits them even when
+# this script runs in a shell that didn't pick them up at login (/etc/environment
+# is only applied to fresh login sessions — the gotcha that makes a rotated
+# token silently fail to deploy). Extract specific vars BY NAME; never source the
+# whole file, so a PATH= line there can't clobber the PATH that resolves pnpm/pm2.
+if [ -f /etc/environment ]; then
+  for _var in API_PRIVILEGED_TOKEN; do
+    _line=$(grep -E "^${_var}=" /etc/environment | tail -n1 || true)
+    if [ -n "$_line" ]; then
+      _val=${_line#*=}
+      _val=${_val#\"}; _val=${_val%\"}   # tolerate optional surrounding quotes
+      export "${_var}=${_val}"
+    fi
+  done
+  unset _var _line _val
+fi
+if [ -n "$API_PRIVILEGED_TOKEN" ]; then
+  echo "API_PRIVILEGED_TOKEN: set (${#API_PRIVILEGED_TOKEN} chars) — privileged rate-limit tier ON"
+else
+  echo "API_PRIVILEGED_TOKEN: not set — privileged rate-limit tier OFF (everyone strict)"
+fi
+
 echo "Restarting PM2..."
-pm2 restart ecosystem.config.cjs
+# --update-env so rotated secrets (e.g. API_PRIVILEGED_TOKEN) actually refresh;
+# a plain `pm2 restart` reuses the env snapshot from the original `pm2 start`.
+pm2 restart ecosystem.config.cjs --update-env
 
 echo "Done. Checking status..."
 pm2 status
