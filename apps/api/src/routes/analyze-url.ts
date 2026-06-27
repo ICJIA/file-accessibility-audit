@@ -1,6 +1,6 @@
 import { Router, Response, type IRouter } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
-import { analyzeLimiter } from '../middleware/rateLimiter.js'
+import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
 import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
@@ -66,7 +66,7 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
   }
 
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return { ok: false, reason: 'only http/https URLs are accepted' }
+    return { ok: false, reason: 'only http/https URLs are accepted', parsed }
   }
 
   // Refuse private/local hostnames to prevent SSRF
@@ -84,7 +84,7 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
     /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) ||
     /^169\.254\./.test(host)
   ) {
-    return { ok: false, reason: `private/local address '${host}' is not allowed` }
+    return { ok: false, reason: `private/local address '${host}' is not allowed`, parsed }
   }
 
   const allowed = getAllowedHosts()
@@ -100,6 +100,7 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
     return {
       ok: false,
       reason: `host '${host}' is not in the allowlist. Allowed: ${[...allowed].join(', ')}`,
+      parsed,
     }
   }
 
@@ -156,6 +157,23 @@ export function validateUrlForFetch(u: URL): void {
   }
 }
 
+/**
+ * Privileged validator: used in place of validateUrlForFetch when the caller
+ * presented the API_PRIVILEGED_TOKEN. It drops the hostname ALLOWLIST check so
+ * a trusted client can audit any public URL — but it does NOT relax SSRF: the
+ * scheme is still restricted to http/https, and the authoritative
+ * private/reserved-IP block (resolvePublicIp, run on every hop inside
+ * safeFetch) still applies, so internal targets remain unreachable.
+ */
+export function validateUrlPublic(u: URL): void {
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+    throw new SafeFetchError(
+      'malformed_url',
+      'only http/https URLs are accepted',
+    )
+  }
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/analyze-url
 // ---------------------------------------------------------------------------
@@ -177,6 +195,11 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
       return
     }
 
+    // Privileged (API_PRIVILEGED_TOKEN) callers may fetch any public URL;
+    // anonymous callers are restricted to the ICJIA / illinois.gov allowlist.
+    // The private/reserved-IP SSRF block inside safeFetch stays on either way.
+    const privileged = isPrivilegedRequest(req)
+
     // SSRF-hardened fetch. safeFetch handles:
     //   - URL allowlist (re-checked on every redirect hop)
     //   - DNS resolution + private-IP rejection on every hop
@@ -191,7 +214,7 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
       fetched = await safeFetch(url, {
         timeoutMs: FETCH_TIMEOUT_MS,
         maxBytes: MAX_PDF_BYTES,
-        validateUrl: validateUrlForFetch,
+        validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
       })
     } catch (err) {
       if (err instanceof SafeFetchError) {

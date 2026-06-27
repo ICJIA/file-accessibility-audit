@@ -68,4 +68,25 @@ describe("shouldAllowPageRequest", () => {
   it("aborts a malformed URL", () => {
     expect(shouldAllowPageRequest("http://", false, isUrlAllowed).allow).toBe(false);
   });
+
+  it("still flags http(s) for the private-IP check when the allowlist is bypassed (privileged token)", () => {
+    // Privileged callers pass an allow-all predicate so they can audit any
+    // PUBLIC page. The private/reserved-IP block must remain in force so the
+    // token can't be turned into an internal-SSRF key: every http(s) request,
+    // document or subresource, must still come back needsIpCheck:true (the
+    // async resolvePublicIp layer then aborts private/reserved targets).
+    const allowAll = () => true;
+    expect(
+      shouldAllowPageRequest("https://anything.example.com/", true, allowAll),
+    ).toEqual({ allow: true, needsIpCheck: true });
+    // A document nav straight at the cloud-metadata IP is NOT short-circuited
+    // by the allowlist anymore, but it's flagged for the IP check that blocks it.
+    expect(
+      shouldAllowPageRequest("http://169.254.169.254/latest/meta-data/", true, allowAll),
+    ).toEqual({ allow: true, needsIpCheck: true });
+    // Non-http(s) schemes are still aborted regardless of the predicate.
+    expect(
+      shouldAllowPageRequest("file:///etc/passwd", true, allowAll).allow,
+    ).toBe(false);
+  });
 });

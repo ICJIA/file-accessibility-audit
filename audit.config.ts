@@ -659,36 +659,88 @@ export const AUTH = {
 // on server restart — this is fine for single-instance deployment.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// PRIVILEGED API TOKEN (rate-limit tier + allowlist bypass)
+// ---------------------------------------------------------------------------
+// A single static bearer token, supplied at runtime via the
+// API_PRIVILEGED_TOKEN environment variable (PM2 env / Forge / /etc/environment
+// — never committed). A request carrying `Authorization: Bearer <token>` that
+// matches it is promoted from the strict anonymous tier to the privileged one:
+//
+//   1. Rate limits   — the generous `privileged` numbers below instead of the
+//                      strict `anon` numbers.
+//   2. URL allowlist — the caller may audit ANY public URL, not just the
+//                      ICJIA / illinois.gov allowlist (applied in the route
+//                      handlers — see apps/api/src/routes/analyze-url.ts,
+//                      audit-url.ts, audit-url-page.ts).
+//
+// It is NOT the OTP/JWT/DB-PAT auth system (which stays off while
+// AUTH.REQUIRE_LOGIN is false). It grants ONLY those two things and never
+// bypasses the private/reserved-IP SSRF block, the size caps, or the
+// concurrency semaphores — a leaked token cannot reach internal services.
+//
+// Empty/unset → feature off → every request is anonymous (fail-safe to strict).
+// The match is a constant-time compare in rateLimiter.ts (isPrivilegedRequest),
+// which reads process.env directly, mirroring authMiddleware's JWT_SECRET /
+// ADMIN_EMAILS pattern.
+// ---------------------------------------------------------------------------
+
 export const RATE_LIMITS = {
   /** POST /api/auth/request — keyed by email address.
-   *  Prevents an attacker from spamming OTP emails to a victim. */
+   *  Prevents an attacker from spamming OTP emails to a victim.
+   *  (Moot while AUTH.REQUIRE_LOGIN is false, but kept wired.) */
   authRequest: { max: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour
 
   /** POST /api/auth/verify — keyed by IP address.
    *  Prevents brute-forcing OTP codes from a single source. */
   authVerify: { max: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 min
 
-  /** POST /api/analyze — keyed by email (from JWT).
-   *  Prevents a single user from monopolizing analysis resources.
-   *  Elevated for the ICJIA fleet audit campaign — the inventory
-   *  (~5000 PDFs) is being re-audited across multiple passes over
-   *  several days as content is remediated and re-checked. Revert
-   *  to a tighter limit once the campaign concludes. */
-  analyze: { max: 5000, windowMs: 60 * 60 * 1000 }, // 5000 per hour
+  /**
+   * The four audit endpoints — /api/analyze, /api/analyze-url,
+   * /api/audit-url, /api/audit-url-page. Two-tier (see the privileged-token
+   * note above):
+   *
+   *   anon       — no/invalid token. Keyed by IP. The abuse ceiling for the
+   *                public tool. Sized to admit one pass of a known automated
+   *                client (icjia-drone-app, ~320 files from a single IP) with
+   *                retry headroom, while blocking the "thousands of requests
+   *                an hour" abuse case.
+   *   privileged — valid Bearer token. Single shared 'privileged' bucket.
+   *                Sized for the ICJIA fleet-audit pipeline (~5000 PDFs /
+   *                ~657 pages re-audited across passes).
+   *
+   * The true resource ceiling is MAX_CONCURRENT_ANALYSES /
+   * MAX_CONCURRENT_PAGE_AUDITS (= 2 each), so the privileged tier can be
+   * generous without risking the droplet.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  analyze: {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    anon: 500, // 500 / hour / IP  (no token)
+    privileged: 5000, // 5000 / hour      (with token)
+  },
 
-  /** POST /api/reports — keyed by email (from JWT).
-   *  Prevents a single user from filling the shared_reports table. */
+  /** POST /api/reports — keyed by IP (anonymous mode).
+   *  Prevents a single source from filling the shared_reports table. */
   reports: { max: 10, windowMs: 60 * 60 * 1000 }, // 10 per hour
 
-  /** All routes — keyed by IP address.
-   *  Catch-all safety net against request floods.
-   *
-   *  Temporary bump to 1000/min (was 100/min) for the ICJIA fleet
-   *  audit pass — icjia.illinois.gov has ~657 unique referenced
-   *  pages and the page-audit (axe-core via Puppeteer) burst hit
-   *  the previous cap with 499 HTTP 429 errors. Revert to 100/min
-   *  once the cache is warm and subsequent runs are incremental. */
-  global: { max: 1000, windowMs: 60 * 1000 }, // 1000 per minute (was 100)
+  /**
+   * All routes — catch-all burst guard against request floods. Two-tier,
+   * same token check as `analyze`:
+   *   anon       — 100/min/IP  (reverted from the fleet campaign's 1000/min,
+   *                which had been applied to everyone).
+   *   privileged — 1000/min, so a token-authenticated fleet run isn't
+   *                throttled per-minute before the hourly `analyze` tier
+   *                matters (icjia.illinois.gov has ~657 pages; the page-audit
+   *                burst previously hit 100/min → 499 HTTP 429s, which is why
+   *                the privileged tier exists).
+   */
+  global: {
+    windowMs: 60 * 1000, // 1 minute
+    anon: 100, // 100 / min / IP   (no token)
+    privileged: 1000, // 1000 / min      (with token)
+  },
 } as const;
 
 // ---------------------------------------------------------------------------

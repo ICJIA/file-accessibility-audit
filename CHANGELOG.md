@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.29.0] - 2026-06-27
+
+Two-tier rate limiting with an optional privileged bearer token, plus a strict revert of the anonymous limits left elevated by the fleet-audit campaign.
+
+### Added
+
+- **Privileged API token (`API_PRIVILEGED_TOKEN`).** A single static bearer token (env var; never committed) that promotes a request carrying `Authorization: Bearer <token>` from the strict anonymous tier to a generous one **and** lets it audit URLs outside the ICJIA / illinois.gov allowlist (any _public_ URL). It is independent of the OTP/JWT/DB-PAT auth system, which stays off. It grants only those two things: it never bypasses the private/reserved-IP SSRF block (enforced independently in both the `safeFetch` and headless-Chromium paths), the 15 MB cap, the http(s)-only rule, or the 2-slot concurrency semaphores — a leaked token cannot reach internal services. Unset/empty → feature off → every request is anonymous. Constant-time compare; read from `process.env` (mirrors the `JWT_SECRET` pattern).
+
+### Changed
+
+- **Anonymous rate limits reverted from the campaign bump and split into tiers.** `RATE_LIMITS.analyze`: anon **500/hour per IP** (was 5000 for everyone), privileged **5000/hour**. `RATE_LIMITS.global`: anon **100/min per IP** (was 1000 for everyone), privileged **1000/min**. The strict anonymous tier blocks the "thousands of requests an hour" abuse case while still admitting a known automated client (~320 single-IP files) with retry headroom; the privileged tier carries the fleet-audit pipeline. The true resource ceiling remains the 2-slot concurrency semaphore.
+
+### Security
+
+- Reverting the loose campaign-era anonymous limits tightens the public abuse surface, and the allowlist bypass is gated behind the token while never relaxing the SSRF (private-IP) controls. Running review history is in [README § Security](README.md#security).
+
+### Tests
+
+- API suite now **510** (13 new: `rateLimiter.test.ts` covering the constant-time token check, tier selection, and a live limiter test proving a token exceeds the anonymous cap on the same IP; plus a `pageAuditGuard` case proving the allowlist bypass still forces the private-IP check). Web **317**, total **827**. `tsc --noEmit` and `nuxt build` clean.
+
 ## [1.28.1] - 2026-06-10
 
 ### Fixed

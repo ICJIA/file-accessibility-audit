@@ -230,7 +230,7 @@ Upload up to **3 PDF files** at once. Files are analyzed in parallel (2 at a tim
 | Max files per batch | 5                | Frontend (`DropZone.vue`)             |
 | Max file size       | 15 MB each       | Frontend + multer + nginx             |
 | Concurrent uploads  | 2                | Frontend semaphore + server semaphore |
-| Rate limit          | 30 analyses/hour | Server (`analyzeLimiter`)             |
+| Rate limit          | 500/hour per IP (5000/hour with a privileged token) | Server (`analyzeLimiter`) |
 
 **Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
 
@@ -269,6 +269,8 @@ Only ICJIA-affiliated and Illinois state government URLs are accepted by default
 Look-alike domains are rejected — `illinois.gov.evil.com` does *not* match `illinois.gov` (no dot before the allowed host) and `fakeillinois.gov` does not match either (no subdomain separator).
 
 Operators can extend the list without a code change via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable (comma-separated hostnames).
+
+A request carrying a valid `API_PRIVILEGED_TOKEN` (`Authorization: Bearer <token>`) **bypasses the allowlist entirely** and may audit any _public_ URL — the private/reserved-IP SSRF block (below) still applies to it. See [§ Security](#security).
 
 ### SSRF protection
 
@@ -764,7 +766,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**804 tests** across 39 test files. Run all with a summary at the end:
+**827 tests** across 40 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -779,14 +781,14 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      487 passed (19 files)
+  ✔ API      510 passed (20 files)
   ✔ Web      317 passed (20 files)
 ────────────────────────────────────────────────────────────
-  ✔ 804 tests passed across 39 files
+  ✔ 827 tests passed across 40 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (487 tests)
+### API Tests (510 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -806,7 +808,8 @@ pnpm test:scoring        # Scoring model tests only
 | `veraPdf.test.ts` | 4 | veraPDF JSON verdict extraction: rule identifiers built from clause + test number (never the "FAILED" status string), per-rule counts, and the authoritative failed-checks total |
 | `pdfuaXmp.test.ts` | 3 | PDF/UA identifier detection from XMP through real pdfjs parsing — element form and RDF attribute form (`pdfuaid:part="1"`), which pdfjs's own parser misses |
 | `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
-| `pageAuditGuard.test.ts` | 7 | The headless-browser SSRF interceptor's decision logic: data:/blob:/about: allowed, non-http(s) blocked, document navigations allowlist-gated (open-redirect targets rejected), subresources IP-checked but not allowlist-gated |
+| `pageAuditGuard.test.ts` | 8 | The headless-browser SSRF interceptor's decision logic: data:/blob:/about: allowed, non-http(s) blocked, document navigations allowlist-gated (open-redirect targets rejected), subresources IP-checked but not allowlist-gated, and the private-IP check still forced when a privileged token bypasses the allowlist |
+| `rateLimiter.test.ts` | 12 | The privileged bearer-token tier: constant-time `isPrivilegedRequest` (missing / wrong / empty / prefix / over-length tokens, and feature-off when unset), tier selection (strict per-IP vs generous shared bucket), and a live limiter test proving a token exceeds the anonymous cap on the same IP |
 | `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
 | `pdfAnalyzerTimeout.test.ts` | 2 | The in-process pdfjs parse timeout abandons a pathological document and frees its concurrency slot |
 
@@ -885,7 +888,8 @@ The application undergoes a security review before every release plus periodic s
 - **No shell** — QPDF / OpenDataLoader / veraPDF are invoked via `execFile` with array arguments; user-supplied filenames never reach a shell or a path component.
 - **SSRF-hardened URL fetching** — URL and fleet PDF fetches resolve DNS in-process, reject private/reserved IPs (IPv4 + IPv6), pin the connection to the validated IP, and re-validate every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
 - **Bounded work** — per-request size caps, a 2-slot analysis semaphore, a pdfjs parse timeout, and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
-- **Rate limiting** on all endpoints; **Helmet + nginx headers** on the API and a **Content-Security-Policy** on the web app; **CORS** locked to a single origin in production.
+- **Two-tier rate limiting** on the audit endpoints — strict per-IP for anonymous callers (500/hr analyze, 100/min global), generous for callers presenting a valid `API_PRIVILEGED_TOKEN` (5000/hr, 1000/min) — plus **Helmet + nginx headers** on the API and a **Content-Security-Policy** on the web app; **CORS** locked to a single origin in production.
+- **Privileged API token** (`API_PRIVILEGED_TOKEN`, optional) — a single static bearer token that unlocks the generous rate tier **and** lets a trusted client audit URLs outside the ICJIA / illinois.gov allowlist. It never bypasses the private/reserved-IP SSRF block, the size caps, or the concurrency semaphores; constant-time compare; unset = feature off (everyone strict).
 - Full security model: **docs/archive/00-master-design.md, Section 9**.
 
 ### Batch upload security
@@ -904,6 +908,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.29.0 — 2026-06-27 · Two-tier rate limiting + privileged token (allowlist bypass)
+
+A scoped review of the new rate-limit tiers and the privileged bearer token. The token grants only (a) the generous rate tier and (b) a bypass of the ICJIA / illinois.gov URL allowlist — it never relaxes the SSRF controls: the private/reserved-IP block runs independently of the allowlist in both the `safeFetch` path (every redirect hop, connection pinned to the resolved IP) and the headless-browser path (every request, via the Chromium interceptor), verified by tests. Size caps, the http(s)-only rule, and the 2-slot concurrency semaphores are unaffected, so a leaked token cannot reach internal services — worst case is auditing arbitrary _public_ URLs at the privileged rate, still serialized through 2 slots. Reverting the campaign-era anonymous limits (5000/hr → 500/hr analyze, 1000/min → 100/min global) tightens the public abuse surface. No new injection/XSS/auth surface; constant-time token compare; the token is read from the environment and never logged or persisted.
 
 ### v1.28.1 — 2026-06-10 · Loading-spinner icon routing fix (not a security release)
 

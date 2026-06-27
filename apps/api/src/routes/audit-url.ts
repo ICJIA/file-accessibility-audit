@@ -1,7 +1,7 @@
 import { Router, Response, type IRouter } from 'express'
 import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
-import { analyzeLimiter } from '../middleware/rateLimiter.js'
+import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
 import { gateIdentity, recordAudit } from '../services/auditLog.js'
 import { DEPLOY, SHARED_REPORTS } from '#config'
@@ -12,6 +12,7 @@ import {
   isAllowedUrl,
   sendSafeFetchError,
   validateUrlForFetch,
+  validateUrlPublic,
 } from './analyze-url.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 
@@ -89,8 +90,12 @@ router.post(
         req.body?.force === 'true' ||
         req.query?.force === 'true'
 
+      // Privileged (API_PRIVILEGED_TOKEN) callers may audit any public URL;
+      // anonymous callers are restricted to the ICJIA / illinois.gov allowlist.
+      // The private/reserved-IP SSRF block inside safeFetch stays on either way.
+      const privileged = isPrivilegedRequest(req)
       const check = isAllowedUrl(url)
-      if (!check.ok) {
+      if (!privileged && !check.ok) {
         res.status(400).json({
           error: 'URL not allowed',
           details: check.reason,
@@ -105,7 +110,7 @@ router.post(
         fetched = await safeFetch(url, {
           timeoutMs: FETCH_TIMEOUT_MS,
           maxBytes: MAX_PDF_BYTES,
-          validateUrl: validateUrlForFetch,
+          validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
         })
       } catch (err) {
         if (err instanceof SafeFetchError) {
@@ -175,7 +180,7 @@ router.post(
 
       // --- Fresh audit + persist ----------------------------------------
       const rawName =
-        check.parsed!.pathname.split('/').pop() ?? 'remote.pdf'
+        check.parsed?.pathname.split('/').pop() ?? 'remote.pdf'
       const filename = rawName.slice(0, 200) || 'remote.pdf'
 
       const result = await analyzePDF(buf, filename)
