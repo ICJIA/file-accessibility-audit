@@ -74,7 +74,7 @@
 
         <div>
           <p class="text-lg font-medium" :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'">
-            {{ dragging ? 'Drop your PDFs here' : 'Drop PDF files here' }}
+            {{ dragging ? dropLabelActive : dropLabelIdle }}
           </p>
           <p class="text-sm text-[var(--text-muted)] mt-1">or click to browse — up to 5 files, max 15 MB each</p>
         </div>
@@ -84,7 +84,7 @@
     <input
       ref="fileInput"
       type="file"
-      accept=".pdf,application/pdf"
+      :accept="acceptAttr"
       multiple
       class="hidden"
       @change="handleFileInput"
@@ -95,6 +95,19 @@
 <script setup lang="ts">
 const MAX_FILES = 3
 const MAX_SIZE = 15 * 1024 * 1024
+
+const config = useRuntimeConfig()
+// Word support can be turned off server-side (DOCX_ENABLED=false); mirror that
+// in the dropzone so we never invite a file the API will reject.
+const docxEnabled = computed(() => config.public.docxEnabled !== false)
+const acceptAttr = computed(() =>
+  docxEnabled.value
+    ? '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    : '.pdf,application/pdf',
+)
+const fileNoun = computed(() => (docxEnabled.value ? 'PDF or Word' : 'PDF'))
+const dropLabelIdle = computed(() => `Drop ${fileNoun.value} files here`)
+const dropLabelActive = computed(() => `Drop your ${fileNoun.value} files here`)
 
 const emit = defineEmits<{
   'file-selected': [file: File]
@@ -152,27 +165,32 @@ function handleFileInput(e: Event) {
 function processFiles(files: File[]) {
   validationError.value = ''
 
-  const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'))
-  if (pdfs.length === 0) {
-    validationError.value = 'Please select PDF files'
+  const exts = docxEnabled.value ? ['.pdf', '.docx'] : ['.pdf']
+  const accepted = files.filter(f =>
+    exts.some(ext => f.name.toLowerCase().endsWith(ext)),
+  )
+  if (accepted.length === 0) {
+    validationError.value = docxEnabled.value
+      ? 'Please select PDF or Word (.docx) files'
+      : 'Please select PDF files'
     return
   }
 
-  const oversized = pdfs.filter(f => f.size > MAX_SIZE)
+  const oversized = accepted.filter(f => f.size > MAX_SIZE)
   if (oversized.length) {
     validationError.value = `${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 15 MB limit`
     return
   }
 
-  const combined = [...stagedFiles.value, ...pdfs]
+  const combined = [...stagedFiles.value, ...accepted]
   if (combined.length > MAX_FILES) {
     validationError.value = `Maximum ${MAX_FILES} files allowed (you have ${combined.length})`
     return
   }
 
   // Single file with nothing staged → emit immediately (original behavior)
-  if (pdfs.length === 1 && stagedFiles.value.length === 0) {
-    emit('file-selected', pdfs[0])
+  if (accepted.length === 1 && stagedFiles.value.length === 0) {
+    emit('file-selected', accepted[0])
     return
   }
 

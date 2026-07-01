@@ -13,4 +13,9 @@ describe("reportBanner", () => {
   it("uses the singular 'page' for a one-page document", () => {
     expect(bannerMetaLine(1)).toBe("1 page · PDF");
   });
+
+  it("labels Word documents when fileType is docx", () => {
+    expect(bannerMetaLine(3, "docx")).toBe("3 pages · Word");
+    expect(bannerMetaLine(1, "docx")).toBe("1 page · Word");
+  });
 });

@@ -30,6 +30,7 @@
           :filename="(data as any).report.filename"
           :page-count="(data as any).report.pageCount"
           :is-scanned="(data as any).report.isScanned"
+          :file-type="(data as any).report.fileType"
           class="mb-6"
         />
         <!-- Header -->

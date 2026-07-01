@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
-import { analyzePDF } from '../../../api/src/services/pdfAnalyzer.js'
+import { analyzeDocument } from '../../../api/src/services/analyzer.js'
 import { ANALYSIS } from '#config'
 import { fetchPublications, loadPublicationsFromFile } from '../lib/graphql.js'
 import { initCache, getCached, upsertResult, upsertError, getAllSuccessful, getErrorCount, clearCache, backfillMetadata } from '../lib/cache.js'
@@ -236,8 +236,8 @@ export async function runPublist(argv: string[]): Promise<void> {
         // Download
         const buffer = await downloadPdf(pub.fileURL!)
 
-        // Analyze using existing pipeline
-        const result = await analyzePDF(buffer, filename)
+        // Analyze using existing pipeline (dispatches by content type)
+        const result = await analyzeDocument(buffer, filename)
 
         // Cache result
         upsertResult(db, pub, result)

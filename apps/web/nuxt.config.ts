@@ -1,4 +1,4 @@
-import { BRANDING, DEPLOY, REMEDIATION, WCAG, ANNOUNCEMENTS } from '../../audit.config'
+import { BRANDING, DEPLOY, REMEDIATION, WCAG, ANNOUNCEMENTS, DOCX } from '../../audit.config'
 import { version } from './package.json'
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -6,9 +6,9 @@ const siteUrl = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.WEB_
 const appName = BRANDING.APP_SHORT_NAME
 const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
-const appDesc = 'Upload a PDF and get an instant accessibility score across 9 WCAG 2.2 (and 2.1) Level AA, ADA Title II, and Illinois IITAA categories with detailed findings and remediation guidance.'
+const appDesc = 'Upload a PDF or Word document and get an instant accessibility score across WCAG 2.2 (and 2.1) Level AA, ADA Title II, and Illinois IITAA categories with detailed findings and remediation guidance.'
 const datePublished = '2025-03-06'
-const dateModified = '2026-06-27'
+const dateModified = '2026-07-01'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
@@ -60,7 +60,7 @@ export default defineNuxtConfig({
         url: orgUrl,
       },
       featureList: [
-        'PDF accessibility scoring across 9 WCAG 2.2 Level AA categories',
+        'PDF and Word (.docx) accessibility scoring across WCAG 2.2 Level AA categories',
         'Instant A-F grading with severity levels',
         'Detailed findings with remediation guidance',
         'WCAG 2.2 / 2.1 AA, ADA Title II, and Illinois IITAA compliance checking',
@@ -103,7 +103,7 @@ export default defineNuxtConfig({
         // Misc
         { name: 'theme-color', content: '#0a0a0a' },
         { name: 'author', content: orgName },
-        { name: 'keywords', content: 'PDF accessibility, WCAG 2.2, WCAG 2.1, ADA Title II, IITAA, Illinois Information Technology Accessibility Act, Section 508, accessibility audit, PDF checker, screen reader, accessibility score, document remediation' },
+        { name: 'keywords', content: 'PDF accessibility, Word accessibility, .docx accessibility, WCAG 2.2, WCAG 2.1, ADA Title II, IITAA, Illinois Information Technology Accessibility Act, Section 508, accessibility audit, PDF checker, Word checker, screen reader, accessibility score, document remediation' },
       ],
       link: [
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
@@ -125,6 +125,7 @@ export default defineNuxtConfig({
       githubUrl: BRANDING.GITHUB_URL,
       appVersion: version,
       remediationEnabled: REMEDIATION.ENABLED,
+      docxEnabled: DOCX.ENABLED,
       iitaaUrl: BRANDING.IITAA_URL,
       verapdfUrl: BRANDING.VERAPDF_URL,
       wcagVersion: WCAG.VERSION,

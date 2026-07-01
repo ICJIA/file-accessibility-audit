@@ -238,6 +238,7 @@ const props = withDefaults(
       scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
       conformance?: ConformanceVerdict;
       pdfUa?: PdfUaSignals;
+      fileType?: "pdf" | "docx";
     };
     // The prominent ReportFileBanner now carries the filename above the card on
     // the live + shared report pages, which pass showFilename: false to avoid

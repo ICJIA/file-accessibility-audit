@@ -161,6 +161,7 @@
           :filename="result.filename"
           :page-count="result.pageCount"
           :is-scanned="result.isScanned"
+          :file-type="result.fileType"
           class="mb-6"
         />
         <!-- Scanned warning banner -->
@@ -198,8 +199,12 @@
         <!-- Auto-Remediate (visible right under the score; component
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each
-             tab can be remediated independently. -->
-        <div class="mb-6 flex justify-center">
+             tab can be remediated independently. PDF-only: the remediation
+             pipeline does not apply to Word (.docx) documents. -->
+        <div
+          v-if="result?.fileType !== 'docx'"
+          class="mb-6 flex justify-center"
+        >
           <RemediateButton
             :file="activeFile"
             :input-score="result?.overallScore ?? null"
@@ -1279,12 +1284,12 @@
         <h2
           class="text-xl sm:text-2xl font-bold tracking-tight mb-3 text-[var(--accent-green)]"
         >
-          Check your PDFs for accessibility
+          {{ heroTitle }}
         </h2>
         <p
           class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed"
         >
-          Upload a PDF to get an instant accessibility score based on
+          Upload a {{ heroUploadNoun }} to get an instant accessibility score based on
           <a
             href="https://www.w3.org/WAI/WCAG22/quickref/"
             target="_blank"
@@ -3872,6 +3877,19 @@ import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 
 const wcag = useWcag();
+
+// Word (.docx) support can be disabled server-side (DOCX_ENABLED=false); mirror
+// that in the hero copy so we never invite a format the API will reject.
+const runtimeConfig = useRuntimeConfig();
+const docxEnabled = computed(() => runtimeConfig.public.docxEnabled !== false);
+const heroTitle = computed(() =>
+  docxEnabled.value
+    ? "Check your PDFs and Word docs for accessibility"
+    : "Check your PDFs for accessibility",
+);
+const heroUploadNoun = computed(() =>
+  docxEnabled.value ? "PDF or Word document" : "PDF",
+);
 
 definePageMeta({ middleware: "auth" });
 

@@ -5,7 +5,7 @@
     </div>
 
     <div class="text-center space-y-2">
-      <p class="text-lg font-medium text-[var(--text-heading)]">Analyzing your PDF</p>
+      <p class="text-lg font-medium text-[var(--text-heading)]">Analyzing your document</p>
       <p class="text-sm text-[var(--text-muted)]">{{ stage }}</p>
     </div>
   </div>
