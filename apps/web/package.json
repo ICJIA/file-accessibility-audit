@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev --port 5102",
+    "dev": "TMPDIR=/tmp nuxt dev --port 5102",
     "build": "nuxt build",
     "start": "node .output/server/index.mjs",
     "test": "vitest run",
