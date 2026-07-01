@@ -16,7 +16,7 @@ useHead({
     {
       name: 'description',
       content:
-        'How the ICJIA File Accessibility Audit tool analyzes and remediates PDFs — pipeline diagrams, open-source toolchain, and why PDF remediation is fundamentally limited.',
+        'How the ICJIA File Accessibility Audit tool analyzes PDF and Word (.docx) documents and remediates PDFs — pipeline diagrams, open-source toolchain, and why PDF remediation is fundamentally limited.',
     },
   ],
   link: [
@@ -96,19 +96,20 @@ function goBack(): void {
         1. What this tool does
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        The tool answers two questions about a PDF:
+        The tool answers two questions about a document (PDF or Word .docx):
       </p>
       <ul class="space-y-1.5 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-3">
         <li>
-          <strong>Audit:</strong> "How accessible is this PDF, and what
-          specifically is wrong?" — a weighted 0–100 score (A–F grade) across
-          9 WCAG-aligned categories, a separate pass/fail
+          <strong>Audit</strong> (PDF and Word .docx): "How accessible is this
+          document, and what specifically is wrong?" — a weighted 0–100 score
+          (A–F grade) across the WCAG-aligned categories that apply to the
+          format, a separate pass/fail
           <strong>WCAG {{ wcag.version }} conformance verdict</strong>, and category-level
           findings.
         </li>
         <li>
-          <strong>Auto-remediate</strong> (optional, opt-in): "Can we add
-          accessibility structure to this PDF without making it worse?" —
+          <strong>Auto-remediate</strong> (PDF only; optional, opt-in): "Can we
+          add accessibility structure to this PDF without making it worse?" —
           runs an automated tagging pipeline, validates the output, and
           serves the improved file if every score profile holds or improves.
         </li>
@@ -125,26 +126,39 @@ function goBack(): void {
         2. The audit pipeline
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-        The audit holds the uploaded PDF in memory and never persists it:
-        pdfjs reads the in-memory buffer directly, while qpdf (a command-line
-        tool that needs a file path) gets a short-lived temp copy under a
-        random name, deleted in the same request — even when analysis fails.
-        Nothing is uploaded to a directory, cached, or retained. The two
-        tools run in parallel; their combined output feeds the scorer.
+        The audit holds the uploaded file in memory and never persists it, and
+        the server detects the format from the file's <em>content</em> (not its
+        name). <strong>PDFs</strong> are read by two tools: pdfjs reads the
+        in-memory buffer directly, while qpdf (a command-line tool that needs a
+        file path) gets a short-lived temp copy under a random name, deleted in
+        the same request — even when analysis fails. The two run in parallel and
+        their combined output feeds the scorer.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+        <strong>Word (.docx)</strong> files take a simpler, fully in-process
+        route: a .docx is just a ZIP of XML, so the server unzips it in memory
+        and reads the accessibility-relevant structure directly with two small
+        JavaScript libraries (JSZip + fast-xml-parser) — no external binary, no
+        subprocess, and no temp file at all. The extracted structure feeds the
+        same scorer. Nothing is uploaded to a directory, cached, or retained in
+        either path. The flowchart below shows the PDF pipeline.
       </p>
 
       <DiagramFigure
         name="audit-flow"
-        title="Audit pipeline"
+        title="PDF audit pipeline"
         :desc="`Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory (with a short-lived temp copy for the qpdf subprocess, deleted in the same request), runs qpdf and pdfjs in parallel, combines the results in the scorer, produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, returns to the browser, and discards the memory buffer.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
-        Why two tools? Each is excellent at a different job. qpdf parses
+        Why two tools for PDF? Each is excellent at a different job. qpdf parses
         the PDF's internal object graph and structure tree — the parts a
         screen reader cares about. pdfjs (Mozilla's PDF rendering library)
         is excellent at extracting visible text and content order. Running
-        both gives the scorer a richer signal than either alone.
+        both gives the scorer a richer signal than either alone. Word needs only
+        one parser, because its structure (headings, alt text, table headers,
+        lists) is already explicit in the OOXML — there is no separate visual
+        layer to reconcile against.
       </p>
 
       <h3 class="text-lg font-semibold text-[var(--text-heading)] mt-6 mb-2">
@@ -183,7 +197,9 @@ function goBack(): void {
       </ul>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
         Each category maps to the specific WCAG {{ wcag.version }} success criteria it
-        evaluates:
+        evaluates. The weights below are the <strong>PDF</strong> rubric; Word
+        (.docx) uses the same categories with a few differences, noted after the
+        table:
       </p>
       <div class="overflow-x-auto mb-3">
         <table
@@ -252,9 +268,9 @@ function goBack(): void {
         </table>
       </div>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
-        Color contrast (WCAG 1.4.3) is always shown as
+        For PDFs, color contrast (WCAG 1.4.3) is shown as
         <strong>Not assessed</strong> — the tool does not yet measure rendered
-        contrast, and that is stated plainly rather than hidden as a passing
+        PDF contrast, and that is stated plainly rather than hidden as a passing
         result. Reading Order and Alt Text can also report
         <strong>Not assessed</strong> when the tool lacks the data to judge
         them honestly (no comparable tag/content order; images present but
@@ -262,6 +278,16 @@ function goBack(): void {
         when the document genuinely has no such content (no tables, no forms,
         no links). In both cases the category's weight is redistributed
         across the categories that were actually scored.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
+        <strong>Word (.docx) differs in three ways.</strong> Color contrast
+        <em>is</em> scored — Word stores explicit and theme colors in the file,
+        so 1.4.3 is machine-checkable (unlike PDF, which would need pixel
+        rendering). A Word-specific <strong>List Structure</strong> category
+        (1.3.1 — real lists vs. manually-typed bullets) applies in place of
+        PDF-only Bookmarks. And Reading Order and Form Accessibility are
+        <strong>Not applicable</strong>, because Word's linear document flow
+        preserves reading order and interactive form controls are rare in Word.
       </p>
 
         <section class="mt-8">
@@ -290,13 +316,16 @@ function goBack(): void {
     <!-- Two-tool parallel diagram -->
     <section>
       <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
-        3. Why two tools?
+        3. Why two tools (for PDF)?
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-        Each tool sees the PDF differently. Running them in parallel lets
-        the scorer reconcile a structural view (qpdf) with a content view
-        (pdfjs) — useful for catching cases where a PDF claims structure
-        it doesn't actually have, or vice versa.
+        This applies to <strong>PDF</strong> only. Each tool sees the PDF
+        differently, and running them in parallel lets the scorer reconcile a
+        structural view (qpdf) with a content view (pdfjs) — useful for catching
+        cases where a PDF claims structure it doesn't actually have, or vice
+        versa. <strong>Word</strong> needs no such reconciliation: its structure
+        is declared explicitly in the OOXML, so a single parser reads it
+        directly.
       </p>
 
       <DiagramFigure
@@ -332,6 +361,27 @@ function goBack(): void {
         reader — incoherent. With tags, it reads like a navigable document
         with headings, paragraphs, lists, tables, and image descriptions.
       </p>
+
+      <h3 class="text-lg font-semibold text-[var(--text-heading)] mt-6 mb-2">
+        And a Word (.docx) file?
+      </h3>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+        A <strong>.docx is the opposite of a PDF</strong>: it is a
+        <em>source</em> format, and its structure is native, not bolted on.
+        Under the hood it is a ZIP archive of XML (the Office Open XML
+        standard) — headings, lists, tables, alt text, and language are stored
+        as explicit, semantic markup, because that is how Word represents the
+        document you are editing. That is why Word is the best place to fix
+        accessibility: correct it in the source, and every PDF you export from
+        it inherits the structure automatically.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        It also makes the audit simpler and safer for Word than for PDF — the
+        tool reads structure that is already there rather than inferring it from
+        glyph positions. Because a .docx is still untrusted input, the parser is
+        hardened against malicious files (uncompressed-size "zip-bomb" caps, a
+        concurrency limit, and a timeout; see the README security section).
+      </p>
     </section>
 
     <!-- 5. Why remediation is hard -->
@@ -340,9 +390,10 @@ function goBack(): void {
         5. Why remediation is fundamentally limited
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        Auditing is read-only — you walk the PDF's internal structure and
-        report what's there. Remediation is read-modify-write — and PDFs
-        make that genuinely hard:
+        Auto-remediation applies to <strong>PDF only</strong> — Word doesn't
+        need it (fix the source in Word directly, then re-export). Auditing is
+        read-only: you walk the document's structure and report what's there.
+        Remediation is read-modify-write — and PDFs make that genuinely hard:
       </p>
       <ul class="space-y-2 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2">
         <li>
@@ -391,10 +442,10 @@ function goBack(): void {
         6. The remediation pipeline
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-        When the optional auto-remediation feature is enabled, clicking
-        <em>Remediate</em> triggers a multi-stage pipeline. Every
-        intermediate file is deleted before the next stage starts, and
-        every deletion is verified by an
+        <strong>PDF only.</strong> When the optional auto-remediation feature is
+        enabled, clicking <em>Remediate</em> on a PDF result triggers a
+        multi-stage pipeline. Every intermediate file is deleted before the next
+        stage starts, and every deletion is verified by an
         <code class="font-mono text-xs">fs.stat</code> ENOENT check.
       </p>
 
@@ -427,8 +478,11 @@ function goBack(): void {
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
         Two small services run on a single DigitalOcean droplet, managed
-        by PM2 and fronted by Nginx. Every external dependency is open
-        source and runs locally.
+        by PM2 and fronted by Nginx. Every dependency is open source and runs
+        locally. The PDF path shells out to qpdf (and, for remediation, the
+        OpenDataLoader and veraPDF Java tools); the Word path needs none of
+        those — it runs entirely in-process with the JSZip and fast-xml-parser
+        JavaScript libraries.
       </p>
 
       <DiagramFigure
@@ -458,25 +512,37 @@ function goBack(): void {
               <td class="py-2.5 pr-4 font-mono">qpdf</td>
               <td class="py-2.5 pr-4">Structure parsing + PDF normalization</td>
               <td class="py-2.5 pr-4">Apache 2.0</td>
-              <td class="py-2.5">Audit + Remediation</td>
+              <td class="py-2.5">Audit + Remediation (PDF)</td>
             </tr>
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-mono">pdfjs-dist</td>
               <td class="py-2.5 pr-4">Text + metadata extraction</td>
               <td class="py-2.5 pr-4">Apache 2.0</td>
-              <td class="py-2.5">Audit</td>
+              <td class="py-2.5">Audit (PDF)</td>
+            </tr>
+            <tr class="border-b border-[var(--border)]/40">
+              <td class="py-2.5 pr-4 font-mono">jszip</td>
+              <td class="py-2.5 pr-4">Unzip the .docx (OOXML) package</td>
+              <td class="py-2.5 pr-4">MIT / GPLv3</td>
+              <td class="py-2.5">Audit (Word)</td>
+            </tr>
+            <tr class="border-b border-[var(--border)]/40">
+              <td class="py-2.5 pr-4 font-mono">fast-xml-parser</td>
+              <td class="py-2.5 pr-4">Parse OOXML structure &amp; content</td>
+              <td class="py-2.5 pr-4">MIT</td>
+              <td class="py-2.5">Audit (Word)</td>
             </tr>
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-mono">OpenDataLoader PDF</td>
               <td class="py-2.5 pr-4">Rule-based PDF auto-tagging</td>
               <td class="py-2.5 pr-4">Apache 2.0</td>
-              <td class="py-2.5">Remediation</td>
+              <td class="py-2.5">Remediation (PDF)</td>
             </tr>
             <tr>
               <td class="py-2.5 pr-4 font-mono">veraPDF</td>
               <td class="py-2.5 pr-4">PDF/UA-1 (ISO 14289-1) validation</td>
               <td class="py-2.5 pr-4">MPL 2.0</td>
-              <td class="py-2.5">Remediation</td>
+              <td class="py-2.5">Remediation (PDF)</td>
             </tr>
           </tbody>
         </table>
@@ -528,7 +594,7 @@ function goBack(): void {
             Audit page
           </div>
           <p class="text-xs text-[var(--text-muted)] mt-1">
-            Upload a PDF and run the audit. Full prose
+            Upload a PDF or Word document and run the audit. Full prose
             <em>Technical Details</em> dropdown at the bottom of that page
             with code references and tool-by-tool deep dives.
           </p>

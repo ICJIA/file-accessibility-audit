@@ -25,7 +25,7 @@
             <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer" @click.prevent="goAnalyze">
               Analyze
             </a>
-            <UModal title="Scoring Rubric" description="How accessibility scores are calculated for PDFs">
+            <UModal title="Scoring Rubric" description="How accessibility scores are calculated for PDFs and Word documents">
               <button class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer">
                 Scoring
               </button>
@@ -34,7 +34,7 @@
                   <div class="flex items-center justify-between px-3 sm:px-6 pt-5 pb-3">
                     <div>
                       <h2 class="text-lg font-semibold text-[var(--text-heading)]">Scoring Rubric</h2>
-                      <p class="text-sm text-[var(--text-muted)]">How accessibility scores are calculated for PDFs</p>
+                      <p class="text-sm text-[var(--text-muted)]">How accessibility scores are calculated for PDFs and Word documents</p>
                     </div>
                     <button class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors" @click="close">
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -44,7 +44,7 @@
                   </div>
                   <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
                     <p class="text-[var(--text-muted)] leading-relaxed">
-                      Each PDF is scored across nine accessibility categories based on
+                      Each PDF or Word document is scored across accessibility categories based on
                       <a href="https://www.w3.org/WAI/WCAG22/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.2</a>
                       and
                       <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">ADA Title II</a>
@@ -70,6 +70,16 @@
                         </tbody>
                       </table>
                     </div>
+
+                    <p class="text-[var(--text-muted)] text-xs leading-relaxed">
+                      The weights above are the <strong class="text-[var(--text-secondary)]">PDF</strong> rubric.
+                      <strong class="text-[var(--text-secondary)]">Word (.docx)</strong> documents use the same
+                      categories with three differences: color contrast <em>is</em> checked (Word stores real
+                      text colors, unlike PDF), a <strong>List Structure</strong> category (real lists vs. typed
+                      bullets) applies in place of PDF-only Bookmarks, and Reading Order and Form Accessibility
+                      show as <strong>N/A</strong> (Word manages reading order in its linear document flow).
+                      Weights are renormalized across whichever categories apply to the document.
+                    </p>
 
                     <div>
                       <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Grade Scale</h3>

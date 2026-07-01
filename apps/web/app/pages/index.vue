@@ -3685,8 +3685,9 @@ pm2 restart ecosystem.config.cjs</div>
         What This Tool Does
       </h2>
       <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Audit any PDF for WCAG 2.2 AA accessibility — and (optionally) auto-remediate
-        it, all on infrastructure you control, with no AI and no per-document fees.
+        Audit any PDF or Word (.docx) document for WCAG 2.2 AA accessibility — and
+        (optionally) auto-remediate PDFs — all on infrastructure you control, with
+        no AI and no per-document fees.
       </p>
     </div>
 
