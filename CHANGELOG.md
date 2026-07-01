@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.31.1] - 2026-07-01
+
+### Fixed
+
+- **HTML export drops the now-inert toggle controls.** Because the export is a static snapshot with everything pre-expanded, the interactive affordances it captured — the per-category **"Basic / Advanced"** technical-signals pill, the **"Show / Hide fix steps"** chevron on issue rows, and the "click a row" hint — had nothing to do: they were visible but dead. They are now removed from the export (marked `data-export-exclude`), while all the content they revealed stays fully expanded. The live page keeps them, unchanged. Pure-CSS affordances that still function in a static file (the N/A cell "i" tooltips, native `<details>`) are left intact. Verified in-browser on a PDF export: 4 Basic/Advanced pills on the live page → 0 in the export, with the technical-signals content shown in full.
+
 ## [1.31.0] - 2026-07-01
 
 The downloadable HTML report is now a faithful snapshot of the live results — identical content and wording, fully expanded, no interaction required. For both PDF and Word.

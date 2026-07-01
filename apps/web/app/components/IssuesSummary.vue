@@ -1,7 +1,9 @@
 <template>
   <div v-if="rows.length" class="issues-summary">
     <h2 class="title">Issues to fix</h2>
-    <p class="subtitle">Sorted by severity. Click a row to see the fix steps.</p>
+    <p class="subtitle">
+      Sorted by severity.<span data-export-exclude> Click a row to see the fix steps.</span>
+    </p>
     <ul class="rows">
       <li
         v-for="row in rows"
@@ -18,7 +20,7 @@
           <span :class="['sev', `sev-${row.sevClass}`]">{{ row.severity }}</span>
           <span class="name">{{ row.label }}</span>
           <span class="summary">{{ row.summary }}</span>
-          <span class="toggle" aria-hidden="true">
+          <span class="toggle" aria-hidden="true" data-export-exclude>
             <span class="toggle-text">{{ expanded[row.id] ? 'Hide' : 'Show' }} fix steps</span>
             <svg
               class="chevron"

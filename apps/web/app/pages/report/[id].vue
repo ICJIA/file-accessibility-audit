@@ -369,6 +369,7 @@
                   "
                   :title="advancedCards[cat.id] ? 'Hide technical signals' : 'Show technical signals'"
                   :aria-expanded="!!advancedCards[cat.id]"
+                  data-export-exclude
                   @click="toggleAdvanced(cat.id)"
                 >
                   <span class="font-medium">{{

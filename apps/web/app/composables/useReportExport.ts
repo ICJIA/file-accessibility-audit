@@ -1110,6 +1110,9 @@ export function useReportExport() {
   body { margin: 0; padding: 32px 16px; background: var(--surface-body, #0a0a0a); color: var(--text-secondary, #e5e7eb); }
   .report-export { max-width: 900px; margin: 0 auto; }
   [data-export-exclude] { display: none !important; }
+  /* The export is static (no JS): neutralize the now-inert click affordances
+     while leaving pure-CSS hover tooltips (NaCell) and native <details> working. */
+  .report-export button { cursor: default; }
 </style>
 </head>
 <body>
