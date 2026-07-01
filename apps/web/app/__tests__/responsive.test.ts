@@ -205,12 +205,16 @@ describe("Responsive — Index Page", () => {
     expect(source).toContain("px-3 sm:px-6");
   });
 
-  it("technical details documents the WCAG/IITAA scoring methodology and points to veraPDF for PDF/UA-1", () => {
-    expect(source).toContain("ADA Title II");
-    expect(source).toContain("IITAA §E205.4");
-    expect(source).toContain("WCAG 2.1");
-    expect(source).toContain("veraPDF");
-    expect(source).toContain("PDF/UA-1");
+  it("technical details document the WCAG/IITAA scoring methodology and point to veraPDF for PDF/UA-1", () => {
+    // The methodology summary was extracted into a shared, file-type-aware
+    // component; the deeper technical prose stays on the page. Assert across
+    // both so the copy is covered wherever it lives.
+    const combined = source + readSource("components/MethodologyCard.vue");
+    expect(combined).toContain("ADA Title II");
+    expect(combined).toContain("IITAA §E205.4");
+    expect(combined).toContain("WCAG 2.1");
+    expect(combined).toContain("veraPDF");
+    expect(combined).toContain("PDF/UA-1");
   });
 
   it("technical details explains normalization tradeoffs", () => {

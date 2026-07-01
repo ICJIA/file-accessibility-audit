@@ -4,13 +4,17 @@ import { computed } from 'vue'
 interface Props {
   /** Tighter visual on result page, default for audit page. */
   variant?: 'audit' | 'result'
+  /** Analyzed file type — a .docx IS the source, so the framing flips. */
+  fileType?: 'pdf' | 'docx'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'audit',
+  fileType: 'pdf',
 })
 
 const isResult = computed(() => props.variant === 'result')
+const isDocx = computed(() => props.fileType === 'docx')
 </script>
 
 <template>
@@ -36,7 +40,18 @@ const isResult = computed(() => props.variant === 'result')
         <h3 class="text-sm sm:text-base font-semibold text-blue-200 mb-1.5">
           The best path to accessibility starts at the source
         </h3>
-        <p class="text-sm text-[var(--text)] leading-relaxed mb-3">
+        <p
+          v-if="isDocx"
+          class="text-sm text-[var(--text)] leading-relaxed mb-3"
+        >
+          A Word document is the <strong>source document</strong> — the best
+          place to fix accessibility. Correcting issues here (heading styles,
+          alt text, table header rows, real list formatting) fixes them at the
+          root, and any PDF you export from this file inherits that structure
+          automatically. There's no separate remediation step: fix it in Word,
+          then re-check.
+        </p>
+        <p v-else class="text-sm text-[var(--text)] leading-relaxed mb-3">
           PDF remediation — including this tool and Adobe Acrobat — is a
           fallback for finished documents. The most reliable accessibility
           comes from fixing issues in the

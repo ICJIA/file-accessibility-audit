@@ -152,7 +152,24 @@
     <div
       class="max-w-lg mx-auto mt-5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border-alt)] px-5 py-4"
     >
-      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+      <p
+        v-if="isDocx"
+        class="text-xs text-[var(--text-secondary)] leading-relaxed"
+      >
+        This automated audit provides a reliable initial assessment, but it
+        cannot catch every issue. For the most thorough evaluation, run Word's
+        built-in
+        <a
+          href="https://support.microsoft.com/en-us/office/improve-accessibility-with-the-accessibility-checker-a16f6de0-2f39-4a2b-8bd8-5ad801426c7f"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
+          >Accessibility Checker (Review → Check Accessibility)</a
+        >. Because this Word file is the source document, fixing issues here
+        corrects them at the root — and any PDF you export from it inherits the
+        fixes automatically.
+      </p>
+      <p v-else class="text-xs text-[var(--text-secondary)] leading-relaxed">
         This automated audit provides a reliable initial assessment, but it
         cannot catch every issue. For the most thorough evaluation, test your
         PDF directly in
@@ -248,6 +265,8 @@ const props = withDefaults(
   }>(),
   { showFilename: true },
 );
+
+const isDocx = computed(() => props.result.fileType === "docx");
 
 const gradeMap: Record<string, { color: string; label: string }> = {
   A: { color: "#22c55e", label: "Excellent" },
@@ -375,12 +394,19 @@ const conformanceBody = computed(() => {
       const items = n === 1 ? "the 1 item" : `the ${n} items`;
       return `This file earned a grade of ${grade} — a strong result overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
     }
-    return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — color contrast is not evaluated here, and the correctness of alt text, headings, reading order, and tags can only be confirmed by manual review.`;
+    return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — ${
+      isDocx.value
+        ? "the correctness of alt text, headings, and reading order can only be confirmed by manual review."
+        : "color contrast is not evaluated here, and the correctness of alt text, headings, reading order, and tags can only be confirmed by manual review."
+    }`;
   }
 
   // warning tone (grade C / D / F)
   if (conformanceHasFailures.value) {
-    return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG ${wcag.version} Level AA — the standard required by the Illinois IITAA 2.1 and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule. Correcting them is manual work — fix the document in Adobe Acrobat's Accessibility Checker, or repair the source file (Word, InDesign) and re-export the PDF, then re-run this audit to confirm the fixes landed.`;
+    const howToFix = isDocx.value
+      ? "Correcting them is manual work — fix the issues directly in Word (Review → Check Accessibility), then re-run this audit to confirm the fixes landed."
+      : "Correcting them is manual work — fix the document in Adobe Acrobat's Accessibility Checker, or repair the source file (Word, InDesign) and re-export the PDF, then re-run this audit to confirm the fixes landed.";
+    return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG ${wcag.version} Level AA — the standard required by the Illinois IITAA 2.1 and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule. ${howToFix}`;
   }
   return "The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing. Color contrast and the correctness of alt text and tags cannot be checked automatically and still require manual review.";
 });

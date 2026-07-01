@@ -152,13 +152,15 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
-    id: "wcag-2.2-2026-06",
+    id: "docx-support-2026-07",
     badge: "New",
-    text: "Now checking against WCAG 2.2 AA. Note: IITAA 2.1 still requires WCAG 2.1 AA as the legal minimum.",
-    linkText: "See how 2.2 differs from 2.1",
-    linkTo: "/wcag-2-2",
-    /** Only shown while the app is on this WCAG version. */
-    requiresWcagVersion: "2.2" as "2.1" | "2.2" | null,
+    text: "Now supporting Microsoft Word (.docx) files — upload a Word document for the same WCAG 2.2 AA accessibility audit as PDFs, with findings and fix guidance tailored to Word.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 1, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
   },
 ] as const;
 

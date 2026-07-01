@@ -155,6 +155,75 @@
 
       <!-- Active tab result -->
       <template v-if="result">
+        <!-- Floating back-to-top button (mounted only while a result shows) -->
+        <ScrollToTop />
+
+        <!-- Quick actions: start over, or jump to the export options below -->
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+          <button
+            type="button"
+            class="group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[var(--border-input)] bg-[var(--surface-card-50)] px-4 py-5 sm:py-6 hover:border-[var(--border-hover)] hover:bg-[var(--surface-hover)] transition-all"
+            @click="clearResults"
+          >
+            <span
+              class="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-[var(--surface-icon)] text-[var(--text-secondary)] group-hover:scale-105 transition-transform"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M16.023 9.348h4.992V4.356M4.982 19.644v-4.992h4.992M19.94 15.06a8.001 8.001 0 0 1-14.06 1.32M4.06 8.94a8.001 8.001 0 0 1 14.06-1.32"
+                />
+              </svg>
+            </span>
+            <span
+              class="text-sm sm:text-base font-semibold text-[var(--text-heading)]"
+              >Reset</span
+            >
+            <span class="text-xs text-[var(--text-muted)] text-center"
+              >Clear and analyze a new file</span
+            >
+          </button>
+          <button
+            type="button"
+            class="group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-green-500/40 bg-green-500/5 px-4 py-5 sm:py-6 hover:border-green-400 hover:bg-green-500/10 transition-all"
+            @click="scrollToExport"
+          >
+            <span
+              class="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-green-500/15 text-green-400 group-hover:scale-105 transition-transform"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
+            </span>
+            <span
+              class="text-sm sm:text-base font-semibold text-[var(--text-heading)]"
+              >Export Results</span
+            >
+            <span class="text-xs text-[var(--text-muted)] text-center"
+              >Jump to download &amp; share options</span
+            >
+          </button>
+        </div>
+
         <!-- Prominent filename banner — first thing identifying which file
              this result (and any download/print) belongs to, incl. batch tabs -->
         <ReportFileBanner
@@ -213,7 +282,7 @@
 
         <!-- Best path to a11y starts at the source document -->
         <div class="mb-8">
-          <SourceDocumentNotice variant="audit" />
+          <SourceDocumentNotice variant="audit" :file-type="result?.fileType" />
         </div>
 
         <ReportActionBanner
@@ -228,110 +297,7 @@
           class="mb-8"
         />
 
-        <!-- Methodology -->
-        <div
-          class="mb-8 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-3 sm:px-6 py-4 sm:py-5"
-        >
-          <h2
-            class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3 text-center"
-          >
-            How Scores Are Derived
-          </h2>
-          <p
-            class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center"
-          >
-            This tool uses established open-source libraries to extract and
-            analyze PDF structure. Scores are calculated against
-            <a
-              href="https://www.w3.org/WAI/WCAG22/quickref/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >WCAG 2.2 Level AA</a
-            >
-            success criteria and
-            <a
-              href="https://www.ada.gov/resources/title-ii-rule/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >ADA Title II</a
-            >
-            digital accessibility requirements, as adopted in Illinois by the
-            <a
-              href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >IITAA 2.1</a
-            >
-            standard.
-          </p>
-          <div class="flex flex-wrap justify-center gap-2 mb-4">
-            <a
-              href="https://qpdf.readthedocs.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-icon)] border border-[var(--border)] rounded-lg px-3 py-1.5 transition-colors"
-            >
-              <svg
-                class="w-3.5 h-3.5 text-[var(--text-muted)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z"
-                />
-              </svg>
-              QPDF
-              <span class="text-[var(--text-muted)]"
-                >— PDF structure &amp; tag extraction</span
-              >
-            </a>
-            <a
-              href="https://mozilla.github.io/pdf.js/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] bg-[var(--surface-hover)] hover:bg-[var(--surface-icon)] border border-[var(--border)] rounded-lg px-3 py-1.5 transition-colors"
-            >
-              <svg
-                class="w-3.5 h-3.5 text-[var(--text-muted)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z"
-                />
-              </svg>
-              PDF.js <span class="text-[var(--text-muted)]">(Mozilla)</span>
-              <span class="text-[var(--text-muted)]"
-                >— content &amp; metadata analysis</span
-              >
-            </a>
-          </div>
-          <p
-            class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
-          >
-            Nine categories are weighed against
-            <strong>WCAG 2.2 AA</strong> (a superset of the WCAG 2.1 AA required by
-            <strong>IITAA 2.1 §E205.4</strong> and ADA Title II) —
-            the rules that govern non-web document accessibility in Illinois.
-            Categories that don't apply (e.g. tables in a document with no
-            tables) are excluded and the remaining weights renormalized. This
-            score is the compliance benchmark for publication.
-            <strong>PDF/UA-1 (ISO 14289-1)</strong> — a separate ISO standard
-            for tagged PDFs — is verified with veraPDF when you run the
-            optional remediation pipeline.
-          </p>
-        </div>
+        <MethodologyCard :file-type="result?.fileType" />
 
         <!-- Score Table -->
         <div
@@ -888,7 +854,8 @@
 
         <!-- Export & Share -->
         <div
-          class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5 report-actions"
+          id="export-section"
+          class="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5 report-actions scroll-mt-6"
         >
           <!-- Download row -->
           <p
@@ -3873,6 +3840,8 @@ import NaCell from "~/components/NaCell.vue";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
+import MethodologyCard from "~/components/MethodologyCard.vue";
+import ScrollToTop from "~/components/ScrollToTop.vue";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings } from "~/utils/findings";
 
@@ -4180,6 +4149,12 @@ function cancelBatch() {
 function switchTab(idx: number) {
   activeTabIndex.value = idx;
   clearShare(); // Reset share state on tab switch
+}
+
+function scrollToExport() {
+  document
+    .getElementById("export-section")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function clearResults() {
