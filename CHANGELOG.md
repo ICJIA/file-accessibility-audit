@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.30.3] - 2026-07-01
+
+Extend the v1.30.2 export-parity fix to the Markdown and plain-text exports.
+
+### Fixed
+
+- **Markdown and plain-text exports** now use the same scored-vs-N/A split as the HTML export, the live page, and the shared report: scored categories in the category table, a separate "Not Included in Scoring" section for the N/A ones ("Not assessed" vs "Not applicable", with the reason), and detailed findings for scored categories only. All four surfaces (live, shared, HTML, Markdown/text) now present a Word (or PDF) result identically.
+
 ## [1.30.2] - 2026-07-01
 
 Fix: the downloaded HTML report now matches the live page and shared report exactly.

@@ -262,26 +262,39 @@ export function buildMarkdown(
   lines.push("");
   lines.push("## Category Scores");
   lines.push("");
+  // Match the live/shared Score Table: scored categories in the table, N/A ones
+  // in a separate "Not Included in Scoring" list ("Not assessed" vs "Not applicable").
+  const mdScored = result.categories.filter((c) => c.score !== null);
+  const mdNa = result.categories.filter((c) => c.score === null);
   lines.push("| Category | Score | Grade | Severity |");
   lines.push("|----------|-------|-------|----------|");
-  for (const cat of result.categories) {
-    const score = cat.score !== null ? `${cat.score}/100` : "N/A";
+  for (const cat of mdScored) {
     const grade = cat.grade || "—";
     const sev = cat.severity
       ? `${severityEmoji(cat.severity)} ${cat.severity}`
       : "N/A";
-    lines.push(`| ${cat.label} | ${score} | ${grade} | ${sev} |`);
+    lines.push(`| ${cat.label} | ${cat.score}/100 | ${grade} | ${sev} |`);
   }
   lines.push("");
+  if (mdNa.length) {
+    lines.push("**Not Included in Scoring:**");
+    lines.push("");
+    for (const cat of mdNa) {
+      const naLabel = cat.notAssessed ? "Not assessed" : "Not applicable";
+      lines.push(
+        `- **${cat.label}** — ${naLabel}: ${naReason(cat.id, cat.notAssessed)}`,
+      );
+    }
+    lines.push("");
+  }
 
   lines.push("---");
   lines.push("");
   lines.push("## Detailed Findings");
   lines.push("");
 
-  for (const cat of result.categories) {
-    const scoreStr =
-      cat.score !== null ? `${cat.score}/100 (${cat.grade})` : "N/A";
+  for (const cat of mdScored) {
+    const scoreStr = `${cat.score}/100 (${cat.grade})`;
     lines.push(`### ${cat.label} — ${scoreStr}`);
     lines.push("");
 
@@ -523,19 +536,30 @@ export function buildText(
 
   out.push("CATEGORY SCORES");
   out.push(SUB);
-  for (const cat of result.categories) {
-    const score = cat.score !== null ? `${cat.score}/100` : "N/A";
+  // Match the live/shared Score Table: scored categories, then a separate
+  // "Not Included in Scoring" list ("Not assessed" vs "Not applicable").
+  const txtScored = result.categories.filter((c) => c.score !== null);
+  const txtNa = result.categories.filter((c) => c.score === null);
+  for (const cat of txtScored) {
+    const score = `${cat.score}/100`;
     const grade = cat.grade || "-";
     const sev = cat.severity || "N/A";
     out.push(`  ${cat.label.padEnd(26)} ${score.padStart(7)}  ${grade.padEnd(2)} ${sev}`);
   }
   out.push("");
+  if (txtNa.length) {
+    out.push("Not Included in Scoring:");
+    for (const cat of txtNa) {
+      const naLabel = cat.notAssessed ? "Not assessed" : "Not applicable";
+      out.push(`  - ${cat.label} (${naLabel}): ${naReason(cat.id, cat.notAssessed)}`);
+    }
+    out.push("");
+  }
 
   out.push("DETAILED FINDINGS");
   out.push(RULE);
-  for (const cat of result.categories) {
-    const scoreStr =
-      cat.score !== null ? `${cat.score}/100 (${cat.grade})` : "N/A";
+  for (const cat of txtScored) {
+    const scoreStr = `${cat.score}/100 (${cat.grade})`;
     out.push("");
     out.push(`${cat.label} \u2014 ${scoreStr}`);
     out.push(SUB);
