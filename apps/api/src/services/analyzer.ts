@@ -6,8 +6,14 @@
  * the CLI, and the frontend treat the two formats uniformly.
  */
 import JSZip from "jszip";
-import { analyzePDF, type AnalysisResult } from "./pdfAnalyzer.js";
-import { analyzeDocx } from "./docxService.js";
+import {
+  analyzePDF,
+  acquireSemaphore,
+  releaseSemaphore,
+  withTimeout,
+  type AnalysisResult,
+} from "./pdfAnalyzer.js";
+import { analyzeDocx, readCapped } from "./docxService.js";
 import { scoreDocx } from "./scorer.js";
 import { DOCX } from "#config";
 
@@ -37,11 +43,21 @@ export async function detectFileType(
   if (isZip(buffer)) {
     try {
       const zip = await JSZip.loadAsync(buffer);
-      const contentTypes = await zip
-        .file("[Content_Types].xml")
-        ?.async("string");
+      const ctEntry = zip.file("[Content_Types].xml");
+      if (!ctEntry) return null;
+      // Cap the content-types read too — a bomb could hide here to OOM during
+      // detection, before analyzeDocx's own caps ever run.
+      let contentTypes: string;
+      try {
+        contentTypes = await readCapped(
+          ctEntry,
+          DOCX.MAX_UNCOMPRESSED_BYTES,
+          "[Content_Types].xml",
+        );
+      } catch {
+        return null; // unreadable / oversized → not a valid Word package
+      }
       if (
-        contentTypes &&
         contentTypes.includes("wordprocessingml.document") &&
         zip.file("word/document.xml")
       ) {
@@ -89,15 +105,27 @@ export async function analyzeDocument(
         "Word (.docx) auditing is currently disabled on this server.",
       );
     }
-    const analysis = await analyzeDocx(buffer);
-    const scoring = scoreDocx(analysis);
-    return {
-      filename,
-      pageCount: analysis.metadata.pageCount ?? 0,
-      fileType: "docx",
-      docxMetadata: analysis.metadata,
-      ...scoring,
-    };
+    // Share the PDF pipeline's concurrency budget and add a wall-clock timeout,
+    // so a malicious/pathological .docx can't exhaust memory or pin the box.
+    // Route error handling already maps 503 (semaphore full) and 504 (timeout).
+    await acquireSemaphore();
+    try {
+      const analysis = await withTimeout(
+        analyzeDocx(buffer),
+        DOCX.ANALYSIS_TIMEOUT_MS,
+        "docx analysis timed out",
+      );
+      const scoring = scoreDocx(analysis);
+      return {
+        filename,
+        pageCount: analysis.metadata.pageCount ?? 0,
+        fileType: "docx",
+        docxMetadata: analysis.metadata,
+        ...scoring,
+      };
+    } finally {
+      releaseSemaphore();
+    }
   }
 
   throw new FileTypeError(

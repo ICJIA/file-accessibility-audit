@@ -624,8 +624,9 @@ export function buildHtml(
 
   const catRows = result.categories
     .map((cat) => {
-      const score = cat.score !== null ? `${cat.score}` : "N/A";
-      const grade = cat.grade || "—";
+      const score =
+        cat.score !== null ? escapeHtml(String(cat.score)) : "N/A";
+      const grade = escapeHtml(cat.grade || "—");
       const sev = cat.severity || "N/A";
       return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #222">${escapeHtml(cat.label)}</td>
@@ -639,7 +640,9 @@ export function buildHtml(
   const detailSections = result.categories
     .map((cat) => {
       const scoreStr =
-        cat.score !== null ? `${cat.score}/100 (${cat.grade})` : "N/A";
+        cat.score !== null
+          ? escapeHtml(`${cat.score}/100 (${cat.grade})`)
+          : "N/A";
 
       const findingsHtml = cat.findings
         .map((f) => {
@@ -730,7 +733,7 @@ export function buildHtml(
               (
                 profile,
               ) => `<div style="margin-bottom:10px;padding:10px 12px;border:1px solid #222;border-radius:10px;background:#0d0d0d">
-                <div style="font-size:14px;font-weight:700;color:#fff">${escapeHtml(profile.label)} — <span style="color:${gc(profile.grade)}">${profile.overallScore}/100 (${escapeHtml(profile.grade)})</span></div>
+                <div style="font-size:14px;font-weight:700;color:#fff">${escapeHtml(profile.label)} — <span style="color:${gc(profile.grade)}">${escapeHtml(String(profile.overallScore))}/100 (${escapeHtml(profile.grade)})</span></div>
                 <div style="font-size:12px;color:#888;margin-top:4px">${escapeHtml(profile.description)}</div>
               </div>`,
             )
@@ -769,7 +772,7 @@ export function buildHtml(
     <div>
       <p class="eyebrow">${BANNER_EYEBROW}</p>
       <p class="fname">${escapeHtml(result.filename)}</p>
-      <p class="meta">${bannerMetaLine(result.pageCount, result.fileType)}${result.isScanned ? " · Scanned" : ""}</p>
+      <p class="meta">${escapeHtml(bannerMetaLine(result.pageCount, result.fileType))}${result.isScanned ? " · Scanned" : ""}</p>
     </div>
   </div>
 
@@ -778,10 +781,10 @@ export function buildHtml(
 
   <div style="text-align:center;margin:30px 0">
     <div style="width:120px;height:120px;border-radius:50%;border:4px solid ${gc(result.grade)};background:${gc(result.grade)}15;display:inline-flex;align-items:center;justify-content:center">
-      <span style="font-size:56px;font-weight:900;color:${gc(result.grade)}">${result.grade}</span>
+      <span style="font-size:56px;font-weight:900;color:${gc(result.grade)}">${escapeHtml(result.grade)}</span>
     </div>
-    <p style="font-size:24px;font-weight:bold;margin:12px 0 4px">${result.overallScore}<span style="font-size:16px;color:#888">/100</span></p>
-    <p style="font-size:14px;color:${gc(result.grade)};font-weight:500;margin:0">${gradeLabel(result.grade)}</p>
+    <p style="font-size:24px;font-weight:bold;margin:12px 0 4px">${escapeHtml(String(result.overallScore))}<span style="font-size:16px;color:#888">/100</span></p>
+    <p style="font-size:14px;color:${gc(result.grade)};font-weight:500;margin:0">${escapeHtml(gradeLabel(result.grade))}</p>
   </div>
 
   ${conformanceHtml}

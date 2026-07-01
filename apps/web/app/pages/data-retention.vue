@@ -1228,6 +1228,84 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.30.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.30.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-01</strong> · scope: the new Microsoft Word
+            (.docx) audit feature — a fresh, independent red/blue team review of
+            everything a malicious Word file could try to do to the server.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This release adds the ability to audit Word (.docx) files, not just
+          PDFs. Because a Word file is really a compressed bundle the server has
+          to open and read, three independent reviews deliberately tried to
+          break it — by feeding it poisoned, oversized, or malformed files. The
+          good news up front: <strong>the most serious risk (tricking the tool
+          into showing malicious content to another person) was already fully
+          blocked</strong>, because the tool escapes every piece of text taken
+          from an uploaded document before it is ever displayed. Everything the
+          review found was a way to overload the server, and
+          <strong>all of it was fixed before this release</strong>.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Protection against "zip-bomb" Word files</strong
+            >
+            — A tiny Word file can be crafted to expand into gigabytes when
+            opened, to exhaust the server's memory. The tool now measures each
+            part as it opens it and stops immediately if it grows past a safe
+            limit, so a booby-trapped file is rejected instead of crashing the
+            service.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Word files now share the same workload limits as PDFs</strong
+            >
+            — Word audits run through the same "two at a time" queue and the same
+            hard time limit that PDF audits already used, so no single upload (or
+            flood of uploads) can starve the server of resources.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Stricter handling of downloaded reports and error messages</strong
+            >
+            — The downloadable HTML report now escapes every value it shows
+            (including scores and grades), and the audit-by-web-address feature
+            no longer includes raw internal error text in its response.
+          </li>
+        </ul>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong
+            >No change to what data is collected or how long it is kept.</strong
+          >
+          Word files are processed in memory and discarded in seconds, exactly
+          like PDFs; nothing new is stored or transmitted. The full technical
+          write-up is in the project's README security section.
+        </p>
+      </article>
+
       <!-- v1.29.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

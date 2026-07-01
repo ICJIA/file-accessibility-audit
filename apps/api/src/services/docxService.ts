@@ -12,6 +12,8 @@
  */
 import JSZip from "jszip";
 import { XMLParser } from "fast-xml-parser";
+import type { Readable } from "node:stream";
+import { DOCX } from "#config";
 
 export interface DocxMetadata {
   title: string | null;
@@ -427,6 +429,53 @@ function extractContrast(
 // Extractor
 // ---------------------------------------------------------------------------
 
+/**
+ * Read a ZIP entry to a string with a HARD uncompressed-byte cap enforced
+ * during decompression, so a "zip bomb" (a tiny compressed part that inflates
+ * to gigabytes) is aborted early instead of OOM-ing the process. The ZIP's
+ * declared uncompressed size is checked first as a cheap fast-reject, but it is
+ * attacker-controlled, so the streaming cap is the real guard.
+ */
+export function readCapped(
+  f: JSZip.JSZipObject,
+  cap: number,
+  partName: string,
+): Promise<string> {
+  const declared =
+    (f as unknown as { _data?: { uncompressedSize?: number } })._data
+      ?.uncompressedSize ?? 0;
+  const overLimit = (): DocxParseError =>
+    new DocxParseError(
+      `A document part (${partName}) exceeds the ${Math.round(
+        cap / (1024 * 1024),
+      )} MB uncompressed size limit.`,
+    );
+  if (declared > cap) return Promise.reject(overLimit());
+
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    // jszip types nodeStream as NodeJS.ReadableStream (no destroy); the runtime
+    // object is a Node Readable, so cast to get the abort method.
+    const stream = f.nodeStream("nodebuffer") as unknown as Readable;
+    stream.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > cap) {
+        stream.destroy();
+        reject(overLimit());
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on("error", () =>
+      reject(
+        new DocxParseError(`A document part (${partName}) could not be read.`),
+      ),
+    );
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+  });
+}
+
 export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   let zip: JSZip;
   try {
@@ -435,9 +484,9 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     throw new DocxParseError("The file is not a readable ZIP/DOCX package.");
   }
 
-  const read = async (p: string): Promise<string | null> => {
+  const read = (p: string): Promise<string | null> => {
     const f = zip.file(p);
-    return f ? f.async("string") : null;
+    return f ? readCapped(f, DOCX.MAX_UNCOMPRESSED_BYTES, p) : Promise.resolve(null);
   };
 
   const documentXml = await read("word/document.xml");
@@ -489,6 +538,14 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   const headings: DocxAnalysis["headings"] = [];
   const fakeHeadings: DocxAnalysis["fakeHeadings"] = [];
   const paragraphs = body ? descendants(body, "p") : [];
+
+  // Bound the extract passes: a doc within the size cap but made of millions of
+  // tiny elements would still burn CPU/heap across the ~10 tree walks below.
+  if (paragraphs.length > DOCX.MAX_PARAGRAPHS) {
+    throw new DocxParseError(
+      `This document has too many paragraphs (${paragraphs.length.toLocaleString()}) to analyze.`,
+    );
+  }
 
   for (const p of paragraphs) {
     const styleId = paragraphStyleId(p);

@@ -766,7 +766,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**827 tests** across 40 test files. Run all with a summary at the end:
+**880 tests** across 46 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -784,7 +784,7 @@ pnpm test:scoring        # Scoring model tests only
   ✔ API      510 passed (20 files)
   ✔ Web      317 passed (20 files)
 ────────────────────────────────────────────────────────────
-  ✔ 827 tests passed across 40 files
+  ✔ 880 tests passed across 46 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -887,7 +887,7 @@ The application undergoes a security review before every release plus periodic s
 - **Files processed in memory** — the QPDF temp file is written under a random name and deleted in the same request, even on failure.
 - **No shell** — QPDF / OpenDataLoader / veraPDF are invoked via `execFile` with array arguments; user-supplied filenames never reach a shell or a path component.
 - **SSRF-hardened URL fetching** — URL and fleet PDF fetches resolve DNS in-process, reject private/reserved IPs (IPv4 + IPv6), pin the connection to the validated IP, and re-validate every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
-- **Bounded work** — per-request size caps, a 2-slot analysis semaphore, a pdfjs parse timeout, and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
+- **Bounded work** — per-request size caps (including a per-part uncompressed-size cap on `.docx` to stop decompression bombs), a 2-slot analysis semaphore shared by the PDF and Word paths, pdfjs and docx parse/analysis timeouts, and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
 - **Two-tier rate limiting** on the audit endpoints — strict per-IP for anonymous callers (500/hr analyze, 100/min global), generous for callers presenting a valid `API_PRIVILEGED_TOKEN` (5000/hr, 1000/min) — plus **Helmet + nginx headers** on the API and a **Content-Security-Policy** on the web app; **CORS** locked to a single origin in production.
 - **Privileged API token** (`API_PRIVILEGED_TOKEN`, optional) — a single static bearer token that unlocks the generous rate tier **and** lets a trusted client audit URLs outside the ICJIA / illinois.gov allowlist. It never bypasses the private/reserved-IP SSRF block, the size caps, or the concurrency semaphores; constant-time compare; unset = feature off (everyone strict).
 - Full security model: **docs/archive/00-master-design.md, Section 9**.
@@ -900,7 +900,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bypassing the 3-file limit** | The limit is UX (frontend). The real server-side gates are the per-caller analyze rate limit (`RATE_LIMITS.analyze`) and the global per-IP catch-all (`RATE_LIMITS.global`); a client sending more requests just hits those faster, and the 2-slot analysis semaphore caps actual concurrent work regardless. |
 | **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
-| **Filename XSS**               | Filenames and all PDF-derived text render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data (verified in the 2026-06-10 audit), and HTML exports run untrusted text through a shared `escapeHtml` helper. Server also sanitizes filenames before storage. |
+| **Filename / document-text XSS** | Filenames and all PDF- and Word-derived text (title, alt text, link text, headings) render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data, and HTML exports run every string **and** numeric/grade field through a shared `escapeHtml` helper (verified in the 2026-06-10 and 2026-07-01 audits). Server also sanitizes filenames before storage. |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
 | **Auth bypass during batch**   | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items.                                           |
 | **Concurrent upload flood**    | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP.                                         |
@@ -908,6 +908,26 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.30.0 — 2026-07-01 · Word (.docx) accessibility checker + adversarial red/blue audit
+
+The new Word (`.docx`) audit path introduced fresh untrusted-input attack surface — a `.docx` is a user-supplied ZIP of XML parsed in-process with `jszip` + `fast-xml-parser`. A three-front adversarial review (ZIP/XML parsing, denial-of-service/concurrency, and injection/XSS/dispatch/auth) drove every finding against the actual code and the installed library sources; all confirmed issues were fixed test-first before this release. 880 tests pass; `tsc --noEmit` and `nuxt build` clean.
+
+**Headline: the classic XSS vector was already closed.** A malicious document's title, alt text, link text, and headings flow into findings and render on the live page, the shared-report page, and the exports — but every docx-derived string reaches the client only through Vue's auto-escaping `{{ }}` or the shared `escapeHtml` helper, and the raw docx link URLs / alt text are never returned to the browser at all. The v1.27.0 escaping discipline held for the new format.
+
+**Verified already-safe in the parser** (`fast-xml-parser` 5.9.3, checked against the installed source): external-entity XXE (the library throws on `SYSTEM`/parameter entities), billion-laughs entity expansion (nested entities dropped; hard caps on entity size/count), prototype pollution (`__proto__`/`constructor` tag names throw; attribute/entity maps are null-prototype), deep-nesting stack overflow (`maxNestedTags: 100`), and zip-slip (parts are read from fixed literal paths and never written). ReDoS was cleared — the docx regexes have no catastrophic backtracking.
+
+**Fixed in v1.30.0:**
+
+- **Decompression-bomb DoS (the one critical).** `jszip` enforces no uncompressed-size ceiling, so a sub-1 MB upload could inflate `word/document.xml` to multiple GB and OOM the process. Every ZIP part is now read through a streaming reader that checks the ZIP's declared uncompressed size **and** enforces a hard `DOCX.MAX_UNCOMPRESSED_BYTES` (30 MB) budget *during* decompression — the declared size is attacker-controlled, so the streaming abort is the real guard. The same cap applies to the content-type sniff in `detectFileType`.
+- **DOCX analysis is now resource-bounded like PDF.** The docx branch previously bypassed the audit pipeline's concurrency semaphore and wall-clock timeout; it now shares the same 2-slot `MAX_CONCURRENT_ANALYSES` semaphore and a `DOCX.ANALYSIS_TIMEOUT_MS` (20 s) timeout (routes already map 503/504), and a `DOCX.MAX_PARAGRAPHS` (100k) cap bounds the extract passes against a document that fits the byte cap but is millions of tiny elements.
+- **HTML-export XSS via non-string fields.** The downloadable HTML report interpolated score / grade / overall-score / page-count / grade-label values without escaping, while `/api/reports` stored arbitrary caller JSON (`gradeLabel` echoes an unknown grade verbatim). All such sinks now run through `escapeHtml`, and the report store type-validates `filename` / `overallScore` before persisting. Bounded to the downloaded file's `file://` origin (never the app origin), so it could not reach the app session — fixed regardless. Not docx-specific, surfaced by the audit.
+- **URL-route info leak.** `/api/analyze-url`'s catch-all no longer echoes the raw `err.message` to the client (it could leak library/path internals); the detail is logged server-side only, matching the upload route.
+
+Per responsible-disclosure practice, step-by-step exploit detail is held privately. The nonce-based `script-src` follow-up (drop `'unsafe-inline'`) remains tracked.
+
+<details>
+<summary><strong>Previous security reviews</strong> (per-release, v1.29.0 and earlier) — click to expand</summary>
 
 ### v1.29.0 — 2026-06-27 · Two-tier rate limiting + privileged token (allowlist bypass)
 
@@ -946,10 +966,6 @@ A full adversarial security audit of the entire application — the Nuxt fronten
 - **Defense-in-depth** — a Content-Security-Policy and related security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) on the web app; the IPv6 private-range classifier no longer fails open on bracketed/IPv4-mapped forms; the HTML-export escaper now covers the single quote; the public share endpoint no longer returns the sharer's email; and the dev OTP bypass is gated on an explicit opt-in flag rather than `NODE_ENV`.
 
 Per responsible-disclosure practice, step-by-step exploit detail is held privately rather than published here. A follow-up hardening item (nonce-based `script-src` to drop `'unsafe-inline'`) is tracked for a future release.
-
-<details>
-<summary><strong>Previous security reviews</strong> (per-release, v1.26.1 and earlier) — click to expand</summary>
-
 
 ### v1.26.1 — 2026-06-10 · Remediation exit-3 parity, filename-title discriminators, bundled icons
 

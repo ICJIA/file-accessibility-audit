@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.30.0] - 2026-07-01
+
+Microsoft Word (`.docx`) accessibility auditing alongside PDF, plus a three-front adversarial red/blue audit of the new untrusted-input surface with all findings mitigated.
+
+### Added
+
+- **Word (`.docx`) accessibility checker.** Upload a `.docx` for the same WCAG 2.2 AA / IITAA / ADA Title II audit as PDFs. A `.docx` is parsed as OOXML in pure JS (`jszip` + `fast-xml-parser`, no external binary) and mapped onto the shared scoring model, conformance gate, report UI, exports, and CLI. It extracts document title/language, heading structure (with fake-heading detection), image alt text, table header rows, hyperlink text quality, list semantics, and **machine-checkable color contrast** (Word stores explicit + theme colors, so 1.4.3 is checked here — unlike PDF). Reading order and form accessibility show as N/A; `list_structure` is a new Word-specific category (WCAG 1.3.1). A single dropzone auto-detects PDF vs Word by file _content_; results, exports, hero copy, SEO/OG, and the CLI all adapt.
+- **`DOCX_ENABLED` feature flag** (`audit.config.ts`, env `DOCX_ENABLED`). On by default; set `false` for a clean PDF-only fallback across the upload, URL, and CLI paths with no code change. The PDF pipeline is behaviourally unchanged.
+- **Results-page UX.** A large Reset / Export-Results action bar atop each result and a floating back-to-top button. The source-document, methodology, and conformance cards adapt their copy for Word vs PDF, and the announcement banner promotes `.docx` with a visible "Updated" date.
+
+### Security
+
+- **Adversarial red/blue audit of the new `.docx` surface** (ZIP/XML parsing, DoS/concurrency, injection/XSS/dispatch/auth) with all confirmed findings fixed test-first: a **decompression-bomb** guard (streaming per-part uncompressed-size cap, `DOCX.MAX_UNCOMPRESSED_BYTES`); the docx path now shares the PDF **concurrency semaphore + a wall-clock timeout** plus a `MAX_PARAGRAPHS` cap; `escapeHtml` on the HTML export's numeric/grade fields + type-validation in the report store; and the URL route no longer echoes raw error messages. XXE, billion-laughs, prototype pollution, deep-nesting, zip-slip, ReDoS, and the docx-string XSS vector were verified already-safe. Full writeup in [README § Security](README.md#security).
+
+### Fixed
+
+- **Dev server: `TMPDIR=/tmp` for `nuxt dev`.** On macOS the default `$TMPDIR` made the vite-node dev socket path exceed the 104-char unix-socket limit, intermittently killing `pnpm dev`. Pinned in `apps/web` (dev-only; a no-op on Linux where `/tmp` is already the default).
+
+### Tests
+
+- API suite now **561**, Web **319**, total **880** (new: docx extractor, scorer, conformance, dispatcher, and integration suites, plus a zip-bomb streaming-cap test). `tsc --noEmit` and `nuxt build` clean.
+
 ## [1.29.0] - 2026-06-27
 
 Two-tier rate limiting with an optional privileged bearer token, plus a strict revert of the anonymous limits left elevated by the fleet-audit campaign.

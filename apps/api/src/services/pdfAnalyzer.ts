@@ -10,7 +10,10 @@ let activeAnalyses = 0;
 const waitQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> =
   [];
 
-async function acquireSemaphore(): Promise<void> {
+// Exported so the DOCX pipeline (services/analyzer.ts) shares the SAME
+// concurrency budget as PDF — total in-flight analyses across both formats are
+// bounded by ANALYSIS.MAX_CONCURRENT_ANALYSES, protecting the process memory.
+export async function acquireSemaphore(): Promise<void> {
   if (activeAnalyses < ANALYSIS.MAX_CONCURRENT_ANALYSES) {
     activeAnalyses++;
     return;
@@ -37,7 +40,7 @@ async function acquireSemaphore(): Promise<void> {
   });
 }
 
-function releaseSemaphore(): void {
+export function releaseSemaphore(): void {
   activeAnalyses--;
   const next = waitQueue.shift();
   if (next) {
@@ -62,7 +65,7 @@ export interface AnalysisResult extends ScoringResult {
  * 504 the same way a QPDF timeout is handled. The underlying in-process work
  * may linger briefly, but the caller stops awaiting it and frees its slot.
  */
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: NodeJS.Timeout;
   const timeout = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {

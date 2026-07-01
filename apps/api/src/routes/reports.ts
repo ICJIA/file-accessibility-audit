@@ -16,7 +16,16 @@ router.post(
     try {
       const { report } = req.body
 
-      if (!report || !report.filename || report.overallScore === undefined) {
+      // Type-validate the fields we later interpolate. The shared-report page
+      // renders via Vue mustache (escaped) and the HTML export escapes output,
+      // but constraining the stored shape here is defense-in-depth against the
+      // arbitrary-JSON store being abused (e.g. a non-numeric score/grade).
+      if (
+        !report ||
+        typeof report.filename !== 'string' ||
+        typeof report.overallScore !== 'number' ||
+        !Number.isFinite(report.overallScore)
+      ) {
         res.status(400).json({ error: 'Invalid report data' })
         return
       }

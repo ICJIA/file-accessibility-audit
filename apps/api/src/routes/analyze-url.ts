@@ -299,8 +299,10 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
       return
     }
 
+    // Log the detail server-side only — never echo raw err.message to the
+    // client (it can leak library internals / paths). Mirrors analyze.ts.
     console.error('analyze-url error:', err)
-    res.status(500).json({ error: 'Internal server error', details: err?.message })
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 

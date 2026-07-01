@@ -507,6 +507,41 @@ export const DOCX = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 
   /**
+   * Max UNCOMPRESSED bytes for any single part read out of the .docx ZIP
+   * (document.xml, styles.xml, etc.). The 15 MB upload cap only limits the
+   * COMPRESSED size — a decompression ("zip") bomb can inflate a <1 MB upload
+   * to multiple GB and OOM the process. The reader checks the ZIP's declared
+   * uncompressed size AND streams with a hard byte cap (declared size can be
+   * forged), aborting past this limit. 30 MB covers even very large real
+   * documents; a part bigger than this is not a legitimate Word file.
+   *
+   * SAFE TO CHANGE: Yes — lower for tighter memory, raise only with headroom.
+   * fast-xml-parser's object tree is ~20× the XML string, so 30 MB → ~660 MB
+   * heap per analysis; keep MAX_CONCURRENT_ANALYSES × this within the RAM budget.
+   */
+  MAX_UNCOMPRESSED_BYTES: 30 * 1024 * 1024,
+
+  /**
+   * Max number of paragraphs (<w:p>) analyzed. A document that decompresses
+   * within MAX_UNCOMPRESSED_BYTES but is millions of tiny elements still costs
+   * CPU/heap in the extract passes; this bounds it. 100k paragraphs ≈ a
+   * ~2000-page document — far beyond any real report. Over the cap → rejected.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_PARAGRAPHS: 100_000,
+
+  /**
+   * Wall-clock timeout (ms) for a single DOCX analysis, mirroring the PDF
+   * pipeline's PDFJS_TIMEOUT_MS. Backstops the async decompression phase; the
+   * synchronous parse/extract is bounded by the size + paragraph caps above.
+   * On timeout the route returns 504.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  ANALYSIS_TIMEOUT_MS: 20_000,
+
+  /**
    * DOCX category weights. Word maps onto the same category IDs as PDF, except:
    *   - reading_order / form_accessibility / bookmarks are N/A for Word,
    *   - color_contrast is machine-checkable for Word (explicit + theme colors),

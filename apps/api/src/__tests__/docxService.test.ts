@@ -16,7 +16,12 @@ import {
   hyperlinkRels,
   listItem,
 } from "./helpers/minimalDocx.js";
-import { analyzeDocx, DocxParseError } from "../services/docxService.js";
+import JSZip from "jszip";
+import {
+  analyzeDocx,
+  readCapped,
+  DocxParseError,
+} from "../services/docxService.js";
 
 describe("docx metadata", () => {
   it("extracts title, creator, language, and page count", async () => {
@@ -248,5 +253,30 @@ describe("docx validation", () => {
   it("throws when word/document.xml is missing", async () => {
     const buf = await buildDocx({ omitDocument: true });
     await expect(analyzeDocx(buf)).rejects.toThrow(DocxParseError);
+  });
+});
+
+describe("docx resource limits (zip-bomb defense)", () => {
+  async function entryOf(content: string): Promise<JSZip.JSZipObject> {
+    const zip = new JSZip();
+    zip.file("word/document.xml", content);
+    const buf = await zip.generateAsync({ type: "nodebuffer" });
+    return (await JSZip.loadAsync(buf)).file("word/document.xml")!;
+  }
+
+  it("readCapped aborts a part that exceeds the uncompressed byte cap", async () => {
+    // Highly compressible 50 KB entry (tiny compressed) vs a 10 KB cap →
+    // the streaming reader must abort before buffering it all.
+    const entry = await entryOf("A".repeat(50_000));
+    await expect(
+      readCapped(entry, 10_000, "word/document.xml"),
+    ).rejects.toThrow(DocxParseError);
+  });
+
+  it("readCapped returns content that fits within the cap", async () => {
+    const entry = await entryOf("hello world");
+    await expect(
+      readCapped(entry, 10_000, "word/document.xml"),
+    ).resolves.toBe("hello world");
   });
 });
