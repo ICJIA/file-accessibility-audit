@@ -223,7 +223,7 @@ export const EMAIL = {
   /**
    * Default sender address for OTP emails.
    *
-   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.
+   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.   
    * Can be overridden in .env with SMTP_FROM.
    */
   DEFAULT_FROM: "admin@icjia.cloud",

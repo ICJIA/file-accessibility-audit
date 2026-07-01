@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.30.1] - 2026-07-01
+
+Documentation and diagram consistency for the v1.30.0 Word (.docx) feature — no code paths changed.
+
+### Changed
+
+- **The `/technical-details` page, the "What this tool does" hero, and the Scoring Rubric modal now reference both PDF and Word.** The audit pipeline is explained for both formats (PDF's two-tool qpdf/pdfjs path vs. Word's fully in-process JSZip + fast-xml-parser path), a `.docx` format primer and Word's rubric differences (contrast scored, List Structure category, Reading Order / Form Accessibility N/A) are documented, PDF-only sections (remediation, "why two tools") are labelled as such, and JSZip + fast-xml-parser are added to the open-source toolchain table.
+- **The audit-pipeline flowchart is redrawn to show the PDF vs. Word branch**, regenerated from its mermaid source. The diagram generator now launches the system-installed Chrome (portable, no `puppeteer install` needed), and `mermaid` + `svgo` are re-added as dev-only dependencies for diagram generation (not shipped to the browser).
+
+### Tests
+
+- 880 tests pass; `tsc --noEmit` and `nuxt build` clean.
+
 ## [1.30.0] - 2026-07-01
 
 Microsoft Word (`.docx`) accessibility auditing alongside PDF, plus a three-front adversarial red/blue audit of the new untrusted-input surface with all findings mitigated.

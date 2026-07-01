@@ -82,12 +82,38 @@ function extractSources() {
   return found;
 }
 
-const sources = extractSources();
+// Inline source of truth for diagrams whose page-embedded const was removed
+// when the client mermaid runtime was dropped (v1.28.0). Entries here take
+// precedence over page-extracted sources; add one to (re)generate that diagram.
+const INLINE_SOURCES = {
+  // Audit pipeline, PDF + Word (.docx) branch. PDF fans out to the two-tool
+  // (qpdf + pdfjs) path; Word runs fully in-process (JSZip + fast-xml-parser).
+  "audit-flow": `flowchart TD
+  U[Browser uploads file] --> V[Validate magic bytes and size]
+  V --> D{PDF or Word?}
+  D -->|PDF| T[Short-lived qpdf temp copy]
+  T --> Q[qpdf analyzes structure]
+  T --> J[pdfjs extracts content]
+  D -->|Word .docx| Z[Unzip in memory with JSZip]
+  Z --> X[Parse OOXML with fast-xml-parser]
+  Q --> S[Scorer combines results]
+  J --> S
+  X --> S
+  S --> G[Grade + WCAG verdict + findings]
+  G --> B[Return to browser]
+  B --> K[Discard memory buffer]`,
+};
+
+const sources = { ...extractSources(), ...INLINE_SOURCES };
 const names = Object.keys(sources);
 console.log(`Rendering ${names.length} diagrams: ${names.join(", ")}`);
 
 const browser = await puppeteer.launch({
   headless: true,
+  // Use the system-installed Google Chrome (portable; no `puppeteer install`
+  // needed). Override with PUPPETEER_EXECUTABLE_PATH if Chrome lives elsewhere.
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+  channel: process.env.PUPPETEER_EXECUTABLE_PATH ? undefined : "chrome",
   args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
 });
 try {

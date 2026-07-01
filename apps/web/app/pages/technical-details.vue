@@ -141,13 +141,13 @@ function goBack(): void {
         JavaScript libraries (JSZip + fast-xml-parser) — no external binary, no
         subprocess, and no temp file at all. The extracted structure feeds the
         same scorer. Nothing is uploaded to a directory, cached, or retained in
-        either path. The flowchart below shows the PDF pipeline.
+        either path. The flowchart below shows both paths.
       </p>
 
       <DiagramFigure
         name="audit-flow"
-        title="PDF audit pipeline"
-        :desc="`Browser uploads a PDF; the server validates magic bytes and size, holds the file in memory (with a short-lived temp copy for the qpdf subprocess, deleted in the same request), runs qpdf and pdfjs in parallel, combines the results in the scorer, produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, returns to the browser, and discards the memory buffer.`"
+        title="Audit pipeline — PDF and Word"
+        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word .docx is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings; the result returns to the browser and the memory buffer is discarded.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
