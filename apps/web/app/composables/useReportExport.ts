@@ -2,6 +2,7 @@ import fileSaver from "file-saver";
 import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
 import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
 import { escapeHtml } from "~/utils/escapeHtml";
+import { naReason } from "~/utils/modeDivergence";
 const { saveAs } = fileSaver;
 
 interface HelpLink {
@@ -622,10 +623,15 @@ export function buildHtml(
     return m[sev || ""] || "#999";
   };
 
-  const catRows = result.categories
+  // Mirror the live/shared Score Table exactly: scored categories in the main
+  // body, then a "Not Included in Scoring" section listing the N/A ones and
+  // distinguishing "Not assessed" from "Not applicable" (as the NaCell does).
+  const scoredCats = result.categories.filter((c) => c.score !== null);
+  const naCats = result.categories.filter((c) => c.score === null);
+
+  const catRows = scoredCats
     .map((cat) => {
-      const score =
-        cat.score !== null ? escapeHtml(String(cat.score)) : "N/A";
+      const score = escapeHtml(String(cat.score));
       const grade = escapeHtml(cat.grade || "—");
       const sev = cat.severity || "N/A";
       return `<tr>
@@ -637,7 +643,26 @@ export function buildHtml(
     })
     .join("\n");
 
-  const detailSections = result.categories
+  const naRows = naCats.length
+    ? `<tr><td colspan="4" style="padding:8px 12px;border-top:1px solid #333;background:#161616;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888">Not Included in Scoring</td></tr>` +
+      naCats
+        .map((cat) => {
+          const naLabel = cat.notAssessed ? "Not assessed" : "Not applicable";
+          const reason = naReason(cat.id, cat.notAssessed);
+          return `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #222;color:#888">${escapeHtml(cat.label)}<div style="font-size:11px;color:#666;margin-top:2px">${escapeHtml(reason)}</div></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;color:#888;font-size:12px">${escapeHtml(naLabel)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;color:#666">—</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #222;text-align:center;color:#666">—</td>
+    </tr>`;
+        })
+        .join("\n")
+    : "";
+
+  // Detailed findings only for scored categories — the live page shows fix
+  // detail for scored categories, not the N/A ones (those carry their reason
+  // inline in the table above).
+  const detailSections = scoredCats
     .map((cat) => {
       const scoreStr =
         cat.score !== null
@@ -808,7 +833,7 @@ export function buildHtml(
       </tr>
     </thead>
     <tbody>
-      ${catRows}
+      ${catRows}${naRows}
     </tbody>
   </table>
 

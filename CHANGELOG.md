@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.30.2] - 2026-07-01
+
+Fix: the downloaded HTML report now matches the live page and shared report exactly.
+
+### Fixed
+
+- **HTML-export category parity.** The downloadable HTML report listed every category in one table (rendering N/A categories as a bare "N/A") and showed detailed findings for all of them, while the live page and the shared `/report/:id` page split categories into a scored table plus a separate **"Not Included in Scoring"** section — distinguishing "Not assessed" from "Not applicable" (as the `NaCell` component does) — and show detailed findings only for scored categories. The HTML export now mirrors that structure exactly. Most visible on Word (.docx) results, which have several N/A categories (reading order and forms always; tables / images / contrast when absent) — e.g. a document that shows 5 scored categories on the page previously showed 10 rows in the export.
+
 ## [1.30.1] - 2026-07-01
 
 Documentation and diagram consistency for the v1.30.0 Word (.docx) feature — no code paths changed.
