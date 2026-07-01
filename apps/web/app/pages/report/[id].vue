@@ -24,6 +24,9 @@
 
       <!-- Report -->
       <div v-else-if="data">
+        <!-- Report content — the exact subtree the HTML export snapshots, so
+             the download is identical to this shared view. -->
+        <div data-report-content>
         <!-- Prominent filename banner — leaves no doubt which file this
              shared report (and its PDF print) refers to -->
         <ReportFileBanner
@@ -365,6 +368,7 @@
                       : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
                   "
                   :title="advancedCards[cat.id] ? 'Hide technical signals' : 'Show technical signals'"
+                  :aria-expanded="!!advancedCards[cat.id]"
                   @click="toggleAdvanced(cat.id)"
                 >
                   <span class="font-medium">{{
@@ -684,6 +688,9 @@
             </div>
           </div>
         </div>
+
+        </div>
+        <!-- /report content -->
 
         <!-- Downloads + CTA -->
         <div

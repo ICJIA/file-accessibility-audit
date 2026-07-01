@@ -1053,10 +1053,88 @@ export function useReportExport() {
     saveAs(blob, `${baseFilename(result)}.txt`);
   }
 
+  // Gather every same-origin stylesheet's rules so the exported file renders
+  // standalone (the app's Tailwind build + theme variables). Cross-origin
+  // sheets can't be read and are skipped — the app ships no consequential ones.
+  function collectAppCss(): string {
+    let out = "";
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        for (const rule of Array.from(sheet.cssRules)) out += rule.cssText + "\n";
+      } catch {
+        /* cross-origin stylesheet — not readable; skip */
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Snapshot the LIVE rendered report — the `[data-report-content]` subtree —
+   * to a self-contained HTML file, so the download is identical to what's on
+   * screen rather than a hand-built re-render that can drift. Everything is
+   * expanded first (the file needs no interaction), interactive-only controls
+   * (`[data-export-exclude]`) are dropped, and the app's stylesheet + color
+   * mode are inlined so it renders anywhere. Returns false (→ buildHtml
+   * fallback) when there is no live DOM (SSR / programmatic use).
+   */
+  async function snapshotReport(result: ReportResult): Promise<boolean> {
+    if (typeof document === "undefined") return false;
+    const el = document.querySelector<HTMLElement>("[data-report-content]");
+    if (!el) return false;
+
+    // Expand every collapsed section (IssuesSummary rows + the Basic/Advanced
+    // signal toggles both expose state via aria-expanded="false").
+    const toggles = Array.from(
+      el.querySelectorAll<HTMLElement>('[aria-expanded="false"]'),
+    );
+    toggles.forEach((t) => t.click());
+    // Let Vue flush the resulting v-if renders before we clone.
+    await new Promise<void>((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => r())),
+    );
+
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("[data-export-exclude]").forEach((n) => n.remove());
+    clone.querySelectorAll("details").forEach((d) => (d.open = true));
+
+    const css = collectAppCss();
+    const doc = `<!DOCTYPE html>
+<html lang="en" class="${escapeHtml(document.documentElement.className)}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessibility Report — ${escapeHtml(result.filename)}</title>
+<style>${css}</style>
+<style>
+  html { background: var(--surface-body, #0a0a0a); }
+  body { margin: 0; padding: 32px 16px; background: var(--surface-body, #0a0a0a); color: var(--text-secondary, #e5e7eb); }
+  .report-export { max-width: 900px; margin: 0 auto; }
+  [data-export-exclude] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="report-export">${clone.outerHTML}</main>
+</body>
+</html>`;
+
+    saveAs(
+      new Blob([doc], { type: "text/html;charset=utf-8" }),
+      `${baseFilename(result)}.html`,
+    );
+
+    // Restore the live page's original collapse state.
+    toggles.forEach((t) => t.click());
+    return true;
+  }
+
   async function exportHtml(result: ReportResult) {
+    if (await snapshotReport(result)) return;
+    // Fallback for SSR / no live DOM: the hand-built HTML report.
     const html = buildHtml(result, branding);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    saveAs(blob, `${baseFilename(result)}.html`);
+    saveAs(
+      new Blob([html], { type: "text/html;charset=utf-8" }),
+      `${baseFilename(result)}.html`,
+    );
   }
 
   /**

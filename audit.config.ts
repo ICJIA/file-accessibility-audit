@@ -302,7 +302,7 @@ export const SCORING_PROFILES = {
 
       /** Are H1–H6 heading tags present with a logical hierarchy?
        *  Headings are the primary navigation mechanism for screen reader users. */
-      heading_structure: 0.15,
+      heading_structure: 0.15,  
 
       /** Do images have alternative text descriptions?
        *  Required by WCAG 1.1.1 for all non-decorative images. */

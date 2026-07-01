@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.31.0] - 2026-07-01
+
+The downloadable HTML report is now a faithful snapshot of the live results — identical content and wording, fully expanded, no interaction required. For both PDF and Word.
+
+### Changed
+
+- **HTML export = the live report, exactly.** The HTML download was previously a separately hand-built document (`buildHtml()`), which drifted from the on-screen report: mismatched wording, and missing the methodology card, the disclaimer, and per-category detail. It now **snapshots the actual rendered results DOM** (`[data-report-content]`) and inlines the app's stylesheet + color mode so the file renders standalone. Collapsed sections are auto-expanded first (the document needs no interaction and shows everything), and interactive-only controls (Remediate button, action bar) are dropped. This guarantees the download can never disagree with what the author saw — critical for the reports sent back to authors when a file fails accessibility. `buildHtml()` is retained only as a fallback for when there is no live DOM (SSR / programmatic use). Verified end-to-end in-browser on a Word result: the export is byte-faithful to the live page (banner, grade, conformance, executive summary, disclaimer, issues with fix steps, methodology, scored + "Not Included in Scoring" tables, and all detailed findings).
+- Markdown and plain-text exports retain the v1.30.3 scored-vs-N/A split.
+
 ## [1.30.3] - 2026-07-01
 
 Extend the v1.30.2 export-parity fix to the Markdown and plain-text exports.

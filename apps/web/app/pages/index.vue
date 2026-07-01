@@ -224,6 +224,10 @@
           </button>
         </div>
 
+        <!-- Report content — the exact subtree the HTML export snapshots, so
+             the download is identical to the live results. Interactive-only
+             controls inside are marked data-export-exclude. -->
+        <div data-report-content>
         <!-- Prominent filename banner — first thing identifying which file
              this result (and any download/print) belongs to, incl. batch tabs -->
         <ReportFileBanner
@@ -273,6 +277,7 @@
         <div
           v-if="result?.fileType !== 'docx'"
           class="mb-6 flex justify-center"
+          data-export-exclude
         >
           <RemediateButton
             :file="activeFile"
@@ -521,6 +526,7 @@
                       : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
                   "
                   :title="advancedCards[cat.id] ? 'Hide technical signals' : 'Show technical signals'"
+                  :aria-expanded="!!advancedCards[cat.id]"
                   @click="toggleAdvanced(cat.id)"
                 >
                   <span class="font-medium">{{
@@ -851,6 +857,8 @@
             </div>
           </div>
         </div>
+        </div>
+        <!-- /report content -->
 
         <!-- Export & Share -->
         <div
