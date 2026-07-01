@@ -1976,26 +1976,26 @@ describe("pdfUa conformance signals", () => {
       artifactRunCount: 17,
     });
     const result = scoreDocument(qpdf, pdfjs);
-    expect(result.pdfUa.hasIdentifier).toBe(true);
-    expect(result.pdfUa.part).toBe("1");
-    expect(result.pdfUa.isTagged).toBe(true);
-    expect(result.pdfUa.isMarkedContent).toBe(true);
-    expect(result.pdfUa.artifactRunCount).toBe(17);
-    expect(result.pdfUa.fontCount).toBe(2);
-    expect(result.pdfUa.embeddedFontCount).toBe(2);
-    expect(result.pdfUa.allFontsEmbedded).toBe(true);
-    expect(result.pdfUa.structTreeDepth).toBe(4);
-    expect(result.pdfUa.hasLanguage).toBe(true);
-    expect(result.pdfUa.hasTitle).toBe(true);
+    expect(result.pdfUa!.hasIdentifier).toBe(true);
+    expect(result.pdfUa!.part).toBe("1");
+    expect(result.pdfUa!.isTagged).toBe(true);
+    expect(result.pdfUa!.isMarkedContent).toBe(true);
+    expect(result.pdfUa!.artifactRunCount).toBe(17);
+    expect(result.pdfUa!.fontCount).toBe(2);
+    expect(result.pdfUa!.embeddedFontCount).toBe(2);
+    expect(result.pdfUa!.allFontsEmbedded).toBe(true);
+    expect(result.pdfUa!.structTreeDepth).toBe(4);
+    expect(result.pdfUa!.hasLanguage).toBe(true);
+    expect(result.pdfUa!.hasTitle).toBe(true);
   });
 
   it("reports absence honestly when signals are missing", () => {
     const result = scoreDocument(makeQpdf(), makePdfjs());
-    expect(result.pdfUa.hasIdentifier).toBe(false);
-    expect(result.pdfUa.part).toBeNull();
-    expect(result.pdfUa.isTagged).toBe(false);
-    expect(result.pdfUa.isMarkedContent).toBe(false);
-    expect(result.pdfUa.artifactRunCount).toBe(0);
+    expect(result.pdfUa!.hasIdentifier).toBe(false);
+    expect(result.pdfUa!.part).toBeNull();
+    expect(result.pdfUa!.isTagged).toBe(false);
+    expect(result.pdfUa!.isMarkedContent).toBe(false);
+    expect(result.pdfUa!.artifactRunCount).toBe(0);
   });
 });
 

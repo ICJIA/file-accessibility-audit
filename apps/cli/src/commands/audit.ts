@@ -1,6 +1,6 @@
 import { readFileSync, existsSync, statSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import { analyzePDF } from '../../../api/src/services/pdfAnalyzer.js'
+import { analyzeDocument } from '../../../api/src/services/analyzer.js'
 import type { AnalysisResult } from '../../../api/src/services/pdfAnalyzer.js'
 import type { CategoryResult } from '../../../api/src/services/scorer.js'
 import {
@@ -20,7 +20,7 @@ function printResult(result: AnalysisResult): void {
 
   const gc = gradeColor(result.grade)
   console.log(`  ${BOLD}Score:${RESET} ${gc}${result.overallScore}/100${RESET}  ${BOLD}Grade:${RESET} ${gc}${result.grade}${RESET} (${gradeLabel(result.grade)})`)
-  console.log(`  ${BOLD}Pages:${RESET} ${result.pageCount}`)
+  console.log(`  ${BOLD}Type:${RESET} ${result.fileType.toUpperCase()}   ${BOLD}Pages:${RESET} ${result.pageCount}`)
   console.log('')
 
   const colLabel = 24
@@ -56,10 +56,10 @@ function printJsonResults(results: AnalysisResult[]): void {
 
 function printHelp(): void {
   console.log(`
-${BOLD}a11y-audit${RESET} — PDF accessibility analyzer
+${BOLD}a11y-audit${RESET} — PDF & Word accessibility analyzer
 
 ${BOLD}Usage:${RESET}
-  a11y-audit <file.pdf> [file2.pdf ...]   Analyze PDF files
+  a11y-audit <file.pdf|.docx> [more ...]   Analyze PDF or Word (.docx) files
   a11y-audit report.pdf --json             Output raw JSON
   a11y-audit report.pdf --threshold 80     Exit 1 if score < 80
   a11y-audit publist                       Audit ICJIA publication list
@@ -135,12 +135,14 @@ export async function runAudit(argv: string[]): Promise<void> {
   }
 
   if (args.files.length === 0) {
-    console.error(`${RED}Error: No PDF files specified${RESET}`)
+    console.error(`${RED}Error: No files specified${RESET}`)
     console.error(`Run ${BOLD}a11y-audit --help${RESET} for usage`)
     process.exit(2)
   }
 
-  if (!checkQpdf()) {
+  // qpdf is only needed for PDF analysis; a .docx-only run doesn't require it.
+  const hasPdf = args.files.some((f) => f.toLowerCase().endsWith('.pdf'))
+  if (hasPdf && !checkQpdf()) {
     console.error(`${RED}Error: qpdf is not installed or not found in PATH${RESET}`)
     console.error('')
     console.error('Install qpdf:')
@@ -163,8 +165,9 @@ export async function runAudit(argv: string[]): Promise<void> {
       console.error(`${RED}Error: Not a file: ${filePath}${RESET}`)
       process.exit(2)
     }
-    if (!file.toLowerCase().endsWith('.pdf')) {
-      console.error(`${RED}Error: Not a PDF file: ${file}${RESET}`)
+    const lower = file.toLowerCase()
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
+      console.error(`${RED}Error: Not a PDF or Word (.docx) file: ${file}${RESET}`)
       process.exit(2)
     }
   }
@@ -178,7 +181,7 @@ export async function runAudit(argv: string[]): Promise<void> {
 
     try {
       const buffer = readFileSync(filePath)
-      const result = await analyzePDF(buffer, filename)
+      const result = await analyzeDocument(buffer, filename)
       results.push(result)
     } catch (err: any) {
       hasError = true

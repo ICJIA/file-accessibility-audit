@@ -17,6 +17,11 @@
         class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
         >{{ current.linkText }}</NuxtLink
       >
+      <span
+        v-if="current.date"
+        class="mt-1 block text-xs text-[var(--text-muted)]"
+        >Updated {{ current.date }}</span
+      >
     </p>
     <button
       type="button"
@@ -41,6 +46,7 @@ const announcements = (pub.announcements ?? []) as Array<{
   text: string;
   linkText?: string;
   linkTo?: string;
+  date?: string;
   requiresWcagVersion?: string | null;
 }>;
 const wcagVersion = String(pub.wcagVersion ?? "2.2");

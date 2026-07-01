@@ -13,7 +13,7 @@ import ProcessingOverlay from "../components/ProcessingOverlay.vue";
 describe("DropZone", () => {
   it("renders the drop area with prompt text", () => {
     const wrapper = mount(DropZone);
-    expect(wrapper.text()).toContain("Drop PDF files here");
+    expect(wrapper.text()).toContain("Drop PDF or Word files here");
     expect(wrapper.text()).toContain("max 15 MB each");
   });
 
@@ -54,6 +54,22 @@ describe("DropZone", () => {
     expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
   });
 
+  it("emits file-selected when a valid .docx is selected", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["docx"], "report.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+  });
+
   it("does NOT emit file-selected for a non-PDF file", async () => {
     const wrapper = mount(DropZone);
     const file = new File(["img"], "photo.png", { type: "image/png" });
@@ -67,7 +83,7 @@ describe("DropZone", () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.emitted("file-selected")).toBeFalsy();
-    expect(wrapper.text()).toContain("Please select PDF files");
+    expect(wrapper.text()).toContain("Please select PDF or Word (.docx) files");
   });
 
   it("does NOT emit file-selected if file exceeds 15 MB", async () => {
@@ -96,7 +112,7 @@ describe("DropZone", () => {
       .findAll("div")
       .find((d) => d.classes().some((c) => c.includes("border-dashed")))!;
     await dropArea.trigger("dragenter");
-    expect(wrapper.text()).toContain("Drop your PDFs here");
+    expect(wrapper.text()).toContain("Drop your PDF or Word files here");
   });
 });
 
@@ -394,11 +410,11 @@ describe("ProcessingOverlay", () => {
     expect(spinner.exists()).toBe(true);
   });
 
-  it('shows the static "Analyzing your PDF" heading', () => {
+  it('shows the static "Analyzing your document" heading', () => {
     const wrapper = mount(ProcessingOverlay, {
       props: { stage: "Uploading..." },
     });
-    expect(wrapper.text()).toContain("Analyzing your PDF");
+    expect(wrapper.text()).toContain("Analyzing your document");
   });
 
   it("renders the stage message from props", () => {

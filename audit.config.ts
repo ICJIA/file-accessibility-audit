@@ -152,13 +152,15 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
-    id: "wcag-2.2-2026-06",
+    id: "docx-support-2026-07",
     badge: "New",
-    text: "Now checking against WCAG 2.2 AA. Note: IITAA 2.1 still requires WCAG 2.1 AA as the legal minimum.",
-    linkText: "See how 2.2 differs from 2.1",
-    linkTo: "/wcag-2-2",
-    /** Only shown while the app is on this WCAG version. */
-    requiresWcagVersion: "2.2" as "2.1" | "2.2" | null,
+    text: "Now supporting Microsoft Word (.docx) files — upload a Word document for the same WCAG 2.2 AA accessibility audit as PDFs, with findings and fix guidance tailored to Word.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 1, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
   },
 ] as const;
 
@@ -469,6 +471,65 @@ export const WCAG_CATEGORY_MAP: Record<
     { sc: "4.1.2", name: "Name, Role, Value", level: "A" },
   ],
   color_contrast: [{ sc: "1.4.3", name: "Contrast (Minimum)", level: "AA" }],
+  // DOCX-specific category (real lists vs manually-typed bullets).
+  list_structure: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
+} as const;
+
+// ---------------------------------------------------------------------------
+// DOCX (WORD) ANALYSIS
+// ---------------------------------------------------------------------------
+// Config for the Microsoft Word (.docx) accessibility checker, which runs
+// alongside the PDF pipeline. A .docx is a ZIP of OOXML XML parsed in pure JS
+// (jszip + fast-xml-parser, no external binary), so once extracted it reuses
+// the PDF pipeline's scoring aggregation, grade/severity thresholds, WCAG map,
+// conformance-verdict shape, and the entire report UI.
+// ---------------------------------------------------------------------------
+
+export const DOCX = {
+  /**
+   * Feature flag. When false, the API rejects .docx uploads/URLs (cleanly
+   * falling back to PDF-only) and the frontend drops .docx from the dropzone
+   * and its copy. Lets you keep the rock-solid PDF path and turn Word auditing
+   * off with no code change. Default is ENABLED (on). PDF auditing is entirely
+   * unaffected either way.
+   *
+   * Reads from env: set DOCX_ENABLED=false to disable. Both API and web read
+   * the same value at startup; the web app exposes it via
+   * runtimeConfig.public.docxEnabled.
+   *
+   * SAFE TO CHANGE: Yes — flip via env var (shell, or PM2's ecosystem.config
+   * env block). Don't hardcode `false` here unless you want it off everywhere.
+   */
+  ENABLED: process.env.DOCX_ENABLED !== "false",
+
+  /** Canonical MIME type for .docx (WordprocessingML). */
+  MIME_TYPE:
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+  /**
+   * DOCX category weights. Word maps onto the same category IDs as PDF, except:
+   *   - reading_order / form_accessibility / bookmarks are N/A for Word,
+   *   - color_contrast is machine-checkable for Word (explicit + theme colors),
+   *   - list_structure is a Word-specific category (real lists vs manual bullets),
+   *   - text_extractability auto-passes (Word is always text-based) so it carries
+   *     only a small weight — it must not hand a structureless doc free points.
+   *
+   * Weights need not sum to 1 — the scorer renormalizes across the applicable
+   * (non-null) categories, exactly as it does for PDF N/A categories.
+   *
+   * SAFE TO CHANGE: Yes — same rules as SCORING_PROFILES.strict.weights. Keys
+   * MUST match category IDs. Run `pnpm --filter api test:scoring` afterwards.
+   */
+  SCORING_WEIGHTS: {
+    text_extractability: 0.05,
+    title_language: 0.18,
+    heading_structure: 0.18,
+    alt_text: 0.18,
+    table_markup: 0.12,
+    color_contrast: 0.12,
+    list_structure: 0.09,
+    link_quality: 0.08,
+  },
 } as const;
 
 // ---------------------------------------------------------------------------

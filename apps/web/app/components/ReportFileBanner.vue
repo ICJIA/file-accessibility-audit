@@ -31,7 +31,7 @@
         {{ filename }}
       </p>
       <p class="mt-0.5 text-sm text-[var(--text-muted)]">
-        {{ bannerMetaLine(pageCount) }}
+        {{ bannerMetaLine(pageCount, fileType) }}
         <span
           v-if="isScanned"
           class="ml-2 inline-flex items-center rounded-full bg-orange-500/15 px-2 py-0.5 align-middle text-xs font-medium text-[var(--status-warning-orange)]"
@@ -45,9 +45,13 @@
 <script setup lang="ts">
 import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
 
-defineProps<{
-  filename: string;
-  pageCount: number;
-  isScanned?: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    filename: string;
+    pageCount: number;
+    isScanned?: boolean;
+    fileType?: "pdf" | "docx";
+  }>(),
+  { fileType: "pdf" },
+);
 </script>

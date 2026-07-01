@@ -9,7 +9,11 @@
 
 export const BANNER_EYEBROW = "ACCESSIBILITY REPORT FOR";
 
-/** e.g. "12 pages · PDF" / "1 page · PDF" */
-export function bannerMetaLine(pageCount: number): string {
-  return `${pageCount} page${pageCount === 1 ? "" : "s"} · PDF`;
+/** e.g. "12 pages · PDF" / "1 page · Word" */
+export function bannerMetaLine(
+  pageCount: number,
+  fileType: "pdf" | "docx" = "pdf",
+): string {
+  const label = fileType === "docx" ? "Word" : "PDF";
+  return `${pageCount} page${pageCount === 1 ? "" : "s"} · ${label}`;
 }

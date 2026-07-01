@@ -3,7 +3,7 @@ import path from 'node:path'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter } from '../middleware/rateLimiter.js'
 import { uploadMiddleware } from '../middleware/uploadMiddleware.js'
-import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { analyzeDocument } from '../services/analyzer.js'
 import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
 import { FILENAME } from '#config'
 
@@ -31,20 +31,14 @@ router.post(
         return
       }
 
-      // Magic bytes check: PDF must start with %PDF-
-      const header = file.buffer.subarray(0, 5).toString('ascii')
-      if (header !== '%PDF-') {
-        res.status(400).json({
-          error: 'This file does not appear to be a valid PDF.',
-          details: 'The file header is missing or incorrect. Please verify you are uploading a .pdf file and not a renamed file of another type (e.g., .docx, .jpg).',
-        })
-        return
-      }
-
       const filename = sanitizeFilename(file.originalname)
       const contentHash = sha256Hex(file.buffer)
 
-      const result = await analyzePDF(file.buffer, filename)
+      // Detect PDF vs DOCX from the file's content (not its extension) and
+      // dispatch to the matching pipeline. Unsupported / renamed files and —
+      // when DOCX is disabled — Word uploads throw FileTypeError; a corrupt
+      // Word package throws DocxParseError. All are mapped in the catch below.
+      const result = await analyzeDocument(file.buffer, filename)
 
       // Always record the audit — audit_log is the canonical "this
       // content has been audited" record consulted by /api/remediate's
@@ -73,6 +67,33 @@ router.post(
         res.status(503).json({
           error: 'The server is busy processing other files.',
           details: 'Please wait a moment and try again. The server can analyze two files at a time — your request will be processed as soon as a slot opens.',
+        })
+        return
+      }
+
+      // Unsupported file type (content matches neither PDF nor DOCX)
+      if (err.code === 'UNSUPPORTED_FILE_TYPE') {
+        res.status(400).json({
+          error: 'This file is not a supported document.',
+          details: 'Upload a PDF or a Word (.docx) file. The file content matches neither format — check that you are not uploading a renamed file of another type (e.g., .xlsx, .jpg).',
+        })
+        return
+      }
+
+      // DOCX auditing disabled via DOCX_ENABLED=false
+      if (err.code === 'DOCX_DISABLED') {
+        res.status(415).json({
+          error: 'Word (.docx) auditing is currently disabled.',
+          details: 'This server is configured to audit PDF files only. Please upload a PDF, or contact the administrator to enable Word support.',
+        })
+        return
+      }
+
+      // DOCX could not be parsed (corrupt or not a real Word package)
+      if (err.code === 'DOCX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'This Word document could not be read.',
+          details: 'The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.',
         })
         return
       }

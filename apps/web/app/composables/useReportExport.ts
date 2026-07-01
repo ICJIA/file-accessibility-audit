@@ -32,6 +32,7 @@ interface ReportResult {
   scoringMode?: ScoringMode;
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
   conformance?: ConformanceVerdict;
+  fileType?: "pdf" | "docx";
 }
 
 type ScoringMode = "strict" | "remediation";
@@ -187,7 +188,7 @@ export function buildMarkdown(
   // subtitle alongside the page/type line.
   lines.push(`# ${result.filename}`);
   lines.push("");
-  lines.push(`**Accessibility Report** · ${bannerMetaLine(result.pageCount)}`);
+  lines.push(`**Accessibility Report** · ${bannerMetaLine(result.pageCount, result.fileType)}`);
   lines.push("");
   lines.push(`**Date:** ${timestamp()}`);
   lines.push(`**Overall Score:** ${result.overallScore}/100`);
@@ -464,7 +465,7 @@ export function buildText(
   const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
 
   out.push(result.filename);
-  out.push(`Accessibility Report \u00b7 ${bannerMetaLine(result.pageCount)}`);
+  out.push(`Accessibility Report \u00b7 ${bannerMetaLine(result.pageCount, result.fileType)}`);
   out.push(RULE);
   out.push(`Date:          ${timestamp()}`);
   out.push(`Overall score: ${result.overallScore}/100`);
@@ -768,11 +769,11 @@ export function buildHtml(
     <div>
       <p class="eyebrow">${BANNER_EYEBROW}</p>
       <p class="fname">${escapeHtml(result.filename)}</p>
-      <p class="meta">${bannerMetaLine(result.pageCount)}${result.isScanned ? " · Scanned" : ""}</p>
+      <p class="meta">${bannerMetaLine(result.pageCount, result.fileType)}${result.isScanned ? " · Scanned" : ""}</p>
     </div>
   </div>
 
-  <h1 style="text-align:center;font-size:24px;margin-bottom:4px">PDF Accessibility Report</h1>
+  <h1 style="text-align:center;font-size:24px;margin-bottom:4px">${result.fileType === "docx" ? "Word" : "PDF"} Accessibility Report</h1>
   <p style="text-align:center;font-size:13px;color:#888;margin-top:0">${timestamp()}</p>
 
   <div style="text-align:center;margin:30px 0">
@@ -840,7 +841,9 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
   const moderateCount = scored.filter((c) => c.severity === "Moderate").length;
   const passingCount = scored.length - failing.length;
 
-  lines.push(`# PDF Accessibility Audit — For AI Analysis`);
+  lines.push(
+    `# ${result.fileType === "docx" ? "Word" : "PDF"} Accessibility Audit — For AI Analysis`,
+  );
   lines.push("");
 
   if (failing.length === 0) {

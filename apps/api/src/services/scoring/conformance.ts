@@ -25,6 +25,7 @@
  */
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
+import type { DocxAnalysis } from "../docxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
@@ -316,6 +317,142 @@ export function evaluateConformance(
     status === "fail"
       ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
       : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA also requires color contrast (not evaluated here) and the correctness of alt text, headings, reading order, and tags, all of which require manual review.`;
+
+  return { status, failures, notAssessed, headline };
+}
+
+/**
+ * DOCX conformance gate. A self-contained analogue of `evaluateConformance`
+ * (the PDF gate is left untouched). Same discipline: fires only on confirmed,
+ * machine-checkable violations, mapped to the same WCAG success criteria and
+ * levels. Heuristic signals (fake headings, manual bullets) stay in scoring.
+ *
+ * Unlike the PDF gate, color contrast IS machine-checkable for Word (explicit
+ * and theme run colors are in the XML), so 1.4.3 can be a confirmed failure
+ * here and is only listed "not assessed" when no colored text was resolvable.
+ */
+export function evaluateDocxConformance(
+  analysis: DocxAnalysis,
+): ConformanceVerdict {
+  const failures: ConformanceFinding[] = [];
+  const add = (
+    sc: string,
+    name: string,
+    level: "A" | "AA",
+    category: string,
+    issue: string,
+  ): void => {
+    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+  };
+
+  // 1. Non-decorative images without alt text → 1.1.1.
+  const imagesMissingAlt = analysis.images.filter(
+    (i) => !i.decorative && !(i.altText && i.altText.trim()),
+  ).length;
+  if (imagesMissingAlt > 0) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "alt_text",
+      `${imagesMissingAlt} image(s) have no alternative text. In Word, right-click each image → View Alt Text and add a description (or mark it decorative).`,
+    );
+  }
+
+  // 2. No declared document language → 3.1.1.
+  if (!analysis.metadata.language) {
+    add(
+      "3.1.1",
+      "Language of Page",
+      "A",
+      "title_language",
+      "No document language is declared, so assistive technology cannot determine which pronunciation rules to apply. In Word: Review → Language → Set Proofing Language.",
+    );
+  }
+
+  // 3. No document title → 2.4.2.
+  if (!analysis.metadata.title) {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      "The document has no title in its properties; a screen reader announces the filename instead. In Word: File → Info → Properties → Title.",
+    );
+  }
+
+  // 4. Data tables (≥2×2, to skip layout tables) with no header row → 1.3.1.
+  const dataTablesNoHeader = analysis.tables.filter(
+    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
+  ).length;
+  if (dataTablesNoHeader > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "table_markup",
+      `${dataTablesNoHeader} data table(s) have no header row, so screen readers cannot associate data cells with their headers. In Word: select the top row → Table Layout → Repeat Header Rows.`,
+    );
+  }
+
+  // 5. Confirmed low-contrast text → 1.4.3 (machine-checkable for Word).
+  if (analysis.contrast.failing.length > 0) {
+    const worst = analysis.contrast.failing.reduce((a, b) =>
+      a.ratio < b.ratio ? a : b,
+    );
+    add(
+      "1.4.3",
+      "Contrast (Minimum)",
+      "AA",
+      "color_contrast",
+      `${analysis.contrast.failing.length} text run(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or background color in Word.`,
+    );
+  }
+
+  // --- criteria not assessed automatically ----------------------------------
+  const notAssessed: NotAssessedCriterion[] = [
+    {
+      sc: "1.3.2",
+      name: "Meaningful Sequence",
+      level: "A",
+      reason:
+        "Word's linear document flow usually preserves reading order, but floating objects and text boxes are not automatically verified — manual review recommended.",
+      url: wcagUrl("1.3.2"),
+    },
+  ];
+  // Contrast is assessed when explicit colors were resolvable; only surface it
+  // as "not assessed" when nothing could be checked.
+  if (analysis.contrast.checkedRuns === 0) {
+    notAssessed.push({
+      sc: "1.4.3",
+      name: "Contrast (Minimum)",
+      level: "AA",
+      reason:
+        "No text with an explicit color was found; inherited and theme colors are not resolved in this version, so contrast could not be evaluated.",
+      url: wcagUrl("1.4.3"),
+    });
+  }
+
+  const status: ConformanceVerdict["status"] =
+    failures.length > 0 ? "fail" : "no-automated-failures";
+
+  const aCount = failures.filter((f) => f.level === "A").length;
+  const aaCount = failures.filter((f) => f.level === "AA").length;
+  const failBreakdown =
+    aaCount === 0
+      ? `${aCount} Level A failure${aCount === 1 ? "" : "s"}`
+      : aCount === 0
+        ? `${aaCount} Level AA failure${aaCount === 1 ? "" : "s"}`
+        : `${aCount} Level A and ${aaCount} Level AA failures`;
+
+  const contrastNote =
+    analysis.contrast.checkedRuns === 0
+      ? ", and color contrast was not evaluated"
+      : "";
+  const headline =
+    status === "fail"
+      ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
+      : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA still requires manual review of reading order and the correctness of alt text, headings, and table header associations${contrastNote}.`;
 
   return { status, failures, notAssessed, headline };
 }

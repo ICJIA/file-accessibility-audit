@@ -1,7 +1,7 @@
 import { Router, Response, type IRouter } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.js'
-import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { analyzeDocument, detectFileType } from '../services/analyzer.js'
 import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 import { ANALYSIS } from '#config'
@@ -233,12 +233,13 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
 
     const buf = fetched.buffer
 
-    // Magic bytes check: PDF must start with %PDF-
-    const header = buf.subarray(0, 5).toString('ascii')
-    if (header !== '%PDF-') {
+    // Detect PDF vs DOCX from the fetched content (not the URL extension).
+    const fileType = await detectFileType(buf)
+    if (!fileType) {
       res.status(422).json({
-        error: 'Fetched content is not a valid PDF.',
-        details: `The first 5 bytes were '${header}', expected '%PDF-'. Verify the URL points directly at a PDF file.`,
+        error: 'Fetched content is not a supported document.',
+        details:
+          'The URL must point directly at a PDF or a Word (.docx) file — the fetched content matches neither format.',
       })
       return
     }
@@ -247,11 +248,11 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
     // followed redirects). safeFetch returns finalUrl so we use the
     // redirect target's filename rather than the original.
     const finalPath = new URL(fetched.finalUrl).pathname
-    const rawName = finalPath.split('/').pop() ?? 'remote.pdf'
-    const filename = (rawName.slice(0, 200) || 'remote.pdf')
+    const rawName = finalPath.split('/').pop() ?? `remote.${fileType}`
+    const filename = rawName.slice(0, 200) || `remote.${fileType}`
 
     const contentHash = sha256Hex(buf)
-    const result = await analyzePDF(buf, filename)
+    const result = await analyzeDocument(buf, filename)
 
     // Canonical audit-log write so this URL-audited content counts
     // for the remediation gate (v1.20.1+). Doing it after analyzePDF
@@ -275,6 +276,25 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
       res.status(503).json({
         error: 'The server is busy processing other files.',
         details: 'Please wait a moment and try again.',
+      })
+      return
+    }
+
+    // DOCX auditing disabled via DOCX_ENABLED=false
+    if (err?.code === 'DOCX_DISABLED') {
+      res.status(415).json({
+        error: 'Word (.docx) auditing is currently disabled.',
+        details: 'This server is configured to audit PDF files only.',
+      })
+      return
+    }
+
+    // DOCX could not be parsed (corrupt or not a real Word package)
+    if (err?.code === 'DOCX_PARSE_FAILED') {
+      res.status(422).json({
+        error: 'The fetched Word document could not be read.',
+        details:
+          'The .docx file appears to be corrupt or is not a valid Word document.',
       })
       return
     }
