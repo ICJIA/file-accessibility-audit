@@ -6,7 +6,10 @@ import { createReadStream, promises as fs, existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { authMiddleware, type AuthRequest } from '../middleware/authMiddleware.js'
-import { analyzeLimiter } from '../middleware/rateLimiter.js'
+import {
+  analyzeLimiter,
+  remediationStatusLimiter,
+} from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
 import {
   createJob,
@@ -346,6 +349,12 @@ router.post(
 
 router.get(
   '/remediate/:jobId/status',
+  // Exempt from globalLimiter (the progress page polls this once per
+  // second), so this dedicated flood guard is the only cap that applies.
+  // It runs before requireEnabled so the cap holds even while the
+  // feature flag is off (otherwise this would be the one un-throttled
+  // path in the API), which also means it keys by IP, never email.
+  remediationStatusLimiter,
   requireEnabled,
   authMiddleware,
   (req: AuthRequest, res: Response) => {

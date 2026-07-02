@@ -62,6 +62,25 @@ export function tierKey(req: any): string {
 }
 
 // ---------------------------------------------------------------------------
+// Remediation status-poll exemption
+// ---------------------------------------------------------------------------
+// The remediation progress page polls GET /api/remediate/:jobId/status once
+// per second until the job finishes. Counting those polls against the global
+// burst guard made the app rate-limit itself: any job longer than ~25 s
+// drained the anon 100/min budget and the UI reported "Too many requests"
+// mid-remediation. The poll is exempt from globalLimiter and governed by
+// remediationStatusLimiter (below) on the route instead.
+const REMEDIATION_STATUS_PATH = /^\/api\/remediate\/[^/]+\/status$/
+
+export function isRemediationStatusRequest(req: any): boolean {
+  return (
+    req?.method === 'GET' &&
+    typeof req?.path === 'string' &&
+    REMEDIATION_STATUS_PATH.test(req.path)
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Two-tier limiter factory
 // ---------------------------------------------------------------------------
 // One express-rate-limit instance whose per-request limit and bucket key
@@ -72,6 +91,8 @@ export interface TierConfig {
   anon: number
   privileged: number
   message: Record<string, string>
+  /** Requests matching this are neither limited nor counted. */
+  skip?: (req: any) => boolean
 }
 
 export function tieredLimiter(cfg: TierConfig) {
@@ -79,6 +100,7 @@ export function tieredLimiter(cfg: TierConfig) {
     windowMs: cfg.windowMs,
     limit: (req) => tierLimit(req, cfg),
     keyGenerator: (req) => tierKey(req),
+    skip: cfg.skip,
     message: cfg.message,
     standardHeaders: true,
     legacyHeaders: false,
@@ -125,9 +147,24 @@ export const reportsLimiter = rateLimit({
 })
 
 // Two-tier catch-all burst guard, applied to every route in index.ts.
+// Remediation status polls are exempt (they have their own limiter below)
+// so a long-running job's progress page can't drain the shared budget.
 export const globalLimiter = tieredLimiter({
   windowMs: RATE_LIMITS.global.windowMs,
   anon: RATE_LIMITS.global.anon,
   privileged: RATE_LIMITS.global.privileged,
   message: { error: 'Too many requests. Please slow down.' },
+  skip: isRemediationStatusRequest,
+})
+
+// Flood guard for the (cheap, poll-heavy) remediation status endpoint —
+// the only cap that applies to it, since globalLimiter skips it. The
+// client treats a 429 from here as back-off feedback, not a job failure.
+export const remediationStatusLimiter = rateLimit({
+  windowMs: RATE_LIMITS.remediationStatus.windowMs,
+  max: RATE_LIMITS.remediationStatus.max,
+  keyGenerator: userOrIpKey,
+  message: { error: 'Too many status requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 })

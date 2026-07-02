@@ -118,12 +118,16 @@ interface UseRemediationJobReturn {
   isTerminal: Ref<boolean>
 }
 
-// Poll faster than the typical job duration so updates arrive while
-// the worker is still running. Most jobs finish in ~1 second; 250 ms
-// gives several update opportunities even on the fastest cases. The
-// remediate page also runs a client-side minimum-time animation per
-// stage so even a sub-second job still shows the steps tick by.
-const POLL_INTERVAL_MS = 250
+// 1 s keeps the progress view fresh (the remediate page runs a
+// client-side minimum-time animation per stage, so even sub-second
+// jobs show the steps tick by) while staying far under the API's
+// rate limits. The old 250 ms cadence (240 req/min) drained the anon
+// global limit (100/min) ~25 s into longer jobs and the UI reported
+// "Too many requests" mid-remediation. Each poll is scheduled after
+// the previous one completes (no overlap), and failures back off
+// exponentially up to POLL_BACKOFF_MAX_MS.
+const POLL_INTERVAL_MS = 1000
+const POLL_BACKOFF_MAX_MS = 8000
 const TERMINAL_STATES = new Set<RemediationStatus>([
   'complete',
   'failed',
@@ -137,7 +141,24 @@ export function useRemediationJob(jobId: string): UseRemediationJobReturn {
   const loading = ref(true)
   const isTerminal = ref(false)
 
-  let intervalHandle: ReturnType<typeof setInterval> | null = null
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+  let stopped = false
+  let delayMs = POLL_INTERVAL_MS
+
+  function stop(): void {
+    stopped = true
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+      timeoutHandle = null
+    }
+  }
+
+  function scheduleNext(): void {
+    if (stopped || isTerminal.value) return
+    timeoutHandle = setTimeout(() => {
+      void pollOnce()
+    }, delayMs)
+  }
 
   async function pollOnce(): Promise<void> {
     try {
@@ -145,12 +166,11 @@ export function useRemediationJob(jobId: string): UseRemediationJobReturn {
         credentials: 'include',
       })
       status.value = data
+      error.value = null
+      delayMs = POLL_INTERVAL_MS
       if (TERMINAL_STATES.has(data.status)) {
         isTerminal.value = true
-        if (intervalHandle) {
-          clearInterval(intervalHandle)
-          intervalHandle = null
-        }
+        stop()
         // Fetch the receipt once we're done
         try {
           receipt.value = await $fetch<Receipt>(
@@ -160,6 +180,8 @@ export function useRemediationJob(jobId: string): UseRemediationJobReturn {
         } catch (e) {
           error.value = `Could not load receipt: ${(e as Error).message}`
         }
+        loading.value = false
+        return
       }
       loading.value = false
     } catch (e) {
@@ -167,30 +189,28 @@ export function useRemediationJob(jobId: string): UseRemediationJobReturn {
       if (err.status === 404) {
         error.value = 'Remediation job not found.'
         isTerminal.value = true
-        if (intervalHandle) {
-          clearInterval(intervalHandle)
-          intervalHandle = null
-        }
-      } else {
+        loading.value = false
+        stop()
+        return
+      }
+      // Back off on any failure so a struggling server isn't hammered.
+      delayMs = Math.min(delayMs * 2, POLL_BACKOFF_MAX_MS)
+      if (err.status !== 429) {
+        // A 429 is throttling feedback aimed at this poller, not a job
+        // failure — retry quietly. (Errors surfaced here stay visible
+        // only until a poll succeeds again.)
         error.value = err.data?.error ?? (e as Error).message
       }
       loading.value = false
     }
+    scheduleNext()
   }
 
   onMounted(() => {
     void pollOnce()
-    intervalHandle = setInterval(() => {
-      if (!isTerminal.value) void pollOnce()
-    }, POLL_INTERVAL_MS)
   })
 
-  onBeforeUnmount(() => {
-    if (intervalHandle) {
-      clearInterval(intervalHandle)
-      intervalHandle = null
-    }
-  })
+  onBeforeUnmount(stop)
 
   return { status, receipt, error, loading, isTerminal }
 }

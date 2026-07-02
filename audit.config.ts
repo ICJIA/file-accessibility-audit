@@ -632,12 +632,35 @@ export const RATE_LIMITS = {
    *                matters (icjia.illinois.gov has ~657 pages; the page-audit
    *                burst previously hit 100/min → 499 HTTP 429s, which is why
    *                the privileged tier exists).
+   *
+   * EXEMPTION: GET /api/remediate/:jobId/status is skipped here (see
+   * isRemediationStatusRequest in rateLimiter.ts) and governed by
+   * `remediationStatus` below instead — the remediation progress page
+   * polls it, and that polling must not drain the budget shared with
+   * real endpoints (it did in v1.32.0: a >25 s job hit this cap and the
+   * UI showed "Too many requests" mid-remediation).
    */
   global: {
     windowMs: 60 * 1000, // 1 minute
     anon: 100, // 100 / min / IP   (no token)
     privileged: 1000, // 1000 / min      (with token)
   },
+
+  /**
+   * GET /api/remediate/:jobId/status — the remediation progress poll,
+   * exempt from `global` (see above) and capped here per IP instead.
+   * The endpoint is a single prepared-statement SELECT by primary key,
+   * so the guard only needs to stop request floods, not meter usage.
+   *
+   * Sizing: the client polls at 1 s (60/min/job, backing off on 429);
+   * 600/min admits ~10 concurrent jobs/tabs from one office IP before
+   * throttling. The client treats a 429 here as silent backoff, never
+   * a job failure.
+   *
+   * SAFE TO CHANGE: Yes. Keep max ≥ 300 (asserted in rateLimiter.test.ts)
+   * so a handful of parallel jobs can't reintroduce the v1.32.0 bug.
+   */
+  remediationStatus: { max: 600, windowMs: 60 * 1000 }, // 600 / min / IP
 } as const;
 
 // ---------------------------------------------------------------------------
