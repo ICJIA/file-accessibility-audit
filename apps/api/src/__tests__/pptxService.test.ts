@@ -130,3 +130,67 @@ describe('pptxService: images, tables, links, lists, media', () => {
     expect(a.lists).toEqual({ realListItems: 0, manualBulletParagraphs: 0 })
   })
 })
+
+describe('pptxService: contrast', () => {
+  it('fails a low-contrast explicit color and passes a high-contrast one', async () => {
+    const buf = await buildPptx({
+      slides: [{
+        title: 'T',
+        body: bodyShape(
+          para('nearly invisible', { colorHex: 'DDDDDD' }) + // vs white ≈ 1.35:1
+            para('perfectly fine', { colorHex: '000000' }),
+        ),
+      }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.contrast.checkedRuns).toBe(2)
+    expect(a.contrast.failing).toHaveLength(1)
+    expect(a.contrast.failing[0]).toMatchObject({
+      text: 'nearly invisible',
+      foreground: '#DDDDDD',
+      background: '#FFFFFF',
+      large: false,
+    })
+  })
+
+  it('uses the shape fill, then the slide background, as the background', async () => {
+    const buf = await buildPptx({
+      slideBgHex: '000000',
+      slides: [{
+        title: 'T',
+        body:
+          bodyShape(para('white on black bg', { colorHex: 'FFFFFF' })) +
+          bodyShape(para('white on white shape', { colorHex: 'FFFFFF' }), { fillHex: 'FFFFFF' }),
+      }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.contrast.failing).toHaveLength(1)
+    expect(a.contrast.failing[0].background).toBe('#FFFFFF')
+  })
+
+  it('resolves theme scheme colors and applies the large-text threshold', async () => {
+    const buf = await buildPptx({
+      slides: [{
+        title: 'T',
+        body: bodyShape(
+          // accent1 #4472C4 on white ≈ 4.55:1 — passes normal AND large.
+          para('theme colored', { schemeColor: 'accent1' }) +
+            // 18pt grey #949494 on white ≈ 3.0:1 — passes only because large.
+            para('big grey heading', { colorHex: '949494', sizeHundredthsPt: 1800 }),
+        ),
+      }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.contrast.checkedRuns).toBe(2)
+    expect(a.contrast.failing).toHaveLength(0)
+  })
+
+  it('counts runs without an explicit color as unresolved', async () => {
+    const buf = await buildPptx({
+      slides: [{ title: 'T', body: bodyShape(para('inherited color text')) }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.contrast.checkedRuns).toBe(0)
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1)
+  })
+})

@@ -282,11 +282,66 @@ function collectSlideContent(
   collectSlideContrast(analysis, slideRoot, themeRoot, spTree);
 }
 
+/** Explicit solidFill color off a properties node: srgbClr or theme schemeClr. */
+function explicitFill(
+  node: PONode | undefined,
+  themeRoot: PONode | undefined,
+): string | null {
+  if (!node) return null;
+  const fill = firstChild(node, "solidFill");
+  if (!fill) return null;
+  const srgb = firstChild(fill, "srgbClr");
+  if (srgb) return normalizeHex(attrOf(srgb, "val"));
+  const scheme = firstChild(fill, "schemeClr");
+  if (scheme) {
+    const name = attrOf(scheme, "val");
+    return name ? resolveSchemeColor(themeRoot, name) : null;
+  }
+  return null;
+}
+
 function collectSlideContrast(
-  _analysis: PptxAnalysis,
-  _slideRoot: PONode,
-  _themeRoot: PONode | undefined,
-  _spTree: PONode | undefined,
+  analysis: PptxAnalysis,
+  slideRoot: PONode,
+  themeRoot: PONode | undefined,
+  spTree: PONode | undefined,
 ): void {
-  // Filled in by the contrast task.
+  // Slide background: explicit solid fill on p:bg, else white.
+  const bgNode = descendants(slideRoot, "bg")[0];
+  const bgPr = bgNode ? firstChild(bgNode, "bgPr") : undefined;
+  const slideBg = explicitFill(bgPr, themeRoot) ?? "FFFFFF";
+
+  if (!spTree) return;
+  for (const sp of contentShapes(spTree)) {
+    if (tagOf(sp) !== "sp") continue;
+    const spPr = firstChild(sp, "spPr");
+    const shapeBg = explicitFill(spPr, themeRoot) ?? slideBg;
+    for (const run of descendants(sp, "r")) {
+      const text = textOf(run).trim();
+      if (!text) continue;
+      const rPr = firstChild(run, "rPr");
+      const fg = rPr ? explicitFill(rPr, themeRoot) : null;
+      if (!fg) {
+        analysis.contrast.unresolvedRuns++;
+        continue;
+      }
+      analysis.contrast.checkedRuns++;
+      const sz = rPr ? Number(attrOf(rPr, "sz")) : NaN;
+      const bold = rPr ? attrOf(rPr, "b") === "1" : false;
+      const large =
+        (Number.isFinite(sz) && sz >= LARGE_HUNDREDTHS) ||
+        (bold && Number.isFinite(sz) && sz >= LARGE_BOLD_HUNDREDTHS);
+      const ratio = contrastRatio(fg, shapeBg);
+      const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
+      if (ratio < min) {
+        analysis.contrast.failing.push({
+          text,
+          ratio: Math.round(ratio * 100) / 100,
+          foreground: `#${fg}`,
+          background: `#${shapeBg}`,
+          large,
+        });
+      }
+    }
+  }
 }
