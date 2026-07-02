@@ -56,10 +56,10 @@ function printJsonResults(results: AnalysisResult[]): void {
 
 function printHelp(): void {
   console.log(`
-${BOLD}a11y-audit${RESET} — PDF & Word accessibility analyzer
+${BOLD}a11y-audit${RESET} — PDF, Word & PowerPoint accessibility analyzer
 
 ${BOLD}Usage:${RESET}
-  a11y-audit <file.pdf|.docx> [more ...]   Analyze PDF or Word (.docx) files
+  a11y-audit <file.pdf|.docx|.pptx> [more ...]   Analyze PDF, Word (.docx), or PowerPoint (.pptx) files
   a11y-audit report.pdf --json             Output raw JSON
   a11y-audit report.pdf --threshold 80     Exit 1 if score < 80
   a11y-audit publist                       Audit ICJIA publication list
@@ -166,8 +166,8 @@ export async function runAudit(argv: string[]): Promise<void> {
       process.exit(2)
     }
     const lower = file.toLowerCase()
-    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
-      console.error(`${RED}Error: Not a PDF or Word (.docx) file: ${file}${RESET}`)
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx') && !lower.endsWith('.pptx')) {
+      console.error(`${RED}Error: Not a PDF, Word (.docx), or PowerPoint (.pptx) file: ${file}${RESET}`)
       process.exit(2)
     }
   }
