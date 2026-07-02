@@ -132,6 +132,23 @@ describe("ScoreCard", () => {
     expect(wrapper.text()).toContain("B");
   });
 
+  it("does not throw when a stored report's conformance lacks failures/notAssessed arrays", () => {
+    // The public /report/:id page renders attacker-controlled stored JSON. A
+    // forged report with a conformance object missing its arrays must not
+    // crash SSR (reading .length of undefined) — same class as the malformed
+    // categories/findings guard.
+    expect(() =>
+      mount(ScoreCard, {
+        props: {
+          result: {
+            ...baseResult,
+            conformance: { status: "fail", headline: "x" } as any,
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it("renders the overall score with /100 suffix", () => {
     const wrapper = mount(ScoreCard, { props: { result: baseResult } });
     expect(wrapper.text()).toContain("87");

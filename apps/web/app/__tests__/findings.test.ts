@@ -61,6 +61,17 @@ describe('partitionCardFindings', () => {
     })
   })
 
+  it('returns empty buckets (never throws) for a non-array findings value', () => {
+    // Attacker-controlled stored reports could set findings to a non-array;
+    // this must not throw and 500 the shared-report page during SSR.
+    expect(partitionCardFindings('not-an-array' as any)).toEqual({
+      main: [], signals: [], signalCount: 0, acrobat: [],
+    })
+    expect(partitionCardFindings({} as any)).toEqual({
+      main: [], signals: [], signalCount: 0, acrobat: [],
+    })
+  })
+
   it('puts plain findings and guidance lines into main', () => {
     const input = [
       'PDF contains extractable text',

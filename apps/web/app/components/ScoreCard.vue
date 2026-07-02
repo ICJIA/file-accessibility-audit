@@ -312,7 +312,20 @@ const gradeLabel = computed(
 // the panel still lists every flagged criterion — tone never hides a finding.
 // "incomplete" (an analyzer could not run) stays neutral: a genuine "could not
 // check", neither a pass nor a fail.
-const conformance = computed(() => props.result.conformance ?? null);
+// Normalize once so every downstream read (template + computeds below) can
+// treat `failures`/`notAssessed` as arrays. On the public /report/:id page the
+// conformance object comes from attacker-controlled stored JSON, so a forged
+// report could omit these arrays and crash SSR with "reading 'length' of
+// undefined". The TS type promises arrays; this enforces it at runtime.
+const conformance = computed(() => {
+  const c = props.result.conformance;
+  if (!c || typeof c !== "object") return null;
+  return {
+    ...c,
+    failures: Array.isArray(c.failures) ? c.failures : [],
+    notAssessed: Array.isArray(c.notAssessed) ? c.notAssessed : [],
+  };
+});
 
 const conformanceTone = computed<"positive" | "warning" | "neutral">(() => {
   const status = conformance.value?.status;

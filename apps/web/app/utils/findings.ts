@@ -33,7 +33,10 @@ export interface CardFindings {
 export function partitionCardFindings(
   findings: string[] | undefined | null,
 ): CardFindings {
-  if (!findings || findings.length === 0) {
+  // Array.isArray guards against a malformed (attacker-controlled) stored
+  // report whose `findings` is a non-array truthy — `.findIndex` on a string
+  // would throw and 500 the shared-report page during SSR.
+  if (!Array.isArray(findings) || findings.length === 0) {
     return { main: [], signals: [], signalCount: 0, acrobat: [] }
   }
 
