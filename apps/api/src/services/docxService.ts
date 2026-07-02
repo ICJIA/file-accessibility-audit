@@ -11,9 +11,28 @@
  * and feeds `scoreDocx()` in scorer.ts.
  */
 import JSZip from "jszip";
-import { XMLParser } from "fast-xml-parser";
-import type { Readable } from "node:stream";
 import { DOCX } from "#config";
+import {
+  type PONode,
+  parseXml,
+  tagOf,
+  childrenOf,
+  attrOf,
+  firstChild,
+  descendants,
+  rawText,
+  textOf,
+  rootElement,
+  parseRelationships,
+  corePropertyText,
+  drawingAltText,
+  MANUAL_BULLET_RE,
+  CONTRAST_MIN_NORMAL,
+  CONTRAST_MIN_LARGE,
+  normalizeHex,
+  contrastRatio,
+  readCapped as ooxmlReadCapped,
+} from "./ooxml.js";
 
 export interface DocxMetadata {
   title: string | null;
@@ -69,96 +88,6 @@ export class DocxParseError extends Error {
     super(message);
     this.name = "DocxParseError";
   }
-}
-
-// ---------------------------------------------------------------------------
-// preserveOrder walker utilities
-// ---------------------------------------------------------------------------
-// fast-xml-parser's preserveOrder mode returns each element as an object with
-// a single tag key mapping to its ordered child array, plus an optional `:@`
-// attribute bag. removeNSPrefix strips `w:`/`wp:`/etc. so we match local names.
-
-type PONode = Record<string, unknown>;
-
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  removeNSPrefix: true,
-  preserveOrder: true,
-  trimValues: false,
-});
-
-function parseXml(xml: string | null): PONode[] {
-  if (!xml) return [];
-  try {
-    return parser.parse(xml) as PONode[];
-  } catch {
-    return [];
-  }
-}
-
-function tagOf(node: PONode): string | null {
-  for (const k of Object.keys(node)) {
-    if (k === ":@" || k === "#text") continue;
-    return k;
-  }
-  return "#text" in node ? "#text" : null;
-}
-
-function childrenOf(node: PONode): PONode[] {
-  const t = tagOf(node);
-  if (!t || t === "#text") return [];
-  const v = node[t];
-  return Array.isArray(v) ? (v as PONode[]) : [];
-}
-
-function attrOf(node: PONode, name: string): string | undefined {
-  const bag = node[":@"] as Record<string, unknown> | undefined;
-  const v = bag?.[`@_${name}`];
-  return v === undefined || v === null ? undefined : String(v);
-}
-
-/** First direct child with the given local tag name. */
-function firstChild(node: PONode, tag: string): PONode | undefined {
-  return childrenOf(node).find((c) => tagOf(c) === tag);
-}
-
-/** All descendants (any depth) with the given local tag name. */
-function descendants(node: PONode, tag: string): PONode[] {
-  const out: PONode[] = [];
-  const visit = (n: PONode): void => {
-    for (const c of childrenOf(n)) {
-      if (tagOf(c) === tag) out.push(c);
-      visit(c);
-    }
-  };
-  visit(node);
-  return out;
-}
-
-/** Concatenate every `#text` under a node. */
-function rawText(node: PONode): string {
-  let s = "";
-  const visit = (n: PONode): void => {
-    for (const c of childrenOf(n)) {
-      if (tagOf(c) === "#text") s += String(c["#text"] ?? "");
-      else visit(c);
-    }
-  };
-  visit(node);
-  return s;
-}
-
-/** Text of a node from its `<w:t>` descendants only (ignores field codes). */
-function textOf(node: PONode): string {
-  return descendants(node, "t")
-    .map((t) => rawText(t))
-    .join("");
-}
-
-/** The single root element of a parsed part (skips the xml declaration node). */
-function rootElement(nodes: PONode[], tag: string): PONode | undefined {
-  return nodes.find((n) => tagOf(n) === tag);
 }
 
 // ---------------------------------------------------------------------------
@@ -241,15 +170,7 @@ function extractImages(body: PONode): DocxAnalysis["images"] {
   for (const drawing of descendants(body, "drawing")) {
     const docPr = descendants(drawing, "docPr")[0];
     if (!docPr) continue;
-    const descr = attrOf(docPr, "descr")?.trim();
-    const title = attrOf(docPr, "title")?.trim();
-    let altText: string | null = null;
-    if (descr) altText = descr;
-    else if (title) altText = title;
-    const decorative = descendants(docPr, "decorative").some(
-      (d) => attrOf(d, "val") === "1",
-    );
-    images.push({ altText, decorative });
+    images.push(drawingAltText(docPr));
   }
   return images;
 }
@@ -310,9 +231,6 @@ function extractLinks(
 // Lists
 // ---------------------------------------------------------------------------
 
-// A paragraph that starts with a literal bullet or "1." / "2)" enumerator.
-const MANUAL_BULLET_RE = /^\s*([••‣◦⁃∙*-]|\d+[.)])\s+/;
-
 function hasNumPr(p: PONode): boolean {
   const pPr = firstChild(p, "pPr");
   return !!(pPr && firstChild(pPr, "numPr"));
@@ -337,37 +255,8 @@ function extractLists(paragraphs: PONode[]): DocxAnalysis["lists"] {
 // 4.5:1 / 3:1 are the fixed definition of SC 1.4.3, not tunable policy, so they
 // live here rather than in audit.config.ts.
 
-const CONTRAST_MIN_NORMAL = 4.5;
-const CONTRAST_MIN_LARGE = 3.0;
 const LARGE_HALF_PT = 36; // ≥18pt
 const LARGE_BOLD_HALF_PT = 28; // ≥14pt bold
-
-function normalizeHex(hex: string | undefined | null): string | null {
-  if (!hex) return null;
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  return m ? m[1].toUpperCase() : null;
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function relLuminance([r, g, b]: [number, number, number]): number {
-  const ch = (c: number): number => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
-}
-
-function contrastRatio(fg: string, bg: string): number {
-  const l1 = relLuminance(hexToRgb(fg));
-  const l2 = relLuminance(hexToRgb(bg));
-  const hi = Math.max(l1, l2);
-  const lo = Math.min(l1, l2);
-  return (hi + 0.05) / (lo + 0.05);
-}
 
 /** Background fill of a run/paragraph properties node, if an explicit color. */
 function shdFill(propsNode: PONode | undefined): string | null {
@@ -430,50 +319,16 @@ function extractContrast(
 // ---------------------------------------------------------------------------
 
 /**
- * Read a ZIP entry to a string with a HARD uncompressed-byte cap enforced
- * during decompression, so a "zip bomb" (a tiny compressed part that inflates
- * to gigabytes) is aborted early instead of OOM-ing the process. The ZIP's
- * declared uncompressed size is checked first as a cheap fast-reject, but it is
- * attacker-controlled, so the streaming cap is the real guard.
+ * DOCX-flavored wrapper over the shared capped ZIP reader — errors surface
+ * as DocxParseError so route-level DOCX_PARSE_FAILED mapping keeps working.
+ * (analyzer.ts imports this for [Content_Types].xml detection reads too.)
  */
 export function readCapped(
   f: JSZip.JSZipObject,
   cap: number,
   partName: string,
 ): Promise<string> {
-  const declared =
-    (f as unknown as { _data?: { uncompressedSize?: number } })._data
-      ?.uncompressedSize ?? 0;
-  const overLimit = (): DocxParseError =>
-    new DocxParseError(
-      `A document part (${partName}) exceeds the ${Math.round(
-        cap / (1024 * 1024),
-      )} MB uncompressed size limit.`,
-    );
-  if (declared > cap) return Promise.reject(overLimit());
-
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    // jszip types nodeStream as NodeJS.ReadableStream (no destroy); the runtime
-    // object is a Node Readable, so cast to get the abort method.
-    const stream = f.nodeStream("nodebuffer") as unknown as Readable;
-    stream.on("data", (chunk: Buffer) => {
-      size += chunk.length;
-      if (size > cap) {
-        stream.destroy();
-        reject(overLimit());
-        return;
-      }
-      chunks.push(chunk);
-    });
-    stream.on("error", () =>
-      reject(
-        new DocxParseError(`A document part (${partName}) could not be read.`),
-      ),
-    );
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-  });
+  return ooxmlReadCapped(f, cap, partName, (m) => new DocxParseError(m));
 }
 
 export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
@@ -506,26 +361,13 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   const coreRoot = rootElement(parseXml(coreXml), "coreProperties");
   const appRoot = rootElement(parseXml(appXml), "Properties");
 
-  const relMap = new Map<string, string>();
-  const relsRoot = rootElement(parseXml(relsXml), "Relationships");
-  if (relsRoot) {
-    for (const rel of childrenOf(relsRoot)) {
-      if (tagOf(rel) !== "Relationship") continue;
-      const id = attrOf(rel, "Id");
-      const target = attrOf(rel, "Target");
-      if (id && target) relMap.set(id, target);
-    }
-  }
+  const relMap = parseRelationships(relsXml);
 
   const headingStyles = buildHeadingStyleMap(stylesRoot);
 
   // --- metadata ---
-  const coreText = (tag: string): string | null => {
-    if (!coreRoot) return null;
-    const node = firstChild(coreRoot, tag);
-    const t = node ? rawText(node).trim() : "";
-    return t.length > 0 ? t : null;
-  };
+  const coreText = (tag: string): string | null =>
+    corePropertyText(coreRoot, tag);
   const language = stylesDefaultLang(stylesRoot) ?? coreText("language");
   const numFromApp = (tag: string): number | null => {
     if (!appRoot) return null;
