@@ -84,10 +84,8 @@ export function rawText(node: PONode): string {
   let s = "";
   const visit = (n: PONode): void => {
     for (const c of childrenOf(n)) {
-      if (tagOf(c) === "#text") {
-        const text = String(c["#text"] ?? "");
-        if (text.trim()) s += text;
-      } else visit(c);
+      if (tagOf(c) === "#text") s += String(c["#text"] ?? "");
+      else visit(c);
     }
   };
   visit(node);

@@ -30,10 +30,7 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
   <w:body>
-    <w:p w:someAttr="yes">
-      <w:r><w:t>Hello </w:t></w:r>
-      <w:r><w:t>world</w:t></w:r>
-    </w:p>
+    <w:p w:someAttr="yes"><w:r><w:t>Hello </w:t></w:r><w:r><w:t>world</w:t></w:r></w:p>
     <a:p><a:r><a:t>DrawingML text</a:t></a:r></a:p>
   </w:body>
 </w:document>`
@@ -77,6 +74,13 @@ describe('XML walker helpers', () => {
 
   it('rawText concatenates every #text under a node', () => {
     const p = firstChild(bodyOf(SAMPLE), 'p')!
+    expect(rawText(p)).toBe('Hello world')
+  })
+
+  it('preserves whitespace-only leaf text (space-only <w:t> runs are kept)', () => {
+    const xml = `<w:p xmlns:w="x"><w:r><w:t>Hello</w:t></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r><w:r><w:t>world</w:t></w:r></w:p>`
+    const p = rootElement(parseXml(xml), 'p')!
+    expect(textOf(p)).toBe('Hello world')
     expect(rawText(p)).toBe('Hello world')
   })
 })
