@@ -897,7 +897,18 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
   const dataTablesNoHeader = a.tables.filter(
     (t) => t.rowCount >= 2 && t.colCount >= 2 && !t.hasHeaderRow,
   );
-  const score = 100 - 30 * dataTablesNoHeader.length;
+  // Per-table average, mirroring scoreDocxTables: a data table with no header
+  // row scores 30 (a severe but not zero violation — the table's cell text is
+  // still readable, just unassociated with its header), not a flat per-table
+  // subtraction from 100. A single unheadered table should not read as
+  // "Minor" (70+) when it is the deck's only table.
+  const perTable = a.tables.map((t) => {
+    const isData = t.rowCount >= 2 && t.colCount >= 2;
+    return !isData || t.hasHeaderRow ? 100 : 30;
+  });
+  const score = Math.round(
+    perTable.reduce((x, y) => x + y, 0) / perTable.length,
+  );
   const findings = [`${a.tables.length} table(s) found.`];
   if (dataTablesNoHeader.length > 0) {
     findings.push(
@@ -944,7 +955,14 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       [PPTX_HELP.contrast],
     );
   }
-  const score = Math.max(0, 100 - 20 * failing.length);
+  // Proportion of checked runs that pass, capped at 85 — mirroring
+  // scoreDocxContrast. A flat per-run subtraction let a deck where EVERY
+  // checked run fails still read as "Minor"; failing 100% of checked runs
+  // must not score anywhere near that.
+  const score = Math.min(
+    85,
+    Math.round(((checkedRuns - failing.length) / checkedRuns) * 100),
+  );
   const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
   const findings = [
     `${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
@@ -988,7 +1006,12 @@ function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
       [PPTX_HELP.overview],
     );
   }
-  const score = Math.max(0, 100 - 15 * manualBulletParagraphs);
+  // Proportion of list paragraphs using real formatting, capped at 85 —
+  // mirroring scoreDocxLists. A flat per-paragraph subtraction let a slide
+  // with NO real list formatting (0 of N items real) still score 70+; a deck
+  // that is 100% manually-typed bullets is not a "Minor" list problem.
+  const total = realListItems + manualBulletParagraphs;
+  const score = Math.min(85, Math.round((realListItems / total) * 100));
   const findings = [
     `${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet paragraph(s).`,
     `${manualBulletParagraphs} paragraph(s) use typed characters (e.g. "-" or "*") instead of PowerPoint's bullet/numbering formatting. In PowerPoint: select the text → Home → Bullets/Numbering.`,
