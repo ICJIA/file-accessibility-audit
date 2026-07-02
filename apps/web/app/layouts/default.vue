@@ -292,6 +292,12 @@
 </template>
 
 <script setup lang="ts">
+import {
+  SCORING_PROFILES,
+  GRADE_THRESHOLDS,
+  SEVERITY_COLORS,
+} from '@file-audit/shared'
+
 const config = useRuntimeConfig()
 const user = inject<Ref<any>>('user')
 const goAnalyze = inject<() => void>('goAnalyze')
@@ -304,25 +310,37 @@ function toggleColorMode() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 
+// Weights come straight from the engine's strict profile so this modal can
+// never drift from how documents are actually scored (it did once:
+// bookmarks/reading_order were swapped for several releases). Labels and
+// rationale prose are UI copy and stay here.
+const strictWeights = SCORING_PROFILES.strict.weights
 const rubricCategories = [
-  { id: 'text_extractability', label: 'Text Extractability', weight: 20, rationale: 'WCAG 2.1/2.2 SC 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.' },
-  { id: 'title_language', label: 'Title & Language', weight: 15, rationale: 'WCAG 2.1/2.2 SC 2.4.2 & 3.1.1 — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II.' },
-  { id: 'heading_structure', label: 'Heading Structure', weight: 15, rationale: 'WCAG 2.1/2.2 SC 1.3.1 & 2.4.6 — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles.' },
-  { id: 'alt_text', label: 'Alt Text on Images', weight: 15, rationale: 'WCAG 2.1/2.2 SC 1.1.1 — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows.' },
-  { id: 'reading_order', label: 'Reading Order', weight: 10, rationale: 'WCAG 2.1/2.2 SC 1.3.2 — The tag structure must define a logical reading sequence. Without it, screen readers may announce sidebar content before the main body.' },
-  { id: 'table_markup', label: 'Table Markup', weight: 10, rationale: 'WCAG 2.1/2.2 SC 1.3.1 — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to.' },
-  { id: 'link_quality', label: 'Link Quality', weight: 5, rationale: 'WCAG 2.1/2.2 SC 2.4.4 — Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes without needing to see the URL.' },
-  { id: 'form_accessibility', label: 'Form Fields', weight: 5, rationale: 'WCAG 2.1/2.2 SC 1.3.1 & 4.1.2 — Unlabeled form fields are unusable with assistive technology. Users hear "text field" with no indication of what to enter.' },
-  { id: 'bookmarks', label: 'Bookmarks', weight: 5, rationale: 'WCAG 2.1/2.2 SC 2.4.5 — For documents over 10 pages, bookmarks provide a navigable table of contents. Required under Title II for longer documents.' },
+  { id: 'text_extractability', label: 'Text Extractability', rationale: 'WCAG 2.1/2.2 SC 1.3.1 — The most fundamental requirement. If a PDF is a scanned image with no real text, screen readers have nothing to read. No other fix matters until this is resolved.' },
+  { id: 'title_language', label: 'Title & Language', rationale: 'WCAG 2.1/2.2 SC 2.4.2 & 3.1.1 — The document title is the first thing a screen reader announces. The language tag controls pronunciation. Both are required under Title II.' },
+  { id: 'heading_structure', label: 'Heading Structure', rationale: 'WCAG 2.1/2.2 SC 1.3.1 & 2.4.6 — Headings (H1–H6) are the primary way screen reader users navigate and skim documents, equivalent to how sighted users scan bold section titles.' },
+  { id: 'alt_text', label: 'Alt Text on Images', rationale: 'WCAG 2.1/2.2 SC 1.1.1 — Every informative image must have a text alternative. Without it, blind users get no indication of what the image shows.' },
+  { id: 'reading_order', label: 'Reading Order', rationale: 'WCAG 2.1/2.2 SC 1.3.2 — The tag structure must define a logical reading sequence. Without it, screen readers may announce sidebar content before the main body.' },
+  { id: 'table_markup', label: 'Table Markup', rationale: 'WCAG 2.1/2.2 SC 1.3.1 — Without header cells (TH), screen readers read table data in a flat stream with no way to identify which column or row a value belongs to.' },
+  { id: 'link_quality', label: 'Link Quality', rationale: 'WCAG 2.1/2.2 SC 2.4.4 — Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes without needing to see the URL.' },
+  { id: 'form_accessibility', label: 'Form Fields', rationale: 'WCAG 2.1/2.2 SC 1.3.1 & 4.1.2 — Unlabeled form fields are unusable with assistive technology. Users hear "text field" with no indication of what to enter.' },
+  { id: 'bookmarks', label: 'Bookmarks', rationale: 'WCAG 2.1/2.2 SC 2.4.5 — For documents over 10 pages, bookmarks provide a navigable table of contents. Required under Title II for longer documents.' },
 ]
+  .map((c) => ({
+    ...c,
+    weight: Math.round(
+      (strictWeights[c.id as keyof typeof strictWeights] ?? 0) * 100,
+    ),
+  }))
+  .filter((c) => c.weight > 0)
+  .sort((a, b) => b.weight - a.weight)
 
-const grades = [
-  { grade: 'A', min: 90, max: 100, color: '#22c55e' },
-  { grade: 'B', min: 80, max: 89, color: '#14b8a6' },
-  { grade: 'C', min: 70, max: 79, color: '#eab308' },
-  { grade: 'D', min: 60, max: 69, color: '#f97316' },
-  { grade: 'F', min: 0, max: 59, color: '#ef4444' },
-]
+const grades = GRADE_THRESHOLDS.map((t, i) => ({
+  grade: t.grade,
+  min: t.min,
+  max: i === 0 ? 100 : GRADE_THRESHOLDS[i - 1]!.min - 1,
+  color: t.color,
+}))
 
 const referenceLinks = [
   { label: 'WCAG 2.2 Quick Reference', url: 'https://www.w3.org/WAI/WCAG22/quickref/' },
@@ -336,9 +354,9 @@ const referenceLinks = [
 ]
 
 const severities = [
-  { label: 'Pass', color: '#22c55e', description: 'Category score 90–100. Meets accessibility standards.' },
-  { label: 'Minor', color: '#3b82f6', description: 'Category score 70–89. Small improvements recommended.' },
-  { label: 'Moderate', color: '#eab308', description: 'Category score 40–69. Should be addressed before publishing.' },
-  { label: 'Critical', color: '#ef4444', description: 'Category score 0–39. Must be fixed — represents a significant barrier to access.' },
+  { label: 'Pass', color: SEVERITY_COLORS.Pass!, description: 'Category score 90–100. Meets accessibility standards.' },
+  { label: 'Minor', color: SEVERITY_COLORS.Minor!, description: 'Category score 70–89. Small improvements recommended.' },
+  { label: 'Moderate', color: SEVERITY_COLORS.Moderate!, description: 'Category score 40–69. Should be addressed before publishing.' },
+  { label: 'Critical', color: SEVERITY_COLORS.Critical!, description: 'Category score 0–39. Must be fixed — represents a significant barrier to access.' },
 ]
 </script>

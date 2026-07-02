@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@axe-core/puppeteer": "^4.10.0",
+    "@file-audit/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
     "cookie-parser": "^1.4.7",

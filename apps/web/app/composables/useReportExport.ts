@@ -3,6 +3,7 @@ import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
 import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
 import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
+import { gradeColor, severityColor } from "@file-audit/shared";
 const { saveAs } = fileSaver;
 
 interface HelpLink {
@@ -626,26 +627,9 @@ export function buildHtml(
   branding: BrandingInfo,
 ): string {
   const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
-  const gc = (grade: string) => {
-    const m: Record<string, string> = {
-      A: "#22c55e",
-      B: "#14b8a6",
-      C: "#eab308",
-      D: "#f97316",
-      F: "#ef4444",
-    };
-    return m[grade] || "#666";
-  };
-  const sc = (sev: string | null) => {
-    const m: Record<string, string> = {
-      Pass: "#22c55e",
-      "No issues found": "#22c55e",
-      Minor: "#3b82f6",
-      Moderate: "#eab308",
-      Critical: "#ef4444",
-    };
-    return m[sev || ""] || "#999";
-  };
+  // Shared grade/severity palette — same source the live pages use.
+  const gc = (grade: string) => gradeColor(grade);
+  const sc = (sev: string | null) => severityColor(sev);
 
   // Mirror the live/shared Score Table exactly: scored categories in the main
   // body, then a "Not Included in Scoring" section listing the N/A ones and

@@ -8,6 +8,11 @@
  * poll it on every status tick.
  */
 import { onMounted, onBeforeUnmount, ref, type Ref } from 'vue'
+// The real payload type from the engine (packages/shared) — this composable
+// used to re-declare a lossy subset of it. Re-exported because the remediate
+// result page imports it from here.
+import type { CategoryResult } from '@file-audit/shared'
+export type { CategoryResult }
 
 export type RemediationStatus =
   | 'pending'
@@ -49,16 +54,6 @@ export interface ReceiptEvent {
   event: string
   occurredAt: number
   details: Record<string, unknown> | null
-}
-
-export interface CategoryResult {
-  id: string
-  label: string
-  score: number | null
-  grade: string | null
-  severity: string | null
-  findings?: string[]
-  explanation?: string
 }
 
 export interface AuditResultLite {

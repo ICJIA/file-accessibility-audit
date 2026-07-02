@@ -7,8 +7,17 @@
 // `scoreProfiles.strict` / `scoreProfiles.remediation` still type-check —
 // the runtime only ever uses "strict" but the broader type keeps shared
 // reports stored before v1.21 from triggering TS errors when loaded.
+//
+// Grade/severity thresholds live in @file-audit/shared (the same constants
+// the API scorer uses), so the UI can never drift from the engine again.
 
-export type ScoringMode = "strict" | "remediation";
+import {
+  gradeForScore,
+  severityForScore,
+  type ScoringMode,
+} from "@file-audit/shared";
+export { gradeForScore, severityForScore };
+export type { ScoringMode };
 
 export interface ScoredCategoryLike {
   id: string;
@@ -25,23 +34,6 @@ export interface ScoreProfile {
   executiveSummary: string;
   categoryScores?: Record<string, number | null>;
   categories?: ScoredCategoryLike[];
-}
-
-export function gradeForScore(score: number | null): string | null {
-  if (score === null) return null;
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
-}
-
-export function severityForScore(score: number | null): string | null {
-  if (score === null) return null;
-  if (score >= 100) return "No issues found";
-  if (score >= 70) return "Minor";
-  if (score >= 40) return "Moderate";
-  return "Critical";
 }
 
 // Project the categories array onto the requested scoring mode's per-category

@@ -194,6 +194,7 @@ import {
   type ScoringMode,
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
+import { GRADE_THRESHOLDS } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
@@ -268,13 +269,12 @@ const props = withDefaults(
 
 const isDocx = computed(() => props.result.fileType === "docx");
 
-const gradeMap: Record<string, { color: string; label: string }> = {
-  A: { color: "#22c55e", label: "Excellent" },
-  B: { color: "#14b8a6", label: "Good" },
-  C: { color: "#eab308", label: "Needs Improvement" },
-  D: { color: "#f97316", label: "Poor" },
-  F: { color: "#ef4444", label: "Failing" },
-};
+// Colors + labels derive from the engine's grade thresholds so the hero can
+// never disagree with the scorer or the other grade-colored surfaces.
+const gradeMap: Record<string, { color: string; label: string }> =
+  Object.fromEntries(
+    GRADE_THRESHOLDS.map((t) => [t.grade, { color: t.color, label: t.label }]),
+  );
 
 const displayedProfile = computed(() => {
   const strict = props.result.scoreProfiles?.strict;

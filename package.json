@@ -29,6 +29,9 @@
       "vue-demi"
     ]
   },
+  "dependencies": {
+    "@file-audit/shared": "workspace:*"
+  },
   "devDependencies": {
     "kill-port": "^2.0.1",
     "mermaid": "11.15.0",

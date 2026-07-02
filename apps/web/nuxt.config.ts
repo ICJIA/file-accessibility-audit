@@ -36,6 +36,10 @@ export default defineNuxtConfig({
     fallback: BRANDING.DEFAULT_COLOR_MODE,
   },
 
+  // Workspace source package (plain TS, no build step) — transpile it into
+  // both the client and the Nitro server bundle.
+  build: { transpile: ['@file-audit/shared'] },
+
   css: ['~/assets/css/main.css'],
 
   // JSON-LD structured data injected via app.vue useHead()
