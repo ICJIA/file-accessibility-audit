@@ -13,7 +13,7 @@ import {
   sendSafeFetchError,
   validateUrlForFetch,
   validateUrlPublic,
-} from './analyze-url.js'
+} from '../services/urlPolicy.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 
 const router: IRouter = Router()

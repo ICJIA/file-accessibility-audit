@@ -5,7 +5,7 @@ import { reportsLimiter } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
 import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
-import { validateUrlForFetch } from './analyze-url.js'
+import { validateUrlForFetch } from '../services/urlPolicy.js'
 import { SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
 

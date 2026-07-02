@@ -5,7 +5,7 @@ import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.j
 import { gateIdentity, recordAudit } from '../services/auditLog.js'
 import { DEPLOY, SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
-import { isAllowedUrl } from './analyze-url.js'
+import { isAllowedUrl } from '../services/urlPolicy.js'
 import { auditPage, type PageAuditResult } from '../services/pageAuditor.js'
 
 const router: IRouter = Router()

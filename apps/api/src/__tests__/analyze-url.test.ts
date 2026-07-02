@@ -1,118 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { isAllowedUrl } from '../services/urlPolicy.js'
 
 // ---------------------------------------------------------------------------
 // Unit tests for the analyze-url route logic
 // ---------------------------------------------------------------------------
-// These tests exercise the validation and helper functions in the route module
-// directly — they do not spin up an Express app or open a database. The full
-// HTTP surface is covered by the existing integration test suite once a
-// test-DB convention is decided (see TODO in bulk-from-inventory.test.ts).
+// URL-policy assertions run against the REAL implementation in
+// services/urlPolicy.ts. (They used to be re-implemented inline here because
+// importing the route dragged in the router/auth/db chain; the urlPolicy
+// extraction fixed that, so a drifting copy can no longer pass while the
+// production allowlist regresses.) The remaining describes simulate
+// route-handler behavior without spinning up Express; the full HTTP surface
+// is covered once a test-DB convention is decided (see TODO in
+// bulk-from-inventory.test.ts).
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Module mocks  (must appear before any dynamic imports)
-// ---------------------------------------------------------------------------
-
-// Prevent real SQLite from opening during tests
-vi.mock('../db/sqlite.js', () => ({
-  default: { prepare: vi.fn(() => ({ run: vi.fn() })) },
-}))
-
-// Mock analyzePDF to avoid requiring QPDF in the test environment
-vi.mock('../services/pdfAnalyzer.js', () => ({
-  analyzePDF: vi.fn().mockResolvedValue({
-    filename: 'remote.pdf',
-    overallScore: 85,
-    grade: 'B',
-    pageCount: 2,
-    fileType: 'pdf',
-    isScanned: false,
-    executiveSummary: 'Mock analysis.',
-    categories: [],
-    warnings: [],
-    scoringMode: 'strict',
-    scoreProfiles: {},
-    adobeParity: {},
-    pdfMetadata: {},
-  }),
-}))
-
-// ---------------------------------------------------------------------------
-// Inline reimplementation of the pure helper functions from the route.
-// Testing via import would require resolving #config alias (not available in
-// vitest without extra setup); reimplementing is the pattern used in
-// bulk-from-inventory.test.ts.
-// ---------------------------------------------------------------------------
-
-const DEFAULT_ALLOWED_HOSTS = [
-  'illinois.gov',
-  'icjia.cloud',
-  'icjia.app',
-  'icjia-api.cloud',
-  'ilheals.com',
-  'icjia.illinois.gov',
-  'dvfr.icjia-api.cloud',
-  'i2i.icjia-api.cloud',
-  'vpp.icjia-api.cloud',
-  'infonet.icjia-api.cloud',
-]
-
-function getAllowedHosts(fromEnv: string = ''): Set<string> {
-  const extra = fromEnv
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  return new Set([...DEFAULT_ALLOWED_HOSTS, ...extra])
-}
-
-function isAllowedUrl(
-  rawUrl: string,
-  allowedHosts: Set<string> = getAllowedHosts(),
-): { ok: boolean; reason?: string; parsed?: URL } {
-  let parsed: URL
-  try {
-    parsed = new URL(rawUrl)
-  } catch {
-    return { ok: false, reason: 'malformed URL' }
-  }
-
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return { ok: false, reason: 'only http/https URLs are accepted' }
-  }
-
-  const host = parsed.hostname.toLowerCase()
-  if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host === '0.0.0.0' ||
-    host === '::1' ||
-    host === '[::1]' ||
-    host.endsWith('.local') ||
-    host.endsWith('.internal') ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) ||
-    /^169\.254\./.test(host)
-  ) {
-    return { ok: false, reason: `private/local address '${host}' is not allowed` }
-  }
-
-  let matched = false
-  for (const ah of allowedHosts) {
-    if (host === ah || host.endsWith('.' + ah)) {
-      matched = true
-      break
-    }
-  }
-  if (!matched) {
-    return {
-      ok: false,
-      reason: `host '${host}' is not in the allowlist`,
-    }
-  }
-
-  return { ok: true, parsed }
-}
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal mock req/res
@@ -219,8 +119,14 @@ describe('isAllowedUrl: allowlist enforcement', () => {
   })
 
   it('accepts a host added via the env-var extension', () => {
-    const allowed = getAllowedHosts('partner.org')
-    expect(isAllowedUrl('https://partner.org/a.pdf', allowed).ok).toBe(true)
+    const OLD = process.env.ANALYZE_URL_ALLOWED_HOSTS
+    process.env.ANALYZE_URL_ALLOWED_HOSTS = 'partner.org'
+    try {
+      expect(isAllowedUrl('https://partner.org/a.pdf').ok).toBe(true)
+    } finally {
+      if (OLD === undefined) delete process.env.ANALYZE_URL_ALLOWED_HOSTS
+      else process.env.ANALYZE_URL_ALLOWED_HOSTS = OLD
+    }
   })
 
   it('accepts any *.illinois.gov subdomain (covers state agencies)', () => {
