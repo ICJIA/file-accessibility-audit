@@ -73,13 +73,13 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
 
     const buf = fetched.buffer
 
-    // Detect PDF vs DOCX from the fetched content (not the URL extension).
+    // Detect PDF vs DOCX vs PPTX from the fetched content (not the URL extension).
     const fileType = await detectFileType(buf)
     if (!fileType) {
       res.status(422).json({
         error: 'Fetched content is not a supported document.',
         details:
-          'The URL must point directly at a PDF or a Word (.docx) file — the fetched content matches neither format.',
+          'The URL must point directly at a PDF, Word (.docx), or PowerPoint (.pptx) file — the fetched content matches none of these formats.',
       })
       return
     }
@@ -135,6 +135,25 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
         error: 'The fetched Word document could not be read.',
         details:
           'The .docx file appears to be corrupt or is not a valid Word document.',
+      })
+      return
+    }
+
+    // PPTX auditing disabled via PPTX_ENABLED=false
+    if (err?.code === 'PPTX_DISABLED') {
+      res.status(415).json({
+        error: 'PowerPoint (.pptx) auditing is currently disabled.',
+        details: 'This server is not configured to audit PowerPoint files. Contact the administrator to enable it.',
+      })
+      return
+    }
+
+    // PPTX could not be parsed (corrupt or not a real PowerPoint package)
+    if (err?.code === 'PPTX_PARSE_FAILED') {
+      res.status(422).json({
+        error: 'The fetched PowerPoint file could not be read.',
+        details:
+          'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
       })
       return
     }

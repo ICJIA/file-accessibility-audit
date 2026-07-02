@@ -34,10 +34,11 @@ router.post(
       const filename = sanitizeFilename(file.originalname)
       const contentHash = sha256Hex(file.buffer)
 
-      // Detect PDF vs DOCX from the file's content (not its extension) and
-      // dispatch to the matching pipeline. Unsupported / renamed files and —
-      // when DOCX is disabled — Word uploads throw FileTypeError; a corrupt
-      // Word package throws DocxParseError. All are mapped in the catch below.
+      // Detect PDF vs DOCX vs PPTX from the file's content (not its extension)
+      // and dispatch to the matching pipeline. Unsupported / renamed files and
+      // — when the format's flag is off — Word/PowerPoint uploads throw
+      // FileTypeError; a corrupt package throws DocxParseError/PptxParseError.
+      // All are mapped in the catch below.
       const result = await analyzeDocument(file.buffer, filename)
 
       // Always record the audit — audit_log is the canonical "this
@@ -71,11 +72,11 @@ router.post(
         return
       }
 
-      // Unsupported file type (content matches neither PDF nor DOCX)
+      // Unsupported file type (content matches no supported format)
       if (err.code === 'UNSUPPORTED_FILE_TYPE') {
         res.status(400).json({
           error: 'This file is not a supported document.',
-          details: 'Upload a PDF or a Word (.docx) file. The file content matches neither format — check that you are not uploading a renamed file of another type (e.g., .xlsx, .jpg).',
+          details: 'Upload a PDF, Word (.docx), or PowerPoint (.pptx) file. The file content matches none of these formats — check that you are not uploading a renamed file of another type (e.g., .xlsx, .jpg).',
         })
         return
       }
@@ -94,6 +95,24 @@ router.post(
         res.status(422).json({
           error: 'This Word document could not be read.',
           details: 'The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.',
+        })
+        return
+      }
+
+      // PPTX auditing disabled via PPTX_ENABLED=false
+      if (err.code === 'PPTX_DISABLED') {
+        res.status(415).json({
+          error: 'PowerPoint (.pptx) auditing is currently disabled.',
+          details: 'This server is not configured to audit PowerPoint files. Contact the administrator to enable it.',
+        })
+        return
+      }
+
+      // PPTX could not be parsed (corrupt or not a real PowerPoint package)
+      if (err.code === 'PPTX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'This PowerPoint file could not be read.',
+          details: 'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
         })
         return
       }
