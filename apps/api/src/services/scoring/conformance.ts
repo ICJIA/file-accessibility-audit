@@ -26,6 +26,7 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { DocxAnalysis } from "../docxService.js";
+import type { PptxAnalysis } from "../pptxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
@@ -455,4 +456,19 @@ export function evaluateDocxConformance(
       : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA still requires manual review of reading order and the correctness of alt text, headings, and table header associations${contrastNote}.`;
 
   return { status, failures, notAssessed, headline };
+}
+
+/**
+ * PPTX conformance gate. Skeleton — real gate rules land in the next task.
+ * Exists now only so scorePptx() (which needs a ConformanceVerdict for every
+ * scoring result) has something to import and the build stays green; it
+ * always reports a clean verdict until Task 7 replaces this wholesale with
+ * the real PowerPoint-specific machine-checkable rules.
+ */
+export function evaluatePptxConformance(
+  analysis: PptxAnalysis,
+): ConformanceVerdict {
+  // Skeleton — real gate rules land in the next task.
+  void analysis;
+  return { status: "no-automated-failures", failures: [], notAssessed: [], headline: "" };
 }
