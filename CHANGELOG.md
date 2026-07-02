@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
-## [1.32.0] - 2026-07-02
+## [1.32.1] - 2026-07-02
+
+Bugfix: the auto-remediation progress page no longer rate-limits itself. Clicking **Auto remediate this file** on any job longer than ~25 seconds made the page's own status polling (every 250 ms = 240 requests/min) drain the anonymous global rate-limit budget (100/min/IP), so the UI reported "Too many requests" mid-job — even though the remediation itself was completing fine on the server.
+
+### Fixed
+
+- **Remediation status polling is no longer counted against the global burst limiter.** `GET /api/remediate/:jobId/status` is skipped by the catch-all limiter and guarded by its own dedicated flood cap instead (`RATE_LIMITS.remediationStatus`, 600/min/IP — the endpoint is a single indexed SQLite read). The dedicated limiter runs ahead of the remediation feature-flag gate, so the cap holds even on servers with remediation disabled. Live-verified: 150 rapid status polls produce zero 429s while other routes still throttle at exactly 100/min; 650 polls admit exactly 600.
+- **The progress page polls politely and recovers from throttling.** The poller now runs at 1 s (was 250 ms) on a self-scheduling timer that never stacks overlapping requests, backs off exponentially on any failure (2 s → 4 s → capped at 8 s), treats a 429 as silent back-off feedback rather than a job failure, and clears the error banner as soon as a poll succeeds — previously a transient error message stuck on screen forever.
+
+13 new tests (API 613 / web 319 — 932 total).
 
 A structural-quality pass across all three apps, a follow-up red/blue security audit of those changes, and CSP hardening — the browser now refuses injected inline scripts outright.
 
