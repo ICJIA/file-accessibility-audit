@@ -209,11 +209,77 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
 }
 
 function collectSlideContent(
+  analysis: PptxAnalysis,
+  slideRoot: PONode,
+  relMap: Map<string, string>,
+  themeRoot: PONode | undefined,
+  spTree: PONode | undefined,
+): void {
+  // Images: pictures always; graphicFrames only when NOT a table (a chart /
+  // SmartArt frame is image-like; a table frame is scored as a table).
+  for (const pic of descendants(slideRoot, "pic")) {
+    const cNvPr = descendants(pic, "cNvPr")[0];
+    if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
+  }
+  for (const frame of descendants(slideRoot, "graphicFrame")) {
+    const tbl = descendants(frame, "tbl")[0];
+    if (tbl) {
+      const rows = descendants(tbl, "tr").length;
+      const grid = firstChild(tbl, "tblGrid");
+      const cols = grid
+        ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length
+        : 0;
+      const tblPr = firstChild(tbl, "tblPr");
+      analysis.tables.push({
+        hasHeaderRow: !!tblPr && attrOf(tblPr, "firstRow") === "1",
+        rowCount: rows,
+        colCount: cols,
+      });
+    } else {
+      const cNvPr = descendants(frame, "cNvPr")[0];
+      if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
+    }
+  }
+
+  // Links: any run whose rPr carries a:hlinkClick with an r:id.
+  for (const run of descendants(slideRoot, "r")) {
+    const rPr = firstChild(run, "rPr");
+    const hlink = rPr ? firstChild(rPr, "hlinkClick") : undefined;
+    if (!hlink) continue;
+    const id = attrOf(hlink, "id");
+    analysis.links.push({
+      text: textOf(run).trim(),
+      url: id && relMap.has(id) ? relMap.get(id)! : null,
+    });
+  }
+
+  // Lists: explicit bullet evidence only (v1 boundary — master defaults not
+  // resolved). Title paragraphs are excluded; they're headings, not list items.
+  const titleParagraphs = new Set<PONode>();
+  if (spTree) {
+    for (const sp of contentShapes(spTree)) {
+      if (tagOf(sp) === "sp" && isTitlePlaceholder(sp)) {
+        for (const p of descendants(sp, "p")) titleParagraphs.add(p);
+      }
+    }
+  }
+  for (const p of descendants(slideRoot, "p")) {
+    if (titleParagraphs.has(p)) continue;
+    const pPr = firstChild(p, "pPr");
+    const hasExplicitBullet =
+      !!pPr && (!!firstChild(pPr, "buChar") || !!firstChild(pPr, "buAutoNum"));
+    if (hasExplicitBullet) analysis.lists.realListItems++;
+    else if (MANUAL_BULLET_RE.test(textOf(p))) analysis.lists.manualBulletParagraphs++;
+  }
+
+  collectSlideContrast(analysis, slideRoot, themeRoot, spTree);
+}
+
+function collectSlideContrast(
   _analysis: PptxAnalysis,
   _slideRoot: PONode,
-  _relMap: Map<string, string>,
   _themeRoot: PONode | undefined,
   _spTree: PONode | undefined,
 ): void {
-  // Filled in by the images/tables/links/lists and contrast tasks.
+  // Filled in by the contrast task.
 }

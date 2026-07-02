@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildPptx, titleShape, bodyShape, para, picture } from './helpers/minimalPptx.js'
+import { buildPptx, titleShape, bodyShape, para, picture, pptTable, hyperlinkRels, videoRel } from './helpers/minimalPptx.js'
 import { analyzePptx, PptxParseError } from '../services/pptxService.js'
 
 describe('pptxService: package + metadata + slides', () => {
@@ -47,5 +47,70 @@ describe('pptxService: package + metadata + slides', () => {
     // tiny cap-boundary assertion instead: 3 slides pass.
     const buf = await buildPptx({ slides: [{ title: 'a' }, { title: 'b' }, { title: 'c' }] })
     await expect(analyzePptx(buf)).resolves.toBeTruthy()
+  })
+})
+
+describe('pptxService: images, tables, links, lists, media', () => {
+  it('extracts picture alt text, decorative flags, and missing alt', async () => {
+    const buf = await buildPptx({
+      slides: [{
+        title: 'T',
+        body:
+          picture({ descr: 'Org chart' }) +
+          picture({ decorative: true }) +
+          picture({}),
+      }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.images).toEqual([
+      { altText: 'Org chart', decorative: false },
+      { altText: null, decorative: true },
+      { altText: null, decorative: false },
+    ])
+  })
+
+  it('a graphicFrame table is a table (with firstRow flag), not an image', async () => {
+    const buf = await buildPptx({
+      slides: [{ title: 'T', body: pptTable({ firstRow: true, rows: 3, cols: 2 }) + pptTable({}) }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.tables).toEqual([
+      { hasHeaderRow: true, rowCount: 3, colCount: 2 },
+      { hasHeaderRow: false, rowCount: 2, colCount: 2 },
+    ])
+    expect(a.images).toHaveLength(0)
+  })
+
+  it('resolves hyperlink text and targets via the slide rels', async () => {
+    const buf = await buildPptx({
+      slides: [{
+        title: 'T',
+        body: bodyShape(para('Read the full report', { linkRelId: 'rId9' })),
+        rels: hyperlinkRels([{ id: 'rId9', target: 'https://example.gov/report' }]),
+      }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.links).toEqual([{ text: 'Read the full report', url: 'https://example.gov/report' }])
+  })
+
+  it('counts explicit bullets as real list items and literal bullets as manual', async () => {
+    const buf = await buildPptx({
+      slides: [{
+        title: 'T',
+        body: bodyShape(
+          para('Point one', { bullet: 'char' }) +
+            para('Point two', { bullet: 'auto' }) +
+            para('• fake bullet') +
+            para('plain sentence'),
+        ),
+      }],
+    })
+    const a = await analyzePptx(buf)
+    expect(a.lists).toEqual({ realListItems: 2, manualBulletParagraphs: 1 })
+  })
+
+  it('flags media presence from slide relationships', async () => {
+    const buf = await buildPptx({ slides: [{ title: 'T', rels: videoRel('rId8') }] })
+    expect((await analyzePptx(buf)).hasMedia).toBe(true)
   })
 })
