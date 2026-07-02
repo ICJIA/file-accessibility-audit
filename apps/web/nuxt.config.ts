@@ -155,30 +155,15 @@ export default defineNuxtConfig({
   // nginx routes /api directly to the Express API (which sets its own
   // Helmet headers), so these apply to the Nuxt-served HTML/asset routes.
   //
-  // The app is fully self-contained — no external scripts, analytics, fonts,
-  // or cross-origin fetches — so the CSP is tight on the high-value
-  // directives (object-src/base-uri/frame-ancestors 'none'). script-src and
-  // style-src keep 'unsafe-inline' because Nuxt's hydration scripts, the
-  // JSON-LD block, and Mermaid's inline SVG/styles require it; nonce-based
-  // script-src is the documented follow-up hardening.
+  // The Content-Security-Policy is NOT here — it needs a per-request nonce, so
+  // it's built in the Nitro plugin server/plugins/csp.ts (script-src carries a
+  // nonce, no 'unsafe-inline'). style-src keeps 'unsafe-inline' there (Vue
+  // :style attributes can't be nonced). The remaining nonce-free headers stay
+  // below.
   $production: {
     routeRules: {
       '/**': {
         headers: {
-          'Content-Security-Policy': [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: blob:",
-            "font-src 'self' data:",
-            "connect-src 'self'",
-            "object-src 'none'",
-            "base-uri 'none'",
-            "frame-ancestors 'none'",
-            "frame-src 'none'",
-            "form-action 'self'",
-            'upgrade-insecure-requests',
-          ].join('; '),
           'X-Content-Type-Options': 'nosniff',
           'X-Frame-Options': 'DENY',
           'Referrer-Policy': 'strict-origin-when-cross-origin',
