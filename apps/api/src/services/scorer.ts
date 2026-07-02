@@ -660,13 +660,13 @@ function buildCategories(
 
   categories.push(scoreTextExtractability(qpdf, pdfjs));
   categories.push(scoreTitleLanguage(qpdf, pdfjs));
-  categories.push(scoreHeadingStructure(qpdf, mode));
+  categories.push(scoreHeadingStructure(qpdf));
   categories.push(scoreAltText(qpdf, pdfjs));
   categories.push(scoreBookmarks(qpdf, pdfjs));
-  categories.push(scoreTableMarkup(qpdf, mode));
+  categories.push(scoreTableMarkup(qpdf));
   categories.push(scoreColorContrast());
   categories.push(scoreLinkQuality(pdfjs));
-  categories.push(scoreReadingOrder(qpdf, pdfjs, mode));
+  categories.push(scoreReadingOrder(qpdf, pdfjs));
   categories.push(scoreFormAccessibility(qpdf));
 
   applyProfileWeights(categories, mode);
@@ -696,31 +696,6 @@ function applyWcagCriteria(categories: CategoryResult[]): void {
   }
 }
 
-function listLegalityScore(lists: QpdfResult["lists"]): number {
-  if (lists.length === 0) return 15;
-  const wellFormed = lists.filter((list) => list.isWellFormed).length;
-  return Math.round((wellFormed / lists.length) * 15);
-}
-
-function tableLegalityScore(tables: QpdfResult["tables"]): number {
-  if (tables.length === 0) return 15;
-
-  const tableScores = tables.map((table) => {
-    let tableScore = 0;
-    if (table.hasRowStructure) tableScore += 40;
-    if (table.hasConsistentColumns === true) tableScore += 35;
-    else if (table.hasConsistentColumns === null) tableScore += 20;
-    if (!table.hasNestedTable) tableScore += 25;
-    return tableScore;
-  });
-
-  const average =
-    tableScores.reduce((sum, tableScore) => sum + tableScore, 0) /
-    tableScores.length;
-
-  return Math.round((average / 100) * 15);
-}
-
 function aggregateScore(
   categories: CategoryResult[],
   isScanned: boolean,
@@ -747,36 +722,7 @@ function aggregateScore(
     );
   };
 
-  let overallScore = weightedAverage(applicable);
-
-  // Bonus-only PDF/UA in Practical mode:
-  // Historically, the PDF/UA Compliance Signals category was weighted
-  // normally in the Practical aggregate. That made Practical drag below
-  // Strict whenever a document had strong WCAG semantics (alt text, real
-  // headings, bookmarks) but weak PDF/UA signals (low MarkInfo / tab-order
-  // / PDF/UA-identifier coverage). That was surprising: a "practical
-  // readiness" profile shouldn't punish a document for missing PDF/UA
-  // markers that don't affect WCAG conformance.
-  //
-  // Fix: PDF/UA is now a lift-only contribution in Practical. Compute the
-  // Practical aggregate BOTH ways (with PDF/UA and without) and keep the
-  // higher score. PDF/UA can boost the number when it's strong; when it's
-  // weak, it is ignored for aggregation purposes and the renormalized
-  // "WCAG-only Practical" score is surfaced instead.
-  //
-  // Strict is unaffected (its pdf_ua_compliance weight is 0 anyway) and
-  // the PDF/UA category itself still appears in the per-category table
-  // with its own score, so auditors see the PDF/UA signal — it just
-  // doesn't drag the overall Practical number below the WCAG-only baseline.
-  if (mode === "remediation") {
-    const withoutPdfUa = applicable.filter(
-      (c) => c.id !== "pdf_ua_compliance",
-    );
-    if (withoutPdfUa.length < applicable.length) {
-      const withoutScore = weightedAverage(withoutPdfUa);
-      overallScore = Math.max(overallScore, withoutScore);
-    }
-  }
+  const overallScore = weightedAverage(applicable);
 
   const grade = getGrade(overallScore);
   const executiveSummary = generateSummary(
@@ -998,10 +944,7 @@ function getHeadingLikeParagraphMappings(qpdf: QpdfResult): string[] {
   });
 }
 
-function scoreHeadingStructure(
-  qpdf: QpdfResult,
-  mode: ScoringMode,
-): CategoryResult {
+function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
   const findings: string[] = [];
   const headingExplanation =
     "Headings (H1–H6) create a navigable outline of the document. Screen reader users rely on headings to skim and jump between sections — similar to how sighted users scan bold section titles. Headings must follow a logical hierarchy: H1 for the main title, H2 for major sections, H3 for subsections, and so on. Skipping levels (e.g., H1 → H3) confuses assistive technology.";
@@ -1022,10 +965,6 @@ function scoreHeadingStructure(
 
   if (qpdf.headings.length === 0) {
     const roleMappedParagraphs = getHeadingLikeParagraphMappings(qpdf);
-    const hasRemediationSignals =
-      qpdf.hasStructTree &&
-      qpdf.paragraphCount >= 25 &&
-      (qpdf.outlineCount > 0 || roleMappedParagraphs.length > 0);
     const findings = ["No heading tags found in the document structure"];
 
     if (roleMappedParagraphs.length > 0) {
@@ -1038,26 +977,6 @@ function scoreHeadingStructure(
       findings.push(
         `Bookmarks and paragraph-level structure do not replace true H1–H6 semantics (${qpdf.outlineCount} bookmark(s), ${qpdf.paragraphCount} paragraph-level tag(s))`,
       );
-    }
-
-    if (mode === "remediation" && hasRemediationSignals) {
-      findings.push(
-        "Remediation-oriented scoring grants partial credit for rich tagged body structure and navigation aids, but strict mode still treats this as a heading failure.",
-      );
-      findings.push(
-        "How to fully fix: Promote actual section starts to H1/H2/H3 tags instead of leaving heading-like content mapped to P.",
-      );
-      return {
-        id: "heading_structure",
-        label: "Heading Structure",
-        weight: SCORING_WEIGHTS.heading_structure,
-        score: 70,
-        grade: getGrade(70),
-        severity: getSeverity(70),
-        findings,
-        explanation: headingExplanation,
-        helpLinks: headingLinks,
-      };
     }
 
     findings.push(
@@ -1513,7 +1432,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   };
 }
 
-function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
+function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   const tableLinks: CategoryResult["helpLinks"] = [
     {
       label: "Adobe: Make Tables Accessible",
@@ -1766,22 +1685,7 @@ function scoreTableMarkup(qpdf: QpdfResult, mode: ScoringMode): CategoryResult {
     }
   }
 
-  const qualifiesForRemediationPartialCredit =
-    mode === "remediation" &&
-    withHeaders === 0 &&
-    withRows === n &&
-    checkable > 0 &&
-    withConsistent === checkable;
-
-  if (qualifiesForRemediationPartialCredit) {
-    score = Math.max(score, 70);
-    findings.push(
-      "Remediation-oriented scoring grants partial credit because the table grid is well-formed, but strict mode still expects true header semantics.",
-    );
-    findings.push(
-      "A visually obvious header row is not enough for WCAG-oriented semantic review — the cells still need <TH> and, where appropriate, /Scope or /Headers.",
-    );
-  } else if (withHeaders === 0 && withRows === n) {
+  if (withHeaders === 0 && withRows === n) {
     findings.push(
       "The table has usable row structure, but row structure alone does not create programmatic header relationships.",
     );
@@ -2072,7 +1976,6 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
 function scoreReadingOrder(
   qpdf: QpdfResult,
   pdfjs: PdfjsResult,
-  mode: ScoringMode,
 ): CategoryResult {
   const readingLinks: CategoryResult["helpLinks"] = [
     {
@@ -2143,42 +2046,7 @@ function scoreReadingOrder(
   // failed or the sequences are too short to compare meaningfully.
   const rigorous = computeReadingOrderFidelity(qpdf, pdfjs);
 
-  if (mode === "remediation") {
-    let score = 55;
-
-    if (qpdf.totalPageCount > 0) {
-      if (qpdf.tabOrderPages === qpdf.totalPageCount) score += 20;
-      else if (qpdf.tabOrderPages > 0) score += 10;
-    }
-
-    if (qpdf.contentOrder.length > 1) score += 10;
-    if (qpdf.structTreeDepth >= 3) score += 5;
-    if (qpdf.paragraphCount > 0 || qpdf.headings.length > 0) score += 5;
-
-    findings.push(`--- Practical profile: reading-order readiness ---`);
-    findings.push(
-      "Practical mode scores this category using available reading-order proxies such as structure depth, content-order evidence, and tab-order coverage.",
-    );
-    if (rigorous.score !== null) {
-      findings.push(
-        `Rigorous struct-tree vs. content-stream order fidelity: ${rigorous.similarityPct}% across ${rigorous.pagesAnalyzed} analyzed page(s). (Not factored into the Practical score — see Strict for the rigorous verdict.)`,
-      );
-    }
-
-    return {
-      id: "reading_order",
-      label: "Reading Order",
-      weight: SCORING_WEIGHTS.reading_order,
-      score: Math.min(95, score),
-      grade: getGrade(Math.min(95, score)),
-      severity: getSeverity(Math.min(95, score)),
-      findings,
-      explanation: readingExplanation,
-      helpLinks: readingLinks,
-    };
-  }
-
-  // Strict mode — rigorous verdict when we have enough data.
+  // Rigorous verdict when we have enough data.
   if (rigorous.score !== null) {
     findings.push(
       `Reading-order fidelity: ${rigorous.similarityPct}% (${rigorous.pagesAnalyzed} of ${qpdf.totalPageCount} page(s) compared)`,
