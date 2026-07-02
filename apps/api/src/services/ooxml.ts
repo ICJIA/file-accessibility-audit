@@ -251,3 +251,45 @@ export function readCapped(
     stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
   });
 }
+
+/** Rels entries with their Type preserved (media / table detection needs it). */
+export function parseRelationshipEntries(
+  relsXml: string | null,
+): Array<{ id: string; target: string; type: string }> {
+  const out: Array<{ id: string; target: string; type: string }> = [];
+  const relsRoot = rootElement(parseXml(relsXml), "Relationships");
+  if (!relsRoot) return out;
+  for (const rel of childrenOf(relsRoot)) {
+    if (tagOf(rel) !== "Relationship") continue;
+    const id = attrOf(rel, "Id");
+    const target = attrOf(rel, "Target");
+    const type = attrOf(rel, "Type") ?? "";
+    if (id && target) out.push({ id, target, type });
+  }
+  return out;
+}
+
+// a:schemeClr aliases: text/background names map onto the dark/light slots.
+const SCHEME_ALIASES: Record<string, string> = {
+  tx1: "dk1",
+  bg1: "lt1",
+  tx2: "dk2",
+  bg2: "lt2",
+};
+
+/** Resolve a DrawingML scheme-color name to a 6-digit hex via the theme part. */
+export function resolveSchemeColor(
+  themeRoot: PONode | undefined,
+  name: string,
+): string | null {
+  if (!themeRoot) return null;
+  const scheme = descendants(themeRoot, "clrScheme")[0];
+  if (!scheme) return null;
+  const entry = firstChild(scheme, SCHEME_ALIASES[name] ?? name);
+  if (!entry) return null;
+  const srgb = firstChild(entry, "srgbClr");
+  if (srgb) return normalizeHex(attrOf(srgb, "val"));
+  const sys = firstChild(entry, "sysClr");
+  if (sys) return normalizeHex(attrOf(sys, "lastClr"));
+  return null;
+}

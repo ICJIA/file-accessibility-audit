@@ -17,6 +17,8 @@ import {
   normalizeHex,
   contrastRatio,
   readCapped,
+  resolveSchemeColor,
+  parseRelationshipEntries,
   type PONode,
 } from '../services/ooxml.js'
 
@@ -204,5 +206,47 @@ describe('readCapped', () => {
       (e: unknown) =>
         e instanceof FakeError && (e as Error).message.includes('big.xml'),
     )
+  })
+})
+
+describe('resolveSchemeColor', () => {
+  const THEME = `<?xml version="1.0"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <a:themeElements><a:clrScheme name="Office">
+    <a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+    <a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+    <a:dk2><a:srgbClr val="44546A"/></a:dk2>
+    <a:lt2><a:srgbClr val="E7E6E6"/></a:lt2>
+    <a:accent1><a:srgbClr val="4472C4"/></a:accent1>
+  </a:clrScheme></a:themeElements>
+</a:theme>`
+  const root = rootElement(parseXml(THEME), 'theme')
+
+  it('resolves srgbClr and sysClr(lastClr) scheme entries', () => {
+    expect(resolveSchemeColor(root, 'accent1')).toBe('4472C4')
+    expect(resolveSchemeColor(root, 'dk1')).toBe('000000')
+    expect(resolveSchemeColor(root, 'lt1')).toBe('FFFFFF')
+  })
+
+  it('maps the tx/bg aliases onto dk/lt and returns null for unknowns', () => {
+    expect(resolveSchemeColor(root, 'tx1')).toBe('000000')
+    expect(resolveSchemeColor(root, 'bg1')).toBe('FFFFFF')
+    expect(resolveSchemeColor(root, 'tx2')).toBe('44546A')
+    expect(resolveSchemeColor(root, 'bg2')).toBe('E7E6E6')
+    expect(resolveSchemeColor(root, 'nope')).toBeNull()
+    expect(resolveSchemeColor(undefined, 'accent1')).toBeNull()
+  })
+})
+
+describe('parseRelationshipEntries', () => {
+  it('returns id/target/type triples; empty for null input', () => {
+    const rels = `<?xml version="1.0"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/video" Target="media/movie1.mp4"/>
+</Relationships>`
+    expect(parseRelationshipEntries(rels)).toEqual([
+      { id: 'rId1', target: 'media/movie1.mp4', type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/video' },
+    ])
+    expect(parseRelationshipEntries(null)).toEqual([])
   })
 })
