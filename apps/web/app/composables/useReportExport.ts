@@ -3,7 +3,7 @@ import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
 import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
 import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
-import { gradeColor, severityColor } from "@file-audit/shared";
+import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
 const { saveAs } = fileSaver;
 
 interface HelpLink {
@@ -716,7 +716,7 @@ export function buildHtml(
         ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #1a1a1a">
           <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Learn more</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${cat.helpLinks.map((l) => `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#60a5fa;background:#3b82f610;padding:4px 10px;border-radius:6px;text-decoration:none">${escapeHtml(l.label)} ↗</a>`).join("\n")}
+            ${cat.helpLinks.map((l) => `<a href="${escapeHtml(safeHttpUrl(l.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#60a5fa;background:#3b82f610;padding:4px 10px;border-radius:6px;text-decoration:none">${escapeHtml(l.label)} ↗</a>`).join("\n")}
           </div>
         </div>`
         : "";

@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { reportsLimiter } from '../middleware/rateLimiter.js'
 import { SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
+import { sanitizeStoredReport } from '../services/reportSanitize.js'
 
 const router: IRouter = Router()
 
@@ -30,13 +31,22 @@ router.post(
         return
       }
 
+      // Store-boundary hardening: strip javascript:/data: help-link URLs
+      // (stored XSS on the public /report/:id page) and reject a malformed
+      // categories value (would 500 the render). See reportSanitize.ts.
+      const sanitized = sanitizeStoredReport(report)
+      if (!sanitized.ok) {
+        res.status(400).json({ error: 'Invalid report data' })
+        return
+      }
+
       const id = crypto.randomBytes(16).toString('hex')
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
 
       db.prepare(
         'INSERT INTO shared_reports (id, email, filename, report_json, expires_at) VALUES (?, ?, ?, ?, ?)'
-      ).run(id, req.user!.email, report.filename, JSON.stringify(report), expiresAt.toISOString())
+      ).run(id, req.user!.email, report.filename, JSON.stringify(sanitized.report), expiresAt.toISOString())
 
       res.json({ id, expiresAt: expiresAt.toISOString() })
     } catch (err: any) {

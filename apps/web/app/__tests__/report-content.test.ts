@@ -134,6 +134,52 @@ describe("ReportContent — detailed findings", () => {
   });
 });
 
+describe("ReportContent — help-link href hardening (stored XSS)", () => {
+  it("drops the href for a javascript: help-link URL but keeps the label", () => {
+    const wrapper = mountReport([
+      cat({
+        helpLinks: [
+          { label: "CLICK FOR HELP", url: "javascript:alert(document.domain)" },
+        ],
+      }),
+    ]);
+    const html = wrapper.html();
+    // the label still renders...
+    expect(html).toContain("CLICK FOR HELP");
+    // ...but the dangerous scheme never reaches an href attribute
+    expect(html).not.toContain('href="javascript:');
+    expect(html).not.toContain("javascript:alert");
+  });
+
+  it("keeps the href for a legitimate https help-link URL", () => {
+    const wrapper = mountReport([
+      cat({
+        helpLinks: [
+          { label: "WCAG guidance", url: "https://www.w3.org/WAI/x.html" },
+        ],
+      }),
+    ]);
+    expect(wrapper.html()).toContain('href="https://www.w3.org/WAI/x.html"');
+  });
+});
+
+describe("ReportContent — malformed stored report (SSR crash guard)", () => {
+  it("does not throw when categories is not an array", () => {
+    expect(() =>
+      mount(ReportContent, {
+        props: { result: { categories: "not-an-array" } as any },
+        global: { stubs: { NaCell: true, AppTooltip: true } },
+      }),
+    ).not.toThrow();
+  });
+
+  it("does not throw when a category's findings is not an array", () => {
+    expect(() =>
+      mountReport([cat({ findings: "not-an-array" as unknown as string[] })]),
+    ).not.toThrow();
+  });
+});
+
 describe("ReportContent — document metadata", () => {
   it("renders the metadata card when pdfMetadata is present", () => {
     const wrapper = mountReport([cat()], {

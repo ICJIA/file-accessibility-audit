@@ -432,7 +432,7 @@
                 <a
                   v-for="link in cat.helpLinks"
                   :key="link.url"
-                  :href="link.url"
+                  :href="safeHttpUrl(link.url)"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
@@ -518,7 +518,7 @@
                   <a
                     v-for="link in cat.helpLinks"
                     :key="link.url"
-                    :href="link.url"
+                    :href="safeHttpUrl(link.url)"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
@@ -551,6 +551,7 @@ import { computed, reactive } from "vue";
 import {
   gradeColor,
   severityColor,
+  safeHttpUrl,
   type CategoryResult,
   type ScoringMode,
 } from "@file-audit/shared";
@@ -597,9 +598,17 @@ const props = defineProps<{ result: ReportLike }>();
 
 const wcag = useWcag();
 
+// Coerce to an array before anything iterates it. The shared-report page
+// renders the raw stored JSON, so a forged report could set `categories` to
+// a non-array and 500 the page during SSR (findings gets the same guard in
+// partitionCardFindings).
+const safeCategories = computed<CategoryResult[]>(() =>
+  Array.isArray(props.result.categories) ? props.result.categories : [],
+);
+
 const displayedCategories = computed(() =>
   categoriesForScoringMode(
-    props.result.categories,
+    safeCategories.value,
     props.result.scoreProfiles,
     "strict",
   ),
