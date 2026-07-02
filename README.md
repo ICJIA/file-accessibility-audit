@@ -781,29 +781,32 @@ pnpm test:scoring        # Scoring model tests only
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      510 passed (20 files)
-  ✔ Web      317 passed (20 files)
+  ✔ API      600 passed (29 files)
+  ✔ Web      296 passed (22 files)
 ────────────────────────────────────────────────────────────
-  ✔ 880 tests passed across 46 files
+  ✔ 896 tests passed across 51 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (510 tests)
+### API Tests (600 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `scorer.test.ts` | 142 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, filename-like titles earning partial credit without a false 2.4.2 failure, help-link accuracy (version-matched W3C Understanding URLs, no broken WebAIM anchors), and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text, the Acrobat fix guide) |
 | `qpdfParser.test.ts` | 94 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count and ColSpan/RowSpan-aware column consistency, list analysis (LI/Lbl/LBody — LBody required, Lbl advisory), multi-widget form fields (radio groups collapse to one field with /TU from the parent), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON, qpdf exit-code-3 recovery (warnings with valid stdout JSON), and real qpdf-v2 `obj:`-key fixtures |
-| `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement, and route-level input/PDF validation and fetch-error handling |
-| `integration.test.ts` | 28 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |
+| `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement (against the real `services/urlPolicy.ts` exports, no longer a re-implemented copy), and route-level input/PDF validation and fetch-error handling |
+| `urlPolicy.test.ts` | 22 | The extracted URL/SSRF policy module: allowlist + subdomain matching, lookalike-suffix rejection, private/local-host blocking, `ANALYZE_URL_ALLOWED_HOSTS` env extension, the privileged public-URL validator, and `SafeFetchError`→HTTP status mapping |
+| `integration.test.ts` | 31 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |
 | `tokens.test.ts` | 27 | Personal access tokens: token generation, name sanitization, the PAT branch of the auth middleware, and the create/list/revoke `/api/tokens` endpoints |
-| `auth.test.ts` | 25 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), and email-domain validation |
+| `auth.test.ts` | 26 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), and email-domain validation |
 | `audit-url.test.ts` | 18 | Fleet `audit-url` endpoint: profile-score extraction, report-URL building, Policy-A hash dedup, response shape, and filename derivation |
 | `bulk-from-inventory.test.ts` | 10 | Bulk inventory scoring: input validation, NDJSON parsing, and result-structure assertions |
 | `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
 | `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
 | `pdfjsTitle.test.ts` | 33 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
 | `conformance.test.ts` | 6 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria, and 1.3.2 Meaningful Sequence asserted only from the rigorous MCID order comparison (never from heuristic category scores) |
+| `remediationJobs.test.ts` | 9 | Remediation job store: single-use download tokens stored hash-only and verified constant-time (tampered/cross-job tokens rejected), status transitions (pending→running→stepped→complete/failed/expired), audit-JSON round-trip, and per-user active-job counting |
+| `remediationLifecycle.test.ts` | 8 | Remediation lifecycle log + cleanup sweep against a real temp SQLite DB: append-only event ordering, path-hash privacy (no raw paths in the compliance log), delete-and-verify semantics (idempotent on already-absent files), TTL expiry deleting outputs and flipping status, stuck-job failure, and sweep idempotency |
 | `qpdfNormalize.test.ts` | 5 | Remediation normalize step: qpdf exit 3 (repaired recoverable damage, output written) counts as success, mirroring the audit's exit-3 recovery; hard failures still throw; a wall-clock timeout is passed to qpdf |
 | `veraPdf.test.ts` | 4 | veraPDF JSON verdict extraction: rule identifiers built from clause + test number (never the "FAILED" status string), per-rule counts, and the authoritative failed-checks total |
 | `pdfuaXmp.test.ts` | 3 | PDF/UA identifier detection from XMP through real pdfjs parsing — element form and RDF attribute form (`pdfuaid:part="1"`), which pdfjs's own parser misses |
@@ -813,15 +816,17 @@ pnpm test:scoring        # Scoring model tests only
 | `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
 | `pdfAnalyzerTimeout.test.ts` | 2 | The in-process pdfjs parse timeout abandons a pathological document and frees its concurrency slot |
 
-### Web Tests (317 tests)
+### Web Tests (296 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
-| `responsive.test.ts` | 50 | Responsive layout across mobile navigation, layout padding, ScoreCard, CategoryRow, the index/report/history pages, CSS transitions, and the scoring modal |
-| `accessibility.test.ts` | 38 | WCAG 2.1 color-contrast verification for dark and light modes (4.5:1 minimum across all text/background combinations), regression guards against low-contrast classes, semantic HTML landmarks, link accessibility, and component-level a11y |
-| `components.test.ts` | 36 | DropZone (drag/drop, multi-file PDF validation, size limits, batch staging), ScoreCard (grade display, recommendation copy, color coding for all five grades), CategoryRow (score bars, severity badges, expand/collapse findings, N/A display), ProcessingOverlay |
-| `scoring-display.test.ts` | 30 | Grade color mapping (A-F), N/A category rendering, severity badges, the conformance-verdict explanation, and detailed-findings display |
+| `responsive.test.ts` | 44 | Responsive layout across mobile navigation, layout padding, ScoreCard, ReportContent, the index/report/history pages, CSS transitions, and the scoring modal |
+| `accessibility.test.ts` | 35 | WCAG 2.1 color-contrast verification for dark and light modes (4.5:1 minimum across all text/background combinations), regression guards against low-contrast classes, semantic HTML landmarks, link accessibility, and component-level a11y |
+| `components.test.ts` | 25 | DropZone (drag/drop, multi-file PDF validation, size limits, batch staging), ScoreCard (grade display, recommendation copy, color coding for all five grades), ProcessingOverlay |
+| `scoring-display.test.ts` | 15 | ScoreCard grade color mapping (A-F), the conformance-verdict explanation, and the single-Strict-view guard |
+| `report-content.test.ts` | 7 | The shared ReportContent component (score table, Document Metadata, Detailed Findings, Not Included in Scoring) rendered by both the live page and shared reports: grade/severity colors from the shared palette, N/A subsection + footnote gating, and the aria-expanded export-snapshot contract |
+| `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
 | `findings.test.ts` | 14 | Findings utilities: guidance-vs-actionable finding classification and per-card finding partitioning |
 | `login.test.ts` | 13 | Two-step OTP flow (email then code), API-call verification, error handling, back navigation |
 | `ai-analysis.test.ts` | 12 | `buildAiAnalysis` - AI-analysis export and prompt generation, and remediation-focused output |
