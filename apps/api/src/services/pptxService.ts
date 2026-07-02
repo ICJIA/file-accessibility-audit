@@ -215,9 +215,16 @@ function collectSlideContent(
   themeRoot: PONode | undefined,
   spTree: PONode | undefined,
 ): void {
-  // Images: pictures always; graphicFrames only when NOT a table (a chart /
-  // SmartArt frame is image-like; a table frame is scored as a table).
+  // Images: pictures always — except a pic nested inside a graphicFrame,
+  // which is the OLE-object fallback preview; the frame itself is the one
+  // visual object (counted below), so counting its inner pic too would
+  // double-bill a single object's missing alt text.
+  const framePics = new Set<PONode>();
+  for (const frame of descendants(slideRoot, "graphicFrame")) {
+    for (const pic of descendants(frame, "pic")) framePics.add(pic);
+  }
   for (const pic of descendants(slideRoot, "pic")) {
+    if (framePics.has(pic)) continue;
     const cNvPr = descendants(pic, "cNvPr")[0];
     if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
   }

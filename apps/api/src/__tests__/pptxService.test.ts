@@ -113,4 +113,20 @@ describe('pptxService: images, tables, links, lists, media', () => {
     const buf = await buildPptx({ slides: [{ title: 'T', rels: videoRel('rId8') }] })
     expect((await analyzePptx(buf)).hasMedia).toBe(true)
   })
+
+  it('counts an OLE-style graphicFrame with a nested fallback pic as ONE image', async () => {
+    const oleFrame = `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="20" name="Embedded object"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>
+      <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/presentationml/2006/ole">
+      <p:pic><p:nvPicPr><p:cNvPr id="21" name="fallback"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rIdX"/></p:blipFill><p:spPr/></p:pic>
+      </a:graphicData></a:graphic></p:graphicFrame>`
+    const buf = await buildPptx({ slides: [{ title: 'T', body: oleFrame }] })
+    const a = await analyzePptx(buf)
+    expect(a.images).toHaveLength(1)
+  })
+
+  it('excludes title-placeholder paragraphs from list counting', async () => {
+    const buf = await buildPptx({ slides: [{ title: '1. Overview' }] })
+    const a = await analyzePptx(buf)
+    expect(a.lists).toEqual({ realListItems: 0, manualBulletParagraphs: 0 })
+  })
 })
