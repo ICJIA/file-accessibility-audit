@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import { detectFileType, analyzeDocument } from "../services/analyzer.js";
 import { buildDocx } from "./helpers/minimalDocx.js";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
+import { buildPptx } from "./helpers/minimalPptx.js";
 
 describe("detectFileType", () => {
   it("identifies a PDF by its header", async () => {
@@ -51,5 +52,21 @@ describe("analyzeDocument", () => {
     await expect(
       analyzeDocument(Buffer.from("not a document"), "mystery.bin"),
     ).rejects.toMatchObject({ code: "UNSUPPORTED_FILE_TYPE" });
+  });
+});
+
+describe("detectFileType: pptx", () => {
+  it("detects a real pptx by content and dispatches to the pptx pipeline", async () => {
+    const buf = await buildPptx({ slides: [{ title: "Welcome" }] });
+    expect(await detectFileType(buf)).toBe("pptx");
+    const r = await analyzeDocument(buf, "deck.pptx");
+    expect(r.fileType).toBe("pptx");
+    expect(r.pageCount).toBe(1); // slides
+    expect(r.pptxMetadata?.title).toBe("Quarterly Briefing");
+  });
+
+  it("a renamed pptx is never misread as docx and vice versa", async () => {
+    const buf = await buildPptx({ slides: [{ title: "T" }] });
+    expect(await detectFileType(buf)).toBe("pptx"); // extension never consulted
   });
 });

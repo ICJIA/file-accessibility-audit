@@ -2,6 +2,7 @@ import { analyzeWithQpdfAsync } from "./qpdfService.js";
 import { analyzeWithPdfjs, PdfMetadata } from "./pdfjsService.js";
 import { scoreDocument, ScoringResult } from "./scorer.js";
 import type { DocxMetadata } from "./docxService.js";
+import type { PptxMetadata } from "./pptxService.js";
 import { ANALYSIS } from "#config";
 
 // Simple semaphore for concurrency limiting with timeout
@@ -52,11 +53,13 @@ export function releaseSemaphore(): void {
 export interface AnalysisResult extends ScoringResult {
   filename: string;
   pageCount: number;
-  fileType: "pdf" | "docx";
+  fileType: "pdf" | "docx" | "pptx" | "xlsx";
   /** PDF metadata — present only for PDF results. */
   pdfMetadata?: PdfMetadata;
   /** Word metadata — present only for DOCX results. */
   docxMetadata?: DocxMetadata;
+  /** PowerPoint metadata — present only for PPTX results. */
+  pptxMetadata?: PptxMetadata;
 }
 
 /**
