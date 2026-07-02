@@ -204,7 +204,7 @@ describe('No hardcoded dark-only colors in templates', () => {
   const sourceFiles = [
     'components/DropZone.vue',
     'components/ScoreCard.vue',
-    'components/CategoryRow.vue',
+    'components/ReportContent.vue',
     'components/ProcessingOverlay.vue',
     'layouts/default.vue',
     'pages/index.vue',

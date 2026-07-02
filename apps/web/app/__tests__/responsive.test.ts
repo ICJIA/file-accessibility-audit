@@ -5,7 +5,6 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 
 import ScoreCard from "../components/ScoreCard.vue";
-import CategoryRow from "../components/CategoryRow.vue";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -101,63 +100,6 @@ describe("Responsive — ScoreCard", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CategoryRow — Responsive Layout
-// ---------------------------------------------------------------------------
-describe("Responsive — CategoryRow", () => {
-  const baseCategory = {
-    id: "headings",
-    label: "Headings",
-    score: 75,
-    grade: "C",
-    severity: "Moderate",
-    findings: ["Heading structure found"],
-  };
-
-  it("button uses responsive flex direction (flex-col sm:flex-row)", () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } });
-    const button = wrapper.find("button");
-    expect(button.classes()).toContain("flex-col");
-    expect(button.classes()).toContain("sm:flex-row");
-  });
-
-  it("button uses responsive padding (px-3 sm:px-5)", () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } });
-    const button = wrapper.find("button");
-    expect(button.classes()).toContain("px-3");
-    expect(button.classes()).toContain("sm:px-5");
-  });
-
-  it("has a mobile-only chevron (sm:hidden)", () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } });
-    const svgs = wrapper.findAll("svg");
-    const mobileChevron = svgs.find((s) => s.classes().includes("sm:hidden"));
-    expect(mobileChevron).toBeTruthy();
-  });
-
-  it("has a desktop-only chevron (hidden sm:block)", () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } });
-    const svgs = wrapper.findAll("svg");
-    const desktopChevron = svgs.find(
-      (s) => s.classes().includes("sm:block") && s.classes().includes("hidden"),
-    );
-    expect(desktopChevron).toBeTruthy();
-  });
-
-  it("severity badge is hidden on mobile (hidden sm:inline-flex)", () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } });
-    const badge = wrapper.find(".u-badge");
-    expect(badge.exists()).toBe(true);
-    expect(badge.classes()).toContain("hidden");
-    expect(badge.classes()).toContain("sm:inline-flex");
-  });
-
-  it("findings panel uses responsive padding", () => {
-    const source = readSource("components/CategoryRow.vue");
-    expect(source).toContain("px-3 sm:px-5");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Index Page — Responsive Elements
 // ---------------------------------------------------------------------------
 describe("Responsive — Index Page", () => {
@@ -171,8 +113,11 @@ describe("Responsive — Index Page", () => {
     expect(source).toContain("overflow-x-auto");
   });
 
-  it("category scores table has min-width for horizontal scroll", () => {
-    expect(source).toContain("min-w-[420px]");
+  it("category scores table has min-width for horizontal scroll (in ReportContent)", () => {
+    // the score table moved into the shared ReportContent component
+    expect(readSource("components/ReportContent.vue")).toContain(
+      "min-w-[420px]",
+    );
   });
 
   it("metadata rows stack vertically on mobile (flex-col sm:flex-row)", () => {
@@ -254,16 +199,24 @@ describe("Responsive — Report Page", () => {
     expect(source).toContain("p-4 sm:p-8");
   });
 
-  it("category scores table has overflow-x-auto", () => {
-    expect(source).toContain("overflow-x-auto");
+  // The score table / metadata / findings markup is shared with the live
+  // page via ReportContent.vue — scan the component, not the page.
+  it("category scores table has overflow-x-auto (in ReportContent)", () => {
+    expect(readSource("components/ReportContent.vue")).toContain(
+      "overflow-x-auto",
+    );
   });
 
-  it("metadata rows stack vertically on mobile", () => {
-    expect(source).toContain("flex-col sm:flex-row");
+  it("metadata rows stack vertically on mobile (in ReportContent)", () => {
+    expect(readSource("components/ReportContent.vue")).toContain(
+      "flex-col sm:flex-row",
+    );
   });
 
-  it("findings cards use responsive padding", () => {
-    expect(source).toContain("p-3 sm:p-5");
+  it("findings cards use responsive padding (in ReportContent)", () => {
+    expect(readSource("components/ReportContent.vue")).toContain(
+      "p-3 sm:p-5",
+    );
   });
 });
 

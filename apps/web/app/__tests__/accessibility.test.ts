@@ -6,7 +6,6 @@ import { resolve } from 'path'
 
 import DropZone from '../components/DropZone.vue'
 import ScoreCard from '../components/ScoreCard.vue'
-import CategoryRow from '../components/CategoryRow.vue'
 import ProcessingOverlay from '../components/ProcessingOverlay.vue'
 
 // ---------------------------------------------------------------------------
@@ -150,7 +149,7 @@ describe('Contrast Regression (no low-contrast classes in source)', () => {
   const sourceFiles = [
     'components/DropZone.vue',
     'components/ScoreCard.vue',
-    'components/CategoryRow.vue',
+    'components/ReportContent.vue',
     'components/ProcessingOverlay.vue',
     'layouts/default.vue',
     'pages/index.vue',
@@ -280,46 +279,5 @@ describe('ScoreCard Accessibility', () => {
     expect(adobeLink.exists()).toBe(true)
     expect(adobeLink.attributes('target')).toBe('_blank')
     expect(adobeLink.attributes('rel')).toContain('noopener')
-  })
-})
-
-describe('CategoryRow Accessibility', () => {
-  const baseCategory = {
-    id: 'headings',
-    label: 'Headings',
-    score: 75,
-    grade: 'C',
-    severity: 'Moderate',
-    findings: ['Heading structure found'],
-  }
-
-  it('expand/collapse is triggered by a <button> element (keyboard accessible)', () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } })
-    const button = wrapper.find('button')
-    expect(button.exists()).toBe(true)
-  })
-
-  it('button spans full width for easy click target (WCAG 2.5.8)', () => {
-    const wrapper = mount(CategoryRow, { props: { category: baseCategory } })
-    const button = wrapper.find('button')
-    expect(button.classes()).toContain('w-full')
-  })
-
-  it('N/A categories do not use fail (cross) icons', async () => {
-    const wrapper = mount(CategoryRow, {
-      props: {
-        category: {
-          ...baseCategory,
-          score: null,
-          grade: null,
-          severity: null,
-          findings: ['No tables detected in this document'],
-        },
-      },
-    })
-    await wrapper.find('button').trigger('click')
-    const items = wrapper.findAll('li')
-    // N/A categories suppress fail icons — isFail returns false when isNa
-    expect(items[0].text()).not.toContain('✗')
   })
 })
