@@ -1228,6 +1228,88 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.32.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.32.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-02</strong> · scope: a follow-up red/blue
+            team review of a round of internal code-quality changes, plus a
+            hardening of the website's defenses against malicious scripts.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This release reorganized how the tool is built internally (no change
+          to what it checks or how it scores). Because that touched the pages
+          that display a saved, shareable report, an independent review went
+          back over them. It found — and this release
+          <strong>fixes</strong> — a way that someone could craft a booby-trapped
+          shareable report link so that a "helpful link" on it ran a hidden
+          script in the viewer's browser. That has been closed at three
+          levels: the link address is now checked when the report is saved and
+          again when it is shown, and — the bigger, permanent safety net — the
+          website now tells the browser to <strong>refuse any script that
+          wasn't part of the original page</strong>, so this whole category of
+          attack is blocked even if a new bug were introduced later.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Malicious "helpful links" on shared reports</strong
+            >
+            — A shareable report link could be hand-crafted so that a link on
+            it, once clicked, ran a hidden script instead of opening a web
+            page. Link addresses on saved reports are now verified to be
+            ordinary web (http/https) addresses both when the report is saved
+            and when it is displayed, so a disguised script address is dropped.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Deliberately broken report links no longer knock out the page</strong
+            >
+            — A hand-crafted, malformed report link could make the shared-report
+            page fail to load. The page now handles missing or malformed pieces
+            gracefully instead of erroring.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              The browser now blocks any un-approved script</strong
+            >
+            — The website's Content-Security-Policy was tightened so the browser
+            will only run the scripts that are genuinely part of each page (each
+            one carries a fresh, one-time stamp). Any injected or inline script
+            — the main tool of this kind of attack — is refused outright,
+            regardless of any future bug.
+          </li>
+        </ul>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong
+            >No change to what data is collected or how long it is kept.</strong
+          >
+          These are display-and-safety changes only; uploaded files are still
+          processed in memory and discarded in seconds. The full technical
+          write-up is in the project's README security section.
+        </p>
+      </article>
+
       <!-- v1.30.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

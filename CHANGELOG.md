@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.32.0] - 2026-07-02
+
+A structural-quality pass across all three apps, a follow-up red/blue security audit of those changes, and CSP hardening — the browser now refuses injected inline scripts outright.
+
+### Added
+
+- **`packages/shared` (`@file-audit/shared`) — one source of truth for scoring.** The scoring profiles, grade/severity thresholds, category weights, and WCAG category map moved out of `audit.config.ts` (which now re-exports them, so every `#config` consumer is unchanged) into a browser-safe workspace package the web app imports directly; the report-payload types (`CategoryResult`, `ScoreProfileResult`, …) moved out of `scorer.ts` the same way. The web UI now **derives** the Scoring Rubric weights, the grade table, and every grade/severity colour from this package instead of hand-copied literals — the copies had already drifted (see the Bookmarks/Reading Order fix below). A grep of the built client bundle confirms the package carries no secrets into the browser.
+- **Nonce-based `script-src` Content-Security-Policy.** Production `script-src` no longer allows `'unsafe-inline'`. A per-request nonce is minted in a Nitro plugin (`apps/web/server/plugins/csp.ts`) and stamped onto every `<script>` Nuxt emits (hydration payload, color-mode init, JSON-LD), so an injected inline script — or a `javascript:` URI — is refused by the browser. `style-src` keeps `'unsafe-inline'` (Vue `:style` object bindings emit inline style _attributes_, which nonces cannot cover). Verified against a production build in-browser: zero CSP violations, working hydration and color-mode, and an injected inline script blocked.
+
+### Fixed
+
+- **Scoring Rubric weights corrected.** The methodology modal showed Bookmarks **10%** / Reading Order **5%**, but the engine's strict profile weights them **5% / 10%** — the two were swapped for several releases. The modal now derives its numbers from the engine, so it cannot drift again.
+
+### Changed
+
+- **The live audit page and the shared-report page now render a single shared `ReportContent` component** (Score Table, Document Metadata, Detailed Findings, "Not Included in Scoring") instead of ~635 duplicated template lines plus ~14 duplicated helpers on each page. The copies had already drifted and previously caused a production 500 (`0f39c96`). The dead `CategoryRow` / `AdobeParityCard` components and the retired "Practical"-mode scoring branches (unreachable since v1.21.0) were removed, and `src/spike/` was taken out of the API build gate.
+- **`services/urlPolicy.ts`.** The SSRF / URL-allowlist policy moved out of the `analyze-url` route into a service, so the four URL-fetch routes import one implementation and the SSRF tests exercise the real code instead of a re-implemented copy that could drift.
+
+### Security
+
+- **Follow-up red/blue audit** of the structural changes (three parallel red-team passes, every finding verified against the code). The two headline changes were clean — the URL-policy extraction is behaviour-preserving (a mutation test broke 22 tests, proving the suite gates the allowlist) and `@file-audit/shared` leaks no secrets into the client bundle. The audit surfaced and **fixed** two pre-existing issues on the public shared-report render path:
+  - **Stored XSS via report help-link URLs.** `POST /api/reports` stored arbitrary JSON validating only `filename`/`overallScore`, so a report's `helpLinks[].url` was attacker-controlled and rendered into an `<a href>` unvalidated — a `javascript:` URL executed on click (CSP permitted it under `'unsafe-inline'`, since fixed above). Help-link URLs are now scheme-validated to `http(s)` at the store boundary (recursively, including nested `scoreProfiles.*.categories`) and again at the render sink, and the HTML export routes them through the same guard.
+  - **Malformed stored reports could 500 the public page.** A forged report with a non-array `categories`/`findings`, or a `conformance` object missing its arrays, crashed SSR (`reading 'length' of undefined`). The render path now coerces those to safe defaults and the store boundary rejects a non-array `categories`.
+
+### Tests
+
+- **919 tests across 54 files** (`tsc --noEmit` and `nuxt build` clean). New coverage for the remediation subsystem (jobs, events, cleanup), the extracted URL policy, the shared scoring constants, the shared `ReportContent` component, the help-link URL-scheme guard, the report store-sanitizer, and the CSP header builder.
+
 ## [1.31.1] - 2026-07-01
 
 ### Fixed

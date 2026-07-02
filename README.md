@@ -766,7 +766,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**880 tests** across 46 test files. Run all with a summary at the end:
+**919 tests** across 54 test files. Run all with a summary at the end:
 
 ```bash
 pnpm test                # All tests (API + Web) with summary
@@ -893,7 +893,7 @@ The application undergoes a security review before every release plus periodic s
 - **No shell** — QPDF / OpenDataLoader / veraPDF are invoked via `execFile` with array arguments; user-supplied filenames never reach a shell or a path component.
 - **SSRF-hardened URL fetching** — URL and fleet PDF fetches resolve DNS in-process, reject private/reserved IPs (IPv4 + IPv6), pin the connection to the validated IP, and re-validate every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
 - **Bounded work** — per-request size caps (including a per-part uncompressed-size cap on `.docx` to stop decompression bombs), a 2-slot analysis semaphore shared by the PDF and Word paths, pdfjs and docx parse/analysis timeouts, and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
-- **Two-tier rate limiting** on the audit endpoints — strict per-IP for anonymous callers (500/hr analyze, 100/min global), generous for callers presenting a valid `API_PRIVILEGED_TOKEN` (5000/hr, 1000/min) — plus **Helmet + nginx headers** on the API and a **Content-Security-Policy** on the web app; **CORS** locked to a single origin in production.
+- **Two-tier rate limiting** on the audit endpoints — strict per-IP for anonymous callers (500/hr analyze, 100/min global), generous for callers presenting a valid `API_PRIVILEGED_TOKEN` (5000/hr, 1000/min) — plus **Helmet + nginx headers** on the API and a **nonce-based Content-Security-Policy** on the web app (as of v1.32.0, `script-src` carries a per-request nonce and no `'unsafe-inline'`, so injected inline scripts and `javascript:` URIs are refused); **CORS** locked to a single origin in production.
 - **Privileged API token** (`API_PRIVILEGED_TOKEN`, optional) — a single static bearer token that unlocks the generous rate tier **and** lets a trusted client audit URLs outside the ICJIA / illinois.gov allowlist. It never bypasses the private/reserved-IP SSRF block, the size caps, or the concurrency semaphores; constant-time compare; unset = feature off (everyone strict).
 - Full security model: **docs/archive/00-master-design.md, Section 9**.
 
@@ -914,6 +914,24 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
 
+### v1.32.0 — 2026-07-02 · Post-refactor red/blue audit + nonce-based CSP hardening
+
+A follow-up adversarial review of the v1.32.0 structural refactor (`packages/shared`, the extracted URL-policy service, the shared `ReportContent` component), run as three parallel red-team passes with every finding verified against the code. The two headline changes were clean: the URL/SSRF-policy extraction is behaviour-preserving (a mutation test that injected an allowlist bypass broke 22 tests, proving the suite gates the real allowlist), and the new `@file-audit/shared` package is a pure data leaf — a grep of the built client bundle confirms it carries no secrets, and `workspace:*` resolution blocks dependency-confusion. **919 tests pass; `tsc --noEmit` and `nuxt build` clean.**
+
+**Fixed in v1.32.0:**
+
+- **Stored XSS via report help-link URLs.** `POST /api/reports` stored arbitrary caller JSON validating only `filename`/`overallScore`, so a report's `categories[].helpLinks[].url` was attacker-controlled and rendered into an `<a href>` without scheme validation — a `javascript:` URL executed on click. Unlike the v1.30.0 HTML-export sink (bounded to the downloaded file's `file://` origin), this ran in the **app origin** on the public `/report/:id` page, and CSP permitted it under the old `'unsafe-inline'`. Fixed defence-in-depth: help-link URLs are scheme-validated to `http(s)` at the store boundary (recursively, including nested `scoreProfiles.*.categories`) and again at the render sink, and the HTML export routes them through the same guard. Confirmed with a live reproduction before and after.
+- **Malformed stored reports could 500 the public page.** A forged report with a non-array `categories`/`findings`, or a `conformance` object missing its arrays, crashed SSR (`reading 'length' of undefined`). The render path now coerces those to safe defaults, and the store boundary rejects a non-array `categories`.
+
+**Hardening applied in v1.32.0:**
+
+- **Nonce-based `script-src` CSP (the tracked v1.30.0 follow-up, now shipped).** Production `script-src` drops `'unsafe-inline'` for a per-request nonce minted in a Nitro plugin and stamped onto every script Nuxt emits, so an injected inline script or `javascript:` URI is refused at the CSP layer regardless of any app-level bug. `style-src` keeps `'unsafe-inline'` (Vue `:style` attributes can't be nonced). Verified against a production build in-browser: zero CSP violations, working hydration and color-mode, and an injected inline script blocked by the browser.
+
+Per responsible-disclosure practice, step-by-step exploit detail is held privately.
+
+<details>
+<summary><strong>Previous security reviews</strong> (per-release, v1.30.0 and earlier) — click to expand</summary>
+
 ### v1.30.0 — 2026-07-01 · Word (.docx) accessibility checker + adversarial red/blue audit
 
 The new Word (`.docx`) audit path introduced fresh untrusted-input attack surface — a `.docx` is a user-supplied ZIP of XML parsed in-process with `jszip` + `fast-xml-parser`. A three-front adversarial review (ZIP/XML parsing, denial-of-service/concurrency, and injection/XSS/dispatch/auth) drove every finding against the actual code and the installed library sources; all confirmed issues were fixed test-first before this release. 880 tests pass; `tsc --noEmit` and `nuxt build` clean.
@@ -929,10 +947,7 @@ The new Word (`.docx`) audit path introduced fresh untrusted-input attack surfac
 - **HTML-export XSS via non-string fields.** The downloadable HTML report interpolated score / grade / overall-score / page-count / grade-label values without escaping, while `/api/reports` stored arbitrary caller JSON (`gradeLabel` echoes an unknown grade verbatim). All such sinks now run through `escapeHtml`, and the report store type-validates `filename` / `overallScore` before persisting. Bounded to the downloaded file's `file://` origin (never the app origin), so it could not reach the app session — fixed regardless. Not docx-specific, surfaced by the audit.
 - **URL-route info leak.** `/api/analyze-url`'s catch-all no longer echoes the raw `err.message` to the client (it could leak library/path internals); the detail is logged server-side only, matching the upload route.
 
-Per responsible-disclosure practice, step-by-step exploit detail is held privately. The nonce-based `script-src` follow-up (drop `'unsafe-inline'`) remains tracked.
-
-<details>
-<summary><strong>Previous security reviews</strong> (per-release, v1.29.0 and earlier) — click to expand</summary>
+Per responsible-disclosure practice, step-by-step exploit detail is held privately. The nonce-based `script-src` follow-up (drop `'unsafe-inline'`) shipped in v1.32.0.
 
 ### v1.29.0 — 2026-06-27 · Two-tier rate limiting + privileged token (allowlist bypass)
 
