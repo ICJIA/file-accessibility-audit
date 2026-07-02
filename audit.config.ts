@@ -369,6 +369,66 @@ export const DOCX = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// PPTX (POWERPOINT) ANALYSIS
+// ---------------------------------------------------------------------------
+// Config for the PowerPoint (.pptx) accessibility checker (v1.33.0). Same
+// posture as DOCX: a ZIP of OOXML parts parsed in pure JS on the shared
+// services/ooxml.ts core; reuses the PDF pipeline's scoring aggregation,
+// grade/severity thresholds, WCAG map, conformance-verdict shape, and the
+// report UI.
+// ---------------------------------------------------------------------------
+
+export const PPTX = {
+  /** Feature flag — set PPTX_ENABLED=false to reject .pptx and hide it in the
+   *  web UI (runtimeConfig.public.pptxEnabled). SAFE TO CHANGE: via env var. */
+  ENABLED: process.env.PPTX_ENABLED !== "false",
+
+  /** Canonical MIME type for .pptx (PresentationML). */
+  MIME_TYPE:
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+  /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale
+   *  and budget math as DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
+  MAX_UNCOMPRESSED_BYTES: 30 * 1024 * 1024,
+
+  /** Max slides analyzed; over the cap → rejected (CPU/heap bound, the
+   *  MAX_PARAGRAPHS analogue). 2,000 slides is far beyond any real deck.
+   *  SAFE TO CHANGE. */
+  MAX_SLIDES: 2000,
+
+  /** Max total shapes across all slides; over the cap → rejected.
+   *  SAFE TO CHANGE. */
+  MAX_SHAPES: 100_000,
+
+  /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
+   *  SAFE TO CHANGE. */
+  ANALYSIS_TIMEOUT_MS: 20_000,
+
+  /**
+   * PPTX category weights. PowerPoint maps onto the shared category IDs,
+   * except:
+   *   - slide_titles is PowerPoint-specific (every slide needs a title);
+   *   - reading_order is ACTIVE (title-first-in-shape-tree is machine-checkable)
+   *     — it is permanently N/A for Word;
+   *   - heading_structure / bookmarks are omitted (slide titles are the
+   *     PowerPoint outline); form_accessibility is a not-assessed placeholder.
+   * Weights renormalize across applicable categories, as for PDF/DOCX N/A.
+   * SAFE TO CHANGE: same rules as DOCX.SCORING_WEIGHTS.
+   */
+  SCORING_WEIGHTS: {
+    text_extractability: 0.05,
+    title_language: 0.14,
+    slide_titles: 0.18,
+    alt_text: 0.18,
+    reading_order: 0.1,
+    table_markup: 0.1,
+    color_contrast: 0.1,
+    list_structure: 0.07,
+    link_quality: 0.08,
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // PDF ANALYSIS LIMITS
 // ---------------------------------------------------------------------------
 // Operational limits for the PDF analysis pipeline. These protect the server
