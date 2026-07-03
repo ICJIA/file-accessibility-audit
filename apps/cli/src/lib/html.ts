@@ -441,7 +441,7 @@ ${csvContent ? `<script>
       critList +
       '<div class="detail-actions">' +
         '<a href="' + h(link) + '" target="_blank" rel="noopener" class="detail-action-btn">View Full Analysis in Audit Tool</a>' +
-        (r.u ? '<a href="' + h(r.u) + '" target="_blank" rel="noopener" class="detail-action-btn detail-action-secondary">Download PDF</a>' : '') +
+        (r.u ? '<a href="' + h(r.u) + '" target="_blank" rel="noopener" class="detail-action-btn detail-action-secondary">Download</a>' : '') +
       '</div></div></td></tr>';
   }
 
