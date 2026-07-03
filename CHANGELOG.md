@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.33.0] - 2026-07-03
+
+### Added
+
+- **PowerPoint (`.pptx`) and Excel (`.xlsx`) accessibility auditing** — the tool now audits all four major document formats (PDF, Word, PowerPoint, Excel) through one scoring engine. Per-format WCAG 2.2 AA scoring (PowerPoint 9 categories, Excel 7) with a separate binary conformance verdict, matching the existing PDF/Word model.
+- Fleet (`/api/audit-url`), bulk (`/api/bulk-from-inventory`), and the CLI `publist` command now audit all four formats, not PDF-only.
+- Explicit rejection of legacy binary formats (`.xls` / `.doc` / `.ppt`) in the upload dropzone, with guidance to re-save as the modern format.
+
+### Changed
+
+- OOXML analysis (Word/PowerPoint/Excel) now runs in an interruptible child process, so an analysis timeout genuinely cancels the work.
+- App-wide copy sweep: every UI surface, doc page, diagram, and the social-preview image now present a four-format tool rather than a PDF-centric one.
+
+### Security
+
+- Full three-team red/blue re-audit of the four-format attack surface (parser/DoS, injection/XSS, logic/bypass); every confirmed finding fixed test-first: OOXML DoS hardening (cap-before-walk on shapes/text/cells, an XLSX drawing-part cumulative byte budget), a `publist` download-link scheme guard, `err.message` info-leak fixes on the bulk and page-audit routes, store-sanitize consistency across all shared-report inserts, a CSV formula-injection guard, and stripping application secrets from every child-process environment (OOXML, remediation, and the qpdf subprocess).
+
+### Note
+
+- The PDF and Word audit paths are unchanged (frozen for scoring calibration).
+
 ## [1.32.1] - 2026-07-02
 
 Bugfix: the auto-remediation progress page no longer rate-limits itself. Clicking **Auto remediate this file** on any job longer than ~25 seconds made the page's own status polling (every 250 ms = 240 requests/min) drain the anonymous global rate-limit budget (100/min/IP), so the UI reported "Too many requests" mid-job — even though the remediation itself was completing fine on the server.

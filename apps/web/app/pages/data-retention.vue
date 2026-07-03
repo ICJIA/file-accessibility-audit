@@ -1297,6 +1297,98 @@ CREATE TABLE remediation_jobs (
         release's review and what was done about them.
       </p>
 
+      <!-- v1.33.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.33.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-03</strong> · scope: the new PowerPoint
+            (.pptx) and Excel (.xlsx) audit features — a fresh, independent
+            three-team red/blue review of everything a malicious Office file
+            could try to do to the server.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.33.0 extends the tool to audit PowerPoint and Excel files, not
+          just PDF and Word. Because these are also user-supplied files the
+          server has to open and parse, this release got the same treatment
+          as the earlier Word rollout: three independent reviews — covering
+          server overload, hidden malicious content, and ways the scoring or
+          access rules could be tricked — deliberately tried to break it with
+          poisoned, oversized, and malformed files.
+          <strong>Everything the reviews found was fixed and covered by a
+          new automated test before this release shipped.</strong>
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Tighter limits on how much work a booby-trapped slide deck or
+              spreadsheet can force</strong
+            >
+            — A PowerPoint or Excel file can bury thousands of objects
+            several layers deep, or pair a small file with a few oversized
+            embedded pictures, to make the server do far more work than the
+            file's size suggests. The tool now counts that work — shapes,
+            text, and cells at every nesting depth, and the running byte size
+            of embedded pictures — and stops as soon as a safe limit is
+            crossed, instead of after the damage is already done.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              PowerPoint and Excel files are now analyzed in a separate,
+              cancellable process</strong
+            >
+            — Previously, a pathological file could tie up the same
+            in-process worker used for everything else; if analysis ran past
+            its time limit, the work kept running in the background instead
+            of truly stopping. Word, PowerPoint, and Excel files are now
+            analyzed in their own short-lived process that the server can
+            immediately and completely cancel the moment the time limit is
+            reached.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Uploaded-file processing can no longer see the server's own
+              passwords and keys</strong
+            >
+            — Every helper program the server hands an uploaded file to (for
+            PowerPoint/Excel/Word analysis, for PDF repair, and for
+            auto-remediation) now runs with the server's login secrets, API
+            keys, and mail credentials stripped from its environment — so
+            even a fully compromised helper process has nothing worth
+            stealing.
+          </li>
+        </ul>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong
+            >No change to what data is collected or how long it is
+            kept.</strong
+          >
+          PowerPoint and Excel files are processed in memory and discarded in
+          seconds, exactly like PDF and Word; nothing new is stored or
+          transmitted. The full technical write-up is in the project's
+          README security section.
+        </p>
+      </article>
+
       <!-- v1.32.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

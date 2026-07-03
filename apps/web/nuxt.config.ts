@@ -8,7 +8,7 @@ const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
 const appDesc = 'Upload a PDF, Word, PowerPoint, or Excel document and get an instant accessibility score across WCAG 2.2 (and 2.1) Level AA, ADA Title II, and Illinois IITAA categories with detailed findings and remediation guidance.'
 const datePublished = '2025-03-06'
-const dateModified = '2026-07-02'
+const dateModified = '2026-07-03'
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
