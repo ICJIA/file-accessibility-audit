@@ -1,0 +1,198 @@
+/**
+ * XLSX (OOXML / SpreadsheetML) accessibility extractor on the shared
+ * services/ooxml.ts core; output XlsxAnalysis feeds scoreXlsx().
+ *
+ * v1 boundaries (see the Phase 3 plan): contrast reads xl/styles.xml cell
+ * formats (labeled "cell style #N"), not resolved cell values; hyperlink text
+ * is the `display` attribute or ""; theme/indexed colors are unresolved.
+ */
+import JSZip from "jszip";
+import { XLSX } from "#config";
+import {
+  type PONode,
+  parseXml,
+  tagOf,
+  childrenOf,
+  attrOf,
+  firstChild,
+  descendants,
+  rootElement,
+  parseRelationshipEntries,
+  corePropertyText,
+  drawingAltText,
+  CONTRAST_MIN_NORMAL,
+  CONTRAST_MIN_LARGE,
+  normalizeHex,
+  contrastRatio,
+  readCapped,
+} from "./ooxml.js";
+
+export interface XlsxMetadata {
+  title: string | null;
+  creator: string | null;
+  sheetCount: number;
+}
+
+export interface XlsxAnalysis {
+  metadata: XlsxMetadata;
+  sheets: Array<{
+    name: string;
+    hidden: boolean;
+    defaultNamed: boolean;
+    mergedRangeCount: number;
+    usedRangeCellCount: number;
+    hasDefinedTable: boolean;
+  }>;
+  tables: Array<{ sheetName: string; name: string; hasHeaderRow: boolean }>;
+  images: Array<{ altText: string | null; decorative: boolean }>;
+  links: Array<{ text: string; url: string | null }>;
+  contrast: {
+    checkedRuns: number;
+    unresolvedRuns: number;
+    failing: Array<{
+      text: string;
+      ratio: number;
+      foreground: string;
+      background: string;
+      large: boolean;
+    }>;
+  };
+}
+
+export class XlsxParseError extends Error {
+  code = "XLSX_PARSE_FAILED";
+  constructor(message: string) {
+    super(message);
+    this.name = "XlsxParseError";
+  }
+}
+
+const DEFAULT_SHEET_NAME_RE = /^sheet ?\d+$/i;
+
+/** "AA" → 27. Base-26 spreadsheet column letters. */
+function colToNumber(letters: string): number {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+}
+
+/** Cells in a dimension ref: "A1:D20" → 80, "A1" → 1, malformed → 0. */
+export function cellCountOfRef(ref: string | undefined): number {
+  if (!ref) return 0;
+  const m = /^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(ref.trim().toUpperCase());
+  if (!m) return 0;
+  if (!m[3]) return 1;
+  const cols = Math.abs(colToNumber(m[3]) - colToNumber(m[1])) + 1;
+  const rows = Math.abs(Number(m[4]) - Number(m[2])) + 1;
+  return cols * rows;
+}
+
+/** Resolve a rels Target ("worksheets/sheet1.xml", "../tables/table1.xml",
+ *  "/xl/…") against the xl/ package root. Lookup only — never a filesystem path. */
+function resolveXlTarget(target: string, baseDir: string): string {
+  if (target.startsWith("/")) return target.slice(1);
+  if (target.startsWith("../")) return `xl/${target.slice(3)}`;
+  return `${baseDir}/${target.replace(/^\.\//, "")}`;
+}
+
+export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(buffer);
+  } catch {
+    throw new XlsxParseError("The file is not a readable ZIP/XLSX package.");
+  }
+  const read = (p: string): Promise<string | null> => {
+    const f = zip.file(p);
+    return f
+      ? readCapped(f, XLSX.MAX_UNCOMPRESSED_BYTES, p, (m) => new XlsxParseError(m))
+      : Promise.resolve(null);
+  };
+
+  const workbookXml = await read("xl/workbook.xml");
+  if (workbookXml === null) {
+    throw new XlsxParseError(
+      "xl/workbook.xml is missing — the package is not an Excel workbook.",
+    );
+  }
+  const workbookRoot = rootElement(parseXml(workbookXml), "workbook");
+  const coreRoot = rootElement(parseXml(await read("docProps/core.xml")), "coreProperties");
+  const workbookRels = parseRelationshipEntries(await read("xl/_rels/workbook.xml.rels"));
+
+  const sheetEls = workbookRoot ? descendants(workbookRoot, "sheet") : [];
+  if (sheetEls.length > XLSX.MAX_SHEETS) {
+    throw new XlsxParseError(
+      `This workbook has too many sheets (${sheetEls.length.toLocaleString()}) to analyze.`,
+    );
+  }
+
+  const analysis: XlsxAnalysis = {
+    metadata: {
+      title: corePropertyText(coreRoot, "title"),
+      creator: corePropertyText(coreRoot, "creator"),
+      sheetCount: sheetEls.length,
+    },
+    sheets: [],
+    tables: [],
+    images: [],
+    links: [],
+    contrast: { checkedRuns: 0, unresolvedRuns: 0, failing: [] },
+  };
+
+  let totalCells = 0;
+  for (const sheetEl of sheetEls) {
+    const name = attrOf(sheetEl, "name") ?? "";
+    const state = attrOf(sheetEl, "state");
+    const rid = attrOf(sheetEl, "id"); // r:id — removeNSPrefix strips the prefix
+    const rel = workbookRels.find((r) => r.id === rid);
+    const sheetPath = rel ? resolveXlTarget(rel.target, "xl") : null;
+    const sheetXml = sheetPath ? await read(sheetPath) : null;
+    const sheetRoot = rootElement(parseXml(sheetXml), "worksheet");
+
+    const dimension = sheetRoot ? descendants(sheetRoot, "dimension")[0] : undefined;
+    const cellCount = cellCountOfRef(dimension ? attrOf(dimension, "ref") : undefined);
+    totalCells += cellCount;
+    if (totalCells > XLSX.MAX_CELLS) {
+      throw new XlsxParseError(
+        `This workbook has too many cells (${totalCells.toLocaleString()}+) to analyze.`,
+      );
+    }
+    const merged = sheetRoot ? descendants(sheetRoot, "mergeCell").length : 0;
+
+    const sheetRelsPath = sheetPath
+      ? sheetPath.replace(/worksheets\/(sheet\d+\.xml)$/, "worksheets/_rels/$1.rels")
+      : null;
+    const sheetRels = parseRelationshipEntries(sheetRelsPath ? await read(sheetRelsPath) : null);
+
+    await collectSheetContent(analysis, name, sheetRoot, sheetRels, read);
+
+    analysis.sheets.push({
+      name,
+      hidden: state === "hidden" || state === "veryHidden",
+      defaultNamed: DEFAULT_SHEET_NAME_RE.test(name),
+      mergedRangeCount: merged,
+      usedRangeCellCount: cellCount,
+      hasDefinedTable: sheetRels.some((r) => /\/table$/.test(r.type)),
+    });
+  }
+
+  await collectStylesContrast(analysis, read);
+  return analysis;
+}
+
+async function collectSheetContent(
+  _analysis: XlsxAnalysis,
+  _sheetName: string,
+  _sheetRoot: PONode | undefined,
+  _sheetRels: Array<{ id: string; target: string; type: string }>,
+  _read: (p: string) => Promise<string | null>,
+): Promise<void> {
+  // Filled in by the tables/drawings/links task.
+}
+
+async function collectStylesContrast(
+  _analysis: XlsxAnalysis,
+  _read: (p: string) => Promise<string | null>,
+): Promise<void> {
+  // Filled in by the contrast task.
+}
