@@ -86,15 +86,16 @@ function extractSources() {
 // when the client mermaid runtime was dropped (v1.28.0). Entries here take
 // precedence over page-extracted sources; add one to (re)generate that diagram.
 const INLINE_SOURCES = {
-  // Audit pipeline, PDF + Word (.docx) branch. PDF fans out to the two-tool
-  // (qpdf + pdfjs) path; Word runs fully in-process (JSZip + fast-xml-parser).
+  // Audit pipeline, PDF + Office (.docx/.pptx/.xlsx) branch. PDF fans out to
+  // the two-tool (qpdf + pdfjs) path; the Office formats run fully in-process
+  // (JSZip + fast-xml-parser).
   "audit-flow": `flowchart TD
   U[Browser uploads file] --> V[Validate magic bytes and size]
-  V --> D{PDF or Word?}
+  V --> D{PDF or Office file?}
   D -->|PDF| T[Short-lived qpdf temp copy]
   T --> Q[qpdf analyzes structure]
   T --> J[pdfjs extracts content]
-  D -->|Word .docx| Z[Unzip in memory with JSZip]
+  D -->|Word .docx / PowerPoint .pptx / Excel .xlsx| Z[Unzip in memory with JSZip]
   Z --> X[Parse OOXML with fast-xml-parser]
   Q --> S[Scorer combines results]
   J --> S
