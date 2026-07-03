@@ -273,9 +273,11 @@
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each
              tab can be remediated independently. PDF-only: the remediation
-             pipeline does not apply to Word (.docx) documents. -->
+             pipeline does not apply to Word, PowerPoint, or Excel documents,
+             so gate on the positive fileType === 'pdf' (a negative !== check
+             regresses every time a new format ships). -->
         <div
-          v-if="result?.fileType !== 'docx'"
+          v-if="result?.fileType === 'pdf'"
           class="mb-6 flex justify-center"
           data-export-exclude
         >
