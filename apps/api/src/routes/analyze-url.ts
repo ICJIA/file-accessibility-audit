@@ -124,7 +124,7 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
     if (err?.code === 'DOCX_DISABLED') {
       res.status(415).json({
         error: 'Word (.docx) auditing is currently disabled.',
-        details: 'This server is configured to audit PDF files only.',
+        details: 'This server is not configured to audit Word files. Contact the administrator to enable it.',
       })
       return
     }
@@ -133,8 +133,7 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
     if (err?.code === 'DOCX_PARSE_FAILED') {
       res.status(422).json({
         error: 'The fetched Word document could not be read.',
-        details:
-          'The .docx file appears to be corrupt or is not a valid Word document.',
+        details: 'The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.',
       })
       return
     }
@@ -173,6 +172,15 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
         error: 'The fetched Excel file could not be read.',
         details:
           'The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.',
+      })
+      return
+    }
+
+    // Timeout
+    if (err?.code === 'ETIMEDOUT' || err?.killed) {
+      res.status(504).json({
+        error: 'This file is too complex to analyze within the time limit.',
+        details: 'This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.',
       })
       return
     }

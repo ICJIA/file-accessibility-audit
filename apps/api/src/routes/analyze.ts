@@ -13,7 +13,7 @@ function sanitizeFilename(raw: string): string {
   let name = path.basename(raw)
   name = name.slice(0, FILENAME.MAX_LENGTH)
   name = name.replace(new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, 'g'), '_')
-  return name || 'unnamed.pdf'
+  return name || 'unnamed_file'
 }
 
 // POST /api/analyze
@@ -85,7 +85,7 @@ router.post(
       if (err.code === 'DOCX_DISABLED') {
         res.status(415).json({
           error: 'Word (.docx) auditing is currently disabled.',
-          details: 'This server is configured to audit PDF files only. Please upload a PDF, or contact the administrator to enable Word support.',
+          details: 'This server is not configured to audit Word files. Contact the administrator to enable it.',
         })
         return
       }
@@ -147,16 +147,16 @@ router.post(
       // Timeout
       if (err.code === 'ETIMEDOUT' || err.killed) {
         res.status(504).json({
-          error: 'This PDF is too complex to analyze within the time limit.',
-          details: 'This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections using Adobe Acrobat (File → Organize Pages → Split) and analyzing each section separately.',
+          error: 'This file is too complex to analyze within the time limit.',
+          details: 'This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.',
         })
         return
       }
 
       // Generic parse failure
       res.status(422).json({
-        error: 'This PDF could not be analyzed. The file appears to be damaged or uses a PDF structure that cannot be parsed.',
-        details: 'This sometimes happens with PDFs created by older or non-standard software, or files that were incompletely downloaded. To fix this: (1) Re-download the file from its original source; (2) Open the file in Adobe Acrobat and re-save it (File → Save As → PDF); (3) If the file opens in a browser, print it to a new PDF using Print → Save as PDF.',
+        error: 'This file could not be analyzed.',
+        details: 'It may be corrupt or in an unsupported format. To fix this: (1) Re-download the file from its original source; (2) Open the file in its native application and re-save it; (3) If all else fails, try re-exporting it to the same format.',
       })
     }
   }

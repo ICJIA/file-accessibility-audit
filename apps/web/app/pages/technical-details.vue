@@ -346,7 +346,7 @@ function goBack(): void {
         differently, and running them in parallel lets the scorer reconcile a
         structural view (qpdf) with a content view (pdfjs) — useful for catching
         cases where a PDF claims structure it doesn't actually have, or vice
-        versa. <strong>Word</strong> needs no such reconciliation: its structure
+        versa. <strong>Word, PowerPoint, and Excel</strong> need no such reconciliation: their structure
         is declared explicitly in the OOXML, so a single parser reads it
         directly.
       </p>
@@ -414,8 +414,8 @@ function goBack(): void {
         5. Why remediation is fundamentally limited
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        Auto-remediation applies to <strong>PDF only</strong> — Word doesn't
-        need it (fix the source in Word directly, then re-export). Auditing is
+        Auto-remediation applies to <strong>PDF only</strong> — Word, PowerPoint, and Excel don't
+        need it (fix the source in Office directly, then re-export). Auditing is
         read-only: you walk the document's structure and report what's there.
         Remediation is read-modify-write — and PDFs make that genuinely hard:
       </p>
@@ -504,7 +504,7 @@ function goBack(): void {
         Two small services run on a single DigitalOcean droplet, managed
         by PM2 and fronted by Nginx. Every dependency is open source and runs
         locally. The PDF path shells out to qpdf (and, for remediation, the
-        OpenDataLoader and veraPDF Java tools); the Word path needs none of
+        OpenDataLoader and veraPDF Java tools); the Word, PowerPoint, and Excel path needs none of
         those — it runs entirely in-process with the JSZip and fast-xml-parser
         JavaScript libraries.
       </p>
@@ -512,7 +512,7 @@ function goBack(): void {
       <DiagramFigure
         name="architecture"
         title="Application architecture"
-        desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; it reads and writes SQLite locally. No external services."
+        desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. The PDF path shells out to qpdf, OpenDataLoader Java, and veraPDF Java; the Word, PowerPoint, and Excel path unzips in-memory with JSZip and fast-xml-parser. Express reads and writes SQLite locally. No external services."
       />
     </section>
 

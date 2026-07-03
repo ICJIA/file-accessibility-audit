@@ -5,7 +5,7 @@
     <div v-if="pending" class="text-[var(--text-muted)]">Loading…</div>
 
     <div v-else-if="!data?.data?.length" class="text-[var(--text-muted)]">
-      No analyses yet. <NuxtLink to="/" class="text-[var(--accent-green)] hover:underline">Analyze a PDF</NuxtLink> to get started.
+      No analyses yet. <NuxtLink to="/" class="text-[var(--accent-green)] hover:underline">Analyze a file</NuxtLink> to get started.
     </div>
 
     <div v-else>
