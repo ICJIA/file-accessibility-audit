@@ -610,16 +610,123 @@ export function evaluatePptxConformance(
 }
 
 /**
- * XLSX conformance gate. Skeleton — real gate rules land in the next task.
- * Exists now only so scoreXlsx() (which needs a ConformanceVerdict for every
- * scoring result) has something to import and the build stays green; it
- * always reports a clean verdict until the next task replaces this wholesale
- * with the real Excel-specific machine-checkable rules.
+ * XLSX conformance gate. A self-contained analogue of `evaluateDocxConformance`
+ * — same structure, same discipline: fires only on confirmed, machine-checkable
+ * violations. The 1.3.1 table check fires ONLY on a defined table with header
+ * row explicitly off (`hasHeaderRow: false`); the "data range with no defined
+ * table" signal and merged-cell counts are scoring-only advisories, never a
+ * confirmed WCAG violation on their own (a data region without a Table object
+ * may still be a legitimate, if unstructured, layout; merges alone don't imply
+ * broken header association).
+ *
+ * Color contrast is machine-checkable the same way as docx/pptx (styles.xml
+ * cell styles carry explicit rgb colors), so 1.4.3 can be a confirmed failure
+ * here too. Unlike docx/pptx, 3.1.1 is ALWAYS "not assessed": Excel workbooks
+ * have no document-language property at all (not merely one this tool doesn't
+ * resolve yet), so asserting a confirmed failure would overstate what's true —
+ * this is a structural fact about the file format, not a v1 boundary.
  */
 export function evaluateXlsxConformance(
   analysis: XlsxAnalysis,
 ): ConformanceVerdict {
-  // Skeleton — real gate rules land in the next task.
-  void analysis;
-  return { status: "no-automated-failures", failures: [], notAssessed: [], headline: "" };
+  const failures: ConformanceFinding[] = [];
+  const add = (
+    sc: string,
+    name: string,
+    level: "A" | "AA",
+    category: string,
+    issue: string,
+  ): void => {
+    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+  };
+
+  // 1. Non-decorative images without alt text → 1.1.1.
+  const imagesMissingAlt = analysis.images.filter(
+    (i) => !i.decorative && !(i.altText && i.altText.trim()),
+  ).length;
+  if (imagesMissingAlt > 0) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "alt_text",
+      `${imagesMissingAlt} image(s) have no alternative text. In Excel: right-click the image → View Alt Text and add a description (or mark it decorative).`,
+    );
+  }
+
+  // 2. No document title → 2.4.2.
+  if (!analysis.metadata.title) {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      "The workbook has no title in its properties; a screen reader announces the filename instead. In Excel: File → Info → Properties → Title.",
+    );
+  }
+
+  // 3. Defined tables with the header row explicitly off → 1.3.1. Never the
+  //    data-region heuristic (a used range with no Table object) and never
+  //    merged cells — both are scoring-only advisories, not confirmed
+  //    WCAG violations (see the doc comment above).
+  const tablesNoHeader = analysis.tables.filter((t) => !t.hasHeaderRow).length;
+  if (tablesNoHeader > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "table_markup",
+      `${tablesNoHeader} table(s) have no header row, so screen readers cannot associate data cells with their headers. In Excel: select the range → Insert → Table → check "My table has headers".`,
+    );
+  }
+
+  // 4. Confirmed low-contrast cell styles → 1.4.3 (machine-checkable via
+  //    literal rgb colors on solid fills).
+  if (analysis.contrast.failing.length > 0) {
+    const worst = analysis.contrast.failing.reduce((a, b) =>
+      a.ratio < b.ratio ? a : b,
+    );
+    add(
+      "1.4.3",
+      "Contrast (Minimum)",
+      "AA",
+      "color_contrast",
+      `${analysis.contrast.failing.length} cell style(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or fill color in Excel.`,
+    );
+  }
+
+  // --- criteria not assessed automatically ----------------------------------
+  const notAssessed: NotAssessedCriterion[] = [
+    {
+      sc: "3.1.1",
+      name: "Language of Page",
+      level: "A",
+      reason:
+        "Excel workbooks do not store a document language, so assistive technology falls back to the reader's defaults — this criterion cannot be evaluated for spreadsheets.",
+      url: wcagUrl("3.1.1"),
+    },
+    {
+      sc: "1.3.2",
+      name: "Meaningful Sequence",
+      level: "A",
+      reason:
+        "Reading order (sheet order and tab order) is not machine-verified — manual review recommended.",
+      url: wcagUrl("1.3.2"),
+    },
+  ];
+  // Contrast is assessed when a literal rgb color on a solid fill was
+  // resolvable; only surface it as "not assessed" when nothing could be
+  // checked.
+  if (analysis.contrast.checkedRuns === 0) {
+    notAssessed.push({
+      sc: "1.4.3",
+      name: "Contrast (Minimum)",
+      level: "AA",
+      reason:
+        "No cell style with an explicit color was found; only literal rgb colors on solid fills are resolvable in this version, so contrast could not be evaluated.",
+      url: wcagUrl("1.4.3"),
+    });
+  }
+
+  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
 }
