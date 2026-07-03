@@ -376,6 +376,62 @@ describe("ScoreCard", () => {
       expect(wrapper.text()).toContain(label);
     },
   );
+
+  it.each([
+    { fileType: "docx", app: "Word" },
+    { fileType: "pptx", app: "PowerPoint" },
+    { fileType: "xlsx", app: "Excel" },
+  ])(
+    "points $fileType results at $app's built-in Accessibility Checker",
+    ({ fileType, app }) => {
+      const wrapper = mount(ScoreCard, {
+        props: { result: { ...baseResult, fileType } },
+      });
+      expect(wrapper.text()).toContain(`${app}'s built-in`);
+      expect(wrapper.text()).toContain(
+        `Because this ${app} file is the source document`,
+      );
+      expect(wrapper.text()).not.toContain("Adobe Acrobat");
+    },
+  );
+
+  it("keeps the Acrobat caveat for PDF results", () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: { ...baseResult, fileType: "pdf" } },
+    });
+    expect(wrapper.text()).toContain("Adobe Acrobat's Accessibility Checker");
+  });
+
+  it("names the source app in the warning-tone conformance fix path", () => {
+    const wrapper = mount(ScoreCard, {
+      props: {
+        result: {
+          ...baseResult,
+          grade: "F",
+          overallScore: 20,
+          fileType: "pptx",
+          conformance: {
+            status: "fail",
+            headline: "Confirmed failures found.",
+            failures: [
+              {
+                sc: "1.1.1",
+                name: "Non-text Content",
+                level: "A",
+                category: "alt_text",
+                issue: "2 images have no alt text",
+                url: "https://example.org",
+              },
+            ],
+            notAssessed: [],
+          },
+        },
+      },
+    });
+    expect(wrapper.text()).toContain(
+      "fix the issues directly in PowerPoint (Review → Check Accessibility)",
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
