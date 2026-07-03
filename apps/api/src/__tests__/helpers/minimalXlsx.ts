@@ -22,6 +22,23 @@ export interface SheetOpts {
   /** Raw anchor XML appended verbatim inside the generated <xdr:wsDr>
    *  (the drawing part + rel are created when set, even if drawings is empty). */
   rawDrawings?: string;
+  /** Real cells placed in <sheetData>, grouped into <row> elements by the row
+   *  number parsed out of `ref` (e.g. "A1" → row 1). Each entry renders as
+   *  `<c r="{ref}" s="{styleIndex}"><v>{value}</v></c>` (or the inline-string
+   *  / formula form per `kind`, or a bare self-closing `<c r="{ref}" s="N"/>`
+   *  when `empty: true`). Omit entirely for the default empty `<sheetData/>`.
+   *  Drives (a) the real-<c>-based MAX_CELLS cap and (b) which cellXfs style
+   *  indices count as "applied" for contrast — only a cell with a value child
+   *  (`<v>`/`<is>`/`<f>`) counts as non-empty. */
+  cells?: Array<{
+    ref: string;
+    styleIndex?: number;
+    value?: string;
+    /** v = <v> value (default), is = inline string, f = formula. */
+    kind?: "v" | "is" | "f";
+    /** Emit a bare `<c r="{ref}" s="N"/>` with no value child. */
+    empty?: boolean;
+  }>;
 }
 
 export interface BuildXlsxOpts {
@@ -32,6 +49,39 @@ export interface BuildXlsxOpts {
 }
 
 const R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+
+function rowNumOfCellRef(ref: string): number {
+  const m = /^[A-Z]+(\d+)$/.exec(ref);
+  return m ? Number(m[1]) : 1;
+}
+
+function renderCell(c: NonNullable<SheetOpts["cells"]>[number]): string {
+  const sAttr = c.styleIndex !== undefined ? ` s="${c.styleIndex}"` : "";
+  if (c.empty) return `<c r="${c.ref}"${sAttr}/>`;
+  const kind = c.kind ?? "v";
+  const value = c.value ?? "1";
+  if (kind === "f") return `<c r="${c.ref}"${sAttr}><f>${value}</f></c>`;
+  if (kind === "is") return `<c r="${c.ref}"${sAttr} t="inlineStr"><is><t>${value}</t></is></c>`;
+  return `<c r="${c.ref}"${sAttr}><v>${value}</v></c>`;
+}
+
+/** Renders <sheetData/> (empty, the historical default) or a populated
+ *  <sheetData> with cells grouped into <row> elements by ref row number. */
+function renderSheetData(cells: SheetOpts["cells"]): string {
+  if (!cells?.length) return "<sheetData/>";
+  const byRow = new Map<number, string[]>();
+  for (const c of cells) {
+    const row = rowNumOfCellRef(c.ref);
+    const arr = byRow.get(row) ?? [];
+    arr.push(renderCell(c));
+    byRow.set(row, arr);
+  }
+  const rows = [...byRow.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([row, cellsXml]) => `<row r="${row}">${cellsXml.join("")}</row>`)
+    .join("");
+  return `<sheetData>${rows}</sheetData>`;
+}
 
 export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
   const zip = new JSZip();
@@ -160,7 +210,7 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     }
     zip.file(
       `xl/worksheets/sheet${i + 1}.xml`,
-      `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${dim}<sheetData/>${merges}${links}</worksheet>`,
+      `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${dim}${renderSheetData(s.cells)}${merges}${links}</worksheet>`,
     );
     if (rels.length) {
       zip.file(

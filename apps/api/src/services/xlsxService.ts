@@ -5,6 +5,16 @@
  * v1 boundaries (see the Phase 3 plan): contrast reads xl/styles.xml cell
  * formats (labeled "cell style #N"), not resolved cell values; hyperlink text
  * is the `display` attribute or ""; theme/indexed colors are unresolved.
+ *
+ * Security/correctness hardening (fix-2, red/blue audit): worksheet `<c>`
+ * cells are now parsed for three interlocking reasons — (1) the MAX_CELLS cap
+ * is derived from the actually-parsed cells (any depth), never the
+ * self-reported `<dimension ref>`, which is attacker-controlled; (2) contrast
+ * is evaluated only for cellXfs styles applied to a non-empty cell, so
+ * unused/template styles (openpyxl, PhpSpreadsheet routinely emit these)
+ * can't produce a false WCAG 1.4.3 finding; (3) drawing objects and
+ * hyperlinks are capped across all sheets, mirroring pptxService's
+ * countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk pattern.
  */
 import JSZip from "jszip";
 import { XLSX } from "#config";
@@ -95,6 +105,43 @@ function resolveXlTarget(target: string, baseDir: string): string {
   return `${baseDir}/${target.replace(/^\.\//, "")}`;
 }
 
+/** Value-child tags that make a `<c>` cell non-empty: `<v>` (value), `<is>`
+ *  (inline string), or `<f>` (formula). A bare `<c s="N"/>` with none of
+ *  these is empty. */
+const CELL_VALUE_CHILD_TAGS = new Set(["v", "is", "f"]);
+function cellHasValue(c: PONode): boolean {
+  return childrenOf(c).some((ch) => CELL_VALUE_CHILD_TAGS.has(tagOf(ch) ?? ""));
+}
+
+/**
+ * Any-depth count of `<c>` cell elements under a worksheet root. This is what
+ * the MAX_CELLS cap is checked against — NOT the self-reported `<dimension
+ * ref>`, which is attacker-controlled: a hostile `<dimension ref="A1:A1"/>`
+ * over a multi-megabyte `<sheetData>` would otherwise bypass the cap entirely
+ * while the content walks (drawings, hyperlinks, tables) still process every
+ * real cell's siblings. Any-depth (not a fixed sheetData>row>c assumption) so
+ * unusual nesting can't hide volume from the cap either. Exported for direct
+ * unit testing (mirrors pptx's countShapesAnyDepth / countTextElementsAnyDepth).
+ */
+export function countCellsAnyDepth(sheetRoot: PONode): number {
+  return descendants(sheetRoot, "c").length;
+}
+
+/**
+ * Collect the set of cellXfs indices (`<c s="N">`) applied to a NON-EMPTY
+ * cell (see cellHasValue). collectStylesContrast below restricts itself to
+ * this set — a style no visible cell uses can't produce a false WCAG 1.4.3
+ * finding. A cell with no explicit `s` attribute uses style index 0 (Excel's
+ * default "Normal" style).
+ */
+function collectAppliedCellStyles(sheetRoot: PONode, applied: Set<number>): void {
+  for (const c of descendants(sheetRoot, "c")) {
+    if (!cellHasValue(c)) continue;
+    const s = attrOf(c, "s");
+    applied.add(s !== undefined ? Number(s) : 0);
+  }
+}
+
 export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   let zip: JSZip;
   try {
@@ -140,6 +187,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   };
 
   let totalCells = 0;
+  const appliedStyleIndices = new Set<number>();
   for (const sheetEl of sheetEls) {
     const name = attrOf(sheetEl, "name") ?? "";
     const state = attrOf(sheetEl, "state");
@@ -149,14 +197,22 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     const sheetXml = sheetPath ? await read(sheetPath) : null;
     const sheetRoot = rootElement(parseXml(sheetXml), "worksheet");
 
+    // usedRangeCellCount is DISPLAY/SCORING metadata only (feeds
+    // scoreXlsxTableMarkup's "≥12 cells" heuristic) — still sourced from the
+    // self-reported <dimension ref>, same as before. It must NEVER drive the
+    // MAX_CELLS security cap below — see countCellsAnyDepth's doc comment.
     const dimension = sheetRoot ? descendants(sheetRoot, "dimension")[0] : undefined;
-    const cellCount = cellCountOfRef(dimension ? attrOf(dimension, "ref") : undefined);
-    totalCells += cellCount;
+    const usedRangeCellCount = cellCountOfRef(dimension ? attrOf(dimension, "ref") : undefined);
+
+    const realCellCount = sheetRoot ? countCellsAnyDepth(sheetRoot) : 0;
+    totalCells += realCellCount;
     if (totalCells > XLSX.MAX_CELLS) {
       throw new XlsxParseError(
         `This workbook has too many cells (${totalCells.toLocaleString()}+) to analyze.`,
       );
     }
+    if (sheetRoot) collectAppliedCellStyles(sheetRoot, appliedStyleIndices);
+
     const merged = sheetRoot ? descendants(sheetRoot, "mergeCell").length : 0;
 
     const sheetRelsPath = sheetPath
@@ -171,12 +227,12 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
       hidden: state === "hidden" || state === "veryHidden",
       defaultNamed: DEFAULT_SHEET_NAME_RE.test(name),
       mergedRangeCount: merged,
-      usedRangeCellCount: cellCount,
+      usedRangeCellCount,
       hasDefinedTable: sheetRels.some((r) => /\/table$/.test(r.type)),
     });
   }
 
-  await collectStylesContrast(analysis, read);
+  await collectStylesContrast(analysis, read, appliedStyleIndices);
   return analysis;
 }
 
@@ -218,6 +274,13 @@ async function collectSheetContent(
         if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
       }
     }
+    // FIX C: bound analysis.images (accumulated across all sheets) — otherwise
+    // unbounded, limited only by MAX_UNCOMPRESSED_BYTES × MAX_SHEETS.
+    if (analysis.images.length > XLSX.MAX_DRAWING_OBJECTS) {
+      throw new XlsxParseError(
+        `This workbook has too many drawing objects (${analysis.images.length.toLocaleString()}+) to analyze.`,
+      );
+    }
   }
 
   // Hyperlinks: display attr or "" (cell text not resolved — v1 boundary).
@@ -229,6 +292,13 @@ async function collectSheetContent(
         text: (attrOf(link, "display") ?? "").trim(),
         url: rid && relMap.has(rid) ? relMap.get(rid)! : null,
       });
+    }
+    // FIX C: bound analysis.links (accumulated across all sheets) — same
+    // unbounded-growth rationale as the drawing-object cap above.
+    if (analysis.links.length > XLSX.MAX_HYPERLINKS) {
+      throw new XlsxParseError(
+        `This workbook has too many hyperlinks (${analysis.links.length.toLocaleString()}+) to analyze.`,
+      );
     }
   }
 }
@@ -243,6 +313,7 @@ function argbToHex(v: string | undefined): string | null {
 async function collectStylesContrast(
   analysis: XlsxAnalysis,
   read: (p: string) => Promise<string | null>,
+  appliedStyleIndices: Set<number>,
 ): Promise<void> {
   const stylesRoot = rootElement(parseXml(await read("xl/styles.xml")), "styleSheet");
   if (!stylesRoot) return;
@@ -255,6 +326,12 @@ async function collectStylesContrast(
   const xfs = childrenOf(xfsEl).filter((c) => tagOf(c) === "xf");
 
   xfs.forEach((xf, idx) => {
+    // FIX B: a style no NON-EMPTY cell applies produces no contrast signal at
+    // all (not checked, not unresolved, not failing). openpyxl and
+    // PhpSpreadsheet routinely emit unused/template cellXfs; evaluating every
+    // <xf> unconditionally turned those into false WCAG 1.4.3 failures — even
+    // an entirely empty <sheetData/> could "fail" contrast.
+    if (!appliedStyleIndices.has(idx)) return;
     const font = fonts[Number(attrOf(xf, "fontId"))];
     const fill = fills[Number(attrOf(xf, "fillId"))];
     if (!font || !fill) return;

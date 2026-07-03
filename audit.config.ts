@@ -468,8 +468,21 @@ export const XLSX = {
   MAX_SHEETS: 200,
 
   /** Max total used-range cells (worksheet XML is the volume driver — this is
-   *  the MAX_PARAGRAPHS analogue). Over the cap → rejected. SAFE TO CHANGE. */
+   *  the MAX_PARAGRAPHS analogue). Checked against the ACTUAL parsed `<c>`
+   *  cells (any depth, accumulated across sheets) — never the self-reported
+   *  `<dimension ref>`, which is attacker-controlled (see countCellsAnyDepth's
+   *  doc comment in xlsxService.ts). Over the cap → rejected. SAFE TO CHANGE. */
   MAX_CELLS: 1_000_000,
+
+  /** Max total drawing objects (pictures/charts) across all sheets; over the
+   *  cap → rejected. Otherwise unbounded — limited only by
+   *  MAX_UNCOMPRESSED_BYTES × MAX_SHEETS. Mirrors PPTX.MAX_SHAPES's DoS
+   *  rationale. SAFE TO CHANGE. */
+  MAX_DRAWING_OBJECTS: 100_000,
+
+  /** Max total hyperlinks across all sheets; over the cap → rejected. Same
+   *  unbounded-growth rationale as MAX_DRAWING_OBJECTS. SAFE TO CHANGE. */
+  MAX_HYPERLINKS: 100_000,
 
   /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
    *  SAFE TO CHANGE. */

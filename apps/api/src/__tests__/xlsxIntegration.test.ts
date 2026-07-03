@@ -17,8 +17,12 @@ describe('xlsx integration: accessible workbook', () => {
         tables: [{ name: 'Grants' }],
         drawings: [{ kind: 'chart', descr: 'Awards by county, FY26' }],
         hyperlinks: [{ id: 'rIdH1', target: 'https://example.gov/r', display: 'Methodology notes' }],
+        // Applied to a real cell so color_contrast is genuinely checked (and
+        // passes), not silently N/A — a style no cell uses is never evaluated
+        // (fix-2: contrast false-positive/false-negative hardening).
+        cells: [{ ref: 'A1', styleIndex: 1, value: 'County' }],
       }],
-      styles: [{ fontRgb: 'FF000000', fillRgb: 'FFFFFFFF' }],
+      styles: [{ fontRgb: 'FF000000', fillRgb: 'FFFFFFFF' }], // 21:1 → passes
     })
     const r = await analyzeDocument(buf, 'accessible.xlsx')
     expect(r.fileType).toBe('xlsx')
@@ -37,10 +41,14 @@ describe('xlsx integration: inaccessible workbook', () => {
           tables: [{ name: 'Bad', headerRowCount: 0 }],
           drawings: [{ kind: 'pic' }],
           hyperlinks: [{ id: 'rIdH1', target: 'https://example.gov/x', display: 'https://example.gov/x' }],
+          // Applied to a real cell so 1.4.3 fires legitimately — an unused
+          // style (the pre-fix-2 fixture's <sheetData/> was always empty) is
+          // never evaluated (fix-2: contrast false-positive hardening).
+          cells: [{ ref: 'A1', styleIndex: 1, value: 'Total' }],
         },
         { name: 'Sheet2', dimensionRef: 'A1:D30' },
       ],
-      styles: [{ fontRgb: 'FFDDDDDD', fillRgb: 'FFFFFFFF' }],
+      styles: [{ fontRgb: 'FFDDDDDD', fillRgb: 'FFFFFFFF' }], // ≈1.35:1 → fails
     })
     const r = await analyzeDocument(buf, 'inaccessible.xlsx')
     expect(r.overallScore).toBeLessThanOrEqual(35)
