@@ -2,7 +2,7 @@ import { Router, Response, type IRouter } from 'express'
 import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.js'
-import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { analyzeDocument, detectFileType } from '../services/analyzer.js'
 import { gateIdentity, recordAudit } from '../services/auditLog.js'
 import { DEPLOY, SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
@@ -21,16 +21,26 @@ const router: IRouter = Router()
 // ---------------------------------------------------------------------------
 // POST /api/audit-url
 // ---------------------------------------------------------------------------
-// Combined "analyze a PDF by URL and persist a shareable report" endpoint.
-// Designed for fleet-audit automation: one call per PDF returns the
-// strict / practical grades plus a stable reportUrl that can be embedded
-// in the fleet inventory's HTML / CSV output.
+// Combined "analyze a document by URL and persist a shareable report"
+// endpoint. Designed for fleet-audit automation: one call per document
+// returns the strict / practical grades plus a stable reportUrl that can
+// be embedded in the fleet inventory's HTML / CSV output.
+//
+// Accepts PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) —
+// detected from the fetched content via detectFileType(), never from the
+// URL's extension — and dispatched through the same analyzeDocument()
+// pipeline used by /api/analyze and /api/analyze-url, so this endpoint
+// inherits the concurrency semaphore, per-format DoS caps, and the
+// interruptible-child-process analysis timeout for free. This endpoint
+// used to accept PDFs only (a raw %PDF- magic-byte gate + a direct
+// analyzePDF call); fleet callers that send PDFs keep working
+// byte-identically after this change.
 //
 // Body: { url: string, force?: boolean }
 // Auth: required (authMiddleware accepts session cookie or Bearer PAT)
 //
 // Hash-based dedup (Policy A):
-//   After fetching the PDF the server computes sha256(bytes). If an
+//   After fetching the document the server computes sha256(bytes). If an
 //   unexpired shared_reports row already exists for (content_hash, email)
 //   the existing reportUrl is returned and no new audit runs. Pass
 //   force=true (body field) or ?force=true (query) to skip dedup and
@@ -129,11 +139,14 @@ router.post(
 
       const buf = fetched.buffer
 
-      const header = buf.subarray(0, 5).toString('ascii')
-      if (header !== '%PDF-') {
+      // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content (not
+      // the URL extension) — same dispatcher /api/analyze-url uses.
+      const fileType = await detectFileType(buf)
+      if (!fileType) {
         res.status(422).json({
-          error: 'Fetched content is not a valid PDF.',
-          details: `The first 5 bytes were '${header}', expected '%PDF-'. Verify the URL points directly at a PDF file.`,
+          error: 'Fetched content is not a supported document.',
+          details:
+            'The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.',
         })
         return
       }
@@ -179,11 +192,16 @@ router.post(
       }
 
       // --- Fresh audit + persist ----------------------------------------
-      const rawName =
-        check.parsed?.pathname.split('/').pop() ?? 'remote.pdf'
-      const filename = rawName.slice(0, 200) || 'remote.pdf'
+      // Derive the filename from the final (post-redirect) URL, mirroring
+      // analyze-url.ts — safeFetch returns finalUrl so a short-link that
+      // 302s to the real file is named after the real file, not the
+      // short-link path. The fallback name is parameterized by the
+      // detected type instead of a hardcoded .pdf.
+      const finalPath = new URL(fetched.finalUrl).pathname
+      const rawName = finalPath.split('/').pop() ?? `remote.${fileType}`
+      const filename = rawName.slice(0, 200) || `remote.${fileType}`
 
-      const result = await analyzePDF(buf, filename)
+      const result = await analyzeDocument(buf, filename)
       const audited = new Date().toISOString()
 
       const id = crypto.randomBytes(16).toString('hex')
@@ -210,7 +228,7 @@ router.post(
       // Canonical audit-log write so audit-url-audited content also
       // counts for the remediation gate (v1.20.1+). The fleet flow
       // typically uses this endpoint; without this write, remediating
-      // a fleet-audited PDF would fail the gate. shared_reports above
+      // a fleet-audited file would fail the gate. shared_reports above
       // is the durable / shareable record; audit_log is the gate
       // record. Both intentionally exist.
       recordAudit({
@@ -236,6 +254,7 @@ router.post(
         cached: false,
       })
     } catch (err: any) {
+      // Server busy (concurrency semaphore full/timeout)
       if (err?.status === 503) {
         res.status(503).json({
           error: 'The server is busy processing other files.',
@@ -244,10 +263,86 @@ router.post(
         return
       }
 
+      // DOCX auditing disabled via DOCX_ENABLED=false
+      if (err?.code === 'DOCX_DISABLED') {
+        res.status(415).json({
+          error: 'Word (.docx) auditing is currently disabled.',
+          details: 'This server is configured to audit PDF files only.',
+        })
+        return
+      }
+
+      // DOCX could not be parsed (corrupt or not a real Word package)
+      if (err?.code === 'DOCX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'The fetched Word document could not be read.',
+          details:
+            'The .docx file appears to be corrupt or is not a valid Word document.',
+        })
+        return
+      }
+
+      // PPTX auditing disabled via PPTX_ENABLED=false
+      if (err?.code === 'PPTX_DISABLED') {
+        res.status(415).json({
+          error: 'PowerPoint (.pptx) auditing is currently disabled.',
+          details:
+            'This server is not configured to audit PowerPoint files. Contact the administrator to enable it.',
+        })
+        return
+      }
+
+      // PPTX could not be parsed (corrupt or not a real PowerPoint package)
+      if (err?.code === 'PPTX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'The fetched PowerPoint file could not be read.',
+          details:
+            'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
+        })
+        return
+      }
+
+      // XLSX auditing disabled via XLSX_ENABLED=false
+      if (err?.code === 'XLSX_DISABLED') {
+        res.status(415).json({
+          error: 'Excel (.xlsx) auditing is currently disabled.',
+          details:
+            'This server is not configured to audit Excel files. Contact the administrator to enable it.',
+        })
+        return
+      }
+
+      // XLSX could not be parsed (corrupt or not a real Excel workbook)
+      if (err?.code === 'XLSX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'The fetched Excel file could not be read.',
+          details:
+            'The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.',
+        })
+        return
+      }
+
+      // Analysis timed out. DOCX/PPTX/XLSX analysis runs in a dedicated
+      // child process with a wall-clock timeout (see ooxmlRunner.ts),
+      // which rejects with { killed: true, code: 'ETIMEDOUT' }. NOTE:
+      // analyze-url.ts does not yet have this branch (same bug, tracked
+      // separately) — audit-url needs it now that fleet callers can send
+      // any of the four formats, some of which can legitimately time out.
+      if (err?.code === 'ETIMEDOUT' || err?.killed) {
+        res.status(504).json({
+          error:
+            'This document is too complex to analyze within the time limit.',
+          details:
+            'This can happen with very large or complex files. Try splitting the document into smaller sections and analyzing each separately.',
+        })
+        return
+      }
+
+      // Log the detail server-side only — never echo raw err.message to
+      // the client (it can leak library internals / paths). Mirrors
+      // analyze-url.ts / analyze.ts.
       console.error('audit-url error:', err)
-      res
-        .status(500)
-        .json({ error: 'Internal server error', details: err?.message })
+      res.status(500).json({ error: 'Internal server error' })
     }
   },
 )

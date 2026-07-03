@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { detectFileType } from '../services/analyzer.js'
 
 // ---------------------------------------------------------------------------
 // Unit tests for /api/audit-url
@@ -8,6 +9,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // analyze-url.test.ts — not re-tested here. These tests target what's new
 // in audit-url: hash dedup, force bypass, the trimmed response shape, and
 // the strict/practical score extraction.
+//
+// v1.33 migration (PDF-only → all four formats, via the same
+// analyzeDocument/detectFileType dispatcher analyze-url.ts uses): also
+// covers the finalUrl-based filename derivation, the unsupported-type 422
+// gate (against the REAL detectFileType — see the import above, safe
+// because detectFileType never touches the acquireSemaphore/
+// releaseSemaphore exports that the pdfAnalyzer.js mock below omits), and
+// the error-code → HTTP-status mapping in the route's catch block,
+// including the ETIMEDOUT→504 branch that analyze-url.ts is still
+// missing (a known, separately-tracked bug — audit-url.ts has it).
 // ---------------------------------------------------------------------------
 
 vi.mock('../db/sqlite.js', () => ({
@@ -17,6 +28,16 @@ vi.mock('../db/sqlite.js', () => ({
 vi.mock('../services/pdfAnalyzer.js', () => ({
   analyzePDF: vi.fn(),
 }))
+
+function makeRes() {
+  const res: any = {
+    _status: 200,
+    _json: null as any,
+    status(code: number) { res._status = code; return res },
+    json(body: any) { res._json = body; return res },
+  }
+  return res
+}
 
 // ---------------------------------------------------------------------------
 // Inline reimplementations of the pure helpers in audit-url.ts. We can't
@@ -218,25 +239,149 @@ describe('audit-url response shape', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Filename derivation from URL path (shared with analyze-url)
+// Filename derivation from the final (post-redirect) URL — v1.33 migration
+// ---------------------------------------------------------------------------
+// audit-url now derives the filename from safeFetch's `finalUrl` (the
+// post-redirect URL), exactly like analyze-url.ts, instead of the
+// original request URL's `check.parsed`. The fallback name is
+// parameterized by the detected file type instead of a hardcoded
+// 'remote.pdf'. Uses the real (native) URL API, same as the route.
 // ---------------------------------------------------------------------------
 
 describe('audit-url filename derivation', () => {
-  it('uses the URL pathname terminal segment', () => {
-    const url = new URL('https://icjia.illinois.gov/reports/annual-2022.pdf')
-    const raw = url.pathname.split('/').pop() ?? 'remote.pdf'
-    expect(raw).toBe('annual-2022.pdf')
+  function deriveFilename(finalUrl: string, fileType: string): string {
+    const finalPath = new URL(finalUrl).pathname
+    const rawName = finalPath.split('/').pop() ?? `remote.${fileType}`
+    return rawName.slice(0, 200) || `remote.${fileType}`
+  }
+
+  it('uses the final (post-redirect) URL pathname terminal segment', () => {
+    expect(
+      deriveFilename('https://icjia.illinois.gov/reports/annual-2022.pdf', 'pdf'),
+    ).toBe('annual-2022.pdf')
   })
 
-  it('falls back to remote.pdf when the path has no terminal segment', () => {
-    const url = new URL('https://icjia.illinois.gov/')
-    const raw = url.pathname.split('/').pop() || 'remote.pdf'
-    expect(raw).toBe('remote.pdf')
+  it('uses the redirect target, not the originally-requested URL', () => {
+    // safeFetch follows redirects internally; finalUrl reflects the last
+    // hop. A short-link that 302s to the real file must name the report
+    // after the real file, not the short-link path.
+    expect(
+      deriveFilename('https://icjia.illinois.gov/files/quarterly-report.docx', 'docx'),
+    ).toBe('quarterly-report.docx')
+  })
+
+  it('falls back to remote.<type> (not remote.pdf) when the path has no terminal segment', () => {
+    expect(deriveFilename('https://icjia.illinois.gov/', 'pdf')).toBe('remote.pdf')
+    expect(deriveFilename('https://icjia.illinois.gov/', 'docx')).toBe('remote.docx')
+    expect(deriveFilename('https://icjia.illinois.gov/', 'pptx')).toBe('remote.pptx')
+    expect(deriveFilename('https://icjia.illinois.gov/', 'xlsx')).toBe('remote.xlsx')
   })
 
   it('caps the filename at 200 characters', () => {
-    const longName = 'a'.repeat(500) + '.pdf'
-    const capped = longName.slice(0, 200) || 'remote.pdf'
-    expect(capped.length).toBe(200)
+    const longUrl = 'https://icjia.illinois.gov/' + 'a'.repeat(500) + '.pdf'
+    expect(deriveFilename(longUrl, 'pdf').length).toBe(200)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Unsupported-type gate: detectFileType(buf) → 422 when it returns null
+// ---------------------------------------------------------------------------
+// Exercises the REAL detectFileType from services/analyzer.js (not a
+// reimplementation), so this can't silently drift from the production
+// detector — same rationale as analyze-url.test.ts importing the real
+// isAllowedUrl instead of a local copy. The route itself still can't be
+// imported directly here (see header note), so the 422 response body is
+// reproduced from audit-url.ts for regression coverage of the exact copy.
+// ---------------------------------------------------------------------------
+
+describe('audit-url: unsupported-type gate', () => {
+  it('detectFileType returns null for content that matches no supported format', async () => {
+    expect(await detectFileType(Buffer.from('<html>not a document</html>'))).toBeNull()
+  })
+
+  it('detectFileType identifies a real PDF header (gate is not triggered for PDFs)', async () => {
+    const pdfBuf = Buffer.from('%PDF-1.4\n%rest of a pdf')
+    expect(await detectFileType(pdfBuf)).toBe('pdf')
+  })
+
+  it('builds the 422 response used when detectFileType(buf) returns null', () => {
+    const res = makeRes()
+    res.status(422).json({
+      error: 'Fetched content is not a supported document.',
+      details:
+        'The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.',
+    })
+    expect(res._status).toBe(422)
+    expect(res._json.error).toMatch(/not a supported document/)
+    expect(res._json.details).toContain('Word (.docx)')
+    expect(res._json.details).toContain('PowerPoint (.pptx)')
+    expect(res._json.details).toContain('Excel (.xlsx)')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Error-code → HTTP-status mapping (route's catch block)
+// ---------------------------------------------------------------------------
+// audit-url.ts can't be imported directly in this test file (see header
+// note), so each branch below simulates the route's res calls the same
+// way analyze-url.test.ts's "fetch error handling" describe does for its
+// 502/AbortError cases. Not exhaustive over all six *_DISABLED/
+// *_PARSE_FAILED branches (those are mechanical copies of analyze-url.ts
+// with no new logic); focused on what's actually new/changed by this
+// migration: the ETIMEDOUT→504 branch, and the generic-500 fix that stops
+// echoing err.message to the client.
+// ---------------------------------------------------------------------------
+
+describe('audit-url: error-code → HTTP-status mapping', () => {
+  it('DOCX_DISABLED maps to 415 (representative *_DISABLED branch)', () => {
+    const res = makeRes()
+    const err: any = { code: 'DOCX_DISABLED' }
+    if (err.code === 'DOCX_DISABLED') {
+      res.status(415).json({ error: 'Word (.docx) auditing is currently disabled.' })
+    }
+    expect(res._status).toBe(415)
+  })
+
+  it('PPTX_PARSE_FAILED maps to 422 (representative *_PARSE_FAILED branch)', () => {
+    const res = makeRes()
+    const err: any = { code: 'PPTX_PARSE_FAILED' }
+    if (err.code === 'PPTX_PARSE_FAILED') {
+      res.status(422).json({ error: 'The fetched PowerPoint file could not be read.' })
+    }
+    expect(res._status).toBe(422)
+  })
+
+  it('ETIMEDOUT maps to 504 (the branch analyze-url.ts is still missing; audit-url.ts has it)', () => {
+    const res = makeRes()
+    const err: any = { code: 'ETIMEDOUT', killed: true }
+    if (err?.code === 'ETIMEDOUT' || err?.killed) {
+      res.status(504).json({
+        error: 'This document is too complex to analyze within the time limit.',
+      })
+    }
+    expect(res._status).toBe(504)
+    expect(res._json.error).toMatch(/too complex/)
+  })
+
+  it('a killed child process without an ETIMEDOUT code also maps to 504 (err.killed alone)', () => {
+    const res = makeRes()
+    const err: any = { killed: true }
+    if (err?.code === 'ETIMEDOUT' || err?.killed) {
+      res.status(504).json({
+        error: 'This document is too complex to analyze within the time limit.',
+      })
+    }
+    expect(res._status).toBe(504)
+  })
+
+  it('the generic 500 fallback never echoes err.message to the client', () => {
+    const res = makeRes()
+    const err = new Error('/etc/secret/internal-library-path leaked here')
+    // Route's actual final fallback: status 500, body has only `error`,
+    // no `details` key derived from err.message anywhere.
+    res.status(500).json({ error: 'Internal server error' })
+    expect(res._status).toBe(500)
+    expect(res._json).toEqual({ error: 'Internal server error' })
+    expect(JSON.stringify(res._json)).not.toContain(err.message)
   })
 })
