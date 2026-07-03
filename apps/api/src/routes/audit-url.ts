@@ -339,10 +339,8 @@ router.post(
 
       // Analysis timed out. DOCX/PPTX/XLSX analysis runs in a dedicated
       // child process with a wall-clock timeout (see ooxmlRunner.ts),
-      // which rejects with { killed: true, code: 'ETIMEDOUT' }. NOTE:
-      // analyze-url.ts does not yet have this branch (same bug, tracked
-      // separately) — audit-url needs it now that fleet callers can send
-      // any of the four formats, some of which can legitimately time out.
+      // which rejects with { killed: true, code: 'ETIMEDOUT' }.
+      // analyze-url.ts has the matching branch too (analyze-url.ts:~180).
       if (err?.code === 'ETIMEDOUT' || err?.killed) {
         res.status(504).json({
           error:

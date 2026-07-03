@@ -24,7 +24,9 @@ const router: IRouter = Router()
 // Security notes:
 // - URL must pass isAllowedUrl() — scheme, SSRF block, and hostname allowlist
 // - Size cap on fetched content matches the direct-upload cap (ANALYSIS.MAX_FILE_SIZE_MB)
-// - Magic-bytes check: first 5 bytes must be %PDF-
+// - Content-type detection: detectFileType() sniffs the fetched bytes against
+//   all four supported formats (PDF, Word .docx, PowerPoint .pptx, Excel
+//   .xlsx) — not a hardcoded %PDF- magic-byte check.
 // ---------------------------------------------------------------------------
 
 router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequest, res: Response) => {

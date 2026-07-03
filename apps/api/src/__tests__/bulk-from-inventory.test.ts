@@ -747,6 +747,110 @@ describe('bulk-from-inventory: does not leak err.message to the client (F2, pre-
 })
 
 // ---------------------------------------------------------------------------
+// RB3-4 [pre-merge re-audit]: the SafeFetchError catch block (wrapping the
+// safeFetch() call, separate from the generic per-entry catch-all F2 already
+// hardened above) still did `result.error = \`${e.code}: ${e.message}\`` —
+// echoing the raw underlying message straight to the client. For
+// network_error specifically, e.message is a raw Node socket error (e.g.
+// "connect ECONNREFUSED 10.1.2.3:443"), sourced from safeFetch.ts's
+// `reject(new SafeFetchError('network_error', err.message))` /
+// `err?.message ?? String(err)` sites — unpredictable text never meant for
+// end users. The fix keeps the useful classification (e.code) but replaces
+// e.message with a fixed, curated string per code; full detail still goes
+// to console.error server-side.
+// ---------------------------------------------------------------------------
+
+describe('bulk-from-inventory: does not leak the raw SafeFetchError message to the client (RB3-4, pre-merge re-audit)', () => {
+  it('a network_error SafeFetchError is curated: no raw socket-error text reaches the client, but the code classification survives', async () => {
+    vi.resetModules()
+    const rawSocketMessage = 'connect ECONNREFUSED 10.99.99.99:443 leaked-internal-detail'
+    vi.doMock('../services/safeFetch.js', () => {
+      class SafeFetchError extends Error {
+        code: string
+        constructor(code: string, message: string) {
+          super(message)
+          this.code = code
+        }
+      }
+      return {
+        safeFetch: vi.fn().mockRejectedValue(new SafeFetchError('network_error', rawSocketMessage)),
+        SafeFetchError,
+      }
+    })
+    try {
+      const { default: router } = await import('../routes/bulk-from-inventory.js')
+      const handler = extractHandler(router, '/bulk-from-inventory')
+      const inventory = buildInventory([
+        { path: 'a.pdf', filename: 'a.pdf', category: 'pdf', publicUrl: 'https://example.com/a.pdf' },
+      ])
+      const req = makeReq({ body: { inventory, filterCategory: 'pdf' } })
+      const res = makeRes()
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await handler(req, res)
+
+      // Read the spy's recorded calls BEFORE mockRestore() — mockRestore()
+      // clears .mock.calls, same ordering the F2 tests above use.
+      expect(res._json.results).toHaveLength(1)
+      const result = res._json.results[0]
+      expect(result.error).toBeTruthy()
+      expect(result.error).not.toContain(rawSocketMessage)
+      expect(result.error).not.toContain('ECONNREFUSED')
+      expect(result.error).toContain('network_error')
+      expect(result.error).toMatch(/could not connect/i)
+
+      // Server-side detail is preserved even though the client response is generic.
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      const logged = consoleErrorSpy.mock.calls.map((c) => c.map(String).join(' ')).join('\n')
+      expect(logged).toContain(rawSocketMessage)
+      consoleErrorSpy.mockRestore()
+    } finally {
+      vi.doUnmock('../services/safeFetch.js')
+      vi.resetModules()
+    }
+  })
+
+  it('other SafeFetchError codes (e.g. private_ip) are also curated — the classification survives without the raw message', async () => {
+    vi.resetModules()
+    const rawMessage = "'internal.example' resolves to private/reserved IP '10.0.0.5'. Blocked."
+    vi.doMock('../services/safeFetch.js', () => {
+      class SafeFetchError extends Error {
+        code: string
+        constructor(code: string, message: string) {
+          super(message)
+          this.code = code
+        }
+      }
+      return {
+        safeFetch: vi.fn().mockRejectedValue(new SafeFetchError('private_ip', rawMessage)),
+        SafeFetchError,
+      }
+    })
+    try {
+      const { default: router } = await import('../routes/bulk-from-inventory.js')
+      const handler = extractHandler(router, '/bulk-from-inventory')
+      const inventory = buildInventory([
+        { path: 'a.pdf', filename: 'a.pdf', category: 'pdf', publicUrl: 'https://example.com/a.pdf' },
+      ])
+      const req = makeReq({ body: { inventory, filterCategory: 'pdf' } })
+      const res = makeRes()
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await handler(req, res)
+
+      consoleErrorSpy.mockRestore()
+      const result = res._json.results[0]
+      expect(result.error).toContain('private_ip')
+      expect(result.error).not.toContain(rawMessage)
+      expect(result.error).not.toContain('10.0.0.5')
+    } finally {
+      vi.doUnmock('../services/safeFetch.js')
+      vi.resetModules()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
 // F3 [LOW, defense-in-depth] pre-merge re-audit finding: reports.ts's
 // POST /api/reports runs sanitizeStoredReport() on a report before it is
 // ever written to shared_reports (strips unsafe helpLinks[].url anywhere in

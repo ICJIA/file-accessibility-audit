@@ -48,6 +48,38 @@ interface BulkResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// RB3-4 [pre-merge re-audit]: curated, per-code client-facing text for a
+// SafeFetchError caught around the safeFetch() call below — never echoes
+// the raw e.message (network_error/dns_failed wrap a raw Node socket/DNS
+// error's .message, which is unpredictable and not meant for end users;
+// see safeFetch.ts). Keeps the useful classification (the code, still
+// prefixed onto the returned string) without the raw detail. Mirrors the
+// generic per-entry catch-all's F2 fix further below — same rationale, this
+// is the SafeFetchError-specific catch, which F2 didn't touch.
+function curateSafeFetchMessage(code: string): string {
+  switch (code) {
+    case 'malformed_url':
+    case 'redirect_invalid':
+      return 'the URL could not be parsed or redirected to an invalid location'
+    case 'private_ip':
+      return 'the URL resolves to a private or reserved address and cannot be fetched'
+    case 'dns_failed':
+      return "the URL's hostname could not be resolved"
+    case 'redirect_loop':
+      return 'the URL redirected in a loop'
+    case 'too_many_redirects':
+      return 'the URL redirected too many times'
+    case 'timeout':
+      return 'the request to the URL timed out'
+    case 'oversized':
+      return 'the file at the URL exceeded the size limit'
+    case 'network_error':
+      return 'could not connect to the URL'
+    default:
+      return 'the file could not be fetched'
+  }
+}
+
 // v1.20.1 SECURITY FIX (red/blue team finding P1.4): the previous
 // implementation used a private `fetchWithTimeout` here with NO host
 // allowlist and NO private-IP rejection. Authenticated callers with
@@ -232,7 +264,15 @@ router.post(
             })
           } catch (e) {
             if (e instanceof SafeFetchError) {
-              result.error = `${e.code}: ${e.message}`
+              // RB3-4 [pre-merge re-audit]: never echo the raw e.message —
+              // curateSafeFetchMessage keeps the code classification, drops
+              // the raw (possibly-Node-socket-internal) detail. Full detail
+              // still goes to the server log.
+              console.error(
+                `Bulk-from-inventory fetch error (${e.code}) for ${entry.publicUrl}:`,
+                e,
+              )
+              result.error = `${e.code}: ${curateSafeFetchMessage(e.code)}`
               results.push(result)
               continue
             }

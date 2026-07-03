@@ -521,6 +521,8 @@ Every report includes a **Document Metadata** section that surfaces embedded doc
 | Last Modified      | `ModDate`          | When the PDF was last modified                                         |
 | Encrypted          | `IsEncrypted`      | Whether the PDF has password protection or permission restrictions     |
 
+> **Note —** the Word/PowerPoint/Excel metadata below is computed by the analyzer and included in every JSON export. The live report's Document Metadata panel (`ReportContent.vue`, gated on `result.pdfMetadata`) currently renders for PDF only — non-PDF metadata is not yet shown in the UI.
+
 ### Word (.docx)
 
 | Field      | Source      | What it tells you                                                                                                       |

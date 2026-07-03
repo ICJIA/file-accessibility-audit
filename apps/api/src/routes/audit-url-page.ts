@@ -7,6 +7,7 @@ import { DEPLOY, SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
 import { isAllowedUrl } from '../services/urlPolicy.js'
 import { auditPage, type PageAuditResult } from '../services/pageAuditor.js'
+import { sanitizeStoredReport } from '../services/reportSanitize.js'
 
 const router: IRouter = Router()
 
@@ -186,6 +187,23 @@ router.post(
       expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
       const reportExpiresAt = expiresAt.toISOString()
 
+      // RB3-5 [pre-merge re-audit]: reports.ts / bulk-from-inventory.ts run
+      // every stored report through sanitizeStoredReport() before their
+      // shared_reports insert (strips unsafe helpLinks[].url / neutralizes
+      // conformance finding urls anywhere in the payload — a stored-XSS
+      // guard on the public /report/:id and /page-report/:id pages). This
+      // insert skipped that call. No-op today (PageAuditResult carries
+      // neither helpLinks nor conformance), but keeps the store-boundary
+      // invariant enforced consistently at every insert site. Falls back to
+      // the unsanitized result on the
+      // (structurally-shouldn't-happen-for-internal-output) failure case,
+      // mirroring bulk-from-inventory.ts's insert — result comes from this
+      // route's own auditPage() call, not raw client JSON, so there's
+      // nothing here for reports.ts's stricter reject-and-400 to guard
+      // against.
+      const sanitized = sanitizeStoredReport(result)
+      const reportToStore = sanitized.ok ? sanitized.report : result
+
       db.prepare(
         `INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
            VALUES (?, ?, ?, ?, ?, ?)`,
@@ -196,7 +214,7 @@ router.post(
         // shared_reports table is intentionally generic; the column name
         // is historical (it predates the page-audit route).
         result.url,
-        JSON.stringify(result),
+        JSON.stringify(reportToStore),
         contentHash,
         reportExpiresAt,
       )

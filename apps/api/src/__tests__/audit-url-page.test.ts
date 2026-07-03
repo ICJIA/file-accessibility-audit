@@ -167,3 +167,95 @@ describe('audit-url-page: catch-block info-disclosure fix (RB2-c)', () => {
     expect(JSON.stringify(res._json)).not.toContain(secret)
   })
 })
+
+// ---------------------------------------------------------------------------
+// RB3-5 [pre-merge re-audit]: reports.ts / bulk-from-inventory.ts run every
+// stored report through sanitizeStoredReport() before the shared_reports
+// insert (strips unsafe helpLinks[].url / neutralizes conformance finding
+// urls anywhere in the payload — a stored-XSS guard on the public
+// /report/:id and /page-report/:id pages). audit-url-page.ts's own insert
+// skipped that call. It's a no-op for PageAuditResult's real shape today (no
+// helpLinks/conformance fields), but the store boundary should be enforced
+// consistently at every shared_reports insert site, not conditionally on
+// this result shape never changing. This proves the sanitizer genuinely
+// runs on the STORED payload by injecting an extra (not a real
+// PageAuditResult field) helpLinks array via the mocked auditPage — same
+// technique bulk-from-inventory.test.ts's F3 section uses.
+// ---------------------------------------------------------------------------
+
+describe('audit-url-page: sanitizeStoredReport applied before shared_reports insert (RB3-5, store-boundary consistency)', () => {
+  it('neutralizes an unsafe helpLinks URL in the page-audit result before it is persisted', async () => {
+    const runCalls: unknown[][] = []
+    const router = await loadRouterWith({
+      auditPageImpl: async () => ({
+        url: 'https://example.gov/ok',
+        pageTitle: 'OK Page',
+        audited: new Date().toISOString(),
+        score: 91,
+        grade: 'A',
+        violationCount: 0,
+        bySeverity: { critical: 0, serious: 0, moderate: 0, minor: 0 },
+        violations: [],
+        incomplete: [],
+        // Not a real PageAuditResult field — injected only to prove
+        // sanitizeStoredReport genuinely runs on this route's stored
+        // payload, not that this shape legitimately carries one.
+        helpLinks: [{ label: 'Evil', url: 'javascript:alert(document.domain)' }],
+      }),
+      dbRunImpl: (...args: unknown[]) => {
+        runCalls.push(args)
+      },
+    })
+    const handler = extractHandler(router, '/audit-url-page')
+    const req = makeReq({ body: { url: 'https://example.gov/ok' } })
+    const res = makeRes()
+
+    await handler(req, res)
+
+    expect(res._json?.reportId).toBeTruthy()
+    // db.prepare/.run is shared by BOTH this route's own shared_reports
+    // insert (6 args: id, email, filename, report_json, content_hash,
+    // expires_at) AND auditLog.ts's recordAudit() audit_log insert (8 args)
+    // — both funnel through the same mocked db. Key on arg count to isolate
+    // the shared_reports call specifically, mirroring how
+    // bulk-from-inventory.test.ts's F3 section keys by SQL text for the same
+    // reason (that helper isn't available here — see loadRouterWith above).
+    const reportInsertCall = runCalls.find((args) => args.length === 6)
+    expect(reportInsertCall).toBeTruthy()
+    const storedReportJson = reportInsertCall![3] as string
+    const stored = JSON.parse(storedReportJson)
+    expect(stored.helpLinks).toEqual([])
+    expect(storedReportJson).not.toContain('javascript:')
+  })
+
+  it('a page-audit result with no unsafe URLs is stored unchanged (sanitization is a no-op on the real shape)', async () => {
+    const runCalls: unknown[][] = []
+    const router = await loadRouterWith({
+      auditPageImpl: async () => ({
+        url: 'https://example.gov/clean',
+        pageTitle: 'Clean Page',
+        audited: new Date().toISOString(),
+        score: 100,
+        grade: 'A',
+        violationCount: 0,
+        bySeverity: { critical: 0, serious: 0, moderate: 0, minor: 0 },
+        violations: [],
+        incomplete: [],
+      }),
+      dbRunImpl: (...args: unknown[]) => {
+        runCalls.push(args)
+      },
+    })
+    const handler = extractHandler(router, '/audit-url-page')
+    const req = makeReq({ body: { url: 'https://example.gov/clean' } })
+    const res = makeRes()
+
+    await handler(req, res)
+
+    const reportInsertCall = runCalls.find((args) => args.length === 6)
+    expect(reportInsertCall).toBeTruthy()
+    const stored = JSON.parse(reportInsertCall![3] as string)
+    expect(stored.url).toBe('https://example.gov/clean')
+    expect(stored.score).toBe(100)
+  })
+})
