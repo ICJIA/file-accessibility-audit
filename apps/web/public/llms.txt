@@ -1,40 +1,30 @@
 # ICJIA File Accessibility Audit
 
-> Automated PDF accessibility scoring tool built by Illinois Criminal Justice Information Authority.
+> Automated accessibility scoring tool for PDF, Word, PowerPoint, and Excel files, built by the Illinois Criminal Justice Information Authority.
 
-This web application analyzes PDF documents for accessibility compliance and produces a detailed audit report scored against WCAG 2.1 Level AA and ADA Title II requirements.
+This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents for accessibility and produces a detailed audit report: a weighted 0-100 score (A-F grade) plus a separate, binary WCAG 2.2 Level AA conformance verdict, scored against WCAG 2.2 Level AA, ADA Title II, and Illinois IITAA 2.1 requirements.
 
 ## What it does
 
-- Accepts a PDF file upload (up to 15 MB)
-- Analyzes the document across up to 11 accessibility categories (nine in Strict mode; Practical mode adds PDF/UA Compliance Signals and includes Color Contrast at 4.5%)
-- Returns two score profiles side-by-side — Strict (WCAG + IITAA §E205.4, semantics-first) and Practical (WCAG + PDF/UA, broader remediation/progress view) — each with an overall score (0-100), letter grade (A-F), and per-category findings
-- Provides remediation guidance with WCAG success criteria references
-- Exports reports in Word (.docx), HTML, Markdown, and JSON formats
-- JSON export includes machine-readable WCAG mappings, prioritized remediation plans, and LLM-ready context for both profiles
+- Accepts a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file upload (up to 15 MB) — the format is detected from file content, not the extension
+- Analyzes the document across the WCAG-aligned categories that apply to its format — up to 9, depending on format (PDF 9, PowerPoint 9, Word 8, Excel 7 scored categories; each format also shows a couple of always-"Not Assessed" placeholder categories for checks it doesn't yet automate)
+- Returns one overall score (0-100), letter grade (A-F), and per-category findings — plus a separate binary WCAG 2.2 conformance verdict (confirmed automated failures with links to the W3C standard, or "no automated WCAG failures detected" — never a blanket "conformant")
+- Color contrast is machine-checked directly for Word, PowerPoint, and Excel (wherever the document specifies explicit colors); PDF contrast analysis is not yet implemented and always shows as "Not Assessed"
+- Can optionally auto-remediate untagged PDFs (tagging via qpdf + OpenDataLoader, optionally verified with veraPDF) — PDF only, disabled by default, and Word/PowerPoint/Excel are audit-only
+- Provides remediation guidance with WCAG success criteria references for every category
+- Exports reports as Text (.txt), HTML, Markdown, and JSON; shareable report links stay valid for 1 year
+- JSON export includes machine-readable WCAG mappings, a prioritized remediation plan, and LLM-ready context
 
-## Two scoring methodologies, one document
+## Scoring model
 
-Both profiles use WCAG guidelines to evaluate the same document. They differ in (1) category weights and (2) whether PDF/UA signals are scored:
+Every audit produces one weighted 0-100 score (A-F grade) — a single scoring methodology, not a choice between multiple profiles. Categories that don't apply to a document (e.g., no tables) are excluded and the remaining weights renormalized. Separately, a binary WCAG 2.2 Level AA conformance verdict reports confirmed automated failures, each linked to its W3C "Understanding" page. Cite the score for tracking remediation progress; cite the conformance verdict for the pass/fail compliance question. Neither replaces review by a human accessibility specialist.
 
-- Strict semantic score — **WCAG-based, anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents**. Nine categories, no PDF/UA category. Emphasizes programmatically determinable headings, table semantics, and logical reading order. Origin tag: `wcag.iitaa.strict`.
-- Practical readiness score — **WCAG-based, with different category weights and an added PDF/UA Compliance Signals category** (MarkInfo, tab order, PDF/UA identifiers, list/table legality). Applies partial-credit floors on heading and table structure. Origin tag: `wcag.pdfua.practical`.
+Approximate category weights by format:
 
-Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool export capability, while §E205.4 frames final non-web document accessibility through WCAG 2.1. Practical's PDF/UA category scores §504.2.2-style signals; Strict sticks to the §E205.4/WCAG signals. The two methodologies can produce different scores because they emphasize different signals — pick whichever view (or both together) matches the question being asked.
-
-## Scoring categories (Strict / Practical weights)
-
-1. Text Extractability — 20% / 17.5% — WCAG 1.3.1, 1.4.5
-2. Document Title & Language — 15% / 13% — WCAG 2.4.2, 3.1.1
-3. Heading Structure — 15% / 13% — WCAG 1.3.1, 2.4.6
-4. Alt Text on Images — 15% / 13% — WCAG 1.1.1
-5. PDF/UA Compliance Signals — Practical only / 9.5% — WCAG 1.3.1, 4.1.1
-6. Bookmarks / Navigation — 10% / 8.5% — WCAG 2.4.5
-7. Table Markup — 10% / 8.5% — WCAG 1.3.1
-8. Color Contrast — N/A / N/A (4.5% reserved) — WCAG 1.4.3
-9. Link & URL Quality — 5% / 4.5% — WCAG 2.4.4
-10. Reading Order — 5% / 4% — WCAG 1.3.2
-11. Form Accessibility — 5% / 4% — WCAG 1.3.1, 4.1.2
+- PDF (9 scored): Text Extractability 20%, Title & Language 15%, Heading Structure 15%, Alt Text 15%, Table Markup 10%, Reading Order 10%, Bookmarks 5%, Link Quality 5%, Form Accessibility 5%. Color Contrast is not yet assessed for PDF.
+- Word (8 scored): Text Extractability 5%, Title & Language 18%, Heading Structure 18%, Alt Text 18%, Table Markup 12%, Color Contrast 12%, List Structure 9%, Link Quality 8%. Reading Order and Form Accessibility are always "Not Assessed" for Word.
+- PowerPoint (9 scored): Text Extractability 5%, Title & Language 14%, Slide Titles 18%, Alt Text 18%, Reading Order 10%, Table Markup 10%, Color Contrast 10%, List Structure 7%, Link Quality 8%. Form Accessibility is always "Not Assessed" for PowerPoint.
+- Excel (7 scored): Text Extractability 5%, Title & Language 12%, Sheet Names 18%, Table Markup 25%, Alt Text 18%, Color Contrast 12%, Link Quality 10%. Form Accessibility is always "Not Assessed"; Excel has no document-language property, so the language half of Title & Language is always "Not Assessed" too (the category scores on title presence alone).
 
 ## Grade scale
 
@@ -46,17 +36,21 @@ Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool export capa
 
 ## Standards alignment
 
-- WCAG 2.1 Level AA
+- WCAG 2.2 Level AA (a strict superset of WCAG 2.1 AA; every machine-checkable criterion carries forward unchanged from 2.1 into 2.2)
 - ADA Title II (effective April 2026)
+- Illinois IITAA 2.1 (§E205.4)
 - Section 508
-- PDF/UA (ISO 14289-1)
+- PDF/UA (ISO 14289-1) — PDF only, not applicable to Word/PowerPoint/Excel
 
 ## API
 
-The application exposes a REST API:
+The application exposes a REST API. Protected endpoints accept a session cookie or a Bearer personal access token (`fap_` prefix); the public deployment currently runs with auth disabled, so no credential is required.
 
-- POST /api/analyze - Upload a PDF for analysis (multipart/form-data, field: "file")
-- POST /api/reports - Create a shareable report link (JSON body: { report })
+- POST /api/analyze - Upload a PDF, Word, PowerPoint, or Excel file for analysis (multipart/form-data, field: "file", max 15 MB)
+- POST /api/analyze-url - Audit a document (any of the four formats) by URL instead of upload (JSON body: `{ "url": "..." }`); returns the same result shape as /api/analyze
+- POST /api/audit-url - Audit a document by URL and persist a shareable report in one call, for fleet-inventory automation (returns score, grade, and a reportUrl)
+- POST /api/bulk-from-inventory - Score every file (any of the four formats) in a filecap NDJSON inventory in one request; returns a summary + per-file results manifest
+- POST /api/reports - Create a shareable report link (JSON body: `{ "report": ... }`)
 - GET /api/reports/:id - Retrieve a shared report by ID
 - GET /api/health - Health check endpoint
 
@@ -69,4 +63,4 @@ The application exposes a REST API:
 
 ## Optional: llms-full.txt
 
-For complete documentation including the scoring rubric, category explanations, remediation guidance, and JSON export schema, see /llms-full.txt
+For complete documentation including the per-format scoring rubric, full category catalog, remediation guidance, and JSON export schema, see /llms-full.txt
