@@ -237,6 +237,8 @@ const isImageItem = (it: unknown): boolean =>
   !!it && typeof it === 'object' && 'altText' in it && 'decorative' in it
 const isLinkItem = (it: unknown): boolean =>
   !!it && typeof it === 'object' && 'url' in it && 'text' in it
+const isTableItem = (it: unknown): boolean =>
+  !!it && typeof it === 'object' && 'sheetName' in it && 'hasHeaderRow' in it
 
 describe('xlsxService: drawing/hyperlink caps pre-count BEFORE the append loop (single-part burst window closed)', () => {
   it('throws before appending ANY image when one drawing part exceeds MAX_DRAWING_OBJECTS (no partial flood)', async () => {
@@ -327,6 +329,66 @@ describe('xlsxService: drawing/hyperlink caps pre-count BEFORE the append loop (
       const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', hyperlinks }] })
       const a = await analyze(buf)
       expect(a.links).toHaveLength(5)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Security-hardening regression tests (red/blue audit follow-up, DoS): the
+// defined-table cap is worse than plain array growth — each <.../table> rel
+// triggers a table-PART read + parse (a fan-out READ amplifier), bounded only
+// by the 30 MB rels-part cap (~300k rels/sheet) × MAX_SHEETS. It must
+// PRE-COUNT the /table rels and throw BEFORE any part is read or appended, so
+// a malicious workbook can't force a huge table-part read fan-out. Same
+// push-wrapper pin as drawings/links: ZERO table entries reach analysis.tables
+// before the throw (which also means ZERO table parts were read, since the
+// read + push share one loop that never runs). See fix-2-report.md.
+// ---------------------------------------------------------------------------
+
+describe('xlsxService: defined-table count cap pre-counts /table rels BEFORE the read fan-out (DoS hardening)', () => {
+  it('throws before reading/appending ANY table when one sheet exceeds MAX_TABLES (no read fan-out, no partial flood)', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_TABLES: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze, XlsxParseError: ParseError } = await import(
+        '../services/xlsxService.js'
+      )
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      // ONE sheet, 10 defined tables (10 /table rels + parts) > cap 5.
+      const tables = Array.from({ length: 10 }, (_, i) => ({ name: `T${i}` }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', tables }] })
+      const tablePushes = await countMatchingPushes(isTableItem, async () => {
+        await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+      })
+      // The cap fires BEFORE the read/push loop, so not one table part was read
+      // and not one table entry reached analysis.tables. Without the cap the
+      // loop reads + parses all 10 parts and pushes all 10 first.
+      expect(tablePushes).toBe(0)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+
+  it('admits a sheet whose defined-table count is exactly at the cap (valid doc not rejected)', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_TABLES: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze } = await import('../services/xlsxService.js')
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      const tables = Array.from({ length: 5 }, (_, i) => ({ name: `T${i}` }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', tables }] })
+      const a = await analyze(buf)
+      expect(a.tables).toHaveLength(5) // count == cap, not > cap → processed normally
     } finally {
       vi.doUnmock('#config')
       vi.resetModules()

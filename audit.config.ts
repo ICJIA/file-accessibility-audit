@@ -484,6 +484,14 @@ export const XLSX = {
    *  unbounded-growth rationale as MAX_DRAWING_OBJECTS. SAFE TO CHANGE. */
   MAX_HYPERLINKS: 100_000,
 
+  /** Max total defined tables across all sheets; over the cap → rejected.
+   *  Worse than plain array growth: each <.../table> rel triggers a table-PART
+   *  read + parse (a fan-out READ amplifier), bounded only by the 30 MB
+   *  rels-part cap (~300k rels/sheet) × MAX_SHEETS. Pre-counted before any
+   *  table part is read (see collectSheetContent). 10k far exceeds any
+   *  legitimate workbook while bounding the fan-out. SAFE TO CHANGE. */
+  MAX_TABLES: 10_000,
+
   /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
    *  SAFE TO CHANGE. */
   ANALYSIS_TIMEOUT_MS: 20_000,

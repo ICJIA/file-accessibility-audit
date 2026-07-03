@@ -12,10 +12,11 @@
  * self-reported `<dimension ref>`, which is attacker-controlled; (2) contrast
  * is evaluated only for cellXfs styles applied to a non-empty cell, so
  * unused/template styles (openpyxl, PhpSpreadsheet routinely emit these)
- * can't produce a false WCAG 1.4.3 finding; (3) drawing objects and
- * hyperlinks are capped by pre-counting the source elements and checking the
- * accumulated total BEFORE the append loops (so one oversized part can't flood
- * the arrays before the check fires), bounded across all sheets — mirroring
+ * can't produce a false WCAG 1.4.3 finding; (3) defined tables, drawing
+ * objects, and hyperlinks are capped by pre-counting the source rels/elements
+ * and checking the accumulated total BEFORE the read/append loops (so one
+ * oversized part can't flood the arrays — or force a huge table-part read
+ * fan-out — before the check fires), bounded across all sheets — mirroring
  * pptxService's countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk
  * pattern.
  */
@@ -191,10 +192,11 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
 
   let totalCells = 0;
   const appliedStyleIndices = new Set<number>();
-  // Cross-sheet accumulators for the drawing-object and hyperlink caps (FIX C).
-  // Kept local (not on XlsxAnalysis) so the analysis OUTPUT shape is unchanged
-  // for valid workbooks — mirrors pptx's local textElementCount.
-  const contentCounts = { drawingObjects: 0, hyperlinks: 0 };
+  // Cross-sheet accumulators for the defined-table, drawing-object, and
+  // hyperlink caps (FIX C). Kept local (not on XlsxAnalysis) so the analysis
+  // OUTPUT shape is unchanged for valid workbooks — mirrors pptx's local
+  // textElementCount.
+  const contentCounts = { tables: 0, drawingObjects: 0, hyperlinks: 0 };
   for (const sheetEl of sheetEls) {
     const name = attrOf(sheetEl, "name") ?? "";
     const state = attrOf(sheetEl, "state");
@@ -249,11 +251,24 @@ async function collectSheetContent(
   sheetRoot: PONode | undefined,
   sheetRels: Array<{ id: string; target: string; type: string }>,
   read: (p: string) => Promise<string | null>,
-  counts: { drawingObjects: number; hyperlinks: number },
+  counts: { tables: number; drawingObjects: number; hyperlinks: number },
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
-  for (const rel of sheetRels.filter((r) => /\/table$/.test(r.type))) {
+  // FIX C (pre-count, cap-before-walk): each /table rel triggers a table-PART
+  // read + parse — a fan-out READ amplifier, bounded only by the 30 MB
+  // rels-part cap (~300k rels/sheet) × MAX_SHEETS. Count the rels and check the
+  // accumulated cap BEFORE any part is read or pushed, so a malicious workbook
+  // can't force a huge table-part read fan-out (or grow analysis.tables
+  // unbounded). `counts` accumulates across sheets.
+  const tableRels = sheetRels.filter((r) => /\/table$/.test(r.type));
+  counts.tables += tableRels.length;
+  if (counts.tables > XLSX.MAX_TABLES) {
+    throw new XlsxParseError(
+      `This workbook has too many defined tables (${counts.tables.toLocaleString()}+) to analyze.`,
+    );
+  }
+  for (const rel of tableRels) {
     const tableRoot = rootElement(
       parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
       "table",
