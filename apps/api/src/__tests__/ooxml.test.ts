@@ -18,6 +18,7 @@ import {
   contrastRatio,
   readCapped,
   resolveSchemeColor,
+  buildSchemeColorMap,
   parseRelationshipEntries,
   type PONode,
 } from '../services/ooxml.js'
@@ -235,6 +236,36 @@ describe('resolveSchemeColor', () => {
     expect(resolveSchemeColor(root, 'bg2')).toBe('E7E6E6')
     expect(resolveSchemeColor(root, 'nope')).toBeNull()
     expect(resolveSchemeColor(undefined, 'accent1')).toBeNull()
+  })
+
+  // -------------------------------------------------------------------------
+  // V3 DoS hardening: resolveSchemeColor re-walks descendants(themeRoot,
+  // "clrScheme") on EVERY call, so calling it once per text run is O(runs x
+  // theme size) — a large theme part with many runs can freeze the event
+  // loop. buildSchemeColorMap resolves every scheme name ONCE per analysis
+  // into a plain Map so per-run lookups are O(1) and can't re-walk the theme.
+  // Nested here (not a sibling describe) to reuse the same theme fixture.
+  // -------------------------------------------------------------------------
+  describe('buildSchemeColorMap', () => {
+    it('resolves scheme + alias names once into a plain Map, matching resolveSchemeColor', () => {
+      const map = buildSchemeColorMap(root)
+      expect(map.get('accent1')).toBe('4472C4')
+      expect(map.get('dk1')).toBe('000000')
+      expect(map.get('lt1')).toBe('FFFFFF')
+      expect(map.get('dk2')).toBe('44546A')
+      expect(map.get('lt2')).toBe('E7E6E6')
+      // tx/bg aliases must resolve too — real DrawingML runs commonly
+      // reference these directly (a:schemeClr val="tx1"), not just dk/lt.
+      expect(map.get('tx1')).toBe('000000')
+      expect(map.get('bg1')).toBe('FFFFFF')
+      expect(map.get('tx2')).toBe('44546A')
+      expect(map.get('bg2')).toBe('E7E6E6')
+      expect(map.get('nope')).toBeUndefined()
+    })
+
+    it('returns an empty map when there is no theme', () => {
+      expect(buildSchemeColorMap(undefined).size).toBe(0)
+    })
   })
 })
 

@@ -28,7 +28,7 @@ import {
   CONTRAST_MIN_LARGE,
   normalizeHex,
   contrastRatio,
-  resolveSchemeColor,
+  buildSchemeColorMap,
   readCapped,
 } from "./ooxml.js";
 
@@ -94,6 +94,23 @@ function contentShapes(spTree: PONode): PONode[] {
   return childrenOf(spTree).filter((c) => CONTENT_SHAPE_TAGS.has(tagOf(c) ?? ""));
 }
 
+/**
+ * Total shape-tag elements under spTree at ANY depth. contentShapes() above
+ * (direct children only) is the correct semantic for reading order — a
+ * grouped shape is one unit in the top-level flow — but it is the wrong
+ * input for the MAX_SHAPES cap: wrapping arbitrarily many shapes inside one
+ * top-level <p:grpSp> makes contentShapes() report a single shape while
+ * collectSlideContent still walks every one of them (descendants() does not
+ * stop at group boundaries). This any-depth tally is what the cap checks
+ * against, so grouping can no longer hide unbounded work from it. Exported
+ * for direct unit testing (see pptxService.test.ts).
+ */
+export function countShapesAnyDepth(spTree: PONode): number {
+  let total = 0;
+  for (const tag of CONTENT_SHAPE_TAGS) total += descendants(spTree, tag).length;
+  return total;
+}
+
 export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   let zip: JSZip;
   try {
@@ -116,7 +133,15 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   }
   const presRoot = rootElement(parseXml(presentationXml), "presentation");
   const coreRoot = rootElement(parseXml(await read("docProps/core.xml")), "coreProperties");
-  const themeRoot = rootElement(parseXml(await read("ppt/theme/theme1.xml")), "theme");
+  // Resolve every scheme color ONCE per analysis (not once per text run —
+  // see buildSchemeColorMap's doc comment) and drop the theme AST once the
+  // map is built so a large theme part isn't retained across the slide loop.
+  let themeRoot: PONode | undefined = rootElement(
+    parseXml(await read("ppt/theme/theme1.xml")),
+    "theme",
+  );
+  const schemeColorMap = buildSchemeColorMap(themeRoot);
+  themeRoot = undefined;
 
   // Slide parts in filename order (v1 boundary — see module doc comment).
   const slidePaths = Object.keys(zip.files)
@@ -180,7 +205,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     }
     const spTree = descendants(slideRoot, "spTree")[0];
     const shapes = spTree ? contentShapes(spTree) : [];
-    analysis.shapeCount += shapes.length;
+    analysis.shapeCount += spTree ? countShapesAnyDepth(spTree) : 0;
     if (analysis.shapeCount > PPTX.MAX_SHAPES) {
       throw new PptxParseError(
         `This presentation has too many shapes (${analysis.shapeCount.toLocaleString()}+) to analyze.`,
@@ -202,35 +227,85 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
       shapeCount: shapes.length,
     });
 
-    collectSlideContent(analysis, slideRoot, relMap, themeRoot, spTree);
+    collectSlideContent(analysis, slideRoot, relMap, schemeColorMap, spTree);
   }
 
   return analysis;
+}
+
+interface FrameAcc {
+  tbl?: PONode;
+  cNvPr?: PONode;
+}
+
+/**
+ * Single linear pass over a slide collecting (a) pics that are NOT nested
+ * inside any graphicFrame ("standalone" pics — a frame-nested pic is the
+ * OLE-object fallback preview, not counted separately) and (b) each
+ * graphicFrame's own nearest table and cNvPr.
+ *
+ * This replaces the old `for (frame of descendants(root,"graphicFrame")) for
+ * (x of descendants(frame, tag))` pattern, which re-walks each frame's whole
+ * subtree from scratch — O(frames x subtree size), quadratic when
+ * graphicFrames are nested inside each other (never true of real PowerPoint
+ * output, but not something a hostile ZIP has to respect). Every node is now
+ * visited once; a tbl/cNvPr found while multiple frames are open is
+ * attributed to the innermost one, matching `descendants(frame, tag)[0]`'s
+ * "first at any depth" semantics for the realistic (non-nested) case.
+ */
+function walkPicsAndFrames(
+  node: PONode,
+  frameStack: FrameAcc[],
+  standalonePics: PONode[],
+  frames: FrameAcc[],
+): void {
+  const tag = tagOf(node);
+  if (tag === "graphicFrame") {
+    const acc: FrameAcc = {};
+    frames.push(acc);
+    frameStack.push(acc);
+    for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames);
+    frameStack.pop();
+    return;
+  }
+  if (tag === "pic") {
+    if (frameStack.length === 0) {
+      standalonePics.push(node);
+      return; // its own cNvPr is resolved separately below; nothing enclosing cares about its subtree
+    }
+    // Frame-nested (e.g. an OLE fallback preview) — fall through so its
+    // internal cNvPr can still satisfy the enclosing frame's "not a table" lookup.
+  } else if (tag === "tbl") {
+    const top = frameStack[frameStack.length - 1];
+    if (top && !top.tbl) top.tbl = node;
+  } else if (tag === "cNvPr") {
+    const top = frameStack[frameStack.length - 1];
+    if (top && !top.cNvPr) top.cNvPr = node;
+  }
+  for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames);
 }
 
 function collectSlideContent(
   analysis: PptxAnalysis,
   slideRoot: PONode,
   relMap: Map<string, string>,
-  themeRoot: PONode | undefined,
+  schemeColorMap: Map<string, string>,
   spTree: PONode | undefined,
 ): void {
   // Images: pictures always — except a pic nested inside a graphicFrame,
   // which is the OLE-object fallback preview; the frame itself is the one
   // visual object (counted below), so counting its inner pic too would
   // double-bill a single object's missing alt text.
-  const framePics = new Set<PONode>();
-  for (const frame of descendants(slideRoot, "graphicFrame")) {
-    for (const pic of descendants(frame, "pic")) framePics.add(pic);
-  }
-  for (const pic of descendants(slideRoot, "pic")) {
-    if (framePics.has(pic)) continue;
+  const standalonePics: PONode[] = [];
+  const frames: FrameAcc[] = [];
+  walkPicsAndFrames(slideRoot, [], standalonePics, frames);
+  for (const pic of standalonePics) {
     const cNvPr = descendants(pic, "cNvPr")[0];
     if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
   }
-  for (const frame of descendants(slideRoot, "graphicFrame")) {
-    const tbl = descendants(frame, "tbl")[0];
-    if (tbl) {
+  for (const frame of frames) {
+    if (frame.tbl) {
+      const tbl = frame.tbl;
       const rows = descendants(tbl, "tr").length;
       const grid = firstChild(tbl, "tblGrid");
       const cols = grid
@@ -242,9 +317,8 @@ function collectSlideContent(
         rowCount: rows,
         colCount: cols,
       });
-    } else {
-      const cNvPr = descendants(frame, "cNvPr")[0];
-      if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
+    } else if (frame.cNvPr) {
+      analysis.images.push(drawingAltText(frame.cNvPr));
     }
   }
 
@@ -279,13 +353,15 @@ function collectSlideContent(
     else if (MANUAL_BULLET_RE.test(textOf(p))) analysis.lists.manualBulletParagraphs++;
   }
 
-  collectSlideContrast(analysis, slideRoot, themeRoot, spTree);
+  collectSlideContrast(analysis, slideRoot, schemeColorMap, spTree);
 }
 
-/** Explicit solidFill color off a properties node: srgbClr or theme schemeClr. */
+/** Explicit solidFill color off a properties node: srgbClr or theme schemeClr
+ *  (looked up in a pre-resolved map — see buildSchemeColorMap — instead of
+ *  re-walking the theme part on every call). */
 function explicitFill(
   node: PONode | undefined,
-  themeRoot: PONode | undefined,
+  schemeColorMap: Map<string, string>,
 ): string | null {
   if (!node) return null;
   const fill = firstChild(node, "solidFill");
@@ -295,7 +371,7 @@ function explicitFill(
   const scheme = firstChild(fill, "schemeClr");
   if (scheme) {
     const name = attrOf(scheme, "val");
-    return name ? resolveSchemeColor(themeRoot, name) : null;
+    return name ? (schemeColorMap.get(name) ?? null) : null;
   }
   return null;
 }
@@ -303,24 +379,24 @@ function explicitFill(
 function collectSlideContrast(
   analysis: PptxAnalysis,
   slideRoot: PONode,
-  themeRoot: PONode | undefined,
+  schemeColorMap: Map<string, string>,
   spTree: PONode | undefined,
 ): void {
   // Slide background: explicit solid fill on p:bg, else white.
   const bgNode = descendants(slideRoot, "bg")[0];
   const bgPr = bgNode ? firstChild(bgNode, "bgPr") : undefined;
-  const slideBg = explicitFill(bgPr, themeRoot) ?? "FFFFFF";
+  const slideBg = explicitFill(bgPr, schemeColorMap) ?? "FFFFFF";
 
   if (!spTree) return;
   for (const sp of contentShapes(spTree)) {
     if (tagOf(sp) !== "sp") continue;
     const spPr = firstChild(sp, "spPr");
-    const shapeBg = explicitFill(spPr, themeRoot) ?? slideBg;
+    const shapeBg = explicitFill(spPr, schemeColorMap) ?? slideBg;
     for (const run of descendants(sp, "r")) {
       const text = textOf(run).trim();
       if (!text) continue;
       const rPr = firstChild(run, "rPr");
-      const fg = rPr ? explicitFill(rPr, themeRoot) : null;
+      const fg = rPr ? explicitFill(rPr, schemeColorMap) : null;
       if (!fg) {
         analysis.contrast.unresolvedRuns++;
         continue;

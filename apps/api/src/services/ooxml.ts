@@ -293,3 +293,52 @@ export function resolveSchemeColor(
   if (sys) return normalizeHex(attrOf(sys, "lastClr"));
   return null;
 }
+
+/** Every DrawingML scheme-color name a:schemeClr@val can carry: the 12
+ *  clrScheme slots (dk1/lt1/dk2/lt2/accent1..6/hlink/folHlink) plus the
+ *  tx1/bg1/tx2/bg2 aliases real documents commonly reference directly
+ *  (a:schemeClr val="tx1", not "dk1") — resolveSchemeColor() already maps
+ *  each alias onto its dk/lt slot, so resolving both forms here just means
+ *  callers can look up whatever name actually appears in the XML. */
+const SCHEME_COLOR_NAMES = [
+  "dk1",
+  "lt1",
+  "dk2",
+  "lt2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hlink",
+  "folHlink",
+  "tx1",
+  "bg1",
+  "tx2",
+  "bg2",
+] as const;
+
+/**
+ * Resolve every DrawingML scheme-color name to its hex value ONCE, so
+ * per-run contrast checks become an O(1) Map lookup instead of calling
+ * resolveSchemeColor() — which walks descendants(themeRoot, "clrScheme")
+ * from scratch — once per text run. That per-run re-walk is O(runs x theme
+ * size): a large theme part (tens of MB is valid ZIP content) combined with
+ * a few hundred runs can hold the event loop for tens of seconds, past a
+ * timeout that can't interrupt synchronous work.
+ *
+ * Implemented by calling the already-tested resolveSchemeColor() once per
+ * known name (a small constant — SCHEME_COLOR_NAMES.length calls), so the
+ * theme is still walked a bounded, constant number of times per analysis
+ * rather than not at all — just not once per run.
+ */
+export function buildSchemeColorMap(themeRoot: PONode | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!themeRoot) return map;
+  for (const name of SCHEME_COLOR_NAMES) {
+    const hex = resolveSchemeColor(themeRoot, name);
+    if (hex) map.set(name, hex);
+  }
+  return map;
+}

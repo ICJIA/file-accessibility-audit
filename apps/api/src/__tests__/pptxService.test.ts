@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { buildPptx, titleShape, bodyShape, para, picture, pptTable, hyperlinkRels, videoRel } from './helpers/minimalPptx.js'
-import { analyzePptx, PptxParseError } from '../services/pptxService.js'
+import { analyzePptx, PptxParseError, countShapesAnyDepth } from '../services/pptxService.js'
+import { parseXml, rootElement } from '../services/ooxml.js'
+import * as ooxml from '../services/ooxml.js'
 
 describe('pptxService: package + metadata + slides', () => {
   it('reads core title/creator, presentation language, and slide count', async () => {
@@ -192,5 +194,106 @@ describe('pptxService: contrast', () => {
     const a = await analyzePptx(buf)
     expect(a.contrast.checkedRuns).toBe(0)
     expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Security-hardening regression tests (red/blue audit, DoS): a raw grpSp
+// wrapping many shapes bypasses the MAX_SHAPES cap because it only sees
+// direct children; self-nested graphicFrames turn the old per-frame
+// descendants() walks quadratic; resolveSchemeColor re-walking the theme
+// per run is O(runs x theme size). See fix-1-report.md for the full writeup.
+// ---------------------------------------------------------------------------
+
+describe('pptxService: MAX_SHAPES cap sees shapes at any depth (V1 DoS hardening)', () => {
+  it('countShapesAnyDepth counts shapes nested inside a grpSp, not just direct children', () => {
+    const nestedPics = Array.from(
+      { length: 200 },
+      (_, i) =>
+        `<p:pic><p:nvPicPr><p:cNvPr id="${100 + i}" name="p"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill/><p:spPr/></p:pic>`,
+    ).join('')
+    const xml = `<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+      <p:grpSp><p:nvGrpSpPr><p:cNvPr id="50" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${nestedPics}</p:grpSp>
+    </p:spTree>`
+    const spTree = rootElement(parseXml(xml), 'spTree')!
+    // Direct children of spTree are just [nvGrpSpPr, grpSpPr, grpSp] — the
+    // OLD cap tally (contentShapes(), unchanged for reading-order use) would
+    // see exactly 1 content shape here. The any-depth tally must see all 200
+    // nested pics plus the grpSp wrapper itself (201), or an attacker can
+    // hide unbounded content from MAX_SHAPES by wrapping it in one group.
+    expect(countShapesAnyDepth(spTree)).toBe(201)
+  })
+
+  it('analyzePptx shapeCount (the MAX_SHAPES cap tally) reflects grpSp-nested shapes, not just top-level ones', async () => {
+    const nestedPics = Array.from({ length: 200 }, () => picture({})).join('')
+    const grouped = `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="50" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${nestedPics}</p:grpSp>`
+    const buf = await buildPptx({ slides: [{ title: 'T', body: grouped }] })
+    const a = await analyzePptx(buf)
+    // Direct children of spTree are just [title, grpSp] = 2 — the pre-fix
+    // cap tally. Grouping must not hide the 200 nested pics from the cap.
+    expect(a.shapeCount).toBeGreaterThanOrEqual(200)
+  })
+})
+
+describe('pptxService: linear frame/pic walk (V2 DoS hardening)', () => {
+  it('a graphicFrame nested inside another graphicFrame does not double-count the inner table', async () => {
+    const innerTableFrame = pptTable({ firstRow: true, rows: 2, cols: 2 })
+    const outerFrame = `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="60" name="Outer wrapper"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>
+      <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/presentationml/2006/ole">
+      ${innerTableFrame}
+      </a:graphicData></a:graphic></p:graphicFrame>`
+    const buf = await buildPptx({ slides: [{ title: 'T', body: outerFrame }] })
+    const a = await analyzePptx(buf)
+    // The old per-frame descendants(frame,"tbl") walk is frame-boundary
+    // blind: it finds the inner table from BOTH the outer and inner frame
+    // (any depth), double-counting one physical table and never reaching
+    // the outer frame's own "not a table" image branch. The linear pass
+    // attributes each element to its innermost enclosing frame only.
+    expect(a.tables).toHaveLength(1)
+    expect(a.tables[0]).toEqual({ hasHeaderRow: true, rowCount: 2, colCount: 2 })
+    expect(a.images).toHaveLength(1)
+  })
+
+  it('N sibling graphicFrames each with a nested fallback pic yield exactly N images (linear rebuild preserves semantics)', async () => {
+    const N = 5
+    const oleFrame = (id: number): string =>
+      `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="Embedded object"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>
+      <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/presentationml/2006/ole">
+      <p:pic><p:nvPicPr><p:cNvPr id="${id + 1000}" name="fallback"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rIdX"/></p:blipFill><p:spPr/></p:pic>
+      </a:graphicData></a:graphic></p:graphicFrame>`
+    const body = Array.from({ length: N }, (_, i) => oleFrame(20 + i * 2)).join('')
+    const buf = await buildPptx({ slides: [{ title: 'T', body }] })
+    const a = await analyzePptx(buf)
+    expect(a.images).toHaveLength(N)
+    expect(a.tables).toHaveLength(0)
+  })
+})
+
+describe('pptxService: theme scheme colors resolved once per analysis (V3 DoS hardening)', () => {
+  it('resolves scheme + alias colors correctly across many runs', async () => {
+    const paragraphs = Array.from(
+      { length: 12 },
+      (_, i) => para(`run ${i}`, { schemeColor: i % 2 === 0 ? 'accent1' : 'tx1' }),
+    ).join('')
+    // title: null — a title run has no rPr at all, which would otherwise add
+    // an unrelated unresolved-run to the count this test is isolating.
+    const buf = await buildPptx({ slides: [{ title: null, body: bodyShape(paragraphs) }] })
+    const a = await analyzePptx(buf)
+    expect(a.contrast.checkedRuns).toBe(12)
+    expect(a.contrast.unresolvedRuns).toBe(0)
+    expect(a.contrast.failing).toHaveLength(0)
+  })
+
+  it('resolves scheme colors a bounded number of times per analysis, not once per run', async () => {
+    const spy = vi.spyOn(ooxml, 'resolveSchemeColor')
+    try {
+      const paragraphs = Array.from({ length: 40 }, (_, i) => para(`run ${i}`, { schemeColor: 'accent1' })).join('')
+      const buf = await buildPptx({ slides: [{ title: 'T', body: bodyShape(paragraphs) }] })
+      await analyzePptx(buf)
+      expect(spy.mock.calls.length).toBeLessThan(40)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
