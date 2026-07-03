@@ -10,8 +10,12 @@ export interface SheetOpts {
   mergeCount?: number;
   /** Hyperlinks: display may be omitted to exercise the ""-text path. */
   hyperlinks?: Array<{ id: string; target: string; display?: string }>;
-  /** Defined tables attached to this sheet. headerRowCount: undefined = attr absent (header ON). */
-  tables?: Array<{ name: string; headerRowCount?: 0 | 1 }>;
+  /** Defined tables attached to this sheet. headerRowCount: undefined = attr
+   *  absent (header ON). padBytes: when set, pads the table part with that
+   *  many bytes of an inert XML comment — used to build large defined-table
+   *  parts for the MAX_AUX_PART_BYTES cumulative-byte-budget tests (RB3-3);
+   *  omit for the historical self-closing `<table .../>` (unaffected). */
+  tables?: Array<{ name: string; headerRowCount?: 0 | 1; padBytes?: number }>;
   /** Drawing objects on this sheet. anchor defaults to "oneCell". */
   drawings?: Array<{
     kind: "pic" | "chart";
@@ -184,10 +188,11 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     s.tables?.forEach((t) => {
       tableIdx++;
       const hdr = t.headerRowCount === undefined ? "" : ` headerRowCount="${t.headerRowCount}"`;
-      zip.file(
-        `xl/tables/table${tableIdx}.xml`,
-        `<?xml version="1.0"?><table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${tableIdx}" name="${t.name}" displayName="${t.name}" ref="A1:C4"${hdr}/>`,
-      );
+      const openTag = `<?xml version="1.0"?><table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${tableIdx}" name="${t.name}" displayName="${t.name}" ref="A1:C4"${hdr}`;
+      const body = t.padBytes
+        ? `>${"x".repeat(t.padBytes)}</table>`
+        : "/>";
+      zip.file(`xl/tables/table${tableIdx}.xml`, `${openTag}${body}`);
       overrides.push(
         `<Override PartName="/xl/tables/table${tableIdx}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>`,
       );

@@ -197,7 +197,16 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   // object, and hyperlink caps (FIX C, + D1 pre-merge re-audit). Kept local
   // (not on XlsxAnalysis) so the analysis OUTPUT shape is unchanged for
   // valid workbooks — mirrors pptx's local textElementCount.
-  const contentCounts = { tables: 0, drawingRels: 0, drawingObjects: 0, hyperlinks: 0 };
+  const contentCounts = {
+    tables: 0,
+    drawingRels: 0,
+    drawingObjects: 0,
+    hyperlinks: 0,
+    // RB3-3 [pre-merge re-audit]: cumulative UNCOMPRESSED bytes actually
+    // read from drawing + defined-table parts (all sheets combined). See
+    // readAuxPart / XLSX.MAX_AUX_PART_BYTES.
+    auxPartBytes: 0,
+  };
   for (const sheetEl of sheetEls) {
     const name = attrOf(sheetEl, "name") ?? "";
     const state = attrOf(sheetEl, "state");
@@ -246,13 +255,51 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   return analysis;
 }
 
+/**
+ * RB3-3 [pre-merge re-audit]: read an auxiliary (drawing/defined-table) part
+ * through the SAME per-part cap `read` already enforces
+ * (XLSX.MAX_UNCOMPRESSED_BYTES), plus a NEW cumulative budget across every
+ * such part read in this workbook (XLSX.MAX_AUX_PART_BYTES). Checked
+ * immediately after each read — before the (potentially expensive) parseXml
+ * call on that part — so a workbook whose drawing/table parts collectively
+ * exceed the budget is rejected as early as possible. Closes the gap
+ * MAX_DRAWING_RELS/MAX_TABLES leave open on their own: a HANDFUL of
+ * near-max-size, object-/row-sparse parts each pass the per-part cap and
+ * never approach the rel-COUNT cap, yet still cost real wall-clock time to
+ * read+parse (see the XLSX.MAX_AUX_PART_BYTES config comment).
+ */
+async function readAuxPart(
+  partPath: string,
+  read: (p: string) => Promise<string | null>,
+  counts: { auxPartBytes: number },
+): Promise<string | null> {
+  const xml = await read(partPath);
+  if (xml !== null) {
+    counts.auxPartBytes += Buffer.byteLength(xml, "utf-8");
+    if (counts.auxPartBytes > XLSX.MAX_AUX_PART_BYTES) {
+      throw new XlsxParseError(
+        `This workbook's drawing/table parts are too large (over ${Math.round(
+          XLSX.MAX_AUX_PART_BYTES / (1024 * 1024),
+        )} MB combined) to analyze.`,
+      );
+    }
+  }
+  return xml;
+}
+
 async function collectSheetContent(
   analysis: XlsxAnalysis,
   sheetName: string,
   sheetRoot: PONode | undefined,
   sheetRels: Array<{ id: string; target: string; type: string }>,
   read: (p: string) => Promise<string | null>,
-  counts: { tables: number; drawingRels: number; drawingObjects: number; hyperlinks: number },
+  counts: {
+    tables: number;
+    drawingRels: number;
+    drawingObjects: number;
+    hyperlinks: number;
+    auxPartBytes: number;
+  },
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
@@ -270,10 +317,12 @@ async function collectSheetContent(
     );
   }
   for (const rel of tableRels) {
-    const tableRoot = rootElement(
-      parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
-      "table",
+    const tableXml = await readAuxPart(
+      resolveXlTarget(rel.target, "xl/worksheets"),
+      read,
+      counts,
     );
+    const tableRoot = rootElement(parseXml(tableXml), "table");
     if (!tableRoot) continue;
     analysis.tables.push({
       sheetName,
@@ -306,10 +355,12 @@ async function collectSheetContent(
     );
   }
   for (const rel of drawingRels) {
-    const drawingRoot = rootElement(
-      parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
-      "wsDr",
+    const drawingXml = await readAuxPart(
+      resolveXlTarget(rel.target, "xl/worksheets"),
+      read,
+      counts,
     );
+    const drawingRoot = rootElement(parseXml(drawingXml), "wsDr");
     if (!drawingRoot) continue;
     // FIX C (pre-count, cap-before-walk): count every would-be-added drawing
     // object on the WHOLE part and check the accumulated cap BEFORE the

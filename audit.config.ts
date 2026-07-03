@@ -500,8 +500,33 @@ export const XLSX = {
    *  checked against that part's content, bounded only by the 30 MB
    *  rels-part cap (~300k rels/sheet) × MAX_SHEETS. Pre-counted before any
    *  drawing part is read (see collectSheetContent) — mirrors MAX_TABLES'S
-   *  pre-count-before-read pattern exactly. SAFE TO CHANGE. */
-  MAX_DRAWING_RELS: 10_000,
+   *  pre-count-before-read pattern exactly.
+   *  RB3-3 [pre-merge re-audit]: tightened from 10,000 -> 1,000. The review
+   *  benchmarked ~729ms/rel for a large, object-sparse drawing part, so only
+   *  ~28 such rels reach the 20s ANALYSIS_TIMEOUT_MS — the 10,000 cap never
+   *  engaged for that shape; it was a count-only bound, not a cost bound.
+   *  1,000 still comfortably exceeds any legitimate workbook (~1 rel/sheet
+   *  × MAX_SHEETS=200) while shrinking the window; MAX_AUX_PART_BYTES below
+   *  closes the rest of the gap on the SIZE dimension. SAFE TO CHANGE. */
+  MAX_DRAWING_RELS: 1_000,
+
+  /** Cumulative UNCOMPRESSED bytes actually read across every drawing +
+   *  defined-table PART in a workbook (all sheets combined) — tracked in
+   *  collectSheetContent's `counts.auxPartBytes` accumulator, checked right
+   *  after each part is read, over the cap → rejected.
+   *  RB3-3 [pre-merge re-audit]: closes a gap MAX_DRAWING_RELS/MAX_TABLES
+   *  leave open even after being count-tightened: a HANDFUL of near-max-size
+   *  (MAX_UNCOMPRESSED_BYTES, 30 MB), object-/row-sparse parts each pass the
+   *  per-part cap individually and never approach the rel-COUNT cap, yet
+   *  parsing each ~30 MB part still costs real wall-clock time (benchmarked
+   *  ~729ms for one such drawing part) — few enough parts that the count cap
+   *  doesn't engage before the 20s ANALYSIS_TIMEOUT_MS eventually would. This
+   *  budget fails fast on the SIZE dimension instead, independent of count:
+   *  ~1.6x one MAX_UNCOMPRESSED_BYTES part — room for one legitimate
+   *  full-sized part plus incidental small ones, but not a second full-sized
+   *  one. A legitimate workbook's drawing/table XML is KB-scale — nowhere
+   *  close. SAFE TO CHANGE. */
+  MAX_AUX_PART_BYTES: 48 * 1024 * 1024,
 
   /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
    *  SAFE TO CHANGE. */

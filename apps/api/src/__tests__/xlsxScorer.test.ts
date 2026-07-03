@@ -15,7 +15,11 @@ describe('XLSX config', () => {
     expect(XLSX.MAX_DRAWING_OBJECTS).toBe(100_000)
     expect(XLSX.MAX_HYPERLINKS).toBe(100_000)
     expect(XLSX.MAX_TABLES).toBe(10_000)
-    expect(XLSX.MAX_DRAWING_RELS).toBe(10_000)
+    // RB3-3 [pre-merge re-audit]: tightened from 10_000 -> 1_000 — the old
+    // count-only cap never engaged against a few large, object-sparse
+    // drawing parts (see MAX_AUX_PART_BYTES below, which closes that gap).
+    expect(XLSX.MAX_DRAWING_RELS).toBe(1_000)
+    expect(XLSX.MAX_AUX_PART_BYTES).toBe(48 * 1024 * 1024)
     expect(XLSX.ANALYSIS_TIMEOUT_MS).toBe(20_000)
     const w = XLSX.SCORING_WEIGHTS
     expect(w.text_extractability).toBe(0.05)

@@ -489,6 +489,61 @@ describe('xlsxService: drawing-REL count cap pre-counts /drawing rels BEFORE the
   })
 })
 
+describe('xlsxService: cumulative auxiliary-part BYTE budget fails fast on a few large, object-sparse drawing parts (RB3-3 DoS hardening)', () => {
+  // D1 tightened MAX_DRAWING_RELS from 10,000 -> 1,000, but the review
+  // benchmarked a shape that D1's rel-COUNT cap still can't catch: a few
+  // large (near-MAX_UNCOMPRESSED_BYTES, 30 MB), OBJECT-SPARSE drawing parts
+  // (no <xdr:pic>/<xdr:graphicFrame> at all, so MAX_DRAWING_OBJECTS never
+  // engages either) cost real wall-clock time to read+parse (~729ms/rel
+  // benchmarked) while the rel COUNT stays tiny — nowhere near even the
+  // tightened 1,000 cap. Pre-fix, only the 20s ANALYSIS_TIMEOUT_MS would
+  // eventually cut this off. The new cumulative-bytes-read budget
+  // (XLSX.MAX_AUX_PART_BYTES) must catch it almost immediately instead.
+  it('throws well before a 20s wall-clock timeout when two ~26 MB object-sparse drawing parts exceed the cumulative byte budget (rel count stays far under MAX_DRAWING_RELS)', async () => {
+    // Two ~26 MB parts: individually under MAX_UNCOMPRESSED_BYTES (30 MB
+    // per-part cap), but their SUM exceeds MAX_AUX_PART_BYTES (48 MB) on the
+    // second part — well before a 3rd, 4th, ... part would ever be read.
+    const padding = 'x'.repeat(26 * 1024 * 1024)
+    const drawingParts = [
+      { rawDrawings: `<pad>${padding}</pad>` },
+      { rawDrawings: `<pad>${padding}</pad>` },
+    ]
+    const buf = await buildXlsx({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawingParts }] })
+
+    const start = Date.now()
+    await expect(analyzeXlsx(buf)).rejects.toBeInstanceOf(XlsxParseError)
+    const elapsed = Date.now() - start
+
+    // The byte budget — not the 20s ANALYSIS_TIMEOUT_MS, and not the
+    // 1,000-rel MAX_DRAWING_RELS cap (only 2 rels here) — is what stopped
+    // this. A generous ceiling well under 20s proves it's not timeout-bound;
+    // in practice this resolves in well under 2s.
+    expect(elapsed).toBeLessThan(10_000)
+  })
+
+  it('the SAME budget also guards the defined-table read loop (the identical latent gap MAX_TABLES left open)', async () => {
+    const padding = 'x'.repeat(26 * 1024 * 1024)
+    const tables = [
+      { name: 'T1', padBytes: padding.length },
+      { name: 'T2', padBytes: padding.length },
+    ]
+    const buf = await buildXlsx({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', tables }] })
+
+    const start = Date.now()
+    await expect(analyzeXlsx(buf)).rejects.toBeInstanceOf(XlsxParseError)
+    const elapsed = Date.now() - start
+    expect(elapsed).toBeLessThan(10_000)
+  })
+
+  it('does not trip the new byte budget for legitimate small drawing parts (existing behavior unaffected)', async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawings: [{ kind: 'pic', descr: 'ok' }] }],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.images).toHaveLength(1)
+  })
+})
+
 describe('xlsxService: styles contrast', () => {
   it('fails a low-contrast font/fill pair and labels it by style index', async () => {
     const buf = await buildXlsx({
