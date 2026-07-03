@@ -11,6 +11,7 @@ import {
   remediationStatusLimiter,
 } from '../middleware/rateLimiter.js'
 import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { buildChildSpawnEnv } from '../services/childSpawnEnv.js'
 import {
   createJob,
   getJob,
@@ -87,7 +88,9 @@ async function ensureOutputRoot(): Promise<void> {
   await fs.mkdir(outputRoot, { recursive: true, mode: 0o700 })
 }
 
-function spawnWorker(jobId: string): void {
+// Exported for testability (RB2-d spawn-env verification) — spawnWorker's
+// own detach/launch behavior is unchanged; only the `env` it passes differs.
+export function spawnWorker(jobId: string): void {
   // Detached child so the parent (API) doesn't have to wait. tsx is the
   // runtime loader used by both `pnpm dev` (`tsx watch`) and `pnpm start`
   // (`node --import tsx`); we pass it explicitly here so the worker
@@ -98,7 +101,11 @@ function spawnWorker(jobId: string): void {
     {
       detached: true,
       stdio: 'ignore',
-      env: process.env,
+      // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
+      // worker parses an attacker-controlled PDF, so it must not hold the
+      // API's secrets while still getting everything it needs to boot
+      // (PATH/HOME/NODE_*/TSX_*) and to run the JVM pipeline (JAVA_*).
+      env: buildChildSpawnEnv(),
     },
   )
   child.unref()

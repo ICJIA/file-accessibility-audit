@@ -105,6 +105,14 @@ ${BOLD}Examples:${RESET}
 // when publist only ever fed it .pdf links; analyzeDocument dispatches by
 // sniffing the downloaded buffer's content, not the URL's extension).
 // Exported for direct unit testing (see __tests__/publist.test.ts).
+//
+// RB2-b [LOW] hardening: reads the body as a stream and enforces the size
+// cap on cumulative bytes AS THEY ARRIVE, instead of buffering the full body
+// via resp.arrayBuffer() and only checking afterward. A server that omits
+// or lies about Content-Length could otherwise stream unbounded bytes into
+// memory before the old post-hoc check ever fired. Mirrors the intent of
+// the web API's safeFetch.ts maxBytes handling, kept CLI-local (no server
+// import) via a small reader loop over resp.body's reader.
 export async function downloadFile(url: string): Promise<Buffer> {
   const resp = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT) })
 
@@ -117,12 +125,33 @@ export async function downloadFile(url: string): Promise<Buffer> {
     throw new Error(`File too large: ${(contentLength / 1024 / 1024).toFixed(1)} MB (max ${ANALYSIS?.MAX_FILE_SIZE_MB ?? 50} MB)`)
   }
 
-  const arrayBuf = await resp.arrayBuffer()
-  if (arrayBuf.byteLength > MAX_FILE_SIZE) {
-    throw new Error(`File too large: ${(arrayBuf.byteLength / 1024 / 1024).toFixed(1)} MB`)
+  if (!resp.body) {
+    // No readable stream (e.g. an empty 204-style response) — nothing to
+    // download.
+    return Buffer.alloc(0)
   }
 
-  return Buffer.from(arrayBuf)
+  const reader = resp.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+
+    total += value.byteLength
+    if (total > MAX_FILE_SIZE) {
+      // Stop pulling more bytes immediately rather than draining the rest
+      // of a potentially-unbounded stream — this is the whole point of the
+      // running cap.
+      await reader.cancel().catch(() => {})
+      throw new Error(`File too large: ${(total / 1024 / 1024).toFixed(1)} MB`)
+    }
+    chunks.push(value)
+  }
+
+  return Buffer.concat(chunks)
 }
 
 async function pool<T>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<void>): Promise<void> {

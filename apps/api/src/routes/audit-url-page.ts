@@ -158,17 +158,26 @@ router.post(
           })
           return
         }
+        // Log the detail server-side only — never echo raw err.message to
+        // the client (it can leak library internals / paths, e.g. a
+        // Chromium profile path or an internal stack fragment). Mirrors
+        // audit-url.ts's generic-500 pattern; `msg` is still used below to
+        // classify the failure, just never returned verbatim.
+        console.error('audit-url-page: page audit failed:', err)
         const msg = err?.message ?? String(err)
         if (/timeout|Timeout|net::ERR_/i.test(msg)) {
           res.status(504).json({
             error: 'Page navigation timed out',
-            details: msg,
+            details:
+              'The page took too long to load or render. Try again, or verify the URL is reachable.',
           })
           return
         }
-        res
-          .status(502)
-          .json({ error: 'Page audit failed', details: msg })
+        res.status(502).json({
+          error: 'Page audit failed',
+          details:
+            'The page could not be rendered or audited. It may be blocking automated access or returning an unexpected error.',
+        })
         return
       }
 
@@ -222,10 +231,11 @@ router.post(
         cached: false,
       })
     } catch (err: any) {
+      // Log the detail server-side only — never echo raw err.message to the
+      // client (it can leak library internals / paths). Mirrors
+      // audit-url.ts's generic-500 pattern.
       console.error('audit-url-page error:', err)
-      res
-        .status(500)
-        .json({ error: 'Internal server error', details: err?.message })
+      res.status(500).json({ error: 'Internal server error' })
     }
   },
 )

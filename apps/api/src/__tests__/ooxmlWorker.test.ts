@@ -37,10 +37,12 @@
  * guarantee; a mid-analysis kill would look identical to the parent.
  */
 import { describe, it, expect, vi } from "vitest";
+import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 import JSZip from "jszip";
 import { PPTX, XLSX } from "#config";
 import { analyzeDocument } from "../services/analyzer.js";
+import { runOoxmlInWorker } from "../services/ooxmlRunner.js";
 import { buildDocx } from "./helpers/minimalDocx.js";
 import { buildPptx } from "./helpers/minimalPptx.js";
 import { buildXlsx } from "./helpers/minimalXlsx.js";
@@ -51,20 +53,65 @@ import { buildXlsx } from "./helpers/minimalXlsx.js";
 // aren't spyable (namespace not configurable), so this is done via vi.mock +
 // vi.hoisted rather than vi.spyOn. The array is captured by reference so it
 // survives the vi.resetModules() the scoped-config helper does.
-const { spawnedChildren } = vi.hoisted(() => ({
+//
+// Two extra hoisted pieces support the RB2 tests below:
+//  - spawnCalls records the full (execPath, args, options) tuple for every
+//    real spawn, so the "spawn env excludes secrets" test can inspect
+//    options.env without needing its own separate mock (spying on a second
+//    module mock of the same 'node:child_process' specifier isn't possible
+//    once this one is registered).
+//  - fakeChildQueue lets a single test substitute a synthetic, fully
+//    controllable EventEmitter "child" instead of a real process, needed to
+//    deterministically observe the timeout-settlement ORDERING fix (RB2-a):
+//    a real process's SIGKILL-to-'exit' latency is too fast/variable to
+//    reliably assert "the promise is still pending right after kill() is
+//    called" against a live child.
+const { spawnedChildren, spawnCalls, fakeChildQueue } = vi.hoisted(() => ({
   spawnedChildren: [] as ChildProcess[],
+  spawnCalls: [] as unknown[][],
+  fakeChildQueue: [] as unknown[],
 }));
 vi.mock("node:child_process", async (importActual) => {
   const actual = await importActual<typeof import("node:child_process")>();
   return {
     ...actual,
     spawn: (...args: Parameters<typeof actual.spawn>) => {
+      spawnCalls.push(args);
+      if (fakeChildQueue.length > 0) {
+        const fake = fakeChildQueue.shift();
+        spawnedChildren.push(fake as ChildProcess);
+        return fake as ReturnType<typeof actual.spawn>;
+      }
       const child = actual.spawn(...args);
       spawnedChildren.push(child);
       return child;
     },
   };
 });
+
+/**
+ * A synthetic ChildProcess stand-in for the RB2-a ordering tests: a plain
+ * EventEmitter (so `.once('exit', ...)` etc. behave exactly like the real
+ * thing) plus the handful of members ooxmlRunner.ts actually touches
+ * (`.kill`, `.send`, `.exitCode`, `.signalCode`). No real process is ever
+ * spawned, so the test controls precisely when (or whether) 'exit' fires.
+ */
+function makeFakeChild() {
+  const child = new EventEmitter() as EventEmitter & {
+    exitCode: number | null;
+    signalCode: string | null;
+    kill: (signal?: string) => boolean;
+    send: (msg: unknown, cb?: (err: Error | null) => void) => boolean;
+  };
+  child.exitCode = null;
+  child.signalCode = null;
+  child.kill = vi.fn(() => true);
+  child.send = vi.fn((_msg: unknown, cb?: (err: Error | null) => void) => {
+    cb?.(null);
+    return true;
+  });
+  return child;
+}
 
 const TINY_TIMEOUT_MS = 5;
 
@@ -256,5 +303,141 @@ describe("OOXML child process: a *ParseError's .code survives the IPC boundary",
     await expect(analyzeDocument(buf, "huge.xlsx")).rejects.toMatchObject({
       code: "XLSX_PARSE_FAILED",
     });
+  });
+});
+
+describe("RB2-a: timeout settlement waits for the child's OS-confirmed exit", () => {
+  // Today, runOoxmlInWorker's timeout branch calls killChild() (SIGKILL)
+  // and rejects in the SAME synchronous tick — so analyzer.ts's
+  // `finally { releaseSemaphore() }` frees the concurrency slot the instant
+  // the signal is *issued*, not once the OS has actually reaped the
+  // process. The fix delays the reject() until the child's 'exit' event
+  // fires (a short grace timer races it so a truly stuck child still
+  // rejects). A synthetic fake child (see makeFakeChild above) gives
+  // deterministic control over exactly when 'exit' fires — a real
+  // process's SIGKILL-to-exit latency is too fast/variable to reliably
+  // assert "still pending right after kill()" against.
+  const TINY_MS = 5;
+
+  it("does NOT settle the promise merely because the timeout fired and kill() was called", async () => {
+    const fakeChild = makeFakeChild();
+    fakeChildQueue.push(fakeChild);
+
+    const promise = runOoxmlInWorker("xlsx", Buffer.from("probe"), TINY_MS);
+    // Observe settlement without ever producing an unhandled rejection.
+    const settled = promise.then(
+      () => ({ state: "resolved" as const }),
+      (e) => ({ state: "rejected" as const, e }),
+    );
+
+    // Let the timeoutMs timer fire and call kill() — but do not emit
+    // 'exit' yet.
+    await new Promise((r) => setTimeout(r, TINY_MS + 30));
+    expect(fakeChild.kill).toHaveBeenCalledWith("SIGKILL");
+
+    const raceResult = await Promise.race([
+      settled.then(() => "settled" as const),
+      new Promise<"still-pending">((r) => setTimeout(() => r("still-pending"), 50)),
+    ]);
+    // This is the crux of the fix: SIGKILL was issued, but the child has
+    // not (yet) told us it actually exited, so the promise — and therefore
+    // the concurrency-slot release riding on it — must still be pending.
+    expect(raceResult).toBe("still-pending");
+
+    // Clean up: let the child "exit" so the promise settles and nothing
+    // leaks into the next test.
+    fakeChild.signalCode = "SIGKILL";
+    fakeChild.emit("exit", null, "SIGKILL");
+    await settled;
+  });
+
+  it("settles with the ETIMEDOUT/killed shape once the child's 'exit' event fires", async () => {
+    const fakeChild = makeFakeChild();
+    fakeChildQueue.push(fakeChild);
+
+    const promise = runOoxmlInWorker("pptx", Buffer.from("probe"), TINY_MS);
+    // Attach a handler synchronously (before the timer below can possibly
+    // fire) so a rejection that lands before we emit 'exit' is never
+    // briefly "unhandled" from Node's perspective — avoids a spurious
+    // PromiseRejectionHandledWarning regardless of exactly when the
+    // implementation settles.
+    const settled = promise.catch((e) => e);
+
+    await new Promise((r) => setTimeout(r, TINY_MS + 30));
+    fakeChild.signalCode = "SIGKILL";
+    fakeChild.emit("exit", null, "SIGKILL");
+
+    const outcome = await settled;
+    expect(outcome).toMatchObject({
+      killed: true,
+      code: "ETIMEDOUT",
+    });
+  });
+
+  it("still rejects via the grace timer if the child never emits 'exit' (does not hang forever)", async () => {
+    const fakeChild = makeFakeChild();
+    fakeChildQueue.push(fakeChild);
+    // Deliberately never emit 'exit' — simulates a child that somehow
+    // doesn't die from SIGKILL.
+
+    await expect(
+      runOoxmlInWorker("docx", Buffer.from("probe"), TINY_MS),
+    ).rejects.toMatchObject({ killed: true, code: "ETIMEDOUT" });
+  }, 10_000);
+
+  it("frees the concurrency slot after a timeout (a second call does not hang behind it) — unchanged regression", async () => {
+    const buf = await buildXlsx({ sheets: [{ name: "A" }] });
+    await withScopedConfig(
+      (actual) => ({
+        XLSX: { ...actual.XLSX, ANALYSIS_TIMEOUT_MS: TINY_TIMEOUT_MS },
+        ANALYSIS: { ...actual.ANALYSIS, MAX_CONCURRENT_ANALYSES: 1 },
+      }),
+      async () => {
+        const { analyzeDocument: analyze } = await import("../services/analyzer.js");
+        await expect(analyze(buf, "a2.xlsx")).rejects.toThrow();
+        await expect(analyze(buf, "b2.xlsx")).rejects.toThrow();
+      },
+    );
+  });
+});
+
+describe("RB2-d: OOXML worker spawn env excludes API secrets", () => {
+  it("does not pass JWT_SECRET/API_PRIVILEGED_TOKEN/SMTP_PASS to the spawned child, but the child still boots and analyzes correctly", async () => {
+    const prevJwt = process.env.JWT_SECRET;
+    const prevToken = process.env.API_PRIVILEGED_TOKEN;
+    const prevSmtp = process.env.SMTP_PASS;
+    process.env.JWT_SECRET = "unit-test-jwt-secret-probe";
+    process.env.API_PRIVILEGED_TOKEN = "unit-test-privileged-token-probe";
+    process.env.SMTP_PASS = "unit-test-smtp-pass-probe";
+    try {
+      spawnCalls.length = 0;
+      const buf = await buildXlsx({ sheets: [{ name: "A" }] });
+      // Real spawn + real analysis — proves the OOXML worker still boots
+      // and produces a correct result under the stripped env, not just
+      // that the outgoing env object lacks the probed keys.
+      const r = await analyzeDocument(buf, "envcheck.xlsx");
+      expect(r.fileType).toBe("xlsx");
+      expect(r.xlsxMetadata?.title).toBe("Grant Ledger");
+
+      expect(spawnCalls.length).toBeGreaterThan(0);
+      const [, , options] = spawnCalls[spawnCalls.length - 1] as [
+        unknown,
+        unknown,
+        { env?: Record<string, string | undefined> },
+      ];
+      const childEnv = options?.env ?? {};
+      expect(childEnv.JWT_SECRET).toBeUndefined();
+      expect(childEnv.API_PRIVILEGED_TOKEN).toBeUndefined();
+      expect(childEnv.SMTP_PASS).toBeUndefined();
+      // Essentials survive so the child can actually launch under tsx.
+      expect(childEnv.PATH).toBe(process.env.PATH);
+    } finally {
+      if (prevJwt === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = prevJwt;
+      if (prevToken === undefined) delete process.env.API_PRIVILEGED_TOKEN;
+      else process.env.API_PRIVILEGED_TOKEN = prevToken;
+      if (prevSmtp === undefined) delete process.env.SMTP_PASS;
+      else process.env.SMTP_PASS = prevSmtp;
+    }
   });
 });
