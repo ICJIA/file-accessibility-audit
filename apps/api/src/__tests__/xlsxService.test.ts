@@ -194,8 +194,52 @@ describe('xlsxService: MAX_CELLS cap derives from real parsed cells, not the dim
   })
 })
 
-describe('xlsxService: drawing-object and hyperlink volume caps (DoS hardening)', () => {
-  it('rejects a workbook whose drawing-object volume exceeds MAX_DRAWING_OBJECTS', async () => {
+// ---------------------------------------------------------------------------
+// Security-hardening regression tests (red/blue audit follow-up, DoS): the
+// drawing-object and hyperlink caps must PRE-COUNT the source elements and
+// throw BEFORE the append loop runs — mirroring FIX A's cell cap and pptx's
+// countShapesAnyDepth-before-collectSlideContent. A post-append check leaves a
+// single-part burst window: ONE malicious 30MB drawing part can push millions
+// of entries into analysis.images before the check fires (~0.5–1 GB transient,
+// a credible OOM on a 4 GB droplet). See fix-2-report.md.
+//
+// The pin: monkey-patch Array.prototype.push with a wrapper that (a) tallies,
+// into a SCALAR counter, only image/link-shaped items and (b) forwards to the
+// real push — so no array push happens inside the wrapper (a vitest spy on
+// push recurses: its own call-tracking pushes to mock.calls). Then assert that
+// when analyzeXlsx rejects on an over-cap part, NOT ONE image/link object
+// reached its array first. A post-append check pushes all N before throwing
+// (RED: counter == N); a pre-count check throws with zero pushed (GREEN:
+// counter == 0). The scoped-tiny cap keeps this structural, not wall-clock.
+// ---------------------------------------------------------------------------
+
+/** Runs `body` while counting how many pushed items match `match`, via a
+ *  non-recursive Array.prototype.push wrapper (scalar counter + real push). */
+async function countMatchingPushes(
+  match: (item: unknown) => boolean,
+  body: () => Promise<void>,
+): Promise<number> {
+  const origPush = Array.prototype.push
+  let matched = 0
+  Array.prototype.push = function (this: unknown[], ...items: unknown[]): number {
+    for (const it of items) if (match(it)) matched++
+    return origPush.apply(this, items as never[])
+  } as typeof Array.prototype.push
+  try {
+    await body()
+  } finally {
+    Array.prototype.push = origPush
+  }
+  return matched
+}
+
+const isImageItem = (it: unknown): boolean =>
+  !!it && typeof it === 'object' && 'altText' in it && 'decorative' in it
+const isLinkItem = (it: unknown): boolean =>
+  !!it && typeof it === 'object' && 'url' in it && 'text' in it
+
+describe('xlsxService: drawing/hyperlink caps pre-count BEFORE the append loop (single-part burst window closed)', () => {
+  it('throws before appending ANY image when one drawing part exceeds MAX_DRAWING_OBJECTS (no partial flood)', async () => {
     vi.resetModules()
     vi.doMock('#config', async (importOriginal) => {
       const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
@@ -206,16 +250,42 @@ describe('xlsxService: drawing-object and hyperlink volume caps (DoS hardening)'
         '../services/xlsxService.js'
       )
       const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
-      const drawings = Array.from({ length: 10 }, () => ({ kind: 'pic' as const }))
+      // ONE drawing part, 10 real pics WITH cNvPr (the flood-causing kind a
+      // post-check would push) > cap 5.
+      const drawings = Array.from({ length: 10 }, () => ({ kind: 'pic' as const, descr: 'x' }))
       const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawings }] })
-      await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+      const imagePushes = await countMatchingPushes(isImageItem, async () => {
+        await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+      })
+      // The cap fires BEFORE the append loop, so not one image object reached
+      // analysis.images. A post-append check would have pushed all 10 first.
+      expect(imagePushes).toBe(0)
     } finally {
       vi.doUnmock('#config')
       vi.resetModules()
     }
   })
 
-  it('rejects a workbook whose hyperlink volume exceeds MAX_HYPERLINKS', async () => {
+  it('admits a drawing part whose object count is exactly at the cap (valid doc not rejected)', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_DRAWING_OBJECTS: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze } = await import('../services/xlsxService.js')
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      const drawings = Array.from({ length: 5 }, () => ({ kind: 'pic' as const, descr: 'x' }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawings }] })
+      const a = await analyze(buf)
+      expect(a.images).toHaveLength(5) // count == cap, not > cap → processed normally
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+
+  it('throws before appending ANY link when one sheet exceeds MAX_HYPERLINKS (no partial flood)', async () => {
     vi.resetModules()
     vi.doMock('#config', async (importOriginal) => {
       const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
@@ -231,7 +301,32 @@ describe('xlsxService: drawing-object and hyperlink volume caps (DoS hardening)'
         target: `https://example.gov/${i}`,
       }))
       const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', hyperlinks }] })
-      await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+      const linkPushes = await countMatchingPushes(isLinkItem, async () => {
+        await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+      })
+      expect(linkPushes).toBe(0)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+
+  it('admits hyperlinks whose count is exactly at the cap (valid doc not rejected)', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_HYPERLINKS: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze } = await import('../services/xlsxService.js')
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      const hyperlinks = Array.from({ length: 5 }, (_, i) => ({
+        id: `rIdH${i}`,
+        target: `https://example.gov/${i}`,
+      }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', hyperlinks }] })
+      const a = await analyze(buf)
+      expect(a.links).toHaveLength(5)
     } finally {
       vi.doUnmock('#config')
       vi.resetModules()

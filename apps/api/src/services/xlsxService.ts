@@ -13,8 +13,11 @@
  * is evaluated only for cellXfs styles applied to a non-empty cell, so
  * unused/template styles (openpyxl, PhpSpreadsheet routinely emit these)
  * can't produce a false WCAG 1.4.3 finding; (3) drawing objects and
- * hyperlinks are capped across all sheets, mirroring pptxService's
- * countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk pattern.
+ * hyperlinks are capped by pre-counting the source elements and checking the
+ * accumulated total BEFORE the append loops (so one oversized part can't flood
+ * the arrays before the check fires), bounded across all sheets — mirroring
+ * pptxService's countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk
+ * pattern.
  */
 import JSZip from "jszip";
 import { XLSX } from "#config";
@@ -188,6 +191,10 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
 
   let totalCells = 0;
   const appliedStyleIndices = new Set<number>();
+  // Cross-sheet accumulators for the drawing-object and hyperlink caps (FIX C).
+  // Kept local (not on XlsxAnalysis) so the analysis OUTPUT shape is unchanged
+  // for valid workbooks — mirrors pptx's local textElementCount.
+  const contentCounts = { drawingObjects: 0, hyperlinks: 0 };
   for (const sheetEl of sheetEls) {
     const name = attrOf(sheetEl, "name") ?? "";
     const state = attrOf(sheetEl, "state");
@@ -220,7 +227,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
       : null;
     const sheetRels = parseRelationshipEntries(sheetRelsPath ? await read(sheetRelsPath) : null);
 
-    await collectSheetContent(analysis, name, sheetRoot, sheetRels, read);
+    await collectSheetContent(analysis, name, sheetRoot, sheetRels, read, contentCounts);
 
     analysis.sheets.push({
       name,
@@ -242,6 +249,7 @@ async function collectSheetContent(
   sheetRoot: PONode | undefined,
   sheetRels: Array<{ id: string; target: string; type: string }>,
   read: (p: string) => Promise<string | null>,
+  counts: { drawingObjects: number; hyperlinks: number },
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
@@ -268,37 +276,51 @@ async function collectSheetContent(
       "wsDr",
     );
     if (!drawingRoot) continue;
+    // FIX C (pre-count, cap-before-walk): count every would-be-added drawing
+    // object on the WHOLE part and check the accumulated cap BEFORE the
+    // anchor/push loop appends anything — mirroring the MAX_CELLS pre-count and
+    // pptx's countShapesAnyDepth-before-collectSlideContent. A post-append
+    // check leaves a single-part burst window: one malicious 30 MB drawing part
+    // could push millions of entries into analysis.images before firing.
+    // Counting on drawingRoot (any depth) slightly over-counts vs the
+    // cNvPr-gated push below — fine for a security cap, over-counting only
+    // rejects sooner. `counts` accumulates across parts AND sheets.
+    counts.drawingObjects +=
+      descendants(drawingRoot, "pic").length +
+      descendants(drawingRoot, "graphicFrame").length;
+    if (counts.drawingObjects > XLSX.MAX_DRAWING_OBJECTS) {
+      throw new XlsxParseError(
+        `This workbook has too many drawing objects (${counts.drawingObjects.toLocaleString()}+) to analyze.`,
+      );
+    }
     for (const anchor of childrenOf(drawingRoot)) {
       for (const obj of [...descendants(anchor, "pic"), ...descendants(anchor, "graphicFrame")]) {
         const cNvPr = descendants(obj, "cNvPr")[0];
         if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
       }
     }
-    // FIX C: bound analysis.images (accumulated across all sheets) — otherwise
-    // unbounded, limited only by MAX_UNCOMPRESSED_BYTES × MAX_SHEETS.
-    if (analysis.images.length > XLSX.MAX_DRAWING_OBJECTS) {
-      throw new XlsxParseError(
-        `This workbook has too many drawing objects (${analysis.images.length.toLocaleString()}+) to analyze.`,
-      );
-    }
   }
 
   // Hyperlinks: display attr or "" (cell text not resolved — v1 boundary).
   if (sheetRoot) {
+    const linkEls = descendants(sheetRoot, "hyperlink");
+    // FIX C (pre-count, cap-before-walk): same guarantee for hyperlinks —
+    // count the source <hyperlink> elements and check the accumulated cap
+    // BEFORE the push loop, closing the same single-part burst window.
+    // `counts` accumulates across sheets.
+    counts.hyperlinks += linkEls.length;
+    if (counts.hyperlinks > XLSX.MAX_HYPERLINKS) {
+      throw new XlsxParseError(
+        `This workbook has too many hyperlinks (${counts.hyperlinks.toLocaleString()}+) to analyze.`,
+      );
+    }
     const relMap = new Map(sheetRels.map((r) => [r.id, r.target]));
-    for (const link of descendants(sheetRoot, "hyperlink")) {
+    for (const link of linkEls) {
       const rid = attrOf(link, "id");
       analysis.links.push({
         text: (attrOf(link, "display") ?? "").trim(),
         url: rid && relMap.has(rid) ? relMap.get(rid)! : null,
       });
-    }
-    // FIX C: bound analysis.links (accumulated across all sheets) — same
-    // unbounded-growth rationale as the drawing-object cap above.
-    if (analysis.links.length > XLSX.MAX_HYPERLINKS) {
-      throw new XlsxParseError(
-        `This workbook has too many hyperlinks (${analysis.links.length.toLocaleString()}+) to analyze.`,
-      );
     }
   }
 }
