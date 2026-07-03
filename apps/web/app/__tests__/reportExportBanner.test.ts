@@ -113,3 +113,36 @@ describe("buildText export", () => {
     expect(text).not.toContain("|---");
   });
 });
+
+describe("format-aware export labels", () => {
+  it("labels a PowerPoint export with slides and the PowerPoint title", () => {
+    const result = baseResult({
+      filename: "deck.pptx",
+      pageCount: 9,
+      fileType: "pptx",
+    });
+    const md = buildMarkdown(result, branding);
+    expect(md).toContain("9 slides · PowerPoint");
+    const html = buildHtml(result, branding);
+    expect(html).toContain("PowerPoint Accessibility Report");
+    expect(html).toContain("9 slides · PowerPoint");
+  });
+
+  it("labels an Excel export with sheets and the Excel title", () => {
+    const result = baseResult({
+      filename: "budget.xlsx",
+      pageCount: 4,
+      fileType: "xlsx",
+    });
+    const txt = buildText(result, branding);
+    expect(txt).toContain("4 sheets · Excel");
+    const html = buildHtml(result, branding);
+    expect(html).toContain("Excel Accessibility Report");
+  });
+
+  it("keeps the PDF wording for results without a fileType", () => {
+    const html = buildHtml(baseResult(), branding);
+    expect(html).toContain("PDF Accessibility Report");
+    expect(html).toContain("12 pages · PDF");
+  });
+});

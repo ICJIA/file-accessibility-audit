@@ -200,4 +200,32 @@ describe("buildAiAnalysis", () => {
     expect(out).toContain("## Warnings");
     expect(out).toContain("Metadata missing creation date");
   });
+
+  it("titles the analysis by file type and counts slides for pptx", () => {
+    const out = buildAiAnalysis(
+      baseResult({ filename: "deck.pptx", pageCount: 9, fileType: "pptx" }),
+    );
+    expect(out).toContain("# PowerPoint Accessibility Audit — For AI Analysis");
+    expect(out).toContain("Slides: 9");
+    expect(out).toContain("I ran an automated PowerPoint accessibility audit");
+    expect(out).toContain("Please verify the PowerPoint file");
+    expect(out).toContain("Microsoft PowerPoint itself");
+    expect(out).not.toContain("Adobe Acrobat Pro");
+  });
+
+  it("counts sheets and uses the Excel fix framing for xlsx", () => {
+    const out = buildAiAnalysis(
+      baseResult({ filename: "budget.xlsx", pageCount: 4, fileType: "xlsx" }),
+    );
+    expect(out).toContain("# Excel Accessibility Audit — For AI Analysis");
+    expect(out).toContain("Sheets: 4");
+    expect(out).toContain("Microsoft Excel itself");
+  });
+
+  it("keeps the PDF wording, Pages label, and Acrobat step for pdf", () => {
+    const out = buildAiAnalysis(baseResult({ fileType: "pdf" }));
+    expect(out).toContain("# PDF Accessibility Audit — For AI Analysis");
+    expect(out).toContain("Pages: 12");
+    expect(out).toContain("Adobe Acrobat Pro");
+  });
 });

@@ -1,6 +1,11 @@
 import fileSaver from "file-saver";
 import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
-import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
+import {
+  BANNER_EYEBROW,
+  bannerMetaLine,
+  fileTypeLabel,
+  pageNoun,
+} from "~/utils/reportBanner";
 import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
 import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
@@ -34,7 +39,7 @@ interface ReportResult {
   scoringMode?: ScoringMode;
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
   conformance?: ConformanceVerdict;
-  fileType?: "pdf" | "docx";
+  fileType?: "pdf" | "docx" | "pptx" | "xlsx";
 }
 
 type ScoringMode = "strict" | "remediation";
@@ -120,6 +125,12 @@ function gradeLabel(grade: string): string {
     F: "Failing",
   };
   return map[grade] || grade;
+}
+
+/** "- Pages: 12" / "- Slides: 9" / "- Sheets: 4" for the AI-analysis export. */
+function pageCountLine(result: ReportResult): string {
+  const noun = pageNoun(result.fileType);
+  return `- ${noun.charAt(0).toUpperCase()}${noun.slice(1)}s: ${result.pageCount}`;
 }
 
 function profileLabel(_mode: ScoringMode): string {
@@ -440,7 +451,7 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
       description:
         "This section provides structured context for LLMs processing this accessibility report.",
       prompt:
-        `You are reviewing a PDF accessibility audit for "${result.filename}" (${result.pageCount} pages). ` +
+        `You are reviewing a ${fileTypeLabel(result.fileType)} accessibility audit for "${result.filename}" (${result.pageCount} ${pageNoun(result.fileType)}${result.pageCount === 1 ? "" : "s"}). ` +
         `It scored ${result.overallScore}/100 (Grade ${result.grade}). ` +
         (failingCategories.length > 0
           ? `The following categories need remediation: ${failingCategories.map((c) => `${c.label} (${c.score}/100)`).join(", ")}. `
@@ -809,7 +820,7 @@ export function buildHtml(
     </div>
   </div>
 
-  <h1 style="text-align:center;font-size:24px;margin-bottom:4px">${result.fileType === "docx" ? "Word" : "PDF"} Accessibility Report</h1>
+  <h1 style="text-align:center;font-size:24px;margin-bottom:4px">${fileTypeLabel(result.fileType)} Accessibility Report</h1>
   <p style="text-align:center;font-size:13px;color:#888;margin-top:0">${timestamp()}</p>
 
   <div style="text-align:center;margin:30px 0">
@@ -878,18 +889,18 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
   const passingCount = scored.length - failing.length;
 
   lines.push(
-    `# ${result.fileType === "docx" ? "Word" : "PDF"} Accessibility Audit — For AI Analysis`,
+    `# ${fileTypeLabel(result.fileType)} Accessibility Audit — For AI Analysis`,
   );
   lines.push("");
 
   if (failing.length === 0) {
     lines.push(
-      `An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG ${wcagVersion} Level AA and ADA Title II requirements. No remediation is needed at this time.`,
+      `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check against WCAG ${wcagVersion} Level AA and ADA Title II requirements. No remediation is needed at this time.`,
     );
     lines.push("");
     lines.push(`## File`);
     lines.push(`- Filename: ${result.filename}`);
-    lines.push(`- Pages: ${result.pageCount}`);
+    lines.push(pageCountLine(result));
     lines.push(
       `- Strict score (WCAG / IITAA §E205.4): ${result.overallScore}/100 (${result.grade})`,
     );
@@ -914,18 +925,24 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
     return lines.join("\n");
   }
 
+  const formatLabel = fileTypeLabel(result.fileType);
+  const isPdfResult = !result.fileType || result.fileType === "pdf";
   lines.push(
-    `I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG ${wcagVersion} Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG ${wcagVersion} Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
   );
   lines.push("");
   lines.push(
-    `**Please verify the PDF file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the actual tag tree, reading order, alt text, and form fields directly rather than reasoning only from the summary below.`,
+    `**Please verify the ${formatLabel} file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the ${
+      isPdfResult
+        ? "actual tag tree, reading order, alt text, and form fields"
+        : "document's actual structure, alt text, and content"
+    } directly rather than reasoning only from the summary below.`,
   );
   lines.push("");
 
   lines.push(`## File`);
   lines.push(`- Filename: ${result.filename}`);
-  lines.push(`- Pages: ${result.pageCount}`);
+  lines.push(pageCountLine(result));
   lines.push(
     `- Strict score (WCAG / IITAA §E205.4): ${result.overallScore}/100 (${result.grade})`,
   );
@@ -990,7 +1007,9 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
     `1. Explain in plain language what each failing category means for a real screen-reader or assistive-technology user.`,
   );
   lines.push(
-    `2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`,
+    isPdfResult
+      ? `2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`
+      : `2. For each failing category, give me 2–4 concrete remediation steps in Microsoft ${formatLabel} itself (start from Review → Check Accessibility) — this ${formatLabel} file is the source document, so every fix belongs there.`,
   );
   lines.push(
     `3. Prioritize the Critical items — which fix should I tackle first, and why?`,
