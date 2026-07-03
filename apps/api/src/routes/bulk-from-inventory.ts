@@ -2,7 +2,7 @@ import { Router, Request, Response, type IRouter } from 'express'
 import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { reportsLimiter } from '../middleware/rateLimiter.js'
-import { analyzePDF } from '../services/pdfAnalyzer.js'
+import { analyzeDocument, detectFileType } from '../services/analyzer.js'
 import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 import { validateUrlForFetch } from '../services/urlPolicy.js'
@@ -16,7 +16,7 @@ const router: IRouter = Router()
 // ---------------------------------------------------------------------------
 
 const MAX_INVENTORY_BYTES = 5 * 1024 * 1024  // 5 MB NDJSON cap
-const MAX_PDF_BYTES = 15 * 1024 * 1024        // match ANALYSIS.MAX_FILE_SIZE_MB
+const MAX_FILE_BYTES = 15 * 1024 * 1024       // match ANALYSIS.MAX_FILE_SIZE_MB; applies to any of the four supported formats, not just PDF
 const MAX_FILES_PER_REQUEST = 100             // cap to keep requests reasonable
 const FETCH_TIMEOUT_MS = 30_000               // matches SCHEDULED_CHECKS.FETCH_TIMEOUT_MS
 
@@ -102,7 +102,7 @@ function parseInventory(
 
     entries.push({
       path: parsed.path ?? '',
-      filename: parsed.filename ?? parsed.path ?? 'unnamed.pdf',
+      filename: parsed.filename ?? parsed.path ?? `unnamed.${filterCategory}`,
       category: parsed.category,
       publicUrl,
       sha256: parsed.sha256,
@@ -117,16 +117,29 @@ function parseInventory(
 // ---------------------------------------------------------------------------
 // POST /api/bulk-from-inventory
 // ---------------------------------------------------------------------------
-// Accepts a filecap NDJSON inventory, iterates PDF entries, fetches each
-// file server-side, runs the existing analyzePDF pipeline, persists results
-// via shared_reports, and returns a manifest with per-file scores/grades.
+// Accepts a filecap NDJSON inventory, iterates the entries matching
+// filterCategory, fetches each file server-side, and audits it through the
+// same detectFileType + analyzeDocument dispatcher /api/analyze-url and
+// /api/audit-url use — so every audited file inherits the concurrency
+// semaphore, per-format DoS caps, and the interruptible-child-process
+// analysis timeout. Persists results via shared_reports and returns a
+// manifest with per-file scores/grades.
+//
+// This endpoint used to accept PDFs only (a raw %PDF- magic-byte gate + a
+// direct analyzePDF call; filterCategory always defaulted to 'pdf' and any
+// other value's entries would parse fine here but then always fail that
+// magic-byte gate). filterCategory now also accepts 'docx', 'pptx', and
+// 'xlsx' to audit the other three supported formats — one category per
+// request, same as before. The default stays 'pdf' so existing callers keep
+// working byte-identically.
 //
 // Auth required (authMiddleware). The reportsLimiter is reused; a dedicated
 // bulk rate-limit class may be warranted once traffic patterns are known.
 //
-// Processing is serial to respect the existing 2-at-a-time semaphore in
-// pdfAnalyzer.ts. For inventories with many PDFs this endpoint is slow by
-// design — a background job model is the long-term answer for large fleets.
+// Processing is serial to respect the shared concurrency semaphore in
+// pdfAnalyzer.ts (used by every format via analyzeDocument). For
+// inventories with many files this endpoint is slow by design — a
+// background job model is the long-term answer for large fleets.
 // ---------------------------------------------------------------------------
 
 router.post(
@@ -142,9 +155,12 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       // Support two intake modes:
-      //   1. JSON body: { inventory: "<NDJSON>", filterCategory?: "pdf" }
+      //   1. JSON body: { inventory: "<NDJSON>", filterCategory?: "pdf" | "docx" | "pptx" | "xlsx" }
       //   2. Raw text/plain body: the NDJSON content directly
-      //      (requires the caller to set Content-Type: text/plain)
+      //      (requires the caller to set Content-Type: text/plain).
+      //      filterCategory has no side channel in this mode, so it always
+      //      uses the 'pdf' default below — pre-existing limitation,
+      //      unchanged by the four-format migration.
       let inventoryText: string | undefined
       let filterCategory = 'pdf'
 
@@ -186,7 +202,8 @@ router.post(
       if (entries.length === 0) {
         res.status(400).json({
           error: `Inventory contains no ${filterCategory} entries with a resolvable public URL.`,
-          details: 'Each entry needs either a publicUrl field, or a publicUrlBase in the inventory header so the URL can be constructed from the path.',
+          details:
+            'Each entry needs either a publicUrl field, or a publicUrlBase in the inventory header so the URL can be constructed from the path. Supported filterCategory values are pdf, docx, pptx, and xlsx (default: pdf).',
         })
         return
       }
@@ -209,7 +226,7 @@ router.post(
           try {
             fetched = await safeFetch(entry.publicUrl!, {
               timeoutMs: FETCH_TIMEOUT_MS,
-              maxBytes: MAX_PDF_BYTES,
+              maxBytes: MAX_FILE_BYTES,
               validateUrl: validateUrlForFetch,
             })
           } catch (e) {
@@ -229,16 +246,22 @@ router.post(
 
           const buf = fetched.buffer
 
-          // Magic bytes check
-          const header = buf.subarray(0, 5).toString('ascii')
-          if (header !== '%PDF-') {
-            result.error = `not a valid PDF (header bytes: ${header})`
+          // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content
+          // (not the inventory's declared category) — same dispatcher
+          // /api/analyze-url and /api/audit-url use. Replaces the old hard
+          // %PDF- magic-byte check, which made every non-PDF entry fail
+          // here even when filterCategory selected docx/pptx/xlsx entries
+          // upstream in parseInventory().
+          const fileType = await detectFileType(buf)
+          if (!fileType) {
+            result.error =
+              'fetched content is not a supported document (matches none of PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)'
             results.push(result)
             continue
           }
 
           const contentHash = sha256Hex(buf)
-          const analysis = await analyzePDF(buf, entry.filename)
+          const analysis = await analyzeDocument(buf, entry.filename)
 
           result.overallScore = analysis.overallScore
           result.grade = analysis.grade
@@ -275,11 +298,33 @@ router.post(
           result.reportId = id
           result.reportUrl = `/api/reports/${id}`
         } catch (err: any) {
-          // Distinguish specific error types for better diagnostics
+          // Distinguish specific error types for better diagnostics. The
+          // *_DISABLED / *_PARSE_FAILED / ETIMEDOUT branches below are new
+          // as of the four-format migration — analyzeDocument's docx/pptx/
+          // xlsx paths can throw FileTypeError, DocxParseError/
+          // PptxParseError/XlsxParseError, or a killed/ETIMEDOUT error from
+          // the child-process runner (ooxmlRunner.ts). Each maps to a
+          // per-file result.error string here (mirroring how audit-url.ts /
+          // analyze-url.ts map the same codes to HTTP statuses) instead of
+          // aborting the batch.
           if (err?.name === 'AbortError') {
             result.error = `fetch timed out after ${FETCH_TIMEOUT_MS}ms`
           } else if (err?.status === 503) {
             result.error = 'server busy — analysis queue full, try again'
+          } else if (err?.code === 'DOCX_DISABLED') {
+            result.error = 'Word (.docx) auditing is currently disabled on this server'
+          } else if (err?.code === 'PPTX_DISABLED') {
+            result.error = 'PowerPoint (.pptx) auditing is currently disabled on this server'
+          } else if (err?.code === 'XLSX_DISABLED') {
+            result.error = 'Excel (.xlsx) auditing is currently disabled on this server'
+          } else if (err?.code === 'DOCX_PARSE_FAILED') {
+            result.error = 'the Word (.docx) file could not be read (corrupt or not a valid Word document)'
+          } else if (err?.code === 'PPTX_PARSE_FAILED') {
+            result.error = 'the PowerPoint (.pptx) file could not be read (corrupt or not a valid PowerPoint presentation)'
+          } else if (err?.code === 'XLSX_PARSE_FAILED') {
+            result.error = 'the Excel (.xlsx) file could not be read (corrupt or not a valid Excel workbook)'
+          } else if (err?.code === 'ETIMEDOUT' || err?.killed) {
+            result.error = 'analysis timed out — this document is too complex to analyze within the time limit'
           } else if (err?.message?.includes('encrypted') || err?.message?.includes('password')) {
             result.error = 'PDF is password-protected and cannot be analyzed'
           } else {
