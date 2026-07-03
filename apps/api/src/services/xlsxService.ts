@@ -181,13 +181,55 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
 }
 
 async function collectSheetContent(
-  _analysis: XlsxAnalysis,
-  _sheetName: string,
-  _sheetRoot: PONode | undefined,
-  _sheetRels: Array<{ id: string; target: string; type: string }>,
-  _read: (p: string) => Promise<string | null>,
+  analysis: XlsxAnalysis,
+  sheetName: string,
+  sheetRoot: PONode | undefined,
+  sheetRels: Array<{ id: string; target: string; type: string }>,
+  read: (p: string) => Promise<string | null>,
 ): Promise<void> {
-  // Filled in by the tables/drawings/links task.
+  // Defined tables (the gate's only table signal): headerRowCount attribute
+  // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
+  for (const rel of sheetRels.filter((r) => /\/table$/.test(r.type))) {
+    const tableRoot = rootElement(
+      parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
+      "table",
+    );
+    if (!tableRoot) continue;
+    analysis.tables.push({
+      sheetName,
+      name: attrOf(tableRoot, "displayName") ?? attrOf(tableRoot, "name") ?? "",
+      hasHeaderRow: attrOf(tableRoot, "headerRowCount") !== "0",
+    });
+  }
+
+  // Drawings: pictures + chart frames need alt text (shared DrawingML descr).
+  for (const rel of sheetRels.filter((r) => /\/drawing$/.test(r.type))) {
+    const drawingRoot = rootElement(
+      parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
+      "wsDr",
+    );
+    if (!drawingRoot) continue;
+    // Process drawings in document order (each oneCellAnchor contains pic or graphicFrame).
+    for (const anchor of childrenOf(drawingRoot)) {
+      const obj = descendants(anchor, "pic")[0] || descendants(anchor, "graphicFrame")[0];
+      if (obj) {
+        const cNvPr = descendants(obj, "cNvPr")[0];
+        if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
+      }
+    }
+  }
+
+  // Hyperlinks: display attr or "" (cell text not resolved — v1 boundary).
+  if (sheetRoot) {
+    const relMap = new Map(sheetRels.map((r) => [r.id, r.target]));
+    for (const link of descendants(sheetRoot, "hyperlink")) {
+      const rid = attrOf(link, "id");
+      analysis.links.push({
+        text: (attrOf(link, "display") ?? "").trim(),
+        url: rid && relMap.has(rid) ? relMap.get(rid)! : null,
+      });
+    }
+  }
 }
 
 async function collectStylesContrast(

@@ -40,3 +40,56 @@ describe('xlsxService: workbook + sheets', () => {
     await expect(analyzeXlsx(Buffer.from('nope'))).rejects.toBeInstanceOf(XlsxParseError)
   })
 })
+
+describe('xlsxService: tables, drawings, links', () => {
+  it('reads defined tables: absent headerRowCount means header ON, 0 means OFF', async () => {
+    const buf = await buildXlsx({
+      sheets: [{
+        name: 'Data', dimensionRef: 'A1:C4',
+        tables: [{ name: 'GoodTable' }, { name: 'BadTable', headerRowCount: 0 }],
+      }],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.tables).toEqual([
+      { sheetName: 'Data', name: 'GoodTable', hasHeaderRow: true },
+      { sheetName: 'Data', name: 'BadTable', hasHeaderRow: false },
+    ])
+    expect(a.sheets[0].hasDefinedTable).toBe(true)
+  })
+
+  it('reads picture and chart alt text from the drawing part', async () => {
+    const buf = await buildXlsx({
+      sheets: [{
+        name: 'Viz', dimensionRef: 'A1:B2',
+        drawings: [
+          { kind: 'pic', descr: 'Staff photo' },
+          { kind: 'chart' },
+          { kind: 'pic', decorative: true },
+        ],
+      }],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.images).toEqual([
+      { altText: 'Staff photo', decorative: false },
+      { altText: null, decorative: false },
+      { altText: null, decorative: true },
+    ])
+  })
+
+  it('reads hyperlinks with display text, and "" when display is absent', async () => {
+    const buf = await buildXlsx({
+      sheets: [{
+        name: 'L', dimensionRef: 'A1:B2',
+        hyperlinks: [
+          { id: 'rIdH1', target: 'https://example.gov/a', display: 'Annual report' },
+          { id: 'rIdH2', target: 'https://example.gov/b' },
+        ],
+      }],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.links).toEqual([
+      { text: 'Annual report', url: 'https://example.gov/a' },
+      { text: '', url: 'https://example.gov/b' },
+    ])
+  })
+})
