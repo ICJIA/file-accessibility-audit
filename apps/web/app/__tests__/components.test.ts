@@ -432,6 +432,92 @@ describe("ScoreCard", () => {
       "fix the issues directly in PowerPoint (Review → Check Accessibility)",
     );
   });
+
+  describe("ScoreCard — conformance finding URL hardening (stored XSS)", () => {
+    // Sibling of the helpLinks stored-XSS fix (report-content.test.ts): the
+    // public /report/:id page renders attacker-controllable stored JSON, and
+    // conformance.failures[].url / conformance.notAssessed[].url render as
+    // <a href> too. Real extractors only ever emit safe wcagUrl(sc) https
+    // literals — this guards a forged report.
+    function resultWithConformance(failureUrl: string, notAssessedUrl: string) {
+      return {
+        ...baseResult,
+        conformance: {
+          status: "fail",
+          headline: "Confirmed failures found.",
+          failures: [
+            {
+              sc: "1.1.1",
+              name: "Non-text Content",
+              level: "A",
+              category: "alt_text",
+              issue: "2 images have no alt text",
+              url: failureUrl,
+            },
+          ],
+          notAssessed: [
+            {
+              sc: "1.4.3",
+              name: "Contrast (Minimum)",
+              level: "AA",
+              reason: "not automated",
+              url: notAssessedUrl,
+            },
+          ],
+        },
+      };
+    }
+
+    it("drops the href for a javascript: failure URL but keeps the finding text", () => {
+      const wrapper = mount(ScoreCard, {
+        props: {
+          result: resultWithConformance(
+            "javascript:alert(document.domain)",
+            "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+          ),
+        },
+      });
+      const html = wrapper.html();
+      expect(html).toContain("1.1.1");
+      expect(html).toContain("Non-text Content");
+      expect(html).not.toContain('href="javascript:');
+      expect(html).not.toContain("javascript:alert");
+    });
+
+    it("drops the href for a javascript: notAssessed URL but keeps the criterion text", () => {
+      const wrapper = mount(ScoreCard, {
+        props: {
+          result: resultWithConformance(
+            "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "javascript:alert(1)",
+          ),
+        },
+      });
+      const html = wrapper.html();
+      expect(html).toContain("1.4.3");
+      expect(html).toContain("Contrast (Minimum)");
+      expect(html).not.toContain('href="javascript:');
+      expect(html).not.toContain("javascript:alert");
+    });
+
+    it("keeps the href for legitimate https failure and notAssessed URLs", () => {
+      const wrapper = mount(ScoreCard, {
+        props: {
+          result: resultWithConformance(
+            "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+          ),
+        },
+      });
+      const html = wrapper.html();
+      expect(html).toContain(
+        'href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"',
+      );
+      expect(html).toContain(
+        'href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"',
+      );
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

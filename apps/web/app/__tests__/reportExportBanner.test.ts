@@ -146,3 +146,85 @@ describe("format-aware export labels", () => {
     expect(html).toContain("12 pages · PDF");
   });
 });
+
+describe("buildHtml / buildMarkdown — conformance finding URL hardening (stored XSS)", () => {
+  // Sibling of the helpLinks stored-XSS fix: conformance.failures[].url and
+  // conformance.notAssessed[].url render as <a href> (buildHtml) and as
+  // markdown link targets (buildMarkdown), and are attacker-controllable on a
+  // forged shared report (POST /api/reports). Real extractors only ever emit
+  // safe wcagUrl(sc) https literals.
+  function resultWithConformanceUrl(url: string) {
+    return baseResult({
+      conformance: {
+        status: "fail",
+        headline: "Confirmed failures found.",
+        failures: [
+          {
+            sc: "1.1.1",
+            name: "Non-text Content",
+            level: "A",
+            category: "alt_text",
+            issue: "2 images have no alt text",
+            url,
+          },
+        ],
+        notAssessed: [
+          {
+            sc: "1.4.3",
+            name: "Contrast (Minimum)",
+            level: "AA",
+            reason: "not automated",
+            url,
+          },
+        ],
+      },
+    });
+  }
+
+  it("buildHtml drops the href for a javascript: URL but keeps the finding text", () => {
+    const html = buildHtml(
+      resultWithConformanceUrl("javascript:alert(document.domain)"),
+      branding,
+    );
+    expect(html).toContain("1.1.1");
+    expect(html).toContain("Non-text Content");
+    expect(html).toContain("1.4.3");
+    expect(html).not.toContain('href="javascript:');
+    expect(html).not.toContain("javascript:alert");
+  });
+
+  it("buildHtml keeps the href for a legitimate https URL", () => {
+    const html = buildHtml(
+      resultWithConformanceUrl(
+        "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+      ),
+      branding,
+    );
+    expect(html).toContain(
+      'href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"',
+    );
+  });
+
+  it("buildMarkdown never embeds a javascript: URL as a markdown link target, but keeps the finding text", () => {
+    const md = buildMarkdown(
+      resultWithConformanceUrl("javascript:alert(document.domain)"),
+      branding,
+    );
+    expect(md).toContain("1.1.1");
+    expect(md).toContain("Non-text Content");
+    expect(md).toContain("1.4.3");
+    expect(md).not.toContain("javascript:");
+  });
+
+  it("buildMarkdown keeps a legitimate https URL as the markdown link target", () => {
+    const md = buildMarkdown(
+      resultWithConformanceUrl(
+        "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+      ),
+      branding,
+    );
+    expect(md).toContain(
+      "[1.1.1 Non-text Content](https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html)",
+    );
+  });
+});

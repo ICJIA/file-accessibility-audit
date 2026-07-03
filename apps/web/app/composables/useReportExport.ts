@@ -180,6 +180,18 @@ function severityEmoji(severity: string | null): string {
   return map[severity] || "";
 }
 
+/**
+ * Markdown `[label](url)` for a conformance finding, scheme-guarded like the
+ * buildHtml href sinks above — `conformance.failures[]/notAssessed[].url` is
+ * attacker-controllable on a forged shared report (POST /api/reports), the
+ * same class as the helpLinks stored-XSS this mirrors. An unsafe url falls
+ * back to the bare label (never emits `](javascript:` into the markdown).
+ */
+function mdLink(label: string, url: string): string {
+  const safe = safeHttpUrl(url);
+  return safe ? `[${label}](${safe})` : label;
+}
+
 // ── Markdown ──────────────────────────────────────────────────────────────
 
 interface BrandingInfo {
@@ -222,14 +234,14 @@ export function buildMarkdown(
       lines.push("|---|---|---|");
       for (const f of c.failures) {
         lines.push(
-          `| [${f.sc} ${f.name}](${f.url}) | ${f.level} | ${f.issue} |`,
+          `| ${mdLink(`${f.sc} ${f.name}`, f.url)} | ${f.level} | ${f.issue} |`,
         );
       }
       lines.push("");
     }
     if (c.notAssessed.length) {
       const na = c.notAssessed
-        .map((n) => `[${n.sc} ${n.name}](${n.url})`)
+        .map((n) => mdLink(`${n.sc} ${n.name}`, n.url))
         .join(", ");
       lines.push(
         `_Not evaluated automatically: ${na}. These require manual review._`,
@@ -612,7 +624,7 @@ function conformanceHtmlBlock(c: ConformanceVerdict, wcagVersion: string): strin
     ? `<ul style="font-size:13px;color:#ccc;margin:12px 0 0;padding-left:20px">${c.failures
         .map(
           (f) =>
-            `<li style="margin-bottom:6px"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span> — ${escapeHtml(f.issue)}</li>`,
+            `<li style="margin-bottom:6px"><a href="${escapeHtml(safeHttpUrl(f.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span> — ${escapeHtml(f.issue)}</li>`,
         )
         .join("")}</ul>`
     : "";
@@ -620,7 +632,7 @@ function conformanceHtmlBlock(c: ConformanceVerdict, wcagVersion: string): strin
     ? `<p style="font-size:13px;color:#888;margin:12px 0 0">Not evaluated automatically: ${c.notAssessed
         .map(
           (n) =>
-            `<a href="${escapeHtml(n.url)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa">${escapeHtml(n.sc)} ${escapeHtml(n.name)}</a>`,
+            `<a href="${escapeHtml(safeHttpUrl(n.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa">${escapeHtml(n.sc)} ${escapeHtml(n.name)}</a>`,
         )
         .join(", ")}. These still require manual review.</p>`
     : "";

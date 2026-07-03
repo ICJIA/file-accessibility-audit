@@ -65,7 +65,7 @@
           class="text-xs text-[var(--text-secondary)] leading-relaxed"
         >
           <a
-            :href="f.url"
+            :href="safeHttpUrl(f.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="font-mono font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -83,7 +83,7 @@
           v-for="(n, i) in conformance.notAssessed"
           :key="n.sc"
           ><a
-            :href="n.url"
+            :href="safeHttpUrl(n.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -194,7 +194,7 @@ import {
   type ScoringMode,
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
-import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, safeHttpUrl } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
