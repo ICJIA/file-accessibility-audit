@@ -295,6 +295,7 @@
         <ReportActionBanner
           v-if="result?.categories"
           :categories="result.categories"
+          :file-type="result?.fileType"
           class="mb-4"
         />
 
@@ -3239,7 +3240,7 @@ pm2 restart ecosystem.config.cjs</div>
           0
         </div>
         <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
-          PDFs retained
+          Files retained
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Uploaded files exist on the server only as long as the pipeline requires.
@@ -3263,7 +3264,7 @@ pm2 restart ecosystem.config.cjs</div>
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Every step runs on this server. No data is sent to vision models, hosted
-          AI services, or commercial PDF SDKs. The toolchain (qpdf, pdfjs,
+          AI services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs,
           OpenDataLoader, veraPDF) is entirely open source — no per-document fees,
           no SDK licensing.
         </p>

@@ -448,7 +448,7 @@ const conformanceBody = computed(() => {
       : "Correcting them is manual work — fix the document in Adobe Acrobat's Accessibility Checker, or repair the source file (Word, InDesign) and re-export the PDF, then re-run this audit to confirm the fixes landed.";
     return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG ${wcag.version} Level AA — the standard required by the Illinois IITAA 2.1 and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule. ${howToFix}`;
   }
-  return "The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing. Color contrast and the correctness of alt text and tags cannot be checked automatically and still require manual review.";
+  return `The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing — ${manualReviewNote.value}`;
 });
 
 const severityCounts = computed(() => {

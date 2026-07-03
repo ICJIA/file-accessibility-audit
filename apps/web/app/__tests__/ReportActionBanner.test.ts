@@ -61,7 +61,7 @@ describe('ReportActionBanner', () => {
     const wrapper = mount(ReportActionBanner, {
       props: { categories: [cat('Minor'), cat('Pass')] },
     })
-    expect(wrapper.text()).toBe('1 minor issue found. Optional fixes — PDF passes Illinois accessibility.')
+    expect(wrapper.text()).toBe('1 minor issue found. Optional fixes — this document passes Illinois accessibility.')
     expect(wrapper.classes()).toContain('minor')
   })
 
@@ -69,14 +69,41 @@ describe('ReportActionBanner', () => {
     const wrapper = mount(ReportActionBanner, {
       props: { categories: [cat('Minor'), cat('Minor')] },
     })
-    expect(wrapper.text()).toBe('2 minor issues found. Optional fixes — PDF passes Illinois accessibility.')
+    expect(wrapper.text()).toBe('2 minor issues found. Optional fixes — this document passes Illinois accessibility.')
   })
 
   it('all pass', () => {
     const wrapper = mount(ReportActionBanner, {
       props: { categories: [cat('Pass'), cat('Pass'), cat('Pass')] },
     })
-    expect(wrapper.text()).toBe('This PDF passes Illinois IITAA 2.1 + WCAG 2.2 AA accessibility checks.')
+    expect(wrapper.text()).toBe('This document passes Illinois IITAA 2.1 + WCAG 2.2 AA accessibility checks.')
     expect(wrapper.classes()).toContain('pass')
+  })
+
+  // Regression coverage for the "PDF passes" copy bug: a clean Word/PPT/Excel
+  // report must never claim to be a PDF. The component's wording is
+  // deliberately format-agnostic ("this document"), so these assert the
+  // fileType prop is accepted and the output never leaks "PDF" for a
+  // non-PDF (or any) result.
+  it('all pass, docx fileType — never mentions PDF', () => {
+    const wrapper = mount(ReportActionBanner, {
+      props: { categories: [cat('Pass'), cat('Pass')], fileType: 'docx' },
+    })
+    expect(wrapper.text()).toBe('This document passes Illinois IITAA 2.1 + WCAG 2.2 AA accessibility checks.')
+    expect(wrapper.text()).not.toContain('PDF')
+  })
+
+  it('minor only, pptx fileType — never mentions PDF', () => {
+    const wrapper = mount(ReportActionBanner, {
+      props: { categories: [cat('Minor'), cat('Pass')], fileType: 'pptx' },
+    })
+    expect(wrapper.text()).not.toContain('PDF')
+  })
+
+  it('all pass, xlsx fileType — never mentions PDF', () => {
+    const wrapper = mount(ReportActionBanner, {
+      props: { categories: [cat('Pass')], fileType: 'xlsx' },
+    })
+    expect(wrapper.text()).not.toContain('PDF')
   })
 })

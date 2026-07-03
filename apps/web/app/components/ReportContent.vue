@@ -136,8 +136,8 @@
                   >i</span></strong>
               on any N/A cell to read the specific reason (Strict doesn't
               include a PDF/UA category; Reading Order requires page-stream
-              analysis this tool hasn't implemented; Color Contrast needs
-              rendered-PDF sampling; small documents don't require
+              analysis this tool hasn't implemented; some categories don't
+              apply to every file format; small documents don't require
               bookmarks; etc.).
             </p>
           </div>

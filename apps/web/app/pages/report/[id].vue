@@ -111,6 +111,7 @@
         <ReportActionBanner
           v-if="data?.report?.categories"
           :categories="(data as any).report.categories"
+          :file-type="(data as any).report.fileType"
           class="mb-4"
         />
 
@@ -265,7 +266,7 @@
           </div>
           <div class="mt-4 pt-4 border-t border-[var(--border-subtle)]">
             <p class="text-sm text-[var(--text-muted)] mb-3">
-              Want to audit your own PDF?
+              Want to audit your own document?
             </p>
             <a
               :href="auditUrl"
@@ -284,7 +285,7 @@
                   d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
                 />
               </svg>
-              Audit Your PDF
+              Audit Your Document
             </a>
           </div>
         </div>

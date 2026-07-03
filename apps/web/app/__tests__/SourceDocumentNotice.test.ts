@@ -19,6 +19,21 @@ describe("SourceDocumentNotice", () => {
     expect(wrapper.text()).toContain("fix it in Word, then re-check");
   });
 
+  it("shows Word-specific tips (not the generic multi-app PDF list) for docx", () => {
+    const wrapper = mount(SourceDocumentNotice, {
+      props: { fileType: "docx" },
+    });
+    expect(wrapper.text()).toContain("Check Accessibility");
+    expect(wrapper.text()).toContain("Heading");
+    // Must not fall through to the generic PDF-source-app tips list, which
+    // names other apps and PDF-export-specific advice irrelevant to a
+    // directly-uploaded Word file.
+    expect(wrapper.text()).not.toContain("Adobe InDesign");
+    expect(wrapper.text()).not.toContain("Google Docs");
+    expect(wrapper.text()).not.toContain("Apple Pages");
+    expect(wrapper.text()).not.toContain("Create Tagged PDF");
+  });
+
   it("shows PowerPoint framing with slide-title and checker steps for pptx", () => {
     const wrapper = mount(SourceDocumentNotice, {
       props: { fileType: "pptx" },

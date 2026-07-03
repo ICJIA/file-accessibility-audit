@@ -156,6 +156,37 @@ const isXlsx = computed(() => props.fileType === 'xlsx')
               check <em>Mark as decorative</em>.
             </li>
           </ul>
+          <ul
+            v-else-if="isDocx"
+            class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed"
+          >
+            <li>
+              <strong class="text-[var(--text)]">Run the checker:</strong>
+              <em>Review → Check Accessibility</em> finds and fixes most issues
+              before you share or export the document.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Heading styles:</strong> use
+              Word's built-in heading styles (Heading 1, 2, 3 — not just bold,
+              larger text) so the document has a real, navigable structure.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Alt text:</strong> right-click
+              each image or graphic → <em>View Alt Text</em>; describe it, or
+              check <em>Mark as decorative</em>.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Tables:</strong> use
+              <em>Insert → Table</em> (not tabs or spaced-out text) and keep
+              <em>Header Row</em> checked under Table Design so column headers
+              are announced.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Lists:</strong> use the
+              built-in bulleted/numbered list styles rather than typed dashes
+              or numbers, so screen readers announce list structure.
+            </li>
+          </ul>
           <ul v-else class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed">
             <li>
               <strong class="text-[var(--text)]">Microsoft Word:</strong>
