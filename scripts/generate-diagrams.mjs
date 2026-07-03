@@ -103,6 +103,26 @@ const INLINE_SOURCES = {
   S --> G[Grade + WCAG verdict + findings]
   G --> B[Return to browser]
   B --> K[Discard memory buffer]`,
+
+  // Audit pipeline (data-retention page's privacy-framed variant of
+  // audit-flow above): same PDF vs. Office branch, plus the detail that
+  // Office parsing runs inside a dedicated, short-lived child process (not
+  // the main API process), ending on discard of the in-memory buffer.
+  "audit-pipeline": `flowchart TD
+  U[File held in memory] --> V[Validated by content, not filename]
+  V --> D{PDF or Office file?}
+  D -->|PDF| T[Short-lived qpdf temp copy]
+  T --> Q[qpdf analyzes structure]
+  T --> J[pdfjs extracts content]
+  D -->|Word .docx / PowerPoint .pptx / Excel .xlsx| C[Dedicated short-lived child process]
+  C --> Z[Unzip in memory with JSZip]
+  Z --> X[Parse OOXML with fast-xml-parser]
+  Q --> S[Scorer combines results]
+  J --> S
+  X --> S
+  S --> G[Grade + WCAG verdict]
+  G --> B[HTTP response to client]
+  B --> K[Discard memory buffer]`,
 };
 
 const sources = { ...extractSources(), ...INLINE_SOURCES };

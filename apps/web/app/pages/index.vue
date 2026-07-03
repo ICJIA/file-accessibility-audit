@@ -739,9 +739,9 @@
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >IITAA 2.1</a
           >
-          standard). The audit checks nine categories — text extractability,
-          heading structure, alt text, table markup, and more — and returns a
-          detailed report with actionable findings.
+          standard). The audit checks up to nine categories — text
+          extractability, heading structure, alt text, table markup, and
+          more — and returns a detailed report with actionable findings.
         </p>
       </div>
 
