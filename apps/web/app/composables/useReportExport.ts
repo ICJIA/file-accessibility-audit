@@ -110,8 +110,13 @@ function timestamp(): string {
   });
 }
 
-function baseFilename(result: ReportResult): string {
-  const name = result.filename.replace(/\.pdf$/i, "");
+// BUG-1: previously only stripped a trailing `.pdf`, so exporting a report
+// for a Word/PowerPoint/Excel upload left the source extension dangling in
+// the middle of the export filename (e.g. "report.docx-accessibility-
+// report-2026-07-03.html"). Strip any of the four audited extensions.
+// Exported for unit tests.
+export function baseFilename(result: ReportResult): string {
+  const name = result.filename.replace(/\.(pdf|docx|pptx|xlsx)$/i, "");
   const date = new Date().toISOString().slice(0, 10);
   return `${name}-accessibility-report-${date}`;
 }
@@ -367,7 +372,8 @@ export function buildMarkdown(
 
 // ── JSON ──────────────────────────────────────────────────────────────────
 
-function buildJSON(result: ReportResult, branding: BrandingInfo): string {
+// Exported for unit tests (Fix 4: llmContext/remediationPlan format-neutral wording).
+export function buildJSON(result: ReportResult, branding: BrandingInfo): string {
   const failingCategories = result.categories.filter(
     (c) => c.score !== null && c.score < 90,
   );
@@ -461,7 +467,7 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
           wcagCriteria: getWcagCriteriaStrings(cat.id),
           action:
             WCAG_MAP[cat.id]?.remediation ||
-            "Review findings and remediate in Adobe Acrobat.",
+            "Review findings and remediate in the source application.",
         })),
     },
     llmContext: {
@@ -474,13 +480,19 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
           ? `The following categories need remediation: ${failingCategories.map((c) => `${c.label} (${c.score}/100)`).join(", ")}. `
           : "All scored categories pass. ") +
         `Use the remediationPlan.prioritizedSteps array for ordered fix instructions. ` +
-        `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for Adobe Acrobat.`,
+        `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for the source application.`,
       standards: [
         `WCAG ${branding.wcagVersion} Level AA`,
         "ADA Title II (effective April 2026)",
         "Illinois IITAA 2.1 (§E205.4)",
         "Section 508",
-        "PDF/UA (ISO 14289-1)",
+        // PDF/UA (ISO 14289-1) is a PDF-only ISO standard — the scorer never
+        // computes PDF/UA signals for docx/pptx/xlsx ("pdfUa and adobeParity
+        // are intentionally omitted — PDF-only signals", scorer.ts), so
+        // listing it for an Office-format report would be a false claim.
+        ...(!result.fileType || result.fileType === "pdf"
+          ? ["PDF/UA (ISO 14289-1)"]
+          : []),
       ],
       scoringScale: {
         pass: "90–100",
@@ -780,7 +792,7 @@ export function buildHtml(
 
   const scannedHtml = result.isScanned
     ? `<div style="background:#f9731615;border:1px solid #f9731630;border-radius:12px;padding:14px;margin-bottom:20px">
-        <p style="color:#fdba74;font-size:14px;font-weight:500;margin:0">This PDF appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.</p>
+        <p style="color:#fdba74;font-size:14px;font-weight:500;margin:0">This document appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.</p>
       </div>`
     : "";
 

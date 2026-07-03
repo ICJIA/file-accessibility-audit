@@ -105,6 +105,17 @@ describe('uploadFileFilter: rejection', () => {
     )
     expect(r.accept).toBeUndefined()
   })
+
+  // BUG-1 (Fix 5): a rejected file's Error previously had no `.status`, so
+  // Express's global error handler (index.ts) fell through to its `err.status
+  // || 500` default and returned a generic "Internal server error" — the
+  // helpful accepted-formats message never reached the caller. The filter
+  // must attach `.status = 400` so the handler's `status === 500 ? ... :
+  // err.message` branch surfaces this message instead.
+  it('attaches status 400 to the rejection error so the global handler returns 400 with the message (not a 500)', () => {
+    const r = runFilter({ mimetype: 'application/zip', originalname: 'evil.zip' })
+    expect((r.error as (Error & { status?: number }) | null)?.status).toBe(400)
+  })
 })
 
 describe('acceptedFormatsMessage: one/two/many label joins', () => {

@@ -24,6 +24,19 @@ export function acceptedFormatsMessage(labels: string[]): string {
 }
 
 /**
+ * Thrown by uploadFileFilter when the upload matches none of the enabled
+ * formats. Carries `status = 400` (matching the PageAuditBusyError /
+ * SafeFetchError convention of a status-bearing Error subclass) so the
+ * app-level error handler (index.ts: `err.status || 500`) returns 400 with
+ * this message instead of falling through to a generic 500 — a plain
+ * `new Error(...)` here has no `.status`, and the multer error path skips
+ * the route's own try/catch entirely, going straight to that handler.
+ */
+export class UnsupportedFileTypeError extends Error {
+  readonly status = 400
+}
+
+/**
  * First-pass check by mimetype/extension. Authoritative content detection
  * (magic bytes + package inspection) happens in the route via analyzer's
  * detectFileType, so a renamed file is still rejected there.
@@ -52,7 +65,7 @@ export function uploadFileFilter(
     if (DOCX.ENABLED) labels.push('Word (.docx)')
     if (PPTX.ENABLED) labels.push('PowerPoint (.pptx)')
     if (XLSX.ENABLED) labels.push('Excel (.xlsx)')
-    cb(new Error(acceptedFormatsMessage(labels)))
+    cb(new UnsupportedFileTypeError(acceptedFormatsMessage(labels)))
   }
 }
 
