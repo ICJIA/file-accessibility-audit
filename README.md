@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.33.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1280%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.33.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1286%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -521,7 +521,7 @@ Every report includes a **Document Metadata** section that surfaces embedded doc
 | Last Modified      | `ModDate`          | When the PDF was last modified                                         |
 | Encrypted          | `IsEncrypted`      | Whether the PDF has password protection or permission restrictions     |
 
-> **Note —** the Word/PowerPoint/Excel metadata below is computed by the analyzer and included in every JSON export. The live report's Document Metadata panel (`ReportContent.vue`, gated on `result.pdfMetadata`) currently renders for PDF only — non-PDF metadata is not yet shown in the UI.
+> **Note —** the Word/PowerPoint/Excel metadata below is computed by the analyzer, included in every JSON export, **and rendered by the live report's Document Metadata panel** (`ReportContent.vue`) — the panel shows whichever of `pdfMetadata` / `docxMetadata` / `pptxMetadata` / `xlsxMetadata` is present on the report, using each format's own field set below.
 
 ### Word (.docx)
 
@@ -875,7 +875,7 @@ Add the CLI's 44 tests across 5 files and the grand total across all three apps 
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (420 tests)
+### Web Tests (426 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -893,7 +893,7 @@ Add the CLI's 44 tests across 5 files and the grand total across all three apps 
 | `uploadFormats.test.ts` | 13 | The `uploadFormats` composable: builds the file-input `accept` attribute and format-list copy from the PDF/docx/pptx/xlsx enable flags (Oxford comma at four, comma-free "and" at two, exactly the disabled format dropped), and `legacyFormatMessage` — pointing a user who picks a legacy `.xls`/`.doc`/`.ppt` file at the modern format and the Save As fix, case-insensitively, while returning null for modern OOXML and unrelated file types |
 | `useReportExport.test.ts` | 13 | `useReportExport`'s format-neutral fixes: `baseFilename` strips the source extension for every audited format (previously left `.docx` dangling), `buildJSON`'s `llmContext.standards` includes PDF/UA only for actual PDFs (not PowerPoint/Excel, and still included for legacy fileType-less PDF reports), the LLM prompt and remediation-plan fallback no longer hardcode Adobe Acrobat, and the scanned-document wording in `buildHtml` says "document" rather than "PDF" |
 | `wcag.test.ts` | 12 | `WCAG_MAP`'s remediation guidance: every fix-it category gained a Word/PowerPoint/Excel equivalent alongside its existing Acrobat steps (Styles gallery for headings, the Alt Text pane, Repeat Header Rows / Header Row, the Selection Pane and linear-flow guidance for reading order), `link_quality` no longer frames every fix as a pre-PDF-export step, `bookmarks` is clarified as PDF-specific, `color_contrast` states Office contrast is machine-checked (not a PDF-only manual step), and `pdf_ua_compliance` is confirmed untouched (it has no Office equivalent) |
-| `report-content.test.ts` | 11 | The shared ReportContent component (score table, Document Metadata, Detailed Findings, Not Included in Scoring) rendered by both the live page and shared reports: grade/severity colors from the shared palette, N/A subsection + footnote gating, the aria-expanded export-snapshot contract, help-link href-stripping for `javascript:` URLs (stored XSS), and a malformed-stored-report SSR crash guard (non-array `categories`/`findings`) |
+| `report-content.test.ts` | 17 | The shared ReportContent component (score table, Document Metadata, Detailed Findings, Not Included in Scoring) rendered by both the live page and shared reports: grade/severity colors from the shared palette, N/A subsection + footnote gating, the aria-expanded export-snapshot contract, help-link href-stripping for `javascript:` URLs (stored XSS), a malformed-stored-report SSR crash guard (non-array `categories`/`findings`), and the Document Metadata panel rendering PDF/Word/PowerPoint/Excel metadata (discriminated by `fileType`, a real `0` count rendering as "0" rather than "Not set", and the panel disappearing when no metadata object is present) |
 | `ReportFileBanner.test.ts` | 9 | The ReportFileBanner component — the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) with slide counts for PowerPoint and sheet counts for Excel |
 | `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
 | `reportBanner.test.ts` | 8 | The `reportBanner` helper: the shared eyebrow label and singular/plural `N pages · PDF` line, extended to label Word/PowerPoint/Excel results by their own noun (pages/slides/sheets) and fall back to the PDF wording for an unknown stored `fileType` |

@@ -11,6 +11,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **PowerPoint (`.pptx`) and Excel (`.xlsx`) accessibility auditing** — the tool now audits all four major document formats (PDF, Word, PowerPoint, Excel) through one scoring engine. Per-format WCAG 2.2 AA scoring (PowerPoint 9 categories, Excel 7) with a separate binary conformance verdict, matching the existing PDF/Word model.
 - Fleet (`/api/audit-url`), bulk (`/api/bulk-from-inventory`), and the CLI `publist` command now audit all four formats, not PDF-only.
 - Explicit rejection of legacy binary formats (`.xls` / `.doc` / `.ppt`) in the upload dropzone, with guidance to re-save as the modern format.
+- The report's **Document Metadata** panel now renders for Word, PowerPoint, and Excel (title, creator, language, and page/slide/sheet counts as applicable), not only PDF.
 
 ### Changed
 

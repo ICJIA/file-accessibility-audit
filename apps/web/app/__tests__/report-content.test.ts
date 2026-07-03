@@ -204,4 +204,119 @@ describe("ReportContent — document metadata", () => {
     const wrapper = mountReport([cat()]);
     expect(wrapper.html()).not.toContain("Document Metadata");
   });
+
+  it("renders docx metadata rows (Title/Creator/Language/Pages/Words), with a null language shown as Not set", () => {
+    const wrapper = mountReport([cat()], {
+      fileType: "docx",
+      docxMetadata: {
+        title: "Annual Report",
+        creator: "Jane Doe",
+        language: null,
+        pageCount: 8,
+        wordCount: 2400,
+      },
+    });
+    const panel = wrapper.find('[data-testid="document-metadata"]');
+    expect(panel.exists()).toBe(true);
+    const text = panel.text();
+    expect(text).toContain("Title");
+    expect(text).toContain("Annual Report");
+    expect(text).toContain("Creator");
+    expect(text).toContain("Jane Doe");
+    expect(text).toContain("Language");
+    expect(text).toContain("Not set");
+    expect(text).toContain("Pages");
+    expect(text).toContain("8");
+    expect(text).toContain("Words");
+    expect(text).toContain("2400");
+  });
+
+  it("renders the pptx Slides row", () => {
+    const wrapper = mountReport([cat()], {
+      fileType: "pptx",
+      pptxMetadata: {
+        title: "Deck",
+        creator: "Author",
+        language: "en-US",
+        slideCount: 24,
+      },
+    });
+    const panel = wrapper.find('[data-testid="document-metadata"]');
+    expect(panel.exists()).toBe(true);
+    const text = panel.text();
+    expect(text).toContain("Slides");
+    expect(text).toContain("24");
+  });
+
+  it("renders the xlsx Sheets row", () => {
+    const wrapper = mountReport([cat()], {
+      fileType: "xlsx",
+      xlsxMetadata: {
+        title: "Budget",
+        creator: "Finance",
+        sheetCount: 9,
+      },
+    });
+    const panel = wrapper.find('[data-testid="document-metadata"]');
+    expect(panel.exists()).toBe(true);
+    const text = panel.text();
+    expect(text).toContain("Sheets");
+    expect(text).toContain("9");
+  });
+
+  it("renders a real zero count as the digit 0, not Not set", () => {
+    const wrapper = mountReport([cat()], {
+      fileType: "xlsx",
+      xlsxMetadata: {
+        title: null,
+        creator: null,
+        sheetCount: 0,
+      },
+    });
+    const panel = wrapper.find('[data-testid="document-metadata"]');
+    const rows = panel.findAll("span");
+    // Sheets row: label span followed by value span. The value span's own
+    // text must be exactly "0", never the "Not set" fallback.
+    const sheetsLabelIndex = rows.findIndex((s) => s.text() === "Sheets");
+    expect(sheetsLabelIndex).toBeGreaterThanOrEqual(0);
+    expect(rows[sheetsLabelIndex + 1]?.text()).toBe("0");
+  });
+
+  it("keeps the existing PDF rows unchanged even when fileType is also set", () => {
+    const wrapper = mountReport([cat()], {
+      fileType: "pdf",
+      pdfMetadata: {
+        creator: "Word",
+        producer: "Acrobat Distiller",
+        pdfVersion: "1.7",
+        pageCount: 12,
+        author: "A",
+        subject: null,
+        keywords: null,
+        creationDate: null,
+        modDate: null,
+        isEncrypted: false,
+      },
+    });
+    const panel = wrapper.find('[data-testid="document-metadata"]');
+    const text = panel.text();
+    expect(text).toContain("Source Application");
+    expect(text).toContain("PDF Producer");
+    expect(text).toContain("Acrobat Distiller");
+    expect(text).toContain("PDF Version");
+    expect(text).toContain("Page Count");
+    expect(text).toContain("Encrypted");
+    // format-specific labels from the other three shapes must never leak in
+    expect(text).not.toContain("Slides");
+    expect(text).not.toContain("Sheets");
+    expect(text).not.toContain("Words");
+  });
+
+  it("omits the metadata card when fileType is set but its metadata object is absent", () => {
+    const wrapper = mountReport([cat()], { fileType: "docx" });
+    expect(wrapper.html()).not.toContain("Document Metadata");
+    expect(
+      wrapper.find('[data-testid="document-metadata"]').exists(),
+    ).toBe(false);
+  });
 });

@@ -143,9 +143,10 @@
           </div>
         </div>
 
-        <!-- PDF Metadata -->
+        <!-- Metadata panel: PDF / Word / PowerPoint / Excel -->
         <div
-          v-if="result.pdfMetadata"
+          v-if="metadataItems.length"
+          data-testid="document-metadata"
           class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-hidden"
         >
           <div class="px-5 py-3 border-b border-[var(--border)]">
@@ -591,6 +592,24 @@ interface ReportLike {
     modDate?: string | null;
     isEncrypted?: boolean;
   } | null;
+  docxMetadata?: {
+    title?: string | null;
+    creator?: string | null;
+    language?: string | null;
+    pageCount?: number | null;
+    wordCount?: number | null;
+  } | null;
+  pptxMetadata?: {
+    title?: string | null;
+    creator?: string | null;
+    language?: string | null;
+    slideCount?: number | null;
+  } | null;
+  xlsxMetadata?: {
+    title?: string | null;
+    creator?: string | null;
+    sheetCount?: number | null;
+  } | null;
   fileType?: string;
 }
 
@@ -651,20 +670,64 @@ function formatMetaDate(iso: string | null | undefined): string | null {
 }
 
 const metadataItems = computed(() => {
-  const m = props.result.pdfMetadata;
-  if (!m) return [];
-  return [
-    { label: "Source Application", value: m.creator },
-    { label: "PDF Producer", value: m.producer },
-    { label: "PDF Version", value: m.pdfVersion },
-    { label: "Page Count", value: m.pageCount?.toString() },
-    { label: "Author", value: m.author },
-    { label: "Subject", value: m.subject },
-    { label: "Keywords", value: m.keywords },
-    { label: "Created", value: formatMetaDate(m.creationDate) },
-    { label: "Last Modified", value: formatMetaDate(m.modDate) },
-    { label: "Encrypted", value: m.isEncrypted ? "Yes" : "No" },
-  ];
+  // PDF takes priority whenever present, unconditionally — matches the
+  // panel's original (pre-multi-format) behavior exactly, regardless of
+  // what `fileType` says.
+  const pdf = props.result.pdfMetadata;
+  if (pdf) {
+    return [
+      { label: "Source Application", value: pdf.creator },
+      { label: "PDF Producer", value: pdf.producer },
+      { label: "PDF Version", value: pdf.pdfVersion },
+      { label: "Page Count", value: pdf.pageCount?.toString() },
+      { label: "Author", value: pdf.author },
+      { label: "Subject", value: pdf.subject },
+      { label: "Keywords", value: pdf.keywords },
+      { label: "Created", value: formatMetaDate(pdf.creationDate) },
+      { label: "Last Modified", value: formatMetaDate(pdf.modDate) },
+      { label: "Encrypted", value: pdf.isEncrypted ? "Yes" : "No" },
+    ];
+  }
+
+  const { docxMetadata, pptxMetadata, xlsxMetadata, fileType } = props.result;
+
+  // Discriminate by fileType; when it's missing/unrecognized (older stored
+  // reports), fall back to whichever of the three objects is actually set.
+  // Only one of the four metadata objects is ever populated per report.
+  const docx =
+    docxMetadata && (fileType === "docx" || !fileType) ? docxMetadata : null;
+  if (docx) {
+    return [
+      { label: "Title", value: docx.title },
+      { label: "Creator", value: docx.creator },
+      { label: "Language", value: docx.language },
+      { label: "Pages", value: docx.pageCount?.toString() },
+      { label: "Words", value: docx.wordCount?.toString() },
+    ];
+  }
+
+  const pptx =
+    pptxMetadata && (fileType === "pptx" || !fileType) ? pptxMetadata : null;
+  if (pptx) {
+    return [
+      { label: "Title", value: pptx.title },
+      { label: "Creator", value: pptx.creator },
+      { label: "Language", value: pptx.language },
+      { label: "Slides", value: pptx.slideCount?.toString() },
+    ];
+  }
+
+  const xlsx =
+    xlsxMetadata && (fileType === "xlsx" || !fileType) ? xlsxMetadata : null;
+  if (xlsx) {
+    return [
+      { label: "Title", value: xlsx.title },
+      { label: "Creator", value: xlsx.creator },
+      { label: "Sheets", value: xlsx.sheetCount?.toString() },
+    ];
+  }
+
+  return [];
 });
 
 function catColor(cat: { grade?: string | null }): string {
