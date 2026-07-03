@@ -27,6 +27,7 @@ import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { DocxAnalysis } from "../docxService.js";
 import type { PptxAnalysis } from "../pptxService.js";
+import type { XlsxAnalysis } from "../xlsxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
@@ -606,4 +607,19 @@ export function evaluatePptxConformance(
   }
 
   return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
+}
+
+/**
+ * XLSX conformance gate. Skeleton — real gate rules land in the next task.
+ * Exists now only so scoreXlsx() (which needs a ConformanceVerdict for every
+ * scoring result) has something to import and the build stays green; it
+ * always reports a clean verdict until the next task replaces this wholesale
+ * with the real Excel-specific machine-checkable rules.
+ */
+export function evaluateXlsxConformance(
+  analysis: XlsxAnalysis,
+): ConformanceVerdict {
+  // Skeleton — real gate rules land in the next task.
+  void analysis;
+  return { status: "no-automated-failures", failures: [], notAssessed: [], headline: "" };
 }
