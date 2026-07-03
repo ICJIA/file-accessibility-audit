@@ -1,8 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { buildPptx, titleShape, bodyShape, para, picture, pptTable, hyperlinkRels, videoRel } from './helpers/minimalPptx.js'
-import { analyzePptx, PptxParseError, countShapesAnyDepth } from '../services/pptxService.js'
+import { analyzePptx, PptxParseError, countShapesAnyDepth, countTextElementsAnyDepth } from '../services/pptxService.js'
 import { parseXml, rootElement } from '../services/ooxml.js'
 import * as ooxml from '../services/ooxml.js'
+
+const SPTREE_NS =
+  'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" ' +
+  'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
 
 describe('pptxService: package + metadata + slides', () => {
   it('reads core title/creator, presentation language, and slide count', async () => {
@@ -233,6 +237,57 @@ describe('pptxService: MAX_SHAPES cap sees shapes at any depth (V1 DoS hardening
     // Direct children of spTree are just [title, grpSp] = 2 — the pre-fix
     // cap tally. Grouping must not hide the 200 nested pics from the cap.
     expect(a.shapeCount).toBeGreaterThanOrEqual(200)
+  })
+})
+
+describe('pptxService: text-element volume cap (V1 follow-up — runs/paragraphs, not just shapes)', () => {
+  // A single legal <p:sp> can hold an unbounded txBody. The shape-container
+  // tally (countShapesAnyDepth) sees ONE shape, but the N paragraphs + N runs
+  // inside it are what drive the per-run contrast walk and per-paragraph list
+  // walk — the actual expensive work. MAX_SHAPES alone therefore does NOT
+  // bound this vector; the text-element tally must.
+  it('countTextElementsAnyDepth counts every paragraph + run inside one shape (~2N), while the shape tally sees just 1', () => {
+    const N = 150
+    const paras = Array.from(
+      { length: N },
+      (_, i) => `<a:p><a:r><a:t>run ${i}</a:t></a:r></a:p>`,
+    ).join('')
+    const xml = `<p:spTree ${SPTREE_NS}>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+      <p:sp><p:nvSpPr><p:cNvPr id="2" name="Body"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr/><p:txBody><a:bodyPr/>${paras}</p:txBody></p:sp>
+    </p:spTree>`
+    const spTree = rootElement(parseXml(xml), 'spTree')!
+    // The shape-container tally is blind to txBody volume — exactly the gap.
+    expect(countShapesAnyDepth(spTree)).toBe(1)
+    // The text-element tally tracks the real work: N paragraphs + N runs.
+    expect(countTextElementsAnyDepth(spTree)).toBe(2 * N)
+  })
+
+  it('analyzePptx rejects a deck whose any-depth text-element volume exceeds MAX_TEXT_ELEMENTS (one shape, many runs)', async () => {
+    // Scope a tiny cap to THIS test only (a file-wide mock would trip the
+    // other tests' modest text volumes). Dynamic re-import binds analyzePptx
+    // to the mocked config; the rest of the file keeps the real 200k cap.
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { PPTX: Record<string, unknown> }
+      return { ...actual, PPTX: { ...actual.PPTX, MAX_TEXT_ELEMENTS: 40 } }
+    })
+    try {
+      const { analyzePptx: analyze, PptxParseError: ParseError } = await import(
+        '../services/pptxService.js'
+      )
+      const { buildPptx: build, bodyShape: body, para: p } = await import(
+        './helpers/minimalPptx.js'
+      )
+      // One shape, 30 paragraphs each with a run = 60 text elements > cap 40.
+      const paras = Array.from({ length: 30 }, (_, i) => p(`line ${i}`)).join('')
+      const buf = await build({ slides: [{ title: 'T', body: body(paras) }] })
+      await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
   })
 })
 

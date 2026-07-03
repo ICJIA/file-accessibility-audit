@@ -111,6 +111,20 @@ export function countShapesAnyDepth(spTree: PONode): number {
   return total;
 }
 
+/**
+ * Any-depth count of the text elements — paragraphs (<a:p>) and text runs
+ * (<a:r>) — under spTree. countShapesAnyDepth above bounds shape CONTAINERS,
+ * but a single legal <p:sp> can hold an unbounded txBody, and it is these
+ * paragraphs/runs (not the containers) that drive the expensive work:
+ * collectSlideContrast walks every run, and the list pass walks every
+ * paragraph. So MAX_SHAPES alone leaves a wide-open sibling vector — one
+ * shape, a million runs. This tally is checked against PPTX.MAX_TEXT_ELEMENTS
+ * (the MAX_PARAGRAPHS analogue). Exported for direct unit testing.
+ */
+export function countTextElementsAnyDepth(spTree: PONode): number {
+  return descendants(spTree, "p").length + descendants(spTree, "r").length;
+}
+
 export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   let zip: JSZip;
   try {
@@ -188,6 +202,11 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     shapeCount: 0,
   };
 
+  // Running any-depth text-element (paragraph + run) tally across all slides,
+  // checked against MAX_TEXT_ELEMENTS. Kept local (not on PptxAnalysis) so the
+  // analysis OUTPUT shape is unchanged for valid documents.
+  let textElementCount = 0;
+
   for (let i = 0; i < slidePaths.length; i++) {
     const slideXml = await read(slidePaths[i]);
     const slideRoot = rootElement(parseXml(slideXml), "sld");
@@ -209,6 +228,15 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     if (analysis.shapeCount > PPTX.MAX_SHAPES) {
       throw new PptxParseError(
         `This presentation has too many shapes (${analysis.shapeCount.toLocaleString()}+) to analyze.`,
+      );
+    }
+    // Bound the per-run/per-paragraph extract passes below: one shape can hold
+    // an unbounded txBody, so the shape cap alone doesn't stop a "one shape,
+    // millions of runs" DoS. Must fire before collectSlideContent runs.
+    textElementCount += spTree ? countTextElementsAnyDepth(spTree) : 0;
+    if (textElementCount > PPTX.MAX_TEXT_ELEMENTS) {
+      throw new PptxParseError(
+        `This presentation has too many text elements (${textElementCount.toLocaleString()}+) to analyze.`,
       );
     }
 

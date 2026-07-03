@@ -411,6 +411,14 @@ export const PPTX = {
    *  SAFE TO CHANGE. */
   MAX_SHAPES: 100_000,
 
+  /** Max any-depth count of paragraphs (<a:p>) + text runs (<a:r>) across all
+   *  slides; over the cap → rejected. A single shape can legally hold an
+   *  unbounded txBody, and those text elements — not the shape containers —
+   *  drive the per-run contrast walk and per-paragraph list walk, so
+   *  MAX_SHAPES alone does not bound them. This is the MAX_PARAGRAPHS analogue
+   *  for PowerPoint. SAFE TO CHANGE. */
+  MAX_TEXT_ELEMENTS: 200_000,
+
   /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
    *  SAFE TO CHANGE. */
   ANALYSIS_TIMEOUT_MS: 20_000,

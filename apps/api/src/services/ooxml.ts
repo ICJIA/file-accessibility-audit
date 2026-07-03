@@ -277,6 +277,20 @@ const SCHEME_ALIASES: Record<string, string> = {
   bg2: "lt2",
 };
 
+/** Resolve one scheme-color name against an already-located clrScheme node.
+ *  Split out of resolveSchemeColor so buildSchemeColorMap can walk to the
+ *  clrScheme ONCE and reuse it across every name instead of re-walking the
+ *  theme per name. */
+function resolveSchemeEntry(scheme: PONode, name: string): string | null {
+  const entry = firstChild(scheme, SCHEME_ALIASES[name] ?? name);
+  if (!entry) return null;
+  const srgb = firstChild(entry, "srgbClr");
+  if (srgb) return normalizeHex(attrOf(srgb, "val"));
+  const sys = firstChild(entry, "sysClr");
+  if (sys) return normalizeHex(attrOf(sys, "lastClr"));
+  return null;
+}
+
 /** Resolve a DrawingML scheme-color name to a 6-digit hex via the theme part. */
 export function resolveSchemeColor(
   themeRoot: PONode | undefined,
@@ -285,13 +299,7 @@ export function resolveSchemeColor(
   if (!themeRoot) return null;
   const scheme = descendants(themeRoot, "clrScheme")[0];
   if (!scheme) return null;
-  const entry = firstChild(scheme, SCHEME_ALIASES[name] ?? name);
-  if (!entry) return null;
-  const srgb = firstChild(entry, "srgbClr");
-  if (srgb) return normalizeHex(attrOf(srgb, "val"));
-  const sys = firstChild(entry, "sysClr");
-  if (sys) return normalizeHex(attrOf(sys, "lastClr"));
-  return null;
+  return resolveSchemeEntry(scheme, name);
 }
 
 /** Every DrawingML scheme-color name a:schemeClr@val can carry: the 12
@@ -328,16 +336,18 @@ const SCHEME_COLOR_NAMES = [
  * a few hundred runs can hold the event loop for tens of seconds, past a
  * timeout that can't interrupt synchronous work.
  *
- * Implemented by calling the already-tested resolveSchemeColor() once per
- * known name (a small constant — SCHEME_COLOR_NAMES.length calls), so the
- * theme is still walked a bounded, constant number of times per analysis
- * rather than not at all — just not once per run.
+ * Walks to the clrScheme ONCE and resolves every known name against it (via
+ * the same resolveSchemeEntry() resolveSchemeColor() uses), so the whole map
+ * costs a single theme walk per analysis — not once per name, and certainly
+ * not once per run.
  */
 export function buildSchemeColorMap(themeRoot: PONode | undefined): Map<string, string> {
   const map = new Map<string, string>();
   if (!themeRoot) return map;
+  const scheme = descendants(themeRoot, "clrScheme")[0];
+  if (!scheme) return map;
   for (const name of SCHEME_COLOR_NAMES) {
-    const hex = resolveSchemeColor(themeRoot, name);
+    const hex = resolveSchemeEntry(scheme, name);
     if (hex) map.set(name, hex);
   }
   return map;
