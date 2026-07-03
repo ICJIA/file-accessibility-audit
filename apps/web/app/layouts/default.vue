@@ -25,7 +25,7 @@
             <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer" @click.prevent="goAnalyze">
               Analyze
             </a>
-            <UModal title="Scoring Rubric" description="How accessibility scores are calculated for PDFs and Word documents">
+            <UModal title="Scoring Rubric" description="How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel documents">
               <button class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer">
                 Scoring
               </button>
@@ -34,7 +34,7 @@
                   <div class="flex items-center justify-between px-3 sm:px-6 pt-5 pb-3">
                     <div>
                       <h2 class="text-lg font-semibold text-[var(--text-heading)]">Scoring Rubric</h2>
-                      <p class="text-sm text-[var(--text-muted)]">How accessibility scores are calculated for PDFs and Word documents</p>
+                      <p class="text-sm text-[var(--text-muted)]">How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel documents</p>
                     </div>
                     <button class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors" @click="close">
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -44,7 +44,7 @@
                   </div>
                   <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
                     <p class="text-[var(--text-muted)] leading-relaxed">
-                      Each PDF or Word document is scored across accessibility categories based on
+                      Each PDF, Word, PowerPoint, or Excel document is scored across accessibility categories based on
                       <a href="https://www.w3.org/WAI/WCAG22/quickref/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">WCAG 2.2</a>
                       and
                       <a href="https://www.ada.gov/resources/title-ii-rule/" target="_blank" rel="noopener noreferrer" class="text-[var(--link)] hover:text-[var(--link-hover)]">ADA Title II</a>
@@ -78,6 +78,15 @@
                       text colors, unlike PDF), a <strong>List Structure</strong> category (real lists vs. typed
                       bullets) applies in place of PDF-only Bookmarks, and Reading Order and Form Accessibility
                       show as <strong>N/A</strong> (Word manages reading order in its linear document flow).
+                      <strong class="text-[var(--text-secondary)]">PowerPoint (.pptx)</strong> replaces heading
+                      structure with a <strong>Slide Titles</strong> category (every slide needs a unique title
+                      placeholder) and actively checks <strong>Reading Order</strong> (the slide title should be
+                      the first shape a screen reader encounters); bookmarks and forms don't apply.
+                      <strong class="text-[var(--text-secondary)]">Excel (.xlsx)</strong> replaces heading
+                      structure with a <strong>Sheet Names</strong> category (no default "Sheet1" tabs), weights
+                      <strong>Table Markup</strong> heaviest (real table objects with header rows; merged cells
+                      are advisories), scores Title &amp; Language on the title alone (Excel stores no document
+                      language), and omits reading order, lists, bookmarks, and forms.
                       Weights are renormalized across whichever categories apply to the document.
                     </p>
 

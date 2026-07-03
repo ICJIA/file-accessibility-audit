@@ -12,7 +12,9 @@ import ProcessingOverlay from "../components/ProcessingOverlay.vue";
 describe("DropZone", () => {
   it("renders the drop area with prompt text", () => {
     const wrapper = mount(DropZone);
-    expect(wrapper.text()).toContain("Drop PDF or Word files here");
+    expect(wrapper.text()).toContain(
+      "Drop PDF, Word, PowerPoint, or Excel files here",
+    );
     expect(wrapper.text()).toContain("max 15 MB each");
   });
 
@@ -82,7 +84,9 @@ describe("DropZone", () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.emitted("file-selected")).toBeFalsy();
-    expect(wrapper.text()).toContain("Please select PDF or Word (.docx) files");
+    expect(wrapper.text()).toContain(
+      "Please select PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files",
+    );
   });
 
   it("does NOT emit file-selected if file exceeds 15 MB", async () => {
@@ -111,7 +115,172 @@ describe("DropZone", () => {
       .findAll("div")
       .find((d) => d.classes().some((c) => c.includes("border-dashed")))!;
     await dropArea.trigger("dragenter");
-    expect(wrapper.text()).toContain("Drop your PDF or Word files here");
+    expect(wrapper.text()).toContain(
+      "Drop your PDF, Word, PowerPoint, or Excel files here",
+    );
+  });
+
+  it("emits file-selected for a valid .pptx", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["pptx"], "deck.pptx", {
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+  });
+
+  it("emits file-selected for a valid .xlsx", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["xlsx"], "budget.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+  });
+
+  it("advertises the pptx and xlsx MIME types in the accept attr", () => {
+    const wrapper = mount(DropZone);
+    const accept = wrapper.find('input[type="file"]').attributes("accept")!;
+    expect(accept).toContain(".pptx");
+    expect(accept).toContain(".xlsx");
+    expect(accept).toContain(
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    );
+    expect(accept).toContain(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+  });
+
+  it("rejects .pptx and drops it from copy when pptxEnabled is false", async () => {
+    vi.stubGlobal("useRuntimeConfig", () => ({
+      public: { docxEnabled: true, pptxEnabled: false, xlsxEnabled: true },
+    }));
+    try {
+      const wrapper = mount(DropZone);
+      expect(
+        wrapper.find('input[type="file"]').attributes("accept"),
+      ).not.toContain("presentationml");
+      expect(wrapper.text()).toContain(
+        "Drop PDF, Word, or Excel files here",
+      );
+      const file = new File(["pptx"], "deck.pptx", {
+        type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", {
+        value: [file],
+        writable: true,
+      });
+      await input.trigger("change");
+      expect(wrapper.emitted("file-selected")).toBeFalsy();
+      expect(wrapper.text()).toContain(
+        "Please select PDF, Word (.docx), or Excel (.xlsx) files",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rejects .xlsx when xlsxEnabled is false", async () => {
+    vi.stubGlobal("useRuntimeConfig", () => ({
+      public: { docxEnabled: true, pptxEnabled: true, xlsxEnabled: false },
+    }));
+    try {
+      const wrapper = mount(DropZone);
+      const file = new File(["xlsx"], "budget.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", {
+        value: [file],
+        writable: true,
+      });
+      await input.trigger("change");
+      expect(wrapper.emitted("file-selected")).toBeFalsy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Legacy binary Office formats (.xls/.doc/.ppt): a specific rejection
+  // instead of the generic "not supported" list. These are OLE compound
+  // files — a different format from the OOXML .xlsx/.docx/.pptx this tool
+  // audits — so a user dropping a .xls needs to be told to re-save as
+  // .xlsx, not just that "Excel" isn't in the accepted list (it IS, just
+  // not this old binary variant).
+  // -------------------------------------------------------------------------
+  it.each([
+    { name: "report.xls", type: "application/vnd.ms-excel", modernExt: ".xlsx" },
+    { name: "letter.doc", type: "application/msword", modernExt: ".docx" },
+    { name: "deck.ppt", type: "application/vnd.ms-powerpoint", modernExt: ".pptx" },
+  ])(
+    "shows the legacy-format message (not the generic one) for $name",
+    async ({ name, type, modernExt }) => {
+      const wrapper = mount(DropZone);
+      const file = new File(["legacy"], name, { type });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", {
+        value: [file],
+        writable: true,
+      });
+      await input.trigger("change");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.emitted("file-selected")).toBeFalsy();
+      expect(wrapper.text()).toContain("isn't supported");
+      expect(wrapper.text()).toContain(modernExt);
+      expect(wrapper.text()).toContain("Save As");
+      expect(wrapper.text()).not.toContain(
+        "Please select PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files",
+      );
+    },
+  );
+
+  it("still shows the generic message for an unrelated unsupported file (.jpg)", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["img"], "photo.jpg", { type: "image/jpeg" });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted("file-selected")).toBeFalsy();
+    expect(wrapper.text()).toContain(
+      "Please select PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files",
+    );
+    expect(wrapper.text()).not.toContain("isn't supported");
+  });
+
+  it("still accepts a modern .xlsx (not mistaken for the legacy .xls path)", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["xlsx"], "budget.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    expect(wrapper.text()).not.toContain("isn't supported");
   });
 });
 
@@ -277,6 +446,148 @@ describe("ScoreCard", () => {
       expect(wrapper.text()).toContain(label);
     },
   );
+
+  it.each([
+    { fileType: "docx", app: "Word" },
+    { fileType: "pptx", app: "PowerPoint" },
+    { fileType: "xlsx", app: "Excel" },
+  ])(
+    "points $fileType results at $app's built-in Accessibility Checker",
+    ({ fileType, app }) => {
+      const wrapper = mount(ScoreCard, {
+        props: { result: { ...baseResult, fileType } },
+      });
+      expect(wrapper.text()).toContain(`${app}'s built-in`);
+      expect(wrapper.text()).toContain(
+        `Because this ${app} file is the source document`,
+      );
+      expect(wrapper.text()).not.toContain("Adobe Acrobat");
+    },
+  );
+
+  it("keeps the Acrobat caveat for PDF results", () => {
+    const wrapper = mount(ScoreCard, {
+      props: { result: { ...baseResult, fileType: "pdf" } },
+    });
+    expect(wrapper.text()).toContain("Adobe Acrobat's Accessibility Checker");
+  });
+
+  it("names the source app in the warning-tone conformance fix path", () => {
+    const wrapper = mount(ScoreCard, {
+      props: {
+        result: {
+          ...baseResult,
+          grade: "F",
+          overallScore: 20,
+          fileType: "pptx",
+          conformance: {
+            status: "fail",
+            headline: "Confirmed failures found.",
+            failures: [
+              {
+                sc: "1.1.1",
+                name: "Non-text Content",
+                level: "A",
+                category: "alt_text",
+                issue: "2 images have no alt text",
+                url: "https://example.org",
+              },
+            ],
+            notAssessed: [],
+          },
+        },
+      },
+    });
+    expect(wrapper.text()).toContain(
+      "fix the issues directly in PowerPoint (Review → Check Accessibility)",
+    );
+  });
+
+  describe("ScoreCard — conformance finding URL hardening (stored XSS)", () => {
+    // Sibling of the helpLinks stored-XSS fix (report-content.test.ts): the
+    // public /report/:id page renders attacker-controllable stored JSON, and
+    // conformance.failures[].url / conformance.notAssessed[].url render as
+    // <a href> too. Real extractors only ever emit safe wcagUrl(sc) https
+    // literals — this guards a forged report.
+    function resultWithConformance(failureUrl: string, notAssessedUrl: string) {
+      return {
+        ...baseResult,
+        conformance: {
+          status: "fail",
+          headline: "Confirmed failures found.",
+          failures: [
+            {
+              sc: "1.1.1",
+              name: "Non-text Content",
+              level: "A",
+              category: "alt_text",
+              issue: "2 images have no alt text",
+              url: failureUrl,
+            },
+          ],
+          notAssessed: [
+            {
+              sc: "1.4.3",
+              name: "Contrast (Minimum)",
+              level: "AA",
+              reason: "not automated",
+              url: notAssessedUrl,
+            },
+          ],
+        },
+      };
+    }
+
+    it("drops the href for a javascript: failure URL but keeps the finding text", () => {
+      const wrapper = mount(ScoreCard, {
+        props: {
+          result: resultWithConformance(
+            "javascript:alert(document.domain)",
+            "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+          ),
+        },
+      });
+      const html = wrapper.html();
+      expect(html).toContain("1.1.1");
+      expect(html).toContain("Non-text Content");
+      expect(html).not.toContain('href="javascript:');
+      expect(html).not.toContain("javascript:alert");
+    });
+
+    it("drops the href for a javascript: notAssessed URL but keeps the criterion text", () => {
+      const wrapper = mount(ScoreCard, {
+        props: {
+          result: resultWithConformance(
+            "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "javascript:alert(1)",
+          ),
+        },
+      });
+      const html = wrapper.html();
+      expect(html).toContain("1.4.3");
+      expect(html).toContain("Contrast (Minimum)");
+      expect(html).not.toContain('href="javascript:');
+      expect(html).not.toContain("javascript:alert");
+    });
+
+    it("keeps the href for legitimate https failure and notAssessed URLs", () => {
+      const wrapper = mount(ScoreCard, {
+        props: {
+          result: resultWithConformance(
+            "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+            "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+          ),
+        },
+      });
+      const html = wrapper.html();
+      expect(html).toContain(
+        'href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"',
+      );
+      expect(html).toContain(
+        'href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"',
+      );
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -65,7 +65,7 @@
           class="text-xs text-[var(--text-secondary)] leading-relaxed"
         >
           <a
-            :href="f.url"
+            :href="safeHttpUrl(f.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="font-mono font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -83,7 +83,7 @@
           v-for="(n, i) in conformance.notAssessed"
           :key="n.sc"
           ><a
-            :href="n.url"
+            :href="safeHttpUrl(n.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -153,21 +153,21 @@
       class="max-w-lg mx-auto mt-5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border-alt)] px-5 py-4"
     >
       <p
-        v-if="isDocx"
+        v-if="sourceApp"
         class="text-xs text-[var(--text-secondary)] leading-relaxed"
       >
         This automated audit provides a reliable initial assessment, but it
-        cannot catch every issue. For the most thorough evaluation, run Word's
-        built-in
+        cannot catch every issue. For the most thorough evaluation, run
+        {{ sourceApp }}'s built-in
         <a
           href="https://support.microsoft.com/en-us/office/improve-accessibility-with-the-accessibility-checker-a16f6de0-2f39-4a2b-8bd8-5ad801426c7f"
           target="_blank"
           rel="noopener noreferrer"
           class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
           >Accessibility Checker (Review → Check Accessibility)</a
-        >. Because this Word file is the source document, fixing issues here
-        corrects them at the root — and any PDF you export from it inherits the
-        fixes automatically.
+        >. Because this {{ sourceApp }} file is the source document, fixing
+        issues here corrects them at the root — and any PDF you export from it
+        inherits the fixes automatically.
       </p>
       <p v-else class="text-xs text-[var(--text-secondary)] leading-relaxed">
         This automated audit provides a reliable initial assessment, but it
@@ -194,7 +194,7 @@ import {
   type ScoringMode,
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
-import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, safeHttpUrl } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
@@ -256,7 +256,7 @@ const props = withDefaults(
       scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
       conformance?: ConformanceVerdict;
       pdfUa?: PdfUaSignals;
-      fileType?: "pdf" | "docx";
+      fileType?: "pdf" | "docx" | "pptx" | "xlsx";
     };
     // The prominent ReportFileBanner now carries the filename above the card on
     // the live + shared report pages, which pass showFilename: false to avoid
@@ -267,7 +267,38 @@ const props = withDefaults(
   { showFilename: true },
 );
 
-const isDocx = computed(() => props.result.fileType === "docx");
+/**
+ * "Word" | "PowerPoint" | "Excel" when the audited file is an editable Office
+ * source document; null for PDF and for unknown stored fileType strings (the
+ * public /report/:id page renders caller-controlled JSON, so unknown values
+ * must fall back to the PDF framing, matching the old isDocx behavior).
+ */
+const sourceApp = computed<string | null>(() => {
+  switch (props.result.fileType) {
+    case "docx":
+      return "Word";
+    case "pptx":
+      return "PowerPoint";
+    case "xlsx":
+      return "Excel";
+    default:
+      return null;
+  }
+});
+
+/** Per-format manual-review clause for the positive conformance body. */
+const manualReviewNote = computed(() => {
+  switch (props.result.fileType) {
+    case "docx":
+      return "the correctness of alt text, headings, and reading order can only be confirmed by manual review.";
+    case "pptx":
+      return "the correctness of alt text, slide titles, and reading order can only be confirmed by manual review.";
+    case "xlsx":
+      return "the correctness of alt text, sheet names, and table structure can only be confirmed by manual review.";
+    default:
+      return "color contrast is not evaluated here, and the correctness of alt text, headings, reading order, and tags can only be confirmed by manual review.";
+  }
+});
 
 // Colors + labels derive from the engine's grade thresholds so the hero can
 // never disagree with the scorer or the other grade-colored surfaces.
@@ -407,21 +438,17 @@ const conformanceBody = computed(() => {
       const items = n === 1 ? "the 1 item" : `the ${n} items`;
       return `This file earned a grade of ${grade} — a strong result overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
     }
-    return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — ${
-      isDocx.value
-        ? "the correctness of alt text, headings, and reading order can only be confirmed by manual review."
-        : "color contrast is not evaluated here, and the correctness of alt text, headings, reading order, and tags can only be confirmed by manual review."
-    }`;
+    return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — ${manualReviewNote.value}`;
   }
 
   // warning tone (grade C / D / F)
   if (conformanceHasFailures.value) {
-    const howToFix = isDocx.value
-      ? "Correcting them is manual work — fix the issues directly in Word (Review → Check Accessibility), then re-run this audit to confirm the fixes landed."
+    const howToFix = sourceApp.value
+      ? `Correcting them is manual work — fix the issues directly in ${sourceApp.value} (Review → Check Accessibility), then re-run this audit to confirm the fixes landed.`
       : "Correcting them is manual work — fix the document in Adobe Acrobat's Accessibility Checker, or repair the source file (Word, InDesign) and re-export the PDF, then re-run this audit to confirm the fixes landed.";
     return `Automated checks confirmed ${conformanceFailBreakdown.value} that should be corrected for this document to meet WCAG ${wcag.version} Level AA — the standard required by the Illinois IITAA 2.1 and the ADA Title II rule. The flagged criteria are listed below; each links to the exact W3C rule. ${howToFix}`;
   }
-  return "The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing. Color contrast and the correctness of alt text and tags cannot be checked automatically and still require manual review.";
+  return `The automated checks found no confirmed WCAG failures, but the category scores below indicate structural issues worth addressing — ${manualReviewNote.value}`;
 });
 
 const severityCounts = computed(() => {

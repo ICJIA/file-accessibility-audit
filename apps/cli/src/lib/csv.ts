@@ -1,40 +1,30 @@
 import type { CachedRow } from "./cache.js";
-
-export const CATEGORY_IDS = [
-  "text_extractability",
-  "title_language",
-  "heading_structure",
-  "alt_text",
-  "pdf_ua_compliance",
-  "bookmarks",
-  "table_markup",
-  "color_contrast",
-  "link_quality",
-  "reading_order",
-  "form_accessibility",
-  "supplementary",
-] as const;
-
-export const CATEGORY_LABELS: Record<string, string> = {
-  text_extractability: "Text Extractability",
-  title_language: "Title & Language",
-  heading_structure: "Heading Structure",
-  alt_text: "Alt Text",
-  pdf_ua_compliance: "PDF/UA Compliance",
-  bookmarks: "Bookmarks",
-  table_markup: "Table Markup",
-  color_contrast: "Color Contrast",
-  link_quality: "Link Quality",
-  reading_order: "Reading Order",
-  form_accessibility: "Form Accessibility",
-  supplementary: "Supplementary",
-};
+// RB3-1 [IMPORTANT, pre-merge re-audit]: CATEGORY_IDS/CATEGORY_LABELS used to
+// be defined here AND (separately) in cache.ts — two hand-synced lists that
+// silently drifted apart when the pptx/xlsx checkers added slide_titles/
+// sheet_names. Both now come from one shared, exported constant.
+import { CATEGORY_IDS, CATEGORY_LABELS } from "./categories.js";
 
 const AUDIT_TOOL_BASE = "https://audit.icjia.app";
 
-function escapeCsvField(value: string | number | null | undefined): string {
+// CWE-1236 / OWASP CSV Injection: a field whose first character is one of
+// = + - @ (or, per OWASP, a leading tab/carriage-return) opens a live
+// formula when the exported CSV is opened in Excel/Google Sheets. Row data
+// here is sourced from a document's own metadata (e.g. Title), which is
+// attacker-controlled — a title of `=cmd|'/c calc'!A1` would otherwise
+// execute on open. Match against these leading characters only.
+const CSV_FORMULA_TRIGGER_RE = /^[=+\-@\t\r]/;
+
+export function escapeCsvField(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const str = String(value);
+  let str = String(value);
+  if (CSV_FORMULA_TRIGGER_RE.test(str)) {
+    // Prefix a single quote so spreadsheet apps treat the field as inert
+    // text instead of a formula. Applied BEFORE the comma/quote/newline
+    // quoting below so the neutralizer ends up inside the quoted field for
+    // values that need both guards.
+    str = "'" + str;
+  }
   if (
     str.includes(",") ||
     str.includes('"') ||

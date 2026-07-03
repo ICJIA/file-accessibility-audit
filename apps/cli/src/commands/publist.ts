@@ -68,7 +68,7 @@ function parsePublistArgs(argv: string[]): PublistArgs {
 
 function printPublistHelp(): void {
   console.log(`
-${BOLD}a11y-audit publist${RESET} — Audit ICJIA publication PDFs
+${BOLD}a11y-audit publist${RESET} — Audit ICJIA publications
 
 ${BOLD}Usage:${RESET}
   a11y-audit publist                         Fetch & audit all ICJIA publications
@@ -86,8 +86,8 @@ ${BOLD}Options:${RESET}
 
 ${BOLD}How it works:${RESET}
   1. Fetches publication list from ICJIA's API (or local file)
-  2. Filters to PDF files only
-  3. Downloads and audits each PDF using the accessibility scoring engine
+  2. Filters to supported document types: PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx)
+  3. Downloads and audits each file using the accessibility scoring engine
   4. Caches results in ~/.a11y-audit/cache.db (re-runs skip already-audited files)
   5. Writes a detailed CSV with grades, scores, and category breakdowns
   6. Saves a dated copy in ./reports/ for audit trail
@@ -101,7 +101,19 @@ ${BOLD}Examples:${RESET}
 `)
 }
 
-async function downloadPdf(url: string): Promise<Buffer> {
+// Format-agnostic: no PDF-specific behavior here (was named downloadPdf back
+// when publist only ever fed it .pdf links; analyzeDocument dispatches by
+// sniffing the downloaded buffer's content, not the URL's extension).
+// Exported for direct unit testing (see __tests__/publist.test.ts).
+//
+// RB2-b [LOW] hardening: reads the body as a stream and enforces the size
+// cap on cumulative bytes AS THEY ARRIVE, instead of buffering the full body
+// via resp.arrayBuffer() and only checking afterward. A server that omits
+// or lies about Content-Length could otherwise stream unbounded bytes into
+// memory before the old post-hoc check ever fired. Mirrors the intent of
+// the web API's safeFetch.ts maxBytes handling, kept CLI-local (no server
+// import) via a small reader loop over resp.body's reader.
+export async function downloadFile(url: string): Promise<Buffer> {
   const resp = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT) })
 
   if (!resp.ok) {
@@ -113,12 +125,33 @@ async function downloadPdf(url: string): Promise<Buffer> {
     throw new Error(`File too large: ${(contentLength / 1024 / 1024).toFixed(1)} MB (max ${ANALYSIS?.MAX_FILE_SIZE_MB ?? 50} MB)`)
   }
 
-  const arrayBuf = await resp.arrayBuffer()
-  if (arrayBuf.byteLength > MAX_FILE_SIZE) {
-    throw new Error(`File too large: ${(arrayBuf.byteLength / 1024 / 1024).toFixed(1)} MB`)
+  if (!resp.body) {
+    // No readable stream (e.g. an empty 204-style response) — nothing to
+    // download.
+    return Buffer.alloc(0)
   }
 
-  return Buffer.from(arrayBuf)
+  const reader = resp.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+
+    total += value.byteLength
+    if (total > MAX_FILE_SIZE) {
+      // Stop pulling more bytes immediately rather than draining the rest
+      // of a potentially-unbounded stream — this is the whole point of the
+      // running cap.
+      await reader.cancel().catch(() => {})
+      throw new Error(`File too large: ${(total / 1024 / 1024).toFixed(1)} MB`)
+    }
+    chunks.push(value)
+  }
+
+  return Buffer.concat(chunks)
 }
 
 async function pool<T>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<void>): Promise<void> {
@@ -173,11 +206,11 @@ export async function runPublist(argv: string[]): Promise<void> {
   }
 
   if (publications.length === 0) {
-    console.log(`${YELLOW}No PDF publications found.${RESET}`)
+    console.log(`${YELLOW}No publications found.${RESET}`)
     process.exit(0)
   }
 
-  console.log(`  Found ${BOLD}${publications.length}${RESET} PDF publications`)
+  console.log(`  Found ${BOLD}${publications.length}${RESET} publications`)
 
   // Step 2: Open cache
   const db = initCache()
@@ -228,13 +261,13 @@ export async function runPublist(argv: string[]): Promise<void> {
     let errors = 0
 
     await pool(pending, args.concurrency, async (pub, _idx) => {
-      const filename = pub.fileURL!.split('/').pop() || 'unknown.pdf'
+      const filename = pub.fileURL!.split('/').pop() || 'unknown-file'
 
       try {
         showProgress(completed + 1, pending.length, filename)
 
         // Download
-        const buffer = await downloadPdf(pub.fileURL!)
+        const buffer = await downloadFile(pub.fileURL!)
 
         // Analyze using existing pipeline (dispatches by content type)
         const result = await analyzeDocument(buffer, filename)

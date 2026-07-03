@@ -6,10 +6,10 @@ const VERSION = '1.0.0'
 
 function printHelp(): void {
   console.log(`
-${BOLD}a11y-audit${RESET} — PDF accessibility analyzer
+${BOLD}a11y-audit${RESET} — PDF, Word, PowerPoint & Excel accessibility analyzer
 
 ${BOLD}Commands:${RESET}
-  a11y-audit <file.pdf> [file2.pdf ...]   Analyze local PDF files
+  a11y-audit <file.pdf|.docx|.pptx|.xlsx> [more ...]   Analyze local files
   a11y-audit publist                       Audit ICJIA publication list
 
 ${BOLD}File analysis options:${RESET}
@@ -28,8 +28,11 @@ ${BOLD}General:${RESET}
   --version, -v     Show version
 
 ${BOLD}Quick start:${RESET}
-  ${DIM}# Audit a single PDF${RESET}
+  ${DIM}# Audit a single file (PDF, Word, PowerPoint, or Excel)${RESET}
   a11y-audit report.pdf
+
+  ${DIM}# Any supported format works the same way${RESET}
+  a11y-audit slides.pptx
 
   ${DIM}# Run a full ICJIA publication audit (first time)${RESET}
   a11y-audit publist

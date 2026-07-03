@@ -13,7 +13,7 @@ function sanitizeFilename(raw: string): string {
   let name = path.basename(raw)
   name = name.slice(0, FILENAME.MAX_LENGTH)
   name = name.replace(new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, 'g'), '_')
-  return name || 'unnamed.pdf'
+  return name || 'unnamed_file'
 }
 
 // POST /api/analyze
@@ -34,10 +34,11 @@ router.post(
       const filename = sanitizeFilename(file.originalname)
       const contentHash = sha256Hex(file.buffer)
 
-      // Detect PDF vs DOCX from the file's content (not its extension) and
-      // dispatch to the matching pipeline. Unsupported / renamed files and —
-      // when DOCX is disabled — Word uploads throw FileTypeError; a corrupt
-      // Word package throws DocxParseError. All are mapped in the catch below.
+      // Detect PDF vs DOCX vs PPTX from the file's content (not its extension)
+      // and dispatch to the matching pipeline. Unsupported / renamed files and
+      // — when the format's flag is off — Word/PowerPoint uploads throw
+      // FileTypeError; a corrupt package throws DocxParseError/PptxParseError.
+      // All are mapped in the catch below.
       const result = await analyzeDocument(file.buffer, filename)
 
       // Always record the audit — audit_log is the canonical "this
@@ -71,11 +72,11 @@ router.post(
         return
       }
 
-      // Unsupported file type (content matches neither PDF nor DOCX)
+      // Unsupported file type (content matches no supported format)
       if (err.code === 'UNSUPPORTED_FILE_TYPE') {
         res.status(400).json({
           error: 'This file is not a supported document.',
-          details: 'Upload a PDF or a Word (.docx) file. The file content matches neither format — check that you are not uploading a renamed file of another type (e.g., .xlsx, .jpg).',
+          details: 'Upload a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file. The file content matches none of these formats — check that you are not uploading a renamed file of another type (e.g., .zip, .jpg).',
         })
         return
       }
@@ -84,7 +85,7 @@ router.post(
       if (err.code === 'DOCX_DISABLED') {
         res.status(415).json({
           error: 'Word (.docx) auditing is currently disabled.',
-          details: 'This server is configured to audit PDF files only. Please upload a PDF, or contact the administrator to enable Word support.',
+          details: 'This server is not configured to audit Word files. Contact the administrator to enable it.',
         })
         return
       }
@@ -94,6 +95,42 @@ router.post(
         res.status(422).json({
           error: 'This Word document could not be read.',
           details: 'The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.',
+        })
+        return
+      }
+
+      // PPTX auditing disabled via PPTX_ENABLED=false
+      if (err.code === 'PPTX_DISABLED') {
+        res.status(415).json({
+          error: 'PowerPoint (.pptx) auditing is currently disabled.',
+          details: 'This server is not configured to audit PowerPoint files. Contact the administrator to enable it.',
+        })
+        return
+      }
+
+      // PPTX could not be parsed (corrupt or not a real PowerPoint package)
+      if (err.code === 'PPTX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'This PowerPoint file could not be read.',
+          details: 'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
+        })
+        return
+      }
+
+      // XLSX auditing disabled via XLSX_ENABLED=false
+      if (err.code === 'XLSX_DISABLED') {
+        res.status(415).json({
+          error: 'Excel (.xlsx) auditing is currently disabled.',
+          details: 'This server is not configured to audit Excel files. Contact the administrator to enable it.',
+        })
+        return
+      }
+
+      // XLSX could not be parsed (corrupt or not a real Excel package)
+      if (err.code === 'XLSX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'This Excel file could not be read.',
+          details: 'The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.',
         })
         return
       }
@@ -110,16 +147,16 @@ router.post(
       // Timeout
       if (err.code === 'ETIMEDOUT' || err.killed) {
         res.status(504).json({
-          error: 'This PDF is too complex to analyze within the time limit.',
-          details: 'This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections using Adobe Acrobat (File → Organize Pages → Split) and analyzing each section separately.',
+          error: 'This file is too complex to analyze within the time limit.',
+          details: 'This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.',
         })
         return
       }
 
       // Generic parse failure
       res.status(422).json({
-        error: 'This PDF could not be analyzed. The file appears to be damaged or uses a PDF structure that cannot be parsed.',
-        details: 'This sometimes happens with PDFs created by older or non-standard software, or files that were incompletely downloaded. To fix this: (1) Re-download the file from its original source; (2) Open the file in Adobe Acrobat and re-save it (File → Save As → PDF); (3) If the file opens in a browser, print it to a new PDF using Print → Save as PDF.',
+        error: 'This file could not be analyzed.',
+        details: 'It may be corrupt or in an unsupported format. To fix this: (1) Re-download the file from its original source; (2) Open the file in its native application and re-save it; (3) If all else fails, try re-exporting it to the same format.',
       })
     }
   }

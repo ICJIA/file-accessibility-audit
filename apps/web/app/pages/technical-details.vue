@@ -16,7 +16,7 @@ useHead({
     {
       name: 'description',
       content:
-        'How the ICJIA File Accessibility Audit tool analyzes PDF and Word (.docx) documents and remediates PDFs — pipeline diagrams, open-source toolchain, and why PDF remediation is fundamentally limited.',
+        'How the ICJIA File Accessibility Audit tool analyzes PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents and remediates PDFs — pipeline diagrams, open-source toolchain, and why PDF remediation is fundamentally limited.',
     },
   ],
   link: [
@@ -96,11 +96,12 @@ function goBack(): void {
         1. What this tool does
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        The tool answers two questions about a document (PDF or Word .docx):
+        The tool answers two questions about a document (PDF, Word .docx,
+        PowerPoint .pptx, or Excel .xlsx):
       </p>
       <ul class="space-y-1.5 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-3">
         <li>
-          <strong>Audit</strong> (PDF and Word .docx): "How accessible is this
+          <strong>Audit</strong> (PDF, Word, PowerPoint, and Excel): "How accessible is this
           document, and what specifically is wrong?" — a weighted 0–100 score
           (A–F grade) across the WCAG-aligned categories that apply to the
           format, a separate pass/fail
@@ -135,10 +136,11 @@ function goBack(): void {
         their combined output feeds the scorer.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
-        <strong>Word (.docx)</strong> files take a simpler, fully in-process
-        route: a .docx is just a ZIP of XML, so the server unzips it in memory
-        and reads the accessibility-relevant structure directly with two small
-        JavaScript libraries (JSZip + fast-xml-parser) — no external binary, no
+        <strong>Word (.docx), PowerPoint (.pptx), and Excel (.xlsx)</strong>
+        files take a simpler, fully in-process route: each is just a ZIP of XML
+        (Office Open XML), so the server unzips it in memory and reads the
+        accessibility-relevant structure directly with two small JavaScript
+        libraries (JSZip + fast-xml-parser) — no external binary, no
         subprocess, and no temp file at all. The extracted structure feeds the
         same scorer. Nothing is uploaded to a directory, cached, or retained in
         either path. The flowchart below shows both paths.
@@ -146,8 +148,8 @@ function goBack(): void {
 
       <DiagramFigure
         name="audit-flow"
-        title="Audit pipeline — PDF and Word"
-        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word .docx is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings; the result returns to the browser and the memory buffer is discarded.`"
+        title="Audit pipeline — PDF, Word, PowerPoint, and Excel"
+        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings; the result returns to the browser and the memory buffer is discarded.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
@@ -155,10 +157,10 @@ function goBack(): void {
         the PDF's internal object graph and structure tree — the parts a
         screen reader cares about. pdfjs (Mozilla's PDF rendering library)
         is excellent at extracting visible text and content order. Running
-        both gives the scorer a richer signal than either alone. Word needs only
-        one parser, because its structure (headings, alt text, table headers,
-        lists) is already explicit in the OOXML — there is no separate visual
-        layer to reconcile against.
+        both gives the scorer a richer signal than either alone. The Office
+        formats need only one parser, because their structure (headings or
+        slide titles, alt text, table headers, sheet names) is already explicit
+        in the OOXML — there is no separate visual layer to reconcile against.
       </p>
 
       <h3 class="text-lg font-semibold text-[var(--text-heading)] mt-6 mb-2">
@@ -197,9 +199,9 @@ function goBack(): void {
       </ul>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
         Each category maps to the specific WCAG {{ wcag.version }} success criteria it
-        evaluates. The weights below are the <strong>PDF</strong> rubric; Word
-        (.docx) uses the same categories with a few differences, noted after the
-        table:
+        evaluates. The weights below are the <strong>PDF</strong> rubric; the
+        Office formats (Word, PowerPoint, Excel) use format-specific category
+        sets, noted after the table:
       </p>
       <div class="overflow-x-auto mb-3">
         <table
@@ -289,6 +291,27 @@ function goBack(): void {
         <strong>Not applicable</strong>, because Word's linear document flow
         preserves reading order and interactive form controls are rare in Word.
       </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
+        <strong>PowerPoint (.pptx) swaps in slide-centric categories.</strong>
+        A <strong>Slide Titles</strong> category (2.4.2 — every slide needs a
+        unique title placeholder, Microsoft's highest-severity PowerPoint rule)
+        applies in place of heading structure, and
+        <strong>Reading Order</strong> is actively checked (1.3.2 — the title
+        should be the first shape a screen reader encounters on each slide).
+        Color contrast and list structure are scored as for Word; bookmarks and
+        form accessibility don't apply to presentations and are omitted.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
+        <strong>Excel (.xlsx) is table-first.</strong> A
+        <strong>Sheet Names</strong> category (no default "Sheet1" tabs on
+        visible sheets) applies in place of heading structure, and
+        <strong>Table Markup</strong> carries the most weight — data belongs in
+        real table objects with header rows, and merged cells are flagged as
+        advisories. Excel stores no document-language property, so Title &amp;
+        Language scores on the title alone and the language half is reported as
+        not assessed. Reading order, lists, bookmarks, and forms don't apply
+        and are omitted.
+      </p>
 
         <section class="mt-8">
           <h3 class="text-lg font-bold text-[var(--text-heading)] mb-2">
@@ -323,7 +346,7 @@ function goBack(): void {
         differently, and running them in parallel lets the scorer reconcile a
         structural view (qpdf) with a content view (pdfjs) — useful for catching
         cases where a PDF claims structure it doesn't actually have, or vice
-        versa. <strong>Word</strong> needs no such reconciliation: its structure
+        versa. <strong>Word, PowerPoint, and Excel</strong> need no such reconciliation: their structure
         is declared explicitly in the OOXML, so a single parser reads it
         directly.
       </p>
@@ -363,22 +386,23 @@ function goBack(): void {
       </p>
 
       <h3 class="text-lg font-semibold text-[var(--text-heading)] mt-6 mb-2">
-        And a Word (.docx) file?
+        And the Office formats (.docx, .pptx, .xlsx)?
       </h3>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        A <strong>.docx is the opposite of a PDF</strong>: it is a
-        <em>source</em> format, and its structure is native, not bolted on.
-        Under the hood it is a ZIP archive of XML (the Office Open XML
-        standard) — headings, lists, tables, alt text, and language are stored
-        as explicit, semantic markup, because that is how Word represents the
-        document you are editing. That is why Word is the best place to fix
-        accessibility: correct it in the source, and every PDF you export from
-        it inherits the structure automatically.
+        <strong>Word, PowerPoint, and Excel files are the opposite of a
+        PDF</strong>: they are <em>source</em> formats, and their structure is
+        native, not bolted on. Under the hood each is a ZIP archive of XML (the
+        Office Open XML standard) — headings, slide titles, sheet names, lists,
+        tables, alt text, and language are stored as explicit, semantic markup,
+        because that is how the Office apps represent the document you are
+        editing. That is why the source file is the best place to fix
+        accessibility: correct it there, and every PDF you export from it
+        inherits the structure automatically.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
-        It also makes the audit simpler and safer for Word than for PDF — the
-        tool reads structure that is already there rather than inferring it from
-        glyph positions. Because a .docx is still untrusted input, the parser is
+        It also makes the audit simpler and safer for the Office formats than
+        for PDF — the tool reads structure that is already there rather than
+        inferring it from glyph positions. Because an OOXML file is still untrusted input, the parser is
         hardened against malicious files (uncompressed-size "zip-bomb" caps, a
         concurrency limit, and a timeout; see the README security section).
       </p>
@@ -390,8 +414,8 @@ function goBack(): void {
         5. Why remediation is fundamentally limited
       </h2>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-        Auto-remediation applies to <strong>PDF only</strong> — Word doesn't
-        need it (fix the source in Word directly, then re-export). Auditing is
+        Auto-remediation applies to <strong>PDF only</strong> — Word, PowerPoint, and Excel don't
+        need it (fix the source in Office directly, then re-export). Auditing is
         read-only: you walk the document's structure and report what's there.
         Remediation is read-modify-write — and PDFs make that genuinely hard:
       </p>
@@ -480,7 +504,7 @@ function goBack(): void {
         Two small services run on a single DigitalOcean droplet, managed
         by PM2 and fronted by Nginx. Every dependency is open source and runs
         locally. The PDF path shells out to qpdf (and, for remediation, the
-        OpenDataLoader and veraPDF Java tools); the Word path needs none of
+        OpenDataLoader and veraPDF Java tools); the Word, PowerPoint, and Excel path needs none of
         those — it runs entirely in-process with the JSZip and fast-xml-parser
         JavaScript libraries.
       </p>
@@ -488,7 +512,7 @@ function goBack(): void {
       <DiagramFigure
         name="architecture"
         title="Application architecture"
-        desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; it reads and writes SQLite locally. No external services."
+        desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. The PDF path shells out to qpdf, OpenDataLoader Java, and veraPDF Java; the Word, PowerPoint, and Excel path unzips in-memory with JSZip and fast-xml-parser. Express reads and writes SQLite locally. No external services."
       />
     </section>
 
@@ -522,15 +546,15 @@ function goBack(): void {
             </tr>
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-mono">jszip</td>
-              <td class="py-2.5 pr-4">Unzip the .docx (OOXML) package</td>
+              <td class="py-2.5 pr-4">Unzip the OOXML package (.docx / .pptx / .xlsx)</td>
               <td class="py-2.5 pr-4">MIT / GPLv3</td>
-              <td class="py-2.5">Audit (Word)</td>
+              <td class="py-2.5">Audit (Office formats)</td>
             </tr>
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-mono">fast-xml-parser</td>
               <td class="py-2.5 pr-4">Parse OOXML structure &amp; content</td>
               <td class="py-2.5 pr-4">MIT</td>
-              <td class="py-2.5">Audit (Word)</td>
+              <td class="py-2.5">Audit (Office formats)</td>
             </tr>
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-mono">OpenDataLoader PDF</td>
@@ -594,7 +618,7 @@ function goBack(): void {
             Audit page
           </div>
           <p class="text-xs text-[var(--text-muted)] mt-1">
-            Upload a PDF or Word document and run the audit. Full prose
+            Upload a PDF, Word, PowerPoint, or Excel document and run the audit. Full prose
             <em>Technical Details</em> dropdown at the bottom of that page
             with code references and tool-by-tool deep dives.
           </p>

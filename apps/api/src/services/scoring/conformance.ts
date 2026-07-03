@@ -26,6 +26,8 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { DocxAnalysis } from "../docxService.js";
+import type { PptxAnalysis } from "../pptxService.js";
+import type { XlsxAnalysis } from "../xlsxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
@@ -76,6 +78,7 @@ export interface ConformanceVerdict {
 // the new 2.2 criteria are appended at the bottom.
 const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
   "1.1.1": "non-text-content",
+  "1.2.2": "captions-prerecorded",
   "1.3.1": "info-and-relationships",
   "1.3.2": "meaningful-sequence",
   "1.4.3": "contrast-minimum",
@@ -322,6 +325,44 @@ export function evaluateConformance(
 }
 
 /**
+ * Shared status/headline tail for the Office-format gates (docx, pptx, and
+ * xlsx). Extracted from the original `evaluateDocxConformance` tail — the
+ * docx gate's own tests pin its behavior unchanged, so any future edit here
+ * must keep `docxConformance.test.ts` green.
+ *
+ * `contrastNotEvaluated` drives only the headline's contrast caveat clause
+ * (the caller decides — and separately pushes — the corresponding
+ * `NotAssessedCriterion` entry; this flag does not add one itself).
+ */
+function finalizeVerdict(
+  failures: ConformanceFinding[],
+  notAssessed: NotAssessedCriterion[],
+  contrastNotEvaluated: boolean,
+): ConformanceVerdict {
+  const status: ConformanceVerdict["status"] =
+    failures.length > 0 ? "fail" : "no-automated-failures";
+
+  const aCount = failures.filter((f) => f.level === "A").length;
+  const aaCount = failures.filter((f) => f.level === "AA").length;
+  const failBreakdown =
+    aaCount === 0
+      ? `${aCount} Level A failure${aCount === 1 ? "" : "s"}`
+      : aCount === 0
+        ? `${aaCount} Level AA failure${aaCount === 1 ? "" : "s"}`
+        : `${aCount} Level A and ${aaCount} Level AA failures`;
+
+  const contrastNote = contrastNotEvaluated
+    ? ", and color contrast was not evaluated"
+    : "";
+  const headline =
+    status === "fail"
+      ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
+      : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA still requires manual review of reading order and the correctness of alt text, headings, and table header associations${contrastNote}.`;
+
+  return { status, failures, notAssessed, headline };
+}
+
+/**
  * DOCX conformance gate. A self-contained analogue of `evaluateConformance`
  * (the PDF gate is left untouched). Same discipline: fires only on confirmed,
  * machine-checkable violations, mapped to the same WCAG success criteria and
@@ -433,26 +474,259 @@ export function evaluateDocxConformance(
     });
   }
 
-  const status: ConformanceVerdict["status"] =
-    failures.length > 0 ? "fail" : "no-automated-failures";
+  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
+}
 
-  const aCount = failures.filter((f) => f.level === "A").length;
-  const aaCount = failures.filter((f) => f.level === "AA").length;
-  const failBreakdown =
-    aaCount === 0
-      ? `${aCount} Level A failure${aCount === 1 ? "" : "s"}`
-      : aCount === 0
-        ? `${aaCount} Level AA failure${aaCount === 1 ? "" : "s"}`
-        : `${aCount} Level A and ${aaCount} Level AA failures`;
+/**
+ * PPTX conformance gate. A self-contained analogue of `evaluateDocxConformance`
+ * — same structure, same discipline: fires only on confirmed, machine-checkable
+ * violations. Heuristic signals stay in scoring, not here — most notably a
+ * slide missing its own title (`slide_titles`) and the title-first reading-order
+ * heuristic (`reading_order`) are NOT gate failures, since neither is a
+ * confirmed WCAG violation on its own.
+ *
+ * Color contrast is machine-checkable the same way as docx (explicit run/theme
+ * colors are in the XML), so 1.4.3 can be a confirmed failure here too.
+ */
+export function evaluatePptxConformance(
+  analysis: PptxAnalysis,
+): ConformanceVerdict {
+  const failures: ConformanceFinding[] = [];
+  const add = (
+    sc: string,
+    name: string,
+    level: "A" | "AA",
+    category: string,
+    issue: string,
+  ): void => {
+    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+  };
 
-  const contrastNote =
-    analysis.contrast.checkedRuns === 0
-      ? ", and color contrast was not evaluated"
-      : "";
-  const headline =
-    status === "fail"
-      ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
-      : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA still requires manual review of reading order and the correctness of alt text, headings, and table header associations${contrastNote}.`;
+  // 1. Non-decorative images without alt text → 1.1.1.
+  const imagesMissingAlt = analysis.images.filter(
+    (i) => !i.decorative && !(i.altText && i.altText.trim()),
+  ).length;
+  if (imagesMissingAlt > 0) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "alt_text",
+      `${imagesMissingAlt} image(s) have no alternative text. In PowerPoint: right-click each image → View Alt Text and add a description (or mark it decorative).`,
+    );
+  }
 
-  return { status, failures, notAssessed, headline };
+  // 2. No declared presentation language → 3.1.1.
+  if (!analysis.metadata.language) {
+    add(
+      "3.1.1",
+      "Language of Page",
+      "A",
+      "title_language",
+      "No presentation language is declared, so assistive technology cannot determine which pronunciation rules to apply. In PowerPoint: Review → Language → Set Proofing Language.",
+    );
+  }
+
+  // 3. No document title → 2.4.2. This is the file's Title property (what a
+  //    screen reader announces on open), not a slide's own title placeholder
+  //    text and not footer text — those are separate things and neither one
+  //    sets this property.
+  if (!analysis.metadata.title) {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      "The presentation has no title in its properties; a screen reader announces the filename instead. In PowerPoint: File → Info → Properties → Title (Insert → Header & Footer is not a slide title — it only sets footer text — and a slide's own Title placeholder does not set this property either).",
+    );
+  }
+
+  // 4. Data tables (≥2×2, to skip layout tables) with no header row → 1.3.1.
+  const dataTablesNoHeader = analysis.tables.filter(
+    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
+  ).length;
+  if (dataTablesNoHeader > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "table_markup",
+      `${dataTablesNoHeader} data table(s) have no header row, so screen readers cannot associate data cells with their headers. In PowerPoint: select the table → Table Design → check Header Row.`,
+    );
+  }
+
+  // 5. Confirmed low-contrast text → 1.4.3 (machine-checkable via explicit
+  //    run/theme colors, same discipline as the docx gate).
+  if (analysis.contrast.failing.length > 0) {
+    const worst = analysis.contrast.failing.reduce((a, b) =>
+      a.ratio < b.ratio ? a : b,
+    );
+    add(
+      "1.4.3",
+      "Contrast (Minimum)",
+      "AA",
+      "color_contrast",
+      `${analysis.contrast.failing.length} text run(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or background color in PowerPoint.`,
+    );
+  }
+
+  // --- criteria not assessed automatically ----------------------------------
+  const notAssessed: NotAssessedCriterion[] = [
+    {
+      sc: "1.3.2",
+      name: "Meaningful Sequence",
+      level: "A",
+      reason:
+        "Only whether each slide's title placeholder reads first is checked; the reading order of the remaining shapes (text boxes, grouped objects) on each slide is not automatically verified — manual review recommended.",
+      url: wcagUrl("1.3.2"),
+    },
+  ];
+  // Contrast is assessed when an explicit run or theme color was resolvable;
+  // only surface it as "not assessed" when nothing could be checked.
+  if (analysis.contrast.checkedRuns === 0) {
+    notAssessed.push({
+      sc: "1.4.3",
+      name: "Contrast (Minimum)",
+      level: "AA",
+      reason:
+        "No text with an explicit run color was found; formatting inherited from a slide layout or master is not resolved in this version, so contrast could not be evaluated.",
+      url: wcagUrl("1.4.3"),
+    });
+  }
+  // Embedded audio/video is detected structurally, but caption presence and
+  // quality are not — surfaced as not-assessed whenever the deck has media.
+  if (analysis.hasMedia) {
+    notAssessed.push({
+      sc: "1.2.2",
+      name: "Captions (Prerecorded)",
+      level: "A",
+      reason:
+        "This presentation contains embedded audio or video; whether it has captions is not machine-verified — manual review required.",
+      url: wcagUrl("1.2.2"),
+    });
+  }
+
+  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
+}
+
+/**
+ * XLSX conformance gate. A self-contained analogue of `evaluateDocxConformance`
+ * — same structure, same discipline: fires only on confirmed, machine-checkable
+ * violations. The 1.3.1 table check fires ONLY on a defined table with header
+ * row explicitly off (`hasHeaderRow: false`); the "data range with no defined
+ * table" signal and merged-cell counts are scoring-only advisories, never a
+ * confirmed WCAG violation on their own (a data region without a Table object
+ * may still be a legitimate, if unstructured, layout; merges alone don't imply
+ * broken header association).
+ *
+ * Color contrast is machine-checkable the same way as docx/pptx (styles.xml
+ * cell styles carry explicit rgb colors), so 1.4.3 can be a confirmed failure
+ * here too. Unlike docx/pptx, 3.1.1 is ALWAYS "not assessed": Excel workbooks
+ * have no document-language property at all (not merely one this tool doesn't
+ * resolve yet), so asserting a confirmed failure would overstate what's true —
+ * this is a structural fact about the file format, not a v1 boundary.
+ */
+export function evaluateXlsxConformance(
+  analysis: XlsxAnalysis,
+): ConformanceVerdict {
+  const failures: ConformanceFinding[] = [];
+  const add = (
+    sc: string,
+    name: string,
+    level: "A" | "AA",
+    category: string,
+    issue: string,
+  ): void => {
+    failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
+  };
+
+  // 1. Non-decorative images without alt text → 1.1.1.
+  const imagesMissingAlt = analysis.images.filter(
+    (i) => !i.decorative && !(i.altText && i.altText.trim()),
+  ).length;
+  if (imagesMissingAlt > 0) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "alt_text",
+      `${imagesMissingAlt} image(s) have no alternative text. In Excel: right-click the image → View Alt Text and add a description (or mark it decorative).`,
+    );
+  }
+
+  // 2. No document title → 2.4.2.
+  if (!analysis.metadata.title) {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      "The workbook has no title in its properties; a screen reader announces the filename instead. In Excel: File → Info → Properties → Title.",
+    );
+  }
+
+  // 3. Defined tables with the header row explicitly off → 1.3.1. Never the
+  //    data-region heuristic (a used range with no Table object) and never
+  //    merged cells — both are scoring-only advisories, not confirmed
+  //    WCAG violations (see the doc comment above).
+  const tablesNoHeader = analysis.tables.filter((t) => !t.hasHeaderRow).length;
+  if (tablesNoHeader > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "table_markup",
+      `${tablesNoHeader} table(s) have no header row, so screen readers cannot associate data cells with their headers. In Excel: select the range → Insert → Table → check "My table has headers".`,
+    );
+  }
+
+  // 4. Confirmed low-contrast cell styles → 1.4.3 (machine-checkable via
+  //    literal rgb colors on solid fills).
+  if (analysis.contrast.failing.length > 0) {
+    const worst = analysis.contrast.failing.reduce((a, b) =>
+      a.ratio < b.ratio ? a : b,
+    );
+    add(
+      "1.4.3",
+      "Contrast (Minimum)",
+      "AA",
+      "color_contrast",
+      `${analysis.contrast.failing.length} cell style(s) fall below the WCAG contrast minimum (worst ${worst.ratio}:1, e.g. ${worst.foreground} on ${worst.background}). Adjust the font or fill color in Excel.`,
+    );
+  }
+
+  // --- criteria not assessed automatically ----------------------------------
+  const notAssessed: NotAssessedCriterion[] = [
+    {
+      sc: "3.1.1",
+      name: "Language of Page",
+      level: "A",
+      reason:
+        "Excel workbooks do not store a document language, so assistive technology falls back to the reader's defaults — this criterion cannot be evaluated for spreadsheets.",
+      url: wcagUrl("3.1.1"),
+    },
+    {
+      sc: "1.3.2",
+      name: "Meaningful Sequence",
+      level: "A",
+      reason:
+        "Reading order (sheet order and tab order) is not machine-verified — manual review recommended.",
+      url: wcagUrl("1.3.2"),
+    },
+  ];
+  // Contrast is assessed when a literal rgb color on a solid fill was
+  // resolvable; only surface it as "not assessed" when nothing could be
+  // checked.
+  if (analysis.contrast.checkedRuns === 0) {
+    notAssessed.push({
+      sc: "1.4.3",
+      name: "Contrast (Minimum)",
+      level: "AA",
+      reason:
+        "No cell style with an explicit color was found; only literal rgb colors on solid fills are resolvable in this version, so contrast could not be evaluated.",
+      url: wcagUrl("1.4.3"),
+    });
+  }
+
+  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
 }

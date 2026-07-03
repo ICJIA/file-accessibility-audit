@@ -152,6 +152,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "pptx-xlsx-support-2026-07",
+    badge: "New",
+    text: "Now supporting Microsoft PowerPoint (.pptx) and Excel (.xlsx) files — upload a presentation or workbook for the same WCAG 2.2 AA accessibility audit as PDFs and Word documents, with findings and fix guidance tailored to each app.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 2, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "docx-support-2026-07",
     badge: "New",
     text: "Now supporting Microsoft Word (.docx) files — upload a Word document for the same WCAG 2.2 AA accessibility audit as PDFs, with findings and fix guidance tailored to Word.",
@@ -365,6 +376,181 @@ export const DOCX = {
     color_contrast: 0.12,
     list_structure: 0.09,
     link_quality: 0.08,
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// PPTX (POWERPOINT) ANALYSIS
+// ---------------------------------------------------------------------------
+// Config for the PowerPoint (.pptx) accessibility checker (v1.33.0). Same
+// posture as DOCX: a ZIP of OOXML parts parsed in pure JS on the shared
+// services/ooxml.ts core; reuses the PDF pipeline's scoring aggregation,
+// grade/severity thresholds, WCAG map, conformance-verdict shape, and the
+// report UI.
+// ---------------------------------------------------------------------------
+
+export const PPTX = {
+  /** Feature flag — set PPTX_ENABLED=false to reject .pptx and hide it in the
+   *  web UI (runtimeConfig.public.pptxEnabled). SAFE TO CHANGE: via env var. */
+  ENABLED: process.env.PPTX_ENABLED !== "false",
+
+  /** Canonical MIME type for .pptx (PresentationML). */
+  MIME_TYPE:
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+  /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale
+   *  and budget math as DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
+  MAX_UNCOMPRESSED_BYTES: 30 * 1024 * 1024,
+
+  /** Max slides analyzed; over the cap → rejected (CPU/heap bound, the
+   *  MAX_PARAGRAPHS analogue). 2,000 slides is far beyond any real deck.
+   *  SAFE TO CHANGE. */
+  MAX_SLIDES: 2000,
+
+  /** Max total shapes across all slides; over the cap → rejected.
+   *  SAFE TO CHANGE. */
+  MAX_SHAPES: 100_000,
+
+  /** Max any-depth count of paragraphs (<a:p>) + text runs (<a:r>) across all
+   *  slides; over the cap → rejected. A single shape can legally hold an
+   *  unbounded txBody, and those text elements — not the shape containers —
+   *  drive the per-run contrast walk and per-paragraph list walk, so
+   *  MAX_SHAPES alone does not bound them. This is the MAX_PARAGRAPHS analogue
+   *  for PowerPoint. SAFE TO CHANGE. */
+  MAX_TEXT_ELEMENTS: 200_000,
+
+  /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
+   *  SAFE TO CHANGE. */
+  ANALYSIS_TIMEOUT_MS: 20_000,
+
+  /**
+   * PPTX category weights. PowerPoint maps onto the shared category IDs,
+   * except:
+   *   - slide_titles is PowerPoint-specific (every slide needs a title);
+   *   - reading_order is ACTIVE (title-first-in-shape-tree is machine-checkable)
+   *     — it is permanently N/A for Word;
+   *   - heading_structure / bookmarks are omitted (slide titles are the
+   *     PowerPoint outline); form_accessibility is a not-assessed placeholder.
+   * Weights renormalize across applicable categories, as for PDF/DOCX N/A.
+   * SAFE TO CHANGE: same rules as DOCX.SCORING_WEIGHTS.
+   */
+  SCORING_WEIGHTS: {
+    text_extractability: 0.05,
+    title_language: 0.14,
+    slide_titles: 0.18,
+    alt_text: 0.18,
+    reading_order: 0.1,
+    table_markup: 0.1,
+    color_contrast: 0.1,
+    list_structure: 0.07,
+    link_quality: 0.08,
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// XLSX (EXCEL) ANALYSIS
+// ---------------------------------------------------------------------------
+
+export const XLSX = {
+  /** Feature flag — set XLSX_ENABLED=false to reject .xlsx and hide it in the
+   *  web UI (runtimeConfig.public.xlsxEnabled). SAFE TO CHANGE: via env var. */
+  ENABLED: process.env.XLSX_ENABLED !== "false",
+
+  /** Canonical MIME type for .xlsx (SpreadsheetML). */
+  MIME_TYPE:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+  /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale as
+   *  DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
+  MAX_UNCOMPRESSED_BYTES: 30 * 1024 * 1024,
+
+  /** Max worksheets analyzed; over the cap → rejected. SAFE TO CHANGE. */
+  MAX_SHEETS: 200,
+
+  /** Max total used-range cells (worksheet XML is the volume driver — this is
+   *  the MAX_PARAGRAPHS analogue). Checked against the ACTUAL parsed `<c>`
+   *  cells (any depth, accumulated across sheets) — never the self-reported
+   *  `<dimension ref>`, which is attacker-controlled (see countCellsAnyDepth's
+   *  doc comment in xlsxService.ts). Over the cap → rejected. SAFE TO CHANGE. */
+  MAX_CELLS: 1_000_000,
+
+  /** Max total drawing objects (pictures/charts) across all sheets; over the
+   *  cap → rejected. Otherwise unbounded — limited only by
+   *  MAX_UNCOMPRESSED_BYTES × MAX_SHEETS. Mirrors PPTX.MAX_SHAPES's DoS
+   *  rationale. SAFE TO CHANGE. */
+  MAX_DRAWING_OBJECTS: 100_000,
+
+  /** Max total hyperlinks across all sheets; over the cap → rejected. Same
+   *  unbounded-growth rationale as MAX_DRAWING_OBJECTS. SAFE TO CHANGE. */
+  MAX_HYPERLINKS: 100_000,
+
+  /** Max total defined tables across all sheets; over the cap → rejected.
+   *  Worse than plain array growth: each <.../table> rel triggers a table-PART
+   *  read + parse (a fan-out READ amplifier), bounded only by the 30 MB
+   *  rels-part cap (~300k rels/sheet) × MAX_SHEETS. Pre-counted before any
+   *  table part is read (see collectSheetContent). 10k far exceeds any
+   *  legitimate workbook while bounding the fan-out. SAFE TO CHANGE. */
+  MAX_TABLES: 10_000,
+
+  /** Max total distinct drawing PARTS (relationships) across all sheets;
+   *  over the cap → rejected. A legitimate sheet has ~1 drawing rel (Excel
+   *  packs every drawing on a sheet into one drawingN.xml). Same fan-out
+   *  READ-amplifier class as MAX_TABLES: each `/drawing` rel triggers a
+   *  drawing-PART read + parse BEFORE MAX_DRAWING_OBJECTS can even be
+   *  checked against that part's content, bounded only by the 30 MB
+   *  rels-part cap (~300k rels/sheet) × MAX_SHEETS. Pre-counted before any
+   *  drawing part is read (see collectSheetContent) — mirrors MAX_TABLES'S
+   *  pre-count-before-read pattern exactly.
+   *  RB3-3 [pre-merge re-audit]: tightened from 10,000 -> 1,000. The review
+   *  benchmarked ~729ms/rel for a large, object-sparse drawing part, so only
+   *  ~28 such rels reach the 20s ANALYSIS_TIMEOUT_MS — the 10,000 cap never
+   *  engaged for that shape; it was a count-only bound, not a cost bound.
+   *  1,000 still comfortably exceeds any legitimate workbook (~1 rel/sheet
+   *  × MAX_SHEETS=200) while shrinking the window; MAX_AUX_PART_BYTES below
+   *  closes the rest of the gap on the SIZE dimension. SAFE TO CHANGE. */
+  MAX_DRAWING_RELS: 1_000,
+
+  /** Cumulative UNCOMPRESSED bytes actually read across every drawing +
+   *  defined-table PART in a workbook (all sheets combined) — tracked in
+   *  collectSheetContent's `counts.auxPartBytes` accumulator, checked right
+   *  after each part is read, over the cap → rejected.
+   *  RB3-3 [pre-merge re-audit]: closes a gap MAX_DRAWING_RELS/MAX_TABLES
+   *  leave open even after being count-tightened: a HANDFUL of near-max-size
+   *  (MAX_UNCOMPRESSED_BYTES, 30 MB), object-/row-sparse parts each pass the
+   *  per-part cap individually and never approach the rel-COUNT cap, yet
+   *  parsing each ~30 MB part still costs real wall-clock time (benchmarked
+   *  ~729ms for one such drawing part) — few enough parts that the count cap
+   *  doesn't engage before the 20s ANALYSIS_TIMEOUT_MS eventually would. This
+   *  budget fails fast on the SIZE dimension instead, independent of count:
+   *  ~1.6x one MAX_UNCOMPRESSED_BYTES part — room for one legitimate
+   *  full-sized part plus incidental small ones, but not a second full-sized
+   *  one. A legitimate workbook's drawing/table XML is KB-scale — nowhere
+   *  close. SAFE TO CHANGE. */
+  MAX_AUX_PART_BYTES: 48 * 1024 * 1024,
+
+  /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
+   *  SAFE TO CHANGE. */
+  ANALYSIS_TIMEOUT_MS: 20_000,
+
+  /**
+   * XLSX category weights. Excel maps onto the shared category IDs, except:
+   *   - sheet_names is Excel-specific (no default "Sheet1" names);
+   *   - title_language scores on the title alone (Excel stores no document
+   *     language — the gate lists 3.1.1 as not assessed);
+   *   - table_markup carries the most weight: data as real table objects with
+   *     header rows is THE Excel accessibility fundamental;
+   *   - heading_structure / reading_order / list_structure / bookmarks are
+   *     omitted; form_accessibility is a not-assessed placeholder.
+   * SAFE TO CHANGE: same rules as DOCX.SCORING_WEIGHTS.
+   */
+  SCORING_WEIGHTS: {
+    text_extractability: 0.05,
+    title_language: 0.12,
+    sheet_names: 0.18,
+    table_markup: 0.25,
+    alt_text: 0.18,
+    color_contrast: 0.12,
+    link_quality: 0.1,
   },
 } as const;
 

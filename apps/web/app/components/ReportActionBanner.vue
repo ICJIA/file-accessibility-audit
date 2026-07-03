@@ -10,6 +10,11 @@ import { tallySeverity } from '~/utils/severityTally'
 
 const props = defineProps<{
   categories: Array<{ severity?: string | null }>
+  /** Analyzed file type. The copy below is deliberately format-agnostic
+   * ("this document"), so this isn't interpolated into the text — it's
+   * accepted so callers can pass it consistently with sibling components
+   * and so this component never has to be told it only handles PDFs. */
+  fileType?: 'pdf' | 'docx' | 'pptx' | 'xlsx'
 }>()
 
 const tally = computed(() => tallySeverity(props.categories))
@@ -35,10 +40,10 @@ const copy = computed<string | null>(() => {
 
   if (t.minor > 0) {
     const noun = t.minor === 1 ? 'issue' : 'issues'
-    return `${t.minor} minor ${noun} found. Optional fixes — PDF passes Illinois accessibility.`
+    return `${t.minor} minor ${noun} found. Optional fixes — this document passes Illinois accessibility.`
   }
 
-  return `This PDF passes Illinois IITAA 2.1 + WCAG ${wcag.version} AA accessibility checks.`
+  return `This document passes Illinois IITAA 2.1 + WCAG ${wcag.version} AA accessibility checks.`
 })
 
 const severityClass = computed(() => {

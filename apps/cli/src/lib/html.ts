@@ -1,5 +1,8 @@
 import type { CachedRow } from './cache.js'
-import { CATEGORY_IDS, CATEGORY_LABELS, sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
+// RB3-1: CATEGORY_IDS/CATEGORY_LABELS now come from the single shared
+// categories.ts (previously imported from csv.js's own hand-synced copy).
+import { CATEGORY_IDS, CATEGORY_LABELS } from './categories.js'
+import { sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
 
 const GRADE_COLORS: Record<string, string> = {
   A: '#22c55e',
@@ -20,6 +23,36 @@ const GRADE_BG: Record<string, string> = {
 function esc(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return ''
   return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// ---------------------------------------------------------------------------
+// F1 [MEDIUM, re-audit finding]: scheme guard for the publist "Download"
+// link. A row's file_url is sourced from an external publications API and
+// ends up in the exported page's client-side row data; the Download anchor
+// built from it (see generateHtml's embedded script below) only HTML-escapes
+// the value (h()) — it never restricted the URL scheme. A javascript:/data:
+// file_url would produce a live, dangerous clickable link on the publicly
+// served /publist.html once a viewer expands that row.
+//
+// This mirrors packages/shared's isSafeHttpUrl (not imported directly — the
+// CLI intentionally keeps no dependency on server code): parse with URL(),
+// require an http(s) protocol, treat a parse failure as unsafe.
+//
+// Kept as a single real, independently unit-tested function and embedded
+// into the generated page's <script> via isSafeHttpUrl.toString() (see
+// below) — plain text generation identical in kind to how rowsJson/
+// catIdsJson are already embedded below; nothing here is dynamically
+// executed or evaluated — so the exact tested implementation is what ships
+// to the browser, with no hand-copied second implementation to drift out of
+// sync.
+export function isSafeHttpUrl(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 /** Build a compact JSON-serializable row for client-side rendering */
@@ -347,6 +380,13 @@ ${csvContent ? `<script>
 
   function auditLink(url) { return AUDIT_BASE + '?url=' + encodeURIComponent(url); }
 
+  // F1 [MEDIUM, re-audit finding]: scheme guard for the Download link below
+  // (r.u is a row's file_url, sourced from an external publications API).
+  // This is the exact source of isSafeHttpUrl from lib/html.ts's Node-side
+  // export, above, embedded verbatim via .toString() so there is one tested
+  // implementation, not a hand-copied client-side twin.
+  ${isSafeHttpUrl.toString()}
+
   function sevClass(v) {
     if (v === 'Critical') return 'sev-critical';
     if (v === 'Major') return 'sev-major';
@@ -441,7 +481,7 @@ ${csvContent ? `<script>
       critList +
       '<div class="detail-actions">' +
         '<a href="' + h(link) + '" target="_blank" rel="noopener" class="detail-action-btn">View Full Analysis in Audit Tool</a>' +
-        (r.u ? '<a href="' + h(r.u) + '" target="_blank" rel="noopener" class="detail-action-btn detail-action-secondary">Download PDF</a>' : '') +
+        (r.u && isSafeHttpUrl(r.u) ? '<a href="' + h(r.u) + '" target="_blank" rel="noopener" class="detail-action-btn detail-action-secondary">Download</a>' : '') +
       '</div></div></td></tr>';
   }
 

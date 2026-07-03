@@ -24,7 +24,9 @@ const router: IRouter = Router()
 // Security notes:
 // - URL must pass isAllowedUrl() — scheme, SSRF block, and hostname allowlist
 // - Size cap on fetched content matches the direct-upload cap (ANALYSIS.MAX_FILE_SIZE_MB)
-// - Magic-bytes check: first 5 bytes must be %PDF-
+// - Content-type detection: detectFileType() sniffs the fetched bytes against
+//   all four supported formats (PDF, Word .docx, PowerPoint .pptx, Excel
+//   .xlsx) — not a hardcoded %PDF- magic-byte check.
 // ---------------------------------------------------------------------------
 
 router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequest, res: Response) => {
@@ -73,13 +75,13 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
 
     const buf = fetched.buffer
 
-    // Detect PDF vs DOCX from the fetched content (not the URL extension).
+    // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content (not the URL extension).
     const fileType = await detectFileType(buf)
     if (!fileType) {
       res.status(422).json({
         error: 'Fetched content is not a supported document.',
         details:
-          'The URL must point directly at a PDF or a Word (.docx) file — the fetched content matches neither format.',
+          'The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.',
       })
       return
     }
@@ -124,7 +126,7 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
     if (err?.code === 'DOCX_DISABLED') {
       res.status(415).json({
         error: 'Word (.docx) auditing is currently disabled.',
-        details: 'This server is configured to audit PDF files only.',
+        details: 'This server is not configured to audit Word files. Contact the administrator to enable it.',
       })
       return
     }
@@ -133,8 +135,54 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
     if (err?.code === 'DOCX_PARSE_FAILED') {
       res.status(422).json({
         error: 'The fetched Word document could not be read.',
+        details: 'The .docx file appears to be corrupt or is not a valid Word document. Try re-saving it from Word (File → Save As → Word Document), then upload again.',
+      })
+      return
+    }
+
+    // PPTX auditing disabled via PPTX_ENABLED=false
+    if (err?.code === 'PPTX_DISABLED') {
+      res.status(415).json({
+        error: 'PowerPoint (.pptx) auditing is currently disabled.',
+        details: 'This server is not configured to audit PowerPoint files. Contact the administrator to enable it.',
+      })
+      return
+    }
+
+    // PPTX could not be parsed (corrupt or not a real PowerPoint package)
+    if (err?.code === 'PPTX_PARSE_FAILED') {
+      res.status(422).json({
+        error: 'The fetched PowerPoint file could not be read.',
         details:
-          'The .docx file appears to be corrupt or is not a valid Word document.',
+          'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
+      })
+      return
+    }
+
+    // XLSX auditing disabled via XLSX_ENABLED=false
+    if (err?.code === 'XLSX_DISABLED') {
+      res.status(415).json({
+        error: 'Excel (.xlsx) auditing is currently disabled.',
+        details: 'This server is not configured to audit Excel files. Contact the administrator to enable it.',
+      })
+      return
+    }
+
+    // XLSX could not be parsed (corrupt or not a real Excel package)
+    if (err?.code === 'XLSX_PARSE_FAILED') {
+      res.status(422).json({
+        error: 'The fetched Excel file could not be read.',
+        details:
+          'The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.',
+      })
+      return
+    }
+
+    // Timeout
+    if (err?.code === 'ETIMEDOUT' || err?.killed) {
+      res.status(504).json({
+        error: 'This file is too complex to analyze within the time limit.',
+        details: 'This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.',
       })
       return
     }

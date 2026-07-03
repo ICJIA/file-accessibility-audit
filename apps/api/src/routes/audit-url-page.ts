@@ -7,6 +7,7 @@ import { DEPLOY, SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
 import { isAllowedUrl } from '../services/urlPolicy.js'
 import { auditPage, type PageAuditResult } from '../services/pageAuditor.js'
+import { sanitizeStoredReport } from '../services/reportSanitize.js'
 
 const router: IRouter = Router()
 
@@ -158,17 +159,26 @@ router.post(
           })
           return
         }
+        // Log the detail server-side only — never echo raw err.message to
+        // the client (it can leak library internals / paths, e.g. a
+        // Chromium profile path or an internal stack fragment). Mirrors
+        // audit-url.ts's generic-500 pattern; `msg` is still used below to
+        // classify the failure, just never returned verbatim.
+        console.error('audit-url-page: page audit failed:', err)
         const msg = err?.message ?? String(err)
         if (/timeout|Timeout|net::ERR_/i.test(msg)) {
           res.status(504).json({
             error: 'Page navigation timed out',
-            details: msg,
+            details:
+              'The page took too long to load or render. Try again, or verify the URL is reachable.',
           })
           return
         }
-        res
-          .status(502)
-          .json({ error: 'Page audit failed', details: msg })
+        res.status(502).json({
+          error: 'Page audit failed',
+          details:
+            'The page could not be rendered or audited. It may be blocking automated access or returning an unexpected error.',
+        })
         return
       }
 
@@ -176,6 +186,23 @@ router.post(
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
       const reportExpiresAt = expiresAt.toISOString()
+
+      // RB3-5 [pre-merge re-audit]: reports.ts / bulk-from-inventory.ts run
+      // every stored report through sanitizeStoredReport() before their
+      // shared_reports insert (strips unsafe helpLinks[].url / neutralizes
+      // conformance finding urls anywhere in the payload — a stored-XSS
+      // guard on the public /report/:id and /page-report/:id pages). This
+      // insert skipped that call. No-op today (PageAuditResult carries
+      // neither helpLinks nor conformance), but keeps the store-boundary
+      // invariant enforced consistently at every insert site. Falls back to
+      // the unsanitized result on the
+      // (structurally-shouldn't-happen-for-internal-output) failure case,
+      // mirroring bulk-from-inventory.ts's insert — result comes from this
+      // route's own auditPage() call, not raw client JSON, so there's
+      // nothing here for reports.ts's stricter reject-and-400 to guard
+      // against.
+      const sanitized = sanitizeStoredReport(result)
+      const reportToStore = sanitized.ok ? sanitized.report : result
 
       db.prepare(
         `INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
@@ -187,7 +214,7 @@ router.post(
         // shared_reports table is intentionally generic; the column name
         // is historical (it predates the page-audit route).
         result.url,
-        JSON.stringify(result),
+        JSON.stringify(reportToStore),
         contentHash,
         reportExpiresAt,
       )
@@ -222,10 +249,11 @@ router.post(
         cached: false,
       })
     } catch (err: any) {
+      // Log the detail server-side only — never echo raw err.message to the
+      // client (it can leak library internals / paths). Mirrors
+      // audit-url.ts's generic-500 pattern.
       console.error('audit-url-page error:', err)
-      res
-        .status(500)
-        .json({ error: 'Internal server error', details: err?.message })
+      res.status(500).json({ error: 'Internal server error' })
     }
   },
 )

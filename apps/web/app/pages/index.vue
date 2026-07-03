@@ -273,9 +273,11 @@
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each
              tab can be remediated independently. PDF-only: the remediation
-             pipeline does not apply to Word (.docx) documents. -->
+             pipeline does not apply to Word, PowerPoint, or Excel documents,
+             so gate on the positive fileType === 'pdf' (a negative !== check
+             regresses every time a new format ships). -->
         <div
-          v-if="result?.fileType !== 'docx'"
+          v-if="result?.fileType === 'pdf'"
           class="mb-6 flex justify-center"
           data-export-exclude
         >
@@ -293,6 +295,7 @@
         <ReportActionBanner
           v-if="result?.categories"
           :categories="result.categories"
+          :file-type="result?.fileType"
           class="mb-4"
         />
 
@@ -736,9 +739,9 @@
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >IITAA 2.1</a
           >
-          standard). The audit checks nine categories — text extractability,
-          heading structure, alt text, table markup, and more — and returns a
-          detailed report with actionable findings.
+          standard). The audit checks up to nine categories — text
+          extractability, heading structure, alt text, table markup, and
+          more — and returns a detailed report with actionable findings.
         </p>
       </div>
 
@@ -749,7 +752,7 @@
           class="mb-4 rounded-xl bg-blue-500/10 border border-blue-500/25 px-5 py-3 text-center"
         >
           <p class="text-sm text-blue-400 font-medium">
-            Drop a PDF file on the area below, or click it to browse your files.
+            Drop a {{ heroUploadNoun }} on the area below, or click it to browse your files.
           </p>
         </div>
       </Transition>
@@ -777,7 +780,7 @@
             d="M8.25 4.5l7.5 7.5-7.5 7.5"
           />
         </svg>
-        Technical Details: How This Tool Analyzes & Remediates PDFs
+        Technical Details: How This Tool Analyzes Documents & Remediates PDFs
       </summary>
       <div
         class="px-3 sm:px-6 pb-6 space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border)]"
@@ -788,16 +791,17 @@
             Overview: What This Tool Does
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            This tool checks whether a PDF document can be read by people who
-            use <strong>assistive technology</strong> — screen readers, braille
-            displays, and other tools used by people with disabilities. It does
-            this by examining the internal structure of the PDF file, not just
-            its visual appearance. A PDF that looks fine on screen may be
-            completely unreadable to a screen reader if it lacks the right
-            internal markup.
+            This tool checks whether a document — a PDF, Word (.docx),
+            PowerPoint (.pptx), or Excel (.xlsx) file — can be read by people
+            who use <strong>assistive technology</strong> — screen readers,
+            braille displays, and other tools used by people with
+            disabilities. It does this by examining the internal structure of
+            the file, not just its visual appearance. A document that looks
+            fine on screen may be completely unreadable to a screen reader if
+            it lacks the right internal markup.
           </p>
           <p class="text-[var(--text-muted)] mb-3">
-            The tool evaluates PDFs against
+            The tool evaluates documents against
             <a
               href="https://www.w3.org/WAI/WCAG22/quickref/"
               target="_blank"
@@ -870,6 +874,12 @@ PDF says:
             describes the picture. A screen reader can read a Word file and
             navigate it like a webpage because the meaning is right there
             in the file.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            PowerPoint (.pptx) and Excel (.xlsx) files store meaning the same
+            way Word does — all three are the same Office Open XML family
+            under the hood — which is why this tool can audit all of them
+            directly as source documents.
           </p>
           <p class="text-[var(--text-muted)] mb-3">
             PDF stores <em>where every glyph goes on the page</em>. That's
@@ -1002,13 +1012,20 @@ PDF says:
             How It Works
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            When you upload a PDF, the server runs two independent, open-source
-            analysis tools <strong>in parallel</strong> — one reads the PDF's
-            internal structure (tags, bookmarks, form fields), the other
-            extracts text and metadata from every page. Their combined output
-            feeds a scorer that evaluates nine accessibility categories and
-            produces a weighted overall score. No data is sent to third-party
-            services or AI models — all processing happens on the server (hosted
+            When you upload a <strong>PDF</strong>, the server runs two
+            independent, open-source analysis tools <strong>in
+            parallel</strong> — one reads the PDF's internal structure (tags,
+            bookmarks, form fields), the other extracts text and metadata from
+            every page. Their combined output feeds a scorer that evaluates
+            nine accessibility categories and produces a weighted overall
+            score. <strong>Word, PowerPoint, and Excel</strong> files skip
+            that two-tool step entirely — they're already ZIP archives of
+            XML, so the server unzips them with JSZip and reads the relevant
+            parts with fast-xml-parser, entirely in-process with no external
+            subprocess, then scores the result against a category set adapted
+            for that format (see "How Scores Are Calculated" below). No data
+            is sent to third-party services or AI models — all processing
+            happens on the server (hosted
             on
             <a
               href="https://www.digitalocean.com/"
@@ -1017,22 +1034,24 @@ PDF says:
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
               >DigitalOcean</a
             >
-            cloud infrastructure). The uploaded PDF is deleted immediately after
-            analysis — no PDF content is retained on the server.
+            cloud infrastructure). The uploaded file is deleted (or discarded
+            from memory) immediately after analysis — no file content is
+            retained on the server.
           </p>
           <div
-            class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)]"
+            class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
             tabindex="0"
-          >
-            PDF → [validate file type &amp; size] → parallel { QPDF (structure),
-            PDF.js (content) } → Scorer (9 categories) → Weighted Score → Report
-          </div>
+          >PDF:
+  File → [validate type &amp; size] → parallel { QPDF (structure), PDF.js (content) } → Scorer (9 categories) → Weighted Score → Report
+
+Word / PowerPoint / Excel:
+  File → [validate type &amp; size] → JSZip + fast-xml-parser (in-process) → Scorer (adapted categories) → Weighted Score → Report</div>
 
           <div class="mt-4">
             <DiagramFigure
               name="audit-flow"
               title="Audit pipeline — visual flow"
-              desc="Browser uploads PDF; the server validates magic bytes and size, holds the file in memory, runs qpdf and pdfjs in parallel against it, combines the results, scores nine categories, returns the grade and findings to the browser, and discards the memory buffer."
+              desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
             />
           </div>
         </div>
@@ -1069,10 +1088,11 @@ PDF says:
               </p>
               <p class="text-xs text-[var(--text-muted)]">
                 An <strong>Express</strong> (Node.js/TypeScript) server that
-                handles file uploads, runs QPDF and PDF.js analysis, scores the
-                results, manages authentication (passwordless OTP via email),
-                and stores shared reports in a <strong>SQLite</strong> database
-                (WAL mode). Managed by PM2 in production.
+                handles file uploads, runs QPDF/PDF.js analysis on PDFs and an
+                in-process OOXML parser on Word/PowerPoint/Excel files, scores
+                the results, manages authentication (passwordless OTP via
+                email), and stores shared reports in a <strong>SQLite</strong>
+                database (WAL mode). Managed by PM2 in production.
               </p>
             </div>
           </div>
@@ -1088,7 +1108,7 @@ PDF says:
             <DiagramFigure
               name="architecture"
               title="Application architecture"
-              desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; it reads and writes SQLite locally. No external services."
+              desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. For PDFs, Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; for Word, PowerPoint, and Excel files, it parses OOXML in-process with JSZip and fast-xml-parser instead. Express reads and writes SQLite locally. No external services."
             />
           </div>
         </div>
@@ -1499,8 +1519,8 @@ PDF says:
           <div class="mt-4">
             <DiagramFigure
               name="two-tool"
-              title="Two-tool parallel analysis"
-              desc="The uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel. Their results combine in the scorer for a weighted score across 9 categories."
+              title="Two-tool parallel analysis (PDF)"
+              desc="For a PDF, the uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel; their results combine in the scorer for a weighted score across 9 categories. Word, PowerPoint, and Excel files don't need this two-tool split — a single in-process parser (JSZip + fast-xml-parser) reads their XML directly."
             />
           </div>
         </div>
@@ -1511,13 +1531,17 @@ PDF says:
             How Scores Are Calculated
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            The scorer weighs nine accessibility categories anchored to
-            <strong>WCAG 2.2 AA</strong> and <strong>IITAA 2.1 §E205.4</strong> —
-            the rules that govern non-web document accessibility in Illinois.
-            Each category receives a score from 0 to 100 (or N/A if the
-            category doesn't apply to the document). The overall score is a
-            <strong>weighted average</strong> of applicable categories, with
-            weights renormalized to exclude N/A categories.
+            For a <strong>PDF</strong>, the scorer weighs nine accessibility
+            categories anchored to <strong>WCAG 2.2 AA</strong> and
+            <strong>IITAA 2.1 §E205.4</strong> — the rules that govern non-web
+            document accessibility in Illinois. Each category receives a score
+            from 0 to 100 (or N/A if the category doesn't apply to the
+            document). The overall score is a <strong>weighted
+            average</strong> of applicable categories, with weights
+            renormalized to exclude N/A categories. Word, PowerPoint, and
+            Excel files are graded on the same WCAG-anchored, weighted-average
+            model, renormalized the same way when a category is N/A — just
+            with a category set adapted to each format (see below).
           </p>
           <div class="overflow-x-auto mb-4">
             <table
@@ -1618,6 +1642,61 @@ PDF says:
                 >§504.2.2</a> for authoring-tool export capability, not for
               the final PDF artifact itself, so the WCAG-anchored score above
               is what governs publication decisions.
+            </p>
+          </div>
+
+          <div
+            class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 mb-4 space-y-2"
+          >
+            <p class="font-medium text-[var(--text-secondary)]">
+              Word, PowerPoint &amp; Excel: adapted category sets
+            </p>
+            <p class="text-xs text-[var(--text-muted)]">
+              The nine-category table above is the PDF model. Word,
+              PowerPoint, and Excel files are scored the same way — a
+              weighted average of 0–100 category scores, grounded in the same
+              WCAG 2.2 AA criteria — but each format uses its own adapted
+              category set, because not every PDF category has an OOXML
+              equivalent:
+            </p>
+            <ul
+              class="text-xs text-[var(--text-muted)] list-disc list-inside space-y-1"
+            >
+              <li>
+                <strong>Word (.docx) — 8 scored categories:</strong> Text
+                Extractability, Title &amp; Language, Heading Structure, Alt
+                Text on Images, Table Markup, Color Contrast, List Structure,
+                and Link Quality. Reading Order and Form Accessibility are
+                shown on the report but are not automatically scored.
+              </li>
+              <li>
+                <strong>PowerPoint (.pptx) — 9 scored categories:</strong> the
+                same eight plus a presentation-specific
+                <strong>Slide Titles</strong> check (every slide needs a
+                distinct title placeholder so screen-reader users can tell
+                slides apart) and an actively-scored
+                <strong>Reading Order</strong> category (whether each slide's
+                title reads first in tab order). Only Form Accessibility is
+                excluded.
+              </li>
+              <li>
+                <strong>Excel (.xlsx) — 7 scored categories:</strong> Text
+                Extractability, Title &amp; Language, <strong>Sheet
+                Names</strong> (descriptive names vs. Excel defaults like
+                "Sheet1"), Table Markup, Alt Text on Images, Color Contrast,
+                and Link Quality. Excel workbooks have no document-language
+                property, so Title &amp; Language evaluates title only. Only
+                Form Accessibility is excluded.
+              </li>
+            </ul>
+            <p class="text-xs text-[var(--text-muted)]">
+              <strong>Color contrast</strong> is one place Office formats do
+              <em>more</em> than PDF: Word, PowerPoint, and Excel all read
+              explicit text/fill colors directly from their XML, so contrast
+              is machine-checked wherever colors are explicitly set
+              (PowerPoint additionally resolves theme colors). PDF's Color
+              Contrast category, by contrast, remains N/A pending rendered-page
+              analysis — see "Color contrast" under Limitations below.
             </p>
           </div>
 
@@ -1859,10 +1938,11 @@ PDF says:
             Supplementary analysis
           </h4>
           <p class="text-xs text-[var(--text-muted)] mb-3">
-            In addition to the nine scored categories, the tool appends
-            additional findings to relevant categories. Most are informational
-            only, but some (marked below) do affect scoring. These provide
-            deeper insight into the document's accessibility posture.
+            In addition to the nine PDF categories scored above, the tool
+            appends additional findings to relevant categories. Most are
+            informational only, but some (marked below) do affect scoring.
+            These provide deeper insight into the document's accessibility
+            posture.
           </p>
           <div
             class="rounded-lg border border-[var(--border-subtle)] overflow-x-auto"
@@ -1959,11 +2039,13 @@ PDF says:
                 </tr>
                 <tr>
                   <td class="px-4 py-2">Acrobat remediation guide</td>
-                  <td class="px-4 py-2">All categories</td>
+                  <td class="px-4 py-2">All PDF categories</td>
                   <td class="px-4 py-2">
-                    When a category scores below "Pass", appends the exact Adobe
-                    Acrobat Full Check rule names, menu paths, and step-by-step
-                    fix instructions specific to that category
+                    When a PDF category scores below "Pass", appends the exact
+                    Adobe Acrobat Full Check rule names, menu paths, and
+                    step-by-step fix instructions specific to that category.
+                    Word/PowerPoint/Excel findings link to the relevant
+                    Microsoft accessibility help article instead.
                   </td>
                 </tr>
               </tbody>
@@ -2064,21 +2146,23 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
             Why Auditing Is Easy and Remediation Is Hard
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            Auditing a PDF is a <em>read-only</em> operation: walk the
-            document's internal structure, ask "does it have a tagged
-            StructTreeRoot? Are figures marked? Is the language declared?"
-            and report what you find. The PDF specification
+            Auditing any supported document is a <em>read-only</em>
+            operation: walk the file's internal structure and report what you
+            find. For a PDF, that means asking "does it have a tagged
+            StructTreeRoot? Are figures marked? Is the language declared?" —
+            the PDF specification
             (<a
               href="https://www.iso.org/standard/75839.html"
               target="_blank"
               rel="noopener noreferrer"
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
               >ISO 32000-2</a
-            >) is unambiguous about how to <em>read</em> these structures;
+            >) is unambiguous about how to <em>read</em> these structures, and
             the libraries that parse them (qpdf, pdfjs, veraPDF) are mature
-            and battle-tested; the answers don't change between runs. A
-            PDF can be audited a thousand times and produce the same
-            result every time.
+            and battle-tested. Word, PowerPoint, and Excel files are audited
+            the same read-only way, walking their OOXML parts instead. Either
+            way, the answers don't change between runs: a document can be
+            audited a thousand times and produce the same result every time.
           </p>
           <p class="text-[var(--text-muted)] mb-3">
             Remediation is a <em>read-modify-write</em> operation, and PDFs
@@ -2605,8 +2689,9 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</div>
             Privacy & Retention (Remediation-Specific)
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
-            The remediation pipeline maintains the same posture as the audit
-            pipeline (no PDF content persisted) with three additional rules:
+            The remediation pipeline (PDF-only) maintains the same posture as
+            the audit pipeline — no uploaded file content is persisted — with
+            three additional rules:
           </p>
           <ol class="space-y-2 text-xs text-[var(--text-muted)] list-decimal list-inside">
             <li>
@@ -2730,11 +2815,14 @@ pm2 restart ecosystem.config.cjs</div>
               <span class="text-[var(--text-secondary)] font-bold flex-shrink-0"
                 >1.</span
               ><span
-                ><strong>Alt text quality:</strong> The tool detects whether alt
-                text exists and runs a heuristic check for obviously poor alt
-                text (hex-encoded strings, filenames like "IMG_001.jpg", generic
-                placeholders like "image", and long strings without spaces).
-                However, it cannot evaluate whether alt text is
+                ><strong>Alt text quality:</strong> For PDFs, the tool detects
+                whether alt text exists and runs a heuristic check for
+                obviously poor alt text (hex-encoded strings, filenames like
+                "IMG_001.jpg", generic placeholders like "image", and long
+                strings without spaces); for Word, PowerPoint, and Excel, alt
+                text is currently checked for presence only, without that
+                heuristic quality pre-filter. In neither case can the tool
+                evaluate whether alt text is
                 <em>semantically meaningful</em> — for example, "a chart"
                 technically passes all automated checks, but "Bar chart showing
                 2024 crime rates by county" is far more useful. Human review is
@@ -2746,11 +2834,14 @@ pm2 restart ecosystem.config.cjs</div>
               <span class="text-[var(--text-secondary)] font-bold flex-shrink-0"
                 >2.</span
               ><span
-                ><strong>Color contrast:</strong> PDF color contrast analysis
-                requires rendering each page as an image and analyzing pixel
-                colors. This tool focuses on structural accessibility (tags,
-                metadata, markup) and does not currently assess color
-                contrast.</span
+                ><strong>Color contrast (PDF only):</strong> PDF color
+                contrast analysis requires rendering each page as an image and
+                analyzing pixel colors. This tool focuses on structural
+                accessibility (tags, metadata, markup) and does not currently
+                assess color contrast for PDFs. Word, PowerPoint, and Excel
+                are the exception: their colors are explicit values in the
+                document XML, so contrast <em>is</em> machine-checked for
+                those three formats.</span
               >
             </li>
             <li class="flex gap-2">
@@ -2768,9 +2859,13 @@ pm2 restart ecosystem.config.cjs</div>
                 >4.</span
               ><span
                 ><strong>Decorative images:</strong> Not all images need alt
-                text — decorative images should be marked as artifacts. The tool
-                cannot distinguish informative images from decorative ones; it
-                reports all images without alt text as a potential issue.</span
+                text — decorative images should be marked as artifacts. For
+                PDFs, the tool cannot distinguish informative images from
+                decorative ones; it reports all images without alt text as a
+                potential issue. Word, PowerPoint, and Excel are the
+                exception: the tool reads each format's own "mark as
+                decorative" flag and excludes those images from the alt-text
+                check.</span
               >
             </li>
             <li class="flex gap-2">
@@ -2795,7 +2890,9 @@ pm2 restart ecosystem.config.cjs</div>
               rel="noopener noreferrer"
               class="text-[var(--link)] hover:text-[var(--link-hover)]"
               >Adobe Acrobat Accessibility Checker</a
-            >.
+            >
+            for PDFs, or the Microsoft Office Accessibility Checker for Word,
+            PowerPoint, and Excel documents.
           </p>
           <p class="text-[var(--text-muted)] mt-3">
             <strong>These limitations apply to auto-remediation too.</strong>
@@ -2820,17 +2917,20 @@ pm2 restart ecosystem.config.cjs</div>
           </h3>
           <p class="text-[var(--text-muted)] mb-3">
             The application is hosted on <strong>DigitalOcean</strong> cloud
-            infrastructure (managed via Laravel Forge). When you upload a PDF:
+            infrastructure (managed via Laravel Forge). When you upload a
+            file:
           </p>
           <ul class="space-y-1.5 text-xs text-[var(--text-muted)] mb-3">
             <li class="flex gap-2">
               <span class="text-[var(--text-secondary)] font-bold flex-shrink-0"
                 >1.</span
               ><span
-                >The file is written to a temporary directory on the server,
+                >A PDF is written to a temporary directory on the server,
                 analyzed by QPDF and PDF.js, and
-                <strong>immediately deleted</strong> — no PDF content is
-                retained after analysis completes.</span
+                <strong>immediately deleted</strong>. A Word, PowerPoint, or
+                Excel file never touches disk — it's held in server memory
+                and parsed in-process (JSZip + fast-xml-parser). Either way,
+                no file content is retained after analysis completes.</span
               >
             </li>
             <li class="flex gap-2">
@@ -2880,8 +2980,8 @@ pm2 restart ecosystem.config.cjs</div>
             <li class="flex gap-2">
               <span class="text-[var(--text-muted)]">•</span
               ><span
-                >The <strong>original PDF file is never saved</strong> — only
-                the structured audit results (JSON) are stored.</span
+                >The <strong>original uploaded file is never saved</strong> —
+                only the structured audit results (JSON) are stored.</span
               >
             </li>
             <li class="flex gap-2">
@@ -3037,7 +3137,7 @@ pm2 restart ecosystem.config.cjs</div>
                   d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z"
                 />
               </svg>
-              Analysis Services (scorer, QPDF, PDF.js)
+              Analysis Services (scorer, QPDF, PDF.js, Office parsers)
               <svg
                 class="w-3 h-3"
                 fill="none"
@@ -3141,9 +3241,9 @@ pm2 restart ecosystem.config.cjs</div>
         What This Tool Does
       </h2>
       <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Audit any PDF or Word (.docx) document for WCAG 2.2 AA accessibility — and
-        (optionally) auto-remediate PDFs — all on infrastructure you control, with
-        no AI and no per-document fees.
+        Audit any PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) document
+        for WCAG 2.2 AA accessibility — and (optionally) auto-remediate PDFs — all
+        on infrastructure you control, with no AI and no per-document fees.
       </p>
     </div>
 
@@ -3161,7 +3261,7 @@ pm2 restart ecosystem.config.cjs</div>
           WCAG categories audited
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Each PDF scored across 9 categories aligned with
+          Each document scored across up to 9 categories aligned with
           <strong>WCAG 2.2 Level AA</strong> and ADA Title II. A–F letter grade plus
           Critical / Serious / Moderate severity per category so you know what to
           fix first.
@@ -3231,7 +3331,7 @@ pm2 restart ecosystem.config.cjs</div>
           0
         </div>
         <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">
-          PDFs retained
+          Files retained
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Uploaded files exist on the server only as long as the pipeline requires.
@@ -3255,7 +3355,7 @@ pm2 restart ecosystem.config.cjs</div>
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Every step runs on this server. No data is sent to vision models, hosted
-          AI services, or commercial PDF SDKs. The toolchain (qpdf, pdfjs,
+          AI services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs,
           OpenDataLoader, veraPDF) is entirely open source — no per-document fees,
           no SDK licensing.
         </p>
@@ -3300,20 +3400,28 @@ import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ScrollToTop from "~/components/ScrollToTop.vue";
 import { partitionCardFindings } from "~/utils/findings";
+import { uploadNoun } from "~/utils/uploadFormats";
 
 
-// Word (.docx) support can be disabled server-side (DOCX_ENABLED=false); mirror
-// that in the hero copy so we never invite a format the API will reject.
+// Word / PowerPoint / Excel support can each be disabled server-side
+// (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false"); mirror that in the
+// hero copy so we never invite a format the API will reject.
 const runtimeConfig = useRuntimeConfig();
-const docxEnabled = computed(() => runtimeConfig.public.docxEnabled !== false);
+const uploadFlags = computed(() => ({
+  docx: runtimeConfig.public.docxEnabled !== false,
+  pptx: runtimeConfig.public.pptxEnabled !== false,
+  xlsx: runtimeConfig.public.xlsxEnabled !== false,
+}));
+const anyOfficeFormat = computed(
+  () =>
+    uploadFlags.value.docx || uploadFlags.value.pptx || uploadFlags.value.xlsx,
+);
 const heroTitle = computed(() =>
-  docxEnabled.value
-    ? "Check your PDFs and Word docs for accessibility"
+  anyOfficeFormat.value
+    ? `Check your ${uploadNoun(uploadFlags.value, "and")} files for accessibility`
     : "Check your PDFs for accessibility",
 );
-const heroUploadNoun = computed(() =>
-  docxEnabled.value ? "PDF or Word document" : "PDF",
-);
+const heroUploadNoun = computed(() => `${uploadNoun(uploadFlags.value)} file`);
 
 definePageMeta({ middleware: "auth" });
 

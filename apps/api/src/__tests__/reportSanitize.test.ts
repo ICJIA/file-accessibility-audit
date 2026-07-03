@@ -101,3 +101,261 @@ describe('sanitizeStoredReport — malformed structure (F2)', () => {
     expect(sanitizeStoredReport('x').ok).toBe(false)
   })
 })
+
+describe('sanitizeStoredReport — conformance finding URL scheme (F1b)', () => {
+  // Sibling of the F1 helpLinks guard: conformance.failures[].url and
+  // conformance.notAssessed[].url render as <a href> too (ScoreCard.vue) and
+  // in the HTML/Markdown exports, and are attacker-controllable on a forged
+  // report. Unlike a help-link, a finding's sc/name/level/issue/reason are
+  // substantive accessibility content — so an unsafe url neutralizes just
+  // that field (to '') rather than dropping the whole finding.
+  it('neutralizes a javascript: URL on a conformance failure but keeps the finding', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: {
+        status: 'fail',
+        headline: 'x',
+        failures: [
+          {
+            sc: '1.1.1',
+            name: 'Non-text Content',
+            level: 'A',
+            category: 'alt_text',
+            issue: '2 images have no alt text',
+            url: 'javascript:alert(document.domain)',
+          },
+        ],
+        notAssessed: [],
+      },
+    })
+    expect(res.ok).toBe(true)
+    const failure = (res.report as any).conformance.failures[0]
+    expect(failure.url).toBe('')
+    expect(failure.sc).toBe('1.1.1')
+    expect(failure.issue).toBe('2 images have no alt text')
+  })
+
+  it('neutralizes a data: URL on a conformance notAssessed entry but keeps the criterion', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: {
+        status: 'incomplete',
+        headline: 'x',
+        failures: [],
+        notAssessed: [
+          {
+            sc: '1.4.3',
+            name: 'Contrast (Minimum)',
+            level: 'AA',
+            reason: 'not automated',
+            url: 'data:text/html,<script>alert(1)</script>',
+          },
+        ],
+      },
+    })
+    expect(res.ok).toBe(true)
+    const na = (res.report as any).conformance.notAssessed[0]
+    expect(na.url).toBe('')
+    expect(na.sc).toBe('1.4.3')
+    expect(na.reason).toBe('not automated')
+  })
+
+  it('leaves safe https conformance URLs untouched (value-equal)', () => {
+    const clean = {
+      filename: 'x.pdf',
+      overallScore: 90,
+      conformance: {
+        status: 'fail',
+        headline: 'x',
+        failures: [
+          {
+            sc: '1.1.1',
+            name: 'Non-text Content',
+            level: 'A',
+            category: 'alt_text',
+            issue: 'x',
+            url: 'https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html',
+          },
+        ],
+        notAssessed: [
+          {
+            sc: '1.4.3',
+            name: 'Contrast (Minimum)',
+            level: 'AA',
+            reason: 'not automated',
+            url: 'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html',
+          },
+        ],
+      },
+    }
+    const res = sanitizeStoredReport(clean)
+    expect(res.ok).toBe(true)
+    expect(res.report).toEqual(clean)
+  })
+
+  it('does not mutate the caller-supplied object', () => {
+    const input = {
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: {
+        status: 'fail',
+        headline: 'x',
+        failures: [
+          {
+            sc: '1.1.1',
+            name: 'x',
+            level: 'A',
+            category: 'x',
+            issue: 'x',
+            url: 'javascript:alert(1)',
+          },
+        ],
+        notAssessed: [],
+      },
+    }
+    sanitizeStoredReport(input)
+    expect(input.conformance.failures[0].url).toBe('javascript:alert(1)')
+  })
+})
+
+describe('sanitizeStoredReport — malformed conformance structure (F1b robustness)', () => {
+  // The conformance object comes from attacker-controlled stored JSON, so the
+  // F1b URL walk must never throw on a structurally-malformed conformance
+  // shape (a throw here would 500 the POST). These pin the defensive guards in
+  // stripUnsafeConformanceUrls; behavior is "ignore what isn't a real finding,
+  // still neutralize the ones that are".
+  it('does not throw and returns ok when conformance is a string', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: 'not-an-object',
+    })
+    expect(res.ok).toBe(true)
+    expect((res.report as any).conformance).toBe('not-an-object')
+  })
+
+  it('does not throw and returns ok when conformance is null', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: null,
+    })
+    expect(res.ok).toBe(true)
+    expect((res.report as any).conformance).toBe(null)
+  })
+
+  it('ignores non-array failures / notAssessed without throwing', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: {
+        status: 'fail',
+        headline: 'x',
+        failures: 'not-an-array',
+        notAssessed: { nope: true },
+      },
+    })
+    expect(res.ok).toBe(true)
+    const c = (res.report as any).conformance
+    expect(c.failures).toBe('not-an-array')
+    expect(c.notAssessed).toEqual({ nope: true })
+  })
+
+  it('skips null / non-object finding entries but still neutralizes a real unsafe finding', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: {
+        status: 'fail',
+        headline: 'x',
+        failures: [
+          null,
+          'a-bare-string',
+          42,
+          {
+            sc: '1.1.1',
+            name: 'Non-text Content',
+            level: 'A',
+            category: 'alt_text',
+            issue: 'x',
+            url: 'javascript:alert(1)',
+          },
+        ],
+        notAssessed: [],
+      },
+    })
+    expect(res.ok).toBe(true)
+    const failures = (res.report as any).conformance.failures
+    // the junk entries survive untouched (nothing to sanitize)...
+    expect(failures[0]).toBe(null)
+    expect(failures[1]).toBe('a-bare-string')
+    expect(failures[2]).toBe(42)
+    // ...and the real finding still gets its unsafe url neutralized
+    expect(failures[3].url).toBe('')
+    expect(failures[3].sc).toBe('1.1.1')
+  })
+
+  it('does not throw when a finding is missing its url field entirely', () => {
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      conformance: {
+        status: 'fail',
+        headline: 'x',
+        failures: [{ sc: '1.1.1', name: 'Non-text Content', level: 'A' }],
+        notAssessed: [],
+      },
+    })
+    expect(res.ok).toBe(true)
+    const finding = (res.report as any).conformance.failures[0]
+    // a missing url is treated as unsafe and normalized to '' (a falsy,
+    // href-omitting value at every render/export sink) — the finding is kept
+    expect(finding.url).toBe('')
+    expect(finding.sc).toBe('1.1.1')
+  })
+
+  it('neutralizes an unsafe conformance url nested deeper in the payload while a sibling safe url survives', () => {
+    // stripUnsafeConformanceUrls walks the WHOLE tree for any `conformance`
+    // key (mirrors stripUnsafeHelpLinks), so a conformance object nested under
+    // an arbitrary wrapper is still guarded.
+    const res = sanitizeStoredReport({
+      filename: 'x.pdf',
+      overallScore: 50,
+      history: {
+        previous: {
+          conformance: {
+            status: 'fail',
+            headline: 'x',
+            failures: [
+              {
+                sc: '1.1.1',
+                name: 'Non-text Content',
+                level: 'A',
+                category: 'alt_text',
+                issue: 'x',
+                url: 'javascript:alert(1)',
+              },
+            ],
+            notAssessed: [
+              {
+                sc: '1.4.3',
+                name: 'Contrast (Minimum)',
+                level: 'AA',
+                reason: 'not automated',
+                url: 'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html',
+              },
+            ],
+          },
+        },
+      },
+    })
+    expect(res.ok).toBe(true)
+    const nested = (res.report as any).history.previous.conformance
+    expect(nested.failures[0].url).toBe('')
+    expect(nested.notAssessed[0].url).toBe(
+      'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html',
+    )
+  })
+})

@@ -1,23 +1,24 @@
 /**
- * File-type dispatcher. Detects PDF vs DOCX from the buffer's *content* (magic
- * bytes + package inspection — never the filename extension) and routes to the
- * matching pipeline. The PDF pipeline (analyzePDF) is unchanged; DOCX goes to
- * analyzeDocx + scoreDocx. Both return the shared AnalysisResult, so routes,
- * the CLI, and the frontend treat the two formats uniformly.
+ * File-type dispatcher. Detects PDF vs DOCX vs PPTX vs XLSX from the buffer's
+ * *content* (magic bytes + package inspection — never the filename
+ * extension) and routes to the matching pipeline. The PDF pipeline
+ * (analyzePDF) is unchanged; DOCX goes to analyzeDocx + scoreDocx; PPTX goes
+ * to analyzePptx + scorePptx; XLSX goes to analyzeXlsx + scoreXlsx. All
+ * return the shared AnalysisResult, so routes, the CLI, and the frontend
+ * treat the formats uniformly.
  */
 import JSZip from "jszip";
 import {
   analyzePDF,
   acquireSemaphore,
   releaseSemaphore,
-  withTimeout,
   type AnalysisResult,
 } from "./pdfAnalyzer.js";
-import { analyzeDocx, readCapped } from "./docxService.js";
-import { scoreDocx } from "./scorer.js";
-import { DOCX } from "#config";
+import { readCapped } from "./docxService.js";
+import { runOoxmlInWorker } from "./ooxmlRunner.js";
+import { DOCX, PPTX, XLSX } from "#config";
 
-export type DetectedFileType = "pdf" | "docx";
+export type DetectedFileType = "pdf" | "docx" | "pptx" | "xlsx";
 
 /** True if the buffer starts with the ZIP local-file-header signature. */
 function isZip(buffer: Buffer): boolean {
@@ -31,9 +32,11 @@ function isZip(buffer: Buffer): boolean {
 }
 
 /**
- * Classify a buffer by its content: "pdf", "docx", or null (unknown /
- * unsupported). DOCX detection unzips and confirms WordprocessingML content,
- * so a renamed .xlsx / .pptx / .zip is never misread as a Word document.
+ * Classify a buffer by its content: "pdf", "docx", "pptx", "xlsx", or null
+ * (unknown / unsupported). DOCX detection unzips and confirms
+ * WordprocessingML content, PPTX confirms PresentationML content, and XLSX
+ * confirms SpreadsheetML content, so a renamed Office file is never misread
+ * as the wrong package type.
  */
 export async function detectFileType(
   buffer: Buffer,
@@ -63,6 +66,18 @@ export async function detectFileType(
       ) {
         return "docx";
       }
+      if (
+        contentTypes.includes("presentationml.presentation") &&
+        zip.file("ppt/presentation.xml")
+      ) {
+        return "pptx";
+      }
+      if (
+        contentTypes.includes("spreadsheetml.sheet") &&
+        zip.file("xl/workbook.xml")
+      ) {
+        return "xlsx";
+      }
     } catch {
       // Not a readable ZIP — fall through to unsupported.
     }
@@ -70,11 +85,19 @@ export async function detectFileType(
   return null;
 }
 
-/** Error for unsupported file types or a disabled DOCX pipeline. */
+/** Error for unsupported file types or a disabled DOCX/PPTX/XLSX pipeline. */
 export class FileTypeError extends Error {
-  code: "UNSUPPORTED_FILE_TYPE" | "DOCX_DISABLED";
+  code:
+    | "UNSUPPORTED_FILE_TYPE"
+    | "DOCX_DISABLED"
+    | "PPTX_DISABLED"
+    | "XLSX_DISABLED";
   constructor(
-    code: "UNSUPPORTED_FILE_TYPE" | "DOCX_DISABLED",
+    code:
+      | "UNSUPPORTED_FILE_TYPE"
+      | "DOCX_DISABLED"
+      | "PPTX_DISABLED"
+      | "XLSX_DISABLED",
     message: string,
   ) {
     super(message);
@@ -85,10 +108,12 @@ export class FileTypeError extends Error {
 
 /**
  * Analyze an uploaded document. Detects the type from content and dispatches:
- * PDF → the existing analyzePDF pipeline; DOCX → analyzeDocx + scoreDocx.
- * Throws FileTypeError for unsupported types, or when DOCX auditing is disabled
- * via DOCX.ENABLED (DOCX_ENABLED=false). analyzeDocx may throw DocxParseError
- * for a corrupt package.
+ * PDF → the existing analyzePDF pipeline; DOCX → analyzeDocx + scoreDocx;
+ * PPTX → analyzePptx + scorePptx; XLSX → analyzeXlsx + scoreXlsx. Throws
+ * FileTypeError for unsupported types, or when DOCX/PPTX/XLSX auditing is
+ * disabled via DOCX.ENABLED / PPTX.ENABLED / XLSX.ENABLED (DOCX_ENABLED=false
+ * / PPTX_ENABLED=false / XLSX_ENABLED=false). analyzeDocx may throw
+ * DocxParseError for a corrupt package.
  */
 export async function analyzeDocument(
   buffer: Buffer,
@@ -107,20 +132,81 @@ export async function analyzeDocument(
     }
     // Share the PDF pipeline's concurrency budget and add a wall-clock timeout,
     // so a malicious/pathological .docx can't exhaust memory or pin the box.
-    // Route error handling already maps 503 (semaphore full) and 504 (timeout).
+    // The analyze+score work runs in a dedicated child process (see
+    // ooxmlRunner.ts) so the timeout can genuinely SIGKILL a runaway
+    // synchronous analysis instead of merely abandoning it — releaseSemaphore
+    // below only fires once the child has truly replied or been killed, so a
+    // timed-out analysis can't keep burning CPU while its concurrency slot is
+    // already free for the next request. Route error handling already maps
+    // 503 (semaphore full) and 504 (timeout).
     await acquireSemaphore();
     try {
-      const analysis = await withTimeout(
-        analyzeDocx(buffer),
+      const { pageCount, metadata, scoring } = await runOoxmlInWorker(
+        "docx",
+        buffer,
         DOCX.ANALYSIS_TIMEOUT_MS,
-        "docx analysis timed out",
       );
-      const scoring = scoreDocx(analysis);
       return {
         filename,
-        pageCount: analysis.metadata.pageCount ?? 0,
+        pageCount,
         fileType: "docx",
-        docxMetadata: analysis.metadata,
+        docxMetadata: metadata,
+        ...scoring,
+      };
+    } finally {
+      releaseSemaphore();
+    }
+  }
+
+  if (type === "pptx") {
+    if (!PPTX.ENABLED) {
+      throw new FileTypeError(
+        "PPTX_DISABLED",
+        "PowerPoint (.pptx) auditing is currently disabled on this server.",
+      );
+    }
+    // Same shared concurrency budget + child-process-enforced wall-clock
+    // timeout as DOCX above.
+    await acquireSemaphore();
+    try {
+      const { pageCount, metadata, scoring } = await runOoxmlInWorker(
+        "pptx",
+        buffer,
+        PPTX.ANALYSIS_TIMEOUT_MS,
+      );
+      return {
+        filename,
+        pageCount,
+        fileType: "pptx",
+        pptxMetadata: metadata,
+        ...scoring,
+      };
+    } finally {
+      releaseSemaphore();
+    }
+  }
+
+  if (type === "xlsx") {
+    if (!XLSX.ENABLED) {
+      throw new FileTypeError(
+        "XLSX_DISABLED",
+        "Excel (.xlsx) auditing is currently disabled on this server.",
+      );
+    }
+    // Same shared concurrency budget + child-process-enforced wall-clock
+    // timeout as DOCX/PPTX above.
+    await acquireSemaphore();
+    try {
+      const { pageCount, metadata, scoring } = await runOoxmlInWorker(
+        "xlsx",
+        buffer,
+        XLSX.ANALYSIS_TIMEOUT_MS,
+      );
+      return {
+        filename,
+        pageCount,
+        fileType: "xlsx",
+        xlsxMetadata: metadata,
         ...scoring,
       };
     } finally {
@@ -130,6 +216,6 @@ export async function analyzeDocument(
 
   throw new FileTypeError(
     "UNSUPPORTED_FILE_TYPE",
-    "This file is neither a PDF nor a Word (.docx) document.",
+    "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx).",
   );
 }

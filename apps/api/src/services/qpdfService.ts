@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ANALYSIS } from "#config";
+import { buildChildSpawnEnv } from "./childSpawnEnv.js";
 
 const QPDF_BIN =
   process.env.QPDF_PATH ||
@@ -139,6 +140,12 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
       timeout: ANALYSIS.QPDF_TIMEOUT_MS,
       maxBuffer: ANALYSIS.QPDF_MAX_BUFFER,
       encoding: "utf-8",
+      // RB3-2 [HIGH, pre-merge re-audit]: qpdf is memory-unsafe C++ parsing
+      // ATTACKER-CONTROLLED PDF bytes, in the main Express process — it must
+      // not inherit the API's own secrets. Same denylist RB2-d already
+      // applies to the OOXML/remediation workers; qpdf needs none of them
+      // (PATH/QPDF_PATH/TMPDIR/etc. all survive).
+      env: buildChildSpawnEnv(),
     });
 
     const json = JSON.parse(stdout);
@@ -182,6 +189,10 @@ function execQpdfAsync(tmpPath: string): Promise<string> {
         timeout: ANALYSIS.QPDF_TIMEOUT_MS,
         maxBuffer: ANALYSIS.QPDF_MAX_BUFFER,
         encoding: "utf-8",
+        // RB3-2 [HIGH, pre-merge re-audit]: see the matching comment on
+        // analyzeWithQpdf's execFileSync call above — same rationale,
+        // same helper, the async spawn site.
+        env: buildChildSpawnEnv(),
       },
       (err, stdout, stderr) => {
         if (err) {

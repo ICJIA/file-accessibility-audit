@@ -32,7 +32,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "Run OCR on scanned pages (Adobe Acrobat: Scan & OCR → Recognize Text), then add tags (Accessibility → Add Tags to Document). Verify the tag structure covers all content.",
+      "Run OCR on scanned pages (Adobe Acrobat: Scan & OCR → Recognize Text), then add tags (Accessibility → Add Tags to Document). Verify the tag structure covers all content. This applies to scanned PDFs; Word, PowerPoint, and Excel files always store real, extractable text, so this category does not apply to them.",
   },
   title_language: {
     criteria: [
@@ -46,7 +46,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable / Understandable",
     remediation:
-      "Set the document title in File → Properties → Description. Set the language in File → Properties → Advanced → Language dropdown.",
+      "In Acrobat: set the document title in File → Properties → Description, and the language in File → Properties → Advanced → Language dropdown. In Word, PowerPoint, or Excel: set the title in File → Info → Properties → Title. In Word, set the language via Review → Language → Set Proofing Language; PowerPoint uses its presentation-wide default language setting. Excel workbooks do not store a document language.",
   },
   heading_structure: {
     criteria: [
@@ -65,7 +65,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable / Operable",
     remediation:
-      "Open the Tags panel, identify text that serves as section headings, and change their tag type to H1–H6 in a logical hierarchy. Do not skip levels (e.g., H1 → H3).",
+      "In Acrobat: open the Tags panel, identify text that serves as section headings, and change their tag type to H1–H6 in a logical hierarchy. Do not skip levels (e.g., H1 → H3). In Word: apply the built-in Heading 1–6 styles (Home tab → Styles gallery) instead of manually bolding or enlarging text, and keep the same no-skipping rule. (PowerPoint and Excel do not use this heading-hierarchy category — they are checked on slide titles and sheet names instead.)",
   },
   alt_text: {
     criteria: [
@@ -78,7 +78,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "In the Tags panel, find each <Figure> tag, right-click → Properties, and enter descriptive alt text. Mark decorative images as artifacts instead.",
+      "In Acrobat: find each <Figure> tag in the Tags panel, right-click → Properties, and enter descriptive alt text; mark decorative images as artifacts instead. In Word, PowerPoint, or Excel: right-click the image and choose View/Edit Alt Text to add a description, or mark it as decorative in the same pane.",
   },
   pdf_ua_compliance: {
     criteria: [
@@ -104,7 +104,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable",
     remediation:
-      "Open the Bookmarks panel. Create bookmarks for each major section, or auto-generate from heading tags (Options → New Bookmarks from Structure).",
+      "Open the Bookmarks panel. Create bookmarks for each major section, or auto-generate from heading tags (Options → New Bookmarks from Structure). This is a PDF-specific navigation feature — Word, PowerPoint, and Excel files are not scored on bookmarks.",
   },
   table_markup: {
     criteria: [
@@ -117,7 +117,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "In the Tags panel, expand each <Table> tag. Change header cell tags from <TD> to <TH>. Add scope attributes (Row or Column) to header cells.",
+      "In Acrobat: expand each <Table> tag in the Tags panel, change header cell tags from <TD> to <TH>, and add scope attributes (Row or Column) to header cells. In Word: select the header row → Table Layout → Repeat Header Rows. In PowerPoint or Excel: select the table → Table Design → check \"Header Row\".",
   },
   color_contrast: {
     criteria: [
@@ -130,7 +130,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "This analyzer does not yet compute PDF text/background contrast automatically. Check low-contrast text manually in Acrobat, source documents, or a PDF accessibility tool that performs rendered color-contrast analysis.",
+      "For PDFs, this analyzer does not yet compute rendered text/background contrast automatically — check low-contrast text manually in Acrobat, the source document, or a PDF accessibility tool that performs rendered color-contrast analysis. For Word, PowerPoint, and Excel files, contrast is checked automatically from the document's explicitly-set colors; adjust the flagged text or fill color in the source application.",
   },
   link_quality: {
     criteria: [
@@ -143,7 +143,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable",
     remediation:
-      "Replace raw URLs with descriptive link text in the source document before exporting to PDF. In Acrobat, edit link properties via Edit PDF.",
+      "Replace raw URLs and vague phrases like \"click here\" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click → Edit Link). For a PDF, fix the link text in the source document before export, or edit link properties directly in Acrobat (Edit PDF → Links).",
   },
   form_accessibility: {
     criteria: [
@@ -162,9 +162,9 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable / Robust",
     remediation:
-      "Right-click each form field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label announced by screen readers.",
+      "In Acrobat: right-click each form field → Properties → General tab → enter a descriptive Tooltip; the tooltip becomes the accessible label announced by screen readers. Interactive form fields are uncommon in Word, PowerPoint, and Excel and are not automatically assessed there — if present (e.g. Word/Excel Developer-tab content controls), give each one a descriptive title or accessible name.",
     wcag22Note:
-      "New in WCAG 2.2: interactive PDF forms may also implicate Target Size (2.5.8), Redundant Entry (3.3.7), and Accessible Authentication (3.3.8). These are not automatically assessed — confirm by manual review.",
+      "New in WCAG 2.2: interactive forms may also implicate Target Size (2.5.8), Redundant Entry (3.3.7), and Accessible Authentication (3.3.8). These are not automatically assessed — confirm by manual review.",
   },
   reading_order: {
     criteria: [
@@ -177,7 +177,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "Use the Reading Order tool (Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow.",
+      "In Acrobat: use the Reading Order tool (Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow. In PowerPoint: use the Selection Pane (Home → Arrange → Selection Pane) to reorder shapes so each slide's title reads first. In Word, reading order generally follows the document's linear flow — check floating objects, text boxes, and wrapped images manually.",
   },
 };
 

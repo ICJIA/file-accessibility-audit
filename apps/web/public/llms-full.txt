@@ -4,158 +4,148 @@
 
 ## Overview
 
-The ICJIA File Accessibility Audit is a web application that analyzes PDF documents for accessibility compliance. It extracts structural data from PDFs using two complementary parsers (QPDF for tag structure, PDF.js for content extraction), scores the document under two profiles — a nine-category Strict semantic score aligned to WCAG 2.1 Level AA / ADA Title II / Illinois IITAA 2.1, and an eleven-category Practical readiness score that adds PDF/UA Compliance Signals and reserves Color Contrast — and produces a detailed report with findings, remediation guidance, and standards references.
+The ICJIA File Accessibility Audit is a web application that analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents for accessibility. The file format is detected from file content (magic bytes / package structure), never from the filename extension or a declared MIME type.
 
-## Two scoring methodologies, one document
+Each document is scored under a single methodology: a weighted, partial-credit 0-100 score (A-F grade) across the WCAG-aligned categories that apply to its format, plus a separate binary WCAG 2.2 Level AA conformance verdict computed independently of the weighted score. The score shows how close a document is and what to fix first; the conformance verdict is the honest pass/fail answer, because WCAG conformance is all-or-nothing per success criterion (one image missing alt text fails 1.1.1 outright) and a partial-credit score cannot itself be a conformance claim. Neither is a legal compliance determination — pair the audit with a human accessibility review (e.g., PAC 2024, Adobe Acrobat's Accessibility Full Check, or each Office app's built-in Accessibility Checker) for a definitive determination.
 
-Every audit surfaces two score profiles against the same document. Both use WCAG guidelines; they differ in category weights and whether PDF/UA signals are scored:
+PDF analysis uses two complementary parsers: QPDF (a subprocess) for the tag/structure tree, and pdfjs-dist (in-process) for text and metadata extraction. Word, PowerPoint, and Excel analysis parses the OOXML package (a ZIP of XML parts) directly in JavaScript with JSZip and fast-xml-parser — no external binary — inside a dedicated, interruptible child process, so a pathological Office file can be killed outright on timeout rather than merely abandoned. All four formats share the same concurrency semaphore (2 simultaneous analyses); a request beyond that limit queues or returns HTTP 503. No file content is retained — analysis is in-memory only.
 
-1. Strict semantic score — **WCAG-based, anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents**. Origin tag: `wcag.iitaa.strict`. Nine categories, no PDF/UA category. Emphasizes programmatically determinable structure (real H1–H6, real TH/Scope/Headers, logical reading order).
-2. Practical readiness score — **WCAG-based, with different category weights and an added PDF/UA Compliance Signals category**. Origin tag: `wcag.pdfua.practical`. Renormalizes the nine core categories and adds a PDF/UA Compliance Signals category covering StructTreeRoot, MarkInfo/Marked, PDF/UA identifiers, tab order, list legality, and table legality. Applies partial-credit floors (70 on `heading_structure` and `table_markup` under specific conditions) and reading-order proxies. Weights and floors are judgment calls built into this tool, not published standards.
-
-Illinois IITAA 2.1 references PDF/UA in §504.2.2 for authoring-tool export capability (not for the final document). Final non-web document accessibility is framed through WCAG 2.1 via §E205.4. Strict sticks to the §E205.4/WCAG signals; Practical adds the §504.2.2 PDF/UA signals on top. Both methodologies are valid evaluations of the same document — they emphasize different signals. Neither is a legal compliance determination. Matterhorn is a PDF/UA testing protocol (not a separate law) and is referenced only as context for Practical's PDF/UA category.
-
-**Both profiles correctly evaluate the same document. Pick whichever view (or both together) matches the question being asked — neither is "right."**
+PDFs can optionally be auto-remediated (tag structure added via QPDF + OpenDataLoader, with an optional veraPDF PDF/UA-1 conformance check) — this is a separate, PDF-only feature, disabled by default (`REMEDIATION_ENABLED=true` to turn it on), with its own audit-before-remediate gate and strict file-retention limits (output deleted on first download or a 30-minute TTL). Word, PowerPoint, and Excel are audit-only; there is no auto-remediation path for those formats.
 
 Website: https://audit.icjia.app
 Source: https://github.com/ICJIA/file-accessibility-audit
+FAQs: https://accessibility.icjia.app
 Organization: Illinois Criminal Justice Information Authority (https://icjia.illinois.gov)
+
+---
+
+## Scoring Model
+
+Every audit produces exactly one score. A prior release (before v1.21.0) surfaced two named score profiles ("Strict" and "Practical/PDF-UA") side by side; that dual-profile system was retired because it confused auditors, and PDF/UA-1 conformance is now verified more directly by the optional veraPDF check on the remediation result page. There is no user-facing choice of scoring methodology today — every report shows one 0-100 score and grade.
+
+Within that single score:
+
+- Categories that don't apply to a given document (no tables, no images, no links, etc.) are excluded from the weighted average and the remaining categories' weights are renormalized, so a document is never penalized for lacking content it was never going to have.
+- A category can be null for one of two distinct reasons, both rendered as "N/A" in the score math but labeled differently in the report: **"Not Applicable"** means the document genuinely has none of that content (e.g., no tables to check); **"Not Assessed"** means the tool does not (or in some cases cannot yet) automatically evaluate that category for that format (e.g., PDF color contrast; Word reading order). See Category Details below for exactly which categories fall into "Not Assessed" per format.
+- The separate WCAG 2.2 conformance verdict has three possible states: confirmed automated failures (each tied to a specific WCAG success criterion and linked to its W3C "Understanding" page), "no automated WCAG failures detected" (never phrased as "conformant," since contrast and the semantic *correctness* of alt text/headings/reading order/tags require human judgment), or "incomplete" (the analyzer could not process the file — e.g., it's encrypted or corrupt — so no verdict could be determined).
 
 ---
 
 ## Category Details
 
-### 1. Text Extractability (20% weight)
-WCAG: 1.3.1 Info and Relationships (Level A), 1.4.5 Images of Text (Level AA)
-Principle: Perceivable
+Category weights by format (a scored category's weights within one format always sum to 100%; "not assessed" categories carry no weight and are excluded from the average):
 
-Checks whether the PDF contains real selectable text and a tag structure (StructTreeRoot). This is the most fundamental requirement — if a PDF is a scanned image with no real text, screen readers have nothing to read.
+| Category | PDF | Word | PowerPoint | Excel | WCAG SC (Level) |
+| --- | :--: | :--: | :--: | :--: | --- |
+| Text Extractability | 20% | 5% | 5% | 5% | 1.1.1, 1.3.1 (A) |
+| Title & Language | 15% | 18% | 14% | 12%\* | 2.4.2, 3.1.1 (A) |
+| Heading Structure | 15% | 18% | — | — | 1.3.1 (A), 2.4.6 (AA) |
+| Slide Titles | — | — | 18% | — | 1.3.1 (A), 2.4.6 (AA) |
+| Sheet Names | — | — | — | 18% | 2.4.6 (AA) |
+| Alt Text on Images | 15% | 18% | 18% | 18% | 1.1.1 (A) |
+| Table Markup | 10% | 12% | 10% | 25% | 1.3.1 (A) |
+| Reading Order | 10% | not assessed | 10% | — | 1.3.2 (A) |
+| Bookmarks / Navigation | 5% | — | — | — | 2.4.5 (AA) |
+| Color Contrast | not assessed | 12% | 10% | 12% | 1.4.3 (AA) |
+| List Structure | — | 9% | 7% | — | 1.3.1 (A) |
+| Link & URL Quality | 5% | 8% | 8% | 10% | 2.4.4 (A) |
+| Form Accessibility | 5% | not assessed | not assessed | not assessed | 1.3.1, 3.3.2, 4.1.2 (A) |
 
-Scoring:
-- 100: Has extractable text AND tag structure
-- 50: Has extractable text but NO tags
-- 25: No text but has tag structure (partially tagged scan)
-- 0: No text and no tags (pure scanned image)
+"—" = this category does not exist for that format's report at all. "not assessed" = the category card is shown but always carries a null score with an explanatory note. \*Excel has no document-language property, so the 3.1.1 half of Title & Language is always "not assessed" for Excel and the category scores purely on title presence (100 if a workbook title is set, 0 if not) — PDF/Word/PowerPoint split the 100 points 50/50 between title and language.
 
-Remediation: Run OCR (Adobe Acrobat: Scan & OCR > Recognize Text), then add tags (Accessibility > Add Tags to Document).
+### Text Extractability
+PDF 20% · Word 5% · PowerPoint 5% · Excel 5%. WCAG 1.1.1, 1.3.1 (A).
+For PDF, this checks whether the document has real, selectable text and a tag structure (StructTreeRoot) — the most fundamental accessibility requirement, since a scanned image with no real text gives a screen reader nothing to read at all (a fully scanned, untagged PDF scores 0 here). Word, PowerPoint, and Excel always store real text in their XML (never a flat image), so this check auto-passes at 100 for those three formats; it is kept at a small weight there specifically so a structureless Office document can't coast to a high score on this alone.
 
-### 2. Document Title & Language (15% weight)
-WCAG: 2.4.2 Page Titled (Level A), 3.1.1 Language of Page (Level A)
-Principle: Operable / Understandable
+### Title & Language
+PDF 15% · Word 18% · PowerPoint 14% · Excel 12%. WCAG 2.4.2 Page Titled (A), 3.1.1 Language of Page (A).
+Checks the document's metadata for a title (the first thing a screen reader announces) and a declared language (which controls pronunciation rules). PDF, Word, and PowerPoint split the score 50/50 between the two. Excel workbooks have no document-language property, so this category scores on title presence alone (100 or 0) and WCAG 3.1.1 is always listed as "not assessed" for Excel specifically.
 
-Checks for a document title in metadata and a language declaration. The title is the first thing a screen reader announces. The language tag controls pronunciation rules.
+### Heading Structure
+PDF 15% · Word 18%. WCAG 1.3.1 Info and Relationships (A), 2.4.6 Headings and Labels (AA).
+Checks for a real, logically-ordered heading hierarchy — H1-H6 structure tags in PDF, "Heading 1"-"Heading 6" paragraph styles in Word — flagging skipped levels and, for PDF, generic unleveled heading tags. Word additionally flags "fake headings": text visually formatted to look like a heading (bold, larger font) without a real Heading style applied, which is invisible to assistive technology even though it looks like a heading on screen. Not applicable to PowerPoint (which has Slide Titles instead, PowerPoint's outline mechanism) or Excel.
 
-Scoring:
-- 50 points for title present
-- 50 points for language declared
+### Slide Titles
+PowerPoint 18% only — PowerPoint-specific; there is no separate Heading Structure category for slides. WCAG 1.3.1 (A), 2.4.6 (AA).
+Every slide needs a title placeholder — PowerPoint's equivalent of a heading — so screen-reader users can tell slides apart in the outline and jump directly to one. Flags slides with no title and slides that duplicate another slide's title.
 
-Remediation: Set title in File > Properties > Description. Set language in File > Properties > Advanced > Language.
+### Sheet Names
+Excel 18% only — Excel-specific. WCAG 2.4.6 Headings and Labels (AA).
+Checks that visible worksheets have descriptive names rather than Excel's defaults ("Sheet1", "Sheet2", ...). Sheet names are a workbook's primary navigation mechanism, announced by screen readers when switching between sheets.
 
-### 3. Heading Structure (15% weight)
-WCAG: 1.3.1 Info and Relationships (Level A), 2.4.6 Headings and Labels (Level AA)
-Principle: Perceivable / Operable
+### Alt Text on Images
+PDF 15% · Word 18% · PowerPoint 18% · Excel 18%. WCAG 1.1.1 Non-text Content (A).
+The same check across all four formats: the percentage of non-decorative images, charts, and graphics that have alternative text. Images explicitly marked decorative are excluded from the count (a document where every image is decorative scores 100). Not applicable if the document has no images.
 
-Checks for H1-H6 heading tags and validates the hierarchy (no skipped levels).
+### Table Markup
+PDF 10% · Word 12% · PowerPoint 10% · Excel 25%. WCAG 1.3.1 Info and Relationships (A).
+Checks that data tables have a marked header row/cell so screen readers can associate each cell with its row/column header as a user navigates. Word and PowerPoint also flag nested tables as hard to navigate. Excel weights this category highest of any format (25%) — whether tabular data is a real Excel Table object with a header row, versus a plain unstructured range of typed cells, is the single biggest accessibility factor for a spreadsheet; Excel also flags merged cells as an advisory finding (not a hard penalty), since they can confuse screen-reader cell navigation.
 
-Scoring:
-- 100: Has headings with logical hierarchy
-- 60: Has headings but hierarchy has gaps
-- 40: Only generic /H tags (no numbered levels)
-- 0: No heading tags at all
+### Reading Order
+PDF 10% (active) · PowerPoint 10% (active) · Word: always "not assessed" · not applicable to Excel. WCAG 1.3.2 Meaningful Sequence (A).
+For PDF, this checks structure-tree depth and content ordering (MCID sequence) against the page's content stream. For PowerPoint, it checks that each slide's title is the first shape in that slide's shape/tab order, so a screen reader announces the title before the body content — dense slides (10+ shapes) get an additional advisory to check manually. For Word, the linear document flow generally preserves reading order automatically, and this tool does not evaluate floating objects, text boxes, or wrapped images, so the category is always shown as "not assessed" rather than scored (this is the one category where PowerPoint is scored but Word — otherwise the more fully-scored Office format — is not).
 
-Remediation: In the Tags panel, change text that serves as headings to H1-H6 tags in logical order.
+### Bookmarks / Navigation
+PDF 5% only — not present at all in the Word, PowerPoint, or Excel category sets. WCAG 2.4.5 Multiple Ways (AA).
+Checks for outline/bookmark entries, but only for PDFs of 10 or more pages; shorter documents score "not applicable" rather than being penalized for missing bookmarks.
 
-### 4. Alt Text on Images (15% weight)
-WCAG: 1.1.1 Non-text Content (Level A)
-Principle: Perceivable
+### Color Contrast
+PDF: always "not assessed" (rendered-PDF contrast analysis is not yet implemented — this is the one category never computed for PDF at all). Word 12% · PowerPoint 10% · Excel 12%. WCAG 1.4.3 Contrast (Minimum) (AA).
+Word, PowerPoint, and Excel all store explicit colors in their XML (text-run colors, shape fills, cell styles), so contrast is computed directly wherever a document specifies an explicit foreground and background color, checked against the WCAG minimums (4.5:1 normal text, 3:1 large text). Colors inherited from a theme or style default are not resolved in this version and are flagged as an advisory for manual review rather than scored — a document where every checked color is theme-inherited (nothing explicit to check) shows this category as "not assessed" rather than scored.
 
-Checks whether Figure tags have alternative text descriptions. N/A if no images detected.
+### List Structure
+Word 9% · PowerPoint 7% — not present for PDF or Excel. WCAG 1.3.1 Info and Relationships (A).
+Distinguishes real list formatting (Word's Bullets/Numbering styles; PowerPoint's bullet/numbering formatting), which lets a screen reader announce "list, N items" and each item's position, from manually-typed bullet characters ("-", "*", etc.), which are read aloud as plain text with no list semantics.
 
-Scoring: Percentage of images with alt text (0-100)
+### Link & URL Quality
+PDF 5% · Word 8% · PowerPoint 8% · Excel 10%. WCAG 2.4.4 Link Purpose (In Context) (A).
+The percentage of hyperlinks that use descriptive text rather than a raw URL or a vague phrase ("click here", "read more", "this link") — link text that's meaningless when a screen-reader user pulls up a list of links out of context. Not applicable if the document has no links.
 
-Remediation: In Tags panel, find <Figure> tags, right-click > Properties > enter Alternate Text.
+### Form Accessibility
+PDF 5% (scored) · always "not assessed" for Word, PowerPoint, and Excel. WCAG 1.3.1 (A), 3.3.2 Labels or Instructions (A), 4.1.2 Name, Role, Value (A).
+For PDF, this is the percentage of interactive form fields that have a tooltip label (the `/TU` attribute). Interactive form controls are uncommon in Word, PowerPoint, and Excel files and are not automatically assessed in those three formats in this version.
 
-### 5. PDF/UA Compliance Signals (Practical-only — 9.5% weight)
-WCAG: 1.3.1 Info and Relationships (Level A), 4.1.1 Parsing (Level A)
-Principle: Robust / Perceivable
-
-Practical-mode only. Aggregates PDF/UA-oriented structural signals that vendor remediation tools often weight explicitly: StructTreeRoot, MarkInfo/Marked, PDF/UA identifiers, tab order, list legality, and table legality. This is a readiness signal, not a formal PDF/UA conformance verdict — use PAC 2024 and a human accessibility review for conformance determinations. Strict mode surfaces this category as N/A with guidance only, because Illinois IITAA 2.1 frames final non-web document accessibility through WCAG 2.1 rather than PDF/UA.
-
-Scoring (Practical):
-- 0: No StructTreeRoot (untagged)
-- 25: Tagged, baseline
-- +20 for /MarkInfo /Marked true, +10 for /MarkInfo present only
-- +15 for PDF/UA identifier
-- +10 for tab order on every page, +5 for some pages
-- +up to 15 for list legality (<Lbl>/<LBody> well-formedness)
-- +up to 15 for table legality (row structure, consistent columns, no nested tables)
-
-Remediation: Run Adobe Acrobat Accessibility Full Check and PAC 2024. Review tagging, MarkInfo, tab order, PDF/UA metadata, and list/table legality. Treat the score as a Practical-mode PDF/UA-oriented readiness signal, not a final conformance verdict.
-
-### 6. Bookmarks / Navigation (10% Strict / 8.5% Practical weight)
-WCAG: 2.4.5 Multiple Ways (Level AA)
-Principle: Operable
-
-Checks for bookmarks/outlines in documents with 10+ pages. N/A for shorter documents.
-
-Scoring:
-- 100: Has bookmarks with entries
-- 25: Outline structure present but empty
-- 0: No bookmarks
-
-Remediation: Open Bookmarks panel, create manually or auto-generate from heading tags.
-
-### 6. Table Markup (10% weight)
-WCAG: 1.3.1 Info and Relationships (Level A)
-Principle: Perceivable
-
-Checks whether tables have header cells tagged as TH. N/A if no tables detected.
-
-Scoring:
-- 100: All tables have header tags
-- 40: Some or no tables have headers
-
-Remediation: In Tags panel, change header cell tags from <TD> to <TH>.
-
-### 7. Link & URL Quality (5% weight)
-WCAG: 2.4.4 Link Purpose in Context (Level A)
-Principle: Operable
-
-Checks whether links use descriptive text instead of raw URLs. N/A if no links.
-
-Scoring: Percentage of links with descriptive text (0-100)
-
-Remediation: Replace raw URLs with descriptive link text in the source document.
-
-### 8. Form Accessibility (5% weight)
-WCAG: 1.3.1 Info and Relationships (Level A), 4.1.2 Name, Role, Value (Level A)
-Principle: Perceivable / Robust
-
-Checks whether form fields have tooltip labels (TU attribute). N/A if no forms.
-
-Scoring: Percentage of fields with labels (0-100)
-
-Remediation: Right-click each form field > Properties > General > enter a Tooltip.
-
-### 9. Reading Order (5% weight)
-WCAG: 1.3.2 Meaningful Sequence (Level A)
-Principle: Perceivable
-
-Checks tag structure depth and content ordering via MCID sequences.
-
-Scoring:
-- 100: Logical reading order with nested structure
-- 50: Content order has significant deviations
-- 30: Flat tag structure (no meaningful nesting)
-- 0: No structure tree at all
-
-Remediation: Use the Reading Order tool (Accessibility > Reading Order) to verify and reorder elements.
+### PDF-only signals (not part of the score)
+Two additional PDF-specific outputs are attached to a PDF report but are informational — they never affect the weighted score or the categories above, and neither is present at all for Word/PowerPoint/Excel reports:
+- **PDF/UA-1 signals** — a "conformance signals" panel summarizing machine-checkable PDF/UA (ISO 14289-1) indicators: whether a PDF/UA identifier is declared, structure-tree presence and depth, `/MarkInfo`/`Marked` status, artifact-content run counts, and font-embedding completeness. This is a signals summary, not a formal PDF/UA conformance verdict (a full PDF/UA-1 validation, including the Matterhorn Protocol's failure conditions, needs a dedicated tool like PAC 2024 or veraPDF — the latter is also what the optional auto-remediation feature runs).
+- **Adobe parity report** — mirrors Adobe Acrobat's built-in Accessibility Checker (32 binary rules) alongside this tool's own verdict, so results can be reconciled with what a reviewer sees in Acrobat. Qualitative only, not an aggregated score.
 
 ---
 
-## JSON Export Schema (v2.0)
+## Grade Scale
 
-The JSON export includes machine-readable data designed for LLM consumption:
+| Grade | Score Range | Label |
+| :---: | :---: | --- |
+| A | 90-100 | Excellent |
+| B | 80-89 | Good |
+| C | 70-79 | Needs Improvement |
+| D | 60-69 | Poor |
+| F | 0-59 | Failing |
+
+## Severity Levels
+
+Each category also carries an individual severity label, derived from that category's own score (distinct from the overall letter grade above):
+
+| Severity | Score | Meaning |
+| --- | :--: | --- |
+| No issues found | 100 | The automated checks for this category found nothing — reserved for a perfect 100; a 90-99 still has at least one finding. |
+| Minor | 70-99 | Small improvements recommended. |
+| Moderate | 40-69 | Should be addressed before publishing. |
+| Critical | 0-39 | A significant barrier to access — must be fixed. |
+
+## Standards Alignment
+
+- **WCAG 2.2 Level AA** — the default, operative standard (a strict superset of WCAG 2.1 AA; every machine-checkable criterion carried forward unchanged from 2.1 into 2.2, so automated results are identical either way). WCAG 2.2 adds six new Level A/AA success criteria beyond 2.1, all interactive/manual (e.g., target size, dragging movements, redundant entry) — none are automatically failed by this tool; where one could plausibly apply (mainly to interactive PDF form fields) it is surfaced as "not assessed — manual review," never as an automated failure. A deployment can revert its displayed standard to WCAG 2.1 via the `WCAG_VERSION=2.1` environment variable.
+- **ADA Title II** — the U.S. Department of Justice's digital accessibility rule for state and local government, requiring WCAG 2.1 AA; effective April 2026.
+- **Illinois IITAA 2.1** (§E205.4) — the Illinois Information Technology Accessibility Act; frames final non-web document accessibility through WCAG 2.1 AA, the legal minimum this tool's default WCAG 2.2 auditing exceeds.
+- **Section 508** — the U.S. federal accessibility standard, aligned with WCAG 2.0/2.1 AA.
+- **PDF/UA** (ISO 14289-1) — referenced only for PDF (see "PDF-only signals" above); not applicable to Word, PowerPoint, or Excel reports.
+
+---
+
+## JSON Export Schema (v2.1)
+
+This is the schema of the downloadable **JSON export** (the "Export as JSON" action on a report) — a richer, wrapped shape built for LLM/automation consumption. It is distinct from the raw `POST /api/analyze` API response; see API Reference below for that flatter shape.
 
 ```json
 {
@@ -164,7 +154,7 @@ The JSON export includes machine-readable data designed for LLM consumption:
     "generatedAtFormatted": "human-readable date",
     "tool": "ICJIA File Accessibility Audit",
     "toolUrl": "https://audit.icjia.app",
-    "schemaVersion": "2.0"
+    "schemaVersion": "2.1"
   },
   "file": {
     "name": "filename.pdf",
@@ -174,37 +164,59 @@ The JSON export includes machine-readable data designed for LLM consumption:
   "score": {
     "overall": 85,
     "grade": "B",
-    "gradeLabel": "Good"
+    "gradeLabel": "Good",
+    "primaryMode": "strict"
+  },
+  "scoreProfiles": {
+    "strict": {
+      "label": "Strict semantic score (WCAG + IITAA §E205.4)",
+      "description": "...",
+      "overall": 85,
+      "grade": "B",
+      "gradeLabel": "Good",
+      "executiveSummary": "..."
+    }
   },
   "executiveSummary": "Human-readable summary of findings",
   "warnings": [],
+  "conformance": {
+    "status": "fail | no-automated-failures | incomplete",
+    "failures": [
+      { "sc": "1.1.1", "name": "Non-text Content", "level": "A", "category": "Alt Text on Images", "issue": "...", "url": "..." }
+    ],
+    "notAssessed": [
+      { "sc": "1.4.3", "name": "Contrast (Minimum)", "level": "AA", "reason": "...", "url": "..." }
+    ],
+    "headline": "Does not meet WCAG 2.2 Level AA | No automated WCAG failures detected | WCAG verdict could not be determined"
+  },
   "categories": [
     {
       "id": "text_extractability",
       "label": "Text Extractability",
       "score": 100,
       "grade": "A",
-      "severity": "Pass",
+      "severity": "No issues found",
       "status": "pass | minor | moderate | fail | not-applicable",
       "findings": ["Human-readable finding strings"],
       "explanation": "What this category checks",
       "helpLinks": [{ "label": "...", "url": "..." }],
       "wcag": {
         "successCriteria": ["1.3.1 Info and Relationships (Level A)"],
+        "successCriteriaDetailed": [{ "sc": "1.3.1", "name": "Info and Relationships", "level": "A", "url": "..." }],
         "principle": "Perceivable",
         "remediation": "Step-by-step fix instructions"
       }
     }
   ],
   "remediationPlan": {
-    "summary": "N categories need remediation",
+    "summary": "N categories need remediation.",
     "prioritizedSteps": [
       {
         "priority": 1,
         "category": "Category Name",
         "currentScore": 0,
         "severity": "Critical",
-        "wcagCriteria": ["1.3.1 ..."],
+        "wcagCriteria": ["1.3.1 Info and Relationships (Level A)"],
         "action": "Specific remediation steps"
       }
     ]
@@ -212,38 +224,82 @@ The JSON export includes machine-readable data designed for LLM consumption:
   "llmContext": {
     "description": "Structured context for LLMs",
     "prompt": "Pre-built prompt summarizing the audit",
-    "standards": ["WCAG 2.1 Level AA", "ADA Title II", "Section 508", "PDF/UA"],
+    "standards": [
+      "WCAG 2.2 Level AA",
+      "ADA Title II (effective April 2026)",
+      "Illinois IITAA 2.1 (§E205.4)",
+      "Section 508",
+      "PDF/UA (ISO 14289-1)"
+    ],
     "scoringScale": {
-      "pass": "90-100",
-      "minor": "70-89",
-      "moderate": "40-69",
-      "fail": "0-39"
+      "pass": "90–100",
+      "minor": "70–89",
+      "moderate": "40–69",
+      "fail": "0–39"
     }
   }
 }
 ```
 
+Notes on this schema:
+- `file.pages` is always the numeric page/slide/sheet count, whatever the format calls it (PDF and Word: pages; PowerPoint: slides; Excel: sheets).
+- `score` is the single canonical score. `scoreProfiles` is always a single-entry object keyed `"strict"` — a structural remnant of a retired multi-profile schema, kept only so older integrations built against it keep parsing; there is no second entry and none is planned. New integrations should read `score` directly.
+- `categories[].status` uses 90/70/40 boundaries (distinct from, and slightly different at the top end than, the category `severity` label's 100/70/40 boundaries described under Severity Levels above); `"not-applicable"` covers both the "Not Applicable" and "Not Assessed" cases described in Category Details — the underlying distinction is visible in the category's `findings` text but is not currently its own JSON field.
+- `"PDF/UA (ISO 14289-1)"` only appears in `llmContext.standards` for PDF reports — it is omitted for Word/PowerPoint/Excel exports.
+
 ---
 
 ## API Reference
 
+Endpoints marked "Auth: session or PAT" accept either a browser session cookie or an `Authorization: Bearer fap_xxx` personal access token. The public deployment currently runs with authentication disabled (anonymous mode), so in practice no credential is required there; a deployment with `AUTH.REQUIRE_LOGIN=true` enforces it.
+
 ### POST /api/analyze
-Upload a PDF for accessibility analysis.
+Upload a document for accessibility analysis.
 - Content-Type: multipart/form-data
-- Field: "file" (PDF, max 15 MB)
-- Returns: Full analysis result JSON
+- Field: `file` — PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx), max 15 MB. The format is detected from file content, not the filename or declared MIME type.
+- Auth: session or PAT (not enforced in anonymous-mode deployments)
+- Returns the raw analysis result — a flatter object than the JSON Export Schema above: `{ filename, pageCount, fileType, pdfMetadata|docxMetadata|pptxMetadata|xlsxMetadata, overallScore, grade, isScanned, executiveSummary, categories, warnings, scoringMode, scoreProfiles, conformance, pdfUa?, adobeParity? }`. `pdfUa` and `adobeParity` are present only for PDF. `scoreProfiles` here is the same single-entry (`strict`) object described above.
+- Errors: 400 no file / unsupported file type; 415 format disabled on this server; 422 corrupt or unparseable file, or password-protected PDF; 503 server busy (concurrency limit reached); 504 analysis timed out.
+
+### POST /api/analyze-url
+Audit a document by URL instead of upload. Returns the same result shape as `POST /api/analyze` (not persisted — no report link is created).
+- Content-Type: application/json
+- Body: `{ "url": "https://..." }`
+- Auth: session or PAT
+- The URL must resolve to a public host. Anonymous callers are restricted to an ICJIA / Illinois state government allowlist (extendable via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable); a request bearing a valid privileged bearer token bypasses the allowlist and may fetch any public URL. Either way, a private/reserved-IP SSRF block (localhost, `*.local`/`*.internal`, RFC1918 ranges, link-local addresses) is enforced unconditionally, re-checked on every redirect hop.
+- Limits: 15 MB fetched content, 30 s fetch timeout, same rate limit as `/api/analyze`.
+
+### POST /api/audit-url
+Audit a document by URL **and** persist a shareable report in one call — built for fleet-inventory automation that needs both a score and a stable link to the full report, in a response shape that flattens directly into a CSV row.
+- Content-Type: application/json
+- Body: `{ "url": "https://...", "force"?: boolean }` — accepts PDF, Word, PowerPoint, or Excel, detected from the fetched content.
+- Auth: session or PAT
+- Hash dedup: after fetching, the server hashes the content; if an unexpired report already exists for that hash and caller, the cached report is returned (`"cached": true`) and no new audit runs. Pass `"force": true` (or `?force=true`) to bypass and force a fresh audit.
+- Returns: `{ filename, pageCount, audited, strict: { score, grade }, practical: { score, grade }, reportId, reportUrl, reportExpiresAt, cached }`. `strict` and `practical` always carry identical values — `practical` is a deprecated backward-compatibility alias of `strict`, kept only for fleet-CSV consumers built before the scoring system was unified into one score; either key can be read safely.
+- Shared reports created here expire after 365 days.
+
+### POST /api/bulk-from-inventory
+Accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every file in it (any of the four formats, dispatched by detected content type) server-side in one request.
+- Content-Type: `text/plain` (raw NDJSON, max 5 MB) or `application/json` (`{ "inventory": "<NDJSON string>" }`)
+- Auth: session or PAT
+- Limits: 100 files per request (additional entries are silently skipped), 15 MB per file, 30 s fetch timeout per file — files are processed serially through the same 2-at-a-time concurrency semaphore shared with every other audit endpoint, so large inventories can take several minutes in one HTTP request.
+- Returns: `{ "summary": { "total": n, "analyzed": n, "failed": n, "skipped": n }, "results": [ { "sha256", "path", "publicUrl", "overallScore", "grade", "reportId", "reportUrl", "error" } ] }` — one result entry per inventory line, `error` present instead of the score fields when that file failed.
 
 ### POST /api/reports
 Create a shareable report link.
 - Content-Type: application/json
-- Body: { "report": <analysis result object> }
-- Returns: { "id": "uuid" }
+- Body: `{ "report": <analysis result object> }`
+- Auth: session or PAT
+- Returns: `{ "id": "uuid", "expiresAt": "ISO date" }`
 
 ### GET /api/reports/:id
-Retrieve a shared report.
-- Returns: { "report": <analysis result>, "sharedBy": "email or anonymous", "createdAt": "ISO date", "expiresAt": "ISO date" }
-- 404 if not found, 410 if expired
+Retrieve a shared report. Public — no authentication.
+- Returns: `{ "report": <analysis result>, "createdAt": "ISO date", "expiresAt": "ISO date" }`
+- 404 if not found; 410 if the 365-day link has expired.
 
 ### GET /api/health
 Health check.
-- Returns: { "status": "ok", "version": "...", "uptime": ... }
+- Returns: `{ "status": "ok", "uptime": "2h 15m 30s" }` (a human-formatted duration string, not a raw number).
+
+### Command-line interface
+The monorepo also ships `a11y-audit`, a CLI that runs the identical scoring engine against local files — `a11y-audit report.pdf`, `a11y-audit slides.pptx --json`, or `a11y-audit docs/*.docx --threshold 80` for a CI gate that exits 1 if any file scores below the threshold. A separate `publist` batch mode audits an entire publication catalog and generates CSV/HTML summary reports. See the source repository for build and usage instructions.

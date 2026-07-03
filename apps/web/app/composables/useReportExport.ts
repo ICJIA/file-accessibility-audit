@@ -1,6 +1,11 @@
 import fileSaver from "file-saver";
 import { WCAG_MAP, getWcagCriteriaStrings } from "~/utils/wcag";
-import { BANNER_EYEBROW, bannerMetaLine } from "~/utils/reportBanner";
+import {
+  BANNER_EYEBROW,
+  bannerMetaLine,
+  fileTypeLabel,
+  pageNoun,
+} from "~/utils/reportBanner";
 import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
 import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
@@ -34,7 +39,7 @@ interface ReportResult {
   scoringMode?: ScoringMode;
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
   conformance?: ConformanceVerdict;
-  fileType?: "pdf" | "docx";
+  fileType?: "pdf" | "docx" | "pptx" | "xlsx";
 }
 
 type ScoringMode = "strict" | "remediation";
@@ -105,8 +110,13 @@ function timestamp(): string {
   });
 }
 
-function baseFilename(result: ReportResult): string {
-  const name = result.filename.replace(/\.pdf$/i, "");
+// BUG-1: previously only stripped a trailing `.pdf`, so exporting a report
+// for a Word/PowerPoint/Excel upload left the source extension dangling in
+// the middle of the export filename (e.g. "report.docx-accessibility-
+// report-2026-07-03.html"). Strip any of the four audited extensions.
+// Exported for unit tests.
+export function baseFilename(result: ReportResult): string {
+  const name = result.filename.replace(/\.(pdf|docx|pptx|xlsx)$/i, "");
   const date = new Date().toISOString().slice(0, 10);
   return `${name}-accessibility-report-${date}`;
 }
@@ -120,6 +130,12 @@ function gradeLabel(grade: string): string {
     F: "Failing",
   };
   return map[grade] || grade;
+}
+
+/** "- Pages: 12" / "- Slides: 9" / "- Sheets: 4" for the AI-analysis export. */
+function pageCountLine(result: ReportResult): string {
+  const noun = pageNoun(result.fileType);
+  return `- ${noun.charAt(0).toUpperCase()}${noun.slice(1)}s: ${result.pageCount}`;
 }
 
 function profileLabel(_mode: ScoringMode): string {
@@ -169,6 +185,20 @@ function severityEmoji(severity: string | null): string {
   return map[severity] || "";
 }
 
+/**
+ * Markdown `[label](url)` for any report link (conformance findings AND
+ * category helpLinks), scheme-guarded like the buildHtml href sinks — both
+ * `conformance.failures[]/notAssessed[].url` and `helpLinks[].url` are
+ * attacker-controllable on a stored shared report (POST /api/reports stores
+ * verbatim; GET returns it unsanitized, so pre-v1.32.0 rows can still carry a
+ * javascript: url). An unsafe url falls back to the bare label (never emits
+ * `](javascript:` into the markdown).
+ */
+function mdLink(label: string, url: string): string {
+  const safe = safeHttpUrl(url);
+  return safe ? `[${label}](${safe})` : label;
+}
+
 // ── Markdown ──────────────────────────────────────────────────────────────
 
 interface BrandingInfo {
@@ -211,14 +241,14 @@ export function buildMarkdown(
       lines.push("|---|---|---|");
       for (const f of c.failures) {
         lines.push(
-          `| [${f.sc} ${f.name}](${f.url}) | ${f.level} | ${f.issue} |`,
+          `| ${mdLink(`${f.sc} ${f.name}`, f.url)} | ${f.level} | ${f.issue} |`,
         );
       }
       lines.push("");
     }
     if (c.notAssessed.length) {
       const na = c.notAssessed
-        .map((n) => `[${n.sc} ${n.name}](${n.url})`)
+        .map((n) => mdLink(`${n.sc} ${n.name}`, n.url))
         .join(", ");
       lines.push(
         `_Not evaluated automatically: ${na}. These require manual review._`,
@@ -322,7 +352,10 @@ export function buildMarkdown(
       lines.push("**Resources:**");
       lines.push("");
       for (const link of cat.helpLinks) {
-        lines.push(`- [${link.label}](${link.url})`);
+        // Scheme-guard like buildHtml's helpLinks + the conformance sinks:
+        // GET /api/reports/:id returns stored JSON unsanitized, so a pre-v1.32.0
+        // share row can still carry a javascript: helpLink url here.
+        lines.push(`- ${mdLink(link.label, link.url)}`);
       }
       lines.push("");
     }
@@ -339,7 +372,8 @@ export function buildMarkdown(
 
 // ── JSON ──────────────────────────────────────────────────────────────────
 
-function buildJSON(result: ReportResult, branding: BrandingInfo): string {
+// Exported for unit tests (Fix 4: llmContext/remediationPlan format-neutral wording).
+export function buildJSON(result: ReportResult, branding: BrandingInfo): string {
   const failingCategories = result.categories.filter(
     (c) => c.score !== null && c.score < 90,
   );
@@ -433,26 +467,32 @@ function buildJSON(result: ReportResult, branding: BrandingInfo): string {
           wcagCriteria: getWcagCriteriaStrings(cat.id),
           action:
             WCAG_MAP[cat.id]?.remediation ||
-            "Review findings and remediate in Adobe Acrobat.",
+            "Review findings and remediate in the source application.",
         })),
     },
     llmContext: {
       description:
         "This section provides structured context for LLMs processing this accessibility report.",
       prompt:
-        `You are reviewing a PDF accessibility audit for "${result.filename}" (${result.pageCount} pages). ` +
+        `You are reviewing a ${fileTypeLabel(result.fileType)} accessibility audit for "${result.filename}" (${result.pageCount} ${pageNoun(result.fileType)}${result.pageCount === 1 ? "" : "s"}). ` +
         `It scored ${result.overallScore}/100 (Grade ${result.grade}). ` +
         (failingCategories.length > 0
           ? `The following categories need remediation: ${failingCategories.map((c) => `${c.label} (${c.score}/100)`).join(", ")}. `
           : "All scored categories pass. ") +
         `Use the remediationPlan.prioritizedSteps array for ordered fix instructions. ` +
-        `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for Adobe Acrobat.`,
+        `Each category includes WCAG ${branding.wcagVersion} success criteria references and tool-specific remediation steps for the source application.`,
       standards: [
         `WCAG ${branding.wcagVersion} Level AA`,
         "ADA Title II (effective April 2026)",
         "Illinois IITAA 2.1 (§E205.4)",
         "Section 508",
-        "PDF/UA (ISO 14289-1)",
+        // PDF/UA (ISO 14289-1) is a PDF-only ISO standard — the scorer never
+        // computes PDF/UA signals for docx/pptx/xlsx ("pdfUa and adobeParity
+        // are intentionally omitted — PDF-only signals", scorer.ts), so
+        // listing it for an Office-format report would be a false claim.
+        ...(!result.fileType || result.fileType === "pdf"
+          ? ["PDF/UA (ISO 14289-1)"]
+          : []),
       ],
       scoringScale: {
         pass: "90–100",
@@ -601,7 +641,7 @@ function conformanceHtmlBlock(c: ConformanceVerdict, wcagVersion: string): strin
     ? `<ul style="font-size:13px;color:#ccc;margin:12px 0 0;padding-left:20px">${c.failures
         .map(
           (f) =>
-            `<li style="margin-bottom:6px"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span> — ${escapeHtml(f.issue)}</li>`,
+            `<li style="margin-bottom:6px"><a href="${escapeHtml(safeHttpUrl(f.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="font-family:monospace;font-weight:700;color:#60a5fa">${escapeHtml(f.sc)} ${escapeHtml(f.name)}</a> <span style="color:#888">(Level ${escapeHtml(f.level)})</span> — ${escapeHtml(f.issue)}</li>`,
         )
         .join("")}</ul>`
     : "";
@@ -609,7 +649,7 @@ function conformanceHtmlBlock(c: ConformanceVerdict, wcagVersion: string): strin
     ? `<p style="font-size:13px;color:#888;margin:12px 0 0">Not evaluated automatically: ${c.notAssessed
         .map(
           (n) =>
-            `<a href="${escapeHtml(n.url)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa">${escapeHtml(n.sc)} ${escapeHtml(n.name)}</a>`,
+            `<a href="${escapeHtml(safeHttpUrl(n.url) ?? "#")}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa">${escapeHtml(n.sc)} ${escapeHtml(n.name)}</a>`,
         )
         .join(", ")}. These still require manual review.</p>`
     : "";
@@ -752,7 +792,7 @@ export function buildHtml(
 
   const scannedHtml = result.isScanned
     ? `<div style="background:#f9731615;border:1px solid #f9731630;border-radius:12px;padding:14px;margin-bottom:20px">
-        <p style="color:#fdba74;font-size:14px;font-weight:500;margin:0">This PDF appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.</p>
+        <p style="color:#fdba74;font-size:14px;font-weight:500;margin:0">This document appears to be a scanned image. Screen readers cannot access its content. OCR and full remediation are required.</p>
       </div>`
     : "";
 
@@ -809,7 +849,7 @@ export function buildHtml(
     </div>
   </div>
 
-  <h1 style="text-align:center;font-size:24px;margin-bottom:4px">${result.fileType === "docx" ? "Word" : "PDF"} Accessibility Report</h1>
+  <h1 style="text-align:center;font-size:24px;margin-bottom:4px">${fileTypeLabel(result.fileType)} Accessibility Report</h1>
   <p style="text-align:center;font-size:13px;color:#888;margin-top:0">${timestamp()}</p>
 
   <div style="text-align:center;margin:30px 0">
@@ -878,18 +918,18 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
   const passingCount = scored.length - failing.length;
 
   lines.push(
-    `# ${result.fileType === "docx" ? "Word" : "PDF"} Accessibility Audit — For AI Analysis`,
+    `# ${fileTypeLabel(result.fileType)} Accessibility Audit — For AI Analysis`,
   );
   lines.push("");
 
   if (failing.length === 0) {
     lines.push(
-      `An automated PDF accessibility audit completed with no failing categories. The document passed every applicable check against WCAG ${wcagVersion} Level AA and ADA Title II requirements. No remediation is needed at this time.`,
+      `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check against WCAG ${wcagVersion} Level AA and ADA Title II requirements. No remediation is needed at this time.`,
     );
     lines.push("");
     lines.push(`## File`);
     lines.push(`- Filename: ${result.filename}`);
-    lines.push(`- Pages: ${result.pageCount}`);
+    lines.push(pageCountLine(result));
     lines.push(
       `- Strict score (WCAG / IITAA §E205.4): ${result.overallScore}/100 (${result.grade})`,
     );
@@ -914,18 +954,24 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
     return lines.join("\n");
   }
 
+  const formatLabel = fileTypeLabel(result.fileType);
+  const isPdfResult = !result.fileType || result.fileType === "pdf";
   lines.push(
-    `I ran an automated PDF accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG ${wcagVersion} Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG ${wcagVersion} Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
   );
   lines.push("");
   lines.push(
-    `**Please verify the PDF file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the actual tag tree, reading order, alt text, and form fields directly rather than reasoning only from the summary below.`,
+    `**Please verify the ${formatLabel} file (\`${result.filename}\`) is attached to this conversation before you answer.** If it is not attached, ask me to upload it first — your remediation guidance will be far more accurate if you can inspect the ${
+      isPdfResult
+        ? "actual tag tree, reading order, alt text, and form fields"
+        : "document's actual structure, alt text, and content"
+    } directly rather than reasoning only from the summary below.`,
   );
   lines.push("");
 
   lines.push(`## File`);
   lines.push(`- Filename: ${result.filename}`);
-  lines.push(`- Pages: ${result.pageCount}`);
+  lines.push(pageCountLine(result));
   lines.push(
     `- Strict score (WCAG / IITAA §E205.4): ${result.overallScore}/100 (${result.grade})`,
   );
@@ -990,7 +1036,9 @@ export function buildAiAnalysis(result: ReportResult, branding?: Pick<BrandingIn
     `1. Explain in plain language what each failing category means for a real screen-reader or assistive-technology user.`,
   );
   lines.push(
-    `2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`,
+    isPdfResult
+      ? `2. For each failing category, give me 2–4 concrete remediation steps. Call out which steps belong in the source document (Word, InDesign) and which can be done in Adobe Acrobat Pro after export.`
+      : `2. For each failing category, give me 2–4 concrete remediation steps in Microsoft ${formatLabel} itself (start from Review → Check Accessibility) — this ${formatLabel} file is the source document, so every fix belongs there.`,
   );
   lines.push(
     `3. Prioritize the Critical items — which fix should I tackle first, and why?`,

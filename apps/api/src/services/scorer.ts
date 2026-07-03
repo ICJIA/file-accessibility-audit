@@ -7,10 +7,14 @@ import {
   WCAG_CATEGORY_MAP,
   WCAG,
   DOCX,
+  PPTX,
+  XLSX,
 } from "#config";
 import type { QpdfResult } from "./qpdfService.js";
 import type { PdfjsResult } from "./pdfjsService.js";
 import type { DocxAnalysis } from "./docxService.js";
+import type { PptxAnalysis } from "./pptxService.js";
+import type { XlsxAnalysis } from "./xlsxService.js";
 import { appendSupplementaryFindings } from "./scoring/supplementary.js";
 import { generateSummary } from "./scoring/summary.js";
 import {
@@ -20,6 +24,8 @@ import {
 import {
   evaluateConformance,
   evaluateDocxConformance,
+  evaluatePptxConformance,
+  evaluateXlsxConformance,
   type ConformanceVerdict,
 } from "./scoring/conformance.js";
 import { computeReadingOrderFidelity } from "./scoring/readingOrderFidelity.js";
@@ -622,6 +628,893 @@ export function scoreDocx(analysis: DocxAnalysis): ScoringResult {
       strict: aggregate.profile,
       remediation: aggregate.profile,
     },
+    conformance,
+    // pdfUa and adobeParity are intentionally omitted — PDF-only signals.
+  };
+}
+
+// ===========================================================================
+// PPTX (POWERPOINT) SCORING
+// ===========================================================================
+// Maps a PptxAnalysis onto the same CategoryResult model the PDF/DOCX
+// pipelines use, then reuses the shared aggregateScore / generateSummary /
+// applyWcagCriteria helpers and the PPTX conformance gate. The PDF and DOCX
+// paths above are untouched.
+
+const PPTX_HELP = {
+  overview: {
+    label: "Microsoft: Make your PowerPoint presentations accessible",
+    url: "https://support.microsoft.com/en-us/office/make-your-powerpoint-presentations-accessible-to-people-with-disabilities-6f7772b2-2f33-4bd2-8ca7-dae3b2b3ef25",
+  },
+  altText: {
+    label: "Microsoft: Add alt text to images",
+    url: "https://support.microsoft.com/en-us/office/add-alternative-text-to-a-shape-picture-chart-smartart-graphic-or-other-object-44989b2a-903c-4d9a-b742-6a75b451c669",
+  },
+  slideTitles: {
+    label: "Microsoft: Title a slide",
+    url: "https://support.microsoft.com/en-us/office/title-a-slide-c5286802-495a-4b47-a844-c7d6ac1c8dd5",
+  },
+  contrast: {
+    label: "WebAIM: Contrast Checker",
+    url: "https://webaim.org/resources/contrastchecker/",
+  },
+} as const;
+
+function pptxCategory(
+  id: string,
+  label: string,
+  weight: number,
+  score: number | null,
+  findings: string[],
+  explanation: string,
+  helpLinks: HelpLink[],
+  notAssessed = false,
+): CategoryResult {
+  return {
+    id,
+    label,
+    weight,
+    score,
+    grade: score === null ? null : getGrade(score),
+    severity: getSeverity(score),
+    findings,
+    explanation,
+    helpLinks,
+    notAssessed,
+  };
+}
+
+function scorePptxText(): CategoryResult {
+  return pptxCategory(
+    "text_extractability",
+    "Text Extractability",
+    PPTX.SCORING_WEIGHTS.text_extractability,
+    100,
+    [
+      "PowerPoint slides contain fully extractable, selectable text — unlike a scanned image, the content is always available to assistive technology.",
+    ],
+    "PowerPoint stores real text (never a flat image), so screen readers can always read the words. This foundational check therefore passes automatically for .pptx; the remaining categories assess how well that text is structured.",
+    [PPTX_HELP.overview],
+  );
+}
+
+function scorePptxTitleLanguage(a: PptxAnalysis): CategoryResult {
+  let score = 0;
+  const findings: string[] = [];
+  if (a.metadata.title) {
+    score += 50;
+    findings.push(`Presentation title: "${a.metadata.title}"`);
+  } else {
+    findings.push(
+      "No presentation title is set. In PowerPoint: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the presentation opens.",
+    );
+  }
+  if (a.metadata.language) {
+    score += 50;
+    findings.push(`Presentation language: ${a.metadata.language}`);
+  } else {
+    findings.push(
+      "No default presentation language is declared. In PowerPoint this comes from the presentation's default language setting; it tells screen readers which pronunciation rules to use.",
+    );
+  }
+  return pptxCategory(
+    "title_language",
+    "Title & Language",
+    PPTX.SCORING_WEIGHTS.title_language,
+    score,
+    findings,
+    "A meaningful presentation title and a declared language are announced by screen readers when the file opens. Both come from the PowerPoint file's properties.",
+    [PPTX_HELP.overview],
+  );
+}
+
+function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
+  if (a.slides.length === 0) {
+    return pptxCategory(
+      "slide_titles",
+      "Slide Titles",
+      PPTX.SCORING_WEIGHTS.slide_titles,
+      null,
+      ["No slides were found."],
+      "Every slide needs a title placeholder so screen-reader users can tell slides apart and jump directly to one — PowerPoint's equivalent of a heading. This presentation has no slides to assess.",
+      [PPTX_HELP.slideTitles],
+      false,
+    );
+  }
+
+  const untitled = a.slides.filter((s) => !s.title);
+  const titleGroups = new Map<string, number[]>();
+  for (const s of a.slides) {
+    if (!s.title) continue;
+    const idx = titleGroups.get(s.title) ?? [];
+    idx.push(s.index);
+    titleGroups.set(s.title, idx);
+  }
+  const duplicateGroups = [...titleGroups.entries()].filter(
+    ([, idx]) => idx.length > 1,
+  );
+
+  let score = 100;
+  const findings: string[] = [];
+
+  if (untitled.length > 0) {
+    score -= 20 * untitled.length;
+    const nums = untitled.map((s) => s.index).join(", ");
+    findings.push(
+      `Slide${untitled.length > 1 ? "s" : ""} ${nums} ${
+        untitled.length > 1 ? "have" : "has"
+      } no title. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder so every slide has one.`,
+    );
+  }
+
+  if (duplicateGroups.length > 0) {
+    score -= Math.min(30, 10 * duplicateGroups.length);
+    for (const [title, idx] of duplicateGroups) {
+      findings.push(
+        `${idx.length} slides share the title "${title}". Give each slide a distinct, descriptive title so screen-reader users can tell them apart in the outline.`,
+      );
+    }
+  }
+
+  if (findings.length === 0) {
+    findings.push(`All ${a.slides.length} slide(s) have a distinct title.`);
+  }
+
+  return pptxCategory(
+    "slide_titles",
+    "Slide Titles",
+    PPTX.SCORING_WEIGHTS.slide_titles,
+    clamp100(score),
+    findings,
+    "Each slide's title placeholder lets screen-reader users tell slides apart in the outline and jump directly to one — PowerPoint's equivalent of a heading.",
+    [PPTX_HELP.slideTitles],
+  );
+}
+
+function scorePptxAltText(a: PptxAnalysis): CategoryResult {
+  if (a.images.length === 0) {
+    return pptxCategory(
+      "alt_text",
+      "Alt Text on Images",
+      PPTX.SCORING_WEIGHTS.alt_text,
+      null,
+      ["No images were found."],
+      "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
+      [PPTX_HELP.altText],
+      false,
+    );
+  }
+  const nonDecorative = a.images.filter((i) => !i.decorative);
+  if (nonDecorative.length === 0) {
+    return pptxCategory(
+      "alt_text",
+      "Alt Text on Images",
+      PPTX.SCORING_WEIGHTS.alt_text,
+      100,
+      ["All images are marked decorative, so none require alt text."],
+      "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
+      [PPTX_HELP.altText],
+    );
+  }
+  const missing = nonDecorative.filter((i) => !i.altText);
+  const score = Math.round(
+    (100 * (nonDecorative.length - missing.length)) / nonDecorative.length,
+  );
+  const findings = [
+    `${nonDecorative.length - missing.length} of ${nonDecorative.length} meaningful image(s) have alt text.`,
+  ];
+  if (missing.length > 0) {
+    findings.push(
+      `${missing.length} image(s) are missing alt text. In PowerPoint: right-click each image → Edit Alt Text and add a description.`,
+    );
+  }
+  return pptxCategory(
+    "alt_text",
+    "Alt Text on Images",
+    PPTX.SCORING_WEIGHTS.alt_text,
+    clamp100(score),
+    findings,
+    "Screen readers announce an image's alt text in place of the image. Without it, the image's information is lost.",
+    [PPTX_HELP.altText],
+  );
+}
+
+function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
+  const titledOutOfOrder = a.slides.filter(
+    (s) => s.title && !s.titleIsFirstShape,
+  );
+  const denseSlides = a.slides.filter((s) => s.shapeCount > 10);
+
+  const score = 100 - 15 * titledOutOfOrder.length;
+  const findings: string[] = [];
+
+  if (titledOutOfOrder.length > 0) {
+    const nums = titledOutOfOrder.map((s) => s.index).join(", ");
+    findings.push(
+      `Slide${titledOutOfOrder.length > 1 ? "s" : ""} ${nums} ${
+        titledOutOfOrder.length > 1 ? "have" : "has"
+      } a title that is not the first shape in reading order. In PowerPoint: open the Selection Pane (Home → Arrange → Selection Pane) and reorder shapes so the title reads first.`,
+    );
+  }
+
+  if (denseSlides.length > 0) {
+    const nums = denseSlides
+      .map((s) => `${s.index} (${s.shapeCount} shapes)`)
+      .join(", ");
+    findings.push(
+      `Slide${denseSlides.length > 1 ? "s" : ""} ${nums} ${
+        denseSlides.length > 1 ? "have" : "has"
+      } more than 10 shapes. Dense slides are hard to verify automatically — check the reading order manually with the Tab key or the Selection Pane.`,
+    );
+  }
+
+  if (findings.length === 0) {
+    findings.push("Every titled slide's title reads first in tab order.");
+  }
+
+  return pptxCategory(
+    "reading_order",
+    "Reading Order",
+    PPTX.SCORING_WEIGHTS.reading_order,
+    clamp100(score),
+    findings,
+    "Reading order determines the sequence assistive technology announces a slide's content. A slide's title should read first, orienting the listener before the body content.",
+    [PPTX_HELP.overview],
+    false,
+  );
+}
+
+function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
+  if (a.tables.length === 0) {
+    return pptxCategory(
+      "table_markup",
+      "Table Markup",
+      PPTX.SCORING_WEIGHTS.table_markup,
+      null,
+      ["No tables were found."],
+      "Data tables need a marked header row so screen readers can associate each cell with its column header.",
+      [PPTX_HELP.overview],
+      false,
+    );
+  }
+  const dataTablesNoHeader = a.tables.filter(
+    (t) => t.rowCount >= 2 && t.colCount >= 2 && !t.hasHeaderRow,
+  );
+  // Per-table average, mirroring scoreDocxTables: a data table with no header
+  // row scores 30 (a severe but not zero violation — the table's cell text is
+  // still readable, just unassociated with its header), not a flat per-table
+  // subtraction from 100. A single unheadered table should not read as
+  // "Minor" (70+) when it is the deck's only table.
+  const perTable = a.tables.map((t) => {
+    const isData = t.rowCount >= 2 && t.colCount >= 2;
+    return !isData || t.hasHeaderRow ? 100 : 30;
+  });
+  const score = Math.round(
+    perTable.reduce((x, y) => x + y, 0) / perTable.length,
+  );
+  const findings = [`${a.tables.length} table(s) found.`];
+  if (dataTablesNoHeader.length > 0) {
+    findings.push(
+      `${dataTablesNoHeader.length} data table(s) have no header row. In PowerPoint: select the table → Table Design → check "Header Row", and mark the top row's cells as headers.`,
+    );
+  }
+  return pptxCategory(
+    "table_markup",
+    "Table Markup",
+    PPTX.SCORING_WEIGHTS.table_markup,
+    clamp100(score),
+    findings,
+    "A designated header row lets screen readers announce the relevant header as a user moves across a data table's cells.",
+    [PPTX_HELP.overview],
+  );
+}
+
+function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
+  const { checkedRuns, unresolvedRuns, failing } = a.contrast;
+  if (checkedRuns === 0) {
+    return pptxCategory(
+      "color_contrast",
+      "Color Contrast",
+      PPTX.SCORING_WEIGHTS.color_contrast,
+      null,
+      [
+        "No text with an explicit color was found; inherited and unresolvable fills are not checked.",
+      ],
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
+      [PPTX_HELP.contrast],
+      unresolvedRuns > 0,
+    );
+  }
+  if (failing.length === 0) {
+    return pptxCategory(
+      "color_contrast",
+      "Color Contrast",
+      PPTX.SCORING_WEIGHTS.color_contrast,
+      100,
+      [
+        `${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`,
+      ],
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
+      [PPTX_HELP.contrast],
+    );
+  }
+  // Proportion of checked runs that pass, capped at 85 — mirroring
+  // scoreDocxContrast. A flat per-run subtraction let a deck where EVERY
+  // checked run fails still read as "Minor"; failing 100% of checked runs
+  // must not score anywhere near that.
+  const score = Math.min(
+    85,
+    Math.round(((checkedRuns - failing.length) / checkedRuns) * 100),
+  );
+  const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
+  const findings = [
+    `${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
+    `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+  ];
+  return pptxCategory(
+    "color_contrast",
+    "Color Contrast",
+    PPTX.SCORING_WEIGHTS.color_contrast,
+    clamp100(score),
+    findings,
+    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
+    [PPTX_HELP.contrast],
+  );
+}
+
+function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
+  const { realListItems, manualBulletParagraphs } = a.lists;
+  if (realListItems === 0 && manualBulletParagraphs === 0) {
+    return pptxCategory(
+      "list_structure",
+      "List Structure",
+      PPTX.SCORING_WEIGHTS.list_structure,
+      null,
+      ["No lists were found."],
+      "Real bulleted/numbered list formatting lets screen readers announce list structure and item counts. Manually-typed bullet characters do not.",
+      [PPTX_HELP.overview],
+      false,
+    );
+  }
+  if (manualBulletParagraphs === 0) {
+    return pptxCategory(
+      "list_structure",
+      "List Structure",
+      PPTX.SCORING_WEIGHTS.list_structure,
+      100,
+      [
+        `${realListItems} real list item(s) found; all use PowerPoint's bullet/numbering formatting.`,
+      ],
+      "Real bulleted/numbered list formatting lets screen readers announce list structure and item counts. Manually-typed bullet characters do not.",
+      [PPTX_HELP.overview],
+    );
+  }
+  // Proportion of list paragraphs using real formatting, capped at 85 —
+  // mirroring scoreDocxLists. A flat per-paragraph subtraction let a slide
+  // with NO real list formatting (0 of N items real) still score 70+; a deck
+  // that is 100% manually-typed bullets is not a "Minor" list problem.
+  const total = realListItems + manualBulletParagraphs;
+  const score = Math.min(85, Math.round((realListItems / total) * 100));
+  const findings = [
+    `${realListItems} real list item(s); ${manualBulletParagraphs} manually-typed bullet paragraph(s).`,
+    `${manualBulletParagraphs} paragraph(s) use typed characters (e.g. "-" or "*") instead of PowerPoint's bullet/numbering formatting. In PowerPoint: select the text → Home → Bullets/Numbering.`,
+  ];
+  return pptxCategory(
+    "list_structure",
+    "List Structure",
+    PPTX.SCORING_WEIGHTS.list_structure,
+    clamp100(score),
+    findings,
+    "Screen readers announce 'list, N items' and each item's position only for real PowerPoint list formatting — not for hand-typed bullet characters.",
+    [PPTX_HELP.overview],
+  );
+}
+
+const PPTX_RAW_URL_RE = /^(https?:\/\/|www\.)/i;
+
+function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
+  if (a.links.length === 0) {
+    return pptxCategory(
+      "link_quality",
+      "Link Quality",
+      PPTX.SCORING_WEIGHTS.link_quality,
+      null,
+      ["No hyperlinks were found."],
+      "Link text should describe the destination. Empty link text and raw URLs are unhelpful out of context.",
+      [PPTX_HELP.overview],
+      false,
+    );
+  }
+  const bad = a.links.filter((l) => !l.text || PPTX_RAW_URL_RE.test(l.text));
+  const score = Math.round(
+    (100 * (a.links.length - bad.length)) / a.links.length,
+  );
+  const findings = [
+    `${a.links.length} link(s) found; ${bad.length} with unclear text.`,
+  ];
+  if (bad.length > 0) {
+    findings.push(
+      `Empty or raw-URL link text: ${bad
+        .slice(0, 5)
+        .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
+        .join(", ")}. In PowerPoint: select the linked text → Insert → Link, and use a descriptive phrase instead of the raw address.`,
+    );
+  }
+  return pptxCategory(
+    "link_quality",
+    "Link Quality",
+    PPTX.SCORING_WEIGHTS.link_quality,
+    clamp100(score),
+    findings,
+    "Screen-reader users often pull up a list of links out of context, so each link's text must describe where it goes rather than showing a raw URL.",
+    [PPTX_HELP.overview],
+  );
+}
+
+function scorePptxForms(): CategoryResult {
+  return pptxCategory(
+    "form_accessibility",
+    "Form Accessibility",
+    0,
+    null,
+    [
+      "Interactive form controls are uncommon in PowerPoint presentations and are not automatically assessed in this version.",
+    ],
+    "Interactive form fields need accessible labels. They are rare in PowerPoint presentations and are not assessed automatically here.",
+    [PPTX_HELP.overview],
+    true,
+  );
+}
+
+function buildPptxCategories(a: PptxAnalysis): CategoryResult[] {
+  const categories = [
+    scorePptxText(),
+    scorePptxTitleLanguage(a),
+    scorePptxSlideTitles(a),
+    scorePptxAltText(a),
+    scorePptxReadingOrder(a),
+    scorePptxTableMarkup(a),
+    scorePptxColorContrast(a),
+    scorePptxListStructure(a),
+    scorePptxLinkQuality(a),
+    scorePptxForms(),
+  ];
+  applyWcagCriteria(categories);
+  return categories;
+}
+
+/**
+ * Score a PowerPoint (.pptx) presentation. Produces the same ScoringResult
+ * shape as scoreDocument (PDF) / scoreDocx, minus the PDF-only pdfUa/
+ * adobeParity signals, so it flows through the existing report UI unchanged.
+ */
+export function scorePptx(analysis: PptxAnalysis): ScoringResult {
+  const categories = buildPptxCategories(analysis);
+  const conformance = evaluatePptxConformance(analysis);
+  const aggregate = aggregateScore(
+    categories,
+    false,
+    "strict",
+    conformance,
+    "PowerPoint presentation",
+  );
+  return {
+    overallScore: aggregate.overallScore,
+    grade: aggregate.grade,
+    isScanned: false,
+    executiveSummary: aggregate.executiveSummary,
+    categories,
+    warnings: [],
+    scoringMode: "strict",
+    scoreProfiles: { strict: aggregate.profile, remediation: aggregate.profile },
+    conformance,
+    // pdfUa and adobeParity are intentionally omitted — PDF-only signals.
+  };
+}
+
+// ===========================================================================
+// XLSX (EXCEL) SCORING
+// ===========================================================================
+// Maps an XlsxAnalysis onto the same CategoryResult model the PDF/DOCX/PPTX
+// pipelines use, then reuses the shared aggregateScore / generateSummary /
+// applyWcagCriteria helpers and the XLSX conformance gate. The PDF, DOCX, and
+// PPTX paths above are untouched.
+
+const XLSX_HELP = {
+  overview: {
+    label: "Microsoft: Make your Excel documents accessible",
+    url: "https://support.microsoft.com/en-us/office/make-your-excel-documents-accessible-to-people-with-disabilities-6cc05fc5-1314-48b5-8eb3-683e49b3e593",
+  },
+  altText: {
+    label: "Microsoft: Add alt text to images",
+    url: "https://support.microsoft.com/en-us/office/add-alternative-text-to-a-shape-picture-chart-smartart-graphic-or-other-object-44989b2a-903c-4d9a-b742-6a75b451c669",
+  },
+  sheetNames: {
+    label: "Microsoft: Rename a worksheet",
+    url: "https://support.microsoft.com/en-us/office/rename-a-worksheet-3f1f7148-ee83-404d-8ef0-9ff99fbad1f9",
+  },
+  tables: {
+    label: "Microsoft: Create and format tables",
+    url: "https://support.microsoft.com/en-us/office/create-and-format-tables-e81aa349-b006-4f8a-9806-5af9df0ac664",
+  },
+  contrast: {
+    label: "WebAIM: Contrast Checker",
+    url: "https://webaim.org/resources/contrastchecker/",
+  },
+} as const;
+
+function xlsxCategory(
+  id: string,
+  label: string,
+  weight: number,
+  score: number | null,
+  findings: string[],
+  explanation: string,
+  helpLinks: HelpLink[],
+  notAssessed = false,
+): CategoryResult {
+  return {
+    id,
+    label,
+    weight,
+    score,
+    grade: score === null ? null : getGrade(score),
+    severity: getSeverity(score),
+    findings,
+    explanation,
+    helpLinks,
+    notAssessed,
+  };
+}
+
+function scoreXlsxText(): CategoryResult {
+  return xlsxCategory(
+    "text_extractability",
+    "Text Extractability",
+    XLSX.SCORING_WEIGHTS.text_extractability,
+    100,
+    [
+      "Excel worksheets contain fully extractable, selectable text in real cells — unlike a scanned image, the content is always available to assistive technology.",
+    ],
+    "Excel stores real cell text (never a flat image), so screen readers can always read the values. This foundational check therefore passes automatically for .xlsx; the remaining categories assess how well that data is structured.",
+    [XLSX_HELP.overview],
+  );
+}
+
+function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
+  const hasTitle = !!a.metadata.title;
+  const findings: string[] = [];
+  if (hasTitle) {
+    findings.push(`Workbook title: "${a.metadata.title}"`);
+  } else {
+    findings.push(
+      "No workbook title is set. In Excel: File → Info → Properties → Title. Screen readers announce the title (or the filename if none) when the workbook opens.",
+    );
+  }
+  findings.push(
+    "Excel does not store a document language, so WCAG 3.1.1 (Language of Page) is not automatically assessed for Excel workbooks.",
+  );
+  return xlsxCategory(
+    "title_language",
+    "Title & Language",
+    XLSX.SCORING_WEIGHTS.title_language,
+    hasTitle ? 100 : 0,
+    findings,
+    "A meaningful workbook title is announced by screen readers when the file opens. Unlike Word or PowerPoint, Excel workbooks have no document-language property to declare, so that half of this check is always not assessed.",
+    [XLSX_HELP.overview],
+  );
+}
+
+function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
+  const visible = a.sheets.filter((s) => !s.hidden);
+  if (visible.length === 0) {
+    return xlsxCategory(
+      "sheet_names",
+      "Sheet Names",
+      XLSX.SCORING_WEIGHTS.sheet_names,
+      null,
+      ["No visible sheets were found."],
+      "Descriptive sheet names (not Excel defaults like \"Sheet1\") are the workbook's navigation — screen-reader users hear them when switching sheets.",
+      [XLSX_HELP.sheetNames],
+      false,
+    );
+  }
+  const defaultNamed = visible.filter((s) => s.defaultNamed);
+  const findings =
+    defaultNamed.length === 0
+      ? [`All ${visible.length} visible sheet(s) have descriptive names.`]
+      : defaultNamed.map(
+          (s) =>
+            `Rename "${s.name}" to describe its contents — sheet names are the workbook's navigation.`,
+        );
+  return xlsxCategory(
+    "sheet_names",
+    "Sheet Names",
+    XLSX.SCORING_WEIGHTS.sheet_names,
+    clamp100(100 - 25 * defaultNamed.length),
+    findings,
+    "Descriptive sheet names (not Excel defaults like \"Sheet1\") are the workbook's navigation — screen-reader users hear them when switching sheets.",
+    [XLSX_HELP.sheetNames],
+  );
+}
+
+function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
+  const hasDataSheet = a.sheets.some((s) => s.usedRangeCellCount >= 12);
+  if (a.tables.length === 0 && !hasDataSheet) {
+    return xlsxCategory(
+      "table_markup",
+      "Table Markup",
+      XLSX.SCORING_WEIGHTS.table_markup,
+      null,
+      ["No tables or sizable data ranges were found."],
+      "Data laid out as a real Excel Table (with a header row) lets screen readers announce the relevant column header as a user moves across cells. Plain ranges of typed cells carry no such structure.",
+      [XLSX_HELP.tables],
+      false,
+    );
+  }
+
+  let score = 100;
+  const findings: string[] = [`${a.tables.length} defined table(s) found.`];
+
+  const headerless = a.tables.filter((t) => !t.hasHeaderRow);
+  if (headerless.length > 0) {
+    score -= 30 * headerless.length;
+    findings.push(
+      `${headerless.length} table(s) have no header row: ${headerless
+        .map((t) => `"${t.name}" on "${t.sheetName}"`)
+        .join(", ")}. In Excel: select the table → Table Design → check "Header Row".`,
+    );
+  }
+
+  const datafulWithoutTable = a.sheets.some(
+    (s) => s.usedRangeCellCount >= 12 && !s.hasDefinedTable,
+  );
+  if (datafulWithoutTable) {
+    score -= 10;
+    findings.push(
+      "Advisory: some worksheet data is laid out as a plain cell range rather than a defined Excel Table. In Excel: select the range → Insert → Table so screen readers can navigate it by header.",
+    );
+  }
+
+  const mergedSheets = a.sheets.filter((s) => s.mergedRangeCount > 0);
+  if (mergedSheets.length > 0) {
+    score -= Math.min(15, 5 * mergedSheets.length);
+    findings.push(
+      `Advisory: ${mergedSheets.length} sheet(s) contain merged cells (${mergedSheets
+        .map((s) => `"${s.name}": ${s.mergedRangeCount}`)
+        .join(", ")}), which can confuse screen-reader navigation. Avoid merged cells where possible.`,
+    );
+  }
+
+  return xlsxCategory(
+    "table_markup",
+    "Table Markup",
+    XLSX.SCORING_WEIGHTS.table_markup,
+    clamp100(score),
+    findings,
+    "Data laid out as a real Excel Table (with a header row) lets screen readers announce the relevant column header as a user moves across cells. Merged cells and plain, unstructured ranges are harder to navigate.",
+    [XLSX_HELP.tables],
+  );
+}
+
+function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
+  if (a.images.length === 0) {
+    return xlsxCategory(
+      "alt_text",
+      "Alt Text on Images",
+      XLSX.SCORING_WEIGHTS.alt_text,
+      null,
+      ["No images were found."],
+      "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
+      [XLSX_HELP.altText],
+      false,
+    );
+  }
+  const nonDec = a.images.filter((i) => !i.decorative);
+  if (nonDec.length === 0) {
+    return xlsxCategory(
+      "alt_text",
+      "Alt Text on Images",
+      XLSX.SCORING_WEIGHTS.alt_text,
+      100,
+      ["All images are marked decorative, so none require alt text."],
+      "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
+      [XLSX_HELP.altText],
+    );
+  }
+  const missingAlt = nonDec.filter(
+    (i) => !i.altText || i.altText.trim().length === 0,
+  );
+  const score = Math.round(
+    (100 * (nonDec.length - missingAlt.length)) / nonDec.length,
+  );
+  const findings = [
+    `${nonDec.length - missingAlt.length} of ${nonDec.length} meaningful image(s) have alt text.`,
+  ];
+  if (missingAlt.length > 0) {
+    findings.push(
+      `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → Edit Alt Text and add a description.`,
+    );
+  }
+  return xlsxCategory(
+    "alt_text",
+    "Alt Text on Images",
+    XLSX.SCORING_WEIGHTS.alt_text,
+    clamp100(score),
+    findings,
+    "Screen readers announce an image's alt text in place of the image. Without it, the image's information is lost.",
+    [XLSX_HELP.altText],
+  );
+}
+
+function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
+  const { checkedRuns, unresolvedRuns, failing } = a.contrast;
+  if (checkedRuns === 0) {
+    return xlsxCategory(
+      "color_contrast",
+      "Color Contrast",
+      XLSX.SCORING_WEIGHTS.color_contrast,
+      null,
+      [
+        "No cell styles with explicit font and solid-fill colors were found; theme and indexed colors are not resolved.",
+      ],
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
+      [XLSX_HELP.contrast],
+      unresolvedRuns > 0,
+    );
+  }
+  if (failing.length === 0) {
+    return xlsxCategory(
+      "color_contrast",
+      "Color Contrast",
+      XLSX.SCORING_WEIGHTS.color_contrast,
+      100,
+      [
+        `${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`,
+      ],
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
+      [XLSX_HELP.contrast],
+    );
+  }
+  // Proportion of checked cell styles that pass, capped at 85 — mirroring
+  // scoreDocxContrast/scorePptxColorContrast. A flat per-style subtraction
+  // let a workbook where EVERY checked style fails still read as "Minor";
+  // failing 100% of checked styles must not score anywhere near that.
+  const score = Math.min(
+    85,
+    Math.round(((checkedRuns - failing.length) / checkedRuns) * 100),
+  );
+  const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
+  const findings = [
+    `${checkedRuns} cell style(s) checked; ${failing.length} below the WCAG contrast minimum.`,
+    `Lowest contrast ${worst.ratio}:1 (${worst.foreground} on ${worst.background}). Needs ≥4.5:1 (≥3:1 for large text).`,
+  ];
+  return xlsxCategory(
+    "color_contrast",
+    "Color Contrast",
+    XLSX.SCORING_WEIGHTS.color_contrast,
+    clamp100(score),
+    findings,
+    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
+    [XLSX_HELP.contrast],
+  );
+}
+
+const XLSX_RAW_URL_RE = /^(https?:\/\/|www\.)/i;
+
+function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
+  if (a.links.length === 0) {
+    return xlsxCategory(
+      "link_quality",
+      "Link Quality",
+      XLSX.SCORING_WEIGHTS.link_quality,
+      null,
+      ["No hyperlinks were found."],
+      "Link text should describe the destination. Empty link text and raw URLs are unhelpful out of context.",
+      [XLSX_HELP.overview],
+      false,
+    );
+  }
+  const bad = a.links.filter((l) => !l.text || XLSX_RAW_URL_RE.test(l.text));
+  const score = Math.round(
+    (100 * (a.links.length - bad.length)) / a.links.length,
+  );
+  const findings = [
+    `${a.links.length} link(s) found; ${bad.length} with unclear text.`,
+  ];
+  if (bad.length > 0) {
+    findings.push(
+      `Empty or raw-URL link text: ${bad
+        .slice(0, 5)
+        .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
+        .join(", ")}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase instead of the raw address.`,
+    );
+  }
+  return xlsxCategory(
+    "link_quality",
+    "Link Quality",
+    XLSX.SCORING_WEIGHTS.link_quality,
+    clamp100(score),
+    findings,
+    "Screen-reader users often pull up a list of links out of context, so each link's text must describe where it goes rather than showing a raw URL.",
+    [XLSX_HELP.overview],
+  );
+}
+
+function scoreXlsxForms(): CategoryResult {
+  return xlsxCategory(
+    "form_accessibility",
+    "Form Accessibility",
+    0,
+    null,
+    [
+      "Interactive form controls are uncommon in Excel workbooks and are not automatically assessed in this version.",
+    ],
+    "Interactive form fields need accessible labels. They are rare in Excel workbooks and are not assessed automatically here.",
+    [XLSX_HELP.overview],
+    true,
+  );
+}
+
+function buildXlsxCategories(a: XlsxAnalysis): CategoryResult[] {
+  const categories = [
+    scoreXlsxText(),
+    scoreXlsxTitleLanguage(a),
+    scoreXlsxSheetNames(a),
+    scoreXlsxTableMarkup(a),
+    scoreXlsxAltText(a),
+    scoreXlsxColorContrast(a),
+    scoreXlsxLinkQuality(a),
+    scoreXlsxForms(),
+  ];
+  applyWcagCriteria(categories);
+  return categories;
+}
+
+/**
+ * Score an Excel (.xlsx) workbook. Produces the same ScoringResult shape as
+ * scoreDocument (PDF) / scoreDocx / scorePptx, minus the PDF-only pdfUa/
+ * adobeParity signals, so it flows through the existing report UI unchanged.
+ */
+export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
+  const categories = buildXlsxCategories(analysis);
+  const conformance = evaluateXlsxConformance(analysis);
+  const aggregate = aggregateScore(
+    categories,
+    false,
+    "strict",
+    conformance,
+    "Excel workbook",
+  );
+  return {
+    overallScore: aggregate.overallScore,
+    grade: aggregate.grade,
+    isScanned: false,
+    executiveSummary: aggregate.executiveSummary,
+    categories,
+    warnings: [],
+    scoringMode: "strict",
+    scoreProfiles: { strict: aggregate.profile, remediation: aggregate.profile },
     conformance,
     // pdfUa and adobeParity are intentionally omitted — PDF-only signals.
   };

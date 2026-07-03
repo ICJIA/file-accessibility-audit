@@ -198,6 +198,11 @@ export const WCAG_CATEGORY_MAP: Record<
   color_contrast: [{ sc: "1.4.3", name: "Contrast (Minimum)", level: "AA" }],
   // DOCX-specific category (real lists vs manually-typed bullets).
   list_structure: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
+  slide_titles: [
+    { sc: "1.3.1", name: "Info and Relationships", level: "A" },
+    { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
+  ],
+  sheet_names: [{ sc: "2.4.6", name: "Headings and Labels", level: "AA" }],
 } as const;
 
 // ---------------------------------------------------------------------------

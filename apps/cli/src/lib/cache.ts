@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import type { AnalysisResult } from "../../../api/src/services/pdfAnalyzer.js";
 import type { Publication } from "./graphql.js";
+import { CATEGORY_IDS } from "./categories.js";
 
 export interface CachedRow {
   file_url: string;
@@ -48,6 +49,12 @@ export interface CachedRow {
   supplementary_score: number | null;
   supplementary_grade: string | null;
   supplementary_severity: string | null;
+  slide_titles_score: number | null;
+  slide_titles_grade: string | null;
+  slide_titles_severity: string | null;
+  sheet_names_score: number | null;
+  sheet_names_grade: string | null;
+  sheet_names_severity: string | null;
   critical_findings: string | null;
   page_count: number | null;
   summary: string | null;
@@ -56,21 +63,6 @@ export interface CachedRow {
   error_message: string | null;
   audited_at: string | null;
 }
-
-const CATEGORY_IDS = [
-  "text_extractability",
-  "title_language",
-  "heading_structure",
-  "alt_text",
-  "pdf_ua_compliance",
-  "bookmarks",
-  "table_markup",
-  "color_contrast",
-  "link_quality",
-  "reading_order",
-  "form_accessibility",
-  "supplementary",
-] as const;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS publist_cache (
@@ -116,6 +108,12 @@ CREATE TABLE IF NOT EXISTS publist_cache (
   supplementary_score INTEGER,
   supplementary_grade TEXT,
   supplementary_severity TEXT,
+  slide_titles_score INTEGER,
+  slide_titles_grade TEXT,
+  slide_titles_severity TEXT,
+  sheet_names_score INTEGER,
+  sheet_names_grade TEXT,
+  sheet_names_severity TEXT,
   critical_findings TEXT,
   page_count INTEGER,
   summary TEXT,
@@ -167,6 +165,31 @@ export function initCache(cacheDir?: string): Database.Database {
     db.exec(
       "ALTER TABLE publist_cache ADD COLUMN color_contrast_severity TEXT",
     );
+  } catch {}
+  // RB3-1 [IMPORTANT, pre-merge re-audit]: slide_titles (PPTX) and
+  // sheet_names (XLSX) are each the highest-weighted category for their
+  // format but were missing from both the CREATE TABLE schema and
+  // upsertResult's CATEGORY_IDS loop — silently dropped for every pptx/xlsx
+  // publist audit. Additive + idempotent, same pattern as
+  // pdf_ua_compliance_*/color_contrast_* above: a fresh DB gets the columns
+  // from SCHEMA already; an existing DB gets them here (no data loss).
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN slide_titles_score INTEGER");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN slide_titles_grade TEXT");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN slide_titles_severity TEXT");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN sheet_names_score INTEGER");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN sheet_names_grade TEXT");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE publist_cache ADD COLUMN sheet_names_severity TEXT");
   } catch {}
   return db;
 }

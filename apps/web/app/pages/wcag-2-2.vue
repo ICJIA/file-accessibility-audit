@@ -12,7 +12,7 @@ useHead({
     {
       name: 'description',
       content:
-        'A plain-language guide for managers: what WCAG 2.2 adds over 2.1, what it means for PDF documents, and why WCAG 2.1 AA remains the IITAA/ADA Title II legal minimum.',
+        'A plain-language guide for managers: what WCAG 2.2 adds over 2.1, what it means for your documents, and why WCAG 2.1 AA remains the IITAA/ADA Title II legal minimum.',
     },
   ],
   link: siteUrl ? [{ rel: 'canonical', href: `${siteUrl}/wcag-2-2` }] : [],
@@ -50,8 +50,8 @@ useHead({
     <p class="text-[var(--text-secondary)] leading-relaxed mb-8">
       Almost all of the new rules target <strong>interactive web pages and apps</strong> —
       things like pointer dragging, tap-target size, and login flows. For a
-      <strong>static PDF document</strong>, most of them simply don't apply. A few can matter for
-      <strong>interactive PDF forms</strong>, and our audit flags those for manual review.
+      <strong>static document</strong>, most of them simply don't apply. A few can matter for
+      <strong>interactive forms</strong>, and our audit flags those for manual review.
     </p>
 
     <h2 class="text-xl font-bold text-[var(--text-heading)] mb-3">
@@ -63,7 +63,7 @@ useHead({
           <tr class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide">
             <th class="text-left px-4 py-2 font-medium">New rule (level)</th>
             <th class="text-left px-4 py-2 font-medium">What it means</th>
-            <th class="text-left px-4 py-2 font-medium">Affects our PDFs?</th>
+            <th class="text-left px-4 py-2 font-medium">Affects our documents?</th>
           </tr>
         </thead>
         <tbody class="text-[var(--text-muted)]">
@@ -80,7 +80,7 @@ useHead({
           <tr class="border-b border-[var(--border-subtle)]">
             <td class="px-4 py-2.5 font-medium text-[var(--text-secondary)]">Target Size (AA)</td>
             <td class="px-4 py-2.5">Clickable controls are at least 24×24 pixels.</td>
-            <td class="px-4 py-2.5">Only interactive PDF forms.</td>
+            <td class="px-4 py-2.5">Only interactive forms.</td>
           </tr>
           <tr class="border-b border-[var(--border-subtle)]">
             <td class="px-4 py-2.5 font-medium text-[var(--text-secondary)]">Consistent Help (A)</td>
@@ -90,12 +90,12 @@ useHead({
           <tr class="border-b border-[var(--border-subtle)]">
             <td class="px-4 py-2.5 font-medium text-[var(--text-secondary)]">Redundant Entry (A)</td>
             <td class="px-4 py-2.5">Don't make people re-type information they already gave.</td>
-            <td class="px-4 py-2.5">Only interactive PDF forms.</td>
+            <td class="px-4 py-2.5">Only interactive forms.</td>
           </tr>
           <tr>
             <td class="px-4 py-2.5 font-medium text-[var(--text-secondary)]">Accessible Authentication (AA)</td>
             <td class="px-4 py-2.5">No memory/puzzle test required to log in.</td>
-            <td class="px-4 py-2.5">Only interactive PDF forms.</td>
+            <td class="px-4 py-2.5">Only interactive forms.</td>
           </tr>
         </tbody>
       </table>

@@ -50,7 +50,7 @@ withDefaults(
     filename: string;
     pageCount: number;
     isScanned?: boolean;
-    fileType?: "pdf" | "docx";
+    fileType?: "pdf" | "docx" | "pptx" | "xlsx";
   }>(),
   { fileType: "pdf" },
 );

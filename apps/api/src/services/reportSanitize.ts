@@ -1,12 +1,18 @@
 /**
  * Store-boundary hardening for POST /api/reports. The report JSON is persisted
  * verbatim and rendered on the public /report/:id page, so it is
- * attacker-controlled once stored. Two guards:
+ * attacker-controlled once stored. Guards:
  *
  *  - F1 (stored XSS): strip any help-link whose URL is not a safe absolute
  *    http(s) URL, ANYWHERE in the payload — including nested
  *    scoreProfiles.*.categories, which the frontend's categoriesForScoringMode
  *    can render from. A `javascript:`/`data:` href executes on click.
+ *  - F1b (stored XSS, conformance findings): same class of bug in
+ *    `conformance.failures[].url` / `conformance.notAssessed[].url` — these
+ *    render as <a href> too (ScoreCard.vue) and in the HTML/Markdown exports.
+ *    Unlike a help-link, a finding's sc/name/level/issue/reason are
+ *    substantive accessibility-finding content, so an unsafe `url` is
+ *    neutralized (cleared to `''`) rather than dropping the whole finding.
  *  - F2 (SSR crash): reject a structurally-invalid `categories` (present but
  *    not an array) so the render can't be 500'd with a non-iterable.
  *
@@ -44,6 +50,39 @@ function stripUnsafeHelpLinks(node: unknown): void {
   }
 }
 
+/**
+ * Recursively neutralize unsafe URLs on `conformance.failures[]` /
+ * `conformance.notAssessed[]` findings, ANYWHERE in the payload (mirrors
+ * stripUnsafeHelpLinks's full-tree walk — same F1 class, format-agnostic).
+ * Clears just the `url` field to `''` on an unsafe finding; the finding
+ * itself is kept (its sc/name/level/issue/reason are legitimate content, not
+ * a bare link).
+ */
+function stripUnsafeConformanceUrls(node: unknown): void {
+  if (Array.isArray(node)) {
+    for (const item of node) stripUnsafeConformanceUrls(item)
+    return
+  }
+  if (node && typeof node === 'object') {
+    const obj = node as Record<string, unknown>
+    if (obj.conformance && typeof obj.conformance === 'object') {
+      const conformance = obj.conformance as Record<string, unknown>
+      for (const listKey of ['failures', 'notAssessed']) {
+        const list = conformance[listKey]
+        if (!Array.isArray(list)) continue
+        for (const finding of list) {
+          if (finding == null || typeof finding !== 'object') continue
+          const f = finding as Record<string, unknown>
+          if (!isSafeHttpUrl(f.url)) f.url = ''
+        }
+      }
+    }
+    for (const key of Object.keys(obj)) {
+      if (key !== 'conformance') stripUnsafeConformanceUrls(obj[key])
+    }
+  }
+}
+
 export function sanitizeStoredReport(report: unknown): SanitizeResult {
   if (report == null || typeof report !== 'object') {
     return { ok: false, error: 'report must be an object' }
@@ -69,5 +108,6 @@ export function sanitizeStoredReport(report: unknown): SanitizeResult {
     return { ok: false, error: 'report is not serializable' }
   }
   stripUnsafeHelpLinks(cleaned)
+  stripUnsafeConformanceUrls(cleaned)
   return { ok: true, report: cleaned }
 }

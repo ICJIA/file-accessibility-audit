@@ -1,24 +1,24 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.32.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-932%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.33.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1280%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
 **Production URL:** https://audit.icjia.app | **Source:** https://github.com/ICJIA/file-accessibility-audit
 
-A web tool that **audits and (optionally) remediates** PDF accessibility against [WCAG 2.2 AA](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/), the legal minimum under [IITAA 2.1 §E205.4](https://doit.illinois.gov/initiatives/accessibility.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. To revert to WCAG 2.1 labels: set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; web UI on rebuild).
+A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) accessibility — and **(optionally) auto-remediates** PDFs — against [WCAG 2.2 AA](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG21/quickref/), the legal minimum under [IITAA 2.1 §E205.4](https://doit.illinois.gov/initiatives/accessibility.html) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/)), and [Illinois IITAA 2.1](https://doit.illinois.gov/initiatives/accessibility.html) — all on infrastructure you control, with no AI and no per-document fees. To revert to WCAG 2.1 labels: set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; web UI on rebuild).
 
 ## What it does
 
 | | Feature | Detail |
 |---|---------|--------|
-| **9** | WCAG categories audited | Each PDF scored across 9 accessibility categories — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.2 conformance verdict**. |
+| **9** | WCAG categories audited | Each document (PDF, Word, PowerPoint, or Excel) scored across the WCAG-aligned categories that apply to its format (up to 9) — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.2 conformance verdict**. |
 | **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses the score. Manual review still recommended for IITAA compliance. |
 | **PDF/UA-1** | Standards aligned | WCAG 2.2 AA (superset of 2.1 AA), ADA Title II (April 2026), Illinois IITAA 2.1, PDF/UA-1 via veraPDF. Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
-| **0** | PDFs retained | Audit: in-memory only, gone in seconds. Remediation: output deleted on first download or 30-minute TTL, then verified absent. |
-| **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF SDKs. |
+| **0** | Files retained | Audit: in-memory only, gone in seconds. Remediation: output deleted on first download or 30-minute TTL, then verified absent. |
+| **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF/Office SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
-| **3** | PDFs per batch | Upload up to 3 PDFs at once; per-tab remediation. `POST /api/analyze-url` for programmatic auditing of public PDFs. |
+| **3** | Files per batch | Upload up to 3 files (PDF, Word, PowerPoint, or Excel) at once; per-tab remediation for PDFs. `POST /api/analyze-url` for programmatic auditing of public documents. |
 | **4** | Export formats | Text / HTML / Markdown / JSON report exports. 1-year shareable links (no login required to view). |
 
 Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/archive/pdf-remediation-integration-plan.md](docs/archive/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/archive/pdf-remediation-alt-text-walkthrough-spec.md](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md).
@@ -31,7 +31,7 @@ New here? The live tool is at **[audit.icjia.app](https://audit.icjia.app)**; th
 
 - **Overview** — [What it does](#what-it-does) · [Scoring rubric](#scoring-rubric)
 - **Run it** — [Quick Start](#quick-start) · [Authentication](#authentication) · [Configuration](#configuration) · [Deployment](#deployment)
-- **APIs & automation** — [Batch Upload](#batch-upload) · [Analyze from URL](#analyze-from-url) · [Fleet PDF Auditing](#fleet-pdf-auditing) · [Bulk Inventory Scoring](#bulk-inventory-scoring) · [Personal Access Tokens](#personal-access-tokens-pats) · [CLI Tool](#cli-tool)
+- **APIs & automation** — [Batch Upload](#batch-upload) · [Analyze from URL](#analyze-from-url) · [Fleet Document Auditing](#fleet-document-auditing) · [Bulk Inventory Scoring](#bulk-inventory-scoring) · [Personal Access Tokens](#personal-access-tokens-pats) · [CLI Tool](#cli-tool)
 - **Reports & data** — [Report Exports](#report-exports) · [Document Metadata](#document-metadata) · [SEO](#seo) · [AI Readiness](#ai-readiness)
 - **Project** — [Structure](#project-structure) · [Tech Stack](#tech-stack) · [Branding & White-Labeling](#branding-and-white-labeling) · [Design Documents](#design-documents) · [Tests](#tests)
 - **Security & history** — [Security](#security) · [Changelog](#changelog) · [License](#license)
@@ -145,7 +145,7 @@ Host and port are set automatically per provider.
 
 ## Scoring Rubric
 
-Each PDF is assessed across named accessibility categories based on [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
+Each document is assessed across named accessibility categories based on [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
 
 ### One score, and a separate conformance verdict
 
@@ -174,7 +174,7 @@ Nine categories, weighted by WCAG conformance level and user impact. Categories 
 | Bookmarks | 5% | 2.4.5 (AA) | For documents over 10 pages, bookmarks provide a navigable table of contents — one of several "ways" to navigate (a clear heading structure is a partial alternative), so it is weighted below the Level-A categories. |
 | Link Quality | 5% | 2.4.4 (A) | Raw URLs and vague phrases ("click here", "read more") are meaningless read aloud. |
 | Form Accessibility | 5% | 1.3.1, 3.3.2, 4.1.2 (A) | Unlabeled form fields are unusable with assistive technology. |
-| Color Contrast | not scored | 1.4.3 (AA) | Rendered-PDF contrast analysis is not yet implemented. Surfaced as **"Not assessed"** — never as a pass — so the report never implies contrast was checked. |
+| Color Contrast | not scored | 1.4.3 (AA) | Rendered-PDF contrast analysis is not yet implemented, so this row applies to PDF only — surfaced as **"Not assessed"** — never as a pass — so a PDF report never implies contrast was checked. Word, PowerPoint, and Excel documents store explicit colors, so contrast *is* computed and scored directly for those formats. |
 | **Total** | **100%** | | |
 
 The published category → success-criteria map also appears on the in-app Technical Details page.
@@ -213,11 +213,11 @@ Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the WCA
 
 ## Batch Upload
 
-Upload up to **3 PDF files** at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
+Upload up to **3 files** (PDF, Word, PowerPoint, or Excel) at once. Files are analyzed in parallel (2 at a time) and results are displayed in a tab bar — click any tab to see its full report, export, or share.
 
 ### How it works
 
-- **Drop or select multiple PDFs** — the drop zone accepts multiple files. Files are staged with a preview list before analysis begins.
+- **Drop or select multiple files** — the drop zone accepts multiple PDF, Word, PowerPoint, or Excel files. Files are staged with a preview list before analysis begins.
 - **Frontend-only orchestration** — no new API endpoints, no server-side queue. The browser calls the existing `/api/analyze` endpoint once per file with a client-side concurrency limit of 2 (matching the server's `MAX_CONCURRENT_ANALYSES`).
 - **Per-file progress** — a progress view shows each file's status (queued, processing, done, error) with grade badges as they complete.
 - **Tab-based results** — after processing, a horizontal tab bar lets you switch between reports. Export and share work on the active tab's result.
@@ -227,16 +227,16 @@ Upload up to **3 PDF files** at once. Files are analyzed in parallel (2 at a tim
 
 | Constraint          | Value            | Enforced by                           |
 | ------------------- | ---------------- | ------------------------------------- |
-| Max files per batch | 5                | Frontend (`DropZone.vue`)             |
+| Max files per batch | 3                | Frontend (`DropZone.vue`)             |
 | Max file size       | 15 MB each       | Frontend + multer + nginx             |
 | Concurrent uploads  | 2                | Frontend semaphore + server semaphore |
 | Rate limit          | 500/hour per IP (5000/hour with a privileged token) | Server (`analyzeLimiter`) |
 
-**Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 5). The frontend DropZone also enforces this limit client-side.
+**Note:** `BATCH.MAX_FILES` in `audit.config.ts` is the canonical constant (currently 3). The frontend DropZone also enforces this limit client-side.
 
 ## Analyze from URL
 
-`POST /api/analyze-url` — audits a PDF by URL instead of upload. Two surfaces:
+`POST /api/analyze-url` — audits a document (PDF, Word, PowerPoint, or Excel) by URL instead of upload. Two surfaces:
 
 1. **API** — `POST /api/analyze-url` with body `{ "url": "..." }` returns the same `AnalysisResult` shape as `POST /api/analyze`.
 2. **Web UI** — visiting `https://audit.icjia.app/?prefill=<url>` auto-fetches the file on page load and displays the result in the existing analysis UI.
@@ -285,13 +285,13 @@ Even if a hostname passes the allowlist, the endpoint hard-rejects:
 
 | Constraint | Value | Note |
 | --- | --- | --- |
-| Max PDF size | 15 MB | Fetched content (matches the direct-upload cap as of v1.27.0) |
+| Max file size | 15 MB | Fetched content (matches the direct-upload cap as of v1.27.0) |
 | Fetch timeout | 30 s | Same as bulk-from-inventory |
 | Rate limit | shared with `/api/analyze` (`analyzeLimiter`) | |
 
-## Fleet PDF Auditing
+## Fleet Document Auditing
 
-`POST /api/audit-url` — combined "audit a PDF by URL **and** persist a shareable report" endpoint — designed for fleet-audit automation that emits one row per PDF into an HTML/CSV inventory and needs both the scores and a stable link to the full report.
+`POST /api/audit-url` — combined "audit a document by URL **and** persist a shareable report" endpoint — designed for fleet-audit automation that emits one row per document (PDF, Word, PowerPoint, or Excel) into an HTML/CSV inventory and needs both the scores and a stable link to the full report.
 
 The difference from `/api/analyze-url`:
 
@@ -330,11 +330,11 @@ Every top-level field is a scalar or a `{ score, grade }` pair — ready to flat
 }
 ```
 
-`cached: true` indicates a hash-dedup hit — same PDF content was previously audited by the same caller, the existing `reportUrl` is being returned, and no new audit ran. `false` indicates a fresh audit + persist.
+`cached: true` indicates a hash-dedup hit — same file content was previously audited by the same caller, the existing `reportUrl` is being returned, and no new audit ran. `false` indicates a fresh audit + persist.
 
 ### Hash dedup (Policy A)
 
-After fetching the PDF the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching the same hash for the same caller. On a hit, the cached `reportId` / `reportUrl` are returned and no new audit runs — your quarterly fleet runs will return the same URL for unchanged PDFs (clean CSV diffs).
+After fetching the file the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching the same hash for the same caller. On a hit, the cached `reportId` / `reportUrl` are returned and no new audit runs — your quarterly fleet runs will return the same URL for unchanged files (clean CSV diffs).
 
 When the file content has changed (different hash) a fresh audit runs and produces a new `reportId`. The previous report stays accessible at its URL until its 365-day TTL elapses.
 
@@ -356,11 +356,11 @@ url,filename,pageCount,strictScore,strictGrade,practicalScore,practicalGrade,rep
 
 ### Limits
 
-Same as `/api/analyze-url` (15 MB PDF cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
+Same as `/api/analyze-url` (15 MB file cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
 
 ## Bulk Inventory Scoring
 
-`POST /api/bulk-from-inventory` — accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every PDF in it server-side in one request. The server fetches each PDF by its public URL, runs the existing `analyzePDF` pipeline, saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
+`POST /api/bulk-from-inventory` — accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every file in it server-side in one request. The server fetches each file by its public URL, runs the existing `analyzeDocument` pipeline (PDF, Word, PowerPoint, or Excel — dispatched by detected content type), saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
 
 **Auth required.** Send the session cookie or an `Authorization` header as you would for `/api/analyze`.
 
@@ -395,13 +395,13 @@ curl -X POST \
 | ----------------------- | -------- | -------------------------------------------------------- |
 | Max inventory size      | 5 MB     | Total NDJSON payload                                     |
 | Max files per request   | 100      | Additional entries beyond 100 are silently skipped       |
-| Max PDF size            | 15 MB    | Per-file limit, matches `ANALYSIS.MAX_FILE_SIZE_MB`      |
-| Fetch timeout           | 30 s     | Per PDF; timed-out entries are recorded as errors        |
+| Max file size           | 15 MB    | Per-file limit, matches `ANALYSIS.MAX_FILE_SIZE_MB`      |
+| Fetch timeout           | 30 s     | Per file; timed-out entries are recorded as errors        |
 | Rate limit              | shared with `/api/reports` (10/hour per user)            |
 
 ### Considerations
 
-- **Serial processing.** PDFs are scored one at a time to respect the 2-at-a-time semaphore in `pdfAnalyzer.ts`. Large inventories (50+ PDFs) can take several minutes inside a single HTTP request.
+- **Serial processing.** Files are scored one at a time to respect the 2-at-a-time semaphore in `pdfAnalyzer.ts` (shared across all four formats). Large inventories (50+ files) can take several minutes inside a single HTTP request.
 - **Auth model.** The endpoint accepts both the session cookie and a personal access token (`Authorization: Bearer fap_xxx`). See [Personal Access Tokens](#personal-access-tokens-pats) below for how to create a token for CLI use.
 - **No URL allowlist.** The server will fetch any URL in the inventory. A per-deployment allowlist of permitted hostnames is recommended before exposing this endpoint publicly.
 
@@ -493,18 +493,20 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 Reports can also be shared via **shareable links** that expire after 1 year. Shared report pages include:
 
 - **Export buttons** — download the report as Text, Markdown, or JSON directly from the shared link
-- **CTA to audit tool** — "Audit Your PDF" button linking back to the live tool
+- **CTA to audit tool** — "Audit Your Document" button linking back to the live tool
 - **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.2 and ADA Title II references, and a link to the full scoring rubric
 - **Recommendation card** — a prominent Strict vs Practical explainer near the score hero that recommends Strict for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review
 - **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.2 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
-- **Caveat notice** — recommendation to verify with Adobe Acrobat and make source documents accessible before PDF export
+- **Caveat notice** — for PDFs, a recommendation to verify with Adobe Acrobat and make the source document accessible before export; for Word, PowerPoint, and Excel files, a pointer to run the file's own built-in Microsoft Accessibility Checker directly on the source document
 
 When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
 
 ## Document Metadata
 
-Every report includes a **Document Metadata** section that surfaces embedded PDF properties. This metadata is **informational only** — it is not scored or factored into the accessibility grade. Fields that are missing from the PDF display as "Not set," which itself is useful for identifying incomplete metadata.
+Every report includes a **Document Metadata** section that surfaces embedded document properties. This metadata is **informational only** — it is not scored or factored into the accessibility grade. Fields that are missing from the document display as "Not set," which itself is useful for identifying incomplete metadata. The fields shown depend on the file type being audited — `AnalysisResult` (`apps/api/src/services/pdfAnalyzer.ts`) carries a separate `pdfMetadata` / `docxMetadata` / `pptxMetadata` / `xlsxMetadata` object per format.
+
+### PDF
 
 | Field              | Source             | What it tells you                                                      |
 | ------------------ | ------------------ | ---------------------------------------------------------------------- |
@@ -518,6 +520,35 @@ Every report includes a **Document Metadata** section that surfaces embedded PDF
 | Created            | `CreationDate`     | When the PDF was originally generated                                  |
 | Last Modified      | `ModDate`          | When the PDF was last modified                                         |
 | Encrypted          | `IsEncrypted`      | Whether the PDF has password protection or permission restrictions     |
+
+> **Note —** the Word/PowerPoint/Excel metadata below is computed by the analyzer and included in every JSON export. The live report's Document Metadata panel (`ReportContent.vue`, gated on `result.pdfMetadata`) currently renders for PDF only — non-PDF metadata is not yet shown in the UI.
+
+### Word (.docx)
+
+| Field      | Source      | What it tells you                                                                                                       |
+| ---------- | ----------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Title      | `title`     | Document title from Word's core properties                                                                              |
+| Creator    | `creator`   | The document's author/creator metadata                                                                                  |
+| Language   | `language`  | Resolved default document language (paragraph styles' `docDefaults`, else `dc:language`) — controls screen-reader pronunciation |
+| Page Count | `pageCount` | Total pages, from Word's stored page-count property when present                                                        |
+| Word Count | `wordCount` | Total word count from document statistics                                                                               |
+
+### PowerPoint (.pptx)
+
+| Field       | Source       | What it tells you                                                             |
+| ----------- | ------------ | -------------------------------------------------------------------------------- |
+| Title       | `title`      | Presentation title from core properties                                       |
+| Creator     | `creator`    | The presentation's author/creator metadata                                    |
+| Language    | `language`   | Default run language from the presentation part, else the first slide master  |
+| Slide Count | `slideCount` | Total number of slides                                                        |
+
+### Excel (.xlsx)
+
+| Field       | Source       | What it tells you                      |
+| ----------- | ------------ | ------------------------------------------ |
+| Title       | `title`      | Workbook title from core properties     |
+| Creator     | `creator`    | The workbook's author/creator metadata  |
+| Sheet Count | `sheetCount` | Total number of worksheets              |
 
 ## SEO
 
@@ -568,7 +599,7 @@ The JSON export is designed for machine consumption. Beyond the basic report dat
 
 ## CLI Tool
 
-The monorepo includes `a11y-audit`, a command-line PDF accessibility analyzer that uses the same scoring engine as the web app.
+The monorepo includes `a11y-audit`, a command-line PDF, Word, PowerPoint, and Excel accessibility analyzer that uses the same scoring engine as the web app.
 
 ### Single-file audit
 
@@ -578,6 +609,9 @@ pnpm --filter @icjia/a11y-audit build
 
 # Analyze a PDF
 node apps/cli/dist/index.js report.pdf
+
+# Word, PowerPoint, and Excel work the same way
+node apps/cli/dist/index.js slides.pptx
 
 # JSON output (pipe to jq, etc.)
 node apps/cli/dist/index.js report.pdf --json
@@ -622,8 +656,8 @@ pnpm a11y-audit -- --concurrency 5
 **How it works:**
 
 1. Fetches all publications from ICJIA's GraphQL API (with pagination)
-2. Filters to PDF files, skips already-cached results
-3. Downloads and audits each PDF with configurable concurrency
+2. Filters to supported document types (PDF, Word, PowerPoint, Excel), skips already-cached results
+3. Downloads and audits each file with configurable concurrency
 4. Caches results in `~/.a11y-audit/cache.db` (SQLite)
 5. Generates CSV + HTML reports with grade distribution and assessment
 6. Copies HTML report to `apps/web/public/publist.html` → accessible at `/publist`
@@ -766,81 +800,129 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**932 tests** across 55 test files. Run all with a summary at the end:
+**1,280 tests** across 82 test files (API 816, Web 420, CLI 44). Run all with a summary at the end:
 
 ```bash
-pnpm test                # All tests (API + Web) with summary
-pnpm test:api            # API tests only
-pnpm test:web            # Web tests only
-pnpm test:scoring        # Scoring model tests only
+pnpm test                 # API + Web, with summary (see note below)
+pnpm test:api             # API tests only
+pnpm test:web             # Web tests only
+pnpm test:scoring         # Scoring model tests only
+cd apps/cli && pnpm test  # CLI tests only (separate app, see note below)
 ```
 
-`pnpm test` prints a summary after all suites complete:
+`pnpm test` prints a summary after all suites complete — it covers `apps/api` and `apps/web` only. The CLI app (`apps/cli`) has its own suite and is **not** included in this script or its summary; run it separately as shown above.
 
 ```
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      600 passed (29 files)
-  ✔ Web      296 passed (22 files)
+  ✔ API      816 passed (45 files)
+  ✔ Web      420 passed (32 files)
 ────────────────────────────────────────────────────────────
-  ✔ 896 tests passed across 51 files
+  ✔ 1236 tests passed across 77 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (600 tests)
+Add the CLI's 44 tests across 5 files and the grand total across all three apps is **1,280 tests across 82 files**.
+
+### API Tests (816 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `scorer.test.ts` | 142 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, filename-like titles earning partial credit without a false 2.4.2 failure, help-link accuracy (version-matched W3C Understanding URLs, no broken WebAIM anchors), and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text, the Acrobat fix guide) |
 | `qpdfParser.test.ts` | 94 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count and ColSpan/RowSpan-aware column consistency, list analysis (LI/Lbl/LBody — LBody required, Lbl advisory), multi-widget form fields (radio groups collapse to one field with /TU from the parent), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON, qpdf exit-code-3 recovery (warnings with valid stdout JSON), and real qpdf-v2 `obj:`-key fixtures |
+| `bulk-from-inventory.test.ts` | 41 | Bulk inventory scoring across all four formats: input validation, NDJSON parsing, `filterCategory` generalized beyond pdf-only (docx/pptx/xlsx), per-file content-type detection (real format sniffing, not the old blanket %PDF- gate), per-file `*_DISABLED`/`*_PARSE_FAILED`/timeout error-code mapping, and result-structure assertions (one bad entry never aborts the batch) |
 | `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement (against the real `services/urlPolicy.ts` exports, no longer a re-implemented copy), and route-level input/PDF validation and fetch-error handling |
-| `urlPolicy.test.ts` | 22 | The extracted URL/SSRF policy module: allowlist + subdomain matching, lookalike-suffix rejection, private/local-host blocking, `ANALYZE_URL_ALLOWED_HOSTS` env extension, the privileged public-URL validator, and `SafeFetchError`→HTTP status mapping |
+| `pdfjsTitle.test.ts` | 33 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
+| `xlsxService.test.ts` | 32 | Excel `.xlsx` parsing: workbook/sheet metadata, used-range and merged-cell counts, defined tables, picture/chart alt text and hyperlinks, cell-style contrast (large-text threshold, theme-indexed colors unresolved, empty cells excluded), and DoS hardening — a real-cell-count `MAX_CELLS` cap (not the spoofable dimension ref), pre-counted drawing/hyperlink/table caps that reject before any read fan-out, and a cumulative auxiliary-part byte budget that catches large object-sparse drawing parts fast |
 | `integration.test.ts` | 31 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, and malformed-PDF handling |
+| `audit-url.test.ts` | 29 | Fleet `audit-url` endpoint: profile-score extraction (strict/remediation, with pre-scoreProfiles fallback), report-URL building, SHA-256 Policy-A hash dedup, response shape, filename derivation (`remote.<type>` fallback, not hardcoded `.pdf`), the unsupported-type 422 gate, per-format error-code→HTTP-status mapping (`*_DISABLED`→415, `*_PARSE_FAILED`→422, timeout/killed→504, and a generic 500 that never echoes `err.message`), and `sanitizeStoredReport` applied before the `shared_reports` insert |
+| `pptxService.test.ts` | 27 | PowerPoint `.pptx` parsing: package/slide metadata, title-first-shape detection, picture/table/hyperlink/list/media extraction, run-level contrast (shape fill → slide background → theme scheme colors, large-text threshold), and DoS hardening — shape and text-element caps that count at any nesting depth (not just top-level, not just shape count), a linear frame/pic walk that avoids double-counting nested graphicFrames, and theme-color resolution bounded per analysis rather than per run |
 | `tokens.test.ts` | 27 | Personal access tokens: token generation, name sanitization, the PAT branch of the auth middleware, and the create/list/revoke `/api/tokens` endpoints |
 | `auth.test.ts` | 26 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), and email-domain validation |
-| `audit-url.test.ts` | 18 | Fleet `audit-url` endpoint: profile-score extraction, report-URL building, Policy-A hash dedup, response shape, and filename derivation |
-| `bulk-from-inventory.test.ts` | 10 | Bulk inventory scoring: input validation, NDJSON parsing, and result-structure assertions |
-| `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
-| `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
-| `pdfjsTitle.test.ts` | 33 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
-| `conformance.test.ts` | 6 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria, and 1.3.2 Meaningful Sequence asserted only from the rigorous MCID order comparison (never from heuristic category scores) |
+| `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
+| `docxService.test.ts` | 24 | Word `.docx` parsing: title/creator/language/page-count metadata (with `dc:language` core.xml fallback), heading extraction in document order with fake-heading (bold/large/styleless paragraph) detection, image alt text and decorative flags, table header/dimension/nesting detection, link resolution via relationships, real-vs-manual-bullet list detection, run-level color contrast, format validation, and `readCapped` zip-bomb resource limits |
+| `ooxml.test.ts` | 23 | The shared OOXML core (`ooxml.ts`) used by the DOCX/PPTX/XLSX checkers: namespace-agnostic XML walking (`parseXml`/`rootElement`/`textOf`/`attrOf`/`childrenOf`/`rawText`), relationship-map parsing, core-property text extraction, drawing alt-text resolution (descr → title → decorative-at-any-depth), shared contrast math (`normalizeHex`/`contrastRatio` against known WCAG reference values), the manual-bullet regex, `readCapped`'s per-part byte cap, and theme scheme-color resolution (`resolveSchemeColor`/`buildSchemeColorMap`) |
+| `urlPolicy.test.ts` | 22 | The extracted URL/SSRF policy module: allowlist + subdomain matching, lookalike-suffix rejection, private/local-host blocking, `ANALYZE_URL_ALLOWED_HOSTS` env extension, the privileged public-URL validator, and `SafeFetchError`→HTTP status mapping |
+| `rateLimiter.test.ts` | 18 | The privileged bearer-token tier — constant-time `isPrivilegedRequest` (missing/wrong/empty/prefix/over-length tokens, feature-off when unset), tier selection (strict per-IP vs generous shared bucket), a live limiter test proving a token exceeds the anonymous cap on the same IP — plus the remediation-status carve-out: `isRemediationStatusRequest` route matching, `tieredLimiter`/`globalLimiter` skip semantics that exempt status polls without draining the shared bucket, and `remediationStatusLimiter`'s own generous per-IP cap |
+| `reportSanitize.test.ts` | 17 | `sanitizeStoredReport`, the store-boundary guard applied before every report insert: strips unsafe (`javascript:`/`data:`) help-link and conformance-finding URL schemes — including nested under `scoreProfiles.*.categories` — while preserving the finding text, rejects malformed (non-array `categories`, non-object) reports without mutating the caller's object, and tolerates malformed `conformance` shapes (string, null, missing `url`) without throwing |
+| `ooxmlWorker.test.ts` | 14 | The interruptible OOXML child-process worker (DOCX/PPTX/XLSX now analyze off the main event loop): results and `ParseError` codes survive the IPC round-trip, a timeout SIGKILLs the child rather than abandoning it and frees its concurrency slot, the promise only settles once the child's OS-confirmed `exit` fires (with a grace-timer fallback so it never hangs forever), and the spawn environment excludes API secrets while the child still boots and analyzes correctly |
+| `uploadMiddleware.test.ts` | 14 | The multer upload filter: accepts PDF/Word/PowerPoint/Excel by MIME type or extension (case-insensitive, extension wins over a wrong mimetype), rejects unsupported files with a 400 (not the framework's default 500) whose message lists every currently-accepted format, and `acceptedFormatsMessage`'s one/two/many-way label joins (Oxford comma when all four formats are enabled) as formats are flag-disabled |
+| `analyzer.test.ts` | 10 | The top-level `detectFileType`/`analyzeDocument` dispatcher: content-based format detection (PDF header, real Word/PowerPoint/Excel ZIP parts — never confused with each other or rejected as null for a non-document buffer) and routing to the correct pipeline, including that a `.docx` result omits PDF-only signals and an unsupported type is rejected cleanly |
+| `docxConformance.test.ts` | 10 | The Word WCAG 2.2 conformance gate: a clean document passes; confirmed failures fire for 1.1.1 (non-decorative image missing alt text, not decorative ones), 2.4.2 (no title), 3.1.1 (no declared language), 1.3.1 (a data table with no header row, but not a single-row layout-like table), and 1.4.3 (confirmed low-contrast text); 1.3.2 is always not-assessed and 1.4.3 is not-assessed only when no runs were checkable |
+| `pageAuditor.test.ts` | 10 | `slimIssue`, the axe-core finding slimmer for page audits: maps id/impact/description/helpUrl/tags, caps returned nodes at 25 while `nodeCount` still reflects the true uncapped count, and tolerates missing/empty nodes, tags, or targets without throwing |
 | `remediationJobs.test.ts` | 9 | Remediation job store: single-use download tokens stored hash-only and verified constant-time (tampered/cross-job tokens rejected), status transitions (pending→running→stepped→complete/failed/expired), audit-JSON round-trip, and per-user active-job counting |
+| `docxScorer.test.ts` | 8 | `scoreDocx`: a clean document grades A with no failures, Text Extractability is an automatic pass (Word text is always extractable), Reading Order and Form Accessibility are marked not-assessed and excluded from the weighted average, the DOCX-specific `list_structure` category carries its own WCAG map, PDF-only signals (`pdfUa`, `adobeParity`) are omitted, and the executive summary uses Word-appropriate wording |
+| `pageAuditGuard.test.ts` | 8 | The headless-browser SSRF interceptor's decision logic: data:/blob:/about: allowed, non-http(s) blocked, document navigations allowlist-gated (open-redirect targets rejected), subresources IP-checked but not allowlist-gated, and the private-IP check still forced when a privileged token bypasses the allowlist |
 | `remediationLifecycle.test.ts` | 8 | Remediation lifecycle log + cleanup sweep against a real temp SQLite DB: append-only event ordering, path-hash privacy (no raw paths in the compliance log), delete-and-verify semantics (idempotent on already-absent files), TTL expiry deleting outputs and flipping status, stuck-job failure, and sweep idempotency |
+| `adobeParity.test.ts` | 6 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
+| `audit-url-page.test.ts` | 6 | The Chromium page-audit route's error handling: a busy-semaphore 503 keeps its existing safe message, timeout and non-timeout `auditPage` failures map to 504/502 without ever echoing the raw `err.message`, a post-audit failure (e.g. the `shared_reports` insert) falls through to a generic detail-free 500, and `sanitizeStoredReport` runs on the result before that insert |
+| `childSpawnEnv.test.ts` | 6 | `buildChildSpawnEnv`, the environment scrubber shared by every child-process spawn site: strips this app's known secret families plus any generic `*_SECRET`/`*_TOKEN`/`*_PASSWORD`/`*_KEY` name, preserves what the child needs to boot (including non-credential operational config like `DB_PATH` or an allowlist), never mutates the source object, and defaults to the real `process.env` |
+| `conformance.test.ts` | 6 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria, and 1.3.2 Meaningful Sequence asserted only from the rigorous MCID order comparison (never from heuristic category scores) |
+| `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
+| `pptxScorer.test.ts` | 6 | PowerPoint scoring config and `scorePptx`: enabled by default with the spec's caps/weights, `slide_titles` registered in the WCAG category map and penalizing untitled or duplicate slide titles (naming the offending slide numbers), `reading_order` deducting for a title that isn't the first shape and advising on shape-heavy slides, and empty categories null-scored so they renormalize out of the weighted average |
+| `xlsxScorer.test.ts` | 6 | Excel scoring config and `scoreXlsx`: enabled by default with the spec's caps/weights, `sheet_names` registered in the WCAG category map and penalizing only default-named *visible* sheets, `table_markup` deducting per issue (headerless table, a dataful sheet with no defined table, capped merge-cell penalty), and `title_language` scoring on title alone while explaining the language gap |
 | `qpdfNormalize.test.ts` | 5 | Remediation normalize step: qpdf exit 3 (repaired recoverable damage, output written) counts as success, mirroring the audit's exit-3 recovery; hard failures still throw; a wall-clock timeout is passed to qpdf |
+| `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
 | `veraPdf.test.ts` | 4 | veraPDF JSON verdict extraction: rule identifiers built from clause + test number (never the "FAILED" status string), per-rule counts, and the authoritative failed-checks total |
 | `pdfuaXmp.test.ts` | 3 | PDF/UA identifier detection from XMP through real pdfjs parsing — element form and RDF attribute form (`pdfuaid:part="1"`), which pdfjs's own parser misses |
-| `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
-| `pageAuditGuard.test.ts` | 8 | The headless-browser SSRF interceptor's decision logic: data:/blob:/about: allowed, non-http(s) blocked, document navigations allowlist-gated (open-redirect targets rejected), subresources IP-checked but not allowlist-gated, and the private-IP check still forced when a privileged token bypasses the allowlist |
-| `rateLimiter.test.ts` | 12 | The privileged bearer-token tier: constant-time `isPrivilegedRequest` (missing / wrong / empty / prefix / over-length tokens, and feature-off when unset), tier selection (strict per-IP vs generous shared bucket), and a live limiter test proving a token exceeds the anonymous cap on the same IP |
-| `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
+| `pptxConformance.test.ts` | 3 | The PowerPoint WCAG 2.2 conformance gate: clean for a well-formed deck, fires 1.1.1/2.4.2/3.1.1/1.3.1/1.4.3 only on confirmed violations, and does not fire for untitled slides (a scoring-only deduction) or media (listed not-assessed) |
+| `qpdfSpawnEnv.test.ts` | 3 | The qpdf subprocess spawn environment: both the sync (`execFileSync`) and async (`execFile`) qpdf call sites omit a planted secret (and other secret families like `JWT_SECRET`/`SMTP_PASS`) while keeping `PATH` |
+| `xlsxConformance.test.ts` | 3 | The Excel WCAG 2.2 conformance gate: clean for a well-formed workbook (3.1.1 honestly not-assessed — Excel has no language property), fires 1.1.1/2.4.2/1.3.1/1.4.3 only on confirmed violations, and does not fire for merged cells or table-less data sheets (advisory-only deductions, not conformance failures) |
+| `docxIntegration.test.ts` | 2 | End-to-end Word `.docx` analysis: a well-structured accessible document scores highly with no failures, and a poorly-authored one fails and cites the correct WCAG criteria |
 | `pdfAnalyzerTimeout.test.ts` | 2 | The in-process pdfjs parse timeout abandons a pathological document and frees its concurrency slot |
+| `pptxIntegration.test.ts` | 2 | End-to-end PowerPoint `.pptx` analysis: an accessible deck scores ≥ 90 with a clean conformance gate, and a hostile deck scores ≤ 35 citing the correct WCAG criteria |
+| `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
+| `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (296 tests)
+### Web Tests (420 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
+| `components.test.ts` | 44 | DropZone (drag/drop, all four format validations — PDF/docx/pptx/xlsx MIME + extension, size cap, per-format enable/disable flags dropping both the accept attr and the copy), ScoreCard (grade display, recommendation copy, all five grade colors, source-app-aware conformance-fix wording, and href-stripping for `javascript:` conformance-finding URLs while keeping the finding text), ProcessingOverlay (stage messaging) |
 | `responsive.test.ts` | 44 | Responsive layout across mobile navigation, layout padding, ScoreCard, ReportContent, the index/report/history pages, CSS transitions, and the scoring modal |
 | `accessibility.test.ts` | 35 | WCAG 2.1 color-contrast verification for dark and light modes (4.5:1 minimum across all text/background combinations), regression guards against low-contrast classes, semantic HTML landmarks, link accessibility, and component-level a11y |
-| `components.test.ts` | 25 | DropZone (drag/drop, multi-file PDF validation, size limits, batch staging), ScoreCard (grade display, recommendation copy, color coding for all five grades), ProcessingOverlay |
+| `reportExportBanner.test.ts` | 20 | The exported report banners across all three export formats (Markdown/HTML/text): filename-first framing, format-aware labels (PowerPoint slides, Excel sheets, PDF pages), and stored-XSS hardening — `buildHtml`/`buildMarkdown` never emit a `javascript:` conformance-finding or help-link URL as a live link target (Markdown link or HTML `href`), while keeping the visible text |
+| `ai-analysis.test.ts` | 15 | `buildAiAnalysis` — the AI-analysis export and prompt generation, remediation-focused output, and per-format framing (slide count and PowerPoint title for pptx, sheet count and Excel fix wording for xlsx, unchanged Pages/Acrobat wording for pdf) |
+| `findings.test.ts` | 15 | Findings utilities: guidance-vs-actionable finding classification and per-card finding partitioning |
 | `scoring-display.test.ts` | 15 | ScoreCard grade color mapping (A-F), the conformance-verdict explanation, and the single-Strict-view guard |
-| `report-content.test.ts` | 7 | The shared ReportContent component (score table, Document Metadata, Detailed Findings, Not Included in Scoring) rendered by both the live page and shared reports: grade/severity colors from the shared palette, N/A subsection + footnote gating, and the aria-expanded export-snapshot contract |
-| `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
-| `findings.test.ts` | 14 | Findings utilities: guidance-vs-actionable finding classification and per-card finding partitioning |
+| `ReportActionBanner.test.ts` | 13 | The ReportActionBanner component — the report-page severity-count banner (singular/plural critical/moderate/minor combinations, the all-pass state) and format-neutral wording that never says "PDF" for a docx/pptx/xlsx result |
 | `login.test.ts` | 13 | Two-step OTP flow (email then code), API-call verification, error handling, back navigation |
-| `ai-analysis.test.ts` | 12 | `buildAiAnalysis` - AI-analysis export and prompt generation, and remediation-focused output |
-| `ReportActionBanner.test.ts` | 10 | The ReportActionBanner component - report-page action banner |
-| `reportExportBanner.test.ts` | 11 | The exported report banners - Markdown leads with the filename as its H1, the HTML export's banner sits above the title and keeps the filename in the document title, and the plain-text export leads with the filename |
+| `modeDivergence.test.ts` | 13 | `naReason`, the Not-Applicable/Not-Assessed explanation text: format-scopes claims that used to read as universal — `color_contrast` and `reading_order`'s PDF/Acrobat-specific wording now says so explicitly (with a Word equivalent added for reading order), `alt_text` points to the right pane in Word/PowerPoint/Excel as well as Acrobat/PAC, `bookmarks` is stated as PDF-only rather than implying PowerPoint is scored by slide count, and unrelated categories (`table_markup`, `link_quality`, `form_accessibility`) are asserted unchanged |
+| `uploadFormats.test.ts` | 13 | The `uploadFormats` composable: builds the file-input `accept` attribute and format-list copy from the PDF/docx/pptx/xlsx enable flags (Oxford comma at four, comma-free "and" at two, exactly the disabled format dropped), and `legacyFormatMessage` — pointing a user who picks a legacy `.xls`/`.doc`/`.ppt` file at the modern format and the Save As fix, case-insensitively, while returning null for modern OOXML and unrelated file types |
+| `useReportExport.test.ts` | 13 | `useReportExport`'s format-neutral fixes: `baseFilename` strips the source extension for every audited format (previously left `.docx` dangling), `buildJSON`'s `llmContext.standards` includes PDF/UA only for actual PDFs (not PowerPoint/Excel, and still included for legacy fileType-less PDF reports), the LLM prompt and remediation-plan fallback no longer hardcode Adobe Acrobat, and the scanned-document wording in `buildHtml` says "document" rather than "PDF" |
+| `wcag.test.ts` | 12 | `WCAG_MAP`'s remediation guidance: every fix-it category gained a Word/PowerPoint/Excel equivalent alongside its existing Acrobat steps (Styles gallery for headings, the Alt Text pane, Repeat Header Rows / Header Row, the Selection Pane and linear-flow guidance for reading order), `link_quality` no longer frames every fix as a pre-PDF-export step, `bookmarks` is clarified as PDF-specific, `color_contrast` states Office contrast is machine-checked (not a PDF-only manual step), and `pdf_ua_compliance` is confirmed untouched (it has no Office equivalent) |
+| `report-content.test.ts` | 11 | The shared ReportContent component (score table, Document Metadata, Detailed Findings, Not Included in Scoring) rendered by both the live page and shared reports: grade/severity colors from the shared palette, N/A subsection + footnote gating, the aria-expanded export-snapshot contract, help-link href-stripping for `javascript:` URLs (stored XSS), and a malformed-stored-report SSR crash guard (non-array `categories`/`findings`) |
+| `ReportFileBanner.test.ts` | 9 | The ReportFileBanner component — the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) with slide counts for PowerPoint and sheet counts for Excel |
 | `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
-| `ReportFileBanner.test.ts` | 7 | The ReportFileBanner component - the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) |
+| `reportBanner.test.ts` | 8 | The `reportBanner` helper: the shared eyebrow label and singular/plural `N pages · PDF` line, extended to label Word/PowerPoint/Excel results by their own noun (pages/slides/sheets) and fall back to the PDF wording for an unknown stored `fileType` |
 | `AnnouncementBanner.test.ts` | 7 | The AnnouncementBanner component - permanent dismissal per announcement id, localStorage key scoping, and re-show after clear |
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
+| `useRemediationJob.test.ts` | 7 | `useRemediationJob`'s polling behavior: a 1-second base cadence, 429 responses treated as silent back-off feedback (not a job error) with exponential backoff capped at 8 seconds and reset on success, a previously shown error clearing once a later poll succeeds, and polling stopping cleanly on a 404, a terminal status, or component unmount |
+| `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
 | `IssuesSummary.test.ts` | 5 | The IssuesSummary component - issue-count summary |
-| `pdfUaSignalsCard.test.ts` | 3 | The PDF/UA-1 conformance-signals panel - signal rows, identifier presence, and signals-vs-verdict framing |
+| `SourceDocumentNotice.test.ts` | 5 | The SourceDocumentNotice component: format-specific remediation framing — the original PDF fallback text by default, Word-specific tips for docx, PowerPoint slide-title/checker steps for pptx, and Excel Format-as-Table/sheet-rename steps for xlsx (not one generic multi-app PDF list for every format) |
+| `csp.test.ts` | 5 | `buildCspHeader`: the per-request nonce lands in `script-src` with `'unsafe-inline'` dropped there (while `style-src` keeps it), the tight high-value directives are preserved, and no nonce value can cause `'unsafe-inline'` to leak into `script-src` |
+| `escapeHtml.test.ts` | 5 | `escapeHtml`: escapes all five HTML-significant characters, neutralizes `<script>` and quote-breakout payloads, leaves benign text untouched, and escapes `&` first so entities aren't double-encoded |
+| `shared-urls.test.ts` | 5 | `isSafeHttpUrl`/`safeHttpUrl`, the shared URL-scheme guard used across report components: accepts absolute http/https, rejects `javascript:` and other script-bearing schemes plus relative/empty/non-string input, and `safeHttpUrl` returns `undefined` (not an empty string) for unsafe input so a template's `:href` binding omits the attribute entirely |
+| `MethodologyCard.test.ts` | 4 | The MethodologyCard component: names the correct per-format toolchain description (PDF by default, Word for docx, PowerPoint for pptx, Excel for xlsx) |
 | `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |
-| `reportBanner.test.ts` | 3 | The `reportBanner` helper - the shared eyebrow label and the singular/plural `N pages · PDF` line |
+| `pdfUaSignalsCard.test.ts` | 3 | The PDF/UA-1 conformance-signals panel - signal rows, identifier presence, and signals-vs-verdict framing |
 | `severityTally.test.ts` | 3 | The `tallySeverity` utility - per-severity finding counts |
+| `remediationGuard.test.ts` | 2 | index.vue's remediation-button guard: gates `RemediateButton` on `fileType === 'pdf'` (a positive allowlist), replacing the old negative `!== 'docx'` check that would have wrongly offered PDF-only remediation for pptx/xlsx |
+
+### CLI Tests (44 tests)
+
+`apps/cli` (`@icjia/a11y-audit`) has its own vitest suite, run with `cd apps/cli && pnpm test` — it is not part of the root `pnpm test` script.
+
+| File | Tests | What it covers |
+| --- | ---: | --- |
+| `graphql.test.ts` | 19 | The publications-source GraphQL/file loader: `SUPPORTED_EXTENSIONS`/`hasSupportedExtension` now matches all four audited formats (case-insensitively), and both `fetchPublications` (API) and `loadPublicationsFromFile` (local) keep all four formats and drop the rest while staying backward-compatible with PDF-only lists and the `{ publications: [...] }` wrapper shape |
+| `csv.test.ts` | 12 | `escapeCsvField`'s CSV formula-injection guard: prefixes a leading `=`/`+`/`-`/`@`/tab/CR (the OWASP trigger set) with a single quote so spreadsheet apps treat it as text, composes correctly with the existing comma/quote/newline quoting, and leaves normal fields, numbers, and null/undefined untouched |
+| `html.test.ts` | 6 | The `publist` HTML report's download-link scheme guard: `isSafeHttpUrl` rejects `javascript:`/`data:`/`vbscript:` and malformed URLs, the guard function is embedded verbatim into the generated page's client-side script, and the Download anchor is gated on it (not bare truthiness) while the already-safe "View Full Analysis" link is untouched |
+| `publist.test.ts` | 6 | `downloadFile`'s streaming download guard: reassembles chunked responses into a Buffer, rejects on a non-ok HTTP status, and enforces the size cap both from a `content-length` header and from cumulative streamed bytes — cancelling the reader (not draining an unbounded body) the moment either is exceeded |
+| `cache.test.ts` | 1 | The result cache's round-trip: PowerPoint (`slide_titles`) and Excel (`sheet_names`) category scores/grades/severities survive `upsertResult` and render correctly in the CSV and HTML reports |
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 
@@ -857,7 +939,7 @@ The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main au
 | **Click targets**           | Expand/collapse buttons span full width (WCAG 2.5.8).                                                                                                                                 |
 | **Heading order**           | Valid heading hierarchy (h1 → h2 → h3) on all pages.                                                                                                                                  |
 
-The `accessibility.test.ts` (38 tests) and `color-mode.test.ts` (51 tests) suites guard against regressions:
+The `accessibility.test.ts` (35 tests) and `color-mode.test.ts` (51 tests) suites guard against regressions:
 
 - **Contrast math** — verifies WCAG luminance ratios for every text color + background combination used in the UI
 - **Source scanning** — reads `.vue` template sections and fails if `text-neutral-500` or `text-neutral-600` appear
@@ -889,10 +971,10 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 The application undergoes a security review before every release plus periodic standalone comprehensive audits; the running history is in [Review history](#review-history) below. Current posture:
 
 - **Auth is optional** — all other protections apply regardless of the auth toggle; the API fails closed at startup if login is enabled without a strong `JWT_SECRET`.
-- **Files processed in memory** — the QPDF temp file is written under a random name and deleted in the same request, even on failure.
+- **Files processed in memory** — PDF analysis writes a QPDF temp file under a random name, deleted in the same request even on failure; Word, PowerPoint, and Excel analysis never touches disk — the buffer stays in memory, including across the IPC channel to the interruptible OOXML child process (below).
 - **No shell** — QPDF / OpenDataLoader / veraPDF are invoked via `execFile` with array arguments; user-supplied filenames never reach a shell or a path component.
-- **SSRF-hardened URL fetching** — URL and fleet PDF fetches resolve DNS in-process, reject private/reserved IPs (IPv4 + IPv6), pin the connection to the validated IP, and re-validate every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
-- **Bounded work** — per-request size caps (including a per-part uncompressed-size cap on `.docx` to stop decompression bombs), a 2-slot analysis semaphore shared by the PDF and Word paths, pdfjs and docx parse/analysis timeouts, and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
+- **SSRF-hardened URL fetching** — both `/api/analyze-url` and the fleet `/api/audit-url` endpoint fetch and audit PDF, Word, PowerPoint, or Excel content by URL; each resolves DNS in-process, rejects private/reserved IPs (IPv4 + IPv6), pins the connection to the validated IP, and re-validates every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
+- **Bounded work** — per-request size caps (including a per-part uncompressed-size cap on each OOXML format — `.docx`/`.pptx`/`.xlsx` — to stop decompression bombs), a 2-slot analysis semaphore shared by the PDF, Word, PowerPoint, and Excel paths, pdfjs and OOXML (docx/pptx/xlsx) parse/analysis timeouts — the latter enforced by a dedicated per-request child process that a timeout can SIGKILL outright rather than merely abandon — and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
 - **Two-tier rate limiting** on the audit endpoints — strict per-IP for anonymous callers (500/hr analyze, 100/min global), generous for callers presenting a valid `API_PRIVILEGED_TOKEN` (5000/hr, 1000/min) — plus **Helmet + nginx headers** on the API and a **nonce-based Content-Security-Policy** on the web app (as of v1.32.0, `script-src` carries a per-request nonce and no `'unsafe-inline'`, so injected inline scripts and `javascript:` URIs are refused); **CORS** locked to a single origin in production.
 - **Privileged API token** (`API_PRIVILEGED_TOKEN`, optional) — a single static bearer token that unlocks the generous rate tier **and** lets a trusted client audit URLs outside the ICJIA / illinois.gov allowlist. It never bypasses the private/reserved-IP SSRF block, the size caps, or the concurrency semaphores; constant-time compare; unset = feature off (everyone strict).
 - Full security model: **docs/archive/00-master-design.md, Section 9**.
@@ -905,7 +987,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bypassing the 3-file limit** | The limit is UX (frontend). The real server-side gates are the per-caller analyze rate limit (`RATE_LIMITS.analyze`) and the global per-IP catch-all (`RATE_LIMITS.global`); a client sending more requests just hits those faster, and the 2-slot analysis semaphore caps actual concurrent work regardless. |
 | **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
-| **Filename / document-text XSS** | Filenames and all PDF- and Word-derived text (title, alt text, link text, headings) render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data, and HTML exports run every string **and** numeric/grade field through a shared `escapeHtml` helper (verified in the 2026-06-10 and 2026-07-01 audits). Server also sanitizes filenames before storage. |
+| **Filename / document-text XSS** | Filenames and all PDF-, Word-, PowerPoint-, and Excel-derived text (title, alt text, link text, headings) render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data, and HTML exports run every string **and** numeric/grade field through a shared `escapeHtml` helper (verified in the 2026-06-10 and 2026-07-01 audits). Server also sanitizes filenames before storage. |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
 | **Auth bypass during batch**   | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items.                                           |
 | **Concurrent upload flood**    | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP.                                         |

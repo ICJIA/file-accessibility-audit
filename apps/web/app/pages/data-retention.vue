@@ -32,7 +32,7 @@ useHead({
     {
       name: 'description',
       content:
-        'Auditor-ready data retention policy: how PDFs are stored, processed, and deleted; AI usage statement; lifecycle audit trail; retention periods; contact information.',
+        'Auditor-ready data retention policy: how uploaded files (PDF, Word, PowerPoint, Excel) are stored, processed, and deleted; AI usage statement; lifecycle audit trail; retention periods; contact information.',
     },
   ],
   link: [
@@ -43,8 +43,8 @@ useHead({
   ],
 })
 
-const POLICY_VERSION = '1.0'
-const POLICY_EFFECTIVE = '2026-05-18'
+const POLICY_VERSION = '1.1'
+const POLICY_EFFECTIVE = '2026-07-03'
 const TOOL_VERSION = '1.18.0'
 
 // Mermaid diagram sources. Deliberately simple — flowchart TD only,
@@ -104,8 +104,9 @@ const TOOL_VERSION = '1.18.0'
       </p>
       <p class="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed">
         This policy describes how the ICJIA File Accessibility Audit tool
-        ingests, processes, retains, and deletes PDF files and related
-        metadata. It is intended for managers, records-retention officers,
+        ingests, processes, retains, and deletes uploaded files — PDF, Word
+        (.docx), PowerPoint (.pptx), and Excel (.xlsx) documents — and
+        related metadata. It is intended for managers, records-retention officers,
         accessibility auditors, legal counsel, and other stakeholders who
         need a complete and accurate account of the tool's data handling.
         Technical details are included verbatim — vague language has been
@@ -142,7 +143,7 @@ const TOOL_VERSION = '1.18.0'
       <p
         class="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto"
       >
-        Your PDF is <strong>never</strong> sent to
+        Your file is <strong>never</strong> sent to
         <strong>ChatGPT</strong>, <strong>GPT-4</strong>,
         <strong>GPT-4o</strong>, <strong>Claude</strong>,
         <strong>Gemini</strong>, <strong>Copilot</strong>, or any other
@@ -169,7 +170,7 @@ const TOOL_VERSION = '1.18.0'
             0
           </div>
           <p class="text-[11px] text-[var(--text-muted)] leading-tight">
-            PDFs retained after processing
+            Files retained after processing
           </p>
         </div>
         <div
@@ -270,10 +271,10 @@ const TOOL_VERSION = '1.18.0'
       </h2>
       <ol class="space-y-1 text-sm text-[var(--text-secondary)]">
         <li><a href="#scope" class="text-[var(--link)] hover:text-[var(--link-hover)]">1. Scope &amp; applicable systems</a></li>
-        <li><a href="#audit-flow" class="text-[var(--link)] hover:text-[var(--link-hover)]">2. Audit pipeline — how PDFs are handled when you click "Audit"</a></li>
+        <li><a href="#audit-flow" class="text-[var(--link)] hover:text-[var(--link-hover)]">2. Audit pipeline — how files are handled when you click "Audit"</a></li>
         <li><a href="#remediation-flow" class="text-[var(--link)] hover:text-[var(--link-hover)]">3. Remediation pipeline — how PDFs are handled when you click "Remediate"</a></li>
         <li><a href="#ai" class="text-[var(--link)] hover:text-[var(--link-hover)]">4. AI usage statement (none)</a></li>
-        <li><a href="#tools" class="text-[var(--link)] hover:text-[var(--link-hover)]">5. The open-source toolchain (qpdf · OpenDataLoader · veraPDF · pdfjs)</a></li>
+        <li><a href="#tools" class="text-[var(--link)] hover:text-[var(--link-hover)]">5. The open-source toolchain (qpdf · pdfjs · JSZip · fast-xml-parser · OpenDataLoader · veraPDF)</a></li>
         <li><a href="#audit-trail" class="text-[var(--link)] hover:text-[var(--link-hover)]">6. Lifecycle audit trail (the auditor's evidence)</a></li>
         <li><a href="#retention-table" class="text-[var(--link)] hover:text-[var(--link-hover)]">7. Retention periods by data category</a></li>
         <li><a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]">8. What is and isn't stored</a></li>
@@ -293,7 +294,8 @@ const TOOL_VERSION = '1.18.0'
         1. Scope &amp; applicable systems
       </h2>
       <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
-        This policy applies to all PDF files processed by the ICJIA File
+        This policy applies to all files — PDF, Word (.docx), PowerPoint
+        (.pptx), and Excel (.xlsx) — processed by the ICJIA File
         Accessibility Audit tool — both the public production deployment at
         <code class="text-xs font-mono">https://audit.icjia.app</code> and any
         derivative deployment running the same source code. The infrastructure
@@ -308,8 +310,9 @@ const TOOL_VERSION = '1.18.0'
       </p>
       <ul class="text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 space-y-1.5">
         <li>
-          The <strong>audit pipeline</strong> (always available) — analyzes a
-          PDF for WCAG 2.2 AA (a superset of 2.1 AA) / ADA Title II / Illinois IITAA 2.1 accessibility
+          The <strong>audit pipeline</strong> (always available) — analyzes an
+          uploaded document (PDF, Word, PowerPoint, or Excel) for WCAG 2.2 AA
+          (a superset of 2.1 AA) / ADA Title II / Illinois IITAA 2.1 accessibility
           conformance signals and returns a score and findings.
         </li>
         <li>
@@ -333,9 +336,10 @@ const TOOL_VERSION = '1.18.0'
         2. Audit pipeline (always available)
       </h2>
       <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
-        When a user uploads a PDF for auditing, the file is processed entirely
-        in volatile server memory. No copy is written to disk at any point
-        during the audit pipeline.
+        When a user uploads a file — PDF, Word, PowerPoint, or Excel — for
+        auditing, it is processed entirely in volatile server memory. No copy
+        is written to disk at any point during the audit pipeline, regardless
+        of format.
       </p>
       <div
         class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
@@ -347,18 +351,25 @@ const TOOL_VERSION = '1.18.0'
        │
        ▼
 [validate file]
-  - Magic-byte check: file must start with '%PDF-'
+  - Content-based type check: PDF ('%PDF-' signature) or a ZIP
+    package confirmed as Word / PowerPoint / Excel (OOXML) — never
+    the filename or declared MIME type
   - File size limit: 15 MB (configurable; rejected if exceeded)
        │
        ▼
-[analyzePDF(buffer, filename)] — runs synchronously
-  ├── qpdf subprocess (file passed via stdin or temp pipe)
-  │   • parses structure tree, language, outlines, images, tables
-  └── pdfjs (Node.js library)
-      • extracts text, metadata, per-page content order
+[analyzeDocument(buffer, filename)] — detects format, dispatches:
+  ├── PDF → analyzePDF(), on the main API process
+  │   • qpdf subprocess: structure tree, language, outlines, tables
+  │   • pdfjs (Node.js library): text, metadata, page order
+  │
+  └── Word / PowerPoint / Excel → a dedicated, short-lived child
+      Node.js process (buffer handed over a local, in-memory
+      channel; killed if analysis runs past its timeout)
+      • JSZip: unzips the OOXML container
+      • fast-xml-parser: parses the XML parts
        │
        ▼
-[scorer] — 9 WCAG-aligned categories, weighted overall score
+[scorer] — WCAG-aligned categories, weighted overall score
        │
        ▼
 HTTP response → client (typically &lt; 10 seconds total)
@@ -371,18 +382,23 @@ Node.js garbage collector reclaims the buffer
         <DiagramFigure
           name="audit-pipeline"
           title="Audit pipeline — visual flow"
-          desc="Flowchart of the audit pipeline. The uploaded PDF is held in memory and validated; qpdf analyzes a short-lived temp copy (deleted in the same request) while pdfjs reads the buffer directly; results are scored across 9 WCAG categories, and the memory buffer is discarded after the response is sent."
+          desc="Flowchart of the audit pipeline. The uploaded file — PDF, Word, PowerPoint, or Excel — is held in memory and validated by its content, not its filename. A PDF is analyzed by qpdf (via a short-lived temp copy, deleted in the same request) and by pdfjs reading the buffer directly; a Word, PowerPoint, or Excel file is unzipped and parsed by JSZip and fast-xml-parser inside a dedicated, short-lived child process with no disk access. Results are scored across WCAG-aligned categories, and the memory buffer is discarded after the response is sent."
         />
       </div>
 
       <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
         Once the HTTP response has been sent, the in-memory buffer is
         unreferenced and garbage-collected by the Node.js runtime in the next
-        collection cycle. The qpdf analyzer (a command-line tool that needs a
-        file path) works from a short-lived, randomly named temp copy that is
-        deleted within the same request, even when analysis fails. The PDF
-        content does not persist on disk, in a cache, in a log file, or in
-        any other location. The only records
+        collection cycle. For a PDF, the qpdf analyzer (a command-line tool
+        that needs a file path) works from a short-lived, randomly named temp
+        copy that is deleted within the same request, even when analysis
+        fails. For a Word, PowerPoint, or Excel file, analysis runs inside a
+        dedicated child Node.js process — spawned fresh for that request and
+        terminated immediately afterward — which unzips and parses the
+        in-memory buffer directly with JSZip and fast-xml-parser (see § 5);
+        no temporary file is ever created for these formats. In every case,
+        the uploaded content does not persist on disk, in a cache, in a log
+        file, or in any other location. The only records
         produced by an audit are entries in the
         <code class="text-xs font-mono">audit_log</code> table — described in
         § 8 — which contain metadata only (filename, score, grade, email if
@@ -540,7 +556,7 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
           No artificial intelligence is used in this tool.
         </p>
         <p class="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-          Specifically: no PDF content, no extracted text, no metadata, no
+          Specifically: no file content, no extracted text, no metadata, no
           filenames, no derivative artifacts, no diagnostic data, and no
           telemetry of any kind are transmitted to any artificial-intelligence
           service, large language model, vision model, or hosted machine
@@ -562,6 +578,14 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
           on <strong>rule-based, deterministic algorithms</strong>. None of
           these tools load or run a machine-learning model at runtime. Their
           source code is publicly available and auditable.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
+          The audit pipeline — which covers all four supported formats — is
+          built the same way: qpdf and pdfjs-dist read a PDF; JSZip and
+          fast-xml-parser read a Word, PowerPoint, or Excel file (see § 5).
+          Every one of these libraries is rule-based and deterministic; none
+          of them loads or runs a machine-learning model, and none of them
+          make an outbound network call.
         </p>
         <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
           A future feature on the project roadmap (Phase 1, documented at
@@ -607,9 +631,11 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
         5. The open-source toolchain
       </h2>
       <p class="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-        Every tool involved in processing PDFs is open source, license-clear,
-        and runs locally on the ICJIA-controlled server. No commercial PDF SDK
-        is licensed, and no per-document fees are paid. The tools are:
+        Every tool involved in processing an uploaded document — PDF, Word,
+        PowerPoint, or Excel — is open source, license-clear, and runs
+        locally on the ICJIA-controlled server. No commercial PDF or
+        Office-document SDK is licensed, and no per-document fees are paid.
+        The tools are:
       </p>
       <div class="overflow-x-auto" tabindex="0">
         <table class="w-full text-sm">
@@ -654,6 +680,40 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
                   rel="noopener noreferrer"
                   class="text-[var(--link)] hover:text-[var(--link-hover)]"
                   >github.com/mozilla/pdf.js</a
+                >
+              </td>
+            </tr>
+            <tr class="border-b border-[var(--border)]/40">
+              <td class="py-3 pr-4 font-mono text-xs">JSZip</td>
+              <td class="py-3 pr-4 text-xs">
+                Unzips the Word / PowerPoint / Excel (OOXML) container
+                (audit pipeline only)
+              </td>
+              <td class="py-3 pr-4 text-xs">MIT OR GPL-3.0</td>
+              <td class="py-3 text-xs">
+                <a
+                  href="https://github.com/Stuk/jszip"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                  >github.com/Stuk/jszip</a
+                >
+              </td>
+            </tr>
+            <tr class="border-b border-[var(--border)]/40">
+              <td class="py-3 pr-4 font-mono text-xs">fast-xml-parser</td>
+              <td class="py-3 pr-4 text-xs">
+                Parses the XML parts inside a Word / PowerPoint / Excel
+                file (audit pipeline only)
+              </td>
+              <td class="py-3 pr-4 text-xs">MIT</td>
+              <td class="py-3 text-xs">
+                <a
+                  href="https://github.com/NaturalIntelligence/fast-xml-parser"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                  >github.com/NaturalIntelligence/fast-xml-parser</a
                 >
               </td>
             </tr>
@@ -703,9 +763,14 @@ ALL OUTCOMES → final state: zero PDF artifacts on disk.</div>
       </div>
       <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed">
         Each tool is invoked as a separate operating-system process
-        (qpdf, OpenDataLoader, veraPDF) or as a Node.js library (pdfjs-dist),
-        with input passed by file path or in-memory buffer. None of these
-        tools opens an outbound network connection during processing. Outbound
+        (qpdf, OpenDataLoader, veraPDF), as a Node.js library running on the
+        main API process (pdfjs-dist), or as a Node.js library running
+        inside a dedicated, short-lived child process spawned for that one
+        request (JSZip and fast-xml-parser, for Word, PowerPoint, and Excel).
+        That child process receives the file buffer over a local, in-memory
+        channel — never a temporary file — and is terminated if it exceeds
+        its analysis timeout. None of these tools opens an outbound network
+        connection during processing. Outbound
         network traffic from the API process during a remediation job is
         limited to the email server (Mailgun, used for OTP authentication of
         users only — not for any content transmission) and the database
@@ -856,8 +921,8 @@ CREATE TABLE remediation_jobs (
           </thead>
           <tbody class="text-[var(--text-secondary)] text-xs">
             <tr class="border-b border-[var(--border)]/40">
-              <td class="py-2.5 pr-4 font-medium">Uploaded PDF (audit)</td>
-              <td class="py-2.5 pr-4">Server memory + short-lived qpdf temp copy (deleted same request)</td>
+              <td class="py-2.5 pr-4 font-medium">Uploaded document (audit) — PDF, Word, PowerPoint, or Excel</td>
+              <td class="py-2.5 pr-4">Server memory only (a PDF additionally uses a short-lived qpdf temp copy, deleted same request; Word/PowerPoint/Excel analysis never touches disk)</td>
               <td class="py-2.5 pr-4">Seconds; discarded after HTTP response</td>
               <td class="py-2.5">No</td>
             </tr>
@@ -924,7 +989,7 @@ CREATE TABLE remediation_jobs (
             </tr>
             <tr class="border-b border-[var(--border)]/40">
               <td class="py-2.5 pr-4 font-medium">
-                Audit log (plain audits, no PDFs)
+                Audit log (plain audits, no file content)
               </td>
               <td class="py-2.5 pr-4">
                 SQLite, <code class="font-mono">audit_log</code> table
@@ -1002,14 +1067,14 @@ CREATE TABLE remediation_jobs (
           <ul
             class="space-y-1.5 text-xs text-[var(--text-secondary)] list-disc list-inside"
           >
-            <li>Filename of the uploaded PDF (sanitized before storage)</li>
+            <li>Filename of the uploaded file (sanitized before storage)</li>
             <li>SHA-256 hash of file bytes (a 64-character hex digest)</li>
             <li>Page count (integer)</li>
             <li>Pre-flight audit score and grade (numbers + letter)</li>
             <li>Post-remediation audit score and grade</li>
             <li>
               Per-category findings and explanations (text generated by the
-              scorer, never copied from the PDF)
+              scorer, never copied from the file)
             </li>
             <li>
               User's email address (only if logged in; tied to the user's
@@ -1037,13 +1102,13 @@ CREATE TABLE remediation_jobs (
           <ul
             class="space-y-1.5 text-xs text-[var(--text-secondary)] list-disc list-inside"
           >
-            <li>PDF file content (audit pipeline)</li>
+            <li>File content of any audited format — PDF, Word, PowerPoint, or Excel (audit pipeline)</li>
             <li>
               PDF file content after a remediation completes (output is
               deleted on download or after 30-minute TTL)
             </li>
-            <li>Extracted text from inside PDFs</li>
-            <li>Images extracted from PDFs (none are stored)</li>
+            <li>Extracted text from inside uploaded documents</li>
+            <li>Images extracted from uploaded documents (none are stored)</li>
             <li>Form-field values from PDFs</li>
             <li>
               Any data transmitted to AI services (there are none — see § 4)
@@ -1104,9 +1169,13 @@ CREATE TABLE remediation_jobs (
           mitigating timing side channels.
         </li>
         <li>
-          <strong>Magic-byte validation</strong> on uploads: a file is
-          rejected immediately if its first five bytes are not
-          <code class="text-xs font-mono">%PDF-</code>.
+          <strong>Content-based file-type validation</strong> on uploads: the
+          file's actual bytes — never its filename or declared MIME type —
+          must match a supported format. A PDF must begin with the five
+          bytes <code class="text-xs font-mono">%PDF-</code>; a Word,
+          PowerPoint, or Excel upload must be a well-formed ZIP (OOXML)
+          package whose internal parts confirm which of the three it is.
+          Anything else is rejected immediately.
         </li>
         <li>
           <strong>File size cap</strong>: 15 MB for the audit pipeline, 50 MB
@@ -1227,6 +1296,98 @@ CREATE TABLE remediation_jobs (
         first). Each entry lists the findings discovered during that
         release's review and what was done about them.
       </p>
+
+      <!-- v1.33.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.33.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-03</strong> · scope: the new PowerPoint
+            (.pptx) and Excel (.xlsx) audit features — a fresh, independent
+            three-team red/blue review of everything a malicious Office file
+            could try to do to the server.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.33.0 extends the tool to audit PowerPoint and Excel files, not
+          just PDF and Word. Because these are also user-supplied files the
+          server has to open and parse, this release got the same treatment
+          as the earlier Word rollout: three independent reviews — covering
+          server overload, hidden malicious content, and ways the scoring or
+          access rules could be tricked — deliberately tried to break it with
+          poisoned, oversized, and malformed files.
+          <strong>Everything the reviews found was fixed and covered by a
+          new automated test before this release shipped.</strong>
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Tighter limits on how much work a booby-trapped slide deck or
+              spreadsheet can force</strong
+            >
+            — A PowerPoint or Excel file can bury thousands of objects
+            several layers deep, or pair a small file with a few oversized
+            embedded pictures, to make the server do far more work than the
+            file's size suggests. The tool now counts that work — shapes,
+            text, and cells at every nesting depth, and the running byte size
+            of embedded pictures — and stops as soon as a safe limit is
+            crossed, instead of after the damage is already done.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              PowerPoint and Excel files are now analyzed in a separate,
+              cancellable process</strong
+            >
+            — Previously, a pathological file could tie up the same
+            in-process worker used for everything else; if analysis ran past
+            its time limit, the work kept running in the background instead
+            of truly stopping. Word, PowerPoint, and Excel files are now
+            analyzed in their own short-lived process that the server can
+            immediately and completely cancel the moment the time limit is
+            reached.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-700/30 text-emerald-200 mr-2"
+                >Fixed</span
+              >
+              Uploaded-file processing can no longer see the server's own
+              passwords and keys</strong
+            >
+            — Every helper program the server hands an uploaded file to (for
+            PowerPoint/Excel/Word analysis, for PDF repair, and for
+            auto-remediation) now runs with the server's login secrets, API
+            keys, and mail credentials stripped from its environment — so
+            even a fully compromised helper process has nothing worth
+            stealing.
+          </li>
+        </ul>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong
+            >No change to what data is collected or how long it is
+            kept.</strong
+          >
+          PowerPoint and Excel files are processed in memory and discarded in
+          seconds, exactly like PDF and Word; nothing new is stored or
+          transmitted. The full technical write-up is in the project's
+          README security section.
+        </p>
+      </article>
 
       <!-- v1.32.0 audit entry -->
       <article
@@ -3273,8 +3434,13 @@ WHERE event = 'output_deleted'
         <li>
           <strong>WCAG 2.2 Level AA</strong> (Web Content Accessibility
           Guidelines, W3C) — a superset of the WCAG 2.1 AA that IITAA 2.1 and
-          ADA Title II require; the audit scores PDFs against the nine
-          categories that map to these success criteria for non-web documents.
+          ADA Title II require; the audit scores each uploaded document — PDF,
+          Word, PowerPoint, or Excel — against a set of WCAG-aligned
+          categories that map to these success criteria for non-web
+          documents. The exact category set is tailored per format (for
+          example, reading order and form accessibility are structurally not
+          applicable to Word, and heading structure does not apply to a
+          spreadsheet).
         </li>
         <li>
           <strong>ADA Title II</strong> (U.S. federal law, effective April
@@ -3348,6 +3514,17 @@ WHERE event = 'output_deleted'
           </dd>
         </div>
         <div>
+          <dt class="font-semibold text-[var(--text-heading)]">OOXML</dt>
+          <dd class="ml-4 text-xs leading-relaxed">
+            Office Open XML — the ZIP-of-XML file format used by Word
+            (.docx), PowerPoint (.pptx), and Excel (.xlsx) files. The audit
+            pipeline reads it by unzipping the container with
+            <strong>JSZip</strong> and parsing its XML parts with
+            <strong>fast-xml-parser</strong>, working only from the in-memory
+            upload buffer — see § 5. No temporary file is written to disk.
+          </dd>
+        </div>
+        <div>
           <dt class="font-semibold text-[var(--text-heading)]">PDF/UA-1</dt>
           <dd class="ml-4 text-xs leading-relaxed">
             ISO 14289-1: the technical specification for "accessible PDF."
@@ -3412,6 +3589,16 @@ WHERE event = 'output_deleted'
         13. Change log for this policy
       </h2>
       <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
+        <li>
+          <strong>v1.1 · 2026-07-03</strong> — Documents that the audit
+          pipeline (§ 2) covers Microsoft Word (.docx), PowerPoint (.pptx),
+          and Excel (.xlsx) files in addition to PDF. All four formats are
+          handled identically by the audit pipeline: processed in memory
+          only, never written to disk, and discarded after the response.
+          Adds the OOXML container-parsing tools (JSZip, fast-xml-parser) to
+          the toolchain table (§ 5) and an OOXML glossary entry (§ 12). The
+          remediation pipeline (§ 3) is unchanged and remains PDF-only.
+        </li>
         <li>
           <strong>v1.0 · 2026-05-18</strong> — Initial publication. Covers
           tool versions v1.18.0 and newer. Documents the audit pipeline and

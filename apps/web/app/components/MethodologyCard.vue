@@ -4,21 +4,34 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<{
     /** Analyzed file type — selects the library list, category count, and copy. */
-    fileType?: 'pdf' | 'docx'
+    fileType?: 'pdf' | 'docx' | 'pptx' | 'xlsx'
   }>(),
   { fileType: 'pdf' },
 )
 
 const isDocx = computed(() => props.fileType === 'docx')
+const isPptx = computed(() => props.fileType === 'pptx')
+const isXlsx = computed(() => props.fileType === 'xlsx')
+/** All three Office formats share the JSZip + fast-xml-parser pipeline. */
+const isOoxml = computed(() => isDocx.value || isPptx.value || isXlsx.value)
+
+/** Possessive subject for the intro sentence, per OOXML format. */
+const ooxmlSubject = computed(() =>
+  isDocx.value
+    ? "the Word document's"
+    : isPptx.value
+      ? "the PowerPoint presentation's"
+      : "the Excel workbook's",
+)
 
 // The open-source libraries named in the badge row, per format.
 const libraries = computed(() =>
-  isDocx.value
+  isOoxml.value
     ? [
         {
           href: 'https://stuk.github.io/jszip/',
           name: 'JSZip',
-          note: '— unzips the .docx (OOXML) package',
+          note: `— unzips the .${props.fileType} (OOXML) package`,
         },
         {
           href: 'https://github.com/NaturalIntelligence/fast-xml-parser',
@@ -52,8 +65,8 @@ const libraries = computed(() =>
     </h2>
     <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-4 text-center">
       This tool uses established open-source libraries to
-      <template v-if="isDocx"
-        >read the Word document's Office Open XML (OOXML) structure</template
+      <template v-if="isOoxml"
+        >read {{ ooxmlSubject }} Office Open XML (OOXML) structure</template
       ><template v-else>extract and analyze PDF structure</template>. Scores are
       calculated against
       <a
@@ -118,6 +131,42 @@ const libraries = computed(() =>
       are marked N/A and the remaining weights renormalized. Unlike PDF, color
       contrast is checked directly here, because Word stores explicit and theme
       colors. This score is the compliance benchmark for publication.
+    </p>
+    <p
+      v-else-if="isPptx"
+      class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
+    >
+      Nine categories are weighed against <strong>WCAG 2.2 AA</strong> (a
+      superset of the WCAG 2.1 AA required by <strong>IITAA 2.1 §E205.4</strong>
+      and ADA Title II) — the rules that govern non-web document accessibility in
+      Illinois. PowerPoint-specific checks include <strong>slide titles</strong>
+      (every slide needs a unique title placeholder — Microsoft's
+      highest-severity PowerPoint rule) and a title-first
+      <strong>reading order</strong> check; categories that don't apply to
+      PowerPoint (heading structure, form fields, bookmarks) are omitted and the
+      remaining weights renormalized. Color contrast is checked directly,
+      because PowerPoint stores explicit and theme colors. Machine checks are
+      benchmarked against Microsoft's own Accessibility Checker rules for
+      PowerPoint. This score is the compliance benchmark for publication.
+    </p>
+    <p
+      v-else-if="isXlsx"
+      class="text-xs text-[var(--text-muted)] leading-relaxed text-center"
+    >
+      Seven categories are weighed against <strong>WCAG 2.2 AA</strong> (a
+      superset of the WCAG 2.1 AA required by <strong>IITAA 2.1 §E205.4</strong>
+      and ADA Title II) — the rules that govern non-web document accessibility in
+      Illinois. Excel-specific checks include <strong>sheet names</strong> (no
+      default "Sheet1" tabs on visible sheets) and <strong>table markup</strong>
+      (data in real table objects with header rows; merged cells are flagged as
+      advisories). Excel stores no document-language property, so the language
+      half of Title &amp; Language is reported as not assessed and the title is
+      scored alone; categories that don't apply to Excel (heading structure,
+      reading order, list structure, form fields) are omitted and the remaining
+      weights renormalized. Color contrast is checked directly from explicit
+      font and fill colors. Machine checks are benchmarked against Microsoft's
+      own Accessibility Checker rules for Excel. This score is the compliance
+      benchmark for publication.
     </p>
     <p
       v-else
