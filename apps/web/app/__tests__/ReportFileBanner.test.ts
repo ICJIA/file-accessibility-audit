@@ -55,4 +55,18 @@ describe("ReportFileBanner", () => {
     });
     expect(wrapper.text()).toContain(long);
   });
+
+  it("renders slide counts for PowerPoint files", () => {
+    const wrapper = mount(ReportFileBanner, {
+      props: { filename: "deck.pptx", pageCount: 9, fileType: "pptx" },
+    });
+    expect(wrapper.text()).toContain("9 slides · PowerPoint");
+  });
+
+  it("renders sheet counts for Excel files", () => {
+    const wrapper = mount(ReportFileBanner, {
+      props: { filename: "budget.xlsx", pageCount: 4, fileType: "xlsx" },
+    });
+    expect(wrapper.text()).toContain("4 sheets · Excel");
+  });
 });
