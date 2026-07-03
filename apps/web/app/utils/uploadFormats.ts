@@ -1,0 +1,89 @@
+/**
+ * Which optional upload formats the server has enabled, and the strings the
+ * upload surfaces (DropZone, index-page hero) derive from them. PDF is always
+ * on; Word / PowerPoint / Excel can each be disabled server-side
+ * (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false") and the frontend
+ * must never invite a format the API will reject.
+ */
+
+export interface UploadFlags {
+  docx: boolean;
+  pptx: boolean;
+  xlsx: boolean;
+}
+
+interface UploadFormat {
+  label: string;
+  ext: string;
+  mime: string;
+}
+
+const PDF_FORMAT: UploadFormat = {
+  label: "PDF",
+  ext: ".pdf",
+  mime: "application/pdf",
+};
+
+const OPTIONAL_FORMATS: Array<UploadFormat & { key: keyof UploadFlags }> = [
+  {
+    key: "docx",
+    label: "Word",
+    ext: ".docx",
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
+  {
+    key: "pptx",
+    label: "PowerPoint",
+    ext: ".pptx",
+    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  },
+  {
+    key: "xlsx",
+    label: "Excel",
+    ext: ".xlsx",
+    mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  },
+];
+
+function enabledFormats(flags: UploadFlags): UploadFormat[] {
+  return [PDF_FORMAT, ...OPTIONAL_FORMATS.filter((f) => flags[f.key])];
+}
+
+/** "PDF" / "PDF or Word" / "PDF, Word, or PowerPoint" (Oxford comma at 3+). */
+function joinList(items: string[], conjunction: "or" | "and"): string {
+  if (items.length === 1) return items[0]!;
+  if (items.length === 2) return `${items[0]} ${conjunction} ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, ${conjunction} ${items[items.length - 1]}`;
+}
+
+/** `accept` attribute for the file input: extensions, then MIME types. */
+export function uploadAcceptAttr(flags: UploadFlags): string {
+  const formats = enabledFormats(flags);
+  return [...formats.map((f) => f.ext), ...formats.map((f) => f.mime)].join(",");
+}
+
+/** Lower-case extension allowlist for client-side validation. */
+export function uploadExtensions(flags: UploadFlags): string[] {
+  return enabledFormats(flags).map((f) => f.ext);
+}
+
+/** "PDF, Word, PowerPoint, or Excel" — conjunction selectable for headlines. */
+export function uploadNoun(
+  flags: UploadFlags,
+  conjunction: "or" | "and" = "or",
+): string {
+  return joinList(
+    enabledFormats(flags).map((f) => f.label),
+    conjunction,
+  );
+}
+
+/** "PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx)" for error copy. */
+export function uploadNounWithExts(flags: UploadFlags): string {
+  return joinList(
+    enabledFormats(flags).map((f) =>
+      f.ext === ".pdf" ? f.label : `${f.label} (${f.ext})`,
+    ),
+    "or",
+  );
+}

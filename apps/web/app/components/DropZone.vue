@@ -93,19 +93,27 @@
 </template>
 
 <script setup lang="ts">
+import {
+  uploadAcceptAttr,
+  uploadExtensions,
+  uploadNoun,
+  uploadNounWithExts,
+} from '~/utils/uploadFormats'
+
 const MAX_FILES = 3
 const MAX_SIZE = 15 * 1024 * 1024
 
 const config = useRuntimeConfig()
-// Word support can be turned off server-side (DOCX_ENABLED=false); mirror that
-// in the dropzone so we never invite a file the API will reject.
-const docxEnabled = computed(() => config.public.docxEnabled !== false)
-const acceptAttr = computed(() =>
-  docxEnabled.value
-    ? '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    : '.pdf,application/pdf',
-)
-const fileNoun = computed(() => (docxEnabled.value ? 'PDF or Word' : 'PDF'))
+// Word / PowerPoint / Excel support can each be turned off server-side
+// (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false"); mirror that in the
+// dropzone so we never invite a file the API will reject.
+const uploadFlags = computed(() => ({
+  docx: config.public.docxEnabled !== false,
+  pptx: config.public.pptxEnabled !== false,
+  xlsx: config.public.xlsxEnabled !== false,
+}))
+const acceptAttr = computed(() => uploadAcceptAttr(uploadFlags.value))
+const fileNoun = computed(() => uploadNoun(uploadFlags.value))
 const dropLabelIdle = computed(() => `Drop ${fileNoun.value} files here`)
 const dropLabelActive = computed(() => `Drop your ${fileNoun.value} files here`)
 
@@ -165,14 +173,12 @@ function handleFileInput(e: Event) {
 function processFiles(files: File[]) {
   validationError.value = ''
 
-  const exts = docxEnabled.value ? ['.pdf', '.docx'] : ['.pdf']
+  const exts = uploadExtensions(uploadFlags.value)
   const accepted = files.filter(f =>
     exts.some(ext => f.name.toLowerCase().endsWith(ext)),
   )
   if (accepted.length === 0) {
-    validationError.value = docxEnabled.value
-      ? 'Please select PDF or Word (.docx) files'
-      : 'Please select PDF files'
+    validationError.value = `Please select ${uploadNounWithExts(uploadFlags.value)} files`
     return
   }
 

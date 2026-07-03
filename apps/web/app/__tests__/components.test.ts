@@ -12,7 +12,9 @@ import ProcessingOverlay from "../components/ProcessingOverlay.vue";
 describe("DropZone", () => {
   it("renders the drop area with prompt text", () => {
     const wrapper = mount(DropZone);
-    expect(wrapper.text()).toContain("Drop PDF or Word files here");
+    expect(wrapper.text()).toContain(
+      "Drop PDF, Word, PowerPoint, or Excel files here",
+    );
     expect(wrapper.text()).toContain("max 15 MB each");
   });
 
@@ -82,7 +84,9 @@ describe("DropZone", () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.emitted("file-selected")).toBeFalsy();
-    expect(wrapper.text()).toContain("Please select PDF or Word (.docx) files");
+    expect(wrapper.text()).toContain(
+      "Please select PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files",
+    );
   });
 
   it("does NOT emit file-selected if file exceeds 15 MB", async () => {
@@ -111,7 +115,102 @@ describe("DropZone", () => {
       .findAll("div")
       .find((d) => d.classes().some((c) => c.includes("border-dashed")))!;
     await dropArea.trigger("dragenter");
-    expect(wrapper.text()).toContain("Drop your PDF or Word files here");
+    expect(wrapper.text()).toContain(
+      "Drop your PDF, Word, PowerPoint, or Excel files here",
+    );
+  });
+
+  it("emits file-selected for a valid .pptx", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["pptx"], "deck.pptx", {
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+  });
+
+  it("emits file-selected for a valid .xlsx", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["xlsx"], "budget.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+  });
+
+  it("advertises the pptx and xlsx MIME types in the accept attr", () => {
+    const wrapper = mount(DropZone);
+    const accept = wrapper.find('input[type="file"]').attributes("accept")!;
+    expect(accept).toContain(".pptx");
+    expect(accept).toContain(".xlsx");
+    expect(accept).toContain(
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    );
+    expect(accept).toContain(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+  });
+
+  it("rejects .pptx and drops it from copy when pptxEnabled is false", async () => {
+    vi.stubGlobal("useRuntimeConfig", () => ({
+      public: { docxEnabled: true, pptxEnabled: false, xlsxEnabled: true },
+    }));
+    try {
+      const wrapper = mount(DropZone);
+      expect(
+        wrapper.find('input[type="file"]').attributes("accept"),
+      ).not.toContain("presentationml");
+      expect(wrapper.text()).toContain(
+        "Drop PDF, Word, or Excel files here",
+      );
+      const file = new File(["pptx"], "deck.pptx", {
+        type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", {
+        value: [file],
+        writable: true,
+      });
+      await input.trigger("change");
+      expect(wrapper.emitted("file-selected")).toBeFalsy();
+      expect(wrapper.text()).toContain(
+        "Please select PDF, Word (.docx), or Excel (.xlsx) files",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rejects .xlsx when xlsxEnabled is false", async () => {
+    vi.stubGlobal("useRuntimeConfig", () => ({
+      public: { docxEnabled: true, pptxEnabled: true, xlsxEnabled: false },
+    }));
+    try {
+      const wrapper = mount(DropZone);
+      const file = new File(["xlsx"], "budget.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", {
+        value: [file],
+        writable: true,
+      });
+      await input.trigger("change");
+      expect(wrapper.emitted("file-selected")).toBeFalsy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
