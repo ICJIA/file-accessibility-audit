@@ -114,3 +114,47 @@ describe('xlsxService: tables, drawings, links', () => {
     ])
   })
 })
+
+describe('xlsxService: styles contrast', () => {
+  it('fails a low-contrast font/fill pair and labels it by style index', async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: 'S', dimensionRef: 'A1:B2' }],
+      styles: [
+        { fontRgb: 'FFDDDDDD', fillRgb: 'FFFFFFFF' }, // ≈1.35:1 → fail
+        { fontRgb: 'FF000000', fillRgb: 'FFFFFFFF' }, // 21:1 → pass
+      ],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.contrast.checkedRuns).toBe(2)
+    expect(a.contrast.failing).toHaveLength(1)
+    expect(a.contrast.failing[0]).toMatchObject({
+      foreground: '#DDDDDD',
+      background: '#FFFFFF',
+      large: false,
+    })
+    expect(a.contrast.failing[0].text).toMatch(/cell style #\d+/)
+  })
+
+  it('large text uses the 3:1 threshold (18pt, or bold 14pt)', async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: 'S', dimensionRef: 'A1:B2' }],
+      styles: [
+        { fontRgb: 'FF949494', fillRgb: 'FFFFFFFF', sz: 18 },            // ≈3.0:1 large → pass
+        { fontRgb: 'FF949494', fillRgb: 'FFFFFFFF', sz: 14, bold: true }, // large-bold → pass
+        { fontRgb: 'FF949494', fillRgb: 'FFFFFFFF', sz: 11 },            // normal → fail
+      ],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.contrast.failing).toHaveLength(1)
+  })
+
+  it('theme-indexed colors and non-solid fills count as unresolved', async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: 'S', dimensionRef: 'A1:B2' }],
+      styles: [{ fontTheme: true, fillRgb: 'FFFFFFFF' }, { fontRgb: 'FF000000' }],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.contrast.checkedRuns).toBe(0)
+    expect(a.contrast.unresolvedRuns).toBe(2)
+  })
+})

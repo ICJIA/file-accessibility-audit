@@ -233,9 +233,59 @@ async function collectSheetContent(
   }
 }
 
+/** ARGB "FFRRGGBB" or plain "RRGGBB" → normalized 6-hex, else null. */
+function argbToHex(v: string | undefined): string | null {
+  if (!v) return null;
+  if (/^[0-9a-fA-F]{8}$/.test(v)) return normalizeHex(v.slice(2));
+  return normalizeHex(v);
+}
+
 async function collectStylesContrast(
-  _analysis: XlsxAnalysis,
-  _read: (p: string) => Promise<string | null>,
+  analysis: XlsxAnalysis,
+  read: (p: string) => Promise<string | null>,
 ): Promise<void> {
-  // Filled in by the contrast task.
+  const stylesRoot = rootElement(parseXml(await read("xl/styles.xml")), "styleSheet");
+  if (!stylesRoot) return;
+  const fontsEl = descendants(stylesRoot, "fonts")[0];
+  const fillsEl = descendants(stylesRoot, "fills")[0];
+  const xfsEl = descendants(stylesRoot, "cellXfs")[0];
+  if (!fontsEl || !fillsEl || !xfsEl) return;
+  const fonts = childrenOf(fontsEl).filter((c) => tagOf(c) === "font");
+  const fills = childrenOf(fillsEl).filter((c) => tagOf(c) === "fill");
+  const xfs = childrenOf(xfsEl).filter((c) => tagOf(c) === "xf");
+
+  xfs.forEach((xf, idx) => {
+    const font = fonts[Number(attrOf(xf, "fontId"))];
+    const fill = fills[Number(attrOf(xf, "fillId"))];
+    if (!font || !fill) return;
+    const colorEl = firstChild(font, "color");
+    if (!colorEl) return; // default ink — nothing explicit to check
+    const fg = argbToHex(attrOf(colorEl, "rgb"));
+    const pattern = firstChild(fill, "patternFill");
+    const solid = pattern && attrOf(pattern, "patternType") === "solid";
+    const fgColorEl = pattern ? firstChild(pattern, "fgColor") : undefined;
+    const bg = solid && fgColorEl ? argbToHex(attrOf(fgColorEl, "rgb")) : null;
+    if (!fg || !bg) {
+      // theme=/indexed= colors and non-solid fills are unresolved in v1.
+      analysis.contrast.unresolvedRuns++;
+      return;
+    }
+    analysis.contrast.checkedRuns++;
+    const szEl = firstChild(font, "sz");
+    const sz = szEl ? Number(attrOf(szEl, "val")) : NaN;
+    const bold = !!firstChild(font, "b");
+    const large =
+      (Number.isFinite(sz) && sz >= 18) || (bold && Number.isFinite(sz) && sz >= 14);
+    const ratio = contrastRatio(fg, bg);
+    const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
+    if (ratio < min) {
+      analysis.contrast.failing.push({
+        text: `cell style #${idx}`,
+        ratio: Math.round(ratio * 100) / 100,
+        foreground: `#${fg}`,
+        background: `#${bg}`,
+        large,
+      });
+    }
+  });
 }
