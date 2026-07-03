@@ -228,3 +228,49 @@ describe("buildHtml / buildMarkdown — conformance finding URL hardening (store
     );
   });
 });
+
+describe("buildMarkdown — helpLinks URL hardening (stored XSS, live gap)", () => {
+  // buildHtml already routes helpLinks[].url through safeHttpUrl (v1.32.0), but
+  // buildMarkdown's "Resources" block did not — and GET /api/reports/:id
+  // returns stored JSON with NO re-sanitization on read, so any share row
+  // persisted before the v1.32.0 store-boundary fix still carries an
+  // unsanitized helpLinks[].url in SQLite and would emit `](javascript:...`
+  // when a recipient exports it as Markdown. This is a live gap, not just a
+  // theoretical one.
+  function resultWithHelpLinkUrl(url: string) {
+    return baseResult({
+      categories: [
+        {
+          id: "alt_text",
+          label: "Alt Text",
+          score: 20,
+          grade: "F",
+          severity: "Critical",
+          findings: ["3 images missing alt text"],
+          explanation: "Ensures non-decorative images have alt text.",
+          helpLinks: [{ label: "CLICK FOR HELP", url }],
+        },
+      ],
+    });
+  }
+
+  it("never embeds a javascript: helpLink as a markdown link target, but keeps the label", () => {
+    const md = buildMarkdown(
+      resultWithHelpLinkUrl("javascript:alert(1)"),
+      branding,
+    );
+    // the label text still appears...
+    expect(md).toContain("CLICK FOR HELP");
+    // ...but the dangerous scheme never becomes a markdown link target
+    expect(md).not.toContain("](javascript:");
+    expect(md).not.toContain("javascript:alert");
+  });
+
+  it("keeps a legitimate https helpLink as the markdown link target", () => {
+    const md = buildMarkdown(
+      resultWithHelpLinkUrl("https://www.w3.org/WAI/x.html"),
+      branding,
+    );
+    expect(md).toContain("[CLICK FOR HELP](https://www.w3.org/WAI/x.html)");
+  });
+});

@@ -181,11 +181,13 @@ function severityEmoji(severity: string | null): string {
 }
 
 /**
- * Markdown `[label](url)` for a conformance finding, scheme-guarded like the
- * buildHtml href sinks above — `conformance.failures[]/notAssessed[].url` is
- * attacker-controllable on a forged shared report (POST /api/reports), the
- * same class as the helpLinks stored-XSS this mirrors. An unsafe url falls
- * back to the bare label (never emits `](javascript:` into the markdown).
+ * Markdown `[label](url)` for any report link (conformance findings AND
+ * category helpLinks), scheme-guarded like the buildHtml href sinks — both
+ * `conformance.failures[]/notAssessed[].url` and `helpLinks[].url` are
+ * attacker-controllable on a stored shared report (POST /api/reports stores
+ * verbatim; GET returns it unsanitized, so pre-v1.32.0 rows can still carry a
+ * javascript: url). An unsafe url falls back to the bare label (never emits
+ * `](javascript:` into the markdown).
  */
 function mdLink(label: string, url: string): string {
   const safe = safeHttpUrl(url);
@@ -345,7 +347,10 @@ export function buildMarkdown(
       lines.push("**Resources:**");
       lines.push("");
       for (const link of cat.helpLinks) {
-        lines.push(`- [${link.label}](${link.url})`);
+        // Scheme-guard like buildHtml's helpLinks + the conformance sinks:
+        // GET /api/reports/:id returns stored JSON unsanitized, so a pre-v1.32.0
+        // share row can still carry a javascript: helpLink url here.
+        lines.push(`- ${mdLink(link.label, link.url)}`);
       }
       lines.push("");
     }
