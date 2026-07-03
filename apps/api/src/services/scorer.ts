@@ -1396,7 +1396,14 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       [XLSX_HELP.contrast],
     );
   }
-  const score = Math.max(0, 100 - 20 * failing.length);
+  // Proportion of checked cell styles that pass, capped at 85 — mirroring
+  // scoreDocxContrast/scorePptxColorContrast. A flat per-style subtraction
+  // let a workbook where EVERY checked style fails still read as "Minor";
+  // failing 100% of checked styles must not score anywhere near that.
+  const score = Math.min(
+    85,
+    Math.round(((checkedRuns - failing.length) / checkedRuns) * 100),
+  );
   const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
   const findings = [
     `${checkedRuns} cell style(s) checked; ${failing.length} below the WCAG contrast minimum.`,
