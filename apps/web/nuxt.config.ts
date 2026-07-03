@@ -1,4 +1,4 @@
-import { BRANDING, DEPLOY, REMEDIATION, WCAG, ANNOUNCEMENTS, DOCX } from '../../audit.config'
+import { BRANDING, DEPLOY, REMEDIATION, WCAG, ANNOUNCEMENTS, DOCX, PPTX, XLSX } from '../../audit.config'
 import { version } from './package.json'
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -130,6 +130,8 @@ export default defineNuxtConfig({
       appVersion: version,
       remediationEnabled: REMEDIATION.ENABLED,
       docxEnabled: DOCX.ENABLED,
+      pptxEnabled: PPTX.ENABLED,
+      xlsxEnabled: XLSX.ENABLED,
       iitaaUrl: BRANDING.IITAA_URL,
       verapdfUrl: BRANDING.VERAPDF_URL,
       wcagVersion: WCAG.VERSION,
