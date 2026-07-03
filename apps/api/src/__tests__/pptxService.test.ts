@@ -238,6 +238,36 @@ describe('pptxService: MAX_SHAPES cap sees shapes at any depth (V1 DoS hardening
     // cap tally. Grouping must not hide the 200 nested pics from the cap.
     expect(a.shapeCount).toBeGreaterThanOrEqual(200)
   })
+
+  it('counts shapes placed OUTSIDE spTree (bare pics as a cSld sibling) toward the shape cap', async () => {
+    // Image/table extraction runs on slideRoot (walkPicsAndFrames(slideRoot),
+    // the pic/frame descendants walks) and pushes into the UNCAPPED
+    // analysis.images/tables. slideRoot ⊇ spTree, so bare <p:pic> elements
+    // (no runs/paragraphs → the text cap can't catch them) placed OUTSIDE
+    // <p:spTree> evade BOTH caps unless the shape tally counts on slideRoot.
+    // Scope a tiny MAX_SHAPES to THIS test only.
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { PPTX: Record<string, unknown> }
+      return { ...actual, PPTX: { ...actual.PPTX, MAX_SHAPES: 40 } }
+    })
+    try {
+      const { analyzePptx: analyze, PptxParseError: ParseError } = await import(
+        '../services/pptxService.js'
+      )
+      const { buildPptx: build, picture: pic } = await import('./helpers/minimalPptx.js')
+      // spTree holds only the title (1 sp). 60 bare pics live as a SIBLING of
+      // spTree: a spTree-only tally sees 1 (< 40, no reject) while the
+      // slideRoot tally sees ~61 (> 40, reject). No runs/paragraphs, so the
+      // text cap never fires — the shape cap is the only guard.
+      const outside = Array.from({ length: 60 }, () => pic({})).join('')
+      const buf = await build({ slides: [{ title: 'T', extraCSldXml: outside }] })
+      await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
 })
 
 describe('pptxService: text-element volume cap (V1 follow-up — runs/paragraphs, not just shapes)', () => {

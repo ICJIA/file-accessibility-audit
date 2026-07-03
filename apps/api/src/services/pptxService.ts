@@ -224,7 +224,17 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     }
     const spTree = descendants(slideRoot, "spTree")[0];
     const shapes = spTree ? contentShapes(spTree) : [];
-    analysis.shapeCount += spTree ? countShapesAnyDepth(spTree) : 0;
+    // Counted on slideRoot (not spTree) because image/table extraction —
+    // walkPicsAndFrames(slideRoot) and the pic/frame descendants walks — runs
+    // on the whole slide and pushes into the UNCAPPED analysis.images/tables.
+    // Bare shape-tag elements (e.g. <p:pic> with no runs, so the text cap
+    // can't catch them) placed under <p:sld> but OUTSIDE <p:spTree> (a cSld
+    // sibling, or a no-spTree slide) would otherwise grow those arrays
+    // unbounded while shapeCount stayed 0. For any valid deck all shapes live
+    // in spTree, so this counts the same elements. contentShapes() above is
+    // unchanged (direct children, reading-order/title-first) — only the cap
+    // tally's root changes.
+    analysis.shapeCount += countShapesAnyDepth(slideRoot);
     if (analysis.shapeCount > PPTX.MAX_SHAPES) {
       throw new PptxParseError(
         `This presentation has too many shapes (${analysis.shapeCount.toLocaleString()}+) to analyze.`,
