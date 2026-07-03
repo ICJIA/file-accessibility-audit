@@ -396,6 +396,99 @@ describe('xlsxService: defined-table count cap pre-counts /table rels BEFORE the
   })
 })
 
+// ---------------------------------------------------------------------------
+// D1 [MEDIUM] security-hardening regression test (pre-merge re-audit): the
+// drawing-REL cap has the SAME fan-out-read-amplifier shape as FIX C's
+// table-rel cap above, but was missed by that fix — each `/drawing` rel in
+// the sheetRels.filter(...) loop triggers a drawing-PART read + parse
+// (await read → parseXml) BEFORE MAX_DRAWING_OBJECTS can even be checked on
+// that part's content. A sheet declaring many drawing rels that each point
+// at a large-but-object-sparse part (so MAX_DRAWING_OBJECTS never fires)
+// forces unbounded read+parse work, bounded only by the 20s worker timeout.
+// Mirrors 85c26ac's MAX_TABLES fix exactly: pre-count the /drawing rels and
+// throw BEFORE any part in the loop is read. See fix-2-report.md /
+// rb1-report.md.
+// ---------------------------------------------------------------------------
+
+describe('xlsxService: drawing-REL count cap pre-counts /drawing rels BEFORE the read fan-out (D1 DoS hardening)', () => {
+  it('throws before reading/appending ANY drawing part when one sheet exceeds MAX_DRAWING_RELS (no read fan-out, no partial flood)', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_DRAWING_RELS: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze, XlsxParseError: ParseError } = await import(
+        '../services/xlsxService.js'
+      )
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      // ONE sheet, 10 SEPARATE drawing rels/parts (1 tiny pic each — each
+      // part is far under MAX_DRAWING_OBJECTS on its own). The REL COUNT
+      // (10) exceeds the scoped cap (5); no single part's OBJECT count ever
+      // would, so MAX_DRAWING_OBJECTS alone can't catch this shape.
+      const drawingParts = Array.from({ length: 10 }, (_, i) => ({
+        drawings: [{ kind: 'pic' as const, descr: `p${i}` }],
+      }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawingParts }] })
+      const imagePushes = await countMatchingPushes(isImageItem, async () => {
+        await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+      })
+      // The cap fires BEFORE any drawing part is read, so not one image
+      // object reached analysis.images — proving the READ fan-out (not just
+      // the append) was blocked. Pre-fix, the loop reads+parses all 10 parts
+      // (each individually under MAX_DRAWING_OBJECTS) before any cap fires.
+      expect(imagePushes).toBe(0)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+
+  it('admits a sheet whose drawing-rel count is exactly at the cap (valid doc not rejected)', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_DRAWING_RELS: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze } = await import('../services/xlsxService.js')
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      const drawingParts = Array.from({ length: 5 }, (_, i) => ({
+        drawings: [{ kind: 'pic' as const, descr: `p${i}` }],
+      }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawingParts }] })
+      const a = await analyze(buf)
+      expect(a.images).toHaveLength(5) // count == cap, not > cap → processed normally
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+
+  it('a single part with many OBJECTS (not many rels) is still caught by the pre-existing MAX_DRAWING_OBJECTS cap, unaffected by this fix', async () => {
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { XLSX: Record<string, unknown> }
+      return { ...actual, XLSX: { ...actual.XLSX, MAX_DRAWING_OBJECTS: 5, MAX_DRAWING_RELS: 5 } }
+    })
+    try {
+      const { analyzeXlsx: analyze, XlsxParseError: ParseError } = await import(
+        '../services/xlsxService.js'
+      )
+      const { buildXlsx: build } = await import('./helpers/minimalXlsx.js')
+      // ONE drawing rel/part (well under MAX_DRAWING_RELS), 10 objects
+      // inside it (over MAX_DRAWING_OBJECTS) — the pre-existing per-part cap
+      // still fires; the new rel-count cap is a no-op here.
+      const drawings = Array.from({ length: 10 }, () => ({ kind: 'pic' as const, descr: 'x' }))
+      const buf = await build({ sheets: [{ name: 'S', dimensionRef: 'A1:B2', drawings }] })
+      await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
+})
+
 describe('xlsxService: styles contrast', () => {
   it('fails a low-contrast font/fill pair and labels it by style index', async () => {
     const buf = await buildXlsx({

@@ -492,6 +492,17 @@ export const XLSX = {
    *  legitimate workbook while bounding the fan-out. SAFE TO CHANGE. */
   MAX_TABLES: 10_000,
 
+  /** Max total distinct drawing PARTS (relationships) across all sheets;
+   *  over the cap → rejected. A legitimate sheet has ~1 drawing rel (Excel
+   *  packs every drawing on a sheet into one drawingN.xml). Same fan-out
+   *  READ-amplifier class as MAX_TABLES: each `/drawing` rel triggers a
+   *  drawing-PART read + parse BEFORE MAX_DRAWING_OBJECTS can even be
+   *  checked against that part's content, bounded only by the 30 MB
+   *  rels-part cap (~300k rels/sheet) × MAX_SHEETS. Pre-counted before any
+   *  drawing part is read (see collectSheetContent) — mirrors MAX_TABLES'S
+   *  pre-count-before-read pattern exactly. SAFE TO CHANGE. */
+  MAX_DRAWING_RELS: 10_000,
+
   /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
    *  SAFE TO CHANGE. */
   ANALYSIS_TIMEOUT_MS: 20_000,

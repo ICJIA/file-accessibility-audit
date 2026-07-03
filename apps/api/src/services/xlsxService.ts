@@ -13,12 +13,13 @@
  * is evaluated only for cellXfs styles applied to a non-empty cell, so
  * unused/template styles (openpyxl, PhpSpreadsheet routinely emit these)
  * can't produce a false WCAG 1.4.3 finding; (3) defined tables, drawing
- * objects, and hyperlinks are capped by pre-counting the source rels/elements
- * and checking the accumulated total BEFORE the read/append loops (so one
- * oversized part can't flood the arrays — or force a huge table-part read
- * fan-out — before the check fires), bounded across all sheets — mirroring
- * pptxService's countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk
- * pattern.
+ * PARTS (rels), drawing objects (within an already-read part), and
+ * hyperlinks are ALL capped by pre-counting the source rels/elements and
+ * checking the accumulated total BEFORE the read/append loops (so one
+ * oversized part can't flood the arrays — or a sheet declaring many drawing/
+ * table rels can't force a huge read+parse fan-out — before the check
+ * fires), bounded across all sheets — mirroring pptxService's
+ * countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk pattern.
  */
 import JSZip from "jszip";
 import { XLSX } from "#config";
@@ -192,11 +193,11 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
 
   let totalCells = 0;
   const appliedStyleIndices = new Set<number>();
-  // Cross-sheet accumulators for the defined-table, drawing-object, and
-  // hyperlink caps (FIX C). Kept local (not on XlsxAnalysis) so the analysis
-  // OUTPUT shape is unchanged for valid workbooks — mirrors pptx's local
-  // textElementCount.
-  const contentCounts = { tables: 0, drawingObjects: 0, hyperlinks: 0 };
+  // Cross-sheet accumulators for the defined-table, drawing-REL, drawing-
+  // object, and hyperlink caps (FIX C, + D1 pre-merge re-audit). Kept local
+  // (not on XlsxAnalysis) so the analysis OUTPUT shape is unchanged for
+  // valid workbooks — mirrors pptx's local textElementCount.
+  const contentCounts = { tables: 0, drawingRels: 0, drawingObjects: 0, hyperlinks: 0 };
   for (const sheetEl of sheetEls) {
     const name = attrOf(sheetEl, "name") ?? "";
     const state = attrOf(sheetEl, "state");
@@ -251,7 +252,7 @@ async function collectSheetContent(
   sheetRoot: PONode | undefined,
   sheetRels: Array<{ id: string; target: string; type: string }>,
   read: (p: string) => Promise<string | null>,
-  counts: { tables: number; drawingObjects: number; hyperlinks: number },
+  counts: { tables: number; drawingRels: number; drawingObjects: number; hyperlinks: number },
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
@@ -285,7 +286,26 @@ async function collectSheetContent(
   // twoCellAnchor, or absoluteAnchor); an anchor may hold several drawable
   // objects when shapes are grouped (xdr:grpSp). Collect every picture and
   // chart frame so grouped/second objects are never silently dropped.
-  for (const rel of sheetRels.filter((r) => /\/drawing$/.test(r.type))) {
+  //
+  // D1 (pre-merge re-audit, pre-count cap-before-walk): each /drawing rel
+  // triggers a drawing-PART read + parse (await read → parseXml) — a
+  // fan-out READ amplifier, bounded only by the 30 MB rels-part cap (~300k
+  // rels/sheet) × MAX_SHEETS — exactly the same bug class as FIX C's table
+  // rels above, but this loop was missed by that fix: previously the loop
+  // read+parsed EVERY matching rel's target before the MAX_DRAWING_OBJECTS
+  // check (further below) could ever fire on that part's content, so a
+  // sheet declaring many drawing rels pointing at large-but-object-sparse
+  // parts forced unbounded read+parse work. Count the rels and check the
+  // accumulated cap BEFORE any part in this loop is read. `counts`
+  // accumulates across sheets, mirroring counts.tables above.
+  const drawingRels = sheetRels.filter((r) => /\/drawing$/.test(r.type));
+  counts.drawingRels += drawingRels.length;
+  if (counts.drawingRels > XLSX.MAX_DRAWING_RELS) {
+    throw new XlsxParseError(
+      `This workbook has too many drawing parts (${counts.drawingRels.toLocaleString()}+) to analyze.`,
+    );
+  }
+  for (const rel of drawingRels) {
     const drawingRoot = rootElement(
       parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
       "wsDr",

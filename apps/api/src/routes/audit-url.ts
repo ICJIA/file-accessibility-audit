@@ -15,6 +15,7 @@ import {
   validateUrlPublic,
 } from '../services/urlPolicy.js'
 import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
+import { sanitizeStoredReport } from '../services/reportSanitize.js'
 
 const router: IRouter = Router()
 
@@ -213,6 +214,20 @@ router.post(
       // so cached responses can return the original audit time later.
       const persistPayload = { ...result, audited }
 
+      // F3 [LOW, defense-in-depth, pre-merge re-audit finding]: reports.ts
+      // runs every stored report through sanitizeStoredReport() before it's
+      // written (strips unsafe helpLinks[].url / neutralizes conformance
+      // finding urls anywhere in the payload — a stored-XSS guard on the
+      // public /report/:id page). This insert skipped that call. It's a
+      // no-op for analyzeDocument's own output today (its helpLinks/
+      // conformance urls aren't attacker-shaped), but applying the same
+      // sanitizer here keeps the store boundary consistently enforced.
+      // Fall back to the unsanitized payload on the
+      // (structurally-shouldn't-happen-for-internal-output) failure case
+      // rather than newly failing an otherwise-successful audit over it.
+      const sanitized = sanitizeStoredReport(persistPayload)
+      const reportToStore = sanitized.ok ? sanitized.report : persistPayload
+
       db.prepare(
         `INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
            VALUES (?, ?, ?, ?, ?, ?)`,
@@ -220,7 +235,7 @@ router.post(
         id,
         req.user!.email,
         filename,
-        JSON.stringify(persistPayload),
+        JSON.stringify(reportToStore),
         contentHash,
         reportExpiresAt,
       )

@@ -15,6 +15,7 @@ describe('XLSX config', () => {
     expect(XLSX.MAX_DRAWING_OBJECTS).toBe(100_000)
     expect(XLSX.MAX_HYPERLINKS).toBe(100_000)
     expect(XLSX.MAX_TABLES).toBe(10_000)
+    expect(XLSX.MAX_DRAWING_RELS).toBe(10_000)
     expect(XLSX.ANALYSIS_TIMEOUT_MS).toBe(20_000)
     const w = XLSX.SCORING_WEIGHTS
     expect(w.text_extractability).toBe(0.05)

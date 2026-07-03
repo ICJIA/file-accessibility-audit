@@ -111,6 +111,39 @@ function makeRes(): Response & { _status: number; _json: any } {
 // We import the router module and extract the handler via a thin test shim
 // rather than routing through the full Express stack — keeps tests fast.
 // The handler is the third argument passed to router.post().
+//
+// Express stores each router.post(path, mw1, mw2, handler) registration as
+// a Layer whose `.route.stack` is the ordered list of per-handler Layers;
+// `.handle` on the LAST one is the actual async route handler function
+// (authMiddleware / reportsLimiter are the earlier ones — irrelevant to the
+// error-message-leak and store-sanitize regressions these tests pin, so
+// bypassing them here is deliberate, not an oversight). This exercises the
+// REAL route module — not a hand-copied mirror of its logic — while staying
+// supertest-free (no HTTP listener, no Express app assembly).
+function extractHandler(router: unknown, path: string): (req: any, res: any) => Promise<void> {
+  const stack = (router as { stack: any[] }).stack
+  const layer = stack.find((l) => l.route?.path === path)
+  if (!layer) throw new Error(`extractHandler: no route registered for ${path}`)
+  const routeStack = layer.route.stack
+  return routeStack[routeStack.length - 1].handle
+}
+
+// A db.prepare/.run double that records every .run() call's arguments keyed
+// by the exact SQL text passed to .prepare() — used by the F3 store-sanitize
+// tests below to find the args passed to the shared_reports INSERT
+// specifically (auditLog.ts also prepares+runs an unrelated audit_log
+// INSERT during the same request; keying by SQL avoids relying on call
+// order between the two).
+function makeSqlCapturingDb() {
+  const runCallsBySql: Record<string, unknown[][]> = {}
+  const prepare = vi.fn((sql: string) => ({
+    get: vi.fn(),
+    run: vi.fn((...args: unknown[]) => {
+      ;(runCallsBySql[sql] ??= []).push(args)
+    }),
+  }))
+  return { db: { prepare }, runCallsBySql }
+}
 
 // Helper: build a minimal NDJSON inventory string
 function buildInventory(entries: object[], headerMeta?: object): string {
@@ -601,5 +634,222 @@ describe('bulk-from-inventory: result structure', () => {
     expect(result.grade).toBeUndefined()
     expect(result.reportId).toBeUndefined()
     expect(result.error).toContain('404')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F2 [MEDIUM] pre-merge re-audit finding: neither catch block in this route
+// should echo raw err.message to the client (library internals / paths can
+// leak). These invoke the REAL route handler (via extractHandler above), not
+// a reimplementation, so they pin the actual source, not a copy of it.
+// ---------------------------------------------------------------------------
+
+describe('bulk-from-inventory: does not leak err.message to the client (F2, pre-merge re-audit)', () => {
+  it('[outer catch] an unexpected error before entry processing never echoes err.message to the client; still logged server-side', async () => {
+    const { default: router } = await import('../routes/bulk-from-inventory.js')
+    const handler = extractHandler(router, '/bulk-from-inventory')
+    const secretMessage = 'ENOENT: /var/secrets/internal-config.json leaked here'
+    const req = makeReq({
+      // req.get() is the first thing the route touches inside its outer
+      // try — throwing here simulates ANY unexpected failure before entry
+      // processing starts, exercising the outer catch generically.
+      get: vi.fn(() => {
+        throw new Error(secretMessage)
+      }),
+    })
+    const res = makeRes()
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await handler(req, res)
+
+    expect(res._status).toBe(500)
+    expect(res._json).toEqual({ error: 'Internal error during bulk processing.' })
+    expect(JSON.stringify(res._json)).not.toContain(secretMessage)
+
+    // Server-side visibility is preserved — only the CLIENT response changed.
+    expect(consoleErrorSpy).toHaveBeenCalled()
+    const logged = consoleErrorSpy.mock.calls.map((c) => c.map(String).join(' ')).join('\n')
+    expect(logged).toContain(secretMessage)
+
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('[per-entry catch-all] an entry whose analysis throws a non-coded Error does not leak err.message in the per-file result', async () => {
+    vi.resetModules()
+    vi.doMock('../services/analyzer.js', () => ({
+      detectFileType: vi.fn().mockResolvedValue('pdf'),
+      analyzeDocument: vi.fn().mockRejectedValue(new Error('/internal/stack/trace/leaked-here.ts:42')),
+    }))
+    vi.doMock('../services/safeFetch.js', () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from('%PDF-1.4 minimal'),
+        finalUrl: 'https://example.com/a.pdf',
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }))
+    try {
+      const { default: router } = await import('../routes/bulk-from-inventory.js')
+      const handler = extractHandler(router, '/bulk-from-inventory')
+      const inventory = buildInventory([
+        { path: 'a.pdf', filename: 'a.pdf', category: 'pdf', publicUrl: 'https://example.com/a.pdf' },
+      ])
+      const req = makeReq({ body: { inventory, filterCategory: 'pdf' } })
+      const res = makeRes()
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      await handler(req, res)
+
+      consoleErrorSpy.mockRestore()
+      expect(res._json.results).toHaveLength(1)
+      const result = res._json.results[0]
+      expect(result.overallScore).toBeUndefined()
+      expect(result.error).toBeTruthy()
+      expect(result.error).not.toContain('/internal/stack/trace')
+      expect(result.error).toBe('Analysis failed for this item.')
+    } finally {
+      vi.doUnmock('../services/analyzer.js')
+      vi.doUnmock('../services/safeFetch.js')
+      vi.resetModules()
+    }
+  })
+
+  it('the specific error-code → message mapping (DOCX_PARSE_FAILED etc.) still works — only the raw-message FALLBACK changed', async () => {
+    vi.resetModules()
+    vi.doMock('../services/analyzer.js', () => ({
+      detectFileType: vi.fn().mockResolvedValue('docx'),
+      analyzeDocument: vi.fn().mockRejectedValue(Object.assign(new Error('ignored'), { code: 'DOCX_PARSE_FAILED' })),
+    }))
+    vi.doMock('../services/safeFetch.js', () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from('PK minimal'),
+        finalUrl: 'https://example.com/a.docx',
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }))
+    try {
+      const { default: router } = await import('../routes/bulk-from-inventory.js')
+      const handler = extractHandler(router, '/bulk-from-inventory')
+      const inventory = buildInventory([
+        { path: 'a.docx', filename: 'a.docx', category: 'docx', publicUrl: 'https://example.com/a.docx' },
+      ])
+      const req = makeReq({ body: { inventory, filterCategory: 'docx' } })
+      const res = makeRes()
+      await handler(req, res)
+      expect(res._json.results[0].error).toMatch(/Word \(\.docx\) file could not be read/)
+    } finally {
+      vi.doUnmock('../services/analyzer.js')
+      vi.doUnmock('../services/safeFetch.js')
+      vi.resetModules()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F3 [LOW, defense-in-depth] pre-merge re-audit finding: reports.ts's
+// POST /api/reports runs sanitizeStoredReport() on a report before it is
+// ever written to shared_reports (strips unsafe helpLinks[].url anywhere in
+// the payload — a stored-XSS guard). bulk-from-inventory.ts's own
+// shared_reports INSERT skipped that call, so its stored report_json wasn't
+// covered by the same store-boundary invariant. No exploit today (analyzer
+// output isn't attacker-shaped), but the fix applies the SAME sanitizer here
+// for consistency — this pins that it actually runs, via the REAL route.
+// ---------------------------------------------------------------------------
+
+describe('bulk-from-inventory: sanitizeStoredReport applied before shared_reports insert (F3, store-boundary hardening)', () => {
+  it('neutralizes an unsafe helpLinks URL in the analysis result before it is persisted', async () => {
+    vi.resetModules()
+    const { db, runCallsBySql } = makeSqlCapturingDb()
+    vi.doMock('../db/sqlite.js', () => ({ default: db }))
+    vi.doMock('../services/analyzer.js', () => ({
+      detectFileType: vi.fn().mockResolvedValue('pdf'),
+      analyzeDocument: vi.fn().mockResolvedValue({
+        overallScore: 91,
+        grade: 'A',
+        categories: [
+          {
+            id: 'alt_text',
+            helpLinks: [{ label: 'Evil', url: 'javascript:alert(document.domain)' }],
+          },
+        ],
+      }),
+    }))
+    vi.doMock('../services/safeFetch.js', () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from('%PDF-1.4 minimal'),
+        finalUrl: 'https://example.com/a.pdf',
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }))
+    try {
+      const { default: router } = await import('../routes/bulk-from-inventory.js')
+      const handler = extractHandler(router, '/bulk-from-inventory')
+      const inventory = buildInventory([
+        { path: 'a.pdf', filename: 'a.pdf', category: 'pdf', publicUrl: 'https://example.com/a.pdf' },
+      ])
+      const req = makeReq({ body: { inventory, filterCategory: 'pdf' } })
+      const res = makeRes()
+
+      await handler(req, res)
+
+      expect(res._json.results[0].overallScore).toBe(91)
+      const sql = Object.keys(runCallsBySql).find((s) => s.includes('INSERT INTO shared_reports'))
+      expect(sql).toBeTruthy()
+      const insertArgs = runCallsBySql[sql!][0]
+      // INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
+      const storedReportJson = insertArgs[3] as string
+      const stored = JSON.parse(storedReportJson)
+      expect(stored.categories[0].helpLinks).toEqual([])
+      expect(storedReportJson).not.toContain('javascript:')
+    } finally {
+      vi.doUnmock('../db/sqlite.js')
+      vi.doUnmock('../services/analyzer.js')
+      vi.doUnmock('../services/safeFetch.js')
+      vi.resetModules()
+    }
+  })
+
+  it('a report with no unsafe URLs is stored unchanged (sanitization is a no-op on safe data)', async () => {
+    vi.resetModules()
+    const { db, runCallsBySql } = makeSqlCapturingDb()
+    vi.doMock('../db/sqlite.js', () => ({ default: db }))
+    vi.doMock('../services/analyzer.js', () => ({
+      detectFileType: vi.fn().mockResolvedValue('pdf'),
+      analyzeDocument: vi.fn().mockResolvedValue({
+        overallScore: 100,
+        grade: 'A',
+        categories: [{ id: 'alt_text', helpLinks: [{ label: 'WCAG', url: 'https://www.w3.org/WAI/' }] }],
+      }),
+    }))
+    vi.doMock('../services/safeFetch.js', () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from('%PDF-1.4 minimal'),
+        finalUrl: 'https://example.com/clean.pdf',
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }))
+    try {
+      const { default: router } = await import('../routes/bulk-from-inventory.js')
+      const handler = extractHandler(router, '/bulk-from-inventory')
+      const inventory = buildInventory([
+        { path: 'clean.pdf', filename: 'clean.pdf', category: 'pdf', publicUrl: 'https://example.com/clean.pdf' },
+      ])
+      const req = makeReq({ body: { inventory, filterCategory: 'pdf' } })
+      const res = makeRes()
+
+      await handler(req, res)
+
+      const sql = Object.keys(runCallsBySql).find((s) => s.includes('INSERT INTO shared_reports'))
+      const stored = JSON.parse(runCallsBySql[sql!][0][3] as string)
+      expect(stored.categories[0].helpLinks).toEqual([{ label: 'WCAG', url: 'https://www.w3.org/WAI/' }])
+    } finally {
+      vi.doUnmock('../db/sqlite.js')
+      vi.doUnmock('../services/analyzer.js')
+      vi.doUnmock('../services/safeFetch.js')
+      vi.resetModules()
+    }
   })
 })

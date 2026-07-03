@@ -39,6 +39,45 @@ function makeRes() {
   return res
 }
 
+function makeReq(overrides: Record<string, unknown> = {}): any {
+  return {
+    user: { email: 'test@illinois.gov' },
+    body: {},
+    query: {},
+    get: vi.fn(() => undefined),
+    ...overrides,
+  }
+}
+
+// Express stores each router.post(path, mw1, mw2, handler) registration as a
+// Layer whose `.route.stack` is the ordered list of per-handler Layers;
+// `.handle` on the LAST one is the actual async route handler function
+// (authMiddleware / analyzeLimiter are the earlier ones). This exercises the
+// REAL route module for the F3 store-sanitize test below — not a
+// reimplementation — while staying supertest-free.
+function extractHandler(router: unknown, path: string): (req: any, res: any) => Promise<void> {
+  const stack = (router as { stack: any[] }).stack
+  const layer = stack.find((l) => l.route?.path === path)
+  if (!layer) throw new Error(`extractHandler: no route registered for ${path}`)
+  const routeStack = layer.route.stack
+  return routeStack[routeStack.length - 1].handle
+}
+
+// db.prepare/.run double that records every .run() call's args keyed by the
+// exact SQL text — lets the F3 test below find the shared_reports INSERT's
+// args specifically (the dedup SELECT and auditLog's audit_log INSERT also
+// go through the same mocked db.prepare during the same request).
+function makeSqlCapturingDb() {
+  const runCallsBySql: Record<string, unknown[][]> = {}
+  const prepare = vi.fn((sql: string) => ({
+    get: vi.fn(() => undefined), // no dedup hit — forces the fresh-audit path
+    run: vi.fn((...args: unknown[]) => {
+      ;(runCallsBySql[sql] ??= []).push(args)
+    }),
+  }))
+  return { db: { prepare }, runCallsBySql }
+}
+
 // ---------------------------------------------------------------------------
 // Inline reimplementations of the pure helpers in audit-url.ts. We can't
 // import the module directly because it pulls in #config which vitest's
@@ -383,5 +422,129 @@ describe('audit-url: error-code → HTTP-status mapping', () => {
     expect(res._status).toBe(500)
     expect(res._json).toEqual({ error: 'Internal server error' })
     expect(JSON.stringify(res._json)).not.toContain(err.message)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F3 [LOW, defense-in-depth] pre-merge re-audit finding: reports.ts's
+// POST /api/reports runs sanitizeStoredReport() on a report before it is
+// ever written to shared_reports (strips unsafe helpLinks[].url anywhere in
+// the payload — a stored-XSS guard on the public /report/:id page).
+// audit-url.ts's own shared_reports INSERT skipped that call. No exploit
+// today (analyzeDocument's output isn't attacker-shaped), but the fix
+// applies the SAME sanitizer here for store-boundary consistency. This
+// invokes the REAL route handler (via extractHandler above), not a
+// reimplementation, so it pins the actual source.
+// ---------------------------------------------------------------------------
+
+describe('audit-url: sanitizeStoredReport applied before shared_reports insert (F3, store-boundary hardening)', () => {
+  it('neutralizes an unsafe helpLinks URL in the analysis result before it is persisted', async () => {
+    vi.resetModules()
+    const { db, runCallsBySql } = makeSqlCapturingDb()
+    vi.doMock('../db/sqlite.js', () => ({ default: db }))
+    vi.doMock('../services/analyzer.js', () => ({
+      detectFileType: vi.fn().mockResolvedValue('pdf'),
+      analyzeDocument: vi.fn().mockResolvedValue({
+        overallScore: 91,
+        grade: 'A',
+        categories: [
+          {
+            id: 'alt_text',
+            helpLinks: [{ label: 'Evil', url: 'javascript:alert(document.domain)' }],
+          },
+        ],
+      }),
+    }))
+    vi.doMock('../services/safeFetch.js', () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from('%PDF-1.4 minimal'),
+        finalUrl: 'https://example.gov/a.pdf',
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }))
+    vi.doMock('../services/urlPolicy.js', () => ({
+      isAllowedUrl: vi.fn(() => ({ ok: true })),
+      sendSafeFetchError: vi.fn(),
+      validateUrlForFetch: vi.fn(),
+      validateUrlPublic: vi.fn(),
+      FETCH_TIMEOUT_MS: 30_000,
+      MAX_PDF_BYTES: 15 * 1024 * 1024,
+    }))
+    try {
+      const { default: router } = await import('../routes/audit-url.js')
+      const handler = extractHandler(router, '/audit-url')
+      const req = makeReq({ body: { url: 'https://example.gov/a.pdf' } })
+      const res = makeRes()
+
+      await handler(req, res)
+
+      // Sanity: the request actually succeeded down the fresh-audit path
+      // (not an error branch) before checking what got persisted.
+      expect(res._json?.reportId).toBeTruthy()
+
+      const sql = Object.keys(runCallsBySql).find((s) => s.includes('INSERT INTO shared_reports'))
+      expect(sql).toBeTruthy()
+      const insertArgs = runCallsBySql[sql!][0]
+      // INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
+      const storedReportJson = insertArgs[3] as string
+      const stored = JSON.parse(storedReportJson)
+      expect(stored.categories[0].helpLinks).toEqual([])
+      expect(storedReportJson).not.toContain('javascript:')
+    } finally {
+      vi.doUnmock('../db/sqlite.js')
+      vi.doUnmock('../services/analyzer.js')
+      vi.doUnmock('../services/safeFetch.js')
+      vi.doUnmock('../services/urlPolicy.js')
+      vi.resetModules()
+    }
+  })
+
+  it('a report with no unsafe URLs is stored unchanged (sanitization is a no-op on safe data)', async () => {
+    vi.resetModules()
+    const { db, runCallsBySql } = makeSqlCapturingDb()
+    vi.doMock('../db/sqlite.js', () => ({ default: db }))
+    vi.doMock('../services/analyzer.js', () => ({
+      detectFileType: vi.fn().mockResolvedValue('pdf'),
+      analyzeDocument: vi.fn().mockResolvedValue({
+        overallScore: 100,
+        grade: 'A',
+        categories: [{ id: 'alt_text', helpLinks: [{ label: 'WCAG', url: 'https://www.w3.org/WAI/' }] }],
+      }),
+    }))
+    vi.doMock('../services/safeFetch.js', () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from('%PDF-1.4 minimal'),
+        finalUrl: 'https://example.gov/clean.pdf',
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }))
+    vi.doMock('../services/urlPolicy.js', () => ({
+      isAllowedUrl: vi.fn(() => ({ ok: true })),
+      sendSafeFetchError: vi.fn(),
+      validateUrlForFetch: vi.fn(),
+      validateUrlPublic: vi.fn(),
+      FETCH_TIMEOUT_MS: 30_000,
+      MAX_PDF_BYTES: 15 * 1024 * 1024,
+    }))
+    try {
+      const { default: router } = await import('../routes/audit-url.js')
+      const handler = extractHandler(router, '/audit-url')
+      const req = makeReq({ body: { url: 'https://example.gov/clean.pdf' } })
+      const res = makeRes()
+
+      await handler(req, res)
+
+      const sql = Object.keys(runCallsBySql).find((s) => s.includes('INSERT INTO shared_reports'))
+      const stored = JSON.parse(runCallsBySql[sql!][0][3] as string)
+      expect(stored.categories[0].helpLinks).toEqual([{ label: 'WCAG', url: 'https://www.w3.org/WAI/' }])
+    } finally {
+      vi.doUnmock('../db/sqlite.js')
+      vi.doUnmock('../services/analyzer.js')
+      vi.doUnmock('../services/safeFetch.js')
+      vi.doUnmock('../services/urlPolicy.js')
+      vi.resetModules()
+    }
   })
 })

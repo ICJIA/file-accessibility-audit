@@ -8,6 +8,7 @@ import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
 import { validateUrlForFetch } from '../services/urlPolicy.js'
 import { SHARED_REPORTS } from '#config'
 import db from '../db/sqlite.js'
+import { sanitizeStoredReport } from '../services/reportSanitize.js'
 
 const router: IRouter = Router()
 
@@ -271,13 +272,27 @@ router.post(
           const expiresAt = new Date()
           expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
 
+          // F3 [LOW, defense-in-depth, pre-merge re-audit finding]: reports.ts
+          // runs every stored report through sanitizeStoredReport() before
+          // it's written (strips unsafe helpLinks[].url / neutralizes
+          // conformance finding urls anywhere in the payload — a stored-XSS
+          // guard on the public /report/:id page). This insert skipped that
+          // call. It's a no-op for analyzeDocument's own output today (its
+          // helpLinks/conformance urls aren't attacker-shaped), but applying
+          // the same sanitizer here keeps the store boundary consistently
+          // enforced. Fall back to the unsanitized analysis on the
+          // (structurally-shouldn't-happen-for-internal-output) failure case
+          // rather than newly failing the whole batch entry over it.
+          const sanitized = sanitizeStoredReport(analysis)
+          const reportToStore = sanitized.ok ? sanitized.report : analysis
+
           db.prepare(
             'INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
           ).run(
             id,
             req.user!.email,
             entry.filename,
-            JSON.stringify(analysis),
+            JSON.stringify(reportToStore),
             contentHash,
             expiresAt.toISOString(),
           )
@@ -328,7 +343,13 @@ router.post(
           } else if (err?.message?.includes('encrypted') || err?.message?.includes('password')) {
             result.error = 'PDF is password-protected and cannot be analyzed'
           } else {
-            result.error = err?.message ?? String(err)
+            // F2 [MEDIUM, pre-merge re-audit finding]: never echo the raw
+            // err.message to the client — it can leak library internals /
+            // filesystem paths, same rationale as the outer catch below and
+            // audit-url.ts's / analyze-url.ts's generic-500 fallback. Log
+            // the detail server-side only.
+            console.error('Bulk-from-inventory per-entry analysis error:', err)
+            result.error = 'Analysis failed for this item.'
           }
         }
 
@@ -349,10 +370,14 @@ router.post(
         results,
       })
     } catch (err: any) {
+      // F2 [MEDIUM, pre-merge re-audit finding]: `details: err?.message` used
+      // to echo the raw thrown message to the client — never do that (it can
+      // leak library internals / filesystem paths). Log server-side only,
+      // same pattern as audit-url.ts's / analyze-url.ts's generic-500
+      // fallback and the per-entry catch-all above.
       console.error('Bulk-from-inventory error:', err)
       res.status(500).json({
         error: 'Internal error during bulk processing.',
-        details: err?.message,
       })
     }
   }

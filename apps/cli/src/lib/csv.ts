@@ -32,9 +32,24 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 const AUDIT_TOOL_BASE = "https://audit.icjia.app";
 
-function escapeCsvField(value: string | number | null | undefined): string {
+// CWE-1236 / OWASP CSV Injection: a field whose first character is one of
+// = + - @ (or, per OWASP, a leading tab/carriage-return) opens a live
+// formula when the exported CSV is opened in Excel/Google Sheets. Row data
+// here is sourced from a document's own metadata (e.g. Title), which is
+// attacker-controlled — a title of `=cmd|'/c calc'!A1` would otherwise
+// execute on open. Match against these leading characters only.
+const CSV_FORMULA_TRIGGER_RE = /^[=+\-@\t\r]/;
+
+export function escapeCsvField(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const str = String(value);
+  let str = String(value);
+  if (CSV_FORMULA_TRIGGER_RE.test(str)) {
+    // Prefix a single quote so spreadsheet apps treat the field as inert
+    // text instead of a formula. Applied BEFORE the comma/quote/newline
+    // quoting below so the neutralizer ends up inside the quoted field for
+    // values that need both guards.
+    str = "'" + str;
+  }
   if (
     str.includes(",") ||
     str.includes('"') ||

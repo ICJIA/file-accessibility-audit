@@ -22,6 +22,19 @@ export interface SheetOpts {
   /** Raw anchor XML appended verbatim inside the generated <xdr:wsDr>
    *  (the drawing part + rel are created when set, even if drawings is empty). */
   rawDrawings?: string;
+  /** Multiple SEPARATE drawing PARTS (rels) on this sheet — each entry
+   *  becomes its own xl/drawings/drawingN.xml + its own `/drawing`
+   *  relationship, unlike `drawings` (which packs multiple OBJECTS into a
+   *  single part/rel). Mirrors how `tables` produces one part+rel per
+   *  entry. Used to build fixtures for a cap on the COUNT of drawing rels
+   *  (a read/parse fan-out bound), as opposed to MAX_DRAWING_OBJECTS's cap
+   *  on objects found within one already-read part. When set, this takes
+   *  over drawing-part generation entirely (drawings/rawDrawings above are
+   *  ignored for this sheet). */
+  drawingParts?: Array<{
+    drawings?: SheetOpts["drawings"];
+    rawDrawings?: string;
+  }>;
   /** Real cells placed in <sheetData>, grouped into <row> elements by the row
    *  number parsed out of `ref` (e.g. "A1" → row 1). Each entry renders as
    *  `<c r="{ref}" s="{styleIndex}"><v>{value}</v></c>` (or the inline-string
@@ -182,9 +195,9 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
         `<Relationship Id="rIdT${tableIdx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${tableIdx}.xml"/>`,
       );
     });
-    if (s.drawings?.length || s.rawDrawings) {
+    const addDrawingPart = (drawings: SheetOpts["drawings"], rawDrawings: string | undefined) => {
       drawingIdx++;
-      const parts = (s.drawings ?? [])
+      const parts = (drawings ?? [])
         .map((d, di) => {
           const descr = d.descr !== undefined ? ` descr="${d.descr}"` : "";
           const dec = d.decorative
@@ -202,11 +215,17 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
         .join("");
       zip.file(
         `xl/drawings/drawing${drawingIdx}.xml`,
-        `<?xml version="1.0"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">${parts}${s.rawDrawings ?? ""}</xdr:wsDr>`,
+        `<?xml version="1.0"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">${parts}${rawDrawings ?? ""}</xdr:wsDr>`,
       );
       rels.push(
         `<Relationship Id="rIdD${drawingIdx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawingIdx}.xml"/>`,
       );
+    };
+    if (s.drawingParts?.length) {
+      // Multiple SEPARATE parts/rels — one addDrawingPart() call per entry.
+      s.drawingParts.forEach((p) => addDrawingPart(p.drawings, p.rawDrawings));
+    } else if (s.drawings?.length || s.rawDrawings) {
+      addDrawingPart(s.drawings, s.rawDrawings);
     }
     zip.file(
       `xl/worksheets/sheet${i + 1}.xml`,
