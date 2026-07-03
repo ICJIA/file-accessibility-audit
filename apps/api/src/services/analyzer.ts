@@ -12,13 +12,10 @@ import {
   analyzePDF,
   acquireSemaphore,
   releaseSemaphore,
-  withTimeout,
   type AnalysisResult,
 } from "./pdfAnalyzer.js";
-import { analyzeDocx, readCapped } from "./docxService.js";
-import { analyzePptx } from "./pptxService.js";
-import { analyzeXlsx } from "./xlsxService.js";
-import { scoreDocx, scorePptx, scoreXlsx } from "./scorer.js";
+import { readCapped } from "./docxService.js";
+import { runOoxmlInWorker } from "./ooxmlRunner.js";
 import { DOCX, PPTX, XLSX } from "#config";
 
 export type DetectedFileType = "pdf" | "docx" | "pptx" | "xlsx";
@@ -135,20 +132,25 @@ export async function analyzeDocument(
     }
     // Share the PDF pipeline's concurrency budget and add a wall-clock timeout,
     // so a malicious/pathological .docx can't exhaust memory or pin the box.
-    // Route error handling already maps 503 (semaphore full) and 504 (timeout).
+    // The analyze+score work runs in a dedicated child process (see
+    // ooxmlRunner.ts) so the timeout can genuinely SIGKILL a runaway
+    // synchronous analysis instead of merely abandoning it — releaseSemaphore
+    // below only fires once the child has truly replied or been killed, so a
+    // timed-out analysis can't keep burning CPU while its concurrency slot is
+    // already free for the next request. Route error handling already maps
+    // 503 (semaphore full) and 504 (timeout).
     await acquireSemaphore();
     try {
-      const analysis = await withTimeout(
-        analyzeDocx(buffer),
+      const { pageCount, metadata, scoring } = await runOoxmlInWorker(
+        "docx",
+        buffer,
         DOCX.ANALYSIS_TIMEOUT_MS,
-        "docx analysis timed out",
       );
-      const scoring = scoreDocx(analysis);
       return {
         filename,
-        pageCount: analysis.metadata.pageCount ?? 0,
+        pageCount,
         fileType: "docx",
-        docxMetadata: analysis.metadata,
+        docxMetadata: metadata,
         ...scoring,
       };
     } finally {
@@ -163,20 +165,20 @@ export async function analyzeDocument(
         "PowerPoint (.pptx) auditing is currently disabled on this server.",
       );
     }
-    // Same shared concurrency budget + wall-clock timeout as PDF/DOCX above.
+    // Same shared concurrency budget + child-process-enforced wall-clock
+    // timeout as DOCX above.
     await acquireSemaphore();
     try {
-      const analysis = await withTimeout(
-        analyzePptx(buffer),
+      const { pageCount, metadata, scoring } = await runOoxmlInWorker(
+        "pptx",
+        buffer,
         PPTX.ANALYSIS_TIMEOUT_MS,
-        "pptx analysis timed out",
       );
-      const scoring = scorePptx(analysis);
       return {
         filename,
-        pageCount: analysis.metadata.slideCount,
+        pageCount,
         fileType: "pptx",
-        pptxMetadata: analysis.metadata,
+        pptxMetadata: metadata,
         ...scoring,
       };
     } finally {
@@ -191,19 +193,20 @@ export async function analyzeDocument(
         "Excel (.xlsx) auditing is currently disabled on this server.",
       );
     }
+    // Same shared concurrency budget + child-process-enforced wall-clock
+    // timeout as DOCX/PPTX above.
     await acquireSemaphore();
     try {
-      const analysis = await withTimeout(
-        analyzeXlsx(buffer),
+      const { pageCount, metadata, scoring } = await runOoxmlInWorker(
+        "xlsx",
+        buffer,
         XLSX.ANALYSIS_TIMEOUT_MS,
-        "xlsx analysis timed out",
       );
-      const scoring = scoreXlsx(analysis);
       return {
         filename,
-        pageCount: analysis.metadata.sheetCount,
+        pageCount,
         fileType: "xlsx",
-        xlsxMetadata: analysis.metadata,
+        xlsxMetadata: metadata,
         ...scoring,
       };
     } finally {
