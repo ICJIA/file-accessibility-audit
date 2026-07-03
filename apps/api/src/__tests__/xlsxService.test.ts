@@ -76,6 +76,27 @@ describe('xlsxService: tables, drawings, links', () => {
     ])
   })
 
+  it('finds a picture inside a twoCellAnchor (real Excel default)', async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: 'T', dimensionRef: 'A1:B2', drawings: [{ kind: 'pic', descr: 'Two-cell anchored', anchor: 'twoCell' }] }],
+    })
+    const a = await analyzeXlsx(buf)
+    expect(a.images).toEqual([{ altText: 'Two-cell anchored', decorative: false }])
+  })
+
+  it('collects every object in a grouped anchor (nothing silently dropped)', async () => {
+    const grp = `<xdr:oneCellAnchor><xdr:grpSp><xdr:nvGrpSpPr><xdr:cNvPr id="30" name="Group"/><xdr:cNvGrpSpPr/></xdr:nvGrpSpPr>
+      <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="31" name="p" descr="Grouped photo"/><xdr:cNvPicPr/></xdr:nvPicPr></xdr:pic>
+      <xdr:graphicFrame><xdr:nvGraphicFramePr><xdr:cNvPr id="32" name="c"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr></xdr:graphicFrame>
+    </xdr:grpSp></xdr:oneCellAnchor>`
+    const buf = await buildXlsx({ sheets: [{ name: 'G', dimensionRef: 'A1:B2', rawDrawings: grp }] })
+    const a = await analyzeXlsx(buf)
+    expect(a.images).toEqual([
+      { altText: 'Grouped photo', decorative: false },
+      { altText: null, decorative: false },
+    ])
+  })
+
   it('reads hyperlinks with display text, and "" when display is absent', async () => {
     const buf = await buildXlsx({
       sheets: [{

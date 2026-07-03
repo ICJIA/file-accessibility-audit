@@ -202,17 +202,18 @@ async function collectSheetContent(
     });
   }
 
-  // Drawings: pictures + chart frames need alt text (shared DrawingML descr).
+  // Drawings: each direct child of wsDr is an anchor (oneCellAnchor,
+  // twoCellAnchor, or absoluteAnchor); an anchor may hold several drawable
+  // objects when shapes are grouped (xdr:grpSp). Collect every picture and
+  // chart frame so grouped/second objects are never silently dropped.
   for (const rel of sheetRels.filter((r) => /\/drawing$/.test(r.type))) {
     const drawingRoot = rootElement(
       parseXml(await read(resolveXlTarget(rel.target, "xl/worksheets"))),
       "wsDr",
     );
     if (!drawingRoot) continue;
-    // Process drawings in document order (each oneCellAnchor contains pic or graphicFrame).
     for (const anchor of childrenOf(drawingRoot)) {
-      const obj = descendants(anchor, "pic")[0] || descendants(anchor, "graphicFrame")[0];
-      if (obj) {
+      for (const obj of [...descendants(anchor, "pic"), ...descendants(anchor, "graphicFrame")]) {
         const cNvPr = descendants(obj, "cNvPr")[0];
         if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
       }

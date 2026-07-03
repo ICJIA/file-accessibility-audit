@@ -12,8 +12,16 @@ export interface SheetOpts {
   hyperlinks?: Array<{ id: string; target: string; display?: string }>;
   /** Defined tables attached to this sheet. headerRowCount: undefined = attr absent (header ON). */
   tables?: Array<{ name: string; headerRowCount?: 0 | 1 }>;
-  /** Drawing objects on this sheet. */
-  drawings?: Array<{ kind: "pic" | "chart"; descr?: string; decorative?: boolean }>;
+  /** Drawing objects on this sheet. anchor defaults to "oneCell". */
+  drawings?: Array<{
+    kind: "pic" | "chart";
+    descr?: string;
+    decorative?: boolean;
+    anchor?: "oneCell" | "twoCell";
+  }>;
+  /** Raw anchor XML appended verbatim inside the generated <xdr:wsDr>
+   *  (the drawing part + rel are created when set, even if drawings is empty). */
+  rawDrawings?: string;
 }
 
 export interface BuildXlsxOpts {
@@ -124,23 +132,27 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
         `<Relationship Id="rIdT${tableIdx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${tableIdx}.xml"/>`,
       );
     });
-    if (s.drawings?.length) {
+    if (s.drawings?.length || s.rawDrawings) {
       drawingIdx++;
-      const parts = s.drawings
+      const parts = (s.drawings ?? [])
         .map((d, di) => {
           const descr = d.descr !== undefined ? ` descr="${d.descr}"` : "";
           const dec = d.decorative
             ? `<a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{X}"><adec:decorative xmlns:adec="http://schemas.microsoft.com/office/drawing/2017/decorative" val="1"/></a:ext></a:extLst>`
             : "";
           const cNvPr = `<xdr:cNvPr id="${di + 2}" name="obj"${descr}>${dec}</xdr:cNvPr>`;
-          return d.kind === "pic"
-            ? `<xdr:oneCellAnchor><xdr:pic><xdr:nvPicPr>${cNvPr}<xdr:cNvPicPr/></xdr:nvPicPr></xdr:pic></xdr:oneCellAnchor>`
-            : `<xdr:oneCellAnchor><xdr:graphicFrame><xdr:nvGraphicFramePr>${cNvPr}<xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr></xdr:graphicFrame></xdr:oneCellAnchor>`;
+          const shape =
+            d.kind === "pic"
+              ? `<xdr:pic><xdr:nvPicPr>${cNvPr}<xdr:cNvPicPr/></xdr:nvPicPr></xdr:pic>`
+              : `<xdr:graphicFrame><xdr:nvGraphicFramePr>${cNvPr}<xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr></xdr:graphicFrame>`;
+          return d.anchor === "twoCell"
+            ? `<xdr:twoCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>10</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>${shape}</xdr:twoCellAnchor>`
+            : `<xdr:oneCellAnchor>${shape}</xdr:oneCellAnchor>`;
         })
         .join("");
       zip.file(
         `xl/drawings/drawing${drawingIdx}.xml`,
-        `<?xml version="1.0"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">${parts}</xdr:wsDr>`,
+        `<?xml version="1.0"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing">${parts}${s.rawDrawings ?? ""}</xdr:wsDr>`,
       );
       rels.push(
         `<Relationship Id="rIdD${drawingIdx}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawingIdx}.xml"/>`,
