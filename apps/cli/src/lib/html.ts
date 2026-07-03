@@ -1,5 +1,8 @@
 import type { CachedRow } from './cache.js'
-import { CATEGORY_IDS, CATEGORY_LABELS, sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
+// RB3-1: CATEGORY_IDS/CATEGORY_LABELS now come from the single shared
+// categories.ts (previously imported from csv.js's own hand-synced copy).
+import { CATEGORY_IDS, CATEGORY_LABELS } from './categories.js'
+import { sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
 
 const GRADE_COLORS: Record<string, string> = {
   A: '#22c55e',

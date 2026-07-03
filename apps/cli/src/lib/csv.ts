@@ -1,34 +1,9 @@
 import type { CachedRow } from "./cache.js";
-
-export const CATEGORY_IDS = [
-  "text_extractability",
-  "title_language",
-  "heading_structure",
-  "alt_text",
-  "pdf_ua_compliance",
-  "bookmarks",
-  "table_markup",
-  "color_contrast",
-  "link_quality",
-  "reading_order",
-  "form_accessibility",
-  "supplementary",
-] as const;
-
-export const CATEGORY_LABELS: Record<string, string> = {
-  text_extractability: "Text Extractability",
-  title_language: "Title & Language",
-  heading_structure: "Heading Structure",
-  alt_text: "Alt Text",
-  pdf_ua_compliance: "PDF/UA Compliance",
-  bookmarks: "Bookmarks",
-  table_markup: "Table Markup",
-  color_contrast: "Color Contrast",
-  link_quality: "Link Quality",
-  reading_order: "Reading Order",
-  form_accessibility: "Form Accessibility",
-  supplementary: "Supplementary",
-};
+// RB3-1 [IMPORTANT, pre-merge re-audit]: CATEGORY_IDS/CATEGORY_LABELS used to
+// be defined here AND (separately) in cache.ts — two hand-synced lists that
+// silently drifted apart when the pptx/xlsx checkers added slide_titles/
+// sheet_names. Both now come from one shared, exported constant.
+import { CATEGORY_IDS, CATEGORY_LABELS } from "./categories.js";
 
 const AUDIT_TOOL_BASE = "https://audit.icjia.app";
 
