@@ -4,8 +4,8 @@ import { computed } from 'vue'
 interface Props {
   /** Tighter visual on result page, default for audit page. */
   variant?: 'audit' | 'result'
-  /** Analyzed file type — a .docx IS the source, so the framing flips. */
-  fileType?: 'pdf' | 'docx'
+  /** Analyzed file type — an OOXML file IS the source, so the framing flips. */
+  fileType?: 'pdf' | 'docx' | 'pptx' | 'xlsx'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -15,6 +15,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const isResult = computed(() => props.variant === 'result')
 const isDocx = computed(() => props.fileType === 'docx')
+const isPptx = computed(() => props.fileType === 'pptx')
+const isXlsx = computed(() => props.fileType === 'xlsx')
 </script>
 
 <template>
@@ -51,6 +53,28 @@ const isDocx = computed(() => props.fileType === 'docx')
           automatically. There's no separate remediation step: fix it in Word,
           then re-check.
         </p>
+        <p
+          v-else-if="isPptx"
+          class="text-sm text-[var(--text)] leading-relaxed mb-3"
+        >
+          A PowerPoint deck is the <strong>source document</strong> — the best
+          place to fix accessibility. Correcting issues here (slide titles from
+          the built-in layouts, alt text, table header rows, real bulleted
+          lists) fixes them at the root, and any PDF you export from this deck
+          inherits that structure automatically. There's no separate
+          remediation step: fix it in PowerPoint, then re-check.
+        </p>
+        <p
+          v-else-if="isXlsx"
+          class="text-sm text-[var(--text)] leading-relaxed mb-3"
+        >
+          An Excel workbook is the <strong>source document</strong> — the best
+          place to fix accessibility. Correcting issues here (descriptive sheet
+          tab names, real table objects with header rows, alt text on charts
+          and images) fixes them at the root, and any PDF you export from this
+          workbook inherits that structure automatically. There's no separate
+          remediation step: fix it in Excel, then re-check.
+        </p>
         <p v-else class="text-sm text-[var(--text)] leading-relaxed mb-3">
           PDF remediation — including this tool and Adobe Acrobat — is a
           fallback for finished documents. The most reliable accessibility
@@ -66,7 +90,73 @@ const isDocx = computed(() => props.fileType === 'docx')
           >
             Quick source-document tips ▾
           </summary>
-          <ul class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed">
+          <ul
+            v-if="isPptx"
+            class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed"
+          >
+            <li>
+              <strong class="text-[var(--text)]">Run the checker:</strong>
+              <em>Review → Check Accessibility</em> finds and fixes most issues
+              before you share or export the deck.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Slide titles:</strong> give
+              every slide a unique title using the built-in title placeholder —
+              pick a layout with a title via <em>Home → Layout</em>, or add
+              titles quickly in <em>View → Outline View</em>. A text box that
+              merely looks like a title is not one.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Alt text:</strong> right-click
+              each image, chart, or SmartArt graphic → <em>View Alt Text</em>;
+              describe it, or check <em>Mark as decorative</em>.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Reading order:</strong> open
+              <em>Review → Check Accessibility → Reading Order pane</em> —
+              screen readers follow the shape order, not the visual layout, and
+              the slide title should come first.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Tables:</strong> use
+              <em>Insert → Table</em> (not text boxes arranged as a grid) and
+              keep <em>Header Row</em> checked under Table Design.
+            </li>
+          </ul>
+          <ul
+            v-else-if="isXlsx"
+            class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed"
+          >
+            <li>
+              <strong class="text-[var(--text)]">Run the checker:</strong>
+              <em>Review → Check Accessibility</em> finds and fixes most issues
+              before you share or export the workbook.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Sheet names:</strong> rename
+              every tab (double-click the tab, or right-click →
+              <em>Rename</em>) from the default "Sheet1" to a name that says
+              what the sheet contains, and unhide or remove sheets you don't
+              need.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Real tables:</strong> select
+              each data region and use <em>Home → Format as Table</em> with
+              <em>My table has headers</em> checked — screen readers announce
+              header cells only for real table objects.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Merged cells:</strong> avoid
+              them inside data regions — they break the row/column
+              relationships screen readers rely on.
+            </li>
+            <li>
+              <strong class="text-[var(--text)]">Alt text:</strong> right-click
+              each chart or image → <em>View Alt Text</em>; describe it, or
+              check <em>Mark as decorative</em>.
+            </li>
+          </ul>
+          <ul v-else class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed">
             <li>
               <strong class="text-[var(--text)]">Microsoft Word:</strong>
               <em>Review → Check Accessibility</em> finds and fixes most issues
