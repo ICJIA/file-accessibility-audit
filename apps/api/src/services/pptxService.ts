@@ -232,8 +232,14 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     }
     // Bound the per-run/per-paragraph extract passes below: one shape can hold
     // an unbounded txBody, so the shape cap alone doesn't stop a "one shape,
-    // millions of runs" DoS. Must fire before collectSlideContent runs.
-    textElementCount += spTree ? countTextElementsAnyDepth(spTree) : 0;
+    // millions of runs" DoS. Counted on slideRoot (not spTree) because the
+    // walks it bounds — the links loop descendants(slideRoot,"r") and the list
+    // loop descendants(slideRoot,"p") — run on the whole slide; p/r placed
+    // under <p:sld> but OUTSIDE <p:spTree> (a cSld sibling, or a slide with no
+    // spTree) would otherwise be walked but uncounted. For any valid deck all
+    // p/r live inside spTree, so this counts the same elements. Must fire
+    // before collectSlideContent runs.
+    textElementCount += countTextElementsAnyDepth(slideRoot);
     if (textElementCount > PPTX.MAX_TEXT_ELEMENTS) {
       throw new PptxParseError(
         `This presentation has too many text elements (${textElementCount.toLocaleString()}+) to analyze.`,

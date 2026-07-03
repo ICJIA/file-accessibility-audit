@@ -14,6 +14,13 @@ export interface SlideOpts {
   body?: string;
   /** Extra rels XML entries for this slide (hyperlinks, media). */
   rels?: string;
+  /** Raw XML inserted inside <p:cSld> as a SIBLING of <p:spTree> (i.e. OUTSIDE
+   *  the shape tree). Test infra for the out-of-spTree text-element cap bypass:
+   *  slideRoot ⊇ spTree, so p/r placed here are walked by the links/lists
+   *  passes (descendants(slideRoot,…)) but were not counted by the spTree-only
+   *  tally. Not schema-valid for real PowerPoint, but a hostile ZIP is not
+   *  bound by the schema — that's the point. */
+  extraCSldXml?: string;
 }
 
 const NS =
@@ -177,7 +184,7 @@ export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
       `<?xml version="1.0"?><p:sld ${NS}><p:cSld>${bg}<p:spTree>
 <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
 ${s.beforeTitle ?? ""}${title}${s.body ?? ""}
-</p:spTree></p:cSld></p:sld>`,
+</p:spTree>${s.extraCSldXml ?? ""}</p:cSld></p:sld>`,
     );
     if (s.rels) {
       zip.file(

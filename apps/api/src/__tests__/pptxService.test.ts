@@ -289,6 +289,33 @@ describe('pptxService: text-element volume cap (V1 follow-up — runs/paragraphs
       vi.resetModules()
     }
   })
+
+  it('analyzePptx counts text elements placed OUTSIDE spTree (sibling under cSld) toward the cap', async () => {
+    // The links/lists passes walk descendants(slideRoot,…), and slideRoot ⊇
+    // spTree, so p/r placed under <p:sld> but OUTSIDE <p:spTree> are walked
+    // yet were invisible to an spTree-only tally — a residual bypass one level
+    // up from the in-shape vector. Scope a tiny cap to THIS test only.
+    vi.resetModules()
+    vi.doMock('#config', async (importOriginal) => {
+      const actual = (await importOriginal()) as { PPTX: Record<string, unknown> }
+      return { ...actual, PPTX: { ...actual.PPTX, MAX_TEXT_ELEMENTS: 40 } }
+    })
+    try {
+      const { analyzePptx: analyze, PptxParseError: ParseError } = await import(
+        '../services/pptxService.js'
+      )
+      const { buildPptx: build, para: p } = await import('./helpers/minimalPptx.js')
+      // spTree holds only the title (~2 text elements). The heavy payload — 60
+      // paragraphs+runs — is a SIBLING of spTree, so a spTree-only tally sees
+      // ~2 (< 40, no reject) while the slideRoot tally sees ~62 (> 40, reject).
+      const outside = Array.from({ length: 60 }, (_, i) => p(`outside ${i}`)).join('')
+      const buf = await build({ slides: [{ title: 'T', extraCSldXml: outside }] })
+      await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError)
+    } finally {
+      vi.doUnmock('#config')
+      vi.resetModules()
+    }
+  })
 })
 
 describe('pptxService: linear frame/pic walk (V2 DoS hardening)', () => {
