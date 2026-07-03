@@ -21,6 +21,8 @@ const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const PPTX_MIME =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+const XLSX_MIME =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 /** Runs the filter on a fake file and returns the single callback invocation. */
 function runFilter(file: { mimetype: string; originalname: string }) {
@@ -77,6 +79,21 @@ describe('uploadFileFilter: accepted types', () => {
     expect(r.error).toBeNull()
     expect(r.accept).toBe(true)
   })
+
+  it('accepts the Excel (.xlsx) MIME type', () => {
+    const r = runFilter({ mimetype: XLSX_MIME, originalname: 'book' })
+    expect(r.error).toBeNull()
+    expect(r.accept).toBe(true)
+  })
+
+  it('accepts a .xlsx extension regardless of mimetype', () => {
+    const r = runFilter({
+      mimetype: 'application/octet-stream',
+      originalname: 'book.xlsx',
+    })
+    expect(r.error).toBeNull()
+    expect(r.accept).toBe(true)
+  })
 })
 
 describe('uploadFileFilter: rejection', () => {
@@ -84,7 +101,7 @@ describe('uploadFileFilter: rejection', () => {
     const r = runFilter({ mimetype: 'application/zip', originalname: 'evil.zip' })
     expect(r.error).toBeInstanceOf(Error)
     expect(r.error?.message).toBe(
-      'Only PDF, Word (.docx), and PowerPoint (.pptx) files are accepted',
+      'Only PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) files are accepted',
     )
     expect(r.accept).toBeUndefined()
   })
@@ -101,9 +118,22 @@ describe('acceptedFormatsMessage: one/two/many label joins', () => {
     )
   })
 
-  it('three labels join with an Oxford comma (all flags on)', () => {
+  it('three labels join with an Oxford comma (XLSX off)', () => {
     expect(
       acceptedFormatsMessage(['PDF', 'Word (.docx)', 'PowerPoint (.pptx)']),
     ).toBe('Only PDF, Word (.docx), and PowerPoint (.pptx) files are accepted')
+  })
+
+  it('four labels join with an Oxford comma (all flags on)', () => {
+    expect(
+      acceptedFormatsMessage([
+        'PDF',
+        'Word (.docx)',
+        'PowerPoint (.pptx)',
+        'Excel (.xlsx)',
+      ]),
+    ).toBe(
+      'Only PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) files are accepted',
+    )
   })
 })

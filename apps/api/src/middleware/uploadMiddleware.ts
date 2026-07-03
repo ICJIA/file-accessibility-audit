@@ -1,5 +1,5 @@
 import multer from 'multer'
-import { ANALYSIS, DOCX, PPTX } from '#config'
+import { ANALYSIS, DOCX, PPTX, XLSX } from '#config'
 
 const storage = multer.memoryStorage()
 
@@ -10,7 +10,7 @@ const storage = multer.memoryStorage()
  *   ['PDF', 'B']           → 'Only PDF and B files are accepted'
  *   ['PDF', 'B', 'C']      → 'Only PDF, B, and C files are accepted'
  * The label list is assembled from the feature flags at rejection time, so a
- * future format (e.g. Excel in Phase 3) extends it with a single push.
+ * future format extends it with a single push.
  * Exported for unit tests.
  */
 export function acceptedFormatsMessage(labels: string[]): string {
@@ -42,12 +42,16 @@ export function uploadFileFilter(
   const isPptx =
     PPTX.ENABLED &&
     (file.mimetype === PPTX.MIME_TYPE || name.endsWith('.pptx'))
-  if (isPdf || isDocx || isPptx) {
+  const isXlsx =
+    XLSX.ENABLED &&
+    (file.mimetype === XLSX.MIME_TYPE || name.endsWith('.xlsx'))
+  if (isPdf || isDocx || isPptx || isXlsx) {
     cb(null, true)
   } else {
     const labels = ['PDF']
     if (DOCX.ENABLED) labels.push('Word (.docx)')
     if (PPTX.ENABLED) labels.push('PowerPoint (.pptx)')
+    if (XLSX.ENABLED) labels.push('Excel (.xlsx)')
     cb(new Error(acceptedFormatsMessage(labels)))
   }
 }

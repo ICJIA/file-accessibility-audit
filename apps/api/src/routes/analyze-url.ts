@@ -73,13 +73,13 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
 
     const buf = fetched.buffer
 
-    // Detect PDF vs DOCX vs PPTX from the fetched content (not the URL extension).
+    // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content (not the URL extension).
     const fileType = await detectFileType(buf)
     if (!fileType) {
       res.status(422).json({
         error: 'Fetched content is not a supported document.',
         details:
-          'The URL must point directly at a PDF, Word (.docx), or PowerPoint (.pptx) file — the fetched content matches none of these formats.',
+          'The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.',
       })
       return
     }
@@ -154,6 +154,25 @@ router.post('/analyze-url', authMiddleware, analyzeLimiter, async (req: AuthRequ
         error: 'The fetched PowerPoint file could not be read.',
         details:
           'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
+      })
+      return
+    }
+
+    // XLSX auditing disabled via XLSX_ENABLED=false
+    if (err?.code === 'XLSX_DISABLED') {
+      res.status(415).json({
+        error: 'Excel (.xlsx) auditing is currently disabled.',
+        details: 'This server is not configured to audit Excel files. Contact the administrator to enable it.',
+      })
+      return
+    }
+
+    // XLSX could not be parsed (corrupt or not a real Excel package)
+    if (err?.code === 'XLSX_PARSE_FAILED') {
+      res.status(422).json({
+        error: 'The fetched Excel file could not be read.',
+        details:
+          'The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.',
       })
       return
     }

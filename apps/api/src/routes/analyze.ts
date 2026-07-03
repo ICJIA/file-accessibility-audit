@@ -76,7 +76,7 @@ router.post(
       if (err.code === 'UNSUPPORTED_FILE_TYPE') {
         res.status(400).json({
           error: 'This file is not a supported document.',
-          details: 'Upload a PDF, Word (.docx), or PowerPoint (.pptx) file. The file content matches none of these formats — check that you are not uploading a renamed file of another type (e.g., .xlsx, .jpg).',
+          details: 'Upload a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file. The file content matches none of these formats — check that you are not uploading a renamed file of another type (e.g., .zip, .jpg).',
         })
         return
       }
@@ -113,6 +113,24 @@ router.post(
         res.status(422).json({
           error: 'This PowerPoint file could not be read.',
           details: 'The .pptx file appears to be corrupt or is not a valid PowerPoint presentation. Re-save it in PowerPoint and upload again.',
+        })
+        return
+      }
+
+      // XLSX auditing disabled via XLSX_ENABLED=false
+      if (err.code === 'XLSX_DISABLED') {
+        res.status(415).json({
+          error: 'Excel (.xlsx) auditing is currently disabled.',
+          details: 'This server is not configured to audit Excel files. Contact the administrator to enable it.',
+        })
+        return
+      }
+
+      // XLSX could not be parsed (corrupt or not a real Excel package)
+      if (err.code === 'XLSX_PARSE_FAILED') {
+        res.status(422).json({
+          error: 'This Excel file could not be read.',
+          details: 'The .xlsx file appears to be corrupt or is not a valid Excel workbook. Re-save it in Excel and upload again.',
         })
         return
       }

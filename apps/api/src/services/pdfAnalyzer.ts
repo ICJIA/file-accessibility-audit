@@ -3,6 +3,7 @@ import { analyzeWithPdfjs, PdfMetadata } from "./pdfjsService.js";
 import { scoreDocument, ScoringResult } from "./scorer.js";
 import type { DocxMetadata } from "./docxService.js";
 import type { PptxMetadata } from "./pptxService.js";
+import type { XlsxMetadata } from "./xlsxService.js";
 import { ANALYSIS } from "#config";
 
 // Simple semaphore for concurrency limiting with timeout
@@ -60,6 +61,8 @@ export interface AnalysisResult extends ScoringResult {
   docxMetadata?: DocxMetadata;
   /** PowerPoint metadata — present only for PPTX results. */
   pptxMetadata?: PptxMetadata;
+  /** Excel metadata — present only for XLSX results. */
+  xlsxMetadata?: XlsxMetadata;
 }
 
 /**

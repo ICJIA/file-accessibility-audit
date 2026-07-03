@@ -9,6 +9,7 @@ import { detectFileType, analyzeDocument } from "../services/analyzer.js";
 import { buildDocx } from "./helpers/minimalDocx.js";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
 import { buildPptx } from "./helpers/minimalPptx.js";
+import { buildXlsx } from "./helpers/minimalXlsx.js";
 
 describe("detectFileType", () => {
   it("identifies a PDF by its header", async () => {
@@ -70,3 +71,14 @@ describe("detectFileType: pptx", () => {
     expect(await detectFileType(buf)).toBe("pptx"); // extension never consulted
   });
 });
+
+describe('detectFileType: xlsx', () => {
+  it('detects a real xlsx by content and dispatches with sheet-count pageCount', async () => {
+    const buf = await buildXlsx({ sheets: [{ name: 'A' }, { name: 'B' }] })
+    expect(await detectFileType(buf)).toBe('xlsx')
+    const r = await analyzeDocument(buf, 'book.xlsx')
+    expect(r.fileType).toBe('xlsx')
+    expect(r.pageCount).toBe(2) // sheets
+    expect(r.xlsxMetadata?.title).toBe('Grant Ledger')
+  })
+})

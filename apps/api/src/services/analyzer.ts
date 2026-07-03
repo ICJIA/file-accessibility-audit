@@ -1,10 +1,11 @@
 /**
- * File-type dispatcher. Detects PDF vs DOCX vs PPTX from the buffer's
+ * File-type dispatcher. Detects PDF vs DOCX vs PPTX vs XLSX from the buffer's
  * *content* (magic bytes + package inspection — never the filename
  * extension) and routes to the matching pipeline. The PDF pipeline
  * (analyzePDF) is unchanged; DOCX goes to analyzeDocx + scoreDocx; PPTX goes
- * to analyzePptx + scorePptx. All return the shared AnalysisResult, so
- * routes, the CLI, and the frontend treat the formats uniformly.
+ * to analyzePptx + scorePptx; XLSX goes to analyzeXlsx + scoreXlsx. All
+ * return the shared AnalysisResult, so routes, the CLI, and the frontend
+ * treat the formats uniformly.
  */
 import JSZip from "jszip";
 import {
@@ -16,8 +17,9 @@ import {
 } from "./pdfAnalyzer.js";
 import { analyzeDocx, readCapped } from "./docxService.js";
 import { analyzePptx } from "./pptxService.js";
-import { scoreDocx, scorePptx } from "./scorer.js";
-import { DOCX, PPTX } from "#config";
+import { analyzeXlsx } from "./xlsxService.js";
+import { scoreDocx, scorePptx, scoreXlsx } from "./scorer.js";
+import { DOCX, PPTX, XLSX } from "#config";
 
 export type DetectedFileType = "pdf" | "docx" | "pptx" | "xlsx";
 
@@ -33,10 +35,11 @@ function isZip(buffer: Buffer): boolean {
 }
 
 /**
- * Classify a buffer by its content: "pdf", "docx", "pptx", or null (unknown /
- * unsupported). DOCX detection unzips and confirms WordprocessingML content
- * and PPTX confirms PresentationML content, so a renamed .xlsx / .pptx /
- * .docx / .zip is never misread as the wrong package type.
+ * Classify a buffer by its content: "pdf", "docx", "pptx", "xlsx", or null
+ * (unknown / unsupported). DOCX detection unzips and confirms
+ * WordprocessingML content, PPTX confirms PresentationML content, and XLSX
+ * confirms SpreadsheetML content, so a renamed Office file is never misread
+ * as the wrong package type.
  */
 export async function detectFileType(
   buffer: Buffer,
@@ -72,6 +75,12 @@ export async function detectFileType(
       ) {
         return "pptx";
       }
+      if (
+        contentTypes.includes("spreadsheetml.sheet") &&
+        zip.file("xl/workbook.xml")
+      ) {
+        return "xlsx";
+      }
     } catch {
       // Not a readable ZIP — fall through to unsupported.
     }
@@ -79,7 +88,7 @@ export async function detectFileType(
   return null;
 }
 
-/** Error for unsupported file types or a disabled DOCX/PPTX pipeline. */
+/** Error for unsupported file types or a disabled DOCX/PPTX/XLSX pipeline. */
 export class FileTypeError extends Error {
   code:
     | "UNSUPPORTED_FILE_TYPE"
@@ -103,9 +112,10 @@ export class FileTypeError extends Error {
 /**
  * Analyze an uploaded document. Detects the type from content and dispatches:
  * PDF → the existing analyzePDF pipeline; DOCX → analyzeDocx + scoreDocx;
- * PPTX → analyzePptx + scorePptx. Throws FileTypeError for unsupported types,
- * or when DOCX/PPTX auditing is disabled via DOCX.ENABLED / PPTX.ENABLED
- * (DOCX_ENABLED=false / PPTX_ENABLED=false). analyzeDocx may throw
+ * PPTX → analyzePptx + scorePptx; XLSX → analyzeXlsx + scoreXlsx. Throws
+ * FileTypeError for unsupported types, or when DOCX/PPTX/XLSX auditing is
+ * disabled via DOCX.ENABLED / PPTX.ENABLED / XLSX.ENABLED (DOCX_ENABLED=false
+ * / PPTX_ENABLED=false / XLSX_ENABLED=false). analyzeDocx may throw
  * DocxParseError for a corrupt package.
  */
 export async function analyzeDocument(
@@ -174,8 +184,35 @@ export async function analyzeDocument(
     }
   }
 
+  if (type === "xlsx") {
+    if (!XLSX.ENABLED) {
+      throw new FileTypeError(
+        "XLSX_DISABLED",
+        "Excel (.xlsx) auditing is currently disabled on this server.",
+      );
+    }
+    await acquireSemaphore();
+    try {
+      const analysis = await withTimeout(
+        analyzeXlsx(buffer),
+        XLSX.ANALYSIS_TIMEOUT_MS,
+        "xlsx analysis timed out",
+      );
+      const scoring = scoreXlsx(analysis);
+      return {
+        filename,
+        pageCount: analysis.metadata.sheetCount,
+        fileType: "xlsx",
+        xlsxMetadata: analysis.metadata,
+        ...scoring,
+      };
+    } finally {
+      releaseSemaphore();
+    }
+  }
+
   throw new FileTypeError(
     "UNSUPPORTED_FILE_TYPE",
-    "This file is not a supported document (PDF, Word .docx, or PowerPoint .pptx).",
+    "This file is not a supported document (PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx).",
   );
 }
