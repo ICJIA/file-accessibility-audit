@@ -4,6 +4,7 @@ import {
   uploadExtensions,
   uploadNoun,
   uploadNounWithExts,
+  legacyFormatMessage,
 } from "../utils/uploadFormats";
 
 const ALL_ON = { docx: true, pptx: true, xlsx: true };
@@ -56,5 +57,57 @@ describe("uploadFormats", () => {
       "PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx)",
     );
     expect(uploadNounWithExts(ALL_OFF)).toBe("PDF");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// legacyFormatMessage — specific guidance for legacy OLE binary Office files
+// (.xls/.doc/.ppt), which are a different format from the OOXML .xlsx/.docx/
+// .pptx this tool audits, not just an older version of the same format.
+// ---------------------------------------------------------------------------
+describe("legacyFormatMessage", () => {
+  it("names the modern format and the Save As fix for a legacy .xls file", () => {
+    const message = legacyFormatMessage("report.xls");
+    expect(message).toContain(".xls");
+    expect(message).toContain(".xlsx");
+    expect(message).toContain("Excel");
+    expect(message).toContain("Save As");
+  });
+
+  it("names the modern format and the Save As fix for a legacy .doc file", () => {
+    const message = legacyFormatMessage("letter.doc");
+    expect(message).toContain(".doc");
+    expect(message).toContain(".docx");
+    expect(message).toContain("Word");
+    expect(message).toContain("Save As");
+  });
+
+  it("names the modern format and the Save As fix for a legacy .ppt file", () => {
+    const message = legacyFormatMessage("deck.ppt");
+    expect(message).toContain(".ppt");
+    expect(message).toContain(".pptx");
+    expect(message).toContain("PowerPoint");
+    expect(message).toContain("Save As");
+  });
+
+  it("matches the extension case-insensitively", () => {
+    expect(legacyFormatMessage("REPORT.XLS")).toContain(".xlsx");
+    expect(legacyFormatMessage("Letter.Doc")).toContain(".docx");
+  });
+
+  it("returns null for the modern OOXML formats this tool supports", () => {
+    expect(legacyFormatMessage("report.xlsx")).toBeNull();
+    expect(legacyFormatMessage("letter.docx")).toBeNull();
+    expect(legacyFormatMessage("deck.pptx")).toBeNull();
+    expect(legacyFormatMessage("report.pdf")).toBeNull();
+  });
+
+  it("returns null for unrelated, non-Office file types", () => {
+    expect(legacyFormatMessage("photo.jpg")).toBeNull();
+    expect(legacyFormatMessage("archive.zip")).toBeNull();
+  });
+
+  it("returns null when the filename has no extension", () => {
+    expect(legacyFormatMessage("README")).toBeNull();
   });
 });

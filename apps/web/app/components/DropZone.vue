@@ -98,6 +98,7 @@ import {
   uploadExtensions,
   uploadNoun,
   uploadNounWithExts,
+  legacyFormatMessage,
 } from '~/utils/uploadFormats'
 
 const MAX_FILES = 3
@@ -178,7 +179,10 @@ function processFiles(files: File[]) {
     exts.some(ext => f.name.toLowerCase().endsWith(ext)),
   )
   if (accepted.length === 0) {
-    validationError.value = `Please select ${uploadNounWithExts(uploadFlags.value)} files`
+    // A legacy binary Office file (.xls/.doc/.ppt) gets a specific,
+    // actionable message instead of the generic unsupported-formats list.
+    const legacyMessage = files.map(f => legacyFormatMessage(f.name)).find(Boolean)
+    validationError.value = legacyMessage || `Please select ${uploadNounWithExts(uploadFlags.value)} files`
     return
   }
 

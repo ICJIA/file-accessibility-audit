@@ -87,3 +87,46 @@ export function uploadNounWithExts(flags: UploadFlags): string {
     "or",
   );
 }
+
+interface LegacyFormatHint {
+  /** App name, e.g. "Excel". */
+  app: string;
+  /** Modern OOXML extension this tool audits, e.g. ".xlsx". */
+  modernExt: string;
+  /** The "Save as type" a user picks in the app's Save As dialog. */
+  saveAs: string;
+}
+
+/**
+ * The old binary Office formats (.xls/.doc/.ppt) are OLE compound-binary
+ * files — a genuinely different format from the OOXML .xlsx/.docx/.pptx
+ * this tool audits, not just an older version of the same one. A user who
+ * drops a .xls reads the generic "not supported" list and thinks "but this
+ * IS Excel!", so these get a specific, actionable message instead.
+ */
+const LEGACY_FORMAT_HINTS: Record<string, LegacyFormatHint> = {
+  ".xls": { app: "Excel", modernExt: ".xlsx", saveAs: "Excel Workbook" },
+  ".doc": { app: "Word", modernExt: ".docx", saveAs: "Word Document" },
+  ".ppt": {
+    app: "PowerPoint",
+    modernExt: ".pptx",
+    saveAs: "PowerPoint Presentation",
+  },
+};
+
+/**
+ * Specific rejection copy for a legacy binary Office file, or `null` if
+ * `filename` isn't one (including the modern OOXML formats this tool
+ * already supports, and any unrelated file type — those fall through to
+ * the generic uploadNounWithExts-based message).
+ */
+export function legacyFormatMessage(filename: string): string | null {
+  const ext = filename.toLowerCase().match(/\.[^./\\]+$/)?.[0];
+  if (!ext) return null;
+  const hint = LEGACY_FORMAT_HINTS[ext];
+  if (!hint) return null;
+  return (
+    `The older ${hint.app} format (${ext}) isn't supported. Open it in ${hint.app} ` +
+    `and re-save as ${hint.modernExt} (File → Save As → ${hint.saveAs}), then upload that.`
+  );
+}

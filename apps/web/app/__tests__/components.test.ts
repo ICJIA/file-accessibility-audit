@@ -212,6 +212,76 @@ describe("DropZone", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  // -------------------------------------------------------------------------
+  // Legacy binary Office formats (.xls/.doc/.ppt): a specific rejection
+  // instead of the generic "not supported" list. These are OLE compound
+  // files — a different format from the OOXML .xlsx/.docx/.pptx this tool
+  // audits — so a user dropping a .xls needs to be told to re-save as
+  // .xlsx, not just that "Excel" isn't in the accepted list (it IS, just
+  // not this old binary variant).
+  // -------------------------------------------------------------------------
+  it.each([
+    { name: "report.xls", type: "application/vnd.ms-excel", modernExt: ".xlsx" },
+    { name: "letter.doc", type: "application/msword", modernExt: ".docx" },
+    { name: "deck.ppt", type: "application/vnd.ms-powerpoint", modernExt: ".pptx" },
+  ])(
+    "shows the legacy-format message (not the generic one) for $name",
+    async ({ name, type, modernExt }) => {
+      const wrapper = mount(DropZone);
+      const file = new File(["legacy"], name, { type });
+      const input = wrapper.find('input[type="file"]');
+      Object.defineProperty(input.element, "files", {
+        value: [file],
+        writable: true,
+      });
+      await input.trigger("change");
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.emitted("file-selected")).toBeFalsy();
+      expect(wrapper.text()).toContain("isn't supported");
+      expect(wrapper.text()).toContain(modernExt);
+      expect(wrapper.text()).toContain("Save As");
+      expect(wrapper.text()).not.toContain(
+        "Please select PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files",
+      );
+    },
+  );
+
+  it("still shows the generic message for an unrelated unsupported file (.jpg)", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["img"], "photo.jpg", { type: "image/jpeg" });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted("file-selected")).toBeFalsy();
+    expect(wrapper.text()).toContain(
+      "Please select PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) files",
+    );
+    expect(wrapper.text()).not.toContain("isn't supported");
+  });
+
+  it("still accepts a modern .xlsx (not mistaken for the legacy .xls path)", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["xlsx"], "budget.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", {
+      value: [file],
+      writable: true,
+    });
+    await input.trigger("change");
+
+    expect(wrapper.emitted("file-selected")).toBeTruthy();
+    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    expect(wrapper.text()).not.toContain("isn't supported");
+  });
 });
 
 // ---------------------------------------------------------------------------
