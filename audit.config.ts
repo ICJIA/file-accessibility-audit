@@ -152,6 +152,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "pptx-xlsx-support-2026-07",
+    badge: "New",
+    text: "Now supporting Microsoft PowerPoint (.pptx) and Excel (.xlsx) files — upload a presentation or workbook for the same WCAG 2.2 AA accessibility audit as PDFs and Word documents, with findings and fix guidance tailored to each app.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 2, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "docx-support-2026-07",
     badge: "New",
     text: "Now supporting Microsoft Word (.docx) files — upload a Word document for the same WCAG 2.2 AA accessibility audit as PDFs, with findings and fix guidance tailored to Word.",
