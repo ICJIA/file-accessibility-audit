@@ -429,6 +429,56 @@ export const PPTX = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// XLSX (EXCEL) ANALYSIS
+// ---------------------------------------------------------------------------
+
+export const XLSX = {
+  /** Feature flag — set XLSX_ENABLED=false to reject .xlsx and hide it in the
+   *  web UI (runtimeConfig.public.xlsxEnabled). SAFE TO CHANGE: via env var. */
+  ENABLED: process.env.XLSX_ENABLED !== "false",
+
+  /** Canonical MIME type for .xlsx (SpreadsheetML). */
+  MIME_TYPE:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+  /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale as
+   *  DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
+  MAX_UNCOMPRESSED_BYTES: 30 * 1024 * 1024,
+
+  /** Max worksheets analyzed; over the cap → rejected. SAFE TO CHANGE. */
+  MAX_SHEETS: 200,
+
+  /** Max total used-range cells (worksheet XML is the volume driver — this is
+   *  the MAX_PARAGRAPHS analogue). Over the cap → rejected. SAFE TO CHANGE. */
+  MAX_CELLS: 1_000_000,
+
+  /** Wall-clock timeout (ms) per analysis; route maps timeout → 504.
+   *  SAFE TO CHANGE. */
+  ANALYSIS_TIMEOUT_MS: 20_000,
+
+  /**
+   * XLSX category weights. Excel maps onto the shared category IDs, except:
+   *   - sheet_names is Excel-specific (no default "Sheet1" names);
+   *   - title_language scores on the title alone (Excel stores no document
+   *     language — the gate lists 3.1.1 as not assessed);
+   *   - table_markup carries the most weight: data as real table objects with
+   *     header rows is THE Excel accessibility fundamental;
+   *   - heading_structure / reading_order / list_structure / bookmarks are
+   *     omitted; form_accessibility is a not-assessed placeholder.
+   * SAFE TO CHANGE: same rules as DOCX.SCORING_WEIGHTS.
+   */
+  SCORING_WEIGHTS: {
+    text_extractability: 0.05,
+    title_language: 0.12,
+    sheet_names: 0.18,
+    table_markup: 0.25,
+    alt_text: 0.18,
+    color_contrast: 0.12,
+    link_quality: 0.1,
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // PDF ANALYSIS LIMITS
 // ---------------------------------------------------------------------------
 // Operational limits for the PDF analysis pipeline. These protect the server

@@ -202,6 +202,7 @@ export const WCAG_CATEGORY_MAP: Record<
     { sc: "1.3.1", name: "Info and Relationships", level: "A" },
     { sc: "2.4.6", name: "Headings and Labels", level: "AA" },
   ],
+  sheet_names: [{ sc: "2.4.6", name: "Headings and Labels", level: "AA" }],
 } as const;
 
 // ---------------------------------------------------------------------------
