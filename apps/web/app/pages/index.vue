@@ -751,7 +751,7 @@
           class="mb-4 rounded-xl bg-blue-500/10 border border-blue-500/25 px-5 py-3 text-center"
         >
           <p class="text-sm text-blue-400 font-medium">
-            Drop a PDF file on the area below, or click it to browse your files.
+            Drop a {{ heroUploadNoun }} on the area below, or click it to browse your files.
           </p>
         </div>
       </Transition>
@@ -872,6 +872,12 @@ PDF says:
             describes the picture. A screen reader can read a Word file and
             navigate it like a webpage because the meaning is right there
             in the file.
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            PowerPoint (.pptx) and Excel (.xlsx) files store meaning the same
+            way Word does — all three are the same Office Open XML family
+            under the hood — which is why this tool can audit all of them
+            directly as source documents.
           </p>
           <p class="text-[var(--text-muted)] mb-3">
             PDF stores <em>where every glyph goes on the page</em>. That's
@@ -3143,9 +3149,9 @@ pm2 restart ecosystem.config.cjs</div>
         What This Tool Does
       </h2>
       <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Audit any PDF or Word (.docx) document for WCAG 2.2 AA accessibility — and
-        (optionally) auto-remediate PDFs — all on infrastructure you control, with
-        no AI and no per-document fees.
+        Audit any PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) document
+        for WCAG 2.2 AA accessibility — and (optionally) auto-remediate PDFs — all
+        on infrastructure you control, with no AI and no per-document fees.
       </p>
     </div>
 
@@ -3163,7 +3169,7 @@ pm2 restart ecosystem.config.cjs</div>
           WCAG categories audited
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Each PDF scored across 9 categories aligned with
+          Each document scored across up to 9 categories aligned with
           <strong>WCAG 2.2 Level AA</strong> and ADA Title II. A–F letter grade plus
           Critical / Serious / Moderate severity per category so you know what to
           fix first.
@@ -3302,20 +3308,28 @@ import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ScrollToTop from "~/components/ScrollToTop.vue";
 import { partitionCardFindings } from "~/utils/findings";
+import { uploadNoun } from "~/utils/uploadFormats";
 
 
-// Word (.docx) support can be disabled server-side (DOCX_ENABLED=false); mirror
-// that in the hero copy so we never invite a format the API will reject.
+// Word / PowerPoint / Excel support can each be disabled server-side
+// (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false"); mirror that in the
+// hero copy so we never invite a format the API will reject.
 const runtimeConfig = useRuntimeConfig();
-const docxEnabled = computed(() => runtimeConfig.public.docxEnabled !== false);
+const uploadFlags = computed(() => ({
+  docx: runtimeConfig.public.docxEnabled !== false,
+  pptx: runtimeConfig.public.pptxEnabled !== false,
+  xlsx: runtimeConfig.public.xlsxEnabled !== false,
+}));
+const anyOfficeFormat = computed(
+  () =>
+    uploadFlags.value.docx || uploadFlags.value.pptx || uploadFlags.value.xlsx,
+);
 const heroTitle = computed(() =>
-  docxEnabled.value
-    ? "Check your PDFs and Word docs for accessibility"
+  anyOfficeFormat.value
+    ? `Check your ${uploadNoun(uploadFlags.value, "and")} files for accessibility`
     : "Check your PDFs for accessibility",
 );
-const heroUploadNoun = computed(() =>
-  docxEnabled.value ? "PDF or Word document" : "PDF",
-);
+const heroUploadNoun = computed(() => `${uploadNoun(uploadFlags.value)} file`);
 
 definePageMeta({ middleware: "auth" });
 
