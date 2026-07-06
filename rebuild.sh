@@ -4,6 +4,58 @@ set -e
 cd "$(dirname "$0")"
 
 # ---------------------------------------------------------------------
+# Failure banner.
+#
+# set -e above aborts this script on the first failed command, so a
+# broken build can never reach the pm2 restart at the bottom. That
+# abort is easy to miss under a wall of compiler output, though — so
+# this EXIT trap spells out what happened: whether PM2 was touched,
+# and (once git pull has moved HEAD) how to put the source tree back.
+#
+# The trap only prints. It never rolls anything back by itself.
+# ---------------------------------------------------------------------
+_stage="preflight"
+_pre_pull_sha=""
+_on_exit() {
+  _status=$?
+  set +e  # a failure inside the banner must not truncate the banner
+  if [ "$_status" -eq 0 ]; then
+    exit 0
+  fi
+  echo ""
+  echo "======================================================================"
+  case "$_stage" in
+    pm2-restart)
+      echo "  DEPLOY FAILED during PM2 restart (exit $_status)."
+      echo "  Process state is uncertain — inspect it with:"
+      echo "      pm2 status && pm2 logs --lines 50"
+      ;;
+    pm2-restarted)
+      echo "  Deploy succeeded, but a post-restart step failed (exit $_status)."
+      echo "  The new version IS live; verify with: pm2 status"
+      ;;
+    *)
+      echo "  DEPLOY ABORTED during: $_stage (exit $_status)"
+      echo "  PM2 was NOT restarted — the previously deployed version is still"
+      echo "  running."
+      _head_now=$(git rev-parse HEAD 2>/dev/null)
+      if [ -n "$_pre_pull_sha" ] && [ -n "$_head_now" ] && \
+         [ "$_head_now" != "$_pre_pull_sha" ]; then
+        echo ""
+        echo "  NOTE: git pull already moved this checkout to ${_head_now:0:12}."
+        echo "  The API runs from source via tsx, so an unrelated PM2 restart"
+        echo "  (crash, memory limit, reboot) would boot that unvalidated code."
+        echo "  To roll the source back to the last deployed commit:"
+        echo "      git reset --hard $_pre_pull_sha && pnpm install --frozen-lockfile"
+      fi
+      ;;
+  esac
+  echo "======================================================================"
+  exit "$_status"
+}
+trap _on_exit EXIT
+
+# ---------------------------------------------------------------------
 # Remediation feature flag.
 #
 # Three ways to set this on a deploy, in priority order:
@@ -161,13 +213,17 @@ else
 fi
 
 echo "Pulling latest changes..."
+_stage="git-pull"
+_pre_pull_sha=$(git rev-parse HEAD 2>/dev/null || true)
 git checkout -- .
 git pull origin main
 
 echo "Installing dependencies..."
+_stage="pnpm-install"
 pnpm install --frozen-lockfile
 
 echo "Building..."
+_stage="build"
 pnpm build
 
 # Load app secrets persisted in /etc/environment so PM2 inherits them even when
@@ -175,6 +231,7 @@ pnpm build
 # is only applied to fresh login sessions — the gotcha that makes a rotated
 # token silently fail to deploy). Extract specific vars BY NAME; never source the
 # whole file, so a PATH= line there can't clobber the PATH that resolves pnpm/pm2.
+_stage="load-secrets"
 if [ -f /etc/environment ]; then
   for _var in API_PRIVILEGED_TOKEN; do
     _line=$(grep -E "^${_var}=" /etc/environment | tail -n1 || true)
@@ -195,7 +252,9 @@ fi
 echo "Restarting PM2..."
 # --update-env so rotated secrets (e.g. API_PRIVILEGED_TOKEN) actually refresh;
 # a plain `pm2 restart` reuses the env snapshot from the original `pm2 start`.
+_stage="pm2-restart"
 pm2 restart ecosystem.config.cjs --update-env
+_stage="pm2-restarted"
 
 echo "Done. Checking status..."
 pm2 status
