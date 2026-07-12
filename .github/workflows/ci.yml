@@ -41,7 +41,13 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # integration.test.ts runs the real qpdf → pdfjs → scorer pipeline on
+      # fixture PDFs (its header documents the qpdf prerequisite). Java is
+      # NOT needed — the remediation worker is mocked. ubuntu-latest's qpdf
+      # is 11.x (JSON v2), which the parser explicitly supports alongside v1.
+      - name: Install qpdf
+        run: sudo apt-get update -q && sudo apt-get install -y -q qpdf && qpdf --version
+
       # Runs all three suites (api, web, cli) via scripts/test.ts.
-      # No system binaries (qpdf, Java) needed — they're mocked in tests.
       - name: Test
         run: pnpm test
