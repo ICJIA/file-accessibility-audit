@@ -1,0 +1,35 @@
+{
+  "name": "@file-audit/analyzer",
+  "version": "1.33.0",
+  "private": true,
+  "type": "module",
+  "description": "The document accessibility audit engine: content-based file-type detection plus the analyze + score pipeline for PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx). No Express, no db, no mailer, no env secrets — pure analysis. Ships plain .ts source (run natively via tsx; no compile step), consumed by apps/api (through re-export shims at the old services/* paths) and apps/cli.",
+  "imports": {
+    "#config": "../../audit.config.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "import": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@file-audit/shared": "workspace:*",
+    "fast-xml-parser": "^5.9.3",
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
+  }
+}

@@ -45,12 +45,13 @@ export default tseslint.config(
     },
   },
 
-  // Node-context source: the API/CLI apps, the shared package, and root
-  // build/dev scripts + config files.
+  // Node-context source: the API/CLI apps, the shared + analyzer packages,
+  // and root build/dev scripts + config files.
   {
     files: [
       "apps/api/**/*.{ts,mts,cts,js,mjs,cjs}",
       "apps/cli/**/*.{ts,mts,cts,js,mjs,cjs}",
+      "packages/analyzer/**/*.{ts,mts,cts,js,mjs,cjs}",
       "packages/shared/**/*.{ts,mts,cts,js,mjs,cjs}",
       "scripts/**/*.{ts,mts,cts,js,mjs,cjs}",
       "*.config.{ts,mts,cts,js,mjs,cjs}",

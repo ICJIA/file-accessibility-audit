@@ -57,6 +57,9 @@ importers:
       '@axe-core/puppeteer':
         specifier: ^4.10.0
         version: 4.11.3(puppeteer@23.11.1(typescript@5.9.3))
+      '@file-audit/analyzer':
+        specifier: workspace:*
+        version: link:../../packages/analyzer
       '@file-audit/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -96,9 +99,6 @@ importers:
       nodemailer:
         specifier: ^9.0.1
         version: 9.0.1
-      pdfjs-dist:
-        specifier: ^4.10.38
-        version: 4.10.38
       puppeteer:
         specifier: ^23.0.0
         version: 23.11.1(typescript@5.9.3)
@@ -231,6 +231,28 @@ importers:
       vue-tsc:
         specifier: ^3.3.7
         version: 3.3.7(typescript@5.9.3)
+
+  packages/analyzer:
+    dependencies:
+      '@file-audit/shared':
+        specifier: workspace:*
+        version: link:../shared
+      fast-xml-parser:
+        specifier: ^5.9.3
+        version: 5.9.3
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
+      pdfjs-dist:
+        specifier: ^4.10.38
+        version: 4.10.38
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.19.15
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
 
   packages/shared: {}
 

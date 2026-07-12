@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@axe-core/puppeteer": "^4.10.0",
+    "@file-audit/analyzer": "workspace:*",
     "@file-audit/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.8.1",
@@ -30,7 +31,6 @@
     "jszip": "^3.10.1",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.1",
-    "pdfjs-dist": "^4.10.38",
     "puppeteer": "^23.0.0"
   },
   "devDependencies": {
