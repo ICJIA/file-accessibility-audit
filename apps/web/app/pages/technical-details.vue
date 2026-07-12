@@ -183,13 +183,16 @@ function goBack(): void {
       </p>
       <div class="overflow-x-auto mb-3">
         <table class="w-full text-xs border border-[var(--border-subtle)] rounded-lg">
+          <caption class="sr-only">
+            PDF scoring categories, their weights, and the WCAG success criteria they evaluate
+          </caption>
           <thead>
             <tr
               class="bg-[var(--surface-deep)] text-[var(--text-secondary)] uppercase tracking-wide"
             >
-              <th class="text-left px-3 py-2 font-medium">Category</th>
-              <th class="text-right px-3 py-2 font-medium">Weight</th>
-              <th class="text-left px-3 py-2 font-medium">
+              <th scope="col" class="text-left px-3 py-2 font-medium">Category</th>
+              <th scope="col" class="text-right px-3 py-2 font-medium">Weight</th>
+              <th scope="col" class="text-left px-3 py-2 font-medium">
                 WCAG {{ wcag.version }} success criteria
               </th>
             </tr>
@@ -474,12 +477,15 @@ function goBack(): void {
       </h2>
       <div class="overflow-x-auto" tabindex="0">
         <table class="w-full text-sm">
+          <caption class="sr-only">
+            The open-source toolchain: each tool, its job, license, and pipeline stage
+          </caption>
           <thead>
             <tr class="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
-              <th class="py-2 pr-4 font-medium">Tool</th>
-              <th class="py-2 pr-4 font-medium">Job</th>
-              <th class="py-2 pr-4 font-medium">License</th>
-              <th class="py-2 font-medium">Pipeline</th>
+              <th scope="col" class="py-2 pr-4 font-medium">Tool</th>
+              <th scope="col" class="py-2 pr-4 font-medium">Job</th>
+              <th scope="col" class="py-2 pr-4 font-medium">License</th>
+              <th scope="col" class="py-2 font-medium">Pipeline</th>
             </tr>
           </thead>
           <tbody class="text-[var(--text-secondary)] text-xs">

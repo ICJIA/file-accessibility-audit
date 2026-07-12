@@ -53,6 +53,7 @@
 
             <div
               v-if="error"
+              role="alert"
               class="text-sm text-[var(--status-error)] bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3"
             >
               {{ error }}
@@ -98,6 +99,7 @@
 
             <div
               v-if="error"
+              role="alert"
               class="text-sm text-[var(--status-error)] bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3"
             >
               {{ error }}

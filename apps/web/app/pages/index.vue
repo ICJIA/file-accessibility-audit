@@ -3,6 +3,7 @@
     <!-- Error state (single file mode) -->
     <div
       v-if="!isBatchMode && analysisError"
+      role="alert"
       class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6"
     >
       <h3 class="font-semibold text-[var(--status-error)] mb-2">
@@ -122,6 +123,7 @@
       <!-- Active tab error -->
       <div
         v-if="activeItem?.status === 'error'"
+        role="alert"
         class="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 p-6"
       >
         <h3 class="font-semibold text-[var(--status-error)] mb-2">
@@ -142,6 +144,15 @@
 
       <!-- Active tab result -->
       <template v-if="result">
+        <!-- Focus target for post-analysis focus management: visually
+             hidden, but gives screen-reader users an unambiguous "results
+             are ready" announcement + a sane place for focus to land
+             instead of staying wherever it was (often the now-hidden drop
+             zone). See focusResultsHeading() below. -->
+        <h2 ref="resultsHeadingRef" tabindex="-1" class="sr-only" data-testid="results-heading">
+          Analysis results for {{ result.filename }}
+        </h2>
+
         <!-- Floating back-to-top button (mounted only while a result shows) -->
         <ScrollToTop />
 
@@ -775,6 +786,15 @@ const singleResult = ref<any>(null);
 const singleFile = ref<File | null>(null);
 const analysisError = ref<any>(null);
 
+// Focus target for post-analysis focus management (Task F6) — see the
+// sr-only <h2 ref="resultsHeadingRef"> at the top of the results template.
+const resultsHeadingRef = ref<HTMLElement | null>(null);
+function focusResultsHeading() {
+  nextTick(() => {
+    resultsHeadingRef.value?.focus();
+  });
+}
+
 // --- Batch state ---
 const batchItems = ref<BatchItem[]>([]);
 const activeTabIndex = ref(0);
@@ -845,6 +865,7 @@ usePrefill({
   onResult(result) {
     processingStage.value = "Building report…";
     singleResult.value = result;
+    focusResultsHeading();
   },
   onError(err) {
     analysisError.value = err;
@@ -879,6 +900,7 @@ async function analyzeFile(file: File) {
     await new Promise((r) => setTimeout(r, 300)); // Brief pause for UX
 
     singleResult.value = response;
+    focusResultsHeading();
   } catch (err: any) {
     if (err.status === 401) {
       navigateTo("/login");

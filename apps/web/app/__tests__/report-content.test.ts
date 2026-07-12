@@ -92,6 +92,25 @@ describe("ReportContent — score table", () => {
   });
 });
 
+describe("ReportContent — score table a11y (Task F6)", () => {
+  it('every header <th> has scope="col"', () => {
+    const wrapper = mountReport([cat()]);
+    const headers = wrapper.findAll("table th");
+    expect(headers.length).toBeGreaterThan(0);
+    for (const th of headers) {
+      expect(th.attributes("scope")).toBe("col");
+    }
+  });
+
+  it("has a visually-hidden <caption> naming the table", () => {
+    const wrapper = mountReport([cat()]);
+    const caption = wrapper.find("table caption");
+    expect(caption.exists()).toBe(true);
+    expect(caption.classes()).toContain("sr-only");
+    expect(caption.text().length).toBeGreaterThan(0);
+  });
+});
+
 describe("ReportContent — detailed findings", () => {
   it("renders scored findings under Detailed Findings and N/A context under Not Included", () => {
     const wrapper = mountReport([

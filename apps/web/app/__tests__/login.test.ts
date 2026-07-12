@@ -124,6 +124,21 @@ describe("Login Page", () => {
     });
   });
 
+  it('the email-step error banner has role="alert" (Task F6)', async () => {
+    mockNextFetch({ data: { error: "Only illinois.gov emails are allowed" } }, true);
+    const wrapper = await mountLogin();
+
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("bad@gmail.com");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      const alert = wrapper.find('[role="alert"]');
+      expect(alert.exists()).toBe(true);
+      expect(alert.text()).toContain("Only illinois.gov emails are allowed");
+    });
+  });
+
   it("shows fallback error when request fails without specific message", async () => {
     mockNextFetch({}, true);
     const wrapper = await mountLogin();
@@ -214,6 +229,37 @@ describe("Login Page", () => {
 
     await vi.waitFor(() => {
       expect(wrapper.text()).toContain("Invalid or expired code");
+    });
+  });
+
+  it('the OTP-step error banner has role="alert" (Task F6)', async () => {
+    let callCount = 0;
+    fetchMock.mockImplementation((url: string) => {
+      if (url === "/api/auth/config") return Promise.resolve({ requireLogin: true });
+      if (url === "/api/auth/me") return Promise.reject(new Error("Not authenticated"));
+      callCount++;
+      if (callCount === 1) return Promise.resolve({});
+      return Promise.reject({ data: { error: "Invalid or expired code" } });
+    });
+
+    const wrapper = await mountLogin();
+
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("user@illinois.gov");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("Verify");
+    });
+
+    const otpInput = wrapper.find("input");
+    await otpInput.setValue("000000");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      const alert = wrapper.find('[role="alert"]');
+      expect(alert.exists()).toBe(true);
+      expect(alert.text()).toContain("Invalid or expired code");
     });
   });
 

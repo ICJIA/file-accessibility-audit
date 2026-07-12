@@ -61,13 +61,17 @@ useHead({
     </h2>
     <div class="overflow-x-auto rounded-lg border border-[var(--border)] mb-8">
       <table class="w-full text-sm min-w-[560px]">
+        <caption class="sr-only">
+          The six new WCAG 2.2 Level A/AA rules, what they mean, and whether they affect our
+          documents
+        </caption>
         <thead>
           <tr
             class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide"
           >
-            <th class="text-left px-4 py-2 font-medium">New rule (level)</th>
-            <th class="text-left px-4 py-2 font-medium">What it means</th>
-            <th class="text-left px-4 py-2 font-medium">Affects our documents?</th>
+            <th scope="col" class="text-left px-4 py-2 font-medium">New rule (level)</th>
+            <th scope="col" class="text-left px-4 py-2 font-medium">What it means</th>
+            <th scope="col" class="text-left px-4 py-2 font-medium">Affects our documents?</th>
           </tr>
         </thead>
         <tbody class="text-[var(--text-muted)]">

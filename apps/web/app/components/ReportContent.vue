@@ -8,14 +8,17 @@
         <h2 class="text-sm font-semibold text-[var(--text-secondary)]">Category Scores</h2>
       </div>
       <table class="w-full text-sm min-w-[420px]">
+        <caption class="sr-only">
+          Accessibility category scores: category, score, grade, and severity
+        </caption>
         <thead>
           <tr
             class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide"
           >
-            <th class="text-left px-3 sm:px-5 py-2 font-medium">Category</th>
-            <th class="text-center px-2 sm:px-3 py-2 font-medium">Score</th>
-            <th class="text-center px-2 sm:px-3 py-2 font-medium">Grade</th>
-            <th class="text-center px-2 sm:px-3 py-2 font-medium">Severity</th>
+            <th scope="col" class="text-left px-3 sm:px-5 py-2 font-medium">Category</th>
+            <th scope="col" class="text-center px-2 sm:px-3 py-2 font-medium">Score</th>
+            <th scope="col" class="text-center px-2 sm:px-3 py-2 font-medium">Grade</th>
+            <th scope="col" class="text-center px-2 sm:px-3 py-2 font-medium">Severity</th>
           </tr>
         </thead>
         <tbody>

@@ -617,12 +617,15 @@ function labelForEvent(name: string): string {
             </p>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
+                <caption class="sr-only">
+                  Score comparison by heuristic, before and after remediation
+                </caption>
                 <thead>
                   <tr class="text-left text-[var(--text-muted)] border-b border-emerald-700/30">
-                    <th class="py-2 pr-4 font-medium">Heuristic</th>
-                    <th class="py-2 pr-4 font-medium">Before</th>
-                    <th class="py-2 pr-4 font-medium">After</th>
-                    <th class="py-2 font-medium">Δ</th>
+                    <th scope="col" class="py-2 pr-4 font-medium">Heuristic</th>
+                    <th scope="col" class="py-2 pr-4 font-medium">Before</th>
+                    <th scope="col" class="py-2 pr-4 font-medium">After</th>
+                    <th scope="col" class="py-2 font-medium">Δ</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -8,7 +8,7 @@
 
     <div class="text-center space-y-2">
       <p class="text-lg font-medium text-[var(--text-heading)]">Analyzing your document</p>
-      <p class="text-sm text-[var(--text-muted)]">{{ stage }}</p>
+      <p class="text-sm text-[var(--text-muted)]" role="status" aria-live="polite">{{ stage }}</p>
     </div>
   </div>
 </template>
