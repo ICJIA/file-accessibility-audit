@@ -61,6 +61,7 @@ spike-out-smolvlm/
 # Remediation runtime artifacts (output PDFs, worker scratch dirs)
 apps/api/data/remediation/
 .tmp-shots/
+.tmp-audit/
 
 # Local test documents dropped into controls/ are NOT committed.
 # The historically-tracked fixture PDFs referenced by apps/api/src/spike/*
