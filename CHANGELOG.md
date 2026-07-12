@@ -34,7 +34,7 @@ Infrastructure, hardening, and structural-quality release from a five-track whol
 
 - **Preventive hardening, no known exploitation:** OOXML packages are rejected before parsing if they exceed aggregate zip limits (entry count / total declared uncompressed size — a many-part zip-bomb fast-fail ahead of the existing per-part caps and child-process timeout); OOXML XML parts containing a `DOCTYPE` declaration are refused outright (entity-expansion defense); remediation job status/receipts in anonymous mode now require the job's private token and answer plain 404 otherwise (no job-existence oracle); application secrets were already stripped from child-process environments (v1.33.0) and the API process now carries top-level `unhandledRejection`/`uncaughtException` guards.
 
-31 commits; tests 1,286 → 1,410 (API 876 / web 485 / CLI 49), build, lint, and typecheck green throughout.
+Tests 1,286 → 1,410 (API 876 / web 485 / CLI 49), build, lint, and typecheck green throughout.
 
 ## [1.33.0] - 2026-07-03
 

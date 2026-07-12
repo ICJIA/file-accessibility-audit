@@ -1,5 +1,5 @@
 // Facade — scorer.ts was split by format in the v1.34.0 structural refactor
-// into apps/api/src/services/scoring/{common,pdf,docx,pptx,xlsx}.ts. Every
+// into packages/analyzer/src/scoring/{common,pdf,docx,pptx,xlsx}.ts. Every
 // symbol previously exported from this file is re-exported here, unchanged,
 // so no other file's imports (routes, tests, the CLI's cross-package import
 // of ../../../api/src/services/scorer.js) need to change.

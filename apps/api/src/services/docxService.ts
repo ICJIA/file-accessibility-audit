@@ -2,6 +2,6 @@
 // @file-audit/analyzer workspace package; the implementation now lives at
 // packages/analyzer/src/docxService.ts. This thin file preserves the historical
 // apps/api/src/services/docxService.ts import path so api routes, jobs, and the
-// existing test suite keep importing "../services/docxService.js" (and the CLI keeps
-// importing "../../../api/src/services/docxService.js") unchanged.
+// existing test suite keep importing "../services/docxService.js" unchanged (the CLI
+// imports @file-audit/analyzer directly).
 export * from "@file-audit/analyzer/docxService";

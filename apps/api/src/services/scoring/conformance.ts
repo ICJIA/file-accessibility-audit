@@ -2,6 +2,6 @@
 // @file-audit/analyzer workspace package; the implementation now lives at
 // packages/analyzer/src/scoring/conformance.ts. This thin file preserves the historical
 // apps/api/src/services/scoring/conformance.ts import path so api routes, jobs, and the
-// existing test suite keep importing "../services/scoring/conformance.js" (and the CLI keeps
-// importing "../../../api/src/services/scoring/conformance.js") unchanged.
+// existing test suite keep importing "../services/scoring/conformance.js" unchanged (the CLI
+// imports @file-audit/analyzer directly).
 export * from "@file-audit/analyzer/scoring/conformance";

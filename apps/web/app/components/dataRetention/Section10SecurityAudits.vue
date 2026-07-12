@@ -91,7 +91,7 @@
           The same review also reorganized how the audit engine's code is packaged internally (no
           change to what it checks, how it scores, or what data it collects) and added an
           automated pipeline that runs the full test suite, a code-style check, and a
-          type-correctness check against every proposed change before it can be merged — so future
+          type-correctness check on every change pushed to the repository — so future
           changes are checked automatically going forward, not only when someone remembers to run
           the tests by hand.
         </p>
