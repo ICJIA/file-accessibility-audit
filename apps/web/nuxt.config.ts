@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { BRANDING, DEPLOY, REMEDIATION, WCAG, ANNOUNCEMENTS, DOCX, PPTX, XLSX } from '../../audit.config'
 import { version } from './package.json'
 
@@ -8,7 +9,19 @@ const orgName = BRANDING.ORG_NAME
 const orgUrl = BRANDING.ORG_URL
 const appDesc = 'Upload a PDF, Word, PowerPoint, or Excel document and get an instant accessibility score across WCAG 2.2 (and 2.1) Level AA, ADA Title II, and Illinois IITAA categories with detailed findings and remediation guidance.'
 const datePublished = '2025-03-06'
-const dateModified = '2026-07-03'
+
+// Derived from the last commit's date at build time, so this can't silently
+// go stale on a release that forgets to bump it by hand (as the previous
+// hardcoded literal repeatedly did). Falls back to the last-known-good
+// literal if git isn't available — e.g. built from a source tarball with no
+// .git directory, or git isn't on PATH.
+let dateModified = '2026-07-03'
+try {
+  const gitDate = execFileSync('git', ['log', '-1', '--format=%cI']).toString().trim()
+  if (gitDate) dateModified = gitDate
+} catch {
+  // Keep the fallback literal above.
+}
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui'],

@@ -45,7 +45,7 @@ useHead({
 
 const POLICY_VERSION = '1.1'
 const POLICY_EFFECTIVE = '2026-07-03'
-const TOOL_VERSION = '1.18.0'
+const TOOL_VERSION = runtimeConfig.public.appVersion
 
 // Mermaid diagram sources. Deliberately simple — flowchart TD only,
 // short labels, no subgraphs, no HTML in labels, no special chars.
