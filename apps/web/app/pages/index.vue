@@ -716,7 +716,8 @@ import MethodologyCard from "~/components/MethodologyCard.vue";
 import ScrollToTop from "~/components/ScrollToTop.vue";
 import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
-import { gradeColor } from "@file-audit/shared";
+import { gradeColor, type AnalysisResult } from "@file-audit/shared";
+import type { PrefillError } from "~/composables/usePrefill";
 
 // Word / PowerPoint / Excel support can each be disabled server-side
 // (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false"); mirror that in the
@@ -742,10 +743,13 @@ definePageMeta({ middleware: "auth" });
 interface BatchItem {
   id: string;
   filename: string;
-  file: File;
+  // Nulled out once the item reaches a terminal state (done/error/cancelled)
+  // to free the in-memory File — see processNext()/the queued-item sweep
+  // below, both of which null it out after use.
+  file: File | null;
   status: "queued" | "processing" | "done" | "error" | "cancelled";
-  result: any | null;
-  error: any | null;
+  result: AnalysisResult | null;
+  error: PrefillError | null;
 }
 
 // Abort controller for batch cancellation
@@ -776,15 +780,15 @@ const aiAnalysisPreview = computed(() => {
 });
 const hasRemediationItems = computed(() => {
   const cats = result.value?.categories || [];
-  return cats.some((c: any) => c.severity === "Critical" || c.severity === "Moderate");
+  return cats.some((c) => c.severity === "Critical" || c.severity === "Moderate");
 });
 
 // --- Single file state (preserved for single-file UX) ---
 const processing = ref(false);
 const processingStage = ref("");
-const singleResult = ref<any>(null);
+const singleResult = ref<AnalysisResult | null>(null);
 const singleFile = ref<File | null>(null);
-const analysisError = ref<any>(null);
+const analysisError = ref<PrefillError | null>(null);
 
 // Focus target for post-analysis focus management (Task F6) — see the
 // sr-only <h2 ref="resultsHeadingRef"> at the top of the results template.
@@ -890,7 +894,7 @@ async function analyzeFile(file: File) {
 
     processingStage.value = "Extracting PDF structure…";
 
-    const response = await $fetch("/api/analyze", {
+    const response = await $fetch<AnalysisResult>("/api/analyze", {
       method: "POST",
       body: formData,
       credentials: "include",
@@ -951,9 +955,13 @@ async function analyzeBatch(files: File[]) {
 
       try {
         const formData = new FormData();
-        formData.append("file", item.file);
+        // Non-null: this item just transitioned queued -> processing above,
+        // and file is only ever nulled out AFTER a terminal state is reached
+        // (below, and in the cancelled-sweep after this loop) — so the very
+        // first read here always sees the real File.
+        formData.append("file", item.file!);
 
-        const response = await $fetch("/api/analyze", {
+        const response = await $fetch<AnalysisResult>("/api/analyze", {
           method: "POST",
           body: formData,
           credentials: "include",
@@ -962,11 +970,11 @@ async function analyzeBatch(files: File[]) {
 
         item.result = response;
         item.status = "done";
-        item.file = null as any; // Free browser memory
+        item.file = null; // Free browser memory
       } catch (err: any) {
         if (signal.aborted) {
           item.status = "cancelled";
-          item.file = null as any;
+          item.file = null;
           return;
         }
         if (err.status === 401) {
@@ -975,7 +983,7 @@ async function analyzeBatch(files: File[]) {
         }
         item.error = err.data || { error: "Analysis failed." };
         item.status = "error";
-        item.file = null as any; // Free browser memory
+        item.file = null; // Free browser memory
       }
     }
   }
@@ -988,7 +996,7 @@ async function analyzeBatch(files: File[]) {
   for (const item of batchItems.value) {
     if (item.status === "queued") {
       item.status = "cancelled";
-      item.file = null as any;
+      item.file = null;
     }
   }
 

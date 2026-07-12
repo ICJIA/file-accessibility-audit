@@ -28,10 +28,10 @@
           <!-- Prominent filename banner — leaves no doubt which file this
              shared report (and its PDF print) refers to -->
           <ReportFileBanner
-            :filename="(data as any).report.filename"
-            :page-count="(data as any).report.pageCount"
-            :is-scanned="(data as any).report.isScanned"
-            :file-type="(data as any).report.fileType"
+            :filename="data.report.filename"
+            :page-count="data.report.pageCount"
+            :is-scanned="data.report.isScanned"
+            :file-type="data.report.fileType"
             class="mb-6"
           />
           <!-- Header -->
@@ -100,19 +100,19 @@
           <div
             class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
           >
-            <ScoreCard :result="(data as any).report" :show-filename="false" />
+            <ScoreCard :result="data.report" :show-filename="false" />
           </div>
 
           <ReportActionBanner
             v-if="data?.report?.categories"
-            :categories="(data as any).report.categories"
-            :file-type="(data as any).report.fileType"
+            :categories="data.report.categories"
+            :file-type="data.report.fileType"
             class="mb-4"
           />
 
           <IssuesSummary
             v-if="data?.report?.categories"
-            :categories="(data as any).report.categories"
+            :categories="data.report.categories"
             class="mb-8"
           />
           <!-- Scanned warning -->
@@ -140,9 +140,9 @@
             </p>
           </div>
 
-          <MethodologyCard :file-type="(data as any).report.fileType" />
+          <MethodologyCard :file-type="data.report.fileType" />
 
-          <ReportContent :result="(data as any).report" />
+          <ReportContent :result="data.report" />
         </div>
         <!-- /report content -->
 
@@ -154,7 +154,7 @@
             <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wide font-medium">
               Download Report
             </p>
-            <ReportDownloadBar :result="(data as any).report" variant="compact" />
+            <ReportDownloadBar :result="data.report" variant="compact" />
             <p class="text-xs text-[var(--text-muted)]">
               Text, HTML, and Markdown for reading; PDF via your browser's print dialog; JSON for
               LLMs.
@@ -209,7 +209,7 @@ import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
-import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
+import type { AnalysisResult } from "@file-audit/shared";
 
 definePageMeta({ layout: false });
 
@@ -229,20 +229,8 @@ function toggleColorMode() {
 // server route, so Nuxt can't infer this from the URL. `report` is whatever
 // was originally POSTed (see sanitizeStoredReport), which in practice is
 // always an AnalysisResult; `sharedBy` is never sent (PII — see that route).
-interface SharedReportResult {
-  filename: string;
-  pageCount: number;
-  overallScore: number;
-  grade: string;
-  executiveSummary: string;
-  isScanned: boolean;
-  warnings?: string[];
-  categories: CategoryResult[];
-  fileType?: "pdf" | "docx" | "pptx" | "xlsx";
-  scoreProfiles?: Partial<Record<ScoringMode, ScoreProfileResult>>;
-}
 interface SharedReportResponse {
-  report: SharedReportResult;
+  report: AnalysisResult;
   createdAt: string;
   expiresAt: string;
 }
@@ -251,7 +239,7 @@ const { data, pending, error } = await useFetch<SharedReportResponse>(`/api/repo
 
 const errorMessage = computed(() => {
   if (!error.value) return "";
-  const status = (error.value as any)?.statusCode;
+  const status = error.value.statusCode ?? error.value.status;
   if (status === 410) return "This report link has expired.";
   if (status === 404)
     return "This report was not found. It may have been removed or the link may be incorrect.";

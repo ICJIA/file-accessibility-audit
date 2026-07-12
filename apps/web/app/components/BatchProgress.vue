@@ -115,7 +115,9 @@
 interface BatchItem {
   id: string;
   filename: string;
-  file: File;
+  // Nulled out once the item reaches a terminal state (mirrors index.vue's
+  // BatchItem — see that file for why); never actually read here.
+  file: File | null;
   status: "queued" | "processing" | "done" | "error" | "cancelled";
   result: any | null;
   error: any | null;

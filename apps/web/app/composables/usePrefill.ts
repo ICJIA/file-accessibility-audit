@@ -9,6 +9,7 @@
  * @param opts.onError   called with { error, details? } on any failure
  * @param opts.onDone    called in finally — hide the processing UI
  */
+import type { AnalysisResult } from "@file-audit/shared";
 
 export interface PrefillError {
   error: string;
@@ -17,7 +18,7 @@ export interface PrefillError {
 
 export interface PrefillCallbacks {
   onStart: (url: string) => void;
-  onResult: (result: any) => void;
+  onResult: (result: AnalysisResult) => void;
   onError: (err: PrefillError) => void;
   onDone: () => void;
 }
@@ -43,7 +44,7 @@ export function usePrefill(callbacks: PrefillCallbacks): void {
 
     callbacks.onStart(url);
     try {
-      const result = await $fetch("/api/analyze-url", {
+      const result = await $fetch<AnalysisResult>("/api/analyze-url", {
         method: "POST",
         body: { url },
         credentials: "include",
