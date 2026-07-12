@@ -622,6 +622,59 @@ export const XLSX = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// OOXML (DOCX/PPTX/XLSX) SHARED ZIP-PACKAGE LIMITS
+// ---------------------------------------------------------------------------
+// Aggregate limits enforced once per package, right after JSZip.loadAsync and
+// before any part is read — shared by the docx/pptx/xlsx extractors via
+// assertZipWithinLimits() in services/ooxml.ts. The per-format
+// MAX_UNCOMPRESSED_BYTES constants above bound any ONE part; they say nothing
+// about the SUM across every part a package can legally contain (styles,
+// dozens of slides/sheets, media, drawings, tables, rels, theme, core/app
+// props). A zip built from many separately-legal-sized parts can still cost
+// gigabytes of cumulative decompression across a single analysis, and a zip
+// with an enormous number of tiny entries costs real CPU/memory just parsing
+// JSZip's central directory, before any part is ever read. These two checks
+// close both gaps and apply to every OOXML format uniformly.
+//
+// SAFE TO CHANGE: Yes for both values — pick values comfortably above any
+// real-world Word/PowerPoint/Excel document; see each constant's note.
+// ---------------------------------------------------------------------------
+
+export const OOXML = {
+  /**
+   * Maximum number of entries (files + directories) in the ZIP central
+   * directory. Real documents rarely exceed a few hundred parts even with
+   * many embedded images; 10,000 leaves generous headroom while bounding a
+   * "many tiny files" package designed to cost CPU/memory in JSZip's own
+   * central-directory parse before any content is even read.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_ZIP_ENTRIES: 10_000,
+
+  /**
+   * Maximum SUM of every entry's declared uncompressed size (bytes) across
+   * the whole package. Checked once, right after JSZip.loadAsync, against
+   * the ZIP central directory's declared sizes (cheap — no decompression
+   * happens yet). Each per-format MAX_UNCOMPRESSED_BYTES (30 MB) already
+   * bounds any single part; this bounds the total across ALL parts, so a
+   * package built from many separately-legal-sized parts can't add up to
+   * an unbounded decompression bill. 512 MB is ~17x one full-sized part —
+   * comfortably above any legitimate Word/PowerPoint/Excel file (whose real
+   * total is normally single-digit MB to tens of MB even with heavy
+   * embedded media) while still bounding the aggregate.
+   *
+   * Declared sizes are attacker-controlled metadata (same caveat as
+   * readCapped's fast-reject check in ooxml.ts) — this is a cheap
+   * fast-fail, not the only guard; readCapped's streaming per-part cap
+   * remains the authoritative defense against a forged declared size.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_TOTAL_UNCOMPRESSED_BYTES: 512 * 1024 * 1024,
+} as const;
+
+// ---------------------------------------------------------------------------
 // PDF ANALYSIS LIMITS
 // ---------------------------------------------------------------------------
 // Operational limits for the PDF analysis pipeline. These protect the server

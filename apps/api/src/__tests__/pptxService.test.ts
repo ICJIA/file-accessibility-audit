@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import JSZip from "jszip";
 import {
   buildPptx,
   bodyShape,
@@ -429,5 +430,54 @@ describe("pptxService: theme scheme colors resolved once per analysis (V3 DoS ha
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("pptxService: aggregate zip-package limits (C1 DoS hardening)", () => {
+  afterEach(() => {
+    vi.doUnmock("#config");
+    vi.resetModules();
+  });
+
+  async function addExtraEntries(buf: Buffer, count: number): Promise<Buffer> {
+    const zip = await JSZip.loadAsync(buf);
+    for (let i = 0; i < count; i++) {
+      zip.file(`extra/f${i}.xml`, "x", { compression: "STORE" });
+    }
+    return zip.generateAsync({ type: "nodebuffer" });
+  }
+
+  async function addOversizedEntry(buf: Buffer, size: number): Promise<Buffer> {
+    const zip = await JSZip.loadAsync(buf);
+    zip.file("extra/big.xml", "A".repeat(size));
+    return zip.generateAsync({ type: "nodebuffer" });
+  }
+
+  it("rejects a pptx package with more entries than OOXML.MAX_ZIP_ENTRIES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 5 } };
+    });
+    const { analyzePptx: analyze, PptxParseError: ParseError } =
+      await import("../services/pptxService.js");
+    const { buildPptx: build } = await import("./helpers/minimalPptx.js");
+    const base = await build({ slides: [{ title: "T" }] });
+    const buf = await addExtraEntries(base, 10);
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it("rejects a pptx package whose summed declared uncompressed sizes exceed OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES, even though no single part exceeds PPTX.MAX_UNCOMPRESSED_BYTES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_TOTAL_UNCOMPRESSED_BYTES: 2_000 } };
+    });
+    const { analyzePptx: analyze, PptxParseError: ParseError } =
+      await import("../services/pptxService.js");
+    const { buildPptx: build } = await import("./helpers/minimalPptx.js");
+    const base = await build({ slides: [{ title: "T" }] });
+    const buf = await addOversizedEntry(base, 3_000);
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
   });
 });

@@ -16,7 +16,8 @@ import {
 } from "./pdfAnalyzer.js";
 import { readCapped } from "./docxService.js";
 import { runOoxmlInWorker } from "./ooxmlRunner.js";
-import { DOCX, PPTX, XLSX } from "#config";
+import { assertZipWithinLimits } from "./ooxml.js";
+import { DOCX, PPTX, XLSX, OOXML } from "#config";
 
 export type DetectedFileType = "pdf" | "docx" | "pptx" | "xlsx";
 
@@ -44,6 +45,24 @@ export async function detectFileType(buffer: Buffer): Promise<DetectedFileType |
   if (isZip(buffer)) {
     try {
       const zip = await JSZip.loadAsync(buffer);
+      // Same aggregate zip-package limits the docx/pptx/xlsx extractors
+      // enforce (see OOXML in #config), applied here too: this detection
+      // pass runs in the PARENT process, ungated by the analysis
+      // concurrency semaphore (that's only acquired after a type is
+      // known), so an abusive zip should fail fast here rather than
+      // costing detection-time CPU/memory on every upload attempt. A
+      // rejection here is caught below and folds into the existing
+      // "not a readable ZIP" -> unsupported-file-type path; the
+      // authoritative per-format check still runs again inside
+      // analyzeDocx/Pptx/Xlsx once dispatched.
+      assertZipWithinLimits(
+        zip,
+        {
+          maxEntries: OOXML.MAX_ZIP_ENTRIES,
+          maxTotalUncompressedBytes: OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES,
+        },
+        (m) => new Error(m),
+      );
       const ctEntry = zip.file("[Content_Types].xml");
       if (!ctEntry) return null;
       // Cap the content-types read too — a bomb could hide here to OOM during

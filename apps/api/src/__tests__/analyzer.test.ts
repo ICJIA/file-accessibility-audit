@@ -4,7 +4,8 @@
  * The PDF branch (analyzePDF) needs the qpdf binary and is covered by
  * integration.test.ts; here we exercise detection and the DOCX branch.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import JSZip from "jszip";
 import { detectFileType, analyzeDocument } from "../services/analyzer.js";
 import { buildDocx } from "./helpers/minimalDocx.js";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
@@ -80,5 +81,36 @@ describe("detectFileType: xlsx", () => {
     expect(r.fileType).toBe("xlsx");
     expect(r.pageCount).toBe(2); // sheets
     expect(r.xlsxMetadata?.title).toBe("Grant Ledger");
+  });
+});
+
+describe("detectFileType: aggregate zip-package limits (C1 DoS hardening)", () => {
+  // This detection pass runs in the PARENT process, before dispatch and
+  // before the analysis concurrency semaphore is acquired, so an abusive
+  // zip must be rejected here too — not only inside analyzeDocx/Pptx/Xlsx
+  // once a type is known. See OOXML in #config.
+  afterEach(() => {
+    vi.doUnmock("#config");
+    vi.resetModules();
+  });
+
+  it("a zip with more entries than OOXML.MAX_ZIP_ENTRIES is treated as an unsupported/undetectable file, not crashed on", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 5 } };
+    });
+    const { detectFileType: detect, analyzeDocument: analyze } =
+      await import("../services/analyzer.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const base = await build();
+    const zip = await JSZip.loadAsync(base);
+    for (let i = 0; i < 10; i++) zip.file(`extra/f${i}.xml`, "x", { compression: "STORE" });
+    const buf = await zip.generateAsync({ type: "nodebuffer" });
+
+    await expect(detect(buf)).resolves.toBeNull();
+    await expect(analyze(buf, "bomb.docx")).rejects.toMatchObject({
+      code: "UNSUPPORTED_FILE_TYPE",
+    });
   });
 });

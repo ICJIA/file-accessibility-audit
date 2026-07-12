@@ -22,7 +22,7 @@
  * countShapesAnyDepth / countTextElementsAnyDepth cap-before-walk pattern.
  */
 import JSZip from "jszip";
-import { XLSX } from "#config";
+import { XLSX, OOXML } from "#config";
 import {
   type PONode,
   parseXml,
@@ -40,6 +40,7 @@ import {
   normalizeHex,
   contrastRatio,
   readCapped,
+  assertZipWithinLimits,
 } from "./ooxml.js";
 
 export interface XlsxMetadata {
@@ -154,6 +155,21 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
   } catch {
     throw new XlsxParseError("The file is not a readable ZIP/XLSX package.");
   }
+
+  // Aggregate zip-package limits (entry count + total declared uncompressed
+  // size) — checked once, right after loadAsync, before any part is read.
+  // See OOXML in #config for rationale; this closes the gap XLSX.
+  // MAX_UNCOMPRESSED_BYTES leaves open (it only bounds any ONE part, not the
+  // sum across every part a legal .xlsx can contain).
+  assertZipWithinLimits(
+    zip,
+    {
+      maxEntries: OOXML.MAX_ZIP_ENTRIES,
+      maxTotalUncompressedBytes: OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES,
+    },
+    (m) => new XlsxParseError(m),
+  );
+
   const read = (p: string): Promise<string | null> => {
     const f = zip.file(p);
     return f

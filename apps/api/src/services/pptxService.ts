@@ -8,7 +8,7 @@
  * speaker notes are not read.
  */
 import JSZip from "jszip";
-import { PPTX } from "#config";
+import { PPTX, OOXML } from "#config";
 import {
   type PONode,
   parseXml,
@@ -30,6 +30,7 @@ import {
   contrastRatio,
   buildSchemeColorMap,
   readCapped,
+  assertZipWithinLimits,
 } from "./ooxml.js";
 
 export interface PptxMetadata {
@@ -132,6 +133,21 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   } catch {
     throw new PptxParseError("The file is not a readable ZIP/PPTX package.");
   }
+
+  // Aggregate zip-package limits (entry count + total declared uncompressed
+  // size) — checked once, right after loadAsync, before any part is read.
+  // See OOXML in #config for rationale; this closes the gap PPTX.
+  // MAX_UNCOMPRESSED_BYTES leaves open (it only bounds any ONE part, not the
+  // sum across every part a legal .pptx can contain).
+  assertZipWithinLimits(
+    zip,
+    {
+      maxEntries: OOXML.MAX_ZIP_ENTRIES,
+      maxTotalUncompressedBytes: OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES,
+    },
+    (m) => new PptxParseError(m),
+  );
+
   const read = (p: string): Promise<string | null> => {
     const f = zip.file(p);
     return f

@@ -20,6 +20,7 @@ import {
   resolveSchemeColor,
   buildSchemeColorMap,
   parseRelationshipEntries,
+  assertZipWithinLimits,
   type PONode,
 } from "../services/ooxml.js";
 
@@ -206,6 +207,79 @@ describe("readCapped", () => {
     await expect(readCapped(zip.file("big.xml")!, 1024, "big.xml", make)).rejects.toSatisfy(
       (e: unknown) => e instanceof FakeError && (e as Error).message.includes("big.xml"),
     );
+  });
+});
+
+describe("assertZipWithinLimits", () => {
+  class FakeError extends Error {}
+  const make = (m: string): Error => new FakeError(m);
+
+  async function zipOfEntryCount(n: number): Promise<JSZip> {
+    const zip = new JSZip();
+    for (let i = 0; i < n; i++) {
+      zip.file(`f${i}.xml`, "x", { compression: "STORE" });
+    }
+    return JSZip.loadAsync(await zip.generateAsync({ type: "nodebuffer", compression: "STORE" }));
+  }
+
+  async function zipOfTotalUncompressed(sizes: number[]): Promise<JSZip> {
+    const zip = new JSZip();
+    sizes.forEach((size, i) => {
+      // Highly compressible content (repeated byte) keeps the actual
+      // buffer small even though the DECLARED uncompressed size is large —
+      // exactly the shape of a real decompression-bomb entry.
+      zip.file(`part${i}.xml`, "A".repeat(size));
+    });
+    return JSZip.loadAsync(await zip.generateAsync({ type: "nodebuffer" }));
+  }
+
+  it("passes a package within both limits", async () => {
+    const zip = await zipOfEntryCount(3);
+    expect(() =>
+      assertZipWithinLimits(zip, { maxEntries: 10, maxTotalUncompressedBytes: 1_000_000 }, make),
+    ).not.toThrow();
+  });
+
+  it("rejects a package with more entries than maxEntries", async () => {
+    const zip = await zipOfEntryCount(11);
+    expect(() =>
+      assertZipWithinLimits(zip, { maxEntries: 10, maxTotalUncompressedBytes: 1_000_000 }, make),
+    ).toThrow(FakeError);
+  });
+
+  it("accepts a package at exactly maxEntries (boundary)", async () => {
+    const zip = await zipOfEntryCount(10);
+    expect(() =>
+      assertZipWithinLimits(zip, { maxEntries: 10, maxTotalUncompressedBytes: 1_000_000 }, make),
+    ).not.toThrow();
+  });
+
+  it("rejects when the SUM of declared uncompressed sizes exceeds the cap, even though no single entry does", async () => {
+    // Three entries at 400 bytes each (well under a per-part cap) sum to
+    // 1200 > the 1000-byte aggregate cap injected here.
+    const zip = await zipOfTotalUncompressed([400, 400, 400]);
+    await expect(
+      Promise.resolve().then(() =>
+        assertZipWithinLimits(zip, { maxEntries: 100, maxTotalUncompressedBytes: 1_000 }, make),
+      ),
+    ).rejects.toThrow(FakeError);
+  });
+
+  it("passes when the sum is within the aggregate cap", async () => {
+    const zip = await zipOfTotalUncompressed([400, 400]);
+    expect(() =>
+      assertZipWithinLimits(zip, { maxEntries: 100, maxTotalUncompressedBytes: 1_000 }, make),
+    ).not.toThrow();
+  });
+
+  it("error message includes the offending count/size so route mapping stays informative", async () => {
+    const zip = await zipOfEntryCount(11);
+    try {
+      assertZipWithinLimits(zip, { maxEntries: 10, maxTotalUncompressedBytes: 1_000_000 }, make);
+      expect.unreachable();
+    } catch (e) {
+      expect((e as Error).message).toContain("11");
+    }
   });
 });
 

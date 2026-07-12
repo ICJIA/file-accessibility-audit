@@ -244,6 +244,61 @@ export function readCapped(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Aggregate ZIP-package limits (entry count + total declared size)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reject a package outright — before any part is read — if it has more
+ * entries than `limits.maxEntries`, or if the SUM of every entry's declared
+ * uncompressed size exceeds `limits.maxTotalUncompressedBytes`. Complements
+ * readCapped's PER-PART streaming cap: that guards any one part from
+ * inflating past its own limit, but says nothing about a package built from
+ * many separately-legal-sized parts (styles, dozens of slides/sheets, media,
+ * drawings, tables, rels, theme, core/app props) whose total would still
+ * cost an unbounded amount of cumulative decompression work across a single
+ * analysis. A package with an enormous number of tiny entries is its own
+ * (smaller but real) cost center — JSZip's central-directory parse is
+ * O(entries) — so the entry-count check is independent of size and runs
+ * first.
+ *
+ * Declared sizes come straight from the ZIP central directory (no
+ * decompression yet, so this is cheap), but — like readCapped's fast-reject
+ * check — they are attacker-controlled metadata. This function is a fast
+ * fail on obviously-abusive packages; readCapped's streaming byte cap
+ * remains the authoritative per-part defense regardless of what a package
+ * declares.
+ *
+ * `makeError` mirrors readCapped's pattern so callers get their own
+ * format-specific error type (DocxParseError, PptxParseError,
+ * XlsxParseError, ...) — existing route-level `err.code` mapping keeps
+ * working unchanged.
+ */
+export function assertZipWithinLimits(
+  zip: JSZip,
+  limits: { maxEntries: number; maxTotalUncompressedBytes: number },
+  makeError: (message: string) => Error,
+): void {
+  const entries = Object.values(zip.files);
+  if (entries.length > limits.maxEntries) {
+    throw makeError(
+      `This package contains too many entries (${entries.length.toLocaleString()}) to analyze.`,
+    );
+  }
+  let total = 0;
+  for (const f of entries) {
+    total +=
+      (f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0;
+  }
+  if (total > limits.maxTotalUncompressedBytes) {
+    throw makeError(
+      `This package's total uncompressed content (${Math.round(
+        total / (1024 * 1024),
+      )} MB) exceeds the ${Math.round(limits.maxTotalUncompressedBytes / (1024 * 1024))} MB limit.`,
+    );
+  }
+}
+
 /** Rels entries with their Type preserved (media / table detection needs it). */
 export function parseRelationshipEntries(
   relsXml: string | null,

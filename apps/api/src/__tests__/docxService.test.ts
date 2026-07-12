@@ -4,7 +4,7 @@
  * packages — so the extractor is exercised end to end (unzip + XML parse),
  * not against a mock.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   buildDocx,
   styledParagraph,
@@ -262,5 +262,62 @@ describe("docx resource limits (zip-bomb defense)", () => {
   it("readCapped returns content that fits within the cap", async () => {
     const entry = await entryOf("hello world");
     await expect(readCapped(entry, 10_000, "word/document.xml")).resolves.toBe("hello world");
+  });
+});
+
+describe("docx aggregate zip-package limits (C1 DoS hardening)", () => {
+  afterEach(() => {
+    vi.doUnmock("#config");
+    vi.resetModules();
+  });
+
+  it("rejects a docx package with more entries than OOXML.MAX_ZIP_ENTRIES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 5 } };
+    });
+    const { analyzeDocx: analyze, DocxParseError: ParseError } =
+      await import("../services/docxService.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const extra = Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [`extra/f${i}.xml`, "x"]),
+    );
+    const buf = await build({ extra });
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it("rejects a docx package whose summed declared uncompressed sizes exceed OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES, even though no single part exceeds DOCX.MAX_UNCOMPRESSED_BYTES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_TOTAL_UNCOMPRESSED_BYTES: 2_000 } };
+    });
+    const { analyzeDocx: analyze, DocxParseError: ParseError } =
+      await import("../services/docxService.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const buf = await build({
+      extra: {
+        "extra/a.xml": "A".repeat(800),
+        "extra/b.xml": "A".repeat(800),
+        "extra/c.xml": "A".repeat(800),
+      },
+    });
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it("a package within both aggregate limits still analyzes normally", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return {
+        ...actual,
+        OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 20, MAX_TOTAL_UNCOMPRESSED_BYTES: 5_000 },
+      };
+    });
+    const { analyzeDocx: analyze } = await import("../services/docxService.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const buf = await build();
+    await expect(analyze(buf)).resolves.toBeTruthy();
   });
 });

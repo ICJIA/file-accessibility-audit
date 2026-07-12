@@ -11,7 +11,7 @@
  * and feeds `scoreDocx()` in scorer.ts.
  */
 import JSZip from "jszip";
-import { DOCX } from "#config";
+import { DOCX, OOXML } from "#config";
 import {
   type PONode,
   parseXml,
@@ -32,6 +32,7 @@ import {
   normalizeHex,
   contrastRatio,
   readCapped as ooxmlReadCapped,
+  assertZipWithinLimits,
 } from "./ooxml.js";
 
 export interface DocxMetadata {
@@ -328,6 +329,20 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   } catch {
     throw new DocxParseError("The file is not a readable ZIP/DOCX package.");
   }
+
+  // Aggregate zip-package limits (entry count + total declared uncompressed
+  // size) — checked once, right after loadAsync, before any part is read.
+  // See OOXML in #config for rationale; this closes the gap DOCX.
+  // MAX_UNCOMPRESSED_BYTES leaves open (it only bounds any ONE part, not the
+  // sum across every part a legal .docx can contain).
+  assertZipWithinLimits(
+    zip,
+    {
+      maxEntries: OOXML.MAX_ZIP_ENTRIES,
+      maxTotalUncompressedBytes: OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES,
+    },
+    (m) => new DocxParseError(m),
+  );
 
   const read = (p: string): Promise<string | null> => {
     const f = zip.file(p);

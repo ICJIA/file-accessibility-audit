@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import JSZip from "jszip";
 import { buildXlsx } from "./helpers/minimalXlsx.js";
 import { analyzeXlsx, XlsxParseError, countCellsAnyDepth } from "../services/xlsxService.js";
 import { parseXml, rootElement } from "../services/ooxml.js";
@@ -713,5 +714,54 @@ describe("xlsxService: contrast is only evaluated for styles applied to a non-em
     const a = await analyzeXlsx(buf);
     expect(a.contrast.checkedRuns).toBe(1);
     expect(a.contrast.failing).toHaveLength(1);
+  });
+});
+
+describe("xlsxService: aggregate zip-package limits (C1 DoS hardening)", () => {
+  afterEach(() => {
+    vi.doUnmock("#config");
+    vi.resetModules();
+  });
+
+  async function addExtraEntries(buf: Buffer, count: number): Promise<Buffer> {
+    const zip = await JSZip.loadAsync(buf);
+    for (let i = 0; i < count; i++) {
+      zip.file(`extra/f${i}.xml`, "x", { compression: "STORE" });
+    }
+    return zip.generateAsync({ type: "nodebuffer" });
+  }
+
+  async function addOversizedEntry(buf: Buffer, size: number): Promise<Buffer> {
+    const zip = await JSZip.loadAsync(buf);
+    zip.file("extra/big.xml", "A".repeat(size));
+    return zip.generateAsync({ type: "nodebuffer" });
+  }
+
+  it("rejects an xlsx package with more entries than OOXML.MAX_ZIP_ENTRIES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 5 } };
+    });
+    const { analyzeXlsx: analyze, XlsxParseError: ParseError } =
+      await import("../services/xlsxService.js");
+    const { buildXlsx: build } = await import("./helpers/minimalXlsx.js");
+    const base = await build({ sheets: [{ name: "A" }] });
+    const buf = await addExtraEntries(base, 10);
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it("rejects an xlsx package whose summed declared uncompressed sizes exceed OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES, even though no single part exceeds XLSX.MAX_UNCOMPRESSED_BYTES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_TOTAL_UNCOMPRESSED_BYTES: 2_000 } };
+    });
+    const { analyzeXlsx: analyze, XlsxParseError: ParseError } =
+      await import("../services/xlsxService.js");
+    const { buildXlsx: build } = await import("./helpers/minimalXlsx.js");
+    const base = await build({ sheets: [{ name: "A" }] });
+    const buf = await addOversizedEntry(base, 3_000);
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
   });
 });
