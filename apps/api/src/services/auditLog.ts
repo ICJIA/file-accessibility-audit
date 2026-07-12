@@ -1,5 +1,5 @@
-import crypto from 'node:crypto'
-import db from '../db/sqlite.js'
+import crypto from "node:crypto";
+import db from "../db/sqlite.js";
 
 /**
  * Shared writer for the audit_log table.
@@ -16,19 +16,19 @@ import db from '../db/sqlite.js'
  */
 
 export interface RecordAuditInput {
-  email: string | null
-  filename: string
-  score: number | null
-  grade: string | null
-  contentHash?: string | null
-  ipAddress?: string | null
-  userAgent?: string | null
+  email: string | null;
+  filename: string;
+  score: number | null;
+  grade: string | null;
+  contentHash?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   /** Event type label. Default: 'analyze'. */
-  eventType?: string
+  eventType?: string;
 }
 
 export function sha256Hex(buf: Buffer): string {
-  return crypto.createHash('sha256').update(buf).digest('hex')
+  return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
 /**
@@ -44,12 +44,12 @@ export function gateIdentity(
   email: string | null | undefined,
   ip: string | null | undefined,
 ): string {
-  if (email && email !== 'anonymous') {
-    return email
+  if (email && email !== "anonymous") {
+    return email;
   }
   // Strip IPv6 brackets + zone identifier for stability.
-  const cleanIp = (ip ?? 'unknown').replace(/^\[|\]$/g, '').split('%')[0]
-  return `anon:${cleanIp}`
+  const cleanIp = (ip ?? "unknown").replace(/^\[|\]$/g, "").split("%")[0];
+  return `anon:${cleanIp}`;
 }
 
 const insertStmt = db.prepare(
@@ -57,28 +57,27 @@ const insertStmt = db.prepare(
      (event_type, email, filename, score, grade,
       ip_address, user_agent, content_hash)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-)
+);
 
 export function recordAudit(input: RecordAuditInput): void {
   try {
     insertStmt.run(
-      input.eventType ?? 'analyze',
+      input.eventType ?? "analyze",
       // email is required-NOT-NULL on audit_log; coerce anonymous to a
       // sentinel string so dev / no-auth deployments still write rows.
-      input.email ?? 'anonymous',
+      input.email ?? "anonymous",
       input.filename,
       input.score,
       input.grade,
       input.ipAddress ?? null,
       input.userAgent ?? null,
       input.contentHash ?? null,
-    )
+    );
   } catch (err) {
     // Don't block the response on a logging failure — the audit
     // result has already been computed. Log to stderr so operators
     // can spot persistent issues.
-    // eslint-disable-next-line no-console
-    console.error('audit_log write failed:', err)
+    console.error("audit_log write failed:", err);
   }
 }
 
@@ -98,16 +97,12 @@ const findRecentAuditStmt = db.prepare(
       AND email = ?
       AND created_at > datetime(?, 'unixepoch')
     LIMIT 1`,
-)
+);
 
-export function hasRecentAudit(
-  contentHash: string,
-  email: string,
-  windowMs: number,
-): boolean {
-  const sinceUnixSec = Math.floor((Date.now() - windowMs) / 1000)
-  const row = findRecentAuditStmt.get(contentHash, email, sinceUnixSec)
-  return !!row
+export function hasRecentAudit(contentHash: string, email: string, windowMs: number): boolean {
+  const sinceUnixSec = Math.floor((Date.now() - windowMs) / 1000);
+  const row = findRecentAuditStmt.get(contentHash, email, sinceUnixSec);
+  return !!row;
 }
 
 /**
@@ -120,13 +115,10 @@ const countRemediationsStmt = db.prepare(
   `SELECT COUNT(*) AS n FROM remediation_jobs
     WHERE email = ?
       AND created_at > ?`,
-)
+);
 
-export function countRecentRemediations(
-  email: string,
-  windowMs: number,
-): number {
-  const sinceMs = Date.now() - windowMs
-  const row = countRemediationsStmt.get(email, sinceMs) as { n: number }
-  return row.n
+export function countRecentRemediations(email: string, windowMs: number): number {
+  const sinceMs = Date.now() - windowMs;
+  const row = countRemediationsStmt.get(email, sinceMs) as { n: number };
+  return row.n;
 }

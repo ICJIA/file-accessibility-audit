@@ -4,10 +4,9 @@
  * packages — so the extractor is exercised end to end (unzip + XML parse),
  * not against a mock.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   buildDocx,
-  wordDocument,
   styledParagraph,
   paragraph,
   inlineImage,
@@ -15,13 +14,10 @@ import {
   hyperlink,
   hyperlinkRels,
   listItem,
+  DOCX_NS,
 } from "./helpers/minimalDocx.js";
 import JSZip from "jszip";
-import {
-  analyzeDocx,
-  readCapped,
-  DocxParseError,
-} from "../services/docxService.js";
+import { analyzeDocx, readCapped, DocxParseError } from "../services/docxService.js";
 
 describe("docx metadata", () => {
   it("extracts title, creator, language, and page count", async () => {
@@ -119,9 +115,7 @@ describe("docx images", () => {
       body: inlineImage({ descr: "Bar chart of quarterly sales" }),
     });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([
-      { altText: "Bar chart of quarterly sales", decorative: false },
-    ]);
+    expect(r.images).toEqual([{ altText: "Bar chart of quarterly sales", decorative: false }]);
   });
 
   it("reports a missing alt text as null", async () => {
@@ -168,9 +162,7 @@ describe("docx links", () => {
   it("extracts link text and resolves the target via relationships", async () => {
     const buf = await buildDocx({
       body: hyperlink("rId7", "Annual accessibility report"),
-      documentRels: hyperlinkRels([
-        { id: "rId7", target: "https://example.gov/report" },
-      ]),
+      documentRels: hyperlinkRels([{ id: "rId7", target: "https://example.gov/report" }]),
     });
     const r = await analyzeDocx(buf);
     expect(r.links).toEqual([
@@ -234,8 +226,7 @@ describe("docx color contrast", () => {
           color: "808080",
           bold: true,
           sizeHalfPt: 32,
-        }) +
-        paragraph("Small note text", { color: "808080" }),
+        }) + paragraph("Small note text", { color: "808080" }),
     });
     const r = await analyzeDocx(buf);
     // #808080 on white ≈ 3.95:1 — passes large (≥3) but fails normal (<4.5).
@@ -245,9 +236,7 @@ describe("docx color contrast", () => {
 
 describe("docx validation", () => {
   it("throws on a non-zip buffer", async () => {
-    await expect(analyzeDocx(Buffer.from("this is not a zip"))).rejects.toThrow(
-      DocxParseError,
-    );
+    await expect(analyzeDocx(Buffer.from("this is not a zip"))).rejects.toThrow(DocxParseError);
   });
 
   it("throws when word/document.xml is missing", async () => {
@@ -268,15 +257,123 @@ describe("docx resource limits (zip-bomb defense)", () => {
     // Highly compressible 50 KB entry (tiny compressed) vs a 10 KB cap →
     // the streaming reader must abort before buffering it all.
     const entry = await entryOf("A".repeat(50_000));
-    await expect(
-      readCapped(entry, 10_000, "word/document.xml"),
-    ).rejects.toThrow(DocxParseError);
+    await expect(readCapped(entry, 10_000, "word/document.xml")).rejects.toThrow(DocxParseError);
   });
 
   it("readCapped returns content that fits within the cap", async () => {
     const entry = await entryOf("hello world");
-    await expect(
-      readCapped(entry, 10_000, "word/document.xml"),
-    ).resolves.toBe("hello world");
+    await expect(readCapped(entry, 10_000, "word/document.xml")).resolves.toBe("hello world");
+  });
+});
+
+describe("docx aggregate zip-package limits (C1 DoS hardening)", () => {
+  afterEach(() => {
+    vi.doUnmock("#config");
+    vi.resetModules();
+  });
+
+  it("rejects a docx package with more entries than OOXML.MAX_ZIP_ENTRIES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 5 } };
+    });
+    const { analyzeDocx: analyze, DocxParseError: ParseError } =
+      await import("../services/docxService.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const extra = Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [`extra/f${i}.xml`, "x"]),
+    );
+    const buf = await build({ extra });
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it("rejects a docx package whose summed declared uncompressed sizes exceed OOXML.MAX_TOTAL_UNCOMPRESSED_BYTES, even though no single part exceeds DOCX.MAX_UNCOMPRESSED_BYTES", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return { ...actual, OOXML: { ...actual.OOXML, MAX_TOTAL_UNCOMPRESSED_BYTES: 2_000 } };
+    });
+    const { analyzeDocx: analyze, DocxParseError: ParseError } =
+      await import("../services/docxService.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const buf = await build({
+      extra: {
+        "extra/a.xml": "A".repeat(800),
+        "extra/b.xml": "A".repeat(800),
+        "extra/c.xml": "A".repeat(800),
+      },
+    });
+    await expect(analyze(buf)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it("a package within both aggregate limits still analyzes normally", async () => {
+    vi.resetModules();
+    vi.doMock("#config", async (importOriginal) => {
+      const actual = (await importOriginal()) as { OOXML: Record<string, unknown> };
+      return {
+        ...actual,
+        OOXML: { ...actual.OOXML, MAX_ZIP_ENTRIES: 20, MAX_TOTAL_UNCOMPRESSED_BYTES: 5_000 },
+      };
+    });
+    const { analyzeDocx: analyze } = await import("../services/docxService.js");
+    const { buildDocx: build } = await import("./helpers/minimalDocx.js");
+    const buf = await build();
+    await expect(analyze(buf)).resolves.toBeTruthy();
+  });
+});
+
+describe("docx entity + DOCTYPE hardening (C2, full analyze path)", () => {
+  it("&amp;/&lt;/&gt; in heading text and image alt text still decode correctly end-to-end", async () => {
+    const buf = await buildDocx({
+      body:
+        styledParagraph("Heading1", "Smith &amp; Co. reports &lt;Q3&gt; results") +
+        inlineImage({ descr: "Revenue &gt; target &amp; on track" }),
+    });
+    const a = await analyzeDocx(buf);
+    expect(a.headings).toEqual([{ level: 1, text: "Smith & Co. reports <Q3> results" }]);
+    expect(a.images[0].altText).toBe("Revenue > target & on track");
+  });
+
+  it("a DOCTYPE-bearing word/document.xml is neutralized (no entity expansion, no crash), not parsed", async () => {
+    const documentXml =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<!DOCTYPE w:document [<!ENTITY xxe "INJECTED-VALUE">]>` +
+      `<w:document ${DOCX_NS}><w:body><w:p><w:r><w:t>&xxe;</w:t></w:r></w:p></w:body></w:document>`;
+    const buf = await buildDocx({ documentXml });
+    const a = await analyzeDocx(buf);
+    // The whole part fails to parse (parseXml's DOCTYPE guard), so nothing
+    // is extracted from it — critically, the injected entity value never
+    // surfaces anywhere in the analysis.
+    expect(a.paragraphCount).toBe(0);
+    expect(a.headings).toEqual([]);
+    expect(JSON.stringify(a)).not.toContain("INJECTED-VALUE");
+  });
+
+  it("a DOCTYPE elsewhere (e.g. styles.xml) is neutralized without crashing the whole analysis", async () => {
+    // The Heading1 style IS legitimately defined here — if the DOCTYPE guard
+    // did NOT neutralize this part, fast-xml-parser would parse it fine (no
+    // SYSTEM/parameter entity, just a simple leaf &xxe;) and the "Still
+    // readable" paragraph below would be recognized as a real heading. With
+    // the guard, this whole part fails to parse, so it isn't.
+    const stylesXml =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<!DOCTYPE w:styles [<!ENTITY xxe "INJECTED-VALUE">]>` +
+      `<w:styles ${DOCX_NS}>` +
+      `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/></w:style>` +
+      `&xxe;` +
+      `</w:styles>`;
+    const buf = await buildDocx({
+      stylesXml,
+      body: styledParagraph("Heading1", "Still readable"),
+    });
+    const a = await analyzeDocx(buf);
+    // styles.xml failing to parse means no heading-style map is built, so
+    // the "Heading1"-styled paragraph is no longer recognized as a heading
+    // — but the analysis still completes without crashing or leaking the
+    // injected value.
+    expect(a.paragraphCount).toBe(1);
+    expect(a.headings).toEqual([]);
+    expect(JSON.stringify(a)).not.toContain("INJECTED-VALUE");
   });
 });

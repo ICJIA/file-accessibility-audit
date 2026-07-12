@@ -1,28 +1,30 @@
-import type { CachedRow } from './cache.js'
+import type { CachedRow } from "./cache.js";
 // RB3-1: CATEGORY_IDS/CATEGORY_LABELS now come from the single shared
 // categories.ts (previously imported from csv.js's own hand-synced copy).
-import { CATEGORY_IDS, CATEGORY_LABELS } from './categories.js'
-import { sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
-
-const GRADE_COLORS: Record<string, string> = {
-  A: '#22c55e',
-  B: '#14b8a6',
-  C: '#eab308',
-  D: '#f97316',
-  F: '#ef4444',
-}
+import { CATEGORY_IDS, CATEGORY_LABELS } from "./categories.js";
+import { sortRowsDescending, gradeDistribution, generateAssessment } from "./csv.js";
+// A6: grade → hex color used to be a hand-copied literal, independently
+// duplicating packages/shared/src/scoring.ts's GRADE_THRESHOLDS colors (and
+// liable to drift from them, e.g. if a threshold color changed there but
+// not here). Sourced from the single shared definition instead. GRADE_BG
+// (background tints, below) has no shared equivalent — it stays local.
+import { GRADE_COLORS } from "@file-audit/shared";
 
 const GRADE_BG: Record<string, string> = {
-  A: '#f0fdf4',
-  B: '#f0fdfa',
-  C: '#fefce8',
-  D: '#fff7ed',
-  F: '#fef2f2',
-}
+  A: "#f0fdf4",
+  B: "#f0fdfa",
+  C: "#fefce8",
+  D: "#fff7ed",
+  F: "#fef2f2",
+};
 
 function esc(value: string | number | null | undefined): string {
-  if (value === null || value === undefined) return ''
-  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ---------------------------------------------------------------------------
@@ -46,80 +48,79 @@ function esc(value: string | number | null | undefined): string {
 // to the browser, with no hand-copied second implementation to drift out of
 // sync.
 export function isSafeHttpUrl(value: unknown): boolean {
-  if (typeof value !== 'string') return false
+  if (typeof value !== "string") return false;
   try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
-    return false
+    return false;
   }
 }
 
 /** Build a compact JSON-serializable row for client-side rendering */
 function toClientRow(row: CachedRow) {
-  const cats: Record<string, { s: number | null; g: string; v: string }> = {}
+  const cats: Record<string, { s: number | null; g: string; v: string }> = {};
   for (const catId of CATEGORY_IDS) {
     cats[catId] = {
       s: (row as any)[`${catId}_score`] ?? null,
-      g: (row as any)[`${catId}_grade`] ?? '',
-      v: (row as any)[`${catId}_severity`] ?? '',
-    }
+      g: (row as any)[`${catId}_grade`] ?? "",
+      v: (row as any)[`${catId}_severity`] ?? "",
+    };
   }
-  let tags: string[] = []
+  let tags: string[] = [];
   if (row.tags) {
-    try { tags = JSON.parse(row.tags) } catch {}
+    try {
+      tags = JSON.parse(row.tags);
+    } catch {}
   }
   return {
-    t: row.title ?? '',
-    d: row.publication_date ?? '',
-    g: row.grade ?? '',
+    t: row.title ?? "",
+    d: row.publication_date ?? "",
+    g: row.grade ?? "",
     s: row.overall_score ?? null,
-    u: row.file_url ?? '',
-    c: row.critical_findings ?? '',
+    u: row.file_url ?? "",
+    c: row.critical_findings ?? "",
     p: row.page_count ?? null,
-    pt: row.pub_type ?? '',
-    sm: row.summary ?? '',
+    pt: row.pub_type ?? "",
+    sm: row.summary ?? "",
     tg: tags,
-    at: row.audited_at ?? '',
+    at: row.audited_at ?? "",
     cats,
-  }
+  };
 }
 
 export function generateHtml(rows: CachedRow[], generatedAt: Date, csvContent?: string): string {
-  const sorted = sortRowsDescending(rows)
-  const dateStr = generatedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-  const timeStr = generatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const sorted = sortRowsDescending(rows);
+  const dateStr = generatedAt.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const timeStr = generatedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
-  const dist = gradeDistribution(sorted)
-  const needsWork = dist.C + dist.D + dist.F
-  const needsPct = sorted.length > 0 ? Math.round((needsWork / sorted.length) * 100) : 0
-  const assessment = generateAssessment(dist, sorted.length)
-
-  const { recent, legacy } = splitByEra(sorted)
-  const recentDist = gradeDistribution(recent)
-  const legacyDist = gradeDistribution(legacy)
-  const recentNeedsWork = recentDist.C + recentDist.D + recentDist.F
-  const recentNeedsPct = recent.length > 0 ? Math.round((recentNeedsWork / recent.length) * 100) : 0
-  const recentAssessment = generateAssessment(recentDist, recent.length)
+  const dist = gradeDistribution(sorted);
+  const needsWork = dist.C + dist.D + dist.F;
+  const needsPct = sorted.length > 0 ? Math.round((needsWork / sorted.length) * 100) : 0;
+  const assessment = generateAssessment(dist, sorted.length);
 
   // Category column headers
-  let catHeaders = ''
+  let catHeaders = "";
   for (const catId of CATEGORY_IDS) {
-    catHeaders += `<th class="cat-header" data-sort="num" data-key="cat_${catId}">${esc(CATEGORY_LABELS[catId])}<span class="sort-arrow"></span></th>`
+    catHeaders += `<th class="cat-header" data-sort="num" data-key="cat_${catId}">${esc(CATEGORY_LABELS[catId])}<span class="sort-arrow"></span></th>`;
   }
 
-  const totalCols = 6 + CATEGORY_IDS.length + 1
+  const totalCols = 6 + CATEGORY_IDS.length + 1;
 
   // Serialize row data for client-side rendering
-  const clientRows = sorted.map(toClientRow)
+  const clientRows = sorted.map(toClientRow);
   // Escape </script> in JSON to prevent premature tag close
-  const rowsJson = JSON.stringify(clientRows).replace(/<\//g, '<\\/')
+  const rowsJson = JSON.stringify(clientRows).replace(/<\//g, "<\\/");
 
   // Serialize constants the client needs
-  const catIdsJson = JSON.stringify(CATEGORY_IDS)
-  const catLabelsJson = JSON.stringify(CATEGORY_LABELS)
-  const gradeColorsJson = JSON.stringify(GRADE_COLORS)
-  const gradeBgJson = JSON.stringify(GRADE_BG)
+  const catIdsJson = JSON.stringify(CATEGORY_IDS);
+  const catLabelsJson = JSON.stringify(CATEGORY_LABELS);
+  const gradeColorsJson = JSON.stringify(GRADE_COLORS);
+  const gradeBgJson = JSON.stringify(GRADE_BG);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -282,21 +283,25 @@ export function generateHtml(rows: CachedRow[], generatedAt: Date, csvContent?: 
 
 <div class="dist-chart">
   <h2>Grade Distribution</h2>
-  ${['A', 'B', 'C', 'D', 'F'].map(g => {
-    const count = dist[g]
-    const pct = sorted.length > 0 ? (count / sorted.length) * 100 : 0
-    return `<div class="dist-bar-row">
+  ${["A", "B", "C", "D", "F"]
+    .map((g) => {
+      const count = dist[g];
+      const pct = sorted.length > 0 ? (count / sorted.length) * 100 : 0;
+      return `<div class="dist-bar-row">
       <div class="dist-label" style="color:${GRADE_COLORS[g]}">${g}</div>
       <div class="dist-bar-wrap"><div class="dist-bar" style="width:${pct}%;background:${GRADE_COLORS[g]};"></div></div>
       <div class="dist-count">${count} (${Math.round(pct)}%)</div>
-    </div>`
-  }).join('\n  ')}
+    </div>`;
+    })
+    .join("\n  ")}
   <div class="dist-stacked">
-    ${['A', 'B', 'C', 'D', 'F'].map(g => {
-      const pct = sorted.length > 0 ? (dist[g] / sorted.length) * 100 : 0
-      if (pct < 1) return ''
-      return `<div class="dist-stacked-seg" style="width:${pct}%;background:${GRADE_COLORS[g]};">${pct >= 5 ? g : ''}</div>`
-    }).join('')}
+    ${["A", "B", "C", "D", "F"]
+      .map((g) => {
+        const pct = sorted.length > 0 ? (dist[g] / sorted.length) * 100 : 0;
+        if (pct < 1) return "";
+        return `<div class="dist-stacked-seg" style="width:${pct}%;background:${GRADE_COLORS[g]};">${pct >= 5 ? g : ""}</div>`;
+      })
+      .join("")}
   </div>
 </div>
 
@@ -320,9 +325,13 @@ export function generateHtml(rows: CachedRow[], generatedAt: Date, csvContent?: 
   &nbsp;&nbsp;|&nbsp;&nbsp; Category scores are 0–100. Click any row to expand details.
 </div>
 
-${csvContent ? `<div class="download-bar">
+${
+  csvContent
+    ? `<div class="download-bar">
   <a class="download-btn" id="csv-download" download="publist-audit.csv">Download CSV Report</a>
-</div>` : ''}
+</div>`
+    : ""
+}
 
 <div id="pagination-top" class="pagination"></div>
 
@@ -351,13 +360,17 @@ ${csvContent ? `<div class="download-bar">
   ICJIA File Accessibility Audit &mdash; <a href="https://audit.icjia.app" target="_blank">audit.icjia.app</a>
 </footer>
 
-${csvContent ? `<script>
+${
+  csvContent
+    ? `<script>
 (function() {
   var csv = decodeURIComponent("${encodeURIComponent(csvContent)}");
   var blob = new Blob([csv], { type: 'text/csv' });
   document.getElementById('csv-download').href = URL.createObjectURL(blob);
 })();
-</script>` : ''}
+</script>`
+    : ""
+}
 <script>
 (function() {
   var DATA = ${rowsJson};
@@ -615,5 +628,5 @@ ${csvContent ? `<script>
 </script>
 </body>
 </html>
-`
+`;
 }

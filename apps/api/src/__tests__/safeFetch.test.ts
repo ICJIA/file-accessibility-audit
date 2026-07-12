@@ -33,17 +33,12 @@ describe("isPrivateIP — IPv4 private/reserved ranges", () => {
 });
 
 describe("isPrivateIP — IPv6 literals (bracketed and bare)", () => {
-  it.each([
-    "::1",
-    "[::1]",
-    "fe80::1",
-    "[fe80::1]",
-    "fc00::1",
-    "[fc00::1]",
-    "::",
-  ])("blocks IPv6 private/loopback/link-local %s", (ip) => {
-    expect(isPrivateIP(ip)).toBe(true);
-  });
+  it.each(["::1", "[::1]", "fe80::1", "[fe80::1]", "fc00::1", "[fc00::1]", "::"])(
+    "blocks IPv6 private/loopback/link-local %s",
+    (ip) => {
+      expect(isPrivateIP(ip)).toBe(true);
+    },
+  );
 
   it.each([
     "::ffff:127.0.0.1",

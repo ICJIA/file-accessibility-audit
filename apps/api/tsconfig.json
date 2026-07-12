@@ -16,5 +16,5 @@
     }
   },
   "include": ["src/**/*", "../../audit.config.ts"],
-  "exclude": ["node_modules", "dist", "src/spike"]
+  "exclude": ["node_modules", "dist"]
 }

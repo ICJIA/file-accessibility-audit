@@ -38,9 +38,7 @@ describe("scoreDocx", () => {
     const r = scoreDocx(
       analysis({
         images: [{ altText: "Sales chart", decorative: false }],
-        tables: [
-          { hasHeaderRow: true, rowCount: 3, colCount: 2, hasNestedTable: false },
-        ],
+        tables: [{ hasHeaderRow: true, rowCount: 3, colCount: 2, hasNestedTable: false }],
       }),
     );
     expect(r.overallScore).toBeGreaterThanOrEqual(90);
@@ -49,9 +47,7 @@ describe("scoreDocx", () => {
   });
 
   it("gives Text Extractability an automatic pass", () => {
-    const t = scoreDocx(analysis()).categories.find(
-      (c) => c.id === "text_extractability",
-    );
+    const t = scoreDocx(analysis()).categories.find((c) => c.id === "text_extractability");
     expect(t?.score).toBe(100);
   });
 
@@ -103,9 +99,7 @@ describe("scoreDocx", () => {
         headings: [],
         fakeHeadings: [{ text: "Looks Like A Heading" }],
         images: [{ altText: null, decorative: false }],
-        tables: [
-          { hasHeaderRow: false, rowCount: 3, colCount: 3, hasNestedTable: false },
-        ],
+        tables: [{ hasHeaderRow: false, rowCount: 3, colCount: 3, hasNestedTable: false }],
         contrast: {
           checkedRuns: 2,
           unresolvedRuns: 0,

@@ -1,47 +1,47 @@
-import { Router, Request, Response, type IRouter } from 'express'
-import crypto from 'node:crypto'
-import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
-import { reportsLimiter } from '../middleware/rateLimiter.js'
-import { analyzeDocument, detectFileType } from '../services/analyzer.js'
-import { gateIdentity, recordAudit, sha256Hex } from '../services/auditLog.js'
-import { safeFetch, SafeFetchError } from '../services/safeFetch.js'
-import { validateUrlForFetch } from '../services/urlPolicy.js'
-import { SHARED_REPORTS } from '#config'
-import db from '../db/sqlite.js'
-import { sanitizeStoredReport } from '../services/reportSanitize.js'
+import { Router, Response, type IRouter } from "express";
+import crypto from "node:crypto";
+import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
+import { reportsLimiter } from "../middleware/rateLimiter.js";
+import { analyzeDocument, detectFileType } from "../services/analyzer.js";
+import { gateIdentity, recordAudit, sha256Hex } from "../services/auditLog.js";
+import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
+import { validateUrlForFetch } from "../services/urlPolicy.js";
+import { SHARED_REPORTS } from "#config";
+import db from "../db/sqlite.js";
+import { sanitizeStoredReport } from "../services/reportSanitize.js";
 
-const router: IRouter = Router()
+const router: IRouter = Router();
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_INVENTORY_BYTES = 5 * 1024 * 1024  // 5 MB NDJSON cap
-const MAX_FILE_BYTES = 15 * 1024 * 1024       // match ANALYSIS.MAX_FILE_SIZE_MB; applies to any of the four supported formats, not just PDF
-const MAX_FILES_PER_REQUEST = 100             // cap to keep requests reasonable
-const FETCH_TIMEOUT_MS = 30_000               // matches SCHEDULED_CHECKS.FETCH_TIMEOUT_MS
+const MAX_INVENTORY_BYTES = 5 * 1024 * 1024; // 5 MB NDJSON cap
+const MAX_FILE_BYTES = 15 * 1024 * 1024; // match ANALYSIS.MAX_FILE_SIZE_MB; applies to any of the four supported formats, not just PDF
+const MAX_FILES_PER_REQUEST = 100; // cap to keep requests reasonable
+const FETCH_TIMEOUT_MS = 30_000; // matches SCHEDULED_CHECKS.FETCH_TIMEOUT_MS
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 interface InventoryEntry {
-  path: string
-  filename: string
-  category: string
-  publicUrl?: string
-  sha256?: string
+  path: string;
+  filename: string;
+  category: string;
+  publicUrl?: string;
+  sha256?: string;
 }
 
 interface BulkResult {
-  sha256?: string
-  path: string
-  publicUrl?: string
-  overallScore?: number
-  grade?: string
-  reportId?: string
-  reportUrl?: string
-  error?: string
+  sha256?: string;
+  path: string;
+  publicUrl?: string;
+  overallScore?: number;
+  grade?: string;
+  reportId?: string;
+  reportUrl?: string;
+  error?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,25 +58,25 @@ interface BulkResult {
 // is the SafeFetchError-specific catch, which F2 didn't touch.
 function curateSafeFetchMessage(code: string): string {
   switch (code) {
-    case 'malformed_url':
-    case 'redirect_invalid':
-      return 'the URL could not be parsed or redirected to an invalid location'
-    case 'private_ip':
-      return 'the URL resolves to a private or reserved address and cannot be fetched'
-    case 'dns_failed':
-      return "the URL's hostname could not be resolved"
-    case 'redirect_loop':
-      return 'the URL redirected in a loop'
-    case 'too_many_redirects':
-      return 'the URL redirected too many times'
-    case 'timeout':
-      return 'the request to the URL timed out'
-    case 'oversized':
-      return 'the file at the URL exceeded the size limit'
-    case 'network_error':
-      return 'could not connect to the URL'
+    case "malformed_url":
+    case "redirect_invalid":
+      return "the URL could not be parsed or redirected to an invalid location";
+    case "private_ip":
+      return "the URL resolves to a private or reserved address and cannot be fetched";
+    case "dns_failed":
+      return "the URL's hostname could not be resolved";
+    case "redirect_loop":
+      return "the URL redirected in a loop";
+    case "too_many_redirects":
+      return "the URL redirected too many times";
+    case "timeout":
+      return "the request to the URL timed out";
+    case "oversized":
+      return "the file at the URL exceeded the size limit";
+    case "network_error":
+      return "could not connect to the URL";
     default:
-      return 'the file could not be fetched'
+      return "the file could not be fetched";
   }
 }
 
@@ -98,53 +98,53 @@ function parseInventory(
   inventoryText: string,
   filterCategory: string,
 ): { entries: InventoryEntry[]; totalLineCount: number } {
-  const lines = inventoryText.split('\n').filter((l) => l.trim().length > 0)
-  const entries: InventoryEntry[] = []
-  let publicUrlBase: string | undefined
+  const lines = inventoryText.split("\n").filter((l) => l.trim().length > 0);
+  const entries: InventoryEntry[] = [];
+  let publicUrlBase: string | undefined;
 
   for (const line of lines) {
-    let parsed: any
+    let parsed: any;
     try {
-      parsed = JSON.parse(line)
+      parsed = JSON.parse(line);
     } catch {
-      continue
+      continue;
     }
 
     // filecap header record carries publicUrlBase in metadata
-    if (typeof parsed.kind === 'string' && parsed.kind.endsWith('-header')) {
-      publicUrlBase = parsed.metadata?.publicUrlBase
-      continue
+    if (typeof parsed.kind === "string" && parsed.kind.endsWith("-header")) {
+      publicUrlBase = parsed.metadata?.publicUrlBase;
+      continue;
     }
 
     // skip footer records
-    if (typeof parsed.kind === 'string' && parsed.kind.endsWith('-footer')) continue
+    if (typeof parsed.kind === "string" && parsed.kind.endsWith("-footer")) continue;
 
-    if (parsed.category !== filterCategory) continue
+    if (parsed.category !== filterCategory) continue;
 
     // Resolve publicUrl: use entry value first, then construct from header base + path
-    let publicUrl: string | undefined = parsed.publicUrl
+    let publicUrl: string | undefined = parsed.publicUrl;
     if (!publicUrl && publicUrlBase) {
-      const cleanBase = publicUrlBase.replace(/\/+$/, '')
-      const cleanPath = (parsed.path ?? '').replace(/^\/+/, '')
+      const cleanBase = publicUrlBase.replace(/\/+$/, "");
+      const cleanPath = (parsed.path ?? "").replace(/^\/+/, "");
       if (cleanPath) {
-        publicUrl = `${cleanBase}/${cleanPath}`
+        publicUrl = `${cleanBase}/${cleanPath}`;
       }
     }
 
-    if (!publicUrl) continue
+    if (!publicUrl) continue;
 
     entries.push({
-      path: parsed.path ?? '',
+      path: parsed.path ?? "",
       filename: parsed.filename ?? parsed.path ?? `unnamed.${filterCategory}`,
       category: parsed.category,
       publicUrl,
       sha256: parsed.sha256,
-    })
+    });
 
-    if (entries.length >= MAX_FILES_PER_REQUEST) break
+    if (entries.length >= MAX_FILES_PER_REQUEST) break;
   }
 
-  return { entries, totalLineCount: lines.length }
+  return { entries, totalLineCount: lines.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +176,7 @@ function parseInventory(
 // ---------------------------------------------------------------------------
 
 router.post(
-  '/bulk-from-inventory',
+  "/bulk-from-inventory",
   authMiddleware,
   reportsLimiter,
   // Use text/plain body parsing with an expanded 5 MB limit for the inventory
@@ -194,74 +194,75 @@ router.post(
       //      filterCategory has no side channel in this mode, so it always
       //      uses the 'pdf' default below — pre-existing limitation,
       //      unchanged by the four-format migration.
-      let inventoryText: string | undefined
-      let filterCategory = 'pdf'
+      let inventoryText: string | undefined;
+      let filterCategory = "pdf";
 
-      const contentType = req.get('content-type') ?? ''
+      const contentType = req.get("content-type") ?? "";
 
-      if (contentType.includes('application/json')) {
+      if (contentType.includes("application/json")) {
         // Mode 1: JSON body — inventory field carries the NDJSON text
-        inventoryText = req.body?.inventory
-        if (typeof req.body?.filterCategory === 'string') {
-          filterCategory = req.body.filterCategory
+        inventoryText = req.body?.inventory;
+        if (typeof req.body?.filterCategory === "string") {
+          filterCategory = req.body.filterCategory;
         }
-      } else if (contentType.includes('text/plain')) {
+      } else if (contentType.includes("text/plain")) {
         // Mode 2: raw text body — entire body is the NDJSON
         // express.text() middleware must be mounted above this route for this
         // to work. See index.ts for the mount.
-        inventoryText = req.body
+        inventoryText = req.body;
       } else {
         // Fallback: try JSON body field for curl --data-binary use
-        inventoryText = req.body?.inventory
+        inventoryText = req.body?.inventory;
       }
 
-      if (typeof inventoryText !== 'string' || inventoryText.length === 0) {
+      if (typeof inventoryText !== "string" || inventoryText.length === 0) {
         res.status(400).json({
-          error: 'Missing inventory. Send { "inventory": "<NDJSON>" } as JSON, or send the NDJSON directly as text/plain.',
-        })
-        return
+          error:
+            'Missing inventory. Send { "inventory": "<NDJSON>" } as JSON, or send the NDJSON directly as text/plain.',
+        });
+        return;
       }
 
       if (inventoryText.length > MAX_INVENTORY_BYTES) {
         res.status(413).json({
           error: `Inventory too large. Maximum is ${MAX_INVENTORY_BYTES} bytes (${MAX_INVENTORY_BYTES / 1024 / 1024} MB).`,
-        })
-        return
+        });
+        return;
       }
 
       // Parse the NDJSON and filter to the target category
-      const { entries, totalLineCount } = parseInventory(inventoryText, filterCategory)
+      const { entries, totalLineCount } = parseInventory(inventoryText, filterCategory);
 
       if (entries.length === 0) {
         res.status(400).json({
           error: `Inventory contains no ${filterCategory} entries with a resolvable public URL.`,
           details:
-            'Each entry needs either a publicUrl field, or a publicUrlBase in the inventory header so the URL can be constructed from the path. Supported filterCategory values are pdf, docx, pptx, and xlsx (default: pdf).',
-        })
-        return
+            "Each entry needs either a publicUrl field, or a publicUrlBase in the inventory header so the URL can be constructed from the path. Supported filterCategory values are pdf, docx, pptx, and xlsx (default: pdf).",
+        });
+        return;
       }
 
       // Process each entry serially: fetch → validate → analyze → persist
-      const results: BulkResult[] = []
+      const results: BulkResult[] = [];
 
       for (const entry of entries) {
         const result: BulkResult = {
           sha256: entry.sha256,
           path: entry.path,
           publicUrl: entry.publicUrl,
-        }
+        };
 
         try {
           // SSRF-hardened fetch — allowlist + DNS-rebinding + redirect
           // chain mitigations (v1.20.1+). Errors propagate as a
           // SafeFetchError which we map to a per-entry error string.
-          let fetched
+          let fetched;
           try {
             fetched = await safeFetch(entry.publicUrl!, {
               timeoutMs: FETCH_TIMEOUT_MS,
               maxBytes: MAX_FILE_BYTES,
               validateUrl: validateUrlForFetch,
-            })
+            });
           } catch (e) {
             if (e instanceof SafeFetchError) {
               // RB3-4 [pre-merge re-audit]: never echo the raw e.message —
@@ -271,21 +272,21 @@ router.post(
               console.error(
                 `Bulk-from-inventory fetch error (${e.code}) for ${entry.publicUrl}:`,
                 e,
-              )
-              result.error = `${e.code}: ${curateSafeFetchMessage(e.code)}`
-              results.push(result)
-              continue
+              );
+              result.error = `${e.code}: ${curateSafeFetchMessage(e.code)}`;
+              results.push(result);
+              continue;
             }
-            throw e
+            throw e;
           }
 
           if (!fetched.ok) {
-            result.error = `fetch failed: ${fetched.status} ${fetched.statusText}`
-            results.push(result)
-            continue
+            result.error = `fetch failed: ${fetched.status} ${fetched.statusText}`;
+            results.push(result);
+            continue;
           }
 
-          const buf = fetched.buffer
+          const buf = fetched.buffer;
 
           // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content
           // (not the inventory's declared category) — same dispatcher
@@ -293,24 +294,24 @@ router.post(
           // %PDF- magic-byte check, which made every non-PDF entry fail
           // here even when filterCategory selected docx/pptx/xlsx entries
           // upstream in parseInventory().
-          const fileType = await detectFileType(buf)
+          const fileType = await detectFileType(buf);
           if (!fileType) {
             result.error =
-              'fetched content is not a supported document (matches none of PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)'
-            results.push(result)
-            continue
+              "fetched content is not a supported document (matches none of PDF, Word .docx, PowerPoint .pptx, or Excel .xlsx)";
+            results.push(result);
+            continue;
           }
 
-          const contentHash = sha256Hex(buf)
-          const analysis = await analyzeDocument(buf, entry.filename)
+          const contentHash = sha256Hex(buf);
+          const analysis = await analyzeDocument(buf, entry.filename);
 
-          result.overallScore = analysis.overallScore
-          result.grade = analysis.grade
+          result.overallScore = analysis.overallScore;
+          result.grade = analysis.grade;
 
           // Persist to shared_reports for a stable shareable URL
-          const id = crypto.randomBytes(16).toString('hex')
-          const expiresAt = new Date()
-          expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
+          const id = crypto.randomBytes(16).toString("hex");
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS);
 
           // F3 [LOW, defense-in-depth, pre-merge re-audit finding]: reports.ts
           // runs every stored report through sanitizeStoredReport() before
@@ -323,11 +324,11 @@ router.post(
           // enforced. Fall back to the unsanitized analysis on the
           // (structurally-shouldn't-happen-for-internal-output) failure case
           // rather than newly failing the whole batch entry over it.
-          const sanitized = sanitizeStoredReport(analysis)
-          const reportToStore = sanitized.ok ? sanitized.report : analysis
+          const sanitized = sanitizeStoredReport(analysis);
+          const reportToStore = sanitized.ok ? sanitized.report : analysis;
 
           db.prepare(
-            'INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
+            "INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
           ).run(
             id,
             req.user!.email,
@@ -335,23 +336,23 @@ router.post(
             JSON.stringify(reportToStore),
             contentHash,
             expiresAt.toISOString(),
-          )
+          );
 
           // Canonical audit-log write so each bulk-audited entry
           // counts for the remediation gate (v1.20.1+).
           recordAudit({
-            eventType: 'bulk-from-inventory',
+            eventType: "bulk-from-inventory",
             email: gateIdentity(req.user?.email ?? null, req.ip),
             filename: entry.filename,
             score: analysis.overallScore,
             grade: analysis.grade,
             contentHash,
             ipAddress: req.ip ?? null,
-            userAgent: req.get('user-agent') ?? null,
-          })
+            userAgent: req.get("user-agent") ?? null,
+          });
 
-          result.reportId = id
-          result.reportUrl = `/api/reports/${id}`
+          result.reportId = id;
+          result.reportUrl = `/api/reports/${id}`;
         } catch (err: any) {
           // Distinguish specific error types for better diagnostics. The
           // *_DISABLED / *_PARSE_FAILED / ETIMEDOUT branches below are new
@@ -362,43 +363,47 @@ router.post(
           // per-file result.error string here (mirroring how audit-url.ts /
           // analyze-url.ts map the same codes to HTTP statuses) instead of
           // aborting the batch.
-          if (err?.name === 'AbortError') {
-            result.error = `fetch timed out after ${FETCH_TIMEOUT_MS}ms`
+          if (err?.name === "AbortError") {
+            result.error = `fetch timed out after ${FETCH_TIMEOUT_MS}ms`;
           } else if (err?.status === 503) {
-            result.error = 'server busy — analysis queue full, try again'
-          } else if (err?.code === 'DOCX_DISABLED') {
-            result.error = 'Word (.docx) auditing is currently disabled on this server'
-          } else if (err?.code === 'PPTX_DISABLED') {
-            result.error = 'PowerPoint (.pptx) auditing is currently disabled on this server'
-          } else if (err?.code === 'XLSX_DISABLED') {
-            result.error = 'Excel (.xlsx) auditing is currently disabled on this server'
-          } else if (err?.code === 'DOCX_PARSE_FAILED') {
-            result.error = 'the Word (.docx) file could not be read (corrupt or not a valid Word document)'
-          } else if (err?.code === 'PPTX_PARSE_FAILED') {
-            result.error = 'the PowerPoint (.pptx) file could not be read (corrupt or not a valid PowerPoint presentation)'
-          } else if (err?.code === 'XLSX_PARSE_FAILED') {
-            result.error = 'the Excel (.xlsx) file could not be read (corrupt or not a valid Excel workbook)'
-          } else if (err?.code === 'ETIMEDOUT' || err?.killed) {
-            result.error = 'analysis timed out — this document is too complex to analyze within the time limit'
-          } else if (err?.message?.includes('encrypted') || err?.message?.includes('password')) {
-            result.error = 'PDF is password-protected and cannot be analyzed'
+            result.error = "server busy — analysis queue full, try again";
+          } else if (err?.code === "DOCX_DISABLED") {
+            result.error = "Word (.docx) auditing is currently disabled on this server";
+          } else if (err?.code === "PPTX_DISABLED") {
+            result.error = "PowerPoint (.pptx) auditing is currently disabled on this server";
+          } else if (err?.code === "XLSX_DISABLED") {
+            result.error = "Excel (.xlsx) auditing is currently disabled on this server";
+          } else if (err?.code === "DOCX_PARSE_FAILED") {
+            result.error =
+              "the Word (.docx) file could not be read (corrupt or not a valid Word document)";
+          } else if (err?.code === "PPTX_PARSE_FAILED") {
+            result.error =
+              "the PowerPoint (.pptx) file could not be read (corrupt or not a valid PowerPoint presentation)";
+          } else if (err?.code === "XLSX_PARSE_FAILED") {
+            result.error =
+              "the Excel (.xlsx) file could not be read (corrupt or not a valid Excel workbook)";
+          } else if (err?.code === "ETIMEDOUT" || err?.killed) {
+            result.error =
+              "analysis timed out — this document is too complex to analyze within the time limit";
+          } else if (err?.message?.includes("encrypted") || err?.message?.includes("password")) {
+            result.error = "PDF is password-protected and cannot be analyzed";
           } else {
             // F2 [MEDIUM, pre-merge re-audit finding]: never echo the raw
             // err.message to the client — it can leak library internals /
             // filesystem paths, same rationale as the outer catch below and
             // audit-url.ts's / analyze-url.ts's generic-500 fallback. Log
             // the detail server-side only.
-            console.error('Bulk-from-inventory per-entry analysis error:', err)
-            result.error = 'Analysis failed for this item.'
+            console.error("Bulk-from-inventory per-entry analysis error:", err);
+            result.error = "Analysis failed for this item.";
           }
         }
 
-        results.push(result)
+        results.push(result);
       }
 
-      const analyzed = results.filter((r) => r.overallScore !== undefined).length
-      const failed = results.filter((r) => r.error !== undefined).length
-      const skipped = totalLineCount - entries.length
+      const analyzed = results.filter((r) => r.overallScore !== undefined).length;
+      const failed = results.filter((r) => r.error !== undefined).length;
+      const skipped = totalLineCount - entries.length;
 
       res.json({
         summary: {
@@ -408,19 +413,19 @@ router.post(
           skipped,
         },
         results,
-      })
+      });
     } catch (err: any) {
       // F2 [MEDIUM, pre-merge re-audit finding]: `details: err?.message` used
       // to echo the raw thrown message to the client — never do that (it can
       // leak library internals / filesystem paths). Log server-side only,
       // same pattern as audit-url.ts's / analyze-url.ts's generic-500
       // fallback and the per-entry catch-all above.
-      console.error('Bulk-from-inventory error:', err)
+      console.error("Bulk-from-inventory error:", err);
       res.status(500).json({
-        error: 'Internal error during bulk processing.',
-      })
+        error: "Internal error during bulk processing.",
+      });
     }
-  }
-)
+  },
+);
 
-export default router
+export default router;

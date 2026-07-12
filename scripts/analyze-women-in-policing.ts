@@ -53,11 +53,7 @@ async function main(): Promise<void> {
     console.log(`${label} categories`);
     line();
     console.log(
-      "id".padEnd(24) +
-        "weight".padEnd(10) +
-        "score".padEnd(8) +
-        "grade".padEnd(8) +
-        "severity",
+      "id".padEnd(24) + "weight".padEnd(10) + "score".padEnd(8) + "grade".padEnd(8) + "severity",
     );
     for (const c of prof.categories) {
       console.log(
@@ -134,9 +130,7 @@ async function main(): Promise<void> {
   );
   for (const rule of ap.rules) {
     const badge = rule.vacuous ? "⚠ vacuous" : "";
-    console.log(
-      `  [${rule.status}] ${rule.category} · ${rule.name} ${badge}`,
-    );
+    console.log(`  [${rule.status}] ${rule.category} · ${rule.name} ${badge}`);
     console.log(`    ${rule.note}`);
   }
 
@@ -144,16 +138,9 @@ async function main(): Promise<void> {
   console.log("Raw QPDF / pdfjs signals");
   line();
   // Re-import the services directly to re-run and peek at raw data.
-  const { analyzeWithQpdfAsync } = await import(
-    "../apps/api/src/services/qpdfService.js"
-  );
-  const { analyzeWithPdfjs } = await import(
-    "../apps/api/src/services/pdfjsService.js"
-  );
-  const [qp, pj] = await Promise.all([
-    analyzeWithQpdfAsync(buf),
-    analyzeWithPdfjs(buf),
-  ]);
+  const { analyzeWithQpdfAsync } = await import("../apps/api/src/services/qpdfService.js");
+  const { analyzeWithPdfjs } = await import("../apps/api/src/services/pdfjsService.js");
+  const [qp, pj] = await Promise.all([analyzeWithQpdfAsync(buf), analyzeWithPdfjs(buf)]);
   console.log("QPDF:");
   console.log(JSON.stringify(qp, null, 2));
   console.log("pdfjs metadata / hasText / pageCount:");

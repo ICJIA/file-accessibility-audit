@@ -33,18 +33,12 @@ describe("uploadFormats", () => {
       ".docx",
       ".xlsx",
     ]);
-    expect(uploadNoun({ docx: true, pptx: false, xlsx: true })).toBe(
-      "PDF, Word, or Excel",
-    );
+    expect(uploadNoun({ docx: true, pptx: false, xlsx: true })).toBe("PDF, Word, or Excel");
   });
 
   it("keeps two-format wording comma-free and supports 'and'", () => {
-    expect(uploadNoun({ docx: true, pptx: false, xlsx: false })).toBe(
-      "PDF or Word",
-    );
-    expect(uploadNoun({ docx: true, pptx: false, xlsx: false }, "and")).toBe(
-      "PDF and Word",
-    );
+    expect(uploadNoun({ docx: true, pptx: false, xlsx: false })).toBe("PDF or Word");
+    expect(uploadNoun({ docx: true, pptx: false, xlsx: false }, "and")).toBe("PDF and Word");
   });
 
   it("lists all four formats with an Oxford comma", () => {

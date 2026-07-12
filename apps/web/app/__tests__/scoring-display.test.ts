@@ -14,14 +14,6 @@ function readPageSource(relativePath: string): string {
 // Grade color thresholds
 // ---------------------------------------------------------------------------
 describe("Score display — grade color mapping", () => {
-  const gradeColors: Record<string, string> = {
-    A: "#22c55e", // green
-    B: "#14b8a6", // teal
-    C: "#eab308", // yellow
-    D: "#f97316", // orange
-    F: "#ef4444", // red
-  };
-
   const makeResult = (grade: string, score: number) => ({
     filename: "test.pdf",
     pageCount: 5,
@@ -50,9 +42,7 @@ describe("Score display — grade color mapping", () => {
 
       // The grade circle border should have the correct color
       const circle = wrapper.find("div.w-28");
-      expect(circle.attributes("style")).toContain(
-        `border-color: ${expectedColor}`,
-      );
+      expect(circle.attributes("style")).toContain(`border-color: ${expectedColor}`);
     },
   );
 
@@ -181,9 +171,9 @@ describe("Score display — verdict explanation", () => {
         },
       },
     });
-    expect(
-      wrapper.find('[data-testid="verdict-explanation"]').text(),
-    ).toContain("programmatically determinable");
+    expect(wrapper.find('[data-testid="verdict-explanation"]').text()).toContain(
+      "programmatically determinable",
+    );
   });
 });
 

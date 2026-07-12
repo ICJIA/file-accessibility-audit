@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 // ---------------------------------------------------------------------------
 // RB2-d [INFO->fix]: the remediation worker (jobs/remediate.ts) parses an
@@ -23,67 +23,67 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 
 const { spawnCalls } = vi.hoisted(() => ({
   spawnCalls: [] as unknown[][],
-}))
+}));
 
-vi.mock('node:child_process', async (importActual) => {
-  const actual = await importActual<typeof import('node:child_process')>()
+vi.mock("node:child_process", async (importActual) => {
+  const actual = await importActual<typeof import("node:child_process")>();
   return {
     ...actual,
     spawn: (...args: unknown[]) => {
-      spawnCalls.push(args)
-      return { unref: vi.fn() } as unknown as ReturnType<typeof actual.spawn>
+      spawnCalls.push(args);
+      return { unref: vi.fn() } as unknown as ReturnType<typeof actual.spawn>;
     },
-  }
-})
+  };
+});
 
-vi.mock('../db/sqlite.js', () => ({
+vi.mock("../db/sqlite.js", () => ({
   default: { prepare: vi.fn(() => ({ get: vi.fn(), run: vi.fn() })) },
-}))
+}));
 
-describe('routes/remediate.ts spawnWorker: env excludes API secrets (RB2-d)', () => {
+describe("routes/remediate.ts spawnWorker: env excludes API secrets (RB2-d)", () => {
   afterEach(() => {
-    spawnCalls.length = 0
-  })
+    spawnCalls.length = 0;
+  });
 
-  it('does not pass JWT_SECRET/API_PRIVILEGED_TOKEN/SMTP_PASS to the worker, but keeps PATH/HOME/JAVA_HOME/NODE_ENV', async () => {
-    const prevJwt = process.env.JWT_SECRET
-    const prevToken = process.env.API_PRIVILEGED_TOKEN
-    const prevSmtp = process.env.SMTP_PASS
-    const prevJavaHome = process.env.JAVA_HOME
-    process.env.JWT_SECRET = 'unit-test-jwt-secret-probe'
-    process.env.API_PRIVILEGED_TOKEN = 'unit-test-privileged-token-probe'
-    process.env.SMTP_PASS = 'unit-test-smtp-pass-probe'
-    process.env.JAVA_HOME = process.env.JAVA_HOME || '/opt/homebrew/opt/openjdk@17'
+  it("does not pass JWT_SECRET/API_PRIVILEGED_TOKEN/SMTP_PASS to the worker, but keeps PATH/HOME/JAVA_HOME/NODE_ENV", async () => {
+    const prevJwt = process.env.JWT_SECRET;
+    const prevToken = process.env.API_PRIVILEGED_TOKEN;
+    const prevSmtp = process.env.SMTP_PASS;
+    const prevJavaHome = process.env.JAVA_HOME;
+    process.env.JWT_SECRET = "unit-test-jwt-secret-probe";
+    process.env.API_PRIVILEGED_TOKEN = "unit-test-privileged-token-probe";
+    process.env.SMTP_PASS = "unit-test-smtp-pass-probe";
+    process.env.JAVA_HOME = process.env.JAVA_HOME || "/opt/homebrew/opt/openjdk@17";
     try {
-      const { spawnWorker } = await import('../routes/remediate.js')
-      spawnWorker('fake-job-id')
+      const { spawnWorker } = await import("../routes/remediate.js");
+      spawnWorker("fake-job-id");
 
-      expect(spawnCalls.length).toBe(1)
+      expect(spawnCalls.length).toBe(1);
       const [execPath, args, options] = spawnCalls[0] as [
         string,
         string[],
         { env?: Record<string, string | undefined> },
-      ]
-      expect(execPath).toBe(process.execPath)
-      expect(args).toContain('fake-job-id')
+      ];
+      expect(execPath).toBe(process.execPath);
+      expect(args).toContain("fake-job-id");
 
-      const env = options?.env ?? {}
-      expect(env.JWT_SECRET).toBeUndefined()
-      expect(env.API_PRIVILEGED_TOKEN).toBeUndefined()
-      expect(env.SMTP_PASS).toBeUndefined()
+      const env = options?.env ?? {};
+      expect(env.JWT_SECRET).toBeUndefined();
+      expect(env.API_PRIVILEGED_TOKEN).toBeUndefined();
+      expect(env.SMTP_PASS).toBeUndefined();
       // Essentials survive so the tsx + JVM boot chain still works.
-      expect(env.PATH).toBe(process.env.PATH)
-      expect(env.HOME).toBe(process.env.HOME)
-      expect(env.JAVA_HOME).toBe(process.env.JAVA_HOME)
+      expect(env.PATH).toBe(process.env.PATH);
+      expect(env.HOME).toBe(process.env.HOME);
+      expect(env.JAVA_HOME).toBe(process.env.JAVA_HOME);
     } finally {
-      if (prevJwt === undefined) delete process.env.JWT_SECRET
-      else process.env.JWT_SECRET = prevJwt
-      if (prevToken === undefined) delete process.env.API_PRIVILEGED_TOKEN
-      else process.env.API_PRIVILEGED_TOKEN = prevToken
-      if (prevSmtp === undefined) delete process.env.SMTP_PASS
-      else process.env.SMTP_PASS = prevSmtp
-      if (prevJavaHome === undefined) delete process.env.JAVA_HOME
-      else process.env.JAVA_HOME = prevJavaHome
+      if (prevJwt === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = prevJwt;
+      if (prevToken === undefined) delete process.env.API_PRIVILEGED_TOKEN;
+      else process.env.API_PRIVILEGED_TOKEN = prevToken;
+      if (prevSmtp === undefined) delete process.env.SMTP_PASS;
+      else process.env.SMTP_PASS = prevSmtp;
+      if (prevJavaHome === undefined) delete process.env.JAVA_HOME;
+      else process.env.JAVA_HOME = prevJavaHome;
     }
-  })
-})
+  });
+});

@@ -38,9 +38,7 @@ describe("SourceDocumentNotice", () => {
     const wrapper = mount(SourceDocumentNotice, {
       props: { fileType: "pptx" },
     });
-    expect(wrapper.text()).toContain(
-      "A PowerPoint deck is the source document",
-    );
+    expect(wrapper.text()).toContain("A PowerPoint deck is the source document");
     expect(wrapper.text()).toContain("fix it in PowerPoint, then re-check");
     expect(wrapper.text()).toContain("Check Accessibility");
     expect(wrapper.text()).toContain("Outline View");
@@ -52,9 +50,7 @@ describe("SourceDocumentNotice", () => {
     const wrapper = mount(SourceDocumentNotice, {
       props: { fileType: "xlsx" },
     });
-    expect(wrapper.text()).toContain(
-      "An Excel workbook is the source document",
-    );
+    expect(wrapper.text()).toContain("An Excel workbook is the source document");
     expect(wrapper.text()).toContain("fix it in Excel, then re-check");
     expect(wrapper.text()).toContain("Format as Table");
     expect(wrapper.text()).toContain("Rename");

@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.34.0] - 2026-07-12
+
+Infrastructure, hardening, and structural-quality release from a five-track whole-app review: the codebase gains CI, linting, and a proper package boundary around the audit engine; the app gains five preventive security hardenings; the scoring engine and report output are unchanged (PDF and Word remain frozen for calibration — verified by the untouched 876-test API suite passing throughout).
+
+### Added
+
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): every push and pull request runs install → lint → typecheck → build → all three test suites. This mechanically enforces the previously manual "build before push" convention (Vitest's esbuild pipeline does not catch `tsc` errors).
+- **ESLint + Prettier + `.editorconfig`** repo-wide, with `pnpm lint` / `pnpm format`; the whole repo was formatted once in a dedicated logic-free commit.
+- **`pnpm typecheck`** — API `tsc --noEmit` plus the web app via `nuxt typecheck` (`vue-tsc`); the Nuxt build previously never type-checked the web app.
+- **Vitest v8 coverage** scripts in all three apps (non-gating), and the root `pnpm test` now runs the CLI suite too (it was silently skipped — the filter used the wrong package name).
+- **Server-side session revocation.** Sign-out now revokes the JWT's `jti` in a denylist checked by the auth middleware, so a captured cookie is dead after logout instead of valid until expiry; legacy tokens without a `jti` simply age out.
+- **Numbered SQLite migrations** on `PRAGMA user_version` replace the grown-per-release probe-and-`ALTER` blocks; an existing production database fast-forwards to the baseline without re-running DDL (dual-guarded and regression-tested against the literal legacy schema).
+
+### Changed
+
+- **The audit engine is now a workspace package: `@file-audit/analyzer`** (`packages/analyzer`) — the PDF/Word/PowerPoint/Excel analyzers, qpdf integration, OOXML child worker, and all scoring moved out of `apps/api` as a byte-identical closure; the API keeps thin re-export shims so every internal import (and all 876 API tests) is unchanged. The CLI now depends on the package instead of reaching into API source by relative path, declares its real dependencies, and its never-used `tsup` bundle/`bin` was removed (it runs via `tsx` everywhere).
+- `scorer.ts` split into per-format modules (`services/scoring/{pdf,docx,pptx,xlsx,common}.ts`) behind a facade; qpdf struct-tree walkers extracted to a leaf module; the `analyze-url`/`audit-url` routes share one extracted fetch-and-detect pipeline service.
+- **Web maintainability pass:** the homepage's 2,100-line technical explainer is a lazily-hydrated component (`hydrate-on-visible`) and the data-retention policy is split into per-section components — both proven byte-identical in SSR output; the history pages share one paginated table; the five export buttons are one `ReportDownloadBar` component; export builders are pure utils; `file-saver` was replaced by a native download helper; the report page's data path is fully typed against `@file-audit/shared` (no `as any` casts remain).
+- The data-retention page now reports the real app version from runtime config (it was hardcoded at "1.18.0" while the app shipped 1.33.0), and the page-metadata `dateModified` derives from the last git commit at build time instead of manual edits.
+
+### Fixed
+
+- **Accessibility of the tool's own UI:** analysis progress and error banners are now announced to screen readers (`role="status"` / `role="alert"` live regions), every data table has `scope="col"` headers and a visually-hidden caption, and keyboard/screen-reader focus moves to the results heading when an analysis completes.
+- `@types/express` matched to the installed Express 4 runtime (the v5 typings could bless code that breaks at runtime); multer typings aligned likewise.
+- The CLI reports its real version (was hardcoded `1.0.0`) and renders its HTML grade palette from `@file-audit/shared` instead of hand-copied hex values.
+
+### Security
+
+- **Preventive hardening, no known exploitation:** OOXML packages are rejected before parsing if they exceed aggregate zip limits (entry count / total declared uncompressed size — a many-part zip-bomb fast-fail ahead of the existing per-part caps and child-process timeout); OOXML XML parts containing a `DOCTYPE` declaration are refused outright (entity-expansion defense); remediation job status/receipts in anonymous mode now require the job's private token and answer plain 404 otherwise (no job-existence oracle); application secrets were already stripped from child-process environments (v1.33.0) and the API process now carries top-level `unhandledRejection`/`uncaughtException` guards.
+
+Tests 1,286 → 1,410 (API 876 / web 485 / CLI 49), build, lint, and typecheck green throughout.
+
 ## [1.33.0] - 2026-07-03
 
 ### Added

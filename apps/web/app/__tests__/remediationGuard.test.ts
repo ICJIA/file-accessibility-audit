@@ -8,10 +8,7 @@ import { resolve } from "path";
 // so pin the template condition at the source level (same seam as
 // responsive.test.ts / accessibility.test.ts).
 describe("index.vue remediation guard", () => {
-  const source = readFileSync(
-    resolve(__dirname, "..", "pages/index.vue"),
-    "utf-8",
-  );
+  const source = readFileSync(resolve(__dirname, "..", "pages/index.vue"), "utf-8");
 
   it("gates the RemediateButton on fileType === 'pdf'", () => {
     expect(source).toContain(`v-if="result?.fileType === 'pdf'"`);

@@ -1,21 +1,25 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.33.0",
+  "version": "1.34.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx scripts/dev.ts",
     "dev:api": "kill-port 5103 && pnpm --filter api dev",
     "dev:web": "kill-port 5102 && pnpm --filter web dev",
-    "build": "pnpm --filter api build && pnpm --filter web build",
+    "build": "pnpm --filter @file-audit/analyzer build && pnpm --filter api build && pnpm --filter web build",
+    "typecheck": "pnpm --filter api build && pnpm --filter web typecheck",
     "test": "tsx scripts/test.ts",
     "test:api": "pnpm --filter api test",
     "test:web": "pnpm --filter web test",
     "test:scoring": "pnpm --filter api test:scoring",
+    "test:coverage": "pnpm --filter api test:coverage && pnpm --filter web test:coverage && pnpm --filter @icjia/a11y-audit test:coverage",
     "start:all": "kill-port 5103 5102 && sleep 1 && echo '\\n[start:all] API → http://localhost:5103  |  WEB → http://localhost:5102\\n' && PORT=5103 pnpm --filter api start & PORT=5102 pnpm --filter web start & wait",
     "clean": "rm -rf apps/web/.nuxt apps/web/.output apps/web/node_modules/.vite apps/api/dist node_modules/.cache && echo 'Cleaned all caches'",
     "rebrand": "tsx scripts/rebrand.ts",
-    "a11y-audit": "cd apps/cli && tsx src/index.ts publist"
+    "a11y-audit": "cd apps/cli && tsx src/index.ts publist",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,mts,cts,js,mjs,cjs,vue,css,json}\""
   },
   "engines": {
     "node": ">=22"
@@ -33,10 +37,18 @@
     "@file-audit/shared": "workspace:*"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.9.2",
+    "globals": "^17.7.0",
     "kill-port": "^2.0.1",
     "mermaid": "11.15.0",
+    "prettier": "^3.9.5",
     "sharp": "^0.34.5",
     "svgo": "^4.0.1",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.63.0"
   }
 }

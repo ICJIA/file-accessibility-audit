@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  scoreDocument,
-  type CategoryResult,
-  type ScoringResult,
-} from "../services/scorer.js";
+import { scoreDocument, type CategoryResult, type ScoringResult } from "../services/scorer.js";
 import type { QpdfResult, TableAnalysis } from "../services/qpdfService.js";
 import type { PdfjsResult } from "../services/pdfjsService.js";
 import { generateSummary } from "../services/scoring/summary.js";
@@ -193,9 +189,7 @@ describe("scoreDocument — fully accessible PDF", () => {
 
   it("executive summary is positive but does not claim conformance", () => {
     expect(result.executiveSummary).toContain("strong result");
-    expect(result.executiveSummary).toContain(
-      "not a determination of conformance",
-    );
+    expect(result.executiveSummary).toContain("not a determination of conformance");
   });
 
   it("all 10 categories are present (pdf_ua_compliance dropped in v1.21+)", () => {
@@ -249,9 +243,7 @@ describe("scoreDocument — fully accessible PDF", () => {
     expect(result.scoreProfiles.remediation.overallScore).toBe(
       result.scoreProfiles.strict.overallScore,
     );
-    expect(result.scoreProfiles.remediation.grade).toBe(
-      result.scoreProfiles.strict.grade,
-    );
+    expect(result.scoreProfiles.remediation.grade).toBe(result.scoreProfiles.strict.grade);
   });
 });
 
@@ -335,9 +327,7 @@ describe("scoreDocument — mixed results", () => {
     expect(cat.findings.join(" ")).toContain("filename");
     // The title EXISTS — it must never be reported as a confirmed 2.4.2
     // "no title in metadata" conformance failure.
-    expect(result.conformance.failures.some((f) => f.sc === "2.4.2")).toBe(
-      false,
-    );
+    expect(result.conformance.failures.some((f) => f.sc === "2.4.2")).toBe(false);
   });
 
   it("filename-like title still beats no title at all", () => {
@@ -347,9 +337,9 @@ describe("scoreDocument — mixed results", () => {
       makePdfjs({ title: "scan_20240115", titleLooksLikeFilename: true }),
     );
     const withNone = scoreDocument(qpdf, makePdfjs({ title: null }));
-    expect(
-      findCategory(withFilename, "title_language").score!,
-    ).toBeGreaterThan(findCategory(withNone, "title_language").score!);
+    expect(findCategory(withFilename, "title_language").score!).toBeGreaterThan(
+      findCategory(withNone, "title_language").score!,
+    );
   });
 
   it("qpdf error adds a warning", () => {
@@ -516,7 +506,6 @@ describe("grade thresholds", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     // Remove title → title_language drops to 50
     pdfjs.title = null;
-    const result = scoreDocument(qpdf, pdfjs);
     // title_language goes to 50 (only lang). weight 0.15.
     // All others are 100. Overall = 100 - (50 * 0.15) = 92.5 → still A
     // Need more degradation. Also break heading hierarchy.
@@ -550,18 +539,14 @@ describe("severity thresholds", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     const result = scoreDocument(qpdf, pdfjs);
     // "No issues found" is reserved for a perfect 100 — see SEVERITY_THRESHOLDS.
-    expect(findCategory(result, "text_extractability").severity).toBe(
-      "No issues found",
-    );
+    expect(findCategory(result, "text_extractability").severity).toBe("No issues found");
   });
 
   it("score 0 → Critical", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "text_extractability").severity).toBe(
-      "Critical",
-    );
+    expect(findCategory(result, "text_extractability").severity).toBe("Critical");
   });
 
   it("null score → null severity", () => {
@@ -577,9 +562,7 @@ describe("severity thresholds", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "text_extractability").score).toBe(50);
-    expect(findCategory(result, "text_extractability").severity).toBe(
-      "Moderate",
-    );
+    expect(findCategory(result, "text_extractability").severity).toBe("Moderate");
   });
 });
 
@@ -609,9 +592,7 @@ describe("executive summary", () => {
     pdfjs.title = null; // → WCAG 2.4.2 (Page Titled) failure
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("fail");
-    expect(result.executiveSummary).toContain(
-      `does not yet meet WCAG ${WCAG.VERSION} Level AA`,
-    );
+    expect(result.executiveSummary).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
   });
 
   it("a document with multiple confirmed failures gets a failure summary", () => {
@@ -628,9 +609,7 @@ describe("executive summary", () => {
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("fail");
     expect(result.conformance.failures.length).toBeGreaterThan(1);
-    expect(result.executiveSummary).toContain(
-      `does not yet meet WCAG ${WCAG.VERSION} Level AA`,
-    );
+    expect(result.executiveSummary).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
     expect(result.executiveSummary).toContain(`WCAG ${WCAG.VERSION} failures`);
   });
 
@@ -667,10 +646,7 @@ function summaryVerdict(
   };
 }
 
-function summaryCat(
-  severity: string | null,
-  score: number | null,
-): CategoryResult {
+function summaryCat(severity: string | null, score: number | null): CategoryResult {
   return {
     id: "demo",
     label: "Demo Category",
@@ -703,17 +679,8 @@ describe("generateSummary", () => {
   });
 
   it("grade A with no automated failures never claims conformance", () => {
-    const cats = [
-      summaryCat("No issues found", 100),
-      summaryCat("No issues found", 100),
-    ];
-    const s = generateSummary(
-      96,
-      "A",
-      false,
-      cats,
-      summaryVerdict("no-automated-failures"),
-    );
+    const cats = [summaryCat("No issues found", 100), summaryCat("No issues found", 100)];
+    const s = generateSummary(96, "A", false, cats, summaryVerdict("no-automated-failures"));
     expect(s).toContain("not a determination of conformance");
   });
 
@@ -723,13 +690,7 @@ describe("generateSummary", () => {
       summaryCat("No issues found", 100),
       summaryCat("Minor", 85),
     ];
-    const s = generateSummary(
-      85,
-      "B",
-      false,
-      cats,
-      summaryVerdict("no-automated-failures"),
-    );
+    const s = generateSummary(85, "B", false, cats, summaryVerdict("no-automated-failures"));
     expect(s).toContain("2 of 3 categories are fully issue-free");
   });
 
@@ -766,14 +727,10 @@ describe("scoreHeadingStructure edge cases", () => {
     const pdfjs = makePdfjs({ pageCount: 30, hasText: true, textLength: 5000 });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "heading_structure");
-    expect(
-      cat.findings.some((f) => f.includes("RoleMap maps them to paragraphs")),
-    ).toBe(true);
+    expect(cat.findings.some((f) => f.includes("RoleMap maps them to paragraphs"))).toBe(true);
     expect(
       cat.findings.some((f) =>
-        f.includes(
-          "Bookmarks and paragraph-level structure do not replace true H1–H6 semantics",
-        ),
+        f.includes("Bookmarks and paragraph-level structure do not replace true H1–H6 semantics"),
       ),
     ).toBe(true);
   });
@@ -860,12 +817,8 @@ describe("scoreAltText pdfjs fallback", () => {
     const cat = findCategory(result, "alt_text");
     expect(cat.score).toBeNull();
     expect(cat.severity).toBeNull();
-    expect(cat.findings.some((f) => f.includes("image-like object"))).toBe(
-      true,
-    );
-    expect(
-      cat.findings.some((f) => f.includes("Manual review recommended")),
-    ).toBe(true);
+    expect(cat.findings.some((f) => f.includes("image-like object"))).toBe(true);
+    expect(cat.findings.some((f) => f.includes("Manual review recommended"))).toBe(true);
   });
 
   it("qpdf finds no images and pdfjs finds none either → N/A", () => {
@@ -1083,9 +1036,7 @@ describe("scoreTableMarkup edge cases", () => {
     const cat = findCategory(result, "table_markup");
     expect(cat.score).toBe(100);
     // The missing caption is still mentioned as an (optional) recommendation.
-    expect(cat.findings.some((f) => f.toLowerCase().includes("caption"))).toBe(
-      true,
-    );
+    expect(cat.findings.some((f) => f.toLowerCase().includes("caption"))).toBe(true);
   });
 
   it("no headers at all → low score, can still earn structure points", () => {
@@ -1128,9 +1079,7 @@ describe("scoreTableMarkup edge cases", () => {
     expect(cat.score).toBe(45);
     expect(
       cat.findings.some((f) =>
-        f.includes(
-          "row structure alone does not create programmatic header relationships",
-        ),
+        f.includes("row structure alone does not create programmatic header relationships"),
       ),
     ).toBe(true);
   });
@@ -1232,12 +1181,8 @@ describe("supplementary findings — list markup", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(
-      readingCat.findings.some((f) => f.includes("1 list(s) detected")),
-    ).toBe(true);
-    expect(readingCat.findings.some((f) => f.includes("well-formed"))).toBe(
-      true,
-    );
+    expect(readingCat.findings.some((f) => f.includes("1 list(s) detected"))).toBe(true);
+    expect(readingCat.findings.some((f) => f.includes("well-formed"))).toBe(true);
   });
 
   it("reports malformed lists (items without LBody)", () => {
@@ -1258,9 +1203,7 @@ describe("supplementary findings — list markup", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(
-      readingCat.findings.some((f) => f.includes("missing <LBody>")),
-    ).toBe(true);
+    expect(readingCat.findings.some((f) => f.includes("missing <LBody>"))).toBe(true);
   });
 
   it("flags missing Lbl as advisory only on well-formed lists", () => {
@@ -1283,11 +1226,7 @@ describe("supplementary findings — list markup", () => {
     const readingCat = findCategory(result, "reading_order");
     expect(readingCat.findings.some((f) => f.includes("optional"))).toBe(true);
     // No confirmed WCAG failure may be asserted for a missing-Lbl list.
-    expect(
-      result.conformance.failures.some((f) =>
-        f.issue.includes("list"),
-      ),
-    ).toBe(false);
+    expect(result.conformance.failures.some((f) => f.issue.includes("list"))).toBe(false);
   });
 });
 
@@ -1303,9 +1242,7 @@ describe("supplementary findings — marked content & artifacts", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(textCat.findings.some((f) => f.includes("Marked Content"))).toBe(
-      true,
-    );
+    expect(textCat.findings.some((f) => f.includes("Marked Content"))).toBe(true);
   });
 
   it("reports missing MarkInfo on tagged documents", () => {
@@ -1336,9 +1273,7 @@ describe("supplementary findings — font embedding", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(
-      textCat.findings.some((f) => f.includes("All fonts are embedded")),
-    ).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("All fonts are embedded"))).toBe(true);
   });
 
   it("reports non-embedded fonts", () => {
@@ -1391,9 +1326,7 @@ describe("supplementary findings — role mapping & tab order", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(
-      readingCat.findings.some((f) => f.includes("Role mapping present")),
-    ).toBe(true);
+    expect(readingCat.findings.some((f) => f.includes("Role mapping present"))).toBe(true);
   });
 
   it("reports tab order status", () => {
@@ -1407,9 +1340,7 @@ describe("supplementary findings — role mapping & tab order", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(
-      readingCat.findings.some((f) => f.includes("Tab order is set on all")),
-    ).toBe(true);
+    expect(readingCat.findings.some((f) => f.includes("Tab order is set on all"))).toBe(true);
   });
 
   it("reports missing tab order", () => {
@@ -1423,9 +1354,7 @@ describe("supplementary findings — role mapping & tab order", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(readingCat.findings.some((f) => f.includes("No tab order"))).toBe(
-      true,
-    );
+    expect(readingCat.findings.some((f) => f.includes("No tab order"))).toBe(true);
   });
 });
 
@@ -1443,9 +1372,7 @@ describe("supplementary findings — language spans", () => {
     const pdfjs = makePdfjs({ title: "Test", hasText: true, textLength: 100 });
     const result = scoreDocument(qpdf, pdfjs);
     const langCat = findCategory(result, "title_language");
-    expect(
-      langCat.findings.some((f) => f.includes("Language Span Analysis")),
-    ).toBe(true);
+    expect(langCat.findings.some((f) => f.includes("Language Span Analysis"))).toBe(true);
     expect(langCat.findings.some((f) => f.includes("es: 2"))).toBe(true);
     expect(langCat.findings.some((f) => f.includes("fr: 1"))).toBe(true);
   });
@@ -1462,9 +1389,7 @@ describe("supplementary findings — paragraph count", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(
-      textCat.findings.some((f) => f.includes("15 paragraph tag(s)")),
-    ).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("15 paragraph tag(s)"))).toBe(true);
   });
 });
 
@@ -1493,9 +1418,7 @@ describe("supplementary findings — PDF/UA identifier", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(
-      textCat.findings.some((f) => f.includes("No PDF/UA identifier")),
-    ).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("No PDF/UA identifier"))).toBe(true);
   });
 });
 
@@ -1571,7 +1494,6 @@ describe("reading_order — rigorous struct-tree vs. content-stream check", () =
   });
 });
 
-
 describe("supplementary findings — artifact tagging", () => {
   it("reports artifact count when present", () => {
     const qpdf = makeQpdf({
@@ -1583,11 +1505,7 @@ describe("supplementary findings — artifact tagging", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(
-      textCat.findings.some((f) =>
-        f.includes("5 element(s) tagged as artifacts"),
-      ),
-    ).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("5 element(s) tagged as artifacts"))).toBe(true);
   });
 
   it("warns when no artifacts found in tagged PDF", () => {
@@ -1600,9 +1518,7 @@ describe("supplementary findings — artifact tagging", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(
-      textCat.findings.some((f) => f.includes("No artifact tags found")),
-    ).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("No artifact tags found"))).toBe(true);
   });
 });
 
@@ -1617,11 +1533,7 @@ describe("supplementary findings — ActualText & expansion text", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(
-      readingCat.findings.some((f) =>
-        f.includes("3 element(s) have /ActualText"),
-      ),
-    ).toBe(true);
+    expect(readingCat.findings.some((f) => f.includes("3 element(s) have /ActualText"))).toBe(true);
   });
 
   it("reports expansion text when present", () => {
@@ -1635,9 +1547,7 @@ describe("supplementary findings — ActualText & expansion text", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
     expect(
-      readingCat.findings.some((f) =>
-        f.includes("2 element(s) have /E (expansion text)"),
-      ),
+      readingCat.findings.some((f) => f.includes("2 element(s) have /E (expansion text)")),
     ).toBe(true);
   });
 
@@ -1652,11 +1562,7 @@ describe("supplementary findings — ActualText & expansion text", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const readingCat = findCategory(result, "reading_order");
-    expect(
-      readingCat.findings.some((f) =>
-        f.includes("Screen Reader Text Overrides"),
-      ),
-    ).toBe(false);
+    expect(readingCat.findings.some((f) => f.includes("Screen Reader Text Overrides"))).toBe(false);
   });
 });
 
@@ -1687,9 +1593,7 @@ describe("scoreLinkQuality edge cases", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "link_quality");
     expect(cat.score).toBe(100);
-    expect(
-      cat.findings.some((f) => /raw URL|advisory|not penalized/i.test(f)),
-    ).toBe(true);
+    expect(cat.findings.some((f) => /raw URL|advisory|not penalized/i.test(f))).toBe(true);
   });
 
   it("mix of descriptive and vague → proportional score (vague penalized)", () => {
@@ -1735,16 +1639,11 @@ describe("conformance gate", () => {
   it("an untagged document fails WCAG 2.1 Level A", () => {
     const result = scoreDocument(makeQpdf(), makePdfjs());
     expect(result.conformance.status).toBe("fail");
-    expect(result.conformance.failures.some((f) => f.sc === "1.3.1")).toBe(
-      true,
-    );
+    expect(result.conformance.failures.some((f) => f.sc === "1.3.1")).toBe(true);
   });
 
   it("reports 'incomplete' when an analyzer fails — no false accusations", () => {
-    const result = scoreDocument(
-      makeQpdf({ error: "qpdf failed to parse" }),
-      makePdfjs(),
-    );
+    const result = scoreDocument(makeQpdf({ error: "qpdf failed to parse" }), makePdfjs());
     expect(result.conformance.status).toBe("incomplete");
     expect(result.conformance.failures).toHaveLength(0);
   });
@@ -1767,9 +1666,7 @@ describe("conformance gate", () => {
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("fail");
     expect(
-      result.conformance.failures.some(
-        (f) => f.sc === "1.1.1" && f.category === "alt_text",
-      ),
+      result.conformance.failures.some((f) => f.sc === "1.1.1" && f.category === "alt_text"),
     ).toBe(true);
   });
 
@@ -1783,9 +1680,7 @@ describe("conformance gate", () => {
   it("always lists color contrast (1.4.3) as not assessed", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(
-      result.conformance.notAssessed.some((n) => n.sc === "1.4.3"),
-    ).toBe(true);
+    expect(result.conformance.notAssessed.some((n) => n.sc === "1.4.3")).toBe(true);
   });
 });
 
@@ -1860,9 +1755,7 @@ describe("scoreReadingOrder edge cases", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "reading_order");
     expect(cat.score).toBeNull();
-    expect(
-      cat.findings.some((f) => f.includes("Manual review recommended")),
-    ).toBe(true);
+    expect(cat.findings.some((f) => f.includes("Manual review recommended"))).toBe(true);
   });
 
   it("deep tree with slightly disordered MCIDs (under threshold) → advisory/N-A", () => {
@@ -1921,9 +1814,7 @@ describe("PDF/UA + artifacts sourced from pdfjs", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
     expect(textCat.findings.some((f) => f.includes("PDF/UA-1"))).toBe(true);
-    expect(
-      textCat.findings.some((f) => f.includes("No PDF/UA identifier")),
-    ).toBe(false);
+    expect(textCat.findings.some((f) => f.includes("No PDF/UA identifier"))).toBe(false);
   });
 
   it("detects artifacts from pdfjs content stream even when qpdf struct count is 0", () => {
@@ -1940,12 +1831,8 @@ describe("PDF/UA + artifacts sourced from pdfjs", () => {
     });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(
-      textCat.findings.some((f) => f.includes("tagged as artifacts")),
-    ).toBe(true);
-    expect(
-      textCat.findings.some((f) => f.includes("No artifact tags found")),
-    ).toBe(false);
+    expect(textCat.findings.some((f) => f.includes("tagged as artifacts"))).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("No artifact tags found"))).toBe(false);
   });
 });
 
@@ -2005,9 +1892,7 @@ describe("Acrobat How-to-Fix guide visibility", () => {
     const result = scoreDocument(qpdf, pdfjs);
     for (const cat of result.categories) {
       if (cat.score === 100) {
-        expect(
-          cat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
-        ).toBe(false);
+        expect(cat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix"))).toBe(false);
       }
     }
   });
@@ -2019,9 +1904,7 @@ describe("Acrobat How-to-Fix guide visibility", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
     expect(textCat.score).toBeLessThan(100);
-    expect(
-      textCat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
-    ).toBe(true);
+    expect(textCat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix"))).toBe(true);
   });
 });
 
@@ -2065,9 +1948,7 @@ describe("reading_order — noise tolerance & deduction transparency", () => {
       [60, 61],
     ]); // 2 transpositions → ~98% LCS
     const { qpdf, pdfjs } = build(struct, stream);
-    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(
-      100,
-    );
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(100);
   });
 
   it("explains the point deduction when fidelity is below the 100 threshold", () => {
@@ -2084,9 +1965,7 @@ describe("reading_order — noise tolerance & deduction transparency", () => {
     const { qpdf, pdfjs } = build(seq, seq);
     const cat = findCategory(scoreDocument(qpdf, pdfjs), "reading_order");
     expect(
-      cat.findings.some((f) =>
-        f.includes("does not yet compare per-page marked-content order"),
-      ),
+      cat.findings.some((f) => f.includes("does not yet compare per-page marked-content order")),
     ).toBe(false);
   });
 });
@@ -2105,9 +1984,7 @@ describe("supplementary findings — Acrobat fix guide", () => {
     const result = scoreDocument(qpdf, pdfjs);
     const formCat = findCategory(result, "form_accessibility");
     expect(formCat.score).toBeLessThan(100);
-    expect(
-      formCat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
-    ).toBe(true);
+    expect(formCat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix"))).toBe(true);
   });
 });
 
@@ -2136,8 +2013,7 @@ describe("help links and How-to-fix accuracy", () => {
   it("links W3C Understanding pages for the active WCAG version", () => {
     // Mirrors the WCAG version flag (defaults to 2.2; WCAG_VERSION=2.1
     // reverts) so the suite stays green under either setting.
-    const expected =
-      process.env.WCAG_VERSION === "2.1" ? "/WCAG21/" : "/WCAG22/";
+    const expected = process.env.WCAG_VERSION === "2.1" ? "/WCAG21/" : "/WCAG22/";
     const result = scoreDocument(makeQpdf(), makePdfjs());
     for (const cat of result.categories) {
       for (const link of cat.helpLinks) {

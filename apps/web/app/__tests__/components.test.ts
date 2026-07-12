@@ -1,6 +1,6 @@
 import "./test-helpers";
 import { describe, it, expect, vi } from "vitest";
-import { mount, shallowMount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 
 import DropZone from "../components/DropZone.vue";
 import ScoreCard from "../components/ScoreCard.vue";
@@ -12,9 +12,7 @@ import ProcessingOverlay from "../components/ProcessingOverlay.vue";
 describe("DropZone", () => {
   it("renders the drop area with prompt text", () => {
     const wrapper = mount(DropZone);
-    expect(wrapper.text()).toContain(
-      "Drop PDF, Word, PowerPoint, or Excel files here",
-    );
+    expect(wrapper.text()).toContain("Drop PDF, Word, PowerPoint, or Excel files here");
     expect(wrapper.text()).toContain("max 15 MB each");
   });
 
@@ -35,14 +33,9 @@ describe("DropZone", () => {
     });
     Object.defineProperty(dropEvent, "preventDefault", { value: () => {} });
 
-    await wrapper
-      .find("div")
-      .trigger("drop", { dataTransfer: { files: [file] } });
-    // Since trigger does not pass dataTransfer through, call the handler manually
-    // via the component's exposed method through the wrapper vm:
-    const vm = wrapper.vm as any;
-    // processFile is internal, but we can simulate via handleDrop-like logic
-    // Instead, use the input change approach:
+    await wrapper.find("div").trigger("drop", { dataTransfer: { files: [file] } });
+    // Since trigger does not pass dataTransfer through: processFile is
+    // internal, so simulate via the input change approach instead:
     const input = wrapper.find('input[type="file"]');
     // Create a mock change event
     Object.defineProperty(input.element, "files", {
@@ -52,7 +45,9 @@ describe("DropZone", () => {
     await input.trigger("change");
 
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
   });
 
   it("emits file-selected when a valid .docx is selected", async () => {
@@ -68,7 +63,9 @@ describe("DropZone", () => {
     await input.trigger("change");
 
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
   });
 
   it("does NOT emit file-selected for a non-PDF file", async () => {
@@ -115,9 +112,7 @@ describe("DropZone", () => {
       .findAll("div")
       .find((d) => d.classes().some((c) => c.includes("border-dashed")))!;
     await dropArea.trigger("dragenter");
-    expect(wrapper.text()).toContain(
-      "Drop your PDF, Word, PowerPoint, or Excel files here",
-    );
+    expect(wrapper.text()).toContain("Drop your PDF, Word, PowerPoint, or Excel files here");
   });
 
   it("emits file-selected for a valid .pptx", async () => {
@@ -132,7 +127,9 @@ describe("DropZone", () => {
     });
     await input.trigger("change");
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
   });
 
   it("emits file-selected for a valid .xlsx", async () => {
@@ -157,9 +154,7 @@ describe("DropZone", () => {
     expect(accept).toContain(
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     );
-    expect(accept).toContain(
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
+    expect(accept).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   });
 
   it("rejects .pptx and drops it from copy when pptxEnabled is false", async () => {
@@ -168,12 +163,10 @@ describe("DropZone", () => {
     }));
     try {
       const wrapper = mount(DropZone);
-      expect(
-        wrapper.find('input[type="file"]').attributes("accept"),
-      ).not.toContain("presentationml");
-      expect(wrapper.text()).toContain(
-        "Drop PDF, Word, or Excel files here",
+      expect(wrapper.find('input[type="file"]').attributes("accept")).not.toContain(
+        "presentationml",
       );
+      expect(wrapper.text()).toContain("Drop PDF, Word, or Excel files here");
       const file = new File(["pptx"], "deck.pptx", {
         type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       });
@@ -184,9 +177,7 @@ describe("DropZone", () => {
       });
       await input.trigger("change");
       expect(wrapper.emitted("file-selected")).toBeFalsy();
-      expect(wrapper.text()).toContain(
-        "Please select PDF, Word (.docx), or Excel (.xlsx) files",
-      );
+      expect(wrapper.text()).toContain("Please select PDF, Word (.docx), or Excel (.xlsx) files");
     } finally {
       vi.unstubAllGlobals();
     }
@@ -279,7 +270,9 @@ describe("DropZone", () => {
     await input.trigger("change");
 
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
     expect(wrapper.text()).not.toContain("isn't supported");
   });
 });
@@ -384,15 +377,9 @@ describe("ScoreCard", () => {
     });
 
     expect(wrapper.find('[data-testid="score-mode-strict"]').exists()).toBe(false);
-    expect(
-      wrapper.find('[data-testid="score-mode-remediation"]').exists(),
-    ).toBe(false);
-    expect(
-      wrapper.find('[data-testid="mode-recommendation-title"]').exists(),
-    ).toBe(false);
-    expect(
-      wrapper.find('[data-testid="practical-disclaimer"]').exists(),
-    ).toBe(false);
+    expect(wrapper.find('[data-testid="score-mode-remediation"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="mode-recommendation-title"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="practical-disclaimer"]').exists()).toBe(false);
   });
 
   it("prefers the strict profile overall score when scoreProfiles.strict is provided", () => {
@@ -451,16 +438,14 @@ describe("ScoreCard", () => {
     { fileType: "docx", app: "Word" },
     { fileType: "pptx", app: "PowerPoint" },
     { fileType: "xlsx", app: "Excel" },
-  ])(
+  ] as const)(
     "points $fileType results at $app's built-in Accessibility Checker",
     ({ fileType, app }) => {
       const wrapper = mount(ScoreCard, {
         props: { result: { ...baseResult, fileType } },
       });
       expect(wrapper.text()).toContain(`${app}'s built-in`);
-      expect(wrapper.text()).toContain(
-        `Because this ${app} file is the source document`,
-      );
+      expect(wrapper.text()).toContain(`Because this ${app} file is the source document`);
       expect(wrapper.text()).not.toContain("Adobe Acrobat");
     },
   );
@@ -513,13 +498,13 @@ describe("ScoreCard", () => {
       return {
         ...baseResult,
         conformance: {
-          status: "fail",
+          status: "fail" as const,
           headline: "Confirmed failures found.",
           failures: [
             {
               sc: "1.1.1",
               name: "Non-text Content",
-              level: "A",
+              level: "A" as const,
               category: "alt_text",
               issue: "2 images have no alt text",
               url: failureUrl,
@@ -529,7 +514,7 @@ describe("ScoreCard", () => {
             {
               sc: "1.4.3",
               name: "Contrast (Minimum)",
-              level: "AA",
+              level: "AA" as const,
               reason: "not automated",
               url: notAssessedUrl,
             },

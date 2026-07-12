@@ -134,12 +134,48 @@ export const WCAG = {
 // rather than mutating this one.
 // ---------------------------------------------------------------------------
 export const WCAG_22_NEW_AA = [
-  { sc: "2.4.11", name: "Focus Not Obscured (Minimum)", level: "AA", slug: "focus-not-obscured-minimum", pdfFormRelevant: false },
-  { sc: "2.5.7", name: "Dragging Movements", level: "AA", slug: "dragging-movements", pdfFormRelevant: false },
-  { sc: "2.5.8", name: "Target Size (Minimum)", level: "AA", slug: "target-size-minimum", pdfFormRelevant: true },
-  { sc: "3.2.6", name: "Consistent Help", level: "A", slug: "consistent-help", pdfFormRelevant: false },
-  { sc: "3.3.7", name: "Redundant Entry", level: "A", slug: "redundant-entry", pdfFormRelevant: true },
-  { sc: "3.3.8", name: "Accessible Authentication (Minimum)", level: "AA", slug: "accessible-authentication-minimum", pdfFormRelevant: true },
+  {
+    sc: "2.4.11",
+    name: "Focus Not Obscured (Minimum)",
+    level: "AA",
+    slug: "focus-not-obscured-minimum",
+    pdfFormRelevant: false,
+  },
+  {
+    sc: "2.5.7",
+    name: "Dragging Movements",
+    level: "AA",
+    slug: "dragging-movements",
+    pdfFormRelevant: false,
+  },
+  {
+    sc: "2.5.8",
+    name: "Target Size (Minimum)",
+    level: "AA",
+    slug: "target-size-minimum",
+    pdfFormRelevant: true,
+  },
+  {
+    sc: "3.2.6",
+    name: "Consistent Help",
+    level: "A",
+    slug: "consistent-help",
+    pdfFormRelevant: false,
+  },
+  {
+    sc: "3.3.7",
+    name: "Redundant Entry",
+    level: "A",
+    slug: "redundant-entry",
+    pdfFormRelevant: true,
+  },
+  {
+    sc: "3.3.8",
+    name: "Accessible Authentication (Minimum)",
+    level: "AA",
+    slug: "accessible-authentication-minimum",
+    pdfFormRelevant: true,
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -210,6 +246,40 @@ export const DEPLOY = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// PUBLIST (CLI publication-list audit)
+// ---------------------------------------------------------------------------
+// Settings for `a11y-audit publist` (apps/cli/src/commands/publist.ts and
+// apps/cli/src/lib/graphql.ts), which fetches ICJIA's publication list over
+// GraphQL, audits each file, and copies the generated HTML report into the
+// web app's public/ directory so it's servable at /publist.
+//
+// SAFE TO CHANGE: Yes for all three values — none are scoring- or security-
+// sensitive. Update GRAPHQL_ENDPOINT if the agency API moves; update
+// WEB_PUBLIC_DIR if apps/cli or apps/web ever change location relative to
+// each other.
+// ---------------------------------------------------------------------------
+
+export const PUBLIST = {
+  /** ICJIA publications GraphQL API endpoint, queried by fetchPublications(). */
+  GRAPHQL_ENDPOINT: "https://agency.icjia-api.cloud/graphql",
+
+  /**
+   * Publications fetched per GraphQL page. fetchPublications() pages through
+   * the full result set, stopping once a page returns fewer than this many
+   * rows.
+   */
+  PAGE_SIZE: 500,
+
+  /**
+   * Path to apps/web/public, relative to apps/cli/ (where publist's output
+   * CSV/HTML files are written). Used to copy the generated publist.html
+   * report so it's servable at /publist. Non-fatal if the path doesn't
+   * resolve (e.g. a checkout without apps/web present).
+   */
+  WEB_PUBLIC_DIR: "../web/public",
+} as const;
+
+// ---------------------------------------------------------------------------
 // EMAIL PROVIDER
 // ---------------------------------------------------------------------------
 // Controls which SMTP relay is used for OTP delivery. Credentials (user,
@@ -234,7 +304,7 @@ export const EMAIL = {
   /**
    * Default sender address for OTP emails.
    *
-   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.   
+   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.  
    * Can be overridden in .env with SMTP_FROM.
    */
   DEFAULT_FROM: "admin@icjia.cloud",
@@ -315,8 +385,7 @@ export const DOCX = {
   ENABLED: process.env.DOCX_ENABLED !== "false",
 
   /** Canonical MIME type for .docx (WordprocessingML). */
-  MIME_TYPE:
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  MIME_TYPE: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 
   /**
    * Max UNCOMPRESSED bytes for any single part read out of the .docx ZIP
@@ -395,8 +464,7 @@ export const PPTX = {
   ENABLED: process.env.PPTX_ENABLED !== "false",
 
   /** Canonical MIME type for .pptx (PresentationML). */
-  MIME_TYPE:
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  MIME_TYPE: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 
   /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale
    *  and budget math as DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
@@ -457,8 +525,7 @@ export const XLSX = {
   ENABLED: process.env.XLSX_ENABLED !== "false",
 
   /** Canonical MIME type for .xlsx (SpreadsheetML). */
-  MIME_TYPE:
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  MIME_TYPE: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
   /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale as
    *  DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
@@ -552,6 +619,59 @@ export const XLSX = {
     color_contrast: 0.12,
     link_quality: 0.1,
   },
+} as const;
+
+// ---------------------------------------------------------------------------
+// OOXML (DOCX/PPTX/XLSX) SHARED ZIP-PACKAGE LIMITS
+// ---------------------------------------------------------------------------
+// Aggregate limits enforced once per package, right after JSZip.loadAsync and
+// before any part is read — shared by the docx/pptx/xlsx extractors via
+// assertZipWithinLimits() in services/ooxml.ts. The per-format
+// MAX_UNCOMPRESSED_BYTES constants above bound any ONE part; they say nothing
+// about the SUM across every part a package can legally contain (styles,
+// dozens of slides/sheets, media, drawings, tables, rels, theme, core/app
+// props). A zip built from many separately-legal-sized parts can still cost
+// gigabytes of cumulative decompression across a single analysis, and a zip
+// with an enormous number of tiny entries costs real CPU/memory just parsing
+// JSZip's central directory, before any part is ever read. These two checks
+// close both gaps and apply to every OOXML format uniformly.
+//
+// SAFE TO CHANGE: Yes for both values — pick values comfortably above any
+// real-world Word/PowerPoint/Excel document; see each constant's note.
+// ---------------------------------------------------------------------------
+
+export const OOXML = {
+  /**
+   * Maximum number of entries (files + directories) in the ZIP central
+   * directory. Real documents rarely exceed a few hundred parts even with
+   * many embedded images; 10,000 leaves generous headroom while bounding a
+   * "many tiny files" package designed to cost CPU/memory in JSZip's own
+   * central-directory parse before any content is even read.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_ZIP_ENTRIES: 10_000,
+
+  /**
+   * Maximum SUM of every entry's declared uncompressed size (bytes) across
+   * the whole package. Checked once, right after JSZip.loadAsync, against
+   * the ZIP central directory's declared sizes (cheap — no decompression
+   * happens yet). Each per-format MAX_UNCOMPRESSED_BYTES (30 MB) already
+   * bounds any single part; this bounds the total across ALL parts, so a
+   * package built from many separately-legal-sized parts can't add up to
+   * an unbounded decompression bill. 512 MB is ~17x one full-sized part —
+   * comfortably above any legitimate Word/PowerPoint/Excel file (whose real
+   * total is normally single-digit MB to tens of MB even with heavy
+   * embedded media) while still bounding the aggregate.
+   *
+   * Declared sizes are attacker-controlled metadata (same caveat as
+   * readCapped's fast-reject check in ooxml.ts) — this is a cheap
+   * fast-fail, not the only guard; readCapped's streaming per-part cap
+   * remains the authoritative defense against a forged declared size.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  MAX_TOTAL_UNCOMPRESSED_BYTES: 512 * 1024 * 1024,
 } as const;
 
 // ---------------------------------------------------------------------------

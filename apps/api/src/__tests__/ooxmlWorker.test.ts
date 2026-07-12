@@ -380,9 +380,10 @@ describe("RB2-a: timeout settlement waits for the child's OS-confirmed exit", ()
     // Deliberately never emit 'exit' — simulates a child that somehow
     // doesn't die from SIGKILL.
 
-    await expect(
-      runOoxmlInWorker("docx", Buffer.from("probe"), TINY_MS),
-    ).rejects.toMatchObject({ killed: true, code: "ETIMEDOUT" });
+    await expect(runOoxmlInWorker("docx", Buffer.from("probe"), TINY_MS)).rejects.toMatchObject({
+      killed: true,
+      code: "ETIMEDOUT",
+    });
   }, 10_000);
 
   it("frees the concurrency slot after a timeout (a second call does not hang behind it) — unchanged regression", async () => {

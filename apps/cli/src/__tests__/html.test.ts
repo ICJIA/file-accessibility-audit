@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { generateHtml, isSafeHttpUrl } from '../lib/html.js'
-import type { CachedRow } from '../lib/cache.js'
+import { describe, it, expect } from "vitest";
+import { generateHtml, isSafeHttpUrl } from "../lib/html.js";
+import type { CachedRow } from "../lib/cache.js";
+import { GRADE_COLORS } from "@file-audit/shared";
 
 // ---------------------------------------------------------------------------
 // F1 [MEDIUM]: publist "Download" link href scheme guard.
@@ -28,12 +29,12 @@ import type { CachedRow } from '../lib/cache.js'
 
 function baseRow(overrides: Partial<CachedRow> = {}): CachedRow {
   return {
-    file_url: 'https://example.gov/report.pdf',
-    title: 'Sample Publication',
-    publication_date: '2024-01-01',
-    pub_type: 'AnnualReport',
+    file_url: "https://example.gov/report.pdf",
+    title: "Sample Publication",
+    publication_date: "2024-01-01",
+    pub_type: "AnnualReport",
     overall_score: 85,
-    grade: 'B',
+    grade: "B",
     text_extractability_score: null,
     text_extractability_grade: null,
     text_extractability_severity: null,
@@ -80,60 +81,82 @@ function baseRow(overrides: Partial<CachedRow> = {}): CachedRow {
     page_count: 10,
     summary: null,
     tags: null,
-    status: 'complete',
+    status: "complete",
     error_message: null,
-    audited_at: '2024-01-02T00:00:00.000Z',
+    audited_at: "2024-01-02T00:00:00.000Z",
     ...overrides,
-  }
+  };
 }
 
-describe('isSafeHttpUrl', () => {
-  it('accepts absolute http and https URLs', () => {
-    expect(isSafeHttpUrl('https://example.gov/annual-report.pdf')).toBe(true)
-    expect(isSafeHttpUrl('http://example.gov/report.pdf')).toBe(true)
-  })
+describe("isSafeHttpUrl", () => {
+  it("accepts absolute http and https URLs", () => {
+    expect(isSafeHttpUrl("https://example.gov/annual-report.pdf")).toBe(true);
+    expect(isSafeHttpUrl("http://example.gov/report.pdf")).toBe(true);
+  });
 
-  it('rejects javascript:, data:, and vbscript: schemes', () => {
-    expect(isSafeHttpUrl('javascript:alert(document.domain)')).toBe(false)
-    expect(isSafeHttpUrl('JavaScript:alert(1)')).toBe(false)
-    expect(isSafeHttpUrl('data:text/html,<script>alert(1)</script>')).toBe(false)
-    expect(isSafeHttpUrl('vbscript:msgbox(1)')).toBe(false)
-  })
+  it("rejects javascript:, data:, and vbscript: schemes", () => {
+    expect(isSafeHttpUrl("javascript:alert(document.domain)")).toBe(false);
+    expect(isSafeHttpUrl("JavaScript:alert(1)")).toBe(false);
+    expect(isSafeHttpUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
+    expect(isSafeHttpUrl("vbscript:msgbox(1)")).toBe(false);
+  });
 
-  it('rejects relative, empty, malformed, and non-string values', () => {
-    expect(isSafeHttpUrl('/relative/path')).toBe(false)
-    expect(isSafeHttpUrl('//evil.example')).toBe(false)
-    expect(isSafeHttpUrl('not a url')).toBe(false)
-    expect(isSafeHttpUrl('')).toBe(false)
-    expect(isSafeHttpUrl(null)).toBe(false)
-    expect(isSafeHttpUrl(undefined)).toBe(false)
-    expect(isSafeHttpUrl(42)).toBe(false)
-  })
-})
+  it("rejects relative, empty, malformed, and non-string values", () => {
+    expect(isSafeHttpUrl("/relative/path")).toBe(false);
+    expect(isSafeHttpUrl("//evil.example")).toBe(false);
+    expect(isSafeHttpUrl("not a url")).toBe(false);
+    expect(isSafeHttpUrl("")).toBe(false);
+    expect(isSafeHttpUrl(null)).toBe(false);
+    expect(isSafeHttpUrl(undefined)).toBe(false);
+    expect(isSafeHttpUrl(42)).toBe(false);
+  });
+});
 
-describe('publist HTML: Download link href scheme guard (F1)', () => {
-  it('embeds the isSafeHttpUrl guard function verbatim into the generated page script', () => {
-    const html = generateHtml([baseRow()], new Date('2026-01-01'))
-    expect(html).toContain('function isSafeHttpUrl(')
+describe("publist HTML: Download link href scheme guard (F1)", () => {
+  it("embeds the isSafeHttpUrl guard function verbatim into the generated page script", () => {
+    const html = generateHtml([baseRow()], new Date("2026-01-01"));
+    expect(html).toContain("function isSafeHttpUrl(");
     // Embedded via .toString() of the tested function above — confirm the
     // actual scheme check (not just a same-named stub) made it into the
     // page. Quote style/whitespace vary by transpiler (tsx vs. vitest's
     // esbuild transform may or may not minify), so match loosely on the
     // meaningful tokens rather than an exact formatted string.
-    expect(html).toMatch(/protocol\s*===\s*["']http:["']/)
-    expect(html).toMatch(/protocol\s*===\s*["']https:["']/)
-  })
+    expect(html).toMatch(/protocol\s*===\s*["']http:["']/);
+    expect(html).toMatch(/protocol\s*===\s*["']https:["']/);
+  });
 
-  it('the Download anchor construction is gated on isSafeHttpUrl(r.u), not bare truthiness', () => {
-    const html = generateHtml([baseRow()], new Date('2026-01-01'))
-    expect(html).toContain('r.u && isSafeHttpUrl(r.u)')
+  it("the Download anchor construction is gated on isSafeHttpUrl(r.u), not bare truthiness", () => {
+    const html = generateHtml([baseRow()], new Date("2026-01-01"));
+    expect(html).toContain("r.u && isSafeHttpUrl(r.u)");
     // The old vulnerable shape — `(r.u ? '<a href="' + h(r.u) + ...` with no
     // scheme check — must be gone.
-    expect(html).not.toMatch(/\(r\.u\s*\?\s*'<a href="'\s*\+\s*h\(r\.u\)/)
-  })
+    expect(html).not.toMatch(/\(r\.u\s*\?\s*'<a href="'\s*\+\s*h\(r\.u\)/);
+  });
 
   it('the sibling "View Full Analysis" link (auditLink, already-safe encodeURIComponent path) is untouched', () => {
-    const html = generateHtml([baseRow()], new Date('2026-01-01'))
-    expect(html).toContain("var link = r.u ? auditLink(r.u) : '';")
-  })
-})
+    const html = generateHtml([baseRow()], new Date("2026-01-01"));
+    expect(html).toContain("var link = r.u ? auditLink(r.u) : '';");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A6: the report's grade → hex color mapping used to be a hand-copied
+// literal in html.ts, independently duplicating packages/shared/src/
+// scoring.ts's GRADE_THRESHOLDS colors with no guard against the two
+// drifting apart. Pinning against the real GRADE_COLORS export (rather than
+// re-hardcoding the expected hex values here) is what actually prevents that
+// regression.
+// ---------------------------------------------------------------------------
+describe("publist HTML: grade palette sourced from @file-audit/shared (A6)", () => {
+  it("embeds the exact shared GRADE_COLORS mapping as the client-side GC constant", () => {
+    const html = generateHtml([baseRow()], new Date("2026-01-01"));
+    expect(html).toContain(`var GC = ${JSON.stringify(GRADE_COLORS)};`);
+  });
+
+  it("uses the shared color for each grade in the static summary cards and legend", () => {
+    const html = generateHtml([baseRow()], new Date("2026-01-01"));
+    for (const grade of ["A", "B", "C", "D", "F"] as const) {
+      expect(html).toContain(`style="color:${GRADE_COLORS[grade]}"`);
+    }
+  });
+});

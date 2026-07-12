@@ -37,9 +37,7 @@ const props = defineProps<{
   notAssessed?: boolean;
 }>();
 
-const label = computed(() =>
-  props.notAssessed ? "Not assessed" : "Not applicable",
-);
+const label = computed(() => (props.notAssessed ? "Not assessed" : "Not applicable"));
 const reason = computed(() => naReason(props.catId, props.notAssessed));
 const tooltipId = computed(() => `na-tooltip-${props.catId}`);
 </script>

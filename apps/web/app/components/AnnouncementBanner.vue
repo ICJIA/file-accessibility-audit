@@ -17,9 +17,7 @@
         class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
         >{{ current.linkText }}</NuxtLink
       >
-      <span
-        v-if="current.date"
-        class="mt-1 block text-xs text-[var(--text-muted)]"
+      <span v-if="current.date" class="mt-1 block text-xs text-[var(--text-muted)]"
         >Updated {{ current.date }}</span
       >
     </p>

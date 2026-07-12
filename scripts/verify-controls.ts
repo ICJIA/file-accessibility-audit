@@ -53,10 +53,7 @@ function fmtDelta(a: number | null, b: number | null): string {
   return `${a} → ${b} (${sign}${d})`;
 }
 
-function categoryById(
-  cats: CategoryResult[],
-  id: string,
-): CategoryResult | undefined {
+function categoryById(cats: CategoryResult[], id: string): CategoryResult | undefined {
   return cats.find((c) => c.id === id);
 }
 
@@ -73,18 +70,13 @@ function printCategoryTable(title: string, cats: CategoryResult[]): void {
       `  ${padRight(c.id, 22)}${padRight(
         (c.weight * 100).toFixed(1) + "%",
         9,
-      )}${padRight(fmtScore(c.score), 7)}${padRight(
-        c.grade ?? "—",
-        7,
-      )}${c.severity ?? "—"}`,
+      )}${padRight(fmtScore(c.score), 7)}${padRight(c.grade ?? "—", 7)}${c.severity ?? "—"}`,
     );
   }
 }
 
 async function main(): Promise<void> {
-  console.log(
-    `${BOLD}PDF Accessibility Engine — Controls Verification${RESET}\n`,
-  );
+  console.log(`${BOLD}PDF Accessibility Engine — Controls Verification${RESET}\n`);
 
   // --- Load fixtures ------------------------------------------------------
   const baselinePath = path.join(CONTROLS_DIR, BASELINE);
@@ -110,9 +102,7 @@ async function main(): Promise<void> {
     console.log(`${DIM}Analyzing remediated:  ${REMEDIATED}${RESET}\n`);
     remediated = await analyzePDF(remediatedBuf, REMEDIATED);
   } catch (err) {
-    console.error(
-      `${RED}FATAL:${RESET} analyzePDF threw — pipeline is broken.`,
-    );
+    console.error(`${RED}FATAL:${RESET} analyzePDF threw — pipeline is broken.`);
     console.error(err);
     process.exit(2);
   }
@@ -123,9 +113,7 @@ async function main(): Promise<void> {
     ["REMEDIATED", remediated],
   ] as const) {
     console.log(`${BOLD}── ${label}: ${r.filename}${RESET}`);
-    console.log(
-      `  ${DIM}pages:${RESET} ${r.pageCount}   ${DIM}isScanned:${RESET} ${r.isScanned}`,
-    );
+    console.log(`  ${DIM}pages:${RESET} ${r.pageCount}   ${DIM}isScanned:${RESET} ${r.isScanned}`);
     console.log(
       `  ${DIM}Strict overall:${RESET}    ${r.scoreProfiles.strict.overallScore}/100 (${r.scoreProfiles.strict.grade})   ${DIM}origin:${RESET} ${(r.scoreProfiles.strict as any).origin ?? "—"}`,
     );
@@ -137,38 +125,21 @@ async function main(): Promise<void> {
       for (const w of r.warnings) console.log(`    - ${w}`);
     }
     console.log();
-    printCategoryTable(
-      "Strict categories",
-      r.scoreProfiles.strict.categories,
-    );
+    printCategoryTable("Strict categories", r.scoreProfiles.strict.categories);
     console.log();
-    printCategoryTable(
-      "Practical categories",
-      r.scoreProfiles.remediation.categories,
-    );
+    printCategoryTable("Practical categories", r.scoreProfiles.remediation.categories);
     console.log();
   }
 
   // --- Comparative delta --------------------------------------------------
   console.log(`${BOLD}── Comparative Delta (baseline → remediated)${RESET}`);
-  console.log(
-    `  ${DIM}${padRight("category", 22)}${padRight("strict", 22)}practical${RESET}`,
-  );
+  console.log(`  ${DIM}${padRight("category", 22)}${padRight("strict", 22)}practical${RESET}`);
   const categoryIds = baseline.scoreProfiles.strict.categories.map((c) => c.id);
   for (const id of categoryIds) {
     const bStrict = categoryById(baseline.scoreProfiles.strict.categories, id);
-    const rStrict = categoryById(
-      remediated.scoreProfiles.strict.categories,
-      id,
-    );
-    const bPrac = categoryById(
-      baseline.scoreProfiles.remediation.categories,
-      id,
-    );
-    const rPrac = categoryById(
-      remediated.scoreProfiles.remediation.categories,
-      id,
-    );
+    const rStrict = categoryById(remediated.scoreProfiles.strict.categories, id);
+    const bPrac = categoryById(baseline.scoreProfiles.remediation.categories, id);
+    const rPrac = categoryById(remediated.scoreProfiles.remediation.categories, id);
     console.log(
       `  ${padRight(id, 22)}${padRight(
         fmtDelta(bStrict?.score ?? null, rStrict?.score ?? null),
@@ -216,8 +187,7 @@ async function main(): Promise<void> {
   );
 
   // 3. scores-in-range
-  const allScores: Array<{ file: string; profile: string; cat: string; score: number | null }> =
-    [];
+  const allScores: Array<{ file: string; profile: string; cat: string; score: number | null }> = [];
   for (const [file, r] of [
     ["baseline", baseline],
     ["remediated", remediated],
@@ -235,9 +205,7 @@ async function main(): Promise<void> {
     }
   }
   const outOfRange = allScores.filter(
-    (s) =>
-      s.score !== null &&
-      (!Number.isInteger(s.score) || s.score < 0 || s.score > 100),
+    (s) => s.score !== null && (!Number.isInteger(s.score) || s.score < 0 || s.score > 100),
   );
   inv(
     "scores-in-range",
@@ -254,23 +222,15 @@ async function main(): Promise<void> {
     ["remediated", remediated],
   ] as const) {
     for (const c of r.scoreProfiles.strict.categories) {
-      const expected = (SCORING_PROFILES.strict.weights as Record<string, number>)[
-        c.id
-      ];
+      const expected = (SCORING_PROFILES.strict.weights as Record<string, number>)[c.id];
       if (expected === undefined || Math.abs(expected - c.weight) > 1e-9) {
-        mismatches.push(
-          `${file}/strict/${c.id}: got ${c.weight}, expected ${expected}`,
-        );
+        mismatches.push(`${file}/strict/${c.id}: got ${c.weight}, expected ${expected}`);
       }
     }
     for (const c of r.scoreProfiles.remediation.categories) {
-      const expected = (SCORING_PROFILES.remediation.weights as Record<string, number>)[
-        c.id
-      ];
+      const expected = (SCORING_PROFILES.remediation.weights as Record<string, number>)[c.id];
       if (expected === undefined || Math.abs(expected - c.weight) > 1e-9) {
-        mismatches.push(
-          `${file}/practical/${c.id}: got ${c.weight}, expected ${expected}`,
-        );
+        mismatches.push(`${file}/practical/${c.id}: got ${c.weight}, expected ${expected}`);
       }
     }
   }
@@ -307,9 +267,7 @@ async function main(): Promise<void> {
   const rAltStrict = categoryById(rStrictCats, "alt_text")?.score ?? null;
   const altImproved =
     (bAltStrict === null && rAltStrict !== null) ||
-    (bAltStrict !== null &&
-      rAltStrict !== null &&
-      rAltStrict >= bAltStrict);
+    (bAltStrict !== null && rAltStrict !== null && rAltStrict >= bAltStrict);
   inv(
     "alt-text-improved",
     altImproved,
@@ -317,15 +275,10 @@ async function main(): Promise<void> {
   );
 
   // 7. heading-strict-still-failing (<50 on both)
-  const bHeadStrict =
-    categoryById(bStrictCats, "heading_structure")?.score ?? null;
-  const rHeadStrict =
-    categoryById(rStrictCats, "heading_structure")?.score ?? null;
+  const bHeadStrict = categoryById(bStrictCats, "heading_structure")?.score ?? null;
+  const rHeadStrict = categoryById(rStrictCats, "heading_structure")?.score ?? null;
   const headLow =
-    bHeadStrict !== null &&
-    rHeadStrict !== null &&
-    bHeadStrict < 50 &&
-    rHeadStrict < 50;
+    bHeadStrict !== null && rHeadStrict !== null && bHeadStrict < 50 && rHeadStrict < 50;
   inv(
     "heading-strict-still-failing",
     headLow,
@@ -335,11 +288,7 @@ async function main(): Promise<void> {
   // 8. table-strict-still-failing (<70 on both)
   const bTblStrict = categoryById(bStrictCats, "table_markup")?.score ?? null;
   const rTblStrict = categoryById(rStrictCats, "table_markup")?.score ?? null;
-  const tblLow =
-    bTblStrict !== null &&
-    rTblStrict !== null &&
-    bTblStrict < 70 &&
-    rTblStrict < 70;
+  const tblLow = bTblStrict !== null && rTblStrict !== null && bTblStrict < 70 && rTblStrict < 70;
   inv(
     "table-strict-still-failing",
     tblLow,
@@ -347,10 +296,8 @@ async function main(): Promise<void> {
   );
 
   // 9. pdf-ua-strict-na
-  const bPuaStrict =
-    categoryById(bStrictCats, "pdf_ua_compliance")?.score ?? null;
-  const rPuaStrict =
-    categoryById(rStrictCats, "pdf_ua_compliance")?.score ?? null;
+  const bPuaStrict = categoryById(bStrictCats, "pdf_ua_compliance")?.score ?? null;
+  const rPuaStrict = categoryById(rStrictCats, "pdf_ua_compliance")?.score ?? null;
   const puaStrictNa = bPuaStrict === null && rPuaStrict === null;
   inv(
     "pdf-ua-strict-na",
@@ -359,10 +306,8 @@ async function main(): Promise<void> {
   );
 
   // 10. pdf-ua-practical-scored
-  const bPuaPrac =
-    categoryById(bPracCats, "pdf_ua_compliance")?.score ?? null;
-  const rPuaPrac =
-    categoryById(rPracCats, "pdf_ua_compliance")?.score ?? null;
+  const bPuaPrac = categoryById(bPracCats, "pdf_ua_compliance")?.score ?? null;
+  const rPuaPrac = categoryById(rPracCats, "pdf_ua_compliance")?.score ?? null;
   const puaPracScored = bPuaPrac !== null && rPuaPrac !== null;
   inv(
     "pdf-ua-practical-scored",
@@ -374,10 +319,7 @@ async function main(): Promise<void> {
   const strictCount = bStrictCats.length;
   const pracCount = bPracCats.length;
   const countOk =
-    strictCount === 11 &&
-    pracCount === 11 &&
-    rStrictCats.length === 11 &&
-    rPracCats.length === 11;
+    strictCount === 11 && pracCount === 11 && rStrictCats.length === 11 && rPracCats.length === 11;
   inv(
     "categories-count",
     countOk,

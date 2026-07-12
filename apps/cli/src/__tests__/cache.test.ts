@@ -1,17 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import Database from 'better-sqlite3'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { initCache, upsertResult, getAllSuccessful } from '../lib/cache.js'
-import { generateCsv } from '../lib/csv.js'
-import { generateHtml } from '../lib/html.js'
-import type { Publication } from '../lib/graphql.js'
-import type { AnalysisResult } from '../../../api/src/services/pdfAnalyzer.js'
-import type {
-  CategoryResult,
-  ScoreProfileResult,
-} from '../../../api/src/services/scorer.js'
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import Database from "better-sqlite3";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { initCache, upsertResult, getAllSuccessful } from "../lib/cache.js";
+import { generateCsv } from "../lib/csv.js";
+import { generateHtml } from "../lib/html.js";
+import type { Publication } from "../lib/graphql.js";
+import type { AnalysisResult } from "../../../api/src/services/pdfAnalyzer.js";
+import type { CategoryResult, ScoreProfileResult } from "../../../api/src/services/scorer.js";
 
 // ---------------------------------------------------------------------------
 // RB3-1 [IMPORTANT, pre-merge re-audit]: publist's cache + CSV + HTML
@@ -38,29 +35,27 @@ function makePub(fileURL: string, title: string): Publication {
   return {
     id: fileURL,
     title,
-    slug: title.toLowerCase().replace(/\s+/g, '-'),
+    slug: title.toLowerCase().replace(/\s+/g, "-"),
     fileURL,
-    publicationDate: '2026-01-01',
-    pubType: 'Report',
+    publicationDate: "2026-01-01",
+    pubType: "Report",
     summary: null,
     tags: null,
-  }
+  };
 }
 
-function makeCategory(
-  overrides: Partial<CategoryResult> & { id: string },
-): CategoryResult {
+function makeCategory(overrides: Partial<CategoryResult> & { id: string }): CategoryResult {
   return {
     label: overrides.id,
     weight: 0.1,
     score: 100,
-    grade: 'A',
-    severity: 'Pass',
+    grade: "A",
+    severity: "Pass",
     findings: [],
-    explanation: '',
+    explanation: "",
     helpLinks: [],
     ...overrides,
-  }
+  };
 }
 
 function makeProfile(
@@ -69,147 +64,147 @@ function makeProfile(
   grade: string,
 ): ScoreProfileResult {
   return {
-    mode: 'strict',
-    label: 'Strict semantic score (WCAG + IITAA §E205.4)',
-    description: 'Test profile',
+    mode: "strict",
+    label: "Strict semantic score (WCAG + IITAA §E205.4)",
+    description: "Test profile",
     overallScore,
     grade,
-    executiveSummary: 'Test executive summary',
+    executiveSummary: "Test executive summary",
     categoryScores: Object.fromEntries(categories.map((c) => [c.id, c.score])),
     categories,
-  }
+  };
 }
 
 function makePptxResult(): AnalysisResult {
   const categories: CategoryResult[] = [
-    makeCategory({ id: 'text_extractability', score: 100 }),
-    makeCategory({ id: 'title_language', score: 100 }),
+    makeCategory({ id: "text_extractability", score: 100 }),
+    makeCategory({ id: "title_language", score: 100 }),
     makeCategory({
-      id: 'slide_titles',
-      label: 'Slide Titles',
+      id: "slide_titles",
+      label: "Slide Titles",
       score: 82,
-      grade: 'B',
-      severity: 'Minor',
+      grade: "B",
+      severity: "Minor",
     }),
-    makeCategory({ id: 'alt_text', score: 90 }),
-  ]
-  const profile = makeProfile(categories, 91, 'A')
+    makeCategory({ id: "alt_text", score: 90 }),
+  ];
+  const profile = makeProfile(categories, 91, "A");
   return {
     overallScore: 91,
-    grade: 'A',
+    grade: "A",
     isScanned: false,
-    executiveSummary: 'Test PPTX summary',
+    executiveSummary: "Test PPTX summary",
     categories,
     warnings: [],
-    scoringMode: 'strict',
+    scoringMode: "strict",
     scoreProfiles: { strict: profile, remediation: profile },
     conformance: {
-      status: 'no-automated-failures',
+      status: "no-automated-failures",
       failures: [],
       notAssessed: [],
-      headline: 'No automated failures found.',
+      headline: "No automated failures found.",
     },
-    filename: 'sample.pptx',
+    filename: "sample.pptx",
     pageCount: 5,
-    fileType: 'pptx',
-  } as AnalysisResult
+    fileType: "pptx",
+  } as AnalysisResult;
 }
 
 function makeXlsxResult(): AnalysisResult {
   const categories: CategoryResult[] = [
-    makeCategory({ id: 'text_extractability', score: 100 }),
-    makeCategory({ id: 'title_language', score: 100 }),
+    makeCategory({ id: "text_extractability", score: 100 }),
+    makeCategory({ id: "title_language", score: 100 }),
     makeCategory({
-      id: 'sheet_names',
-      label: 'Sheet Names',
+      id: "sheet_names",
+      label: "Sheet Names",
       score: 75,
-      grade: 'C',
-      severity: 'Minor',
+      grade: "C",
+      severity: "Minor",
     }),
-    makeCategory({ id: 'table_markup', score: 80, grade: 'B' }),
-  ]
-  const profile = makeProfile(categories, 84, 'B')
+    makeCategory({ id: "table_markup", score: 80, grade: "B" }),
+  ];
+  const profile = makeProfile(categories, 84, "B");
   return {
     overallScore: 84,
-    grade: 'B',
+    grade: "B",
     isScanned: false,
-    executiveSummary: 'Test XLSX summary',
+    executiveSummary: "Test XLSX summary",
     categories,
     warnings: [],
-    scoringMode: 'strict',
+    scoringMode: "strict",
     scoreProfiles: { strict: profile, remediation: profile },
     conformance: {
-      status: 'no-automated-failures',
+      status: "no-automated-failures",
       failures: [],
       notAssessed: [],
-      headline: 'No automated failures found.',
+      headline: "No automated failures found.",
     },
-    filename: 'sample.xlsx',
+    filename: "sample.xlsx",
     pageCount: 1,
-    fileType: 'xlsx',
-  } as AnalysisResult
+    fileType: "xlsx",
+  } as AnalysisResult;
 }
 
-describe('cache.ts round-trip: pptx/xlsx categories survive upsertResult -> CSV/HTML (RB3-1)', () => {
-  let dir: string
-  let db: Database.Database
+describe("cache.ts round-trip: pptx/xlsx categories survive upsertResult -> CSV/HTML (RB3-1)", () => {
+  let dir: string;
+  let db: Database.Database;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'a11y-audit-cache-test-'))
-    db = initCache(dir)
-  })
+    dir = mkdtempSync(join(tmpdir(), "a11y-audit-cache-test-"));
+    db = initCache(dir);
+  });
 
   afterEach(() => {
-    db.close()
-    rmSync(dir, { recursive: true, force: true })
-  })
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
 
-  it('persists slide_titles (pptx) and sheet_names (xlsx) scores/grades/severities, and renders them in the CSV and HTML reports', () => {
-    const pptxPub = makePub('https://example.gov/deck.pptx', 'Sample Deck')
-    const xlsxPub = makePub('https://example.gov/book.xlsx', 'Sample Book')
+  it("persists slide_titles (pptx) and sheet_names (xlsx) scores/grades/severities, and renders them in the CSV and HTML reports", () => {
+    const pptxPub = makePub("https://example.gov/deck.pptx", "Sample Deck");
+    const xlsxPub = makePub("https://example.gov/book.xlsx", "Sample Book");
 
-    upsertResult(db, pptxPub, makePptxResult())
-    upsertResult(db, xlsxPub, makeXlsxResult())
+    upsertResult(db, pptxPub, makePptxResult());
+    upsertResult(db, xlsxPub, makeXlsxResult());
 
-    const rows = getAllSuccessful(db)
-    expect(rows).toHaveLength(2)
+    const rows = getAllSuccessful(db);
+    expect(rows).toHaveLength(2);
 
-    const pptxRow = rows.find((r) => r.file_url === pptxPub.fileURL)!
-    const xlsxRow = rows.find((r) => r.file_url === xlsxPub.fileURL)!
-    expect(pptxRow).toBeTruthy()
-    expect(xlsxRow).toBeTruthy()
+    const pptxRow = rows.find((r) => r.file_url === pptxPub.fileURL)!;
+    const xlsxRow = rows.find((r) => r.file_url === xlsxPub.fileURL)!;
+    expect(pptxRow).toBeTruthy();
+    expect(xlsxRow).toBeTruthy();
 
     // --- cache DB round-trip ---
-    expect((pptxRow as any).slide_titles_score).toBe(82)
-    expect((pptxRow as any).slide_titles_grade).toBe('B')
-    expect((pptxRow as any).slide_titles_severity).toBe('Minor')
-    expect((xlsxRow as any).sheet_names_score).toBe(75)
-    expect((xlsxRow as any).sheet_names_grade).toBe('C')
-    expect((xlsxRow as any).sheet_names_severity).toBe('Minor')
+    expect((pptxRow as any).slide_titles_score).toBe(82);
+    expect((pptxRow as any).slide_titles_grade).toBe("B");
+    expect((pptxRow as any).slide_titles_severity).toBe("Minor");
+    expect((xlsxRow as any).sheet_names_score).toBe(75);
+    expect((xlsxRow as any).sheet_names_grade).toBe("C");
+    expect((xlsxRow as any).sheet_names_severity).toBe("Minor");
 
     // A pre-existing shared category still round-trips too (no regression).
-    expect((pptxRow as any).text_extractability_score).toBe(100)
-    expect((xlsxRow as any).text_extractability_score).toBe(100)
+    expect((pptxRow as any).text_extractability_score).toBe(100);
+    expect((xlsxRow as any).text_extractability_score).toBe(100);
 
     // --- CSV ---
-    const csv = generateCsv(rows)
-    expect(csv).toContain('Slide Titles')
-    expect(csv).toContain('Sheet Names')
-    const pptxLine = csv.split('\n').find((l) => l.includes('Sample Deck'))
-    expect(pptxLine).toBeTruthy()
-    expect(pptxLine).toContain('82')
-    const xlsxLine = csv.split('\n').find((l) => l.includes('Sample Book'))
-    expect(xlsxLine).toBeTruthy()
-    expect(xlsxLine).toContain('75')
+    const csv = generateCsv(rows);
+    expect(csv).toContain("Slide Titles");
+    expect(csv).toContain("Sheet Names");
+    const pptxLine = csv.split("\n").find((l) => l.includes("Sample Deck"));
+    expect(pptxLine).toBeTruthy();
+    expect(pptxLine).toContain("82");
+    const xlsxLine = csv.split("\n").find((l) => l.includes("Sample Book"));
+    expect(xlsxLine).toBeTruthy();
+    expect(xlsxLine).toContain("75");
 
     // --- HTML ---
-    const html = generateHtml(rows, new Date('2026-01-01'))
-    expect(html).toContain('Slide Titles')
-    expect(html).toContain('Sheet Names')
+    const html = generateHtml(rows, new Date("2026-01-01"));
+    expect(html).toContain("Slide Titles");
+    expect(html).toContain("Sheet Names");
     // Per-row category data is embedded as JSON for client-side rendering —
     // confirm the actual score values made it into the page, not just the
     // column headers.
-    expect(html).toContain('"slide_titles":{"s":82')
-    expect(html).toContain('"sheet_names":{"s":75')
-  })
-})
+    expect(html).toContain('"slide_titles":{"s":82');
+    expect(html).toContain('"sheet_names":{"s":75');
+  });
+});

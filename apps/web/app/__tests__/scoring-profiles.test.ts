@@ -33,10 +33,12 @@ describe("scoringProfiles", () => {
       "remediation",
     );
 
-    expect(displayed[0].score).toBe(72);
-    expect(displayed[0].grade).toBe("C");
-    expect(displayed[0].severity).toBe("Minor");
-    expect(displayed[0].findings).toEqual(["Strict finding"]);
+    // Non-null: the test constructs `categories` with exactly one entry.
+    const [first] = displayed;
+    expect(first!.score).toBe(72);
+    expect(first!.grade).toBe("C");
+    expect(first!.severity).toBe("Minor");
+    expect(first!.findings).toEqual(["Strict finding"]);
   });
 
   it("prefers the full per-profile categories array when the API supplies it", () => {
@@ -77,21 +79,15 @@ describe("scoringProfiles", () => {
     );
 
     expect(displayed).toHaveLength(1);
-    expect(displayed[0].score).toBe(70);
-    expect(displayed[0].findings).toEqual([
-      "Tagged PDF detected",
-      "PDF/UA identifier found",
-    ]);
+    // Non-null: the toHaveLength(1) assertion above guarantees index 0 exists.
+    expect(displayed[0]!.score).toBe(70);
+    expect(displayed[0]!.findings).toEqual(["Tagged PDF detected", "PDF/UA identifier found"]);
   });
 
   it("keeps the original categories when a profile has no category overrides", () => {
-    const categories = [
-      { id: "bookmarks", score: 100, grade: "A", severity: "Pass" },
-    ];
+    const categories = [{ id: "bookmarks", score: 100, grade: "A", severity: "Pass" }];
 
-    expect(categoriesForScoringMode(categories, undefined, "strict")).toEqual(
-      categories,
-    );
+    expect(categoriesForScoringMode(categories, undefined, "strict")).toEqual(categories);
   });
 
   it.each([
@@ -101,11 +97,8 @@ describe("scoringProfiles", () => {
     [60, "D", "Moderate"],
     [20, "F", "Critical"],
     [null, null, null],
-  ])(
-    "derives grade %s and severity %s from category score",
-    (score, grade, severity) => {
-      expect(gradeForScore(score as number | null)).toBe(grade);
-      expect(severityForScore(score as number | null)).toBe(severity);
-    },
-  );
+  ])("derives grade %s and severity %s from category score", (score, grade, severity) => {
+    expect(gradeForScore(score as number | null)).toBe(grade);
+    expect(severityForScore(score as number | null)).toBe(severity);
+  });
 });

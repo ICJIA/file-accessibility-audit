@@ -8,48 +8,47 @@
 </template>
 
 <script setup lang="ts">
-const config = useRuntimeConfig()
-const appConfig = useAppConfig()
+const appConfig = useAppConfig();
 
 // Inject WebApplication JSON-LD structured data
 if (appConfig.jsonLd) {
   useHead({
     script: [
       {
-        type: 'application/ld+json',
+        type: "application/ld+json",
         innerHTML: JSON.stringify(appConfig.jsonLd),
       },
     ],
-  })
+  });
 }
 
 // Forward browser cookies during SSR so the API can validate the JWT
-const reqHeaders = import.meta.server ? useRequestHeaders(['cookie']) : {}
+const reqHeaders = import.meta.server ? useRequestHeaders(["cookie"]) : {};
 
-const { data: user, refresh: refreshUser } = useFetch('/api/auth/me', {
-  credentials: 'include',
+const { data: user, refresh: refreshUser } = useFetch("/api/auth/me", {
+  credentials: "include",
   headers: reqHeaders,
   default: () => null,
   watch: false,
-})
+});
 
 async function logout() {
-  await $fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
-  user.value = null
-  navigateTo('/login')
+  await $fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  user.value = null;
+  navigateTo("/login");
 }
 
 // Provide a signal that child pages can watch to reset state
-const resetSignal = ref(0)
+const resetSignal = ref(0);
 
 function goAnalyze() {
-  resetSignal.value++
-  navigateTo('/')
+  resetSignal.value++;
+  navigateTo("/");
 }
 
-provide('user', user)
-provide('refreshUser', refreshUser)
-provide('resetSignal', resetSignal)
-provide('goAnalyze', goAnalyze)
-provide('logout', logout)
+provide("user", user);
+provide("refreshUser", refreshUser);
+provide("resetSignal", resetSignal);
+provide("goAnalyze", goAnalyze);
+provide("logout", logout);
 </script>

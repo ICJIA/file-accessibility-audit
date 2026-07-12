@@ -68,10 +68,7 @@ export function uploadExtensions(flags: UploadFlags): string[] {
 }
 
 /** "PDF, Word, PowerPoint, or Excel" — conjunction selectable for headlines. */
-export function uploadNoun(
-  flags: UploadFlags,
-  conjunction: "or" | "and" = "or",
-): string {
+export function uploadNoun(flags: UploadFlags, conjunction: "or" | "and" = "or"): string {
   return joinList(
     enabledFormats(flags).map((f) => f.label),
     conjunction,
@@ -81,9 +78,7 @@ export function uploadNoun(
 /** "PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx)" for error copy. */
 export function uploadNounWithExts(flags: UploadFlags): string {
   return joinList(
-    enabledFormats(flags).map((f) =>
-      f.ext === ".pdf" ? f.label : `${f.label} (${f.ext})`,
-    ),
+    enabledFormats(flags).map((f) => (f.ext === ".pdf" ? f.label : `${f.label} (${f.ext})`)),
     "or",
   );
 }

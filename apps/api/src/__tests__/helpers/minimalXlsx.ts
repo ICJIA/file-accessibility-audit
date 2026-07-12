@@ -62,7 +62,13 @@ export interface BuildXlsxOpts {
   sheets: SheetOpts[];
   coreXml?: string; // default carries a dc:title + dc:creator
   /** cellXfs entries: font color/size/bold × solid-fill color (both ARGB or 6-hex). */
-  styles?: Array<{ fontRgb?: string; fontTheme?: boolean; sz?: number; bold?: boolean; fillRgb?: string }>;
+  styles?: Array<{
+    fontRgb?: string;
+    fontTheme?: boolean;
+    sz?: number;
+    bold?: boolean;
+    fillRgb?: string;
+  }>;
 }
 
 const R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
@@ -146,7 +152,10 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
       }),
     )
     .join("");
-  const fills = [`<fill><patternFill patternType="none"/></fill>`, `<fill><patternFill patternType="gray125"/></fill>`]
+  const fills = [
+    `<fill><patternFill patternType="none"/></fill>`,
+    `<fill><patternFill patternType="gray125"/></fill>`,
+  ]
     .concat(
       styles.map((st) =>
         st.fillRgb
@@ -189,9 +198,7 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
       tableIdx++;
       const hdr = t.headerRowCount === undefined ? "" : ` headerRowCount="${t.headerRowCount}"`;
       const openTag = `<?xml version="1.0"?><table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${tableIdx}" name="${t.name}" displayName="${t.name}" ref="A1:C4"${hdr}`;
-      const body = t.padBytes
-        ? `>${"x".repeat(t.padBytes)}</table>`
-        : "/>";
+      const body = t.padBytes ? `>${"x".repeat(t.padBytes)}</table>` : "/>";
       zip.file(`xl/tables/table${tableIdx}.xml`, `${openTag}${body}`);
       overrides.push(
         `<Override PartName="/xl/tables/table${tableIdx}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>`,

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Lint, typecheck, build, test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # pnpm major pinned to match this repo's pnpm-lock.yaml
+      # (lockfileVersion: '9.0', produced by locally-installed pnpm 10.x).
+      # No `packageManager` field is added to package.json for this — that
+      # field changes local corepack behavior for every contributor, which
+      # is a bigger change than this CI-only pin needs.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # Runs all three suites (api, web, cli) via scripts/test.ts.
+      # No system binaries (qpdf, Java) needed — they're mocked in tests.
+      - name: Test
+        run: pnpm test

@@ -1,10 +1,6 @@
 import "./test-helpers";
 import { describe, it, expect } from "vitest";
-import {
-  buildMarkdown,
-  buildHtml,
-  buildText,
-} from "../composables/useReportExport";
+import { buildMarkdown, buildHtml, buildText } from "../composables/useReportExport";
 
 const branding = {
   appName: "ICJIA Publication Accessibility Audit",
@@ -99,10 +95,7 @@ describe("buildText export", () => {
   });
 
   it("builds for a scanned, single-page document too", () => {
-    const text = buildText(
-      baseResult({ isScanned: true, pageCount: 1 }),
-      branding,
-    );
+    const text = buildText(baseResult({ isScanned: true, pageCount: 1 }), branding);
     expect(text).toContain("Scanned document detected");
     expect(text.length).toBeGreaterThan(0);
   });
@@ -182,10 +175,7 @@ describe("buildHtml / buildMarkdown — conformance finding URL hardening (store
   }
 
   it("buildHtml drops the href for a javascript: URL but keeps the finding text", () => {
-    const html = buildHtml(
-      resultWithConformanceUrl("javascript:alert(document.domain)"),
-      branding,
-    );
+    const html = buildHtml(resultWithConformanceUrl("javascript:alert(document.domain)"), branding);
     expect(html).toContain("1.1.1");
     expect(html).toContain("Non-text Content");
     expect(html).toContain("1.4.3");
@@ -195,9 +185,7 @@ describe("buildHtml / buildMarkdown — conformance finding URL hardening (store
 
   it("buildHtml keeps the href for a legitimate https URL", () => {
     const html = buildHtml(
-      resultWithConformanceUrl(
-        "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
-      ),
+      resultWithConformanceUrl("https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"),
       branding,
     );
     expect(html).toContain(
@@ -218,9 +206,7 @@ describe("buildHtml / buildMarkdown — conformance finding URL hardening (store
 
   it("buildMarkdown keeps a legitimate https URL as the markdown link target", () => {
     const md = buildMarkdown(
-      resultWithConformanceUrl(
-        "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
-      ),
+      resultWithConformanceUrl("https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"),
       branding,
     );
     expect(md).toContain(
@@ -255,10 +241,7 @@ describe("buildMarkdown — helpLinks URL hardening (stored XSS, live gap)", () 
   }
 
   it("never embeds a javascript: helpLink as a markdown link target, but keeps the label", () => {
-    const md = buildMarkdown(
-      resultWithHelpLinkUrl("javascript:alert(1)"),
-      branding,
-    );
+    const md = buildMarkdown(resultWithHelpLinkUrl("javascript:alert(1)"), branding);
     // the label text still appears...
     expect(md).toContain("CLICK FOR HELP");
     // ...but the dangerous scheme never becomes a markdown link target
@@ -267,10 +250,7 @@ describe("buildMarkdown — helpLinks URL hardening (stored XSS, live gap)", () 
   });
 
   it("keeps a legitimate https helpLink as the markdown link target", () => {
-    const md = buildMarkdown(
-      resultWithHelpLinkUrl("https://www.w3.org/WAI/x.html"),
-      branding,
-    );
+    const md = buildMarkdown(resultWithHelpLinkUrl("https://www.w3.org/WAI/x.html"), branding);
     expect(md).toContain("[CLICK FOR HELP](https://www.w3.org/WAI/x.html)");
   });
 });

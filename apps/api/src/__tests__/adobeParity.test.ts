@@ -96,13 +96,10 @@ describe("buildAdobeParityReport", () => {
     expect(report.rules).toHaveLength(32);
     expect(report.summary.total).toBe(32);
 
-    const byCategory = report.rules.reduce<Record<string, number>>(
-      (acc, r) => {
-        acc[r.category] = (acc[r.category] ?? 0) + 1;
-        return acc;
-      },
-      {},
-    );
+    const byCategory = report.rules.reduce<Record<string, number>>((acc, r) => {
+      acc[r.category] = (acc[r.category] ?? 0) + 1;
+      return acc;
+    }, {});
     expect(byCategory).toEqual({
       Document: 8,
       "Page Content": 9,
@@ -170,9 +167,7 @@ describe("buildAdobeParityReport", () => {
 
     // Figures alternate text must be vacuous AND the note must surface the
     // 4 painted-but-untagged images.
-    const figuresAlt = report.rules.find(
-      (r) => r.id === "figures_alternate_text",
-    )!;
+    const figuresAlt = report.rules.find((r) => r.id === "figures_alternate_text")!;
     expect(figuresAlt.status).toBe("passed");
     expect(figuresAlt.vacuous).toBe(true);
     expect(figuresAlt.note).toMatch(/4 raster image/);
@@ -251,9 +246,7 @@ describe("buildAdobeParityReport", () => {
     const report = buildAdobeParityReport(qpdf, pdfjs);
 
     // Figures alt text: NOT vacuous here — real tagged figures exist.
-    const figures = report.rules.find(
-      (r) => r.id === "figures_alternate_text",
-    )!;
+    const figures = report.rules.find((r) => r.id === "figures_alternate_text")!;
     expect(figures.vacuous).toBe(false);
     expect(figures.status).toBe("passed"); // all have alt
 
@@ -280,22 +273,13 @@ describe("buildAdobeParityReport", () => {
 
   it("always reports 'Summary' as skipped and 'Logical Reading Order' + 'Color contrast' as manual", () => {
     const report = buildAdobeParityReport(makeQpdf(), makePdfjs());
-    expect(report.rules.find((r) => r.id === "summary")!.status).toBe(
-      "skipped",
-    );
-    expect(
-      report.rules.find((r) => r.id === "logical_reading_order")!.status,
-    ).toBe("manual");
-    expect(report.rules.find((r) => r.id === "color_contrast")!.status).toBe(
-      "manual",
-    );
+    expect(report.rules.find((r) => r.id === "summary")!.status).toBe("skipped");
+    expect(report.rules.find((r) => r.id === "logical_reading_order")!.status).toBe("manual");
+    expect(report.rules.find((r) => r.id === "color_contrast")!.status).toBe("manual");
   });
 
   it("fails 'Tagged PDF' when there is no StructTreeRoot", () => {
-    const report = buildAdobeParityReport(
-      makeQpdf({ hasStructTree: false }),
-      makePdfjs(),
-    );
+    const report = buildAdobeParityReport(makeQpdf({ hasStructTree: false }), makePdfjs());
     const r = report.rules.find((r) => r.id === "tagged_pdf")!;
     expect(r.status).toBe("failed");
     expect(r.vacuous).toBe(false);
@@ -305,15 +289,7 @@ describe("buildAdobeParityReport", () => {
     const report = buildAdobeParityReport(makeQpdf(), makePdfjs());
     const keys = Object.keys(report.summary).sort();
     expect(keys).toEqual(
-      [
-        "failed",
-        "manual",
-        "notComputed",
-        "passed",
-        "skipped",
-        "total",
-        "vacuousPasses",
-      ].sort(),
+      ["failed", "manual", "notComputed", "passed", "skipped", "total", "vacuousPasses"].sort(),
     );
   });
 });

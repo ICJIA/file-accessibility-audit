@@ -20,14 +20,10 @@
     </svg>
 
     <div class="min-w-0">
-      <p
-        class="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]"
-      >
+      <p class="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
         {{ BANNER_EYEBROW }}
       </p>
-      <p
-        class="text-lg sm:text-xl font-bold leading-snug text-[var(--text-heading)] break-words"
-      >
+      <p class="text-lg sm:text-xl font-bold leading-snug text-[var(--text-heading)] break-words">
         {{ filename }}
       </p>
       <p class="mt-0.5 text-sm text-[var(--text-muted)]">

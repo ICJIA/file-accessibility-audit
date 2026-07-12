@@ -17,22 +17,12 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import {
-  promises as fs,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from "node:fs";
+import { promises as fs, existsSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { convert } from "@opendataloader/pdf";
 import { REMEDIATION } from "#config";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
-import {
-  recordEvent,
-  verifyAbsent,
-  deleteAndVerify,
-} from "../services/remediationEvents.js";
+import { recordEvent, deleteAndVerify } from "../services/remediationEvents.js";
 import {
   getJob,
   getJobAuditPair,
@@ -84,8 +74,7 @@ function setupJavaEnv(): void {
   // Cap JVM heap as a safety rail against runaway documents
   const heapFlag = `-Xmx${REMEDIATION.JVM_HEAP_MB}m`;
   if (!(process.env.JAVA_TOOL_OPTIONS ?? "").includes(heapFlag)) {
-    process.env.JAVA_TOOL_OPTIONS =
-      `${process.env.JAVA_TOOL_OPTIONS ?? ""} ${heapFlag}`.trim();
+    process.env.JAVA_TOOL_OPTIONS = `${process.env.JAVA_TOOL_OPTIONS ?? ""} ${heapFlag}`.trim();
   }
 }
 
@@ -134,9 +123,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     throw new Error(`remediation job ${jobId} not found`);
   }
   if (job.status !== "pending") {
-    throw new Error(
-      `remediation job ${jobId} is ${job.status}; expected pending`,
-    );
+    throw new Error(`remediation job ${jobId} is ${job.status}; expected pending`);
   }
 
   setupJavaEnv();
@@ -229,9 +216,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       setFailed(jobId, "OpenDataLoader tagging failed");
       return;
     }
-    const odlFiles = readdirSync(paths.odlOutDir).filter((f) =>
-      f.toLowerCase().endsWith(".pdf"),
-    );
+    const odlFiles = readdirSync(paths.odlOutDir).filter((f) => f.toLowerCase().endsWith(".pdf"));
     if (odlFiles.length === 0) {
       recordEvent(jobId, "error", {
         error_type: "odl_no_output",
@@ -271,12 +256,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     //     surface the verdict honestly.
     try {
       const vera = await runVeraPdf(taggedPath);
-      setVeraPdfResult(
-        jobId,
-        vera.available,
-        vera.passed,
-        JSON.stringify(vera),
-      );
+      setVeraPdfResult(jobId, vera.available, vera.passed, JSON.stringify(vera));
       if (vera.available) {
         recordEvent(jobId, vera.passed ? "verapdf_passed" : "verapdf_failed", {
           profile: vera.profile,
@@ -285,8 +265,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
         });
       } else {
         recordEvent(jobId, "verapdf_unavailable", {
-          reason:
-            "VERAPDF_PATH not configured — skipping PDF/UA conformance check",
+          reason: "VERAPDF_PATH not configured — skipping PDF/UA conformance check",
         });
       }
     } catch (e) {
@@ -294,14 +273,19 @@ export async function runRemediationJob(jobId: string): Promise<void> {
         error_type: "verapdf_threw",
         message: (e as Error).message,
       });
-      setVeraPdfResult(jobId, false, false, JSON.stringify({
-        available: false,
-        passed: false,
-        profile: "ua1",
-        failures: [],
-        totalFailureCount: 0,
-        error: (e as Error).message,
-      }));
+      setVeraPdfResult(
+        jobId,
+        false,
+        false,
+        JSON.stringify({
+          available: false,
+          passed: false,
+          profile: "ua1",
+          failures: [],
+          totalFailureCount: 0,
+          error: (e as Error).message,
+        }),
+      );
     }
 
     // 4. Comparing: re-audit and require score ≥ input
@@ -315,10 +299,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       // are already on the job row from the API's pre-flight audit.
       inputScore = job.inputScore ?? 0;
       const outputBuf = await fs.readFile(taggedPath);
-      outputAudit = await analyzePDF(
-        outputBuf,
-        `${job.inputFilename} (remediated)`,
-      );
+      outputAudit = await analyzePDF(outputBuf, `${job.inputFilename} (remediated)`);
       outputScore = outputAudit.overallScore;
       // Persist the full output audit so the result page can render
       // category-level before/after without a second pass.
@@ -339,20 +320,17 @@ export async function runRemediationJob(jobId: string): Promise<void> {
     // scoring profile, so we compare strict-to-strict and overall-to-overall.
     // Net gains only — if either dips, reject the output and tell the user
     // we couldn't help this file.
-    const inputAuditRaw = getJobAuditPair(jobId).inputAudit as
-      | {
-          scoreProfiles?: {
-            strict?: { overallScore?: number };
-          };
-          overallScore?: number;
-        }
-      | null;
+    const inputAuditRaw = getJobAuditPair(jobId).inputAudit as {
+      scoreProfiles?: {
+        strict?: { overallScore?: number };
+      };
+      overallScore?: number;
+    } | null;
     const inputStrict =
       inputAuditRaw?.scoreProfiles?.strict?.overallScore ??
       inputAuditRaw?.overallScore ??
       inputScore;
-    const outputStrict =
-      outputAudit.scoreProfiles?.strict?.overallScore ?? outputScore;
+    const outputStrict = outputAudit.scoreProfiles?.strict?.overallScore ?? outputScore;
 
     const strictDelta = outputStrict - inputStrict;
     const overallDelta = outputScore - inputScore;
@@ -370,10 +348,7 @@ export async function runRemediationJob(jobId: string): Promise<void> {
         regressed_profiles: regressed,
       });
       await deleteAndVerify(jobId, taggedPath, "cleanup");
-      setFailed(
-        jobId,
-        `auto-remediation regressed: ${regressed.join(", ")}`,
-      );
+      setFailed(jobId, `auto-remediation regressed: ${regressed.join(", ")}`);
       return;
     }
 
@@ -402,13 +377,15 @@ export async function runRemediationJob(jobId: string): Promise<void> {
 }
 
 // Entry point when invoked as `tsx src/jobs/remediate.ts <jobId>`
-const isMain = process.argv[1] && (() => {
-  try {
-    return resolve(process.argv[1]) === resolve(import.meta.filename ?? "");
-  } catch {
-    return false;
-  }
-})();
+const isMain =
+  process.argv[1] &&
+  (() => {
+    try {
+      return resolve(process.argv[1]) === resolve(import.meta.filename ?? "");
+    } catch {
+      return false;
+    }
+  })();
 
 if (isMain) {
   const jobId = process.argv[2];

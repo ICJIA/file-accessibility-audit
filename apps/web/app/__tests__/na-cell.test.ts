@@ -25,9 +25,7 @@ describe("NaCell — accessible Not-applicable / Not-assessed cell", () => {
     });
 
     const tip = wrapper.get('[role="tooltip"]');
-    expect(tip.text()).toContain(
-      "rendered-PDF contrast analysis is not yet implemented",
-    );
+    expect(tip.text()).toContain("rendered-PDF contrast analysis is not yet implemented");
   });
 
   it("renders 'Not applicable' (not 'Not assessed') when a category genuinely does not apply", () => {

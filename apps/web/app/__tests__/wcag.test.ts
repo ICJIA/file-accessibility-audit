@@ -51,7 +51,9 @@ describe("WCAG_MAP remediation: Office equivalents added alongside Acrobat steps
 
   it("link_quality no longer frames every fix as 'before exporting to PDF'", () => {
     const r = WCAG_MAP.link_quality!.remediation;
-    expect(r).not.toMatch(/^Replace raw URLs with descriptive link text in the source document before exporting to PDF\.$/);
+    expect(r).not.toMatch(
+      /^Replace raw URLs with descriptive link text in the source document before exporting to PDF\.$/,
+    );
     expect(r).toMatch(/Word, PowerPoint, or Excel/);
   });
 

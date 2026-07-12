@@ -1,8 +1,7 @@
-import { runAudit } from './commands/audit.js'
-import { runPublist } from './commands/publist.js'
-import { RESET, BOLD, DIM, RED } from './lib/colors.js'
-
-const VERSION = '1.0.0'
+import { runAudit } from "./commands/audit.js";
+import { runPublist } from "./commands/publist.js";
+import { RESET, BOLD, DIM, RED } from "./lib/colors.js";
+import { VERSION } from "./version.js";
 
 function printHelp(): void {
   console.log(`
@@ -46,31 +45,31 @@ ${BOLD}Quick start:${RESET}
 ${BOLD}Reports:${RESET}
   Each publist run saves a dated CSV to ./reports/ for audit trail.
   The latest results are always at ./publist-audit.csv (or --output path).
-`)
+`);
 }
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2)
-  const sub = args[0]
+  const args = process.argv.slice(2);
+  const sub = args[0];
 
-  if (sub === '--help' || sub === '-h') {
-    printHelp()
-    process.exit(0)
+  if (sub === "--help" || sub === "-h") {
+    printHelp();
+    process.exit(0);
   }
 
-  if (sub === '--version' || sub === '-v') {
-    console.log(`a11y-audit v${VERSION}`)
-    process.exit(0)
+  if (sub === "--version" || sub === "-v") {
+    console.log(`a11y-audit v${VERSION}`);
+    process.exit(0);
   }
 
-  if (sub === 'publist') {
-    await runPublist(args.slice(1))
+  if (sub === "publist") {
+    await runPublist(args.slice(1));
   } else {
-    await runAudit(args)
+    await runAudit(args);
   }
 }
 
-main().catch(err => {
-  console.error(`${RED}Fatal error: ${err.message}${RESET}`)
-  process.exit(1)
-})
+main().catch((err) => {
+  console.error(`${RED}Fatal error: ${err.message}${RESET}`);
+  process.exit(1);
+});

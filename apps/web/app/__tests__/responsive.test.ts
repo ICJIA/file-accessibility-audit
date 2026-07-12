@@ -105,19 +105,26 @@ describe("Responsive — ScoreCard", () => {
 describe("Responsive — Index Page", () => {
   const source = readSource("pages/index.vue");
 
+  // F1 (Phase F template-extraction, perf(web)): the "Technical Details"
+  // <details> block moved out of the page verbatim into a lazy-loaded
+  // components/TechnicalExplainer.vue. It still renders in the same place at
+  // runtime (via <LazyTechnicalExplainer hydrate-on-visible />), so several
+  // assertions below scan both files — the coverage follows the content,
+  // not the particular file it happens to live in. Same technique already
+  // used a few tests down for the MethodologyCard.vue split.
+  const sourceWithExplainer = source + readSource("components/TechnicalExplainer.vue");
+
   it("main heading uses responsive font size (text-xl sm:text-2xl)", () => {
     expect(source).toContain("text-xl sm:text-2xl");
   });
 
   it("category scores table has overflow-x-auto", () => {
-    expect(source).toContain("overflow-x-auto");
+    expect(sourceWithExplainer).toContain("overflow-x-auto");
   });
 
   it("category scores table has min-width for horizontal scroll (in ReportContent)", () => {
     // the score table moved into the shared ReportContent component
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "min-w-[420px]",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("min-w-[420px]");
   });
 
   it("metadata rows stack vertically on mobile (flex-col sm:flex-row)", () => {
@@ -141,20 +148,21 @@ describe("Responsive — Index Page", () => {
   });
 
   it("technical details tables have overflow-x-auto", () => {
-    const overflowMatches = source.match(/overflow-x-auto/g);
+    const overflowMatches = sourceWithExplainer.match(/overflow-x-auto/g);
     expect(overflowMatches).toBeTruthy();
     expect(overflowMatches!.length).toBeGreaterThanOrEqual(3);
   });
 
   it("technical details section uses responsive padding", () => {
-    expect(source).toContain("px-3 sm:px-6");
+    expect(sourceWithExplainer).toContain("px-3 sm:px-6");
   });
 
   it("technical details document the WCAG/IITAA scoring methodology and point to veraPDF for PDF/UA-1", () => {
     // The methodology summary was extracted into a shared, file-type-aware
-    // component; the deeper technical prose stays on the page. Assert across
-    // both so the copy is covered wherever it lives.
-    const combined = source + readSource("components/MethodologyCard.vue");
+    // component; the deeper technical prose now lives in TechnicalExplainer.vue
+    // (see sourceWithExplainer above). Assert across all three so the copy is
+    // covered wherever it lives.
+    const combined = sourceWithExplainer + readSource("components/MethodologyCard.vue");
     expect(combined).toContain("ADA Title II");
     expect(combined).toContain("IITAA §E205.4");
     expect(combined).toContain("WCAG 2.1");
@@ -163,9 +171,9 @@ describe("Responsive — Index Page", () => {
   });
 
   it("technical details explains normalization tradeoffs", () => {
-    expect(source).toContain("scoring convenience");
-    expect(source).toContain("substitute for the");
-    expect(source).toContain("per-category findings");
+    expect(sourceWithExplainer).toContain("scoring convenience");
+    expect(sourceWithExplainer).toContain("substitute for the");
+    expect(sourceWithExplainer).toContain("per-category findings");
   });
 });
 
@@ -202,21 +210,15 @@ describe("Responsive — Report Page", () => {
   // The score table / metadata / findings markup is shared with the live
   // page via ReportContent.vue — scan the component, not the page.
   it("category scores table has overflow-x-auto (in ReportContent)", () => {
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "overflow-x-auto",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("overflow-x-auto");
   });
 
   it("metadata rows stack vertically on mobile (in ReportContent)", () => {
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "flex-col sm:flex-row",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("flex-col sm:flex-row");
   });
 
   it("findings cards use responsive padding (in ReportContent)", () => {
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "p-3 sm:p-5",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("p-3 sm:p-5");
   });
 });
 

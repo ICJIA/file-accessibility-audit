@@ -5,11 +5,7 @@
       Sorted by severity.<span data-export-exclude> Click a row to see the fix steps.</span>
     </p>
     <ul class="rows">
-      <li
-        v-for="row in rows"
-        :key="row.id"
-        :class="['row-wrap', `sev-${row.sevClass}`]"
-      >
+      <li v-for="row in rows" :key="row.id" :class="['row-wrap', `sev-${row.sevClass}`]">
         <button
           type="button"
           :class="['row', { open: expanded[row.id] }]"
@@ -21,7 +17,7 @@
           <span class="name">{{ row.label }}</span>
           <span class="summary">{{ row.summary }}</span>
           <span class="toggle" aria-hidden="true" data-export-exclude>
-            <span class="toggle-text">{{ expanded[row.id] ? 'Hide' : 'Show' }} fix steps</span>
+            <span class="toggle-text">{{ expanded[row.id] ? "Hide" : "Show" }} fix steps</span>
             <svg
               class="chevron"
               :class="{ rotated: expanded[row.id] }"
@@ -56,23 +52,16 @@
           <div v-if="row.findings.acrobat.length" class="acrobat-block">
             <h3 class="block-title">How to fix in Adobe Acrobat</h3>
             <ol class="acrobat-list">
-              <li
-                v-for="(step, j) in row.findings.acrobat"
-                :key="j"
-                class="acrobat-step"
-              >
+              <li v-for="(step, j) in row.findings.acrobat" :key="j" class="acrobat-step">
                 <span class="step-num">{{ j + 1 }}.</span>
                 <span class="step-text">{{ step }}</span>
               </li>
             </ol>
           </div>
 
-          <p
-            v-if="!row.findings.main.length && !row.findings.acrobat.length"
-            class="empty"
-          >
-            No detailed fix steps are available for this category. Run the full
-            audit report for technical signals.
+          <p v-if="!row.findings.main.length && !row.findings.acrobat.length" class="empty">
+            No detailed fix steps are available for this category. Run the full audit report for
+            technical signals.
           </p>
         </div>
       </li>
@@ -81,47 +70,45 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { firstActionableFinding, partitionCardFindings } from '~/utils/findings'
+import { computed, ref } from "vue";
+import { firstActionableFinding, partitionCardFindings } from "~/utils/findings";
 
 const props = defineProps<{
   categories: Array<{
-    id: string
-    label: string
-    severity?: string | null
-    findings?: string[]
-  }>
-}>()
+    id: string;
+    label: string;
+    severity?: string | null;
+    findings?: string[];
+  }>;
+}>();
 
-const SEVERITY_RANK: Record<string, number> = {
+// Keyed precisely by the severity union (not a bare Record<string, number>)
+// so indexing with `.severity` below is guaranteed defined — that field is
+// filtered to exactly these three values just above.
+const SEVERITY_RANK: Record<"Critical" | "Moderate" | "Minor", number> = {
   Critical: 0,
   Moderate: 1,
   Minor: 2,
-}
+};
 
-const expanded = ref<Record<string, boolean>>({})
+const expanded = ref<Record<string, boolean>>({});
 
 const rows = computed(() => {
   return (props.categories || [])
-    .filter(
-      (c) =>
-        c.severity === 'Critical' ||
-        c.severity === 'Moderate' ||
-        c.severity === 'Minor',
-    )
+    .filter((c) => c.severity === "Critical" || c.severity === "Moderate" || c.severity === "Minor")
     .map((c) => ({
       id: c.id,
       label: c.label,
-      severity: c.severity as 'Critical' | 'Moderate' | 'Minor',
+      severity: c.severity as "Critical" | "Moderate" | "Minor",
       sevClass: (c.severity as string).toLowerCase(),
       summary: firstActionableFinding(c.findings),
       findings: partitionCardFindings(c.findings),
     }))
-    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
-})
+    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+});
 
 function toggle(id: string) {
-  expanded.value = { ...expanded.value, [id]: !expanded.value[id] }
+  expanded.value = { ...expanded.value, [id]: !expanded.value[id] };
 }
 </script>
 

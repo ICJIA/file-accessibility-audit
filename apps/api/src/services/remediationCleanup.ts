@@ -1,6 +1,6 @@
 /**
  * Cleanup sweep for the remediation feature. Runs on API startup and
- * on a configured interval. Does five things, in order:
+ * on a configured interval. Does seven things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
  *      record verified_absent for the auditor).
@@ -8,6 +8,13 @@
  *   3. Delete orphan directories (no matching DB row).
  *   4. Purge job rows past JOB_ROW_RETENTION_DAYS (terminal states only).
  *   5. Purge event rows past EVENT_LOG_RETENTION_DAYS.
+ *   6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS.
+ *   7. Purge expired revoked_jtis rows (C4 JWT revocation denylist) — not
+ *      remediation-specific, but this sweep already runs on every boot and
+ *      (when REMEDIATION.ENABLED) on an interval, so it's a convenient
+ *      shared home rather than a second timer. Also purged opportunistically
+ *      on every logout (see auth.ts / jtiDenylist.ts), so this is a
+ *      backstop for a server with few logouts.
  *
  * Each step is idempotent. Failures in one step do not block later
  * steps. Returns a structured result so callers (and the CLI entry
@@ -17,11 +24,9 @@ import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import db from "../db/sqlite.js";
 import { REMEDIATION, SHARED_REPORTS } from "#config";
-import {
-  deleteAndVerify,
-  recordEvent,
-} from "./remediationEvents.js";
+import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
 import { setExpired, setFailed } from "./remediationJobs.js";
+import { purgeExpiredJtis } from "./jtiDenylist.js";
 
 const STUCK_RUNNING_MS = 10 * 60_000;
 
@@ -40,9 +45,7 @@ const selectStuckRunning = db.prepare(
    WHERE status IN ('pending','running') AND created_at < ?`,
 );
 
-const selectAllRecentIds = db.prepare(
-  `SELECT id FROM remediation_jobs WHERE created_at > ?`,
-);
+const selectAllRecentIds = db.prepare(`SELECT id FROM remediation_jobs WHERE created_at > ?`);
 
 const purgeOldJobs = db.prepare(
   `DELETE FROM remediation_jobs
@@ -50,9 +53,7 @@ const purgeOldJobs = db.prepare(
      AND COALESCE(completed_at, created_at) < ?`,
 );
 
-const purgeOldEvents = db.prepare(
-  `DELETE FROM remediation_events WHERE occurred_at < ?`,
-);
+const purgeOldEvents = db.prepare(`DELETE FROM remediation_events WHERE occurred_at < ?`);
 
 // v1.20.1+: audit_log retention. audit_log is the canonical "this
 // content has been audited" record used by the /api/remediate
@@ -60,9 +61,7 @@ const purgeOldEvents = db.prepare(
 // DoS vector flagged as P2.3 in the v1.20.1 red/blue review.
 // created_at is stored as a SQLite TEXT timestamp (DATETIME DEFAULT
 // CURRENT_TIMESTAMP), so the cutoff is an ISO string.
-const purgeOldAuditLog = db.prepare(
-  `DELETE FROM audit_log WHERE created_at < ?`,
-);
+const purgeOldAuditLog = db.prepare(`DELETE FROM audit_log WHERE created_at < ?`);
 
 export interface CleanupResult {
   expiredOutputs: number;
@@ -72,6 +71,8 @@ export interface CleanupResult {
   purgedEvents: number;
   /** v1.20.1+: audit_log rows purged past AUDIT_LOG_RETENTION_DAYS. */
   purgedAuditLog: number;
+  /** C4: revoked_jtis rows purged past their own expiry. */
+  purgedJtis: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -84,6 +85,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     purgedJobs: 0,
     purgedEvents: 0,
     purgedAuditLog: 0,
+    purgedJtis: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -151,9 +153,7 @@ export async function runCleanup(): Promise<CleanupResult> {
       // either purged or aren't ours.
       const recentCutoff = now - 7 * 86_400_000;
       const knownIds = new Set(
-        (selectAllRecentIds.all(recentCutoff) as { id: string }[]).map(
-          (r) => r.id,
-        ),
+        (selectAllRecentIds.all(recentCutoff) as { id: string }[]).map((r) => r.id),
       );
       for (const entry of readdirSync(outputRoot)) {
         const entryPath = join(outputRoot, entry);
@@ -207,14 +207,23 @@ export async function runCleanup(): Promise<CleanupResult> {
    *    audit_log uses TEXT timestamps (DATETIME DEFAULT CURRENT_TIMESTAMP),
    *    so the cutoff is an ISO 8601 string. */
   try {
-    const cutoffMs =
-      now - SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS * 86_400_000;
+    const cutoffMs = now - SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS * 86_400_000;
     const cutoffIso = new Date(cutoffMs).toISOString();
     const info = purgeOldAuditLog.run(cutoffIso);
     result.purgedAuditLog = info.changes;
   } catch (e) {
     result.errors.push({
       step: "purge_audit_log",
+      message: (e as Error).message,
+    });
+  }
+
+  /* 7. Purge expired revoked_jtis rows (C4). */
+  try {
+    result.purgedJtis = purgeExpiredJtis();
+  } catch (e) {
+    result.errors.push({
+      step: "purge_jtis",
       message: (e as Error).message,
     });
   }

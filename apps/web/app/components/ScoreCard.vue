@@ -1,9 +1,7 @@
 <template>
   <div class="text-center space-y-4">
     <p v-if="showFilename" class="text-sm text-[var(--text-muted)]">
-      {{ result.filename }} — {{ result.pageCount }} page{{
-        result.pageCount !== 1 ? "s" : ""
-      }}
+      {{ result.filename }} — {{ result.pageCount }} page{{ result.pageCount !== 1 ? "s" : "" }}
     </p>
 
     <!-- Grade circle -->
@@ -12,10 +10,7 @@
         class="w-28 h-28 sm:w-40 sm:h-40 rounded-full flex items-center justify-center border-4"
         :style="{ borderColor: gradeColor, backgroundColor: gradeColor + '15' }"
       >
-        <span
-          class="text-5xl sm:text-7xl font-black"
-          :style="{ color: gradeColor }"
-        >
+        <span class="text-5xl sm:text-7xl font-black" :style="{ color: gradeColor }">
           {{ displayedProfile.grade }}
         </span>
       </div>
@@ -55,10 +50,7 @@
       <p class="text-xs text-[var(--text-secondary)] leading-relaxed mt-2">
         {{ conformanceBody }}
       </p>
-      <ul
-        v-if="conformance.failures.length"
-        class="mt-3 space-y-1.5 list-none pl-0"
-      >
+      <ul v-if="conformance.failures.length" class="mt-3 space-y-1.5 list-none pl-0">
         <li
           v-for="(f, i) in conformance.failures"
           :key="i"
@@ -70,8 +62,7 @@
             rel="noopener noreferrer"
             class="font-mono font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >{{ f.sc }} {{ f.name }}</a
-          ><span class="text-[var(--text-muted)]"> (Level {{ f.level }})</span>
-          — {{ f.issue }}
+          ><span class="text-[var(--text-muted)]"> (Level {{ f.level }})</span> — {{ f.issue }}
         </li>
       </ul>
       <p
@@ -79,18 +70,14 @@
         class="text-xs text-[var(--text-muted)] leading-relaxed mt-3"
       >
         Not evaluated automatically:
-        <template
-          v-for="(n, i) in conformance.notAssessed"
-          :key="n.sc"
+        <template v-for="(n, i) in conformance.notAssessed" :key="n.sc"
           ><a
             :href="safeHttpUrl(n.url)"
             target="_blank"
             rel="noopener noreferrer"
             class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
             >{{ n.sc }} {{ n.name }}</a
-          ><template v-if="i < conformance.notAssessed.length - 1"
-            >, </template
-          ></template
+          ><template v-if="i < conformance.notAssessed.length - 1">, </template></template
         >. These still require manual review.
       </p>
       <p
@@ -128,36 +115,33 @@
     <!-- PDF/UA-1 conformance signals — paired with the WCAG verdict above.
          Signals only, not a verdict; the card points to PAC / veraPDF for the
          formal PDF/UA-1 (ISO 14289-1) conformance test. -->
-    <PdfUaSignalsCard
-      v-if="result.pdfUa"
-      :signals="result.pdfUa"
-      class="max-w-2xl mx-auto mt-5"
-    />
+    <PdfUaSignalsCard v-if="result.pdfUa" :signals="result.pdfUa" class="max-w-2xl mx-auto mt-5" />
 
     <!-- Verdict explanation (counts) -->
+    <!-- eslint-disable vue/no-v-html -- verdictExplanation (below) only interpolates numeric counts via pluralize() into a fixed "N critical/moderate issue(s)" string with a hardcoded <span style> wrapper; no report-derived string content ever reaches v-html here. -->
     <p
       v-if="verdictExplanation"
       data-testid="verdict-explanation"
       class="text-sm text-[var(--text-secondary)] max-w-lg mx-auto leading-relaxed"
       v-html="verdictExplanation"
     />
+    <!-- eslint-enable vue/no-v-html -->
 
     <!-- Summary -->
+    <!-- eslint-disable vue/no-v-html -- highlightedSummary (below) runs escapeHtml() on the report's executiveSummary FIRST, then only adds hardcoded <span style> wrappers via regex on the already-escaped text; no unescaped content is interpolated. -->
     <p
       class="text-sm text-[var(--text-muted)] max-w-lg mx-auto leading-relaxed"
       v-html="highlightedSummary"
     />
+    <!-- eslint-enable vue/no-v-html -->
 
     <!-- Caveat -->
     <div
       class="max-w-lg mx-auto mt-5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border-alt)] px-5 py-4"
     >
-      <p
-        v-if="sourceApp"
-        class="text-xs text-[var(--text-secondary)] leading-relaxed"
-      >
-        This automated audit provides a reliable initial assessment, but it
-        cannot catch every issue. For the most thorough evaluation, run
+      <p v-if="sourceApp" class="text-xs text-[var(--text-secondary)] leading-relaxed">
+        This automated audit provides a reliable initial assessment, but it cannot catch every
+        issue. For the most thorough evaluation, run
         {{ sourceApp }}'s built-in
         <a
           href="https://support.microsoft.com/en-us/office/improve-accessibility-with-the-accessibility-checker-a16f6de0-2f39-4a2b-8bd8-5ad801426c7f"
@@ -165,23 +149,21 @@
           rel="noopener noreferrer"
           class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
           >Accessibility Checker (Review → Check Accessibility)</a
-        >. Because this {{ sourceApp }} file is the source document, fixing
-        issues here corrects them at the root — and any PDF you export from it
-        inherits the fixes automatically.
+        >. Because this {{ sourceApp }} file is the source document, fixing issues here corrects
+        them at the root — and any PDF you export from it inherits the fixes automatically.
       </p>
       <p v-else class="text-xs text-[var(--text-secondary)] leading-relaxed">
-        This automated audit provides a reliable initial assessment, but it
-        cannot catch every issue. For the most thorough evaluation, test your
-        PDF directly in
+        This automated audit provides a reliable initial assessment, but it cannot catch every
+        issue. For the most thorough evaluation, test your PDF directly in
         <a
           href="https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
           target="_blank"
           rel="noopener noreferrer"
           class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
           >Adobe Acrobat's Accessibility Checker</a
-        >. Whenever possible, ensure your source document (Word, InDesign, etc.)
-        is accessible before generating the PDF — retrofitting accessibility
-        after export is more difficult and less reliable.
+        >. Whenever possible, ensure your source document (Word, InDesign, etc.) is accessible
+        before generating the PDF — retrofitting accessibility after export is more difficult and
+        less reliable.
       </p>
     </div>
   </div>
@@ -302,35 +284,25 @@ const manualReviewNote = computed(() => {
 
 // Colors + labels derive from the engine's grade thresholds so the hero can
 // never disagree with the scorer or the other grade-colored surfaces.
-const gradeMap: Record<string, { color: string; label: string }> =
-  Object.fromEntries(
-    GRADE_THRESHOLDS.map((t) => [t.grade, { color: t.color, label: t.label }]),
-  );
+const gradeMap: Record<string, { color: string; label: string }> = Object.fromEntries(
+  GRADE_THRESHOLDS.map((t) => [t.grade, { color: t.color, label: t.label }]),
+);
 
 const displayedProfile = computed(() => {
   const strict = props.result.scoreProfiles?.strict;
   return {
     overallScore: strict?.overallScore ?? props.result.overallScore,
     grade: strict?.grade ?? props.result.grade,
-    executiveSummary:
-      strict?.executiveSummary ?? props.result.executiveSummary,
+    executiveSummary: strict?.executiveSummary ?? props.result.executiveSummary,
   };
 });
 
 const displayedCategories = computed(() =>
-  categoriesForScoringMode(
-    props.result.categories,
-    props.result.scoreProfiles,
-    "strict",
-  ),
+  categoriesForScoringMode(props.result.categories, props.result.scoreProfiles, "strict"),
 );
 
-const gradeColor = computed(
-  () => gradeMap[displayedProfile.value.grade]?.color || "#666",
-);
-const gradeLabel = computed(
-  () => gradeMap[displayedProfile.value.grade]?.label || "",
-);
+const gradeColor = computed(() => gradeMap[displayedProfile.value.grade]?.color || "#666");
+const gradeLabel = computed(() => gradeMap[displayedProfile.value.grade]?.label || "");
 
 // WCAG conformance verdict — independent of the numeric score. The score is a
 // prioritised-readiness metric with partial credit; this is the pass/fail
@@ -365,9 +337,7 @@ const conformanceTone = computed<"positive" | "warning" | "neutral">(() => {
   return grade === "A" || grade === "B" ? "positive" : "warning";
 });
 
-const conformanceHasFailures = computed(
-  () => (conformance.value?.failures.length ?? 0) > 0,
-);
+const conformanceHasFailures = computed(() => (conformance.value?.failures.length ?? 0) > 0);
 
 // Border / background / heading colour + icon for each tone.
 const conformanceStyle = computed(() => {
@@ -465,8 +435,10 @@ function pluralize(n: number, word: string): string {
 
 function joinParts(parts: string[]): string {
   if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0];
-  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+  // Non-null: the length check above guarantees index 0 exists.
+  if (parts.length === 1) return parts[0]!;
+  // Non-null: parts.length is at least 2 here, so the last index exists.
+  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1]!;
 }
 
 const verdictExplanation = computed(() => {

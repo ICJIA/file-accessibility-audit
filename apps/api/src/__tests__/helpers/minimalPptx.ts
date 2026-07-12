@@ -33,13 +33,8 @@ export function titleShape(text: string, type: "title" | "ctrTitle" = "title"): 
     <p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 }
 
-export function bodyShape(
-  paragraphs: string,
-  opts: { fillHex?: string } = {},
-): string {
-  const fill = opts.fillHex
-    ? `<a:solidFill><a:srgbClr val="${opts.fillHex}"/></a:solidFill>`
-    : "";
+export function bodyShape(paragraphs: string, opts: { fillHex?: string } = {}): string {
+  const fill = opts.fillHex ? `<a:solidFill><a:srgbClr val="${opts.fillHex}"/></a:solidFill>` : "";
   return `<p:sp><p:nvSpPr><p:cNvPr id="3" name="Body"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
     <p:spPr>${fill}</p:spPr><p:txBody><a:bodyPr/>${paragraphs}</p:txBody></p:sp>`;
 }
@@ -72,8 +67,7 @@ export function para(
       : "";
   const link = opts.linkRelId ? `<a:hlinkClick r:id="${opts.linkRelId}"/>` : "";
   const attrs =
-    (opts.sizeHundredthsPt ? ` sz="${opts.sizeHundredthsPt}"` : "") +
-    (opts.bold ? ' b="1"' : "");
+    (opts.sizeHundredthsPt ? ` sz="${opts.sizeHundredthsPt}"` : "") + (opts.bold ? ' b="1"' : "");
   const rPr = fill || link || attrs ? `<a:rPr lang="en-US"${attrs}>${fill}${link}</a:rPr>` : "";
   return `<a:p>${pPr}<a:r>${rPr}<a:t>${text}</a:t></a:r></a:p>`;
 }
@@ -126,7 +120,6 @@ export interface BuildPptxOpts {
 
 export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
   const zip = new JSZip();
-  const n = opts.slides.length;
 
   const slideOverrides = opts.slides
     .map(
@@ -163,11 +156,15 @@ export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
     `<?xml version="1.0"?><p:presentation ${NS}><p:sldIdLst>${sldIds}</p:sldIdLst>${lang}</p:presentation>`,
   );
 
-  zip.file("ppt/theme/theme1.xml", opts.themeXml ?? `<?xml version="1.0"?>
+  zip.file(
+    "ppt/theme/theme1.xml",
+    opts.themeXml ??
+      `<?xml version="1.0"?>
 <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:themeElements><a:clrScheme name="Office">
   <a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
   <a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2>
-  <a:accent1><a:srgbClr val="4472C4"/></a:accent1></a:clrScheme></a:themeElements></a:theme>`);
+  <a:accent1><a:srgbClr val="4472C4"/></a:accent1></a:clrScheme></a:themeElements></a:theme>`,
+  );
 
   const bg = opts.slideBgHex
     ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${opts.slideBgHex}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`

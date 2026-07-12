@@ -56,7 +56,7 @@ export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
     };
   }
 
-  let stdout = "";
+  let stdout: string;
   let exitWasError = false;
   try {
     const result = await execFileAsync(
@@ -108,16 +108,11 @@ export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
 
 // Exported for tests — pure mapping from veraPDF's JSON output (which
 // varies by version) to the stable VeraPdfVerdict shape.
-export function extractVerdict(
-  parsed: unknown,
-  fellbackToErrorStdout: boolean,
-): VeraPdfVerdict {
+export function extractVerdict(parsed: unknown, fellbackToErrorStdout: boolean): VeraPdfVerdict {
   // Try several known shapes — be lenient about structure.
   const root = parsed as Record<string, unknown>;
   const report = (root.report ?? root) as Record<string, unknown>;
-  const jobs = (report.jobs ?? root.jobs) as
-    | Array<Record<string, unknown>>
-    | undefined;
+  const jobs = (report.jobs ?? root.jobs) as Array<Record<string, unknown>> | undefined;
   // veraPDF 1.30.x: validationResult is an array of per-profile results
   // (one entry per --flavour passed on the command line). Older releases
   // emit a single object. Normalize to the first element so downstream
@@ -129,7 +124,7 @@ export function extractVerdict(
 
   if (!validation) {
     // Try alternate path: parsed.jobs[0].itemDetails.validationResult
-    const alt = (parsed as Record<string, unknown>) as unknown;
+    const alt = parsed as Record<string, unknown> as unknown;
     return {
       available: true,
       passed: false,
@@ -142,15 +137,11 @@ export function extractVerdict(
   }
 
   const isCompliant =
-    validation.isCompliant === true ||
-    validation.compliant === true ||
-    validation.passed === true;
+    validation.isCompliant === true || validation.compliant === true || validation.passed === true;
 
   const profileName =
     (validation.profileName as string | undefined) ??
-    ((validation.profile as Record<string, unknown> | undefined)?.id as
-      | string
-      | undefined) ??
+    ((validation.profile as Record<string, unknown> | undefined)?.id as string | undefined) ??
     "ua1";
 
   // Rule-summary location varies by veraPDF version:
@@ -187,13 +178,8 @@ export function extractVerdict(
           "unknown",
         clause,
         description:
-          (r.description as string | undefined) ??
-          (r.message as string | undefined) ??
-          "",
-        count:
-          (r.failedChecks as number | undefined) ??
-          (r.count as number | undefined) ??
-          1,
+          (r.description as string | undefined) ?? (r.message as string | undefined) ?? "",
+        count: (r.failedChecks as number | undefined) ?? (r.count as number | undefined) ?? 1,
       };
     })
     .filter((f) => f.count > 0);

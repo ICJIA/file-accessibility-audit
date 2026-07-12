@@ -38,17 +38,13 @@ describe("evaluateDocxConformance", () => {
   });
 
   it("fails 1.1.1 when a non-decorative image lacks alt text", () => {
-    const v = evaluateDocxConformance(
-      analysis({ images: [{ altText: null, decorative: false }] }),
-    );
+    const v = evaluateDocxConformance(analysis({ images: [{ altText: null, decorative: false }] }));
     expect(v.status).toBe("fail");
     expect(v.failures.some((f) => f.sc === "1.1.1")).toBe(true);
   });
 
   it("does not fail 1.1.1 for a decorative image with no alt text", () => {
-    const v = evaluateDocxConformance(
-      analysis({ images: [{ altText: null, decorative: true }] }),
-    );
+    const v = evaluateDocxConformance(analysis({ images: [{ altText: null, decorative: true }] }));
     expect(v.failures.some((f) => f.sc === "1.1.1")).toBe(false);
   });
 
@@ -73,9 +69,7 @@ describe("evaluateDocxConformance", () => {
   it("fails 1.3.1 for a data table with no header row", () => {
     const v = evaluateDocxConformance(
       analysis({
-        tables: [
-          { hasHeaderRow: false, rowCount: 3, colCount: 3, hasNestedTable: false },
-        ],
+        tables: [{ hasHeaderRow: false, rowCount: 3, colCount: 3, hasNestedTable: false }],
       }),
     );
     expect(v.failures.some((f) => f.sc === "1.3.1")).toBe(true);
@@ -84,9 +78,7 @@ describe("evaluateDocxConformance", () => {
   it("does not fail 1.3.1 for a single-row (layout-like) headerless table", () => {
     const v = evaluateDocxConformance(
       analysis({
-        tables: [
-          { hasHeaderRow: false, rowCount: 1, colCount: 3, hasNestedTable: false },
-        ],
+        tables: [{ hasHeaderRow: false, rowCount: 1, colCount: 3, hasNestedTable: false }],
       }),
     );
     expect(v.failures.some((f) => f.sc === "1.3.1")).toBe(false);

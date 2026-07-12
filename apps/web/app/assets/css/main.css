@@ -125,7 +125,9 @@ body {
 /* Mobile nav slide transition */
 .slide-down-enter-active,
 .slide-down-leave-active {
-  transition: max-height 200ms ease, opacity 200ms ease;
+  transition:
+    max-height 200ms ease,
+    opacity 200ms ease;
   overflow: hidden;
 }
 .slide-down-enter-from,
@@ -160,9 +162,9 @@ body {
     color: #000000 !important;
   }
   /* Hide the global site chrome that adds no value on paper. */
-  header[role='banner'],
+  header[role="banner"],
   nav,
-  footer[role='contentinfo'],
+  footer[role="contentinfo"],
   .print-hide,
   button {
     display: none !important;
@@ -197,8 +199,8 @@ body {
   }
   /* Show the URL after each link so paper readers can find the
      reference. Skip for fragment-only in-page anchors. */
-  a[href^='http']:after {
-    content: ' (' attr(href) ')';
+  a[href^="http"]:after {
+    content: " (" attr(href) ")";
     font-size: 0.85em;
     color: #555555;
   }

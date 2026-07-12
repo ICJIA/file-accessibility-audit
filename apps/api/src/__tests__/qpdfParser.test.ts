@@ -157,14 +157,7 @@ describe("heading detection", () => {
       ],
     });
     expect(result.headings).toHaveLength(6);
-    expect(result.headings.map((h) => h.level)).toEqual([
-      "H1",
-      "H2",
-      "H3",
-      "H4",
-      "H5",
-      "H6",
-    ]);
+    expect(result.headings.map((h) => h.level)).toEqual(["H1", "H2", "H3", "H4", "H5", "H6"]);
   });
 
   it("returns headings in document (structure-tree) order, not object-number order", () => {
@@ -815,9 +808,7 @@ describe("figure/image alt text detection", () => {
         },
       ],
     });
-    const imageWithAlt = result.images.find(
-      (i) => i.ref === "3 0 R" && i.hasAlt,
-    );
+    const imageWithAlt = result.images.find((i) => i.ref === "3 0 R" && i.hasAlt);
     expect(imageWithAlt).toBeDefined();
     expect(result.imageObjectCount).toBe(1);
   });
@@ -1572,9 +1563,7 @@ describe("multi-widget form fields", () => {
       ],
     });
     expect(result.formFields).toHaveLength(2);
-    const byName = Object.fromEntries(
-      result.formFields.map((f) => [f.name, f.hasTU]),
-    );
+    const byName = Object.fromEntries(result.formFields.map((f) => [f.name, f.hasTU]));
     expect(byName).toEqual({ firstName: true, lastName: false });
   });
 
