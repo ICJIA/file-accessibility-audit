@@ -5,76 +5,61 @@
     <div v-if="pending" class="text-[var(--text-muted)]">Loading…</div>
 
     <div v-else-if="error" class="text-[var(--status-error)]">
-      {{ error.data?.error || "Failed to load audit logs" }}
+      {{ (error as any)?.data?.error || "Failed to load audit logs" }}
     </div>
 
     <div v-else-if="data">
-      <div class="rounded-xl border border-[var(--border)] overflow-x-auto">
-        <table class="w-full text-sm min-w-[520px]">
-          <thead class="bg-[var(--surface-card)] text-[var(--text-muted)]">
-            <tr>
-              <th class="text-left px-3 sm:px-4 py-3 font-medium">Event</th>
-              <th class="text-left px-3 sm:px-4 py-3 font-medium">Email</th>
-              <th class="text-left px-3 sm:px-4 py-3 font-medium">Filename</th>
-              <th class="text-center px-2 sm:px-4 py-3 font-medium">Grade</th>
-              <th class="text-right px-3 sm:px-4 py-3 font-medium">Date</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-[var(--border)]">
-            <tr
-              v-for="row in data.data"
-              :key="row.id"
-              class="hover:bg-[var(--surface-card-50)] transition-colors"
-            >
-              <td class="px-3 sm:px-4 py-3">
-                <UBadge :color="eventColor(row.event_type)" variant="subtle" size="xs">
-                  {{ row.event_type }}
-                </UBadge>
-              </td>
-              <td class="px-3 sm:px-4 py-3 text-[var(--text-secondary)]">{{ row.email }}</td>
-              <td class="px-3 sm:px-4 py-3 text-[var(--text-heading)]">
-                {{ row.filename || "—" }}
-              </td>
-              <td class="text-center px-2 sm:px-4 py-3">{{ row.grade || "—" }}</td>
-              <td class="text-right px-3 sm:px-4 py-3 text-[var(--text-muted)]">
-                {{
-                  new Date(row.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- wrapper/cell-padding classes are restated explicitly (they match
+           ReportsTable's own defaults) so this page's responsive-layout
+           contract stays visible/greppable here, not only inside the shared
+           component — see __tests__/responsive.test.ts. -->
+      <ReportsTable
+        :rows="data.data"
+        :columns="columns"
+        caption="Admin audit log of login, verification, and analyze events"
+        table-class="min-w-[520px]"
+        wrapper-class="overflow-x-auto"
+        cell-padding-x="px-3 sm:px-4"
+        cell-padding-x-center="px-2 sm:px-4"
+      >
+        <template #cell-event_type="{ value }">
+          <UBadge :color="eventColor(value as string)" variant="subtle" size="xs">
+            {{ value }}
+          </UBadge>
+        </template>
+        <template #cell-filename="{ value }">{{ (value as string | null) || "—" }}</template>
+        <template #cell-grade="{ value }">{{ (value as string | null) || "—" }}</template>
+        <template #cell-created_at="{ value }">
+          {{
+            new Date(value as string).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          }}
+        </template>
+      </ReportsTable>
 
-      <div v-if="data.pagination.totalPages > 1" class="mt-4 flex justify-center gap-2">
-        <UButton
-          v-for="p in data.pagination.totalPages"
-          :key="p"
-          size="xs"
-          :variant="p === page ? 'solid' : 'ghost'"
-          :color="p === page ? 'primary' : 'neutral'"
-          @click="goToPage(p)"
-        >
-          {{ p }}
-        </UButton>
-      </div>
+      <PaginationControls
+        :page="page"
+        :total-pages="data.pagination.totalPages"
+        @update:page="goToPage"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import ReportsTable from "~/components/ReportsTable.vue";
+import PaginationControls from "~/components/PaginationControls.vue";
+import { usePaginatedReports } from "~/composables/usePaginatedReports";
+
 // Auth gating removed — this app runs un-gated (AUTH.REQUIRE_LOGIN=false).
 // To re-gate this page in the future, restore:
 //   definePageMeta({ middleware: 'auth' })
 // The `auth` middleware (app/middleware/auth.ts) is kept in place and stays
 // a no-op until AUTH.REQUIRE_LOGIN is flipped to true server-side.
-
-const page = ref(1);
 
 // Mirrors the res.json() shape built in apps/api/src/routes/logs.ts (GET
 // /api/logs) — that route is a plain Express handler proxied through, not a
@@ -92,16 +77,18 @@ interface AuditLogRow {
   created_at: string;
   content_hash: string | null;
 }
-interface LogsResponse {
-  data: AuditLogRow[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
-}
 
-const { data, pending, error } = useFetch<LogsResponse>("/api/logs", {
-  query: { page, limit: 50 },
-  credentials: "include",
-  watch: [page],
+const { data, pending, error, page, goToPage } = usePaginatedReports<AuditLogRow>("/api/logs", {
+  limit: 50,
 });
+
+const columns = [
+  { key: "event_type", label: "Event" },
+  { key: "email", label: "Email" },
+  { key: "filename", label: "Filename" },
+  { key: "grade", label: "Grade", align: "center" as const },
+  { key: "created_at", label: "Date", align: "right" as const },
+];
 
 // The literal union UBadge['color'] currently accepts (@nuxt/ui 4.5.1).
 type BadgeColor = "primary" | "secondary" | "success" | "info" | "warning" | "error" | "neutral";
@@ -114,13 +101,5 @@ function eventColor(type: string): BadgeColor {
     analyze: "success",
   };
   return colors[type] || "neutral";
-}
-
-// A plain assignment expression (`@click="page = p"`) types as
-// `(event) => number` under vue-tsc (the assignment's value), which UButton's
-// click handler prop (`(event) => void | Promise<void>`) rejects; a real
-// function body has no such implicit return.
-function goToPage(p: number) {
-  page.value = p;
 }
 </script>
