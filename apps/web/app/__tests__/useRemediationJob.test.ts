@@ -43,11 +43,11 @@ function runningStatus(over: Record<string, unknown> = {}) {
 
 const fetchMock = vi.fn();
 
-function mountComposable(jobId = "job-1") {
+function mountComposable(jobId = "job-1", token?: string) {
   let out!: ReturnType<typeof useRemediationJob>;
   const Comp = defineComponent({
     setup() {
-      out = useRemediationJob(jobId);
+      out = useRemediationJob(jobId, token);
       return () => h("div");
     },
   });
@@ -208,5 +208,71 @@ describe("useRemediationJob terminal states (pinned behavior)", () => {
 
     await vi.advanceTimersByTimeAsync(20_000);
     expect(fetchMock.mock.calls.length).toBe(calls);
+  });
+});
+
+describe("useRemediationJob: job-token passthrough (C5 anonymous-mode authorization)", () => {
+  // The API now requires the job's download token (returned at creation,
+  // threaded through the result page's ?t= query param) on status/receipt
+  // reads whenever the caller isn't a logged-in owner — see
+  // apps/api/src/routes/remediate.ts. The poller must forward it.
+
+  it("appends ?token=<token> to the status request when a token is provided", async () => {
+    fetchMock.mockImplementation(async () => runningStatus());
+    mountComposable("job-1", "secret-token");
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledWith("/api/remediate/job-1/status?token=secret-token", {
+      credentials: "include",
+    });
+  });
+
+  it("appends ?token=<token> to the receipt request too, once the job reaches a terminal state", async () => {
+    const receipt = {
+      jobId: "job-1",
+      filename: "r.pdf",
+      contentHash: "h",
+      status: "complete",
+      inputScore: 40,
+      outputScore: 90,
+      createdAt: 1_000,
+      completedAt: 2_000,
+      inputAudit: null,
+      outputAudit: null,
+      veraPdf: null,
+      events: [],
+    };
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("/receipt")
+        ? receipt
+        : runningStatus({ status: "complete", completedAt: 2_000 }),
+    );
+    mountComposable("job-1", "secret-token");
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledWith("/api/remediate/job-1/receipt?token=secret-token", {
+      credentials: "include",
+    });
+  });
+
+  it("URL-encodes a token containing special characters", async () => {
+    fetchMock.mockImplementation(async () => runningStatus());
+    mountComposable("job-1", "a+b/c=d");
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/remediate/job-1/status?token=${encodeURIComponent("a+b/c=d")}`,
+      { credentials: "include" },
+    );
+  });
+
+  it("omits the query string entirely when no token is provided (backward compatible — matches the pre-C5 URL exactly)", async () => {
+    fetchMock.mockImplementation(async () => runningStatus());
+    mountComposable("job-1");
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledWith("/api/remediate/job-1/status", {
+      credentials: "include",
+    });
   });
 });

@@ -18,6 +18,7 @@ import {
   setInputAudit,
   getJobAuditPair,
   getJobVeraPdf,
+  type RemediationJob,
 } from "../services/remediationJobs.js";
 import { recordEvent, getEventsForJob, deleteAndVerify } from "../services/remediationEvents.js";
 import { AUTH, DEPLOY, FILENAME, REMEDIATION } from "#config";
@@ -64,6 +65,24 @@ function sanitizeFilename(raw: string): string {
 
 function sha256Hex(buf: Buffer): string {
   return createHash("sha256").update(buf).digest("hex");
+}
+
+/**
+ * C5: the ONLY credential an anonymous caller can present for a status/
+ * receipt read is the download token already returned in the POST
+ * /api/remediate creation response (and already required, unchanged, by
+ * GET /download) — threaded through the result page's `?t=` query param.
+ * Reused here as `?token=`, matching the existing /download convention.
+ */
+function jobTokenFromRequest(req: Request): string {
+  const token = req.query?.token;
+  return typeof token === "string" ? token : "";
+}
+
+/** True if the request presents a token matching this job's download token. */
+function isAuthorizedByToken(job: RemediationJob, req: Request): boolean {
+  const presented = jobTokenFromRequest(req);
+  return presented.length > 0 && verifyDownloadToken(job, presented);
 }
 
 async function ensureOutputRoot(): Promise<void> {
@@ -334,6 +353,14 @@ router.get(
       res.status(403).json({ error: "Forbidden" });
       return;
     }
+    // C5: anonymous mode (AUTH.REQUIRE_LOGIN off, or a job with no owner
+    // email) — there is no email to check against, so require the job
+    // token instead. 404 (not 401/403) so a caller without it can't
+    // distinguish "wrong token" from "no such job" — don't leak existence.
+    if ((!AUTH.REQUIRE_LOGIN || !job.email) && !isAuthorizedByToken(job, req)) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
 
     res.json({
       jobId: job.id,
@@ -505,6 +532,13 @@ router.get(
     }
     if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
       res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    // C5: see the matching check in the /status route above for the full
+    // rationale — anonymous mode requires the job token instead of a
+    // logged-in owner match, 404 either way so existence isn't leaked.
+    if ((!AUTH.REQUIRE_LOGIN || !job.email) && !isAuthorizedByToken(job, req)) {
+      res.status(404).json({ error: "Job not found" });
       return;
     }
 

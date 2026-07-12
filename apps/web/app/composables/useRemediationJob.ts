@@ -130,12 +130,26 @@ const POLL_INTERVAL_MS = 1000;
 const POLL_BACKOFF_MAX_MS = 8000;
 const TERMINAL_STATES = new Set<RemediationStatus>(["complete", "failed", "expired"]);
 
-export function useRemediationJob(jobId: string): UseRemediationJobReturn {
+/**
+ * @param jobId Job id returned by POST /api/remediate.
+ * @param token The job's download token, from the SAME creation response
+ *   (threaded through the result page's `?t=` query param — see
+ *   pages/remediate/[jobId].vue). The API requires this on status/receipt
+ *   reads whenever the caller isn't a logged-in owner (AUTH.REQUIRE_LOGIN
+ *   off, or the job has no owner email — see routes/remediate.ts); an
+ *   unauthorized read returns 404 rather than leaking job existence.
+ *   Optional so a caller with no token still gets the pre-C5 URLs
+ *   unchanged (e.g. an old bookmarked link with no `?t=`, or a future
+ *   logged-in-only flow that doesn't need one).
+ */
+export function useRemediationJob(jobId: string, token?: string): UseRemediationJobReturn {
   const status = ref<JobStatus | null>(null);
   const receipt = ref<Receipt | null>(null);
   const error = ref<string | null>(null);
   const loading = ref(true);
   const isTerminal = ref(false);
+
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
 
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
@@ -158,7 +172,7 @@ export function useRemediationJob(jobId: string): UseRemediationJobReturn {
 
   async function pollOnce(): Promise<void> {
     try {
-      const data = await $fetch<JobStatus>(`/api/remediate/${jobId}/status`, {
+      const data = await $fetch<JobStatus>(`/api/remediate/${jobId}/status${tokenQuery}`, {
         credentials: "include",
       });
       status.value = data;
@@ -169,7 +183,7 @@ export function useRemediationJob(jobId: string): UseRemediationJobReturn {
         stop();
         // Fetch the receipt once we're done
         try {
-          receipt.value = await $fetch<Receipt>(`/api/remediate/${jobId}/receipt`, {
+          receipt.value = await $fetch<Receipt>(`/api/remediate/${jobId}/receipt${tokenQuery}`, {
             credentials: "include",
           });
         } catch (e) {

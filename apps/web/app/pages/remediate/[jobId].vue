@@ -26,7 +26,9 @@ const route = useRoute();
 const jobId = String(route.params.jobId);
 const downloadToken = String(route.query.t ?? "");
 
-const { status, receipt, error, loading, isTerminal } = useRemediationJob(jobId);
+// The download token doubles as the status/receipt read credential in
+// anonymous mode (C5) — the API returns 404 on these reads without it.
+const { status, receipt, error, loading, isTerminal } = useRemediationJob(jobId, downloadToken);
 
 // ------------------------------------------------------------------
 // Category comparison (drives "What we fixed" / "Still needs review")
