@@ -25,6 +25,11 @@ interface Category {
   findings: string[];
   explanation?: string;
   helpLinks?: HelpLink[];
+  // Disambiguates a null score: true = "not assessed" (tool couldn't
+  // evaluate), false/undefined = "not applicable". Mirrors
+  // CategoryResult['notAssessed'] in packages/shared/src/types.ts — the API
+  // has always sent this field, this local type just hadn't declared it.
+  notAssessed?: boolean;
 }
 
 interface ReportResult {
@@ -52,6 +57,11 @@ interface ScoreProfile {
   grade: string;
   executiveSummary: string;
   categoryScores?: Record<string, number | null>;
+  // Mirrors ScoreProfileResult in packages/shared/src/types.ts — the API
+  // has always sent these fields (see that file's comment for the floor
+  // semantics), this local type just hadn't declared them.
+  rawOverallScore?: number;
+  flooredToStrict?: boolean;
 }
 
 interface ConformanceFinding {

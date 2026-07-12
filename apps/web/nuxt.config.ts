@@ -151,7 +151,11 @@ export default defineNuxtConfig({
       wcagLevel: WCAG.LEVEL,
       wcagUnderstandingBase: WCAG.UNDERSTANDING_BASE[WCAG.VERSION],
       wcagQuickref: WCAG.QUICKREF[WCAG.VERSION],
-      announcements: ANNOUNCEMENTS,
+      // Shallow-copy out of the `as const` readonly tuple in audit.config.ts:
+      // Nuxt's runtimeConfig typing (RuntimeValue, for env-var overrides)
+      // needs a plain mutable array, and AnnouncementBanner.vue already
+      // re-asserts its own consumption-side type regardless.
+      announcements: ANNOUNCEMENTS.map((a) => ({ ...a })),
     },
   },
 

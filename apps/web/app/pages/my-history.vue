@@ -46,7 +46,7 @@
           size="xs"
           :variant="p === page ? 'solid' : 'ghost'"
           :color="p === page ? 'primary' : 'neutral'"
-          @click="page = p"
+          @click="goToPage(p)"
         >
           {{ p }}
         </UButton>
@@ -64,7 +64,23 @@
 
 const page = ref(1)
 
-const { data, pending } = useFetch('/api/my-history', {
+// Mirrors the res.json() shape built in apps/api/src/routes/logs.ts (GET
+// /api/my-history) — a plain Express handler proxied through, not a Nitro
+// server route, so Nuxt can't infer this from the URL; declared here. This
+// query selects an explicit column list (narrower than /api/logs).
+interface HistoryRow {
+  id: number
+  filename: string | null
+  score: number | null
+  grade: string | null
+  created_at: string
+}
+interface MyHistoryResponse {
+  data: HistoryRow[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
+}
+
+const { data, pending } = useFetch<MyHistoryResponse>('/api/my-history', {
   query: { page, limit: 20 },
   credentials: 'include',
   watch: [page],
@@ -76,6 +92,14 @@ const gradeColors: Record<string, string> = {
 
 function gradeColor(grade: string): string {
   return gradeColors[grade] || '#666'
+}
+
+// A plain assignment expression (`@click="page = p"`) types as
+// `(event) => number` under vue-tsc (the assignment's value), which UButton's
+// click handler prop (`(event) => void | Promise<void>`) rejects; a real
+// function body has no such implicit return.
+function goToPage(p: number) {
+  page.value = p
 }
 
 function formatDate(dateStr: string): string {

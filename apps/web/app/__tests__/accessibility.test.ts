@@ -24,10 +24,12 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 
 /** Relative luminance per WCAG 2.1 */
 function luminance({ r, g, b }: { r: number; g: number; b: number }): number {
+  // 3-in, 3-out: the cast just tells noUncheckedIndexedAccess what .map()
+  // already guarantees for a fixed 3-element input.
   const [rs, gs, bs] = [r, g, b].map(c => {
     const s = c / 255
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  })
+  }) as [number, number, number]
   return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
 }
 

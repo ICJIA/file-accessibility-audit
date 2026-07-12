@@ -93,7 +93,10 @@ const props = defineProps<{
   }>
 }>()
 
-const SEVERITY_RANK: Record<string, number> = {
+// Keyed precisely by the severity union (not a bare Record<string, number>)
+// so indexing with `.severity` below is guaranteed defined — that field is
+// filtered to exactly these three values just above.
+const SEVERITY_RANK: Record<'Critical' | 'Moderate' | 'Minor', number> = {
   Critical: 0,
   Moderate: 1,
   Minor: 2,

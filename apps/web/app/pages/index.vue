@@ -87,8 +87,8 @@
               v-if="item.status === 'done' && item.result?.grade"
               class="flex-shrink-0 inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center"
               :style="{
-                backgroundColor: gradeColors[item.result.grade] + '20',
-                color: gradeColors[item.result.grade],
+                backgroundColor: gradeColor(item.result.grade) + '20',
+                color: gradeColor(item.result.grade),
               }"
               :aria-label="`Grade ${item.result.grade}`"
               >{{ item.result.grade }}</span
@@ -3401,6 +3401,7 @@ import MethodologyCard from "~/components/MethodologyCard.vue";
 import ScrollToTop from "~/components/ScrollToTop.vue";
 import { partitionCardFindings } from "~/utils/findings";
 import { uploadNoun } from "~/utils/uploadFormats";
+import { gradeColor } from "@file-audit/shared";
 
 
 // Word / PowerPoint / Excel support can each be disabled server-side
@@ -3633,7 +3634,11 @@ async function analyzeBatch(files: File[]) {
       if (signal.aborted) return;
 
       const idx = nextIndex++;
-      const item = batchItems.value[idx];
+      // Non-null: idx was captured from nextIndex while it was still less
+      // than batchItems.value.length (the while condition above), and
+      // batchItems.value is only ever appended to elsewhere, never spliced
+      // shorter during this loop, so the slot at idx is always present.
+      const item = batchItems.value[idx]!;
       item.status = "processing";
 
       try {

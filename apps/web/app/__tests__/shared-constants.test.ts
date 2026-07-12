@@ -14,10 +14,12 @@ import {
 
 describe("@file-audit/shared scoring constants", () => {
   it("strict profile weights sum to 1.0", () => {
-    const sum = Object.values(SCORING_PROFILES.strict.weights).reduce(
-      (a, b) => a + b,
-      0,
-    );
+    // SCORING_PROFILES is `as const`, so Object.values narrows each weight to
+    // its own numeric literal; widen to number[] before summing arbitrary
+    // pairs (0.2 + 0.15 isn't itself one of the literal members).
+    const sum = (
+      Object.values(SCORING_PROFILES.strict.weights) as number[]
+    ).reduce((a, b) => a + b, 0);
     expect(sum).toBeCloseTo(1.0, 5);
   });
 

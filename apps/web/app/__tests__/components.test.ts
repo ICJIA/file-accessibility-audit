@@ -52,7 +52,9 @@ describe("DropZone", () => {
     await input.trigger("change");
 
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
   });
 
   it("emits file-selected when a valid .docx is selected", async () => {
@@ -68,7 +70,9 @@ describe("DropZone", () => {
     await input.trigger("change");
 
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
   });
 
   it("does NOT emit file-selected for a non-PDF file", async () => {
@@ -132,7 +136,9 @@ describe("DropZone", () => {
     });
     await input.trigger("change");
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
   });
 
   it("emits file-selected for a valid .xlsx", async () => {
@@ -279,7 +285,9 @@ describe("DropZone", () => {
     await input.trigger("change");
 
     expect(wrapper.emitted("file-selected")).toBeTruthy();
-    expect(wrapper.emitted("file-selected")![0][0]).toEqual(file);
+    // Double non-null: emitted() is asserted truthy above, and VTU always
+    // records at least one arg array per emitted occurrence.
+    expect(wrapper.emitted("file-selected")![0]![0]).toEqual(file);
     expect(wrapper.text()).not.toContain("isn't supported");
   });
 });
@@ -451,7 +459,7 @@ describe("ScoreCard", () => {
     { fileType: "docx", app: "Word" },
     { fileType: "pptx", app: "PowerPoint" },
     { fileType: "xlsx", app: "Excel" },
-  ])(
+  ] as const)(
     "points $fileType results at $app's built-in Accessibility Checker",
     ({ fileType, app }) => {
       const wrapper = mount(ScoreCard, {
@@ -513,13 +521,13 @@ describe("ScoreCard", () => {
       return {
         ...baseResult,
         conformance: {
-          status: "fail",
+          status: "fail" as const,
           headline: "Confirmed failures found.",
           failures: [
             {
               sc: "1.1.1",
               name: "Non-text Content",
-              level: "A",
+              level: "A" as const,
               category: "alt_text",
               issue: "2 images have no alt text",
               url: failureUrl,
@@ -529,7 +537,7 @@ describe("ScoreCard", () => {
             {
               sc: "1.4.3",
               name: "Contrast (Minimum)",
-              level: "AA",
+              level: "AA" as const,
               reason: "not automated",
               url: notAssessedUrl,
             },

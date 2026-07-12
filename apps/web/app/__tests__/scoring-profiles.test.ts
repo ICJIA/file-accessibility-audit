@@ -33,10 +33,12 @@ describe("scoringProfiles", () => {
       "remediation",
     );
 
-    expect(displayed[0].score).toBe(72);
-    expect(displayed[0].grade).toBe("C");
-    expect(displayed[0].severity).toBe("Minor");
-    expect(displayed[0].findings).toEqual(["Strict finding"]);
+    // Non-null: the test constructs `categories` with exactly one entry.
+    const [first] = displayed;
+    expect(first!.score).toBe(72);
+    expect(first!.grade).toBe("C");
+    expect(first!.severity).toBe("Minor");
+    expect(first!.findings).toEqual(["Strict finding"]);
   });
 
   it("prefers the full per-profile categories array when the API supplies it", () => {
@@ -77,8 +79,9 @@ describe("scoringProfiles", () => {
     );
 
     expect(displayed).toHaveLength(1);
-    expect(displayed[0].score).toBe(70);
-    expect(displayed[0].findings).toEqual([
+    // Non-null: the toHaveLength(1) assertion above guarantees index 0 exists.
+    expect(displayed[0]!.score).toBe(70);
+    expect(displayed[0]!.findings).toEqual([
       "Tagged PDF detected",
       "PDF/UA identifier found",
     ]);

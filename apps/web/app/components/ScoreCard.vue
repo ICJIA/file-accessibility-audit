@@ -465,8 +465,10 @@ function pluralize(n: number, word: string): string {
 
 function joinParts(parts: string[]): string {
   if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0];
-  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+  // Non-null: the length check above guarantees index 0 exists.
+  if (parts.length === 1) return parts[0]!;
+  // Non-null: parts.length is at least 2 here, so the last index exists.
+  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1]!;
 }
 
 const verdictExplanation = computed(() => {

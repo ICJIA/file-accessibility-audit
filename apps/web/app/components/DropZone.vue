@@ -200,7 +200,8 @@ function processFiles(files: File[]) {
 
   // Single file with nothing staged → emit immediately (original behavior)
   if (accepted.length === 1 && stagedFiles.value.length === 0) {
-    emit('file-selected', accepted[0])
+    // Non-null: the length check above guarantees index 0 exists.
+    emit('file-selected', accepted[0]!)
     return
   }
 
@@ -221,7 +222,8 @@ function clearStaged() {
 function submitStaged() {
   if (stagedFiles.value.length === 0) return
   if (stagedFiles.value.length === 1) {
-    emit('file-selected', stagedFiles.value[0])
+    // Non-null: the length check above guarantees index 0 exists.
+    emit('file-selected', stagedFiles.value[0]!)
   } else {
     emit('files-selected', [...stagedFiles.value])
   }

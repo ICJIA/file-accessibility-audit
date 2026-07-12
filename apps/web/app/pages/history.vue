@@ -49,7 +49,7 @@
           size="xs"
           :variant="p === page ? 'solid' : 'ghost'"
           :color="p === page ? 'primary' : 'neutral'"
-          @click="page = p"
+          @click="goToPage(p)"
         >
           {{ p }}
         </UButton>
@@ -67,19 +67,51 @@
 
 const page = ref(1)
 
-const { data, pending, error } = useFetch('/api/logs', {
+// Mirrors the res.json() shape built in apps/api/src/routes/logs.ts (GET
+// /api/logs) — that route is a plain Express handler proxied through, not a
+// Nitro server route, so Nuxt can't infer this from the URL; it must be
+// declared here.
+interface AuditLogRow {
+  id: number
+  event_type: string
+  email: string
+  filename: string | null
+  score: number | null
+  grade: string | null
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+  content_hash: string | null
+}
+interface LogsResponse {
+  data: AuditLogRow[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
+}
+
+const { data, pending, error } = useFetch<LogsResponse>('/api/logs', {
   query: { page, limit: 50 },
   credentials: 'include',
   watch: [page],
 })
 
-function eventColor(type: string): string {
-  const colors: Record<string, string> = {
+// The literal union UBadge['color'] currently accepts (@nuxt/ui 4.5.1).
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
+
+function eventColor(type: string): BadgeColor {
+  const colors: Record<string, BadgeColor> = {
     login: 'info',
     logout: 'neutral',
     otp_request: 'warning',
     analyze: 'success',
   }
   return colors[type] || 'neutral'
+}
+
+// A plain assignment expression (`@click="page = p"`) types as
+// `(event) => number` under vue-tsc (the assignment's value), which UButton's
+// click handler prop (`(event) => void | Promise<void>`) rejects; a real
+// function body has no such implicit return.
+function goToPage(p: number) {
+  page.value = p
 }
 </script>

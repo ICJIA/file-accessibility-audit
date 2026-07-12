@@ -1332,7 +1332,7 @@ function labelForEvent(name: string): string {
 
         <div class="text-center">
           <UButton
-            :to="resolvedDownloadHref"
+            :to="resolvedDownloadHref ?? undefined"
             external
             size="lg"
             color="primary"

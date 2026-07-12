@@ -11,7 +11,7 @@ import { onMounted, onBeforeUnmount, ref, type Ref } from 'vue'
 // The real payload type from the engine (packages/shared) — this composable
 // used to re-declare a lossy subset of it. Re-exported because the remediate
 // result page imports it from here.
-import type { CategoryResult } from '@file-audit/shared'
+import type { CategoryResult, ScoreProfileResult, ScoringMode } from '@file-audit/shared'
 export type { CategoryResult }
 
 export type RemediationStatus =
@@ -57,13 +57,22 @@ export interface ReceiptEvent {
 }
 
 export interface AuditResultLite {
+  // The engine (apps/api analyzePDF -> AnalysisResult/ScoringResult) always
+  // sends these; this DTO had dropped them even though ScoreCard's `result`
+  // prop requires them (it renders the before/after filename + page count
+  // by default on this very page). Re-added instead of hand-waving with
+  // `as any` at the ScoreCard call sites.
+  filename: string
+  pageCount: number
+  executiveSummary: string
   overallScore: number
   grade: string
   categories: CategoryResult[]
-  scoreProfiles?: {
-    strict?: { overallScore: number; grade: string }
-    remediation?: { overallScore: number; grade: string }
-  }
+  // Real shape is the full ScoreProfileResult (this page's own
+  // afterCategories/beforeCategories computeds already reach for
+  // `.categories` off of it via a local cast, since the engine always
+  // sends it) — was declared as a lossy {overallScore, grade}-only subset.
+  scoreProfiles?: Partial<Record<ScoringMode, ScoreProfileResult>>
   adobeParity?: {
     summary: {
       passed: number

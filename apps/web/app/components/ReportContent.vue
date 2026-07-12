@@ -554,6 +554,7 @@ import {
   severityColor,
   safeHttpUrl,
   type CategoryResult,
+  type ScoreProfileResult,
   type ScoringMode,
 } from "@file-audit/shared";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
@@ -571,15 +572,11 @@ import { useWcag } from "~/composables/useWcag";
  */
 interface ReportLike {
   categories: CategoryResult[];
-  scoreProfiles?: Partial<
-    Record<
-      ScoringMode,
-      {
-        categories?: CategoryResult[];
-        categoryScores?: Record<string, number | null>;
-      }
-    >
-  >;
+  // ScoreProfileResult (the real API/shared shape) — was a hand-kept
+  // partial copy missing label/overallScore/grade/executiveSummary, which
+  // categoriesForScoringMode's ScoreProfile parameter type requires even
+  // though it only reads .categories/.categoryScores at runtime.
+  scoreProfiles?: Partial<Record<ScoringMode, ScoreProfileResult>>;
   pdfMetadata?: {
     creator?: string | null;
     producer?: string | null;

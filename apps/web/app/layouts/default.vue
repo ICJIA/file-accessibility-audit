@@ -167,7 +167,7 @@
       <!-- Mobile nav dropdown -->
       <Transition name="slide-down">
         <nav v-if="user && mobileMenuOpen" class="md:hidden mx-auto max-w-4xl border-t border-[var(--border-subtle)] pt-3 pb-1 px-3 flex flex-col gap-2">
-          <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]" @click.prevent="goAnalyze(); mobileMenuOpen = false">
+          <a href="/" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]" @click.prevent="goAnalyze?.(); mobileMenuOpen = false">
             Analyze
           </a>
           <a v-if="config.public.faqsUrl" :href="config.public.faqsUrl" target="_blank" rel="noopener noreferrer" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
@@ -182,7 +182,7 @@
             </NuxtLink>
             <div class="flex items-center justify-between px-2 py-1.5">
               <span class="text-xs text-[var(--text-muted)]">{{ user.email }}</span>
-              <UButton size="xs" variant="ghost" color="neutral" @click="logout(); mobileMenuOpen = false">
+              <UButton size="xs" variant="ghost" color="neutral" @click="logout?.(); mobileMenuOpen = false">
                 Logout
               </UButton>
             </div>

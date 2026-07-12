@@ -89,12 +89,11 @@
             >
           </p>
           <p class="text-sm text-[var(--text-secondary)] mt-2">
-            {{
-              data.sharedBy && data.sharedBy !== "anonymous"
-                ? `Shared by ${data.sharedBy} on`
-                : "Shared on"
-            }}
-            {{ formatDate(data.createdAt) }}
+            <!-- The API (GET /api/reports/:id) never returns who shared a
+                 report — the sharer's email is PII and is intentionally
+                 dropped server-side (see apps/api/src/routes/reports.ts) —
+                 so this has always rendered as "Shared on" unconditionally. -->
+            Shared on {{ formatDate(data.createdAt) }}
           </p>
           <p class="text-xs text-[var(--text-muted)] mt-1">
             Shareable links expire after 365 days
@@ -317,6 +316,7 @@ import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
+import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 
 
 definePageMeta({ layout: false });
@@ -332,7 +332,32 @@ function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
 }
 
-const { data, pending, error } = await useFetch(`/api/reports/${id}`);
+// Mirrors the res.json() shape built in apps/api/src/routes/reports.ts (GET
+// /api/reports/:id) — a plain Express handler proxied through, not a Nitro
+// server route, so Nuxt can't infer this from the URL. `report` is whatever
+// was originally POSTed (see sanitizeStoredReport), which in practice is
+// always an AnalysisResult; `sharedBy` is never sent (PII — see that route).
+interface SharedReportResult {
+  filename: string;
+  pageCount: number;
+  overallScore: number;
+  grade: string;
+  executiveSummary: string;
+  isScanned: boolean;
+  warnings?: string[];
+  categories: CategoryResult[];
+  fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+  scoreProfiles?: Partial<Record<ScoringMode, ScoreProfileResult>>;
+}
+interface SharedReportResponse {
+  report: SharedReportResult;
+  createdAt: string;
+  expiresAt: string;
+}
+
+const { data, pending, error } = await useFetch<SharedReportResponse>(
+  `/api/reports/${id}`,
+);
 
 const {
   exportJSON,
