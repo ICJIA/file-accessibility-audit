@@ -14,14 +14,6 @@ function readPageSource(relativePath: string): string {
 // Grade color thresholds
 // ---------------------------------------------------------------------------
 describe("Score display — grade color mapping", () => {
-  const gradeColors: Record<string, string> = {
-    A: "#22c55e", // green
-    B: "#14b8a6", // teal
-    C: "#eab308", // yellow
-    D: "#f97316", // orange
-    F: "#ef4444", // red
-  };
-
   const makeResult = (grade: string, score: number) => ({
     filename: "test.pdf",
     pageCount: 5,

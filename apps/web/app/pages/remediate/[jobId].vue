@@ -140,14 +140,6 @@ function acrobatStepFor(catId: string): string {
   )
 }
 
-// Compact "what we fixed" summary for the After card (a short list,
-// distinct from the longer category breakdown sections below).
-const fixedSummaryItems = computed(() =>
-  categoryPairs.value
-    .filter((p) => p.delta !== null && p.delta >= 10)
-    .sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0)),
-)
-
 const fixedCategories = computed(() =>
   categoryPairs.value.filter(
     (p) =>

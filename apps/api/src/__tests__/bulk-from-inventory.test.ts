@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { AuthRequest } from '../middleware/authMiddleware.js'
 import type { Response } from 'express'
 import { detectFileType } from '../services/analyzer.js'
@@ -61,16 +61,6 @@ vi.mock('../services/pdfAnalyzer.js', () => ({
     pdfMetadata: {},
   }),
 }))
-
-// Mock global fetch
-const mockFetchResponse = (options: { ok: boolean; status?: number; statusText?: string; body?: Buffer }) => {
-  return vi.fn().mockResolvedValue({
-    ok: options.ok,
-    status: options.status ?? (options.ok ? 200 : 404),
-    statusText: options.statusText ?? (options.ok ? 'OK' : 'Not Found'),
-    arrayBuffer: () => Promise.resolve(options.body?.buffer ?? new ArrayBuffer(0)),
-  })
-}
 
 // ---------------------------------------------------------------------------
 // Helpers to build mock Express req/res/next

@@ -20,7 +20,7 @@
 
         <div class="px-8 pb-8 pt-4">
           <!-- Step 1: Email -->
-          <form v-if="!otpSent" @submit.prevent="requestOTP" class="space-y-5">
+          <form v-if="!otpSent" class="space-y-5" @submit.prevent="requestOTP">
             <UFormField label="Email address">
               <UInput
                 v-model="email"
@@ -53,7 +53,7 @@
           </form>
 
           <!-- Step 2: OTP -->
-          <form v-else @submit.prevent="verifyOTP" class="space-y-5">
+          <form v-else class="space-y-5" @submit.prevent="verifyOTP">
             <div class="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-sm text-[var(--status-success)]">
               Code sent to <strong class="text-[var(--status-success)]">{{ email }}</strong>
             </div>

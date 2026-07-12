@@ -1,4 +1,4 @@
-import { Router, Request, Response, type IRouter } from 'express'
+import { Router, Response, type IRouter } from 'express'
 import crypto from 'node:crypto'
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
 import { reportsLimiter } from '../middleware/rateLimiter.js'

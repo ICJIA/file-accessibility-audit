@@ -159,11 +159,9 @@ describe('Login Page', () => {
   })
 
   it('submits the OTP to /api/auth/verify', async () => {
-    let callCount = 0
     fetchMock.mockImplementation((url: string) => {
       if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
       if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
-      callCount++
       return Promise.resolve({})
     })
 

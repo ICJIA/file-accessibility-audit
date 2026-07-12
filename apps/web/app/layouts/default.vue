@@ -113,7 +113,8 @@
                     <div>
                       <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Reference Documents</h3>
                       <div class="flex flex-wrap gap-2">
-                        <a v-for="link in referenceLinks" :key="link.url" :href="link.url" target="_blank" rel="noopener noreferrer"
+                        <a
+v-for="link in referenceLinks" :key="link.url" :href="link.url" target="_blank" rel="noopener noreferrer"
                           class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
                         >
                           {{ link.label }}

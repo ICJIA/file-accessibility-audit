@@ -6,7 +6,6 @@ import { resolve } from 'path'
 
 import DropZone from '../components/DropZone.vue'
 import ScoreCard from '../components/ScoreCard.vue'
-import ProcessingOverlay from '../components/ProcessingOverlay.vue'
 
 // ---------------------------------------------------------------------------
 // Helpers

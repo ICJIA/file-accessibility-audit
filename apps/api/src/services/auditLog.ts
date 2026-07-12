@@ -77,7 +77,6 @@ export function recordAudit(input: RecordAuditInput): void {
     // Don't block the response on a logging failure — the audit
     // result has already been computed. Log to stderr so operators
     // can spot persistent issues.
-    // eslint-disable-next-line no-console
     console.error('audit_log write failed:', err)
   }
 }

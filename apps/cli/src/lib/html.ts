@@ -2,7 +2,7 @@ import type { CachedRow } from './cache.js'
 // RB3-1: CATEGORY_IDS/CATEGORY_LABELS now come from the single shared
 // categories.ts (previously imported from csv.js's own hand-synced copy).
 import { CATEGORY_IDS, CATEGORY_LABELS } from './categories.js'
-import { sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
+import { sortRowsDescending, gradeDistribution, generateAssessment } from './csv.js'
 // A6: grade → hex color used to be a hand-copied literal, independently
 // duplicating packages/shared/src/scoring.ts's GRADE_THRESHOLDS colors (and
 // liable to drift from them, e.g. if a threshold color changed there but
@@ -92,13 +92,6 @@ export function generateHtml(rows: CachedRow[], generatedAt: Date, csvContent?: 
   const needsWork = dist.C + dist.D + dist.F
   const needsPct = sorted.length > 0 ? Math.round((needsWork / sorted.length) * 100) : 0
   const assessment = generateAssessment(dist, sorted.length)
-
-  const { recent, legacy } = splitByEra(sorted)
-  const recentDist = gradeDistribution(recent)
-  const legacyDist = gradeDistribution(legacy)
-  const recentNeedsWork = recentDist.C + recentDist.D + recentDist.F
-  const recentNeedsPct = recent.length > 0 ? Math.round((recentNeedsWork / recent.length) * 100) : 0
-  const recentAssessment = generateAssessment(recentDist, recent.length)
 
   // Category column headers
   let catHeaders = ''

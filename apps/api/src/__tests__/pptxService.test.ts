@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildPptx, titleShape, bodyShape, para, picture, pptTable, hyperlinkRels, videoRel } from './helpers/minimalPptx.js'
+import { buildPptx, bodyShape, para, picture, pptTable, hyperlinkRels, videoRel } from './helpers/minimalPptx.js'
 import { analyzePptx, PptxParseError, countShapesAnyDepth, countTextElementsAnyDepth } from '../services/pptxService.js'
 import { parseXml, rootElement } from '../services/ooxml.js'
 import * as ooxml from '../services/ooxml.js'

@@ -7,7 +7,7 @@ import { initCache, getCached, upsertResult, upsertError, getAllSuccessful, getE
 import { generateCsv } from '../lib/csv.js'
 import { generateHtml } from '../lib/html.js'
 import { showProgress, clearProgress } from '../lib/progress.js'
-import { RESET, BOLD, DIM, RED, GREEN, YELLOW, CYAN, GRAY, gradeColor, checkQpdf } from '../lib/colors.js'
+import { RESET, BOLD, DIM, RED, GREEN, YELLOW, CYAN, gradeColor, checkQpdf } from '../lib/colors.js'
 import type { Publication } from '../lib/graphql.js'
 
 const MAX_FILE_SIZE = (ANALYSIS?.MAX_FILE_SIZE_MB ?? 50) * 1024 * 1024

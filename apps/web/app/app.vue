@@ -8,7 +8,6 @@
 </template>
 
 <script setup lang="ts">
-const config = useRuntimeConfig()
 const appConfig = useAppConfig()
 
 // Inject WebApplication JSON-LD structured data

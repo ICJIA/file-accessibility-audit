@@ -1923,7 +1923,7 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
 
   const h1Count = levels.filter((l) => l === 1).length;
   let hierarchyBroken = false;
-  let hasMultipleH1 = h1Count > 1;
+  const hasMultipleH1 = h1Count > 1;
 
   for (let i = 1; i < levels.length; i++) {
     if (levels[i] > levels[i - 1] + 1) {

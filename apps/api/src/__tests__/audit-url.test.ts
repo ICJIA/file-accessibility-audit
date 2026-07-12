@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { randomBytes } from 'node:crypto'
 import { detectFileType } from '../services/analyzer.js'
 
 // ---------------------------------------------------------------------------
@@ -265,7 +266,7 @@ describe('audit-url response shape', () => {
   })
 
   it('reportId is a 32-character hex string (16 random bytes hex-encoded)', () => {
-    const id = require('node:crypto').randomBytes(16).toString('hex')
+    const id = randomBytes(16).toString('hex')
     expect(id).toMatch(/^[a-f0-9]{32}$/)
   })
 

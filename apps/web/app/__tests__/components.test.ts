@@ -1,6 +1,6 @@
 import "./test-helpers";
 import { describe, it, expect, vi } from "vitest";
-import { mount, shallowMount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 
 import DropZone from "../components/DropZone.vue";
 import ScoreCard from "../components/ScoreCard.vue";
@@ -38,11 +38,8 @@ describe("DropZone", () => {
     await wrapper
       .find("div")
       .trigger("drop", { dataTransfer: { files: [file] } });
-    // Since trigger does not pass dataTransfer through, call the handler manually
-    // via the component's exposed method through the wrapper vm:
-    const vm = wrapper.vm as any;
-    // processFile is internal, but we can simulate via handleDrop-like logic
-    // Instead, use the input change approach:
+    // Since trigger does not pass dataTransfer through: processFile is
+    // internal, so simulate via the input change approach instead:
     const input = wrapper.find('input[type="file"]');
     // Create a mock change event
     Object.defineProperty(input.element, "files", {

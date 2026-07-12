@@ -990,12 +990,10 @@ function analyzeTable(
   // Check row structure: direct children of table should be TR (or THead/TBody/TFoot containing TR)
   const directKids = Array.isArray(kids) ? kids : [kids];
   let trCount = 0;
-  let sectionCount = 0;
   for (const kid of directKids) {
     const tag = getTag(kid);
     if (tag === "/TR") trCount++;
     if (tag === "/THead" || tag === "/TBody" || tag === "/TFoot") {
-      sectionCount++;
       // Check for TR inside section
       const sectionResolved = resolve(kid);
       const sectionKids = sectionResolved?.["/K"];

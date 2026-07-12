@@ -17,22 +17,12 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import {
-  promises as fs,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from "node:fs";
+import { promises as fs, existsSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { convert } from "@opendataloader/pdf";
 import { REMEDIATION } from "#config";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
-import {
-  recordEvent,
-  verifyAbsent,
-  deleteAndVerify,
-} from "../services/remediationEvents.js";
+import { recordEvent, deleteAndVerify } from "../services/remediationEvents.js";
 import {
   getJob,
   getJobAuditPair,

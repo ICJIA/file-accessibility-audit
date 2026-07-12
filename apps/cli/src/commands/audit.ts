@@ -2,7 +2,6 @@ import { readFileSync, existsSync, statSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { analyzeDocument } from '../../../api/src/services/analyzer.js'
 import type { AnalysisResult } from '../../../api/src/services/pdfAnalyzer.js'
-import type { CategoryResult } from '../../../api/src/services/scorer.js'
 import {
   RESET, BOLD, DIM, RED,
   gradeColor, severityColor, gradeLabel, padRight, checkQpdf,

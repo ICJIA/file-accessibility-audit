@@ -47,8 +47,8 @@
         </p>
         <button
           class="text-green-400/60 hover:text-green-400 text-sm ml-4 flex-shrink-0"
-          @click="showBatchBanner = false"
           aria-label="Dismiss"
+          @click="showBatchBanner = false"
         >
           &times;
         </button>
@@ -65,8 +65,8 @@
         <AppTooltip
           v-for="(item, idx) in batchItems"
           :key="item.id"
-          :text="item.filename"
           v-slot="{ tooltipId }"
+          :text="item.filename"
         >
           <button
             role="tab"
@@ -457,8 +457,8 @@
                 variant="soft"
                 color="neutral"
                 size="sm"
-                @click="handleShare"
                 :loading="sharing"
+                @click="handleShare"
               >
                 <template #leading>
                   <svg
@@ -3392,14 +3392,11 @@ pm2 restart ecosystem.config.cjs</div>
 </template>
 
 <script setup lang="ts">
-import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
-import NaCell from "~/components/NaCell.vue";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ScrollToTop from "~/components/ScrollToTop.vue";
-import { partitionCardFindings } from "~/utils/findings";
 import { uploadNoun } from "~/utils/uploadFormats";
 import { gradeColor } from "@file-audit/shared";
 
@@ -3450,7 +3447,6 @@ const {
   shareError,
   sharing,
   clearShare,
-  exporting,
   copyAiAnalysis,
   aiCopied,
   buildAiAnalysisText,

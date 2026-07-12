@@ -56,7 +56,7 @@ export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
     };
   }
 
-  let stdout = "";
+  let stdout: string;
   let exitWasError = false;
   try {
     const result = await execFileAsync(

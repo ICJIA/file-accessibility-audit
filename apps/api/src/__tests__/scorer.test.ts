@@ -516,7 +516,6 @@ describe("grade thresholds", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     // Remove title → title_language drops to 50
     pdfjs.title = null;
-    const result = scoreDocument(qpdf, pdfjs);
     // title_language goes to 50 (only lang). weight 0.15.
     // All others are 100. Overall = 100 - (50 * 0.15) = 92.5 → still A
     // Need more degradation. Also break heading hierarchy.

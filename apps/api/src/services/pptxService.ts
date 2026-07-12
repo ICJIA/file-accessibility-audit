@@ -155,6 +155,9 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     "theme",
   );
   const schemeColorMap = buildSchemeColorMap(themeRoot);
+  // Intentional: drop the (potentially large) parsed theme AST so it isn't
+  // retained by closures across the slide loop below (see comment above).
+  // eslint-disable-next-line no-useless-assignment
   themeRoot = undefined;
 
   // Slide parts in filename order (v1 boundary — see module doc comment).

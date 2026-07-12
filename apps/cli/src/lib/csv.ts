@@ -152,7 +152,6 @@ function distLine(
 export function generateCsv(rows: CachedRow[]): string {
   const sorted = sortRowsDescending(rows);
   const dist = gradeDistribution(sorted);
-  const needsWork = dist.C + dist.D + dist.F;
   const assessment = generateAssessment(dist, sorted.length);
 
   const { recent, legacy } = splitByEra(sorted);

@@ -309,9 +309,6 @@
 </template>
 
 <script setup lang="ts">
-import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
-import NaCell from "~/components/NaCell.vue";
-import { partitionCardFindings } from "~/utils/findings";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";

@@ -135,18 +135,22 @@
     />
 
     <!-- Verdict explanation (counts) -->
+    <!-- eslint-disable vue/no-v-html -- verdictExplanation (below) only interpolates numeric counts via pluralize() into a fixed "N critical/moderate issue(s)" string with a hardcoded <span style> wrapper; no report-derived string content ever reaches v-html here. -->
     <p
       v-if="verdictExplanation"
       data-testid="verdict-explanation"
       class="text-sm text-[var(--text-secondary)] max-w-lg mx-auto leading-relaxed"
       v-html="verdictExplanation"
     />
+    <!-- eslint-enable vue/no-v-html -->
 
     <!-- Summary -->
+    <!-- eslint-disable vue/no-v-html -- highlightedSummary (below) runs escapeHtml() on the report's executiveSummary FIRST, then only adds hardcoded <span style> wrappers via regex on the already-escaped text; no unescaped content is interpolated. -->
     <p
       class="text-sm text-[var(--text-muted)] max-w-lg mx-auto leading-relaxed"
       v-html="highlightedSummary"
     />
+    <!-- eslint-enable vue/no-v-html -->
 
     <!-- Caveat -->
     <div

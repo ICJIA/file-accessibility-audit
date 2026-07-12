@@ -387,10 +387,6 @@ export function buildJSON(result: ReportResult, branding: BrandingInfo): string 
   const failingCategories = result.categories.filter(
     (c) => c.score !== null && c.score < 90,
   );
-  const passingCategories = result.categories.filter(
-    (c) => c.score !== null && c.score >= 90,
-  );
-  const naCategories = result.categories.filter((c) => c.score === null);
   const scoreProfiles = getScoreProfiles(result, branding.wcagVersion);
 
   const report = {

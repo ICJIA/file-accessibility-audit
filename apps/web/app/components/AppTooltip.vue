@@ -12,9 +12,9 @@
       <Transition name="tooltip-fade">
         <div
           v-if="visible"
+          :id="tooltipId"
           ref="tooltipEl"
           role="tooltip"
-          :id="tooltipId"
           class="fixed z-[9999] max-w-[min(20rem,calc(100vw-1rem))] px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--surface-card)] text-[var(--text-heading)] border border-[var(--border)] shadow-lg pointer-events-none break-words"
           :style="positionStyle"
         >
@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
+defineProps<{
   text: string
 }>()
 

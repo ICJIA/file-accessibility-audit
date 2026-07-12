@@ -126,7 +126,6 @@ export interface BuildPptxOpts {
 
 export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
   const zip = new JSZip();
-  const n = opts.slides.length;
 
   const slideOverrides = opts.slides
     .map(

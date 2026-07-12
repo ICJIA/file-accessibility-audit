@@ -17,7 +17,9 @@
     "start:all": "kill-port 5103 5102 && sleep 1 && echo '\\n[start:all] API → http://localhost:5103  |  WEB → http://localhost:5102\\n' && PORT=5103 pnpm --filter api start & PORT=5102 pnpm --filter web start & wait",
     "clean": "rm -rf apps/web/.nuxt apps/web/.output apps/web/node_modules/.vite apps/api/dist node_modules/.cache && echo 'Cleaned all caches'",
     "rebrand": "tsx scripts/rebrand.ts",
-    "a11y-audit": "cd apps/cli && tsx src/index.ts publist"
+    "a11y-audit": "cd apps/cli && tsx src/index.ts publist",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,mts,cts,js,mjs,cjs,vue,css,json}\""
   },
   "engines": {
     "node": ">=22"
@@ -35,10 +37,18 @@
     "@file-audit/shared": "workspace:*"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.9.2",
+    "globals": "^17.7.0",
     "kill-port": "^2.0.1",
     "mermaid": "11.15.0",
+    "prettier": "^3.9.5",
     "sharp": "^0.34.5",
     "svgo": "^4.0.1",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.63.0"
   }
 }
