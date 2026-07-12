@@ -315,11 +315,20 @@ function extractContrast(
 
 /**
  * DOCX-flavored wrapper over the shared capped ZIP reader — errors surface
- * as DocxParseError so route-level DOCX_PARSE_FAILED mapping keeps working.
- * (analyzer.ts imports this for [Content_Types].xml detection reads too.)
+ * as DocxParseError by default so route-level DOCX_PARSE_FAILED mapping
+ * keeps working. (analyzer.ts imports this for [Content_Types].xml
+ * detection reads too, though it discards the specific error type.) The
+ * error factory is overridable — matching the shared readCapped's own
+ * optional makeError — for any future caller that wants a different error
+ * subclass from this exact byte-cap/read logic.
  */
-export function readCapped(f: JSZip.JSZipObject, cap: number, partName: string): Promise<string> {
-  return ooxmlReadCapped(f, cap, partName, (m) => new DocxParseError(m));
+export function readCapped(
+  f: JSZip.JSZipObject,
+  cap: number,
+  partName: string,
+  makeError: (message: string) => Error = (m) => new DocxParseError(m),
+): Promise<string> {
+  return ooxmlReadCapped(f, cap, partName, makeError);
 }
 
 export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {

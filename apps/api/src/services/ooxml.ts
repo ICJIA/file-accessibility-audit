@@ -241,12 +241,15 @@ export function contrastRatio(fg: string, bg: string): number {
  *
  * `makeError` supplies the per-format error type (DocxParseError,
  * PptxParseError, XlsxParseError) so route-level error mapping keeps working.
+ * Optional — callers that don't need a specific error subclass (or that
+ * discard the error entirely, like analyzer.ts's format-detection probe) can
+ * omit it and get a plain Error.
  */
 export function readCapped(
   f: JSZip.JSZipObject,
   cap: number,
   partName: string,
-  makeError: (message: string) => Error,
+  makeError: (message: string) => Error = (m) => new Error(m),
 ): Promise<string> {
   const declared =
     (f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0;
