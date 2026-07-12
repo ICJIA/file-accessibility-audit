@@ -154,104 +154,7 @@
             <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wide font-medium">
               Download Report
             </p>
-            <div class="flex flex-wrap justify-center gap-3">
-              <button
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
-                @click="downloadDocx"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-                  />
-                </svg>
-                Text
-              </button>
-              <button
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
-                @click="downloadMarkdown"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-                  />
-                </svg>
-                Markdown
-              </button>
-              <button
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
-                @click="downloadJson"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-                  />
-                </svg>
-                JSON
-              </button>
-              <button
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
-                @click="downloadHtml"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-                  />
-                </svg>
-                HTML
-              </button>
-              <button
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-input)] bg-[var(--surface-body)] text-sm text-[var(--text-muted)] hover:bg-[rgba(34,197,94,0.15)] hover:text-[var(--accent-green)] hover:border-[rgba(34,197,94,0.3)] transition-colors"
-                title="Opens the browser print dialog — pick 'Save as PDF' as the destination."
-                @click="downloadPdf"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z"
-                  />
-                </svg>
-                PDF
-              </button>
-            </div>
+            <ReportDownloadBar :result="(data as any).report" variant="compact" />
             <p class="text-xs text-[var(--text-muted)]">
               Text, HTML, and Markdown for reading; PDF via your browser's print dialog; JSON for
               LLMs.
@@ -305,6 +208,7 @@ import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
+import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 
 definePageMeta({ layout: false });
@@ -344,39 +248,6 @@ interface SharedReportResponse {
 }
 
 const { data, pending, error } = await useFetch<SharedReportResponse>(`/api/reports/${id}`);
-
-const { exportJSON, exportMarkdown, exportText, exportHtml, exportPdfViaBrowserPrint } =
-  useReportExport();
-
-function downloadJson() {
-  if (data.value) {
-    exportJSON((data.value as any).report);
-  }
-}
-
-function downloadMarkdown() {
-  if (data.value) {
-    exportMarkdown((data.value as any).report);
-  }
-}
-
-function downloadDocx() {
-  if (data.value) {
-    exportText((data.value as any).report);
-  }
-}
-
-function downloadHtml() {
-  if (data.value) {
-    exportHtml((data.value as any).report);
-  }
-}
-
-function downloadPdf() {
-  if (data.value) {
-    exportPdfViaBrowserPrint((data.value as any).report);
-  }
-}
 
 const errorMessage = computed(() => {
   if (!error.value) return "";

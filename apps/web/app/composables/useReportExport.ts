@@ -27,7 +27,10 @@ interface Category {
   notAssessed?: boolean;
 }
 
-interface ReportResult {
+// Exported so components that merely pass a report through to the export
+// functions (e.g. ReportDownloadBar.vue) can type their `result` prop
+// genuinely instead of with `any`.
+export interface ReportResult {
   filename: string;
   pageCount: number;
   overallScore: number;
