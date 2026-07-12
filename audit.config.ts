@@ -210,6 +210,40 @@ export const DEPLOY = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// PUBLIST (CLI publication-list audit)
+// ---------------------------------------------------------------------------
+// Settings for `a11y-audit publist` (apps/cli/src/commands/publist.ts and
+// apps/cli/src/lib/graphql.ts), which fetches ICJIA's publication list over
+// GraphQL, audits each file, and copies the generated HTML report into the
+// web app's public/ directory so it's servable at /publist.
+//
+// SAFE TO CHANGE: Yes for all three values — none are scoring- or security-
+// sensitive. Update GRAPHQL_ENDPOINT if the agency API moves; update
+// WEB_PUBLIC_DIR if apps/cli or apps/web ever change location relative to
+// each other.
+// ---------------------------------------------------------------------------
+
+export const PUBLIST = {
+  /** ICJIA publications GraphQL API endpoint, queried by fetchPublications(). */
+  GRAPHQL_ENDPOINT: "https://agency.icjia-api.cloud/graphql",
+
+  /**
+   * Publications fetched per GraphQL page. fetchPublications() pages through
+   * the full result set, stopping once a page returns fewer than this many
+   * rows.
+   */
+  PAGE_SIZE: 500,
+
+  /**
+   * Path to apps/web/public, relative to apps/cli/ (where publist's output
+   * CSV/HTML files are written). Used to copy the generated publist.html
+   * report so it's servable at /publist. Non-fatal if the path doesn't
+   * resolve (e.g. a checkout without apps/web present).
+   */
+  WEB_PUBLIC_DIR: "../web/public",
+} as const;
+
+// ---------------------------------------------------------------------------
 // EMAIL PROVIDER
 // ---------------------------------------------------------------------------
 // Controls which SMTP relay is used for OTP delivery. Credentials (user,

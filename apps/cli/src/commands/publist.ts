@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
 import { analyzeDocument } from '../../../api/src/services/analyzer.js'
-import { ANALYSIS } from '#config'
+import { ANALYSIS, PUBLIST } from '#config'
 import { fetchPublications, loadPublicationsFromFile } from '../lib/graphql.js'
 import { initCache, getCached, upsertResult, upsertError, getAllSuccessful, getErrorCount, clearCache, backfillMetadata } from '../lib/cache.js'
 import { generateCsv } from '../lib/csv.js'
@@ -326,7 +326,7 @@ export async function runPublist(argv: string[]): Promise<void> {
   writeFileSync(reportHtmlPath, html)
 
   // Copy HTML report to web public directory for /publist access
-  const publicDir = resolve(dirname(outputPath), '..', 'web', 'public')
+  const publicDir = resolve(dirname(outputPath), PUBLIST.WEB_PUBLIC_DIR)
   const publicHtmlPath = join(publicDir, 'publist.html')
   let publicCopied = false
   try {

@@ -1,7 +1,5 @@
 import { readFileSync } from 'node:fs'
-
-const GRAPHQL_URL = 'https://agency.icjia-api.cloud/graphql'
-const PAGE_SIZE = 500
+import { PUBLIST } from '#config'
 
 // Document types the accessibility scoring engine can audit end-to-end via
 // analyzeDocument's content-sniffing dispatcher (apps/api/src/services/
@@ -40,7 +38,7 @@ export async function fetchPublications(): Promise<Publication[]> {
 
   while (true) {
     const query = `query {
-      publications(limit: ${PAGE_SIZE}, start: ${offset}, sort: "published_at:desc") {
+      publications(limit: ${PUBLIST.PAGE_SIZE}, start: ${offset}, sort: "published_at:desc") {
         id
         title
         slug
@@ -52,7 +50,7 @@ export async function fetchPublications(): Promise<Publication[]> {
       }
     }`
 
-    const resp = await fetch(GRAPHQL_URL, {
+    const resp = await fetch(PUBLIST.GRAPHQL_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
@@ -72,8 +70,8 @@ export async function fetchPublications(): Promise<Publication[]> {
     const pubs = json.data?.publications ?? []
     all.push(...pubs)
 
-    if (pubs.length < PAGE_SIZE) break
-    offset += PAGE_SIZE
+    if (pubs.length < PUBLIST.PAGE_SIZE) break
+    offset += PUBLIST.PAGE_SIZE
   }
 
   // Dedup by id
