@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { PUBLIST } from "#config";
 
 // Document types the accessibility scoring engine can audit end-to-end via
-// analyzeDocument's content-sniffing dispatcher (apps/api/src/services/
+// analyzeDocument's content-sniffing dispatcher (@file-audit/analyzer's
 // analyzer.ts) — the same four-extension allowlist apps/cli/src/commands/
 // audit.ts applies to direct file arguments. The ICJIA publications API has
 // historically returned only PDFs in practice, but a publication's fileURL

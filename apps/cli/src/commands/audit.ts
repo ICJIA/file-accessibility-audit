@@ -1,7 +1,6 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { analyzeDocument } from "../../../api/src/services/analyzer.js";
-import type { AnalysisResult } from "../../../api/src/services/pdfAnalyzer.js";
+import { analyzeDocument, type AnalysisResult } from "@file-audit/analyzer";
 import {
   RESET,
   BOLD,

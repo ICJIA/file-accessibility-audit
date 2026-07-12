@@ -6,17 +6,15 @@ import { createRequire } from "node:module";
 // commands/audit.ts, never matching the real published version).
 //
 // Uses createRequire + a JSON require (rather than an ESM `with { type:
-// "json" }` import) so this resolves identically under `tsx src/index.ts`
-// (dev / `pnpm a11y-audit`) and inside the tsup-bundled dist/index.js
-// (`pnpm --filter @icjia/a11y-audit build` / `start`).
+// "json" }` import) so the version resolves cleanly under `tsx src/index.ts`
+// (dev / `pnpm a11y-audit`) — the CLI runs via tsx everywhere, with no
+// compile or bundle step.
 //
 // The relative path below assumes this file lives directly in src/ (one
-// level below apps/cli/) — the same depth tsup's single-file ESM bundle
-// (dist/index.js) ends up at, since import.meta.url for every module
-// inlined into that bundle resolves to the bundle's own file location, not
-// this file's original source path. Moving this file into a subdirectory
-// (e.g. src/lib/) would silently break the bundled build by changing that
-// depth — keep it here, at the src/ root, next to index.ts.
+// level below apps/cli/), so `../package.json` is apps/cli/package.json.
+// Moving this file into a subdirectory (e.g. src/lib/) would change that
+// depth and read the wrong file — keep it here, at the src/ root, next to
+// index.ts.
 const require = createRequire(import.meta.url);
 const pkg = require("../package.json") as { version: string };
 

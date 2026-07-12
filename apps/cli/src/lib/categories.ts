@@ -13,7 +13,7 @@
  * to be added ONCE.
  *
  * Ids/labels mirror the format-specific category builders in
- * apps/api/src/services/scorer.ts (buildCategories / buildDocxCategories /
+ * @file-audit/analyzer's scorer.ts (buildCategories / buildDocxCategories /
  * buildPptxCategories / buildXlsxCategories).
  */
 export const CATEGORY_IDS = [

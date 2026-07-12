@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import type { AnalysisResult } from "../../../api/src/services/pdfAnalyzer.js";
+import type { AnalysisResult } from "@file-audit/analyzer";
 import type { Publication } from "./graphql.js";
 import { CATEGORY_IDS } from "./categories.js";
 

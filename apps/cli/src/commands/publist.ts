@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
-import { analyzeDocument } from "../../../api/src/services/analyzer.js";
+import { analyzeDocument } from "@file-audit/analyzer";
 import { ANALYSIS, PUBLIST } from "#config";
 import { fetchPublications, loadPublicationsFromFile } from "../lib/graphql.js";
 import {
