@@ -19,12 +19,14 @@ process.env.DB_PATH = join(tmpDir, "test.db");
 let jobs: typeof import("../services/remediationJobs.js");
 let events: typeof import("../services/remediationEvents.js");
 let cleanup: typeof import("../services/remediationCleanup.js");
+let jtis: typeof import("../services/jtiDenylist.js");
 let db: (typeof import("../db/sqlite.js"))["default"];
 
 beforeAll(async () => {
   jobs = await import("../services/remediationJobs.js");
   events = await import("../services/remediationEvents.js");
   cleanup = await import("../services/remediationCleanup.js");
+  jtis = await import("../services/jtiDenylist.js");
   db = (await import("../db/sqlite.js")).default;
 });
 
@@ -136,5 +138,27 @@ describe("remediationCleanup.runCleanup", () => {
     // pair must not throw or leave a live timer behind.
     cleanup.startCleanupInterval();
     cleanup.stopCleanupInterval();
+  });
+
+  it("purges expired revoked_jtis rows (C4 JWT denylist), leaving active ones, and reports the count", async () => {
+    // Inserted directly (not via jtis.revokeJti, which itself opportunistically
+    // purges expired rows on every call — that would immediately erase the
+    // "expired" fixture row before the cleanup sweep ever got to see it).
+    const expired = "cleanup-sweep-expired-jti";
+    const active = "cleanup-sweep-active-jti";
+    db.prepare("INSERT INTO revoked_jtis (jti, expires_at) VALUES (?, ?)").run(
+      expired,
+      Date.now() - 5000,
+    );
+    db.prepare("INSERT INTO revoked_jtis (jti, expires_at) VALUES (?, ?)").run(
+      active,
+      Date.now() + 60 * 60_000,
+    );
+
+    const result = await cleanup.runCleanup();
+
+    expect(result.purgedJtis).toBeGreaterThanOrEqual(1);
+    expect(jtis.isJtiRevoked(expired)).toBe(false);
+    expect(jtis.isJtiRevoked(active)).toBe(true);
   });
 });

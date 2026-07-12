@@ -6,6 +6,7 @@ import db from "../db/sqlite.js";
 import { sendOTP } from "../mailer.js";
 import { authRequestLimiter, authVerifyLimiter } from "../middleware/rateLimiter.js";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
+import { revokeJti } from "../services/jtiDenylist.js";
 import { AUTH } from "#config";
 
 const router: IRouter = Router();
@@ -159,11 +160,14 @@ router.post("/verify", authVerifyLimiter, async (req: Request, res: Response) =>
     // OTP is valid — delete it
     db.prepare("DELETE FROM otp_codes WHERE id = ?").run(row.id);
 
-    // Issue JWT
+    // Issue JWT. jwtid (the standard `jti` claim) gives logout something to
+    // revoke server-side (see jtiDenylist.ts) — a stateless JWT otherwise
+    // has no way to be invalidated before its own expiry.
     const expiryHours = Number(process.env.JWT_EXPIRY_HOURS) || AUTH.JWT_EXPIRY_HOURS;
     const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, {
       algorithm: "HS256",
       expiresIn: `${expiryHours}h`,
+      jwtid: crypto.randomUUID(),
     });
 
     // Set cookie
@@ -188,6 +192,13 @@ router.post("/verify", authVerifyLimiter, async (req: Request, res: Response) =>
 router.post("/logout", authMiddleware, (req: AuthRequest, res: Response) => {
   if (req.user) {
     logEvent("logout", req.user.email, req);
+    // C4: server-side revocation. Only a session (JWT) login carries a jti;
+    // a legacy token minted before this feature existed has none, and a PAT
+    // (authMethod 'pat') is revoked via access_tokens.revoked_at instead —
+    // both correctly leave nothing to do here.
+    if (req.user.jti && req.user.exp) {
+      revokeJti(req.user.jti, req.user.exp * 1000);
+    }
   }
 
   res.clearCookie("token", {

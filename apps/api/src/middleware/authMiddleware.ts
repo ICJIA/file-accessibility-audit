@@ -3,9 +3,23 @@ import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { AUTH } from "#config";
 import db from "../db/sqlite.js";
+import { isJtiRevoked } from "../services/jtiDenylist.js";
 
 export interface AuthRequest extends Request {
-  user?: { email: string; authMethod?: "session" | "pat"; tokenId?: string };
+  user?: {
+    email: string;
+    authMethod?: "session" | "pat";
+    tokenId?: string;
+    /** Session (JWT) tokens only — the token's jti claim, if present. Absent
+     *  for tokens signed before C4 (server-side JWT revocation) existed, and
+     *  always absent for PAT auth (access_tokens has its own revoked_at
+     *  column instead). */
+    jti?: string;
+    /** Session (JWT) tokens only — the token's exp claim (seconds since
+     *  epoch, per the JWT spec), carried through so routes/auth.ts's logout
+     *  handler can revoke this exact token without re-verifying it. */
+    exp?: number;
+  };
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-do-not-use-in-production";
@@ -65,9 +79,24 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   try {
     const payload = jwt.verify(token, JWT_SECRET, {
       algorithms: ["HS256"],
-    }) as { email: string };
+    }) as { email: string; jti?: string; exp?: number };
 
-    req.user = { email: payload.email, authMethod: "session" };
+    // C4: server-side JWT revocation. Only checked when the token actually
+    // carries a jti — tokens signed before this feature existed have none
+    // and stay valid until their own expiry, exactly as before. Uses the
+    // SAME error message as an expired/invalid token so a revoked session
+    // is indistinguishable from ordinary expiry to the client.
+    if (payload.jti && isJtiRevoked(payload.jti)) {
+      res.status(401).json({ error: "Your session has expired — please log in again" });
+      return;
+    }
+
+    req.user = {
+      email: payload.email,
+      authMethod: "session",
+      jti: payload.jti,
+      exp: payload.exp,
+    };
     next();
   } catch {
     res.status(401).json({ error: "Your session has expired — please log in again" });

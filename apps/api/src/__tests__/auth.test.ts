@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import type { Response, NextFunction } from "express";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // Force auth-enabled mode for these tests
 vi.mock("#config", async (importOriginal) => {
@@ -8,8 +12,18 @@ vi.mock("#config", async (importOriginal) => {
   return { ...actual, AUTH: { ...actual.AUTH, REQUIRE_LOGIN: true } };
 });
 
+// C4: authMiddleware's session branch now checks the jti denylist (a real
+// SQLite query), so — like remediationJobs.test.ts / migrations.test.ts —
+// DB_PATH must point at an isolated temp file BEFORE the dynamic import
+// below triggers db/sqlite.js's module-load side effects. Previously this
+// file never actually touched the db (the cookie/JWT branch had no db
+// access at all), so this wasn't needed until now.
+const tmpDir = mkdtempSync(join(tmpdir(), "auth-test-"));
+process.env.DB_PATH = join(tmpDir, "test.db");
+
 const { authMiddleware, adminMiddleware } = await import("../middleware/authMiddleware.js");
 import type { AuthRequest } from "../middleware/authMiddleware.js";
+const { revokeJti, isJtiRevoked } = await import("../services/jtiDenylist.js");
 
 // ---------------------------------------------------------------------------
 // Helpers: mock Express req / res / next
@@ -162,6 +176,197 @@ describe("authMiddleware", () => {
     authMiddleware(req, res, next);
 
     expect(req.user!.email).toBe("admin@icjia.illinois.gov");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// authMiddleware: jti denylist (C4 — server-side JWT revocation on logout)
+// ---------------------------------------------------------------------------
+
+describe("authMiddleware: jti denylist", () => {
+  it("accepts a token carrying a jti that has NOT been revoked, and surfaces jti/exp on req.user", () => {
+    const jti = "not-revoked-jti";
+    const token = jwt.sign({ email: "user@illinois.gov" }, JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "1h",
+      jwtid: jti,
+    });
+    const req = makeReq({ cookies: { token } });
+    const res = makeRes();
+    const next = makeNext();
+
+    authMiddleware(req, res, next);
+
+    expect(next.called).toBe(true);
+    expect(req.user!.jti).toBe(jti);
+    expect(typeof req.user!.exp).toBe("number");
+  });
+
+  it("rejects (401) a token whose jti has been revoked, even though the signature and exp are otherwise valid", () => {
+    const jti = "revoked-jti";
+    const token = jwt.sign({ email: "user@illinois.gov" }, JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "1h",
+      jwtid: jti,
+    });
+    revokeJti(jti, Date.now() + 60 * 60_000);
+
+    const req = makeReq({ cookies: { token } });
+    const res = makeRes();
+    const next = makeNext();
+
+    authMiddleware(req, res, next);
+
+    expect((res as any)._status).toBe(401);
+    expect(next.called).toBe(false);
+  });
+
+  it("a token with NO jti at all (legacy, signed before this feature existed) is still accepted until its own expiry", () => {
+    // No `jwtid` option — mirrors every token minted before C4.
+    const token = jwt.sign({ email: "user@illinois.gov" }, JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "1h",
+    });
+    const req = makeReq({ cookies: { token } });
+    const res = makeRes();
+    const next = makeNext();
+
+    authMiddleware(req, res, next);
+
+    expect(next.called).toBe(true);
+    expect(req.user!.jti).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// /verify and /logout routes: jti is minted at login and revoked at logout
+// (C4). The route module is imported for real (not reimplemented) via
+// extractHandler, the same pattern audit-url.test.ts / audit-url-page.test.ts
+// use to invoke a real Express route handler without supertest or a running
+// server: a router.post(path, ...middleware, handler) registration stores
+// each function as a Layer in `.stack`; the LAST layer of the matching
+// route is the async handler itself (rate limiters / authMiddleware — the
+// earlier layers — are never invoked, so they need no mocking here).
+// ---------------------------------------------------------------------------
+
+function extractHandler(router: unknown, path: string): (req: any, res: any) => Promise<void> {
+  const stack = (router as { stack: any[] }).stack;
+  const layer = stack.find((l) => l.route?.path === path);
+  if (!layer) throw new Error(`extractHandler: no route registered for ${path}`);
+  const routeStack = layer.route.stack;
+  return routeStack[routeStack.length - 1].handle;
+}
+
+function makeRouteRes() {
+  const res: any = {
+    _status: 200,
+    _json: null as any,
+    _cookies: {} as Record<string, { value: string; options: unknown }>,
+    _clearedCookies: [] as string[],
+    status(code: number) {
+      res._status = code;
+      return res;
+    },
+    json(body: any) {
+      res._json = body;
+      return res;
+    },
+    cookie(name: string, value: string, options: unknown) {
+      res._cookies[name] = { value, options };
+      return res;
+    },
+    clearCookie(name: string) {
+      res._clearedCookies.push(name);
+      return res;
+    },
+  };
+  return res;
+}
+
+describe("POST /verify: issues a JWT containing a jti", () => {
+  it("a successful OTP verify sets a session cookie whose JWT carries a jti claim", async () => {
+    const db = (await import("../db/sqlite.js")).default;
+    const router = (await import("../routes/auth.js")).default;
+    const handler = extractHandler(router, "/verify");
+
+    const email = "verify-jti@illinois.gov";
+    const otp = "123456";
+    const otpHash = await bcrypt.hash(otp, 10);
+    db.prepare(
+      "INSERT INTO otp_codes (email, otp_hash, attempts, expires_at) VALUES (?, ?, 0, datetime('now', '+10 minutes'))",
+    ).run(email, otpHash);
+
+    const req = { body: { email, otp }, ip: "203.0.113.5", get: vi.fn(() => undefined) };
+    const res = makeRouteRes();
+
+    await handler(req, res);
+
+    expect(res._json).toEqual({ ok: true });
+    const cookie = res._cookies.token;
+    expect(cookie).toBeDefined();
+    const decoded = jwt.verify(cookie.value, JWT_SECRET, { algorithms: ["HS256"] }) as {
+      email: string;
+      jti?: string;
+    };
+    expect(decoded.email).toBe(email);
+    expect(typeof decoded.jti).toBe("string");
+    expect(decoded.jti!.length).toBeGreaterThan(0);
+  });
+});
+
+describe("POST /logout: revokes the session's jti", () => {
+  it("logout inserts the session jti into the denylist; a subsequent request with that token is then rejected (401)", async () => {
+    const router = (await import("../routes/auth.js")).default;
+    const handler = extractHandler(router, "/logout");
+
+    const jti = "logout-flow-jti";
+    const token = jwt.sign({ email: "logout@illinois.gov" }, JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "1h",
+      jwtid: jti,
+    });
+    // Simulate what authMiddleware would have already set on req.user by
+    // the time the logout handler runs (authMiddleware itself is an
+    // earlier layer in the SAME route registration and is not re-invoked
+    // by extractHandler — see the file-level comment above).
+    const decoded = jwt.decode(token) as { email: string; jti: string; exp: number };
+    const req = {
+      user: { email: decoded.email, jti: decoded.jti, exp: decoded.exp, authMethod: "session" },
+      ip: "203.0.113.5",
+      get: vi.fn(() => undefined),
+    };
+    const res = makeRouteRes();
+
+    expect(isJtiRevoked(jti)).toBe(false);
+
+    handler(req, res);
+
+    expect(res._json).toEqual({ ok: true });
+    expect(res._clearedCookies).toContain("token");
+    expect(isJtiRevoked(jti)).toBe(true);
+
+    // And the same token is now rejected by authMiddleware.
+    const req2 = makeReq({ cookies: { token } });
+    const res2 = makeRes();
+    const next2 = makeNext();
+    authMiddleware(req2, res2, next2);
+    expect((res2 as any)._status).toBe(401);
+    expect(next2.called).toBe(false);
+  });
+
+  it("logout is a no-op on the denylist for a legacy session with no jti (nothing to revoke)", async () => {
+    const router = (await import("../routes/auth.js")).default;
+    const handler = extractHandler(router, "/logout");
+
+    const req = {
+      user: { email: "legacy@illinois.gov", authMethod: "session" },
+      ip: "203.0.113.5",
+      get: vi.fn(() => undefined),
+    };
+    const res = makeRouteRes();
+
+    expect(() => handler(req, res)).not.toThrow();
+    expect(res._json).toEqual({ ok: true });
   });
 });
 

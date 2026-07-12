@@ -258,6 +258,27 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    version: 10,
+    // C4: server-side JWT revocation. Logout writes the session token's jti
+    // here (with the token's own exp as expires_at, ms epoch) so
+    // authMiddleware can reject a presented token whose jti is in this
+    // table even though the JWT signature/exp are otherwise still valid.
+    // Legacy tokens signed before this feature existed carry no jti at all
+    // and are never looked up here (see authMiddleware.ts). Never contains
+    // anything sensitive — just an opaque UUID and a timestamp.
+    name: "revoked_jtis table (JWT jti denylist for server-side logout revocation)",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS revoked_jtis (
+          jti TEXT PRIMARY KEY,
+          expires_at INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_revoked_jtis_expires ON revoked_jtis(expires_at);
+      `);
+    },
+  },
 ];
 
 /**
@@ -270,7 +291,7 @@ export const MIGRATIONS: Migration[] = [
  * migration creating a brand-new table) on a legacy database, since they'd
  * never run and never get the chance to create what they're supposed to.
  */
-const LEGACY_BASELINE_VERSION = 9;
+export const LEGACY_BASELINE_VERSION = 9;
 
 /**
  * True if every column migrations 2..LEGACY_BASELINE_VERSION would add is

@@ -1,6 +1,6 @@
 /**
  * Cleanup sweep for the remediation feature. Runs on API startup and
- * on a configured interval. Does five things, in order:
+ * on a configured interval. Does seven things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
  *      record verified_absent for the auditor).
@@ -8,6 +8,13 @@
  *   3. Delete orphan directories (no matching DB row).
  *   4. Purge job rows past JOB_ROW_RETENTION_DAYS (terminal states only).
  *   5. Purge event rows past EVENT_LOG_RETENTION_DAYS.
+ *   6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS.
+ *   7. Purge expired revoked_jtis rows (C4 JWT revocation denylist) — not
+ *      remediation-specific, but this sweep already runs on every boot and
+ *      (when REMEDIATION.ENABLED) on an interval, so it's a convenient
+ *      shared home rather than a second timer. Also purged opportunistically
+ *      on every logout (see auth.ts / jtiDenylist.ts), so this is a
+ *      backstop for a server with few logouts.
  *
  * Each step is idempotent. Failures in one step do not block later
  * steps. Returns a structured result so callers (and the CLI entry
@@ -19,6 +26,7 @@ import db from "../db/sqlite.js";
 import { REMEDIATION, SHARED_REPORTS } from "#config";
 import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
 import { setExpired, setFailed } from "./remediationJobs.js";
+import { purgeExpiredJtis } from "./jtiDenylist.js";
 
 const STUCK_RUNNING_MS = 10 * 60_000;
 
@@ -63,6 +71,8 @@ export interface CleanupResult {
   purgedEvents: number;
   /** v1.20.1+: audit_log rows purged past AUDIT_LOG_RETENTION_DAYS. */
   purgedAuditLog: number;
+  /** C4: revoked_jtis rows purged past their own expiry. */
+  purgedJtis: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -75,6 +85,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     purgedJobs: 0,
     purgedEvents: 0,
     purgedAuditLog: 0,
+    purgedJtis: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -203,6 +214,16 @@ export async function runCleanup(): Promise<CleanupResult> {
   } catch (e) {
     result.errors.push({
       step: "purge_audit_log",
+      message: (e as Error).message,
+    });
+  }
+
+  /* 7. Purge expired revoked_jtis rows (C4). */
+  try {
+    result.purgedJtis = purgeExpiredJtis();
+  } catch (e) {
+    result.errors.push({
+      step: "purge_jtis",
       message: (e as Error).message,
     });
   }

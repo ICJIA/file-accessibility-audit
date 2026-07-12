@@ -18,6 +18,7 @@ import { describe, it, expect } from "vitest";
 import Database from "better-sqlite3";
 import {
   MIGRATIONS,
+  LEGACY_BASELINE_VERSION,
   runMigrations,
   runMigrationList,
   runMigrationsWith,
@@ -59,9 +60,11 @@ describe("runMigrations: fresh database", () => {
       "access_tokens",
       "remediation_jobs",
       "remediation_events",
+      "revoked_jtis",
     ]) {
       expect(tableExists(db, table)).toBe(true);
     }
+    expect(hasColumn(db, "revoked_jtis", "expires_at")).toBe(true);
 
     // Every backfilled column is present too — migration 1's baseline
     // already declares these, and migrations 2+ must not choke on that.
@@ -319,11 +322,16 @@ describe("runMigrations: legacy pre-migration-runner database (number-one requir
 describe("LEGACY_BASELINE_VERSION regression guard", () => {
   // isLegacyFullyProvisioned's column probe corresponds EXACTLY to
   // migrations 2..9 (the original inline ALTER blocks) — it must be a fixed
-  // historical constant, never bumped when a new migration is appended
-  // (see migrations.ts's doc comment). This test fails loudly if a future
-  // change accidentally widens the legacy fast-forward target past what the
-  // probe actually checks for.
-  it("MIGRATIONS currently has exactly 9 entries, matching the documented legacy baseline", () => {
-    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  // historical constant, never bumped when a new migration is appended (see
+  // migrations.ts's doc comment). Pinned directly (not derived from
+  // MIGRATIONS.length) so appending migration 10+ never requires touching
+  // this test — if it DID need touching, that would itself be a sign
+  // someone bumped the constant instead of leaving it fixed.
+  it("is fixed at 9 regardless of how many migrations now exist", () => {
+    expect(LEGACY_BASELINE_VERSION).toBe(9);
+  });
+
+  it("MIGRATIONS never shrinks below the legacy baseline", () => {
+    expect(MIGRATIONS.length).toBeGreaterThanOrEqual(LEGACY_BASELINE_VERSION);
   });
 });
