@@ -122,7 +122,26 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   })
 })
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[API] Running on http://localhost:${PORT}`)
   console.log(`[API] Environment: ${process.env.NODE_ENV || 'development'}`)
+})
+
+// Process-level safety nets. Without these, an unhandled rejection anywhere
+// in the process (a stray promise in a route handler, a background job, a
+// dependency) crashes the process with Node's default handler — or, worse,
+// is silently swallowed depending on Node version/flags — with no
+// application-level log line. A genuinely uncaught exception means the
+// process is in an unknown state, so that case fails fast instead: stop
+// accepting new connections, let in-flight responses drain, then exit. The
+// timer guarantees the process still exits even if `server.close()`'s
+// callback never fires (e.g. a connection that never ends).
+process.on('unhandledRejection', (reason) => {
+  console.error('[API] Unhandled rejection:', reason)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[API] Uncaught exception:', err)
+  process.exitCode = 1
+  server.close(() => process.exit(1))
+  setTimeout(() => process.exit(1), 5000).unref()
 })
