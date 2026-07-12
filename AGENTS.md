@@ -31,9 +31,9 @@ Repo: <https://github.com/ICJIA/file-accessibility-audit>
   `tsconfig.json` has `noEmit: true`). Port **5103**.
 - **Frontend:** Nuxt **4.x** (not Nuxt 3) + Nuxt UI **4.x** (not v3).
   Port **5102**. Vue 3.5+.
-- **DB:** `better-sqlite3` with WAL mode. Schema defined inline in
-  `apps/api/src/db/sqlite.ts`. Migrations are ALTER TABLE probes (no
-  migrations framework).
+- **DB:** `better-sqlite3` with WAL mode. Baseline schema + numbered
+  migrations live in `apps/api/src/db/migrations.ts`, keyed on
+  `PRAGMA user_version`; `sqlite.ts` just calls `runMigrations(db)`.
 - **Auth:** Optional. `AUTH.REQUIRE_LOGIN` in `audit.config.ts`. When
   on: OTP email codes (Mailgun default) plus Personal Access Tokens
   for headless / API automation. When off: anonymous-friendly.
@@ -88,8 +88,14 @@ re-learn them.
   will not catch `tsc --noEmit` errors. The build is split:
     `pnpm --filter api build`  → `tsc --noEmit` (typecheck only)
     `pnpm --filter web build`  → full `nuxt build`
-- A clean `pnpm --filter api test` is also helpful — currently 816
+- A clean `pnpm --filter api test` is also helpful — currently 876
   tests, all under `apps/api/src/__tests__`.
+- **New since the 2026-07 tooling pass:** `pnpm lint` (ESLint, whole
+  repo) and `pnpm typecheck` (`apps/api` `tsc --noEmit` + `apps/web`
+  `nuxt typecheck`) are both real scripts now, and CI
+  (`.github/workflows/ci.yml`) runs lint → typecheck → build → test
+  on every push/PR to `main`. Run `pnpm lint` and `pnpm typecheck`
+  locally before pushing, same as `pnpm build`.
 
 ### Path aliases
 
@@ -101,20 +107,31 @@ re-learn them.
 
 ### Database migrations
 
-There is no migrations framework. Schema changes follow the existing
-**ALTER TABLE probe** pattern in `apps/api/src/db/sqlite.ts`:
+Schema changes are numbered migrations in `apps/api/src/db/migrations.ts`
+(the `MIGRATIONS` array), keyed on `PRAGMA user_version` — not ad hoc
+edits to `sqlite.ts`. To add one: append a new `{ version, name, up(db) }`
+entry with the next integer version. Inside `up()`, keep the same
+**probe-before-ALTER** guard the pre-migration-runner code used (belt
+and braces alongside the version tracking — SQLite still throws if you
+`ALTER TABLE ADD COLUMN` a column that already exists):
 
 ```ts
-const cols = db.prepare("PRAGMA table_info(your_table)").all()
-if (cols.length > 0 && !cols.some(c => c.name === 'new_column')) {
-  db.exec('ALTER TABLE your_table ADD COLUMN new_column TEXT')
+if (!hasColumn(db, "your_table", "new_column")) {
+  db.exec("ALTER TABLE your_table ADD COLUMN new_column TEXT");
 }
 ```
 
-Also add the column to the `CREATE TABLE IF NOT EXISTS` block so fresh
-installs include it. Move any `CREATE INDEX` referencing the new
-column **out** of the initial CREATE block — existing tables won't
-have the column yet when the initial block runs.
+A brand-new table can just go in a `CREATE TABLE IF NOT EXISTS` block
+inside its migration's `up()`. `runMigrations(db)` (called once from
+`sqlite.ts` at startup) runs every migration whose version is greater
+than the database's current `user_version`, each in its own
+transaction, and bumps `user_version` immediately after — safe to call
+on a fresh database, a partially-migrated one, or the existing
+production database (a dedicated legacy-fast-forward path detects an
+already-provisioned pre-migration-runner database and jumps straight
+to the correct baseline without re-running any `ALTER`). Never bump
+`LEGACY_BASELINE_VERSION` when adding a new migration — it's a fixed
+historical constant, not "the latest version."
 
 ### `audit.config.ts` is the single source of truth
 
@@ -167,11 +184,15 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── api/
 │   │   └── src/
 │   │       ├── routes/       Express route handlers
-│   │       ├── services/     business logic (pdfAnalyzer, scorer, etc.)
-│   │       ├── db/sqlite.ts  schema + ALTER TABLE backfills
+│   │       ├── services/     api-only business logic (auth, mailer,
+│   │       │                 remediation, safeFetch/urlPolicy) plus
+│   │       │                 thin re-export shims to @file-audit/analyzer
+│   │       │                 for pdfAnalyzer/scorer/ooxml/etc.
+│   │       ├── db/sqlite.ts  schema + numbered migrations (db/migrations.ts,
+│   │       │                 PRAGMA user_version — see below)
 │   │       ├── middleware/   auth, rate limiting, upload
 │   │       ├── jobs/         remediation worker (detached child process)
-│   │       └── __tests__/    vitest, 816 tests
+│   │       └── __tests__/    vitest, 876 tests
 │   │
 │   ├── web/                  Nuxt 4 frontend
 │   │   ├── nuxt.config.ts    runtimeConfig + global head config
@@ -181,15 +202,26 @@ releases (write a short "no new findings; release covered X" entry).
 │   │       ├── composables/
 │   │       └── utils/
 │   │
-│   └── cli/                  the @icjia/filecap-cli alternative client
+│   └── cli/                  the @icjia/a11y-audit alternative client
+│                              (depends on @file-audit/analyzer directly)
+│
+├── packages/
+│   ├── analyzer/              @file-audit/analyzer — the audit engine
+│   │                           (extracted from apps/api/src/services/ in
+│   │                           v1.34.0); apps/api re-exports its old
+│   │                           service paths as shims, apps/cli imports
+│   │                           it directly
+│   └── shared/                @file-audit/shared — scoring constants +
+│                               report types shared by web/api/cli
 │
 ├── docs/
-│   ├── 00-master-design.md                single source of truth
-│   ├── pdf-remediation-integration-plan.md
-│   ├── fleet-inventory-reporting.md       fleet-tool integration brief
-│   ├── 06-smtp2go-integration.md
-│   ├── 07-mailgun-integration.md          default email provider
-│   └── …                                  numbered phase / topic docs
+│   ├── archive/00-master-design.md                single source of truth
+│   ├── archive/pdf-remediation-integration-plan.md
+│   ├── archive/fleet-inventory-reporting.md       fleet-tool integration brief
+│   ├── archive/06-smtp2go-integration.md
+│   ├── archive/07-mailgun-integration.md          default email provider
+│   └── (per-fix accuracy write-ups, e.g. table-and-heading-accuracy-fixes.md,
+│       live at the docs/ root — everything else historical is in archive/)
 │
 └── controls/                 fixture PDFs for scripts/verify-controls.ts
 ```
@@ -246,10 +278,15 @@ per-deployment via `ANALYZE_URL_ALLOWED_HOSTS` env var.
   array now, not an object. `apps/api/src/services/veraPdf.ts`
   handles both shapes. Don't "simplify" it unless you also update
   the version pin.
-- **The Word export is client-side.** Don't build a server-side
+- **Report exports (Text/HTML/Markdown/JSON) are client-side.** There
+  is no Word/.docx export (removed in v1.28.0 along with the `docx`
+  library) and no `file-saver` dependency (removed in the 2026-07
+  tooling pass — replaced by the native `downloadBlob` helper in
+  `apps/web/app/utils/download.ts`). Don't build a server-side
   exporter unless you have a specific reason. Mirror the existing
-  pattern in `apps/web/app/composables/useReportExport.ts` (uses the
-  `docx` library plus file-saver).
+  pattern in `apps/web/app/composables/useReportExport.ts`, which
+  orchestrates the pure builder functions in
+  `apps/web/app/utils/exportFormats/*.ts`.
 
 ---
 

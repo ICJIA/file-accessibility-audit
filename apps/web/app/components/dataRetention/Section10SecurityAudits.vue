@@ -68,6 +68,120 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.34.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.34.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-12</strong> · scope: five preventive hardening measures
+            covering file uploads, sign-out, and auto-remediation status pages, alongside an
+            internal code reorganization and a new automated test/quality pipeline.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This release adds five defensive improvements identified during a routine internal
+          review of the whole application.
+          <strong
+            >None of them close a hole that was ever actually used against the tool — think of it
+            as adding a second lock to a door that already had one, not replacing a broken
+            lock.</strong
+          >
+          The same review also reorganized how the audit engine's code is packaged internally (no
+          change to what it checks, how it scores, or what data it collects) and added an
+          automated pipeline that runs the full test suite, a code-style check, and a
+          type-correctness check against every proposed change before it can be merged — so future
+          changes are checked automatically going forward, not only when someone remembers to run
+          the tests by hand.
+        </p>
+
+        <h4 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+          What changed for an auditor reading this page
+        </h4>
+        <ul class="space-y-3 text-sm text-[var(--text-secondary)] mb-4">
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              Stricter limits on compressed Word, PowerPoint, and Excel files</strong
+            >
+            — These files are compressed bundles of smaller pieces. The tool now checks, before it
+            opens any of those pieces, how many there are and how large they would add up to be
+            once uncompressed, and refuses a bundle that crosses a safe ceiling. This closes a gap
+            the per-piece checks already in place (added when Word, PowerPoint, and Excel auditing
+            first shipped) didn't cover on their own: a bundle made of an extreme number of small
+            pieces, or one whose pieces add up to an extreme total.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              Refusal of a risky, never-legitimately-used document feature</strong
+            >
+            — Word, PowerPoint, and Excel files are built internally from a markup language that
+            has a handful of advanced features no ordinary document ever needs, but that a
+            booby-trapped file could misuse to make the reading process balloon in memory or reach
+            outside the file. The tool now recognizes this specific feature on sight and treats
+            that piece of the file as empty rather than processing it. Genuine Word, PowerPoint,
+            and Excel exports never use it, so no ordinary file is affected.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              Signing out now fully ends your session on the server, not just in your browser</strong
+            >
+            — Previously, clicking sign-out cleared your browser's copy of your sign-in
+            credential, but if a copy of that credential had ever been captured some other way, it
+            would technically have remained usable until it expired on its own. The server now
+            keeps a short record of every sign-out and immediately rejects that exact credential if
+            it is ever presented again, so sign-out is final the moment you click it. (Sessions
+            that began before this change shipped aren't covered by this new check, but they still
+            expire on their own normal schedule, same as always.)
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              Auto-remediation status pages now require your job's private link</strong
+            >
+            — When you start an auto-remediation job without signing in, checking that job's
+            progress or its completion receipt now requires the same private, single-use address
+            you were given when the job started. Anyone without it is told the job doesn't exist,
+            rather than being able to check on it by guessing or reusing an identifier.
+          </li>
+          <li>
+            <strong
+              ><span
+                class="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase bg-sky-700/30 text-sky-200 mr-2"
+                >Hardened</span
+              >
+              Safer, more reliable database upgrades</strong
+            >
+            — Every update to the tool that changes the internal database's structure is now
+            numbered and recorded, so the server always knows exactly which structural updates a
+            given installation has already received and applies only the ones it's missing, in
+            order, automatically — including on the existing production database. This replaces a
+            less formal check-before-change approach and removes a way a future update could have
+            been skipped or mistakenly reapplied.
+          </li>
+        </ul>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong>No change to what data is collected or how long it is kept.</strong>
+          Files are still processed in memory and discarded in seconds, exactly as before. The full
+          technical write-up is in the project's README security section.
+        </p>
+      </article>
+
       <!-- v1.33.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
