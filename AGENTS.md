@@ -88,7 +88,7 @@ re-learn them.
   will not catch `tsc --noEmit` errors. The build is split:
     `pnpm --filter api build`  → `tsc --noEmit` (typecheck only)
     `pnpm --filter web build`  → full `nuxt build`
-- A clean `pnpm --filter api test` is also helpful — currently 348+
+- A clean `pnpm --filter api test` is also helpful — currently 816
   tests, all under `apps/api/src/__tests__`.
 
 ### Path aliases
@@ -171,7 +171,7 @@ releases (write a short "no new findings; release covered X" entry).
 │   │       ├── db/sqlite.ts  schema + ALTER TABLE backfills
 │   │       ├── middleware/   auth, rate limiting, upload
 │   │       ├── jobs/         remediation worker (detached child process)
-│   │       └── __tests__/    vitest, 348+ tests
+│   │       └── __tests__/    vitest, 816 tests
 │   │
 │   ├── web/                  Nuxt 4 frontend
 │   │   ├── nuxt.config.ts    runtimeConfig + global head config
@@ -191,7 +191,7 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── 07-mailgun-integration.md          default email provider
 │   └── …                                  numbered phase / topic docs
 │
-└── controls/                 fixture PDFs for the spike / tests
+└── controls/                 fixture PDFs for scripts/verify-controls.ts
 ```
 
 ---

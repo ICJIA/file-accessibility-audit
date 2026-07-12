@@ -64,11 +64,11 @@ apps/api/data/remediation/
 .tmp-audit/
 
 # Local test documents dropped into controls/ are NOT committed.
-# The historically-tracked fixture PDFs referenced by apps/api/src/spike/*
-# and scripts/verify-controls.ts remain tracked (ignore rules don't untrack
-# already-committed files); any NEW file dropped here is ignored so it can't
-# be added by accident. Use `git add -f controls/<file>` to intentionally
-# commit a new fixture.
+# The historically-tracked fixture PDFs referenced by scripts/verify-
+# controls.ts remain tracked (ignore rules don't untrack already-committed
+# files); any NEW file dropped here is ignored so it can't be added by
+# accident. Use `git add -f controls/<file>` to intentionally commit a new
+# fixture.
 controls/
 
 # Claude Code personal settings (hooks, etc.)
