@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { generateHtml, isSafeHttpUrl } from '../lib/html.js'
 import type { CachedRow } from '../lib/cache.js'
+import { GRADE_COLORS } from '@file-audit/shared'
 
 // ---------------------------------------------------------------------------
 // F1 [MEDIUM]: publist "Download" link href scheme guard.
@@ -135,5 +136,27 @@ describe('publist HTML: Download link href scheme guard (F1)', () => {
   it('the sibling "View Full Analysis" link (auditLink, already-safe encodeURIComponent path) is untouched', () => {
     const html = generateHtml([baseRow()], new Date('2026-01-01'))
     expect(html).toContain("var link = r.u ? auditLink(r.u) : '';")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A6: the report's grade → hex color mapping used to be a hand-copied
+// literal in html.ts, independently duplicating packages/shared/src/
+// scoring.ts's GRADE_THRESHOLDS colors with no guard against the two
+// drifting apart. Pinning against the real GRADE_COLORS export (rather than
+// re-hardcoding the expected hex values here) is what actually prevents that
+// regression.
+// ---------------------------------------------------------------------------
+describe('publist HTML: grade palette sourced from @file-audit/shared (A6)', () => {
+  it('embeds the exact shared GRADE_COLORS mapping as the client-side GC constant', () => {
+    const html = generateHtml([baseRow()], new Date('2026-01-01'))
+    expect(html).toContain(`var GC = ${JSON.stringify(GRADE_COLORS)};`)
+  })
+
+  it('uses the shared color for each grade in the static summary cards and legend', () => {
+    const html = generateHtml([baseRow()], new Date('2026-01-01'))
+    for (const grade of ['A', 'B', 'C', 'D', 'F'] as const) {
+      expect(html).toContain(`style="color:${GRADE_COLORS[grade]}"`)
+    }
   })
 })

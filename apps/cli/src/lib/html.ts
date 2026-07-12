@@ -3,14 +3,12 @@ import type { CachedRow } from './cache.js'
 // categories.ts (previously imported from csv.js's own hand-synced copy).
 import { CATEGORY_IDS, CATEGORY_LABELS } from './categories.js'
 import { sortRowsDescending, auditToolLink, gradeDistribution, generateAssessment, splitByEra } from './csv.js'
-
-const GRADE_COLORS: Record<string, string> = {
-  A: '#22c55e',
-  B: '#14b8a6',
-  C: '#eab308',
-  D: '#f97316',
-  F: '#ef4444',
-}
+// A6: grade → hex color used to be a hand-copied literal, independently
+// duplicating packages/shared/src/scoring.ts's GRADE_THRESHOLDS colors (and
+// liable to drift from them, e.g. if a threshold color changed there but
+// not here). Sourced from the single shared definition instead. GRADE_BG
+// (background tints, below) has no shared equivalent — it stays local.
+import { GRADE_COLORS } from '@file-audit/shared'
 
 const GRADE_BG: Record<string, string> = {
   A: '#f0fdf4',
