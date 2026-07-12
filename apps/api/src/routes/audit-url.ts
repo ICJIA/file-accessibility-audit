@@ -2,19 +2,12 @@ import { Router, Response, type IRouter } from "express";
 import crypto from "node:crypto";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
-import { analyzeDocument, detectFileType } from "../services/analyzer.js";
+import { analyzeDocument } from "../services/analyzer.js";
 import { gateIdentity, recordAudit } from "../services/auditLog.js";
 import { DEPLOY, SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
-import {
-  FETCH_TIMEOUT_MS,
-  MAX_PDF_BYTES,
-  isAllowedUrl,
-  sendSafeFetchError,
-  validateUrlForFetch,
-  validateUrlPublic,
-} from "../services/urlPolicy.js";
-import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
+import { isAllowedUrl } from "../services/urlPolicy.js";
+import { runUrlAudit } from "../services/urlAuditPipeline.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
 
 const router: IRouter = Router();
@@ -112,45 +105,15 @@ router.post(
         return;
       }
 
-      // SSRF-hardened fetch (v1.20.1+). See safeFetch.ts for the
-      // DNS-rebinding + redirect-chain mitigations.
-      let fetched;
-      try {
-        fetched = await safeFetch(url, {
-          timeoutMs: FETCH_TIMEOUT_MS,
-          maxBytes: MAX_PDF_BYTES,
-          validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
-        });
-      } catch (err) {
-        if (err instanceof SafeFetchError) {
-          sendSafeFetchError(res, err);
-          return;
-        }
-        throw err;
-      }
-
-      if (!fetched.ok) {
-        res.status(502).json({
-          error: `fetch returned ${fetched.status} ${fetched.statusText}`,
-        });
-        return;
-      }
-
-      const buf = fetched.buffer;
-
-      // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content (not
-      // the URL extension) — same dispatcher /api/analyze-url uses.
-      const fileType = await detectFileType(buf);
-      if (!fileType) {
-        res.status(422).json({
-          error: "Fetched content is not a supported document.",
-          details:
-            "The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.",
-        });
-        return;
-      }
-
-      const contentHash = crypto.createHash("sha256").update(buf).digest("hex");
+      // SSRF-hardened fetch (v1.20.1+), format detection, filename
+      // derivation, and content hash — shared with /api/analyze-url. See
+      // urlAuditPipeline.ts for the DNS-rebinding + redirect-chain
+      // mitigations and why analyzeDocument itself stays out of it (this
+      // route's dedup cache below must be able to skip analysis entirely
+      // on a cache hit).
+      const outcome = await runUrlAudit({ url, privileged, res });
+      if (!outcome.ok) return;
+      const { buf, filename, contentHash } = outcome;
 
       // --- Dedup lookup -------------------------------------------------
       // Unless force=true, look for an unexpired report owned by this
@@ -187,15 +150,11 @@ router.post(
       }
 
       // --- Fresh audit + persist ----------------------------------------
-      // Derive the filename from the final (post-redirect) URL, mirroring
-      // analyze-url.ts — safeFetch returns finalUrl so a short-link that
-      // 302s to the real file is named after the real file, not the
-      // short-link path. The fallback name is parameterized by the
-      // detected type instead of a hardcoded .pdf.
-      const finalPath = new URL(fetched.finalUrl).pathname;
-      const rawName = finalPath.split("/").pop() ?? `remote.${fileType}`;
-      const filename = rawName.slice(0, 200) || `remote.${fileType}`;
-
+      // filename is already derived from the final (post-redirect) URL by
+      // runUrlAudit, mirroring analyze-url.ts — safeFetch returns finalUrl
+      // so a short-link that 302s to the real file is named after the real
+      // file, not the short-link path. The fallback name is parameterized
+      // by the detected type instead of a hardcoded .pdf.
       const result = await analyzeDocument(buf, filename);
       const audited = new Date().toISOString();
 

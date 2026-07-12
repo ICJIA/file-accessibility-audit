@@ -1,16 +1,9 @@
 import { Router, Response, type IRouter } from "express";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
-import { analyzeDocument, detectFileType } from "../services/analyzer.js";
-import { gateIdentity, recordAudit, sha256Hex } from "../services/auditLog.js";
-import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
-import {
-  MAX_PDF_BYTES,
-  FETCH_TIMEOUT_MS,
-  sendSafeFetchError,
-  validateUrlForFetch,
-  validateUrlPublic,
-} from "../services/urlPolicy.js";
+import { analyzeDocument } from "../services/analyzer.js";
+import { gateIdentity, recordAudit } from "../services/auditLog.js";
+import { runUrlAudit } from "../services/urlAuditPipeline.js";
 
 const router: IRouter = Router();
 
@@ -46,58 +39,10 @@ router.post(
       // The private/reserved-IP SSRF block inside safeFetch stays on either way.
       const privileged = isPrivilegedRequest(req);
 
-      // SSRF-hardened fetch. safeFetch handles:
-      //   - URL allowlist (re-checked on every redirect hop)
-      //   - DNS resolution + private-IP rejection on every hop
-      //   - Manual redirect handling (max 3 hops, no fetch-internal
-      //     blind follow)
-      //   - Size cap enforced during streaming (no oversized buffer)
-      //   - Timeout
-      // SafeFetchError carries a structured code that maps to the right
-      // HTTP status via sendSafeFetchError.
-      let fetched;
-      try {
-        fetched = await safeFetch(url, {
-          timeoutMs: FETCH_TIMEOUT_MS,
-          maxBytes: MAX_PDF_BYTES,
-          validateUrl: privileged ? validateUrlPublic : validateUrlForFetch,
-        });
-      } catch (err) {
-        if (err instanceof SafeFetchError) {
-          sendSafeFetchError(res, err);
-          return;
-        }
-        throw err;
-      }
+      const outcome = await runUrlAudit({ url, privileged, res });
+      if (!outcome.ok) return;
+      const { buf, filename, contentHash } = outcome;
 
-      if (!fetched.ok) {
-        res.status(502).json({
-          error: `fetch returned ${fetched.status} ${fetched.statusText}`,
-        });
-        return;
-      }
-
-      const buf = fetched.buffer;
-
-      // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content (not the URL extension).
-      const fileType = await detectFileType(buf);
-      if (!fileType) {
-        res.status(422).json({
-          error: "Fetched content is not a supported document.",
-          details:
-            "The URL must point directly at a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file — the fetched content matches none of these formats.",
-        });
-        return;
-      }
-
-      // Derive a safe filename from the final URL's path (after any
-      // followed redirects). safeFetch returns finalUrl so we use the
-      // redirect target's filename rather than the original.
-      const finalPath = new URL(fetched.finalUrl).pathname;
-      const rawName = finalPath.split("/").pop() ?? `remote.${fileType}`;
-      const filename = rawName.slice(0, 200) || `remote.${fileType}`;
-
-      const contentHash = sha256Hex(buf);
       const result = await analyzeDocument(buf, filename);
 
       // Canonical audit-log write so this URL-audited content counts
