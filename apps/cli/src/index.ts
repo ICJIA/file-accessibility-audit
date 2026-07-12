@@ -1,8 +1,7 @@
 import { runAudit } from './commands/audit.js'
 import { runPublist } from './commands/publist.js'
 import { RESET, BOLD, DIM, RED } from './lib/colors.js'
-
-const VERSION = '1.0.0'
+import { VERSION } from './version.js'
 
 function printHelp(): void {
   console.log(`

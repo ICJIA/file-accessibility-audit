@@ -7,8 +7,7 @@ import {
   RESET, BOLD, DIM, RED,
   gradeColor, severityColor, gradeLabel, padRight, checkQpdf,
 } from '../lib/colors.js'
-
-const VERSION = '1.0.0'
+import { VERSION } from '../version.js'
 
 function printResult(result: AnalysisResult): void {
   const line = '\u2501'
