@@ -103,7 +103,7 @@ function buildHeadingStyleMap(stylesRoot: PONode | undefined): Map<string, numbe
     const styleId = attrOf(style, "styleId");
     if (!styleId) continue;
     const nameNode = firstChild(style, "name");
-    const nameVal = nameNode ? attrOf(nameNode, "val") ?? "" : "";
+    const nameVal = nameNode ? (attrOf(nameNode, "val") ?? "") : "";
     let level: number | null = null;
     const byName = /^heading\s*([1-6])$/i.exec(nameVal.trim());
     const byId = /^Heading([1-6])$/.exec(styleId);
@@ -118,7 +118,7 @@ function buildHeadingStyleMap(stylesRoot: PONode | undefined): Map<string, numbe
 function stylesDefaultLang(stylesRoot: PONode | undefined): string | null {
   if (!stylesRoot) return null;
   const lang = descendants(stylesRoot, "lang").find((l) => attrOf(l, "val"));
-  return lang ? attrOf(lang, "val") ?? null : null;
+  return lang ? (attrOf(lang, "val") ?? null) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,13 +199,10 @@ function extractTables(body: PONode): DocxAnalysis["tables"] {
       cellCols = Math.max(cellCols, cells.length);
       const trPr = firstChild(row, "trPr");
       if (trPr && firstChild(trPr, "tblHeader")) hasHeaderRow = true;
-      if (cells.some((tc) => descendants(tc, "tbl").length > 0))
-        hasNestedTable = true;
+      if (cells.some((tc) => descendants(tc, "tbl").length > 0)) hasNestedTable = true;
     }
     const grid = firstChild(tbl, "tblGrid");
-    const gridCols = grid
-      ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length
-      : 0;
+    const gridCols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
     return {
       hasHeaderRow,
       rowCount: rows.length,
@@ -215,10 +212,7 @@ function extractTables(body: PONode): DocxAnalysis["tables"] {
   });
 }
 
-function extractLinks(
-  body: PONode,
-  relMap: Map<string, string>,
-): DocxAnalysis["links"] {
+function extractLinks(body: PONode, relMap: Map<string, string>): DocxAnalysis["links"] {
   return descendants(body, "hyperlink").map((h) => {
     const text = textOf(h).trim();
     const id = attrOf(h, "id");
@@ -323,11 +317,7 @@ function extractContrast(
  * as DocxParseError so route-level DOCX_PARSE_FAILED mapping keeps working.
  * (analyzer.ts imports this for [Content_Types].xml detection reads too.)
  */
-export function readCapped(
-  f: JSZip.JSZipObject,
-  cap: number,
-  partName: string,
-): Promise<string> {
+export function readCapped(f: JSZip.JSZipObject, cap: number, partName: string): Promise<string> {
   return ooxmlReadCapped(f, cap, partName, (m) => new DocxParseError(m));
 }
 
@@ -346,9 +336,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
 
   const documentXml = await read("word/document.xml");
   if (documentXml === null) {
-    throw new DocxParseError(
-      "word/document.xml is missing — the package is not a Word document.",
-    );
+    throw new DocxParseError("word/document.xml is missing — the package is not a Word document.");
   }
   const stylesXml = await read("word/styles.xml");
   const coreXml = await read("docProps/core.xml");
@@ -366,8 +354,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   const headingStyles = buildHeadingStyleMap(stylesRoot);
 
   // --- metadata ---
-  const coreText = (tag: string): string | null =>
-    corePropertyText(coreRoot, tag);
+  const coreText = (tag: string): string | null => corePropertyText(coreRoot, tag);
   const language = stylesDefaultLang(stylesRoot) ?? coreText("language");
   const numFromApp = (tag: string): number | null => {
     if (!appRoot) return null;

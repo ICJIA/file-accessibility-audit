@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { describe, it, expect } from 'vitest'
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, it, expect } from "vitest";
 
 // A1: TOOL_VERSION used to be a hardcoded literal ('1.18.0') that silently
 // drifted from the real app version every release. It now reads live from
@@ -19,18 +19,18 @@ import { describe, it, expect } from 'vitest'
 // complexity. This test follows that established precedent rather than
 // mounting.
 function readSource(file: string): string {
-  return readFileSync(resolve(__dirname, '..', file), 'utf-8')
+  return readFileSync(resolve(__dirname, "..", file), "utf-8");
 }
 
-describe('data-retention page: real app version (not hardcoded 1.18.0)', () => {
-  const source = readSource('pages/data-retention.vue')
+describe("data-retention page: real app version (not hardcoded 1.18.0)", () => {
+  const source = readSource("pages/data-retention.vue");
 
-  it('no longer hardcodes the stale 1.18.0 literal', () => {
-    expect(source).not.toMatch(/TOOL_VERSION\s*=\s*['"]1\.18\.0['"]/)
-  })
+  it("no longer hardcodes the stale 1.18.0 literal", () => {
+    expect(source).not.toMatch(/TOOL_VERSION\s*=\s*['"]1\.18\.0['"]/);
+  });
 
-  it('derives TOOL_VERSION from runtimeConfig.public.appVersion, the same key the footer uses', () => {
-    expect(source).toMatch(/const runtimeConfig\s*=\s*useRuntimeConfig\(\)/)
-    expect(source).toMatch(/TOOL_VERSION\s*=\s*runtimeConfig\.public\.appVersion/)
-  })
-})
+  it("derives TOOL_VERSION from runtimeConfig.public.appVersion, the same key the footer uses", () => {
+    expect(source).toMatch(/const runtimeConfig\s*=\s*useRuntimeConfig\(\)/);
+    expect(source).toMatch(/TOOL_VERSION\s*=\s*runtimeConfig\.public\.appVersion/);
+  });
+});

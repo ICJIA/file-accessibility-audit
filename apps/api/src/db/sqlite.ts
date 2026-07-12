@@ -1,20 +1,20 @@
-import Database from 'better-sqlite3'
-import path from 'node:path'
-import fs from 'node:fs'
+import Database from "better-sqlite3";
+import path from "node:path";
+import fs from "node:fs";
 
-const dbPath = process.env.DB_PATH || './data/audit.db'
+const dbPath = process.env.DB_PATH || "./data/audit.db";
 
 // Ensure the data directory exists
-const dbDir = path.dirname(dbPath)
+const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
+  fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db: InstanceType<typeof Database> = new Database(dbPath)
+const db: InstanceType<typeof Database> = new Database(dbPath);
 
 // Enable WAL mode for concurrent reads during writes
-db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
+db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 
 // Create tables idempotently
 db.exec(`
@@ -131,56 +131,52 @@ db.exec(`
     ON remediation_events(job_id, occurred_at);
   CREATE INDEX IF NOT EXISTS idx_remediation_events_event
     ON remediation_events(event);
-`)
+`);
 
 // Backfill: add content_hash to audit_log if it doesn't exist yet.
 // SQLite doesn't support `ADD COLUMN IF NOT EXISTS`, so we probe the
 // schema first.
-const auditLogColumns = db
-  .prepare("PRAGMA table_info(audit_log)")
-  .all() as { name: string }[]
-if (!auditLogColumns.some((c) => c.name === 'content_hash')) {
-  db.exec('ALTER TABLE audit_log ADD COLUMN content_hash TEXT')
-  db.exec(
-    'CREATE INDEX IF NOT EXISTS idx_audit_content_hash ON audit_log(content_hash)',
-  )
+const auditLogColumns = db.prepare("PRAGMA table_info(audit_log)").all() as { name: string }[];
+if (!auditLogColumns.some((c) => c.name === "content_hash")) {
+  db.exec("ALTER TABLE audit_log ADD COLUMN content_hash TEXT");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_audit_content_hash ON audit_log(content_hash)");
 }
 
 // Backfill: add input_audit_json / output_audit_json to remediation_jobs
 // for the category-level before/after view on the result page. Created
 // idempotently in case an earlier dev run already created the table.
-const remediationJobsColumns = db
-  .prepare("PRAGMA table_info(remediation_jobs)")
-  .all() as { name: string }[]
+const remediationJobsColumns = db.prepare("PRAGMA table_info(remediation_jobs)").all() as {
+  name: string;
+}[];
 if (
   remediationJobsColumns.length > 0 &&
-  !remediationJobsColumns.some((c) => c.name === 'input_audit_json')
+  !remediationJobsColumns.some((c) => c.name === "input_audit_json")
 ) {
-  db.exec('ALTER TABLE remediation_jobs ADD COLUMN input_audit_json TEXT')
+  db.exec("ALTER TABLE remediation_jobs ADD COLUMN input_audit_json TEXT");
 }
 if (
   remediationJobsColumns.length > 0 &&
-  !remediationJobsColumns.some((c) => c.name === 'output_audit_json')
+  !remediationJobsColumns.some((c) => c.name === "output_audit_json")
 ) {
-  db.exec('ALTER TABLE remediation_jobs ADD COLUMN output_audit_json TEXT')
+  db.exec("ALTER TABLE remediation_jobs ADD COLUMN output_audit_json TEXT");
 }
 if (
   remediationJobsColumns.length > 0 &&
-  !remediationJobsColumns.some((c) => c.name === 'verapdf_available')
+  !remediationJobsColumns.some((c) => c.name === "verapdf_available")
 ) {
-  db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_available INTEGER')
+  db.exec("ALTER TABLE remediation_jobs ADD COLUMN verapdf_available INTEGER");
 }
 if (
   remediationJobsColumns.length > 0 &&
-  !remediationJobsColumns.some((c) => c.name === 'verapdf_passed')
+  !remediationJobsColumns.some((c) => c.name === "verapdf_passed")
 ) {
-  db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_passed INTEGER')
+  db.exec("ALTER TABLE remediation_jobs ADD COLUMN verapdf_passed INTEGER");
 }
 if (
   remediationJobsColumns.length > 0 &&
-  !remediationJobsColumns.some((c) => c.name === 'verapdf_summary_json')
+  !remediationJobsColumns.some((c) => c.name === "verapdf_summary_json")
 ) {
-  db.exec('ALTER TABLE remediation_jobs ADD COLUMN verapdf_summary_json TEXT')
+  db.exec("ALTER TABLE remediation_jobs ADD COLUMN verapdf_summary_json TEXT");
 }
 // v1.20.0+: preserve the user's exact uploaded filename (spaces and
 // everything) so the download endpoint can serve the file under the
@@ -188,23 +184,23 @@ if (
 // the filename is what links resolve against.
 if (
   remediationJobsColumns.length > 0 &&
-  !remediationJobsColumns.some((c) => c.name === 'original_filename')
+  !remediationJobsColumns.some((c) => c.name === "original_filename")
 ) {
-  db.exec('ALTER TABLE remediation_jobs ADD COLUMN original_filename TEXT')
+  db.exec("ALTER TABLE remediation_jobs ADD COLUMN original_filename TEXT");
 }
 
 // Backfill: add content_hash to shared_reports if it doesn't exist yet.
 // Used by POST /api/audit-url for hash-based dedup so re-auditing an
 // unchanged URL returns the existing report instead of creating a new
 // row. v1.19.0+.
-const sharedReportsColumns = db
-  .prepare("PRAGMA table_info(shared_reports)")
-  .all() as { name: string }[]
+const sharedReportsColumns = db.prepare("PRAGMA table_info(shared_reports)").all() as {
+  name: string;
+}[];
 if (
   sharedReportsColumns.length > 0 &&
-  !sharedReportsColumns.some((c) => c.name === 'content_hash')
+  !sharedReportsColumns.some((c) => c.name === "content_hash")
 ) {
-  db.exec('ALTER TABLE shared_reports ADD COLUMN content_hash TEXT')
+  db.exec("ALTER TABLE shared_reports ADD COLUMN content_hash TEXT");
 }
 // Always (re)attempt to create the dedup index. CREATE INDEX IF NOT
 // EXISTS is idempotent, and by the time we get here the column is
@@ -212,10 +208,10 @@ if (
 // backfilled.
 if (sharedReportsColumns.length > 0) {
   db.exec(
-    'CREATE INDEX IF NOT EXISTS idx_shared_reports_dedup ' +
-      'ON shared_reports(email, content_hash, expires_at) ' +
-      'WHERE content_hash IS NOT NULL',
-  )
+    "CREATE INDEX IF NOT EXISTS idx_shared_reports_dedup " +
+      "ON shared_reports(email, content_hash, expires_at) " +
+      "WHERE content_hash IS NOT NULL",
+  );
 }
 
-export default db
+export default db;

@@ -70,12 +70,8 @@ describe("baseFilename: strips the source extension for every audited format (BU
   });
 
   it("only strips a trailing extension, not one embedded mid-filename", () => {
-    const name = baseFilename(
-      baseResult({ filename: "report.pdf.backup.xlsx" }),
-    );
-    expect(name.startsWith("report.pdf.backup-accessibility-report-")).toBe(
-      true,
-    );
+    const name = baseFilename(baseResult({ filename: "report.pdf.backup.xlsx" }));
+    expect(name.startsWith("report.pdf.backup-accessibility-report-")).toBe(true);
   });
 });
 

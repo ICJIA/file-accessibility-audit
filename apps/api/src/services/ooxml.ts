@@ -126,10 +126,7 @@ export function parseRelationships(relsXml: string | null): Map<string, string> 
 }
 
 /** Trimmed text of a `docProps/core.xml` property (title, creator, …), or null. */
-export function corePropertyText(
-  coreRoot: PONode | undefined,
-  tag: string,
-): string | null {
+export function corePropertyText(coreRoot: PONode | undefined, tag: string): string | null {
   if (!coreRoot) return null;
   const node = firstChild(coreRoot, tag);
   const t = node ? rawText(node).trim() : "";
@@ -150,9 +147,7 @@ export function drawingAltText(propsNode: PONode): {
   let altText: string | null = null;
   if (descr) altText = descr;
   else if (title) altText = title;
-  const decorative = descendants(propsNode, "decorative").some(
-    (d) => attrOf(d, "val") === "1",
-  );
+  const decorative = descendants(propsNode, "decorative").some((d) => attrOf(d, "val") === "1");
   return { altText, decorative };
 }
 
@@ -220,8 +215,7 @@ export function readCapped(
   makeError: (message: string) => Error,
 ): Promise<string> {
   const declared =
-    (f as unknown as { _data?: { uncompressedSize?: number } })._data
-      ?.uncompressedSize ?? 0;
+    (f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0;
   const overLimit = (): Error =>
     makeError(
       `A document part (${partName}) exceeds the ${Math.round(
@@ -245,9 +239,7 @@ export function readCapped(
       }
       chunks.push(chunk);
     });
-    stream.on("error", () =>
-      reject(makeError(`A document part (${partName}) could not be read.`)),
-    );
+    stream.on("error", () => reject(makeError(`A document part (${partName}) could not be read.`)));
     stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
   });
 }
@@ -292,10 +284,7 @@ function resolveSchemeEntry(scheme: PONode, name: string): string | null {
 }
 
 /** Resolve a DrawingML scheme-color name to a 6-digit hex via the theme part. */
-export function resolveSchemeColor(
-  themeRoot: PONode | undefined,
-  name: string,
-): string | null {
+export function resolveSchemeColor(themeRoot: PONode | undefined, name: string): string | null {
   if (!themeRoot) return null;
   const scheme = descendants(themeRoot, "clrScheme")[0];
   if (!scheme) return null;

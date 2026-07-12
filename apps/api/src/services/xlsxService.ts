@@ -163,9 +163,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
 
   const workbookXml = await read("xl/workbook.xml");
   if (workbookXml === null) {
-    throw new XlsxParseError(
-      "xl/workbook.xml is missing — the package is not an Excel workbook.",
-    );
+    throw new XlsxParseError("xl/workbook.xml is missing — the package is not an Excel workbook.");
   }
   const workbookRoot = rootElement(parseXml(workbookXml), "workbook");
   const coreRoot = rootElement(parseXml(await read("docProps/core.xml")), "coreProperties");
@@ -317,11 +315,7 @@ async function collectSheetContent(
     );
   }
   for (const rel of tableRels) {
-    const tableXml = await readAuxPart(
-      resolveXlTarget(rel.target, "xl/worksheets"),
-      read,
-      counts,
-    );
+    const tableXml = await readAuxPart(resolveXlTarget(rel.target, "xl/worksheets"), read, counts);
     const tableRoot = rootElement(parseXml(tableXml), "table");
     if (!tableRoot) continue;
     analysis.tables.push({
@@ -372,8 +366,7 @@ async function collectSheetContent(
     // cNvPr-gated push below — fine for a security cap, over-counting only
     // rejects sooner. `counts` accumulates across parts AND sheets.
     counts.drawingObjects +=
-      descendants(drawingRoot, "pic").length +
-      descendants(drawingRoot, "graphicFrame").length;
+      descendants(drawingRoot, "pic").length + descendants(drawingRoot, "graphicFrame").length;
     if (counts.drawingObjects > XLSX.MAX_DRAWING_OBJECTS) {
       throw new XlsxParseError(
         `This workbook has too many drawing objects (${counts.drawingObjects.toLocaleString()}+) to analyze.`,
@@ -459,8 +452,7 @@ async function collectStylesContrast(
     const szEl = firstChild(font, "sz");
     const sz = szEl ? Number(attrOf(szEl, "val")) : NaN;
     const bold = !!firstChild(font, "b");
-    const large =
-      (Number.isFinite(sz) && sz >= 18) || (bold && Number.isFinite(sz) && sz >= 14);
+    const large = (Number.isFinite(sz) && sz >= 18) || (bold && Number.isFinite(sz) && sz >= 14);
     const ratio = contrastRatio(fg, bg);
     const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
     if (ratio < min) {

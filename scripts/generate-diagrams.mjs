@@ -40,10 +40,7 @@ const NAME_MAP = {
   noAiDiagram: "no-ai",
 };
 
-const PAGES = [
-  "apps/web/app/pages/technical-details.vue",
-  "apps/web/app/pages/data-retention.vue",
-];
+const PAGES = ["apps/web/app/pages/technical-details.vue", "apps/web/app/pages/data-retention.vue"];
 
 // The dark theme from MermaidDiagram.vue, so the static SVGs match the prior
 // in-browser rendering exactly.

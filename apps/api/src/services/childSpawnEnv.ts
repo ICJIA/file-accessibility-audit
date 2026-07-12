@@ -56,9 +56,7 @@ function isSensitiveEnvKey(key: string): boolean {
  * sensitive key removed. Pure — never mutates `source`. Suitable to pass
  * directly as `child_process.spawn(...)`'s `env` option.
  */
-export function buildChildSpawnEnv(
-  source: NodeJS.ProcessEnv = process.env,
-): NodeJS.ProcessEnv {
+export function buildChildSpawnEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(source)) {
     if (value === undefined) continue;

@@ -25,12 +25,7 @@ export function escapeCsvField(value: string | number | null | undefined): strin
     // values that need both guards.
     str = "'" + str;
   }
-  if (
-    str.includes(",") ||
-    str.includes('"') ||
-    str.includes("\n") ||
-    str.includes("\r")
-  ) {
+  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
     return '"' + str.replace(/"/g, '""') + '"';
   }
   return str;
@@ -66,12 +61,8 @@ export interface AssessmentSummary {
   action: string;
 }
 
-export function generateAssessment(
-  dist: Record<string, number>,
-  total: number,
-): AssessmentSummary {
-  if (total === 0)
-    return { level: "good", headline: "", detail: "", action: "" };
+export function generateAssessment(dist: Record<string, number>, total: number): AssessmentSummary {
+  if (total === 0) return { level: "good", headline: "", detail: "", action: "" };
 
   const passing = dist.A + dist.B;
   const passingPct = Math.round((passing / total) * 100);
@@ -139,11 +130,7 @@ export function splitByEra(rows: CachedRow[]): {
   return { recent, legacy };
 }
 
-function distLine(
-  label: string,
-  dist: Record<string, number>,
-  total: number,
-): string {
+function distLine(label: string, dist: Record<string, number>, total: number): string {
   const needsWork = dist.C + dist.D + dist.F;
   const pct = total > 0 ? Math.round((needsWork / total) * 100) : 0;
   return `${label},${total},${dist.A},${dist.B},${dist.C},${dist.D},${dist.F},${needsWork} (${pct}%)`;
@@ -178,14 +165,7 @@ export function generateCsv(rows: CachedRow[]): string {
     ``,
   ];
 
-  const headers: string[] = [
-    "Title",
-    "Published",
-    "Grade",
-    "Score",
-    "File URL",
-    "Full Analysis",
-  ];
+  const headers: string[] = ["Title", "Published", "Grade", "Score", "File URL", "Full Analysis"];
 
   // Category scores only (no grades, no severity)
   for (const catId of CATEGORY_IDS) {

@@ -9,8 +9,7 @@ import { ANALYSIS } from "#config";
 // Simple semaphore for concurrency limiting with timeout
 const SEMAPHORE_TIMEOUT_MS = 60_000; // 60 seconds max wait
 let activeAnalyses = 0;
-const waitQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> =
-  [];
+const waitQueue: Array<{ resolve: () => void; reject: (err: Error) => void }> = [];
 
 // Exported so the DOCX pipeline (services/analyzer.ts) shares the SAME
 // concurrency budget as PDF — total in-flight analyses across both formats are
@@ -27,9 +26,7 @@ export async function acquireSemaphore(): Promise<void> {
       if (idx >= 0) waitQueue.splice(idx, 1);
       reject(
         Object.assign(
-          new Error(
-            "Server busy — too many analyses queued. Please try again shortly.",
-          ),
+          new Error("Server busy — too many analyses queued. Please try again shortly."),
           { status: 503 },
         ),
       );
@@ -87,10 +84,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
 }
 
-export async function analyzePDF(
-  buffer: Buffer,
-  filename: string,
-): Promise<AnalysisResult> {
+export async function analyzePDF(buffer: Buffer, filename: string): Promise<AnalysisResult> {
   await acquireSemaphore();
 
   try {

@@ -1,36 +1,36 @@
-import './test-helpers'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import "./test-helpers";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
 
-import LoginPage from '../pages/login.vue'
+import LoginPage from "../pages/login.vue";
 
 // Stub $fetch globally for login API calls
-const fetchMock = vi.fn()
-;(globalThis as any).$fetch = fetchMock
+const fetchMock = vi.fn();
+(globalThis as any).$fetch = fetchMock;
 
-describe('Login Page', () => {
+describe("Login Page", () => {
   beforeEach(() => {
-    fetchMock.mockReset()
+    fetchMock.mockReset();
     // Default: auth enabled, auth check fails (not logged in), other calls succeed.
     fetchMock.mockImplementation((url: string) => {
-      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
-      if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
-      return Promise.resolve({})
-    })
-  })
+      if (url === "/api/auth/config") return Promise.resolve({ requireLogin: true });
+      if (url === "/api/auth/me") return Promise.reject(new Error("Not authenticated"));
+      return Promise.resolve({});
+    });
+  });
 
   // Helper: override fetch for a specific non-auth-check call
   function mockNextFetch(result: any, reject = false) {
-    let overridden = false
+    let overridden = false;
     fetchMock.mockImplementation((url: string) => {
-      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
-      if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
+      if (url === "/api/auth/config") return Promise.resolve({ requireLogin: true });
+      if (url === "/api/auth/me") return Promise.reject(new Error("Not authenticated"));
       if (!overridden) {
-        overridden = true
-        return reject ? Promise.reject(result) : Promise.resolve(result)
+        overridden = true;
+        return reject ? Promise.reject(result) : Promise.resolve(result);
       }
-      return Promise.resolve({})
-    })
+      return Promise.resolve({});
+    });
   }
 
   async function mountLogin() {
@@ -40,185 +40,185 @@ describe('Login Page', () => {
           refreshUser: vi.fn(),
         },
       },
-    })
+    });
     // Wait for onMounted auth check to complete so ready=true
-    await flushPromises()
-    return wrapper
+    await flushPromises();
+    return wrapper;
   }
 
   // ---- Initial render ----
 
-  it('renders the Sign In heading', async () => {
-    const wrapper = await mountLogin()
-    expect(wrapper.text()).toContain('Sign In')
-  })
+  it("renders the Sign In heading", async () => {
+    const wrapper = await mountLogin();
+    expect(wrapper.text()).toContain("Sign In");
+  });
 
-  it('renders the email input on initial load', async () => {
-    const wrapper = await mountLogin()
-    const input = wrapper.find('input[type="email"]')
-    expect(input.exists()).toBe(true)
-  })
+  it("renders the email input on initial load", async () => {
+    const wrapper = await mountLogin();
+    const input = wrapper.find('input[type="email"]');
+    expect(input.exists()).toBe(true);
+  });
 
-  it('renders the email placeholder text', async () => {
-    const wrapper = await mountLogin()
-    const input = wrapper.find('input[type="email"]')
-    expect(input.attributes('placeholder')).toBe('you@agency.illinois.gov')
-  })
+  it("renders the email placeholder text", async () => {
+    const wrapper = await mountLogin();
+    const input = wrapper.find('input[type="email"]');
+    expect(input.attributes("placeholder")).toBe("you@agency.illinois.gov");
+  });
 
   it('shows the "Send Verification Code" button', async () => {
-    const wrapper = await mountLogin()
-    expect(wrapper.text()).toContain('Send Verification Code')
-  })
+    const wrapper = await mountLogin();
+    expect(wrapper.text()).toContain("Send Verification Code");
+  });
 
-  it('does NOT show the OTP input initially', async () => {
-    const wrapper = await mountLogin()
-    expect(wrapper.text()).not.toContain('Verification code')
-    expect(wrapper.text()).not.toContain('Verify')
-  })
+  it("does NOT show the OTP input initially", async () => {
+    const wrapper = await mountLogin();
+    expect(wrapper.text()).not.toContain("Verification code");
+    expect(wrapper.text()).not.toContain("Verify");
+  });
 
   // ---- After email submission ----
 
-  it('shows OTP input after successful email submission', async () => {
-    mockNextFetch({})
-    const wrapper = await mountLogin()
+  it("shows OTP input after successful email submission", async () => {
+    mockNextFetch({});
+    const wrapper = await mountLogin();
 
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('user@illinois.gov')
-    await wrapper.find('form').trigger('submit')
-
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Verify')
-    })
-
-    expect(wrapper.text()).toContain('Code sent to')
-    expect(wrapper.text()).toContain('user@illinois.gov')
-  })
-
-  it('calls the /api/auth/request endpoint on email submit', async () => {
-    mockNextFetch({})
-    const wrapper = await mountLogin()
-
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('test@agency.illinois.gov')
-    await wrapper.find('form').trigger('submit')
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("user@illinois.gov");
+    await wrapper.find("form").trigger("submit");
 
     await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/request', {
-        method: 'POST',
-        body: { email: 'test@agency.illinois.gov' },
-        credentials: 'include',
-      })
-    })
-  })
+      expect(wrapper.text()).toContain("Verify");
+    });
 
-  it('shows error message when email request fails', async () => {
-    mockNextFetch({ data: { error: 'Only illinois.gov emails are allowed' } }, true)
-    const wrapper = await mountLogin()
+    expect(wrapper.text()).toContain("Code sent to");
+    expect(wrapper.text()).toContain("user@illinois.gov");
+  });
 
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('bad@gmail.com')
-    await wrapper.find('form').trigger('submit')
+  it("calls the /api/auth/request endpoint on email submit", async () => {
+    mockNextFetch({});
+    const wrapper = await mountLogin();
 
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Only illinois.gov emails are allowed')
-    })
-  })
-
-  it('shows fallback error when request fails without specific message', async () => {
-    mockNextFetch({}, true)
-    const wrapper = await mountLogin()
-
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('user@illinois.gov')
-    await wrapper.find('form').trigger('submit')
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("test@agency.illinois.gov");
+    await wrapper.find("form").trigger("submit");
 
     await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Failed to send verification code')
-    })
-  })
+      expect(fetchMock).toHaveBeenCalledWith("/api/auth/request", {
+        method: "POST",
+        body: { email: "test@agency.illinois.gov" },
+        credentials: "include",
+      });
+    });
+  });
+
+  it("shows error message when email request fails", async () => {
+    mockNextFetch({ data: { error: "Only illinois.gov emails are allowed" } }, true);
+    const wrapper = await mountLogin();
+
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("bad@gmail.com");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("Only illinois.gov emails are allowed");
+    });
+  });
+
+  it("shows fallback error when request fails without specific message", async () => {
+    mockNextFetch({}, true);
+    const wrapper = await mountLogin();
+
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("user@illinois.gov");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("Failed to send verification code");
+    });
+  });
 
   // ---- OTP step ----
 
   it('allows going back to email step via "Use a different email" button', async () => {
-    mockNextFetch({})
-    const wrapper = await mountLogin()
+    mockNextFetch({});
+    const wrapper = await mountLogin();
 
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('user@illinois.gov')
-    await wrapper.find('form').trigger('submit')
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("user@illinois.gov");
+    await wrapper.find("form").trigger("submit");
 
     await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Verify')
-    })
+      expect(wrapper.text()).toContain("Verify");
+    });
 
-    const backBtn = wrapper.find('button[type="button"]')
-    await backBtn.trigger('click')
+    const backBtn = wrapper.find('button[type="button"]');
+    await backBtn.trigger("click");
 
-    expect(wrapper.text()).toContain('Send Verification Code')
-    expect(wrapper.text()).not.toContain('Verify')
-  })
+    expect(wrapper.text()).toContain("Send Verification Code");
+    expect(wrapper.text()).not.toContain("Verify");
+  });
 
-  it('submits the OTP to /api/auth/verify', async () => {
+  it("submits the OTP to /api/auth/verify", async () => {
     fetchMock.mockImplementation((url: string) => {
-      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
-      if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
-      return Promise.resolve({})
-    })
+      if (url === "/api/auth/config") return Promise.resolve({ requireLogin: true });
+      if (url === "/api/auth/me") return Promise.reject(new Error("Not authenticated"));
+      return Promise.resolve({});
+    });
 
-    const wrapper = await mountLogin()
+    const wrapper = await mountLogin();
 
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('user@illinois.gov')
-    await wrapper.find('form').trigger('submit')
-
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Verify')
-    })
-
-    const otpInput = wrapper.find('input')
-    await otpInput.setValue('123456')
-    await wrapper.find('form').trigger('submit')
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("user@illinois.gov");
+    await wrapper.find("form").trigger("submit");
 
     await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/verify', {
-        method: 'POST',
-        body: { email: 'user@illinois.gov', otp: '123456' },
-        credentials: 'include',
-      })
-    })
-  })
+      expect(wrapper.text()).toContain("Verify");
+    });
 
-  it('shows error when OTP verification fails', async () => {
-    let callCount = 0
+    const otpInput = wrapper.find("input");
+    await otpInput.setValue("123456");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/auth/verify", {
+        method: "POST",
+        body: { email: "user@illinois.gov", otp: "123456" },
+        credentials: "include",
+      });
+    });
+  });
+
+  it("shows error when OTP verification fails", async () => {
+    let callCount = 0;
     fetchMock.mockImplementation((url: string) => {
-      if (url === '/api/auth/config') return Promise.resolve({ requireLogin: true })
-      if (url === '/api/auth/me') return Promise.reject(new Error('Not authenticated'))
-      callCount++
-      if (callCount === 1) return Promise.resolve({})
-      return Promise.reject({ data: { error: 'Invalid or expired code' } })
-    })
+      if (url === "/api/auth/config") return Promise.resolve({ requireLogin: true });
+      if (url === "/api/auth/me") return Promise.reject(new Error("Not authenticated"));
+      callCount++;
+      if (callCount === 1) return Promise.resolve({});
+      return Promise.reject({ data: { error: "Invalid or expired code" } });
+    });
 
-    const wrapper = await mountLogin()
+    const wrapper = await mountLogin();
 
-    const emailInput = wrapper.find('input[type="email"]')
-    await emailInput.setValue('user@illinois.gov')
-    await wrapper.find('form').trigger('submit')
-
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Verify')
-    })
-
-    const otpInput = wrapper.find('input')
-    await otpInput.setValue('000000')
-    await wrapper.find('form').trigger('submit')
+    const emailInput = wrapper.find('input[type="email"]');
+    await emailInput.setValue("user@illinois.gov");
+    await wrapper.find("form").trigger("submit");
 
     await vi.waitFor(() => {
-      expect(wrapper.text()).toContain('Invalid or expired code')
-    })
-  })
+      expect(wrapper.text()).toContain("Verify");
+    });
 
-  it('displays the helper text about illinois.gov email', async () => {
-    const wrapper = await mountLogin()
-    expect(wrapper.text()).toContain('@illinois.gov')
-  })
-})
+    const otpInput = wrapper.find("input");
+    await otpInput.setValue("000000");
+    await wrapper.find("form").trigger("submit");
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("Invalid or expired code");
+    });
+  });
+
+  it("displays the helper text about illinois.gov email", async () => {
+    const wrapper = await mountLogin();
+    expect(wrapper.text()).toContain("@illinois.gov");
+  });
+});

@@ -16,38 +16,45 @@
  * All values are pulled from BRANDING and DEPLOY in audit.config.ts.
  */
 
-import { writeFileSync } from 'fs'
-import { resolve } from 'path'
-import sharp from 'sharp'
-import { BRANDING, DEPLOY } from '../audit.config.js'
+import { writeFileSync } from "fs";
+import { resolve } from "path";
+import sharp from "sharp";
+import { BRANDING, DEPLOY } from "../audit.config.js";
 
-const ROOT = resolve(import.meta.dirname, '..')
-const PUBLIC = resolve(ROOT, 'apps/web/public')
+const ROOT = resolve(import.meta.dirname, "..");
+const PUBLIC = resolve(ROOT, "apps/web/public");
 
-const { APP_NAME, APP_SHORT_NAME, ORG_NAME, ORG_URL, FAQS_URL, GITHUB_URL } = BRANDING
-const SITE_URL = DEPLOY.PRODUCTION_URL
+const { APP_NAME, APP_SHORT_NAME, ORG_NAME, ORG_URL, FAQS_URL, GITHUB_URL } = BRANDING;
+const SITE_URL = DEPLOY.PRODUCTION_URL;
 
 // Extract a short org abbreviation from APP_NAME (text before "File" or first word)
-const orgAbbrev = APP_NAME.includes('File')
-  ? APP_NAME.split('File')[0].trim()
-  : APP_NAME.split(' ')[0]
+const orgAbbrev = APP_NAME.includes("File")
+  ? APP_NAME.split("File")[0].trim()
+  : APP_NAME.split(" ")[0];
 
 // ── site.webmanifest ──────────────────────────────────────────────────────
 
 function buildManifest(): string {
-  return JSON.stringify({
-    name: APP_NAME,
-    short_name: APP_SHORT_NAME,
-    description: 'Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories',
-    start_url: '/',
-    display: 'standalone',
-    background_color: '#0a0a0a',
-    theme_color: '#0a0a0a',
-    icons: [
-      { src: '/favicon-192.png', sizes: '192x192', type: 'image/png' },
-      { src: '/favicon-512.png', sizes: '512x512', type: 'image/png' },
-    ],
-  }, null, 2) + '\n'
+  return (
+    JSON.stringify(
+      {
+        name: APP_NAME,
+        short_name: APP_SHORT_NAME,
+        description:
+          "Automated PDF accessibility scoring across 9 WCAG 2.1 and ADA Title II categories",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#0a0a0a",
+        theme_color: "#0a0a0a",
+        icons: [
+          { src: "/favicon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/favicon-512.png", sizes: "512x512", type: "image/png" },
+        ],
+      },
+      null,
+      2,
+    ) + "\n"
+  );
 }
 
 // ── llms.txt ──────────────────────────────────────────────────────────────
@@ -55,74 +62,74 @@ function buildManifest(): string {
 function buildLlmsTxt(): string {
   const lines = [
     `# ${APP_NAME}`,
-    '',
+    "",
     `> Automated PDF accessibility scoring tool built by ${ORG_NAME}.`,
-    '',
-    'This web application analyzes PDF documents for accessibility compliance and produces a detailed audit report scored against WCAG 2.1 Level AA and ADA Title II requirements.',
-    '',
-    '## What it does',
-    '',
-    '- Accepts a PDF file upload (up to 100 MB)',
-    '- Analyzes the document across 9 accessibility categories',
-    '- Returns an overall score (0-100), letter grade (A-F), and per-category findings',
-    '- Provides remediation guidance with WCAG success criteria references',
-    '- Exports reports in Word (.docx), HTML, Markdown, and JSON formats',
-    '- JSON export includes machine-readable WCAG mappings, prioritized remediation plans, and LLM-ready context',
-    '',
-    '## Scoring categories (weighted)',
-    '',
-    '1. Text Extractability (20%) - WCAG 1.3.1, 1.4.5',
-    '2. Document Title & Language (15%) - WCAG 2.4.2, 3.1.1',
-    '3. Heading Structure (15%) - WCAG 1.3.1, 2.4.6',
-    '4. Alt Text on Images (15%) - WCAG 1.1.1',
-    '5. Bookmarks / Navigation (10%) - WCAG 2.4.5',
-    '6. Table Markup (10%) - WCAG 1.3.1',
-    '7. Link & URL Quality (5%) - WCAG 2.4.4',
-    '8. Form Accessibility (5%) - WCAG 1.3.1, 4.1.2',
-    '9. Reading Order (5%) - WCAG 1.3.2',
-    '',
-    '## Grade scale',
-    '',
-    '- A: 90-100 (Excellent)',
-    '- B: 80-89 (Good)',
-    '- C: 70-79 (Needs Improvement)',
-    '- D: 60-69 (Poor)',
-    '- F: 0-59 (Failing)',
-    '',
-    '## Standards alignment',
-    '',
-    '- WCAG 2.1 Level AA',
-    '- ADA Title II (effective April 2026)',
-    '- Section 508',
-    '- PDF/UA (ISO 14289-1)',
-    '',
-    '## API',
-    '',
-    'The application exposes a REST API:',
-    '',
+    "",
+    "This web application analyzes PDF documents for accessibility compliance and produces a detailed audit report scored against WCAG 2.1 Level AA and ADA Title II requirements.",
+    "",
+    "## What it does",
+    "",
+    "- Accepts a PDF file upload (up to 100 MB)",
+    "- Analyzes the document across 9 accessibility categories",
+    "- Returns an overall score (0-100), letter grade (A-F), and per-category findings",
+    "- Provides remediation guidance with WCAG success criteria references",
+    "- Exports reports in Word (.docx), HTML, Markdown, and JSON formats",
+    "- JSON export includes machine-readable WCAG mappings, prioritized remediation plans, and LLM-ready context",
+    "",
+    "## Scoring categories (weighted)",
+    "",
+    "1. Text Extractability (20%) - WCAG 1.3.1, 1.4.5",
+    "2. Document Title & Language (15%) - WCAG 2.4.2, 3.1.1",
+    "3. Heading Structure (15%) - WCAG 1.3.1, 2.4.6",
+    "4. Alt Text on Images (15%) - WCAG 1.1.1",
+    "5. Bookmarks / Navigation (10%) - WCAG 2.4.5",
+    "6. Table Markup (10%) - WCAG 1.3.1",
+    "7. Link & URL Quality (5%) - WCAG 2.4.4",
+    "8. Form Accessibility (5%) - WCAG 1.3.1, 4.1.2",
+    "9. Reading Order (5%) - WCAG 1.3.2",
+    "",
+    "## Grade scale",
+    "",
+    "- A: 90-100 (Excellent)",
+    "- B: 80-89 (Good)",
+    "- C: 70-79 (Needs Improvement)",
+    "- D: 60-69 (Poor)",
+    "- F: 0-59 (Failing)",
+    "",
+    "## Standards alignment",
+    "",
+    "- WCAG 2.1 Level AA",
+    "- ADA Title II (effective April 2026)",
+    "- Section 508",
+    "- PDF/UA (ISO 14289-1)",
+    "",
+    "## API",
+    "",
+    "The application exposes a REST API:",
+    "",
     '- POST /api/analyze - Upload a PDF for analysis (multipart/form-data, field: "file")',
-    '- POST /api/reports - Create a shareable report link (JSON body: { report })',
-    '- GET /api/reports/:id - Retrieve a shared report by ID',
-    '- GET /api/health - Health check endpoint',
-    '',
-    '## Links',
-    '',
+    "- POST /api/reports - Create a shareable report link (JSON body: { report })",
+    "- GET /api/reports/:id - Retrieve a shared report by ID",
+    "- GET /api/health - Health check endpoint",
+    "",
+    "## Links",
+    "",
     `- Website: ${SITE_URL}`,
-  ]
+  ];
 
-  if (GITHUB_URL) lines.push(`- Source: ${GITHUB_URL}`)
-  if (FAQS_URL) lines.push(`- FAQs: ${FAQS_URL}`)
-  lines.push(`- Organization: ${ORG_URL}`)
+  if (GITHUB_URL) lines.push(`- Source: ${GITHUB_URL}`);
+  if (FAQS_URL) lines.push(`- FAQs: ${FAQS_URL}`);
+  lines.push(`- Organization: ${ORG_URL}`);
 
   lines.push(
-    '',
-    '## Optional: llms-full.txt',
-    '',
-    'For complete documentation including the scoring rubric, category explanations, remediation guidance, and JSON export schema, see /llms-full.txt',
-    '',
-  )
+    "",
+    "## Optional: llms-full.txt",
+    "",
+    "For complete documentation including the scoring rubric, category explanations, remediation guidance, and JSON export schema, see /llms-full.txt",
+    "",
+  );
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 // ── llms-full.txt ─────────────────────────────────────────────────────────
@@ -136,7 +143,7 @@ function buildLlmsFullTxt(): string {
 
 The ${APP_NAME} is a web application that analyzes PDF documents for accessibility compliance. It extracts structural data from PDFs using two complementary parsers (QPDF for tag structure, PDF.js for content extraction), scores the document across 9 weighted categories aligned to WCAG 2.1 Level AA and ADA Title II, and produces a detailed report with findings, remediation guidance, and standards references.
 
-Website: ${SITE_URL}${GITHUB_URL ? `\nSource: ${GITHUB_URL}` : ''}
+Website: ${SITE_URL}${GITHUB_URL ? `\nSource: ${GITHUB_URL}` : ""}
 Organization: ${ORG_NAME} (${ORG_URL})
 
 ---
@@ -348,7 +355,7 @@ Retrieve a shared report.
 ### GET /api/health
 Health check.
 - Returns: { "status": "ok", "version": "...", "uptime": ... }
-`
+`;
 }
 
 // ── og-image.svg ──────────────────────────────────────────────────────────
@@ -357,8 +364,8 @@ function buildOgImageSvg(): string {
   // For the SVG bottom bar: use abbreviation if available, otherwise skip
   const abbrevLine = orgAbbrev
     ? `  <text x="640" y="575" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#555555" letter-spacing="3">${escapeXml(orgAbbrev)}</text>`
-    : ''
-  const orgLine = `  <text x="640" y="600" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#444444">${escapeXml(ORG_NAME)}</text>`
+    : "";
+  const orgLine = `  <text x="640" y="600" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#444444">${escapeXml(ORG_NAME)}</text>`;
 
   return `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -516,55 +523,56 @@ ${orgLine}
   <!-- Divider between left preview and right content -->
   <line x1="600" y1="140" x2="600" y2="490" stroke="#222222" stroke-width="1" opacity="0.5"/>
 </svg>
-`
+`;
 }
 
 function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log(`Rebranding to: ${APP_NAME}`)
-  console.log(`Organization:  ${ORG_NAME}`)
-  console.log(`Production URL: ${SITE_URL}`)
-  console.log()
+  console.log(`Rebranding to: ${APP_NAME}`);
+  console.log(`Organization:  ${ORG_NAME}`);
+  console.log(`Production URL: ${SITE_URL}`);
+  console.log();
 
   // 1. site.webmanifest
-  const manifestPath = resolve(PUBLIC, 'site.webmanifest')
-  writeFileSync(manifestPath, buildManifest())
-  console.log(`  wrote ${manifestPath}`)
+  const manifestPath = resolve(PUBLIC, "site.webmanifest");
+  writeFileSync(manifestPath, buildManifest());
+  console.log(`  wrote ${manifestPath}`);
 
   // 2. llms.txt
-  const llmsPath = resolve(PUBLIC, 'llms.txt')
-  writeFileSync(llmsPath, buildLlmsTxt())
-  console.log(`  wrote ${llmsPath}`)
+  const llmsPath = resolve(PUBLIC, "llms.txt");
+  writeFileSync(llmsPath, buildLlmsTxt());
+  console.log(`  wrote ${llmsPath}`);
 
   // 3. llms-full.txt
-  const llmsFullPath = resolve(PUBLIC, 'llms-full.txt')
-  writeFileSync(llmsFullPath, buildLlmsFullTxt())
-  console.log(`  wrote ${llmsFullPath}`)
+  const llmsFullPath = resolve(PUBLIC, "llms-full.txt");
+  writeFileSync(llmsFullPath, buildLlmsFullTxt());
+  console.log(`  wrote ${llmsFullPath}`);
 
   // 4. og-image.svg
-  const svgPath = resolve(ROOT, 'og-image.svg')
-  const svgContent = buildOgImageSvg()
-  writeFileSync(svgPath, svgContent)
-  console.log(`  wrote ${svgPath}`)
+  const svgPath = resolve(ROOT, "og-image.svg");
+  const svgContent = buildOgImageSvg();
+  writeFileSync(svgPath, svgContent);
+  console.log(`  wrote ${svgPath}`);
 
   // 5. og-image.png (from SVG via sharp)
-  const pngPath = resolve(PUBLIC, 'og-image.png')
-  await sharp(Buffer.from(svgContent))
-    .resize(1200, 630)
-    .png()
-    .toFile(pngPath)
-  console.log(`  wrote ${pngPath}`)
+  const pngPath = resolve(PUBLIC, "og-image.png");
+  await sharp(Buffer.from(svgContent)).resize(1200, 630).png().toFile(pngPath);
+  console.log(`  wrote ${pngPath}`);
 
-  console.log()
-  console.log('Done. All static branding files regenerated.')
+  console.log();
+  console.log("Done. All static branding files regenerated.");
 }
 
-main().catch(err => {
-  console.error('Rebrand failed:', err)
-  process.exit(1)
-})
+main().catch((err) => {
+  console.error("Rebrand failed:", err);
+  process.exit(1);
+});

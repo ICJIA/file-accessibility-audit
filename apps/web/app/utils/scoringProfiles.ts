@@ -11,11 +11,7 @@
 // Grade/severity thresholds live in @file-audit/shared (the same constants
 // the API scorer uses), so the UI can never drift from the engine again.
 
-import {
-  gradeForScore,
-  severityForScore,
-  type ScoringMode,
-} from "@file-audit/shared";
+import { gradeForScore, severityForScore, type ScoringMode } from "@file-audit/shared";
 export { gradeForScore, severityForScore };
 export type { ScoringMode };
 

@@ -16,9 +16,7 @@ describe("isSafeHttpUrl", () => {
     expect(isSafeHttpUrl("javascript:alert(document.domain)")).toBe(false);
     expect(isSafeHttpUrl("  javascript:alert(1)")).toBe(false); // leading space
     expect(isSafeHttpUrl("JavaScript:alert(1)")).toBe(false); // case
-    expect(isSafeHttpUrl("data:text/html,<script>alert(1)</script>")).toBe(
-      false,
-    );
+    expect(isSafeHttpUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
     expect(isSafeHttpUrl("vbscript:msgbox(1)")).toBe(false);
     expect(isSafeHttpUrl("blob:https://x/1")).toBe(false);
     expect(isSafeHttpUrl("file:///etc/passwd")).toBe(false);
@@ -38,9 +36,7 @@ describe("isSafeHttpUrl", () => {
 
 describe("safeHttpUrl", () => {
   it("returns the URL unchanged when safe", () => {
-    expect(safeHttpUrl("https://example.gov/a.pdf")).toBe(
-      "https://example.gov/a.pdf",
-    );
+    expect(safeHttpUrl("https://example.gov/a.pdf")).toBe("https://example.gov/a.pdf");
   });
 
   it("returns undefined for unsafe/invalid input (so :href is omitted)", () => {

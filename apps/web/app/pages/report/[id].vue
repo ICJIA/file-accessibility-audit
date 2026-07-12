@@ -16,9 +16,7 @@
         >
           <span class="text-3xl">!</span>
         </div>
-        <h2 class="text-xl font-semibold text-[var(--status-error)] mb-2">
-          Report Not Available
-        </h2>
+        <h2 class="text-xl font-semibold text-[var(--status-error)] mb-2">Report Not Available</h2>
         <p class="text-[var(--text-muted)] text-sm">{{ errorMessage }}</p>
       </div>
 
@@ -27,127 +25,124 @@
         <!-- Report content — the exact subtree the HTML export snapshots, so
              the download is identical to this shared view. -->
         <div data-report-content>
-        <!-- Prominent filename banner — leaves no doubt which file this
+          <!-- Prominent filename banner — leaves no doubt which file this
              shared report (and its PDF print) refers to -->
-        <ReportFileBanner
-          :filename="(data as any).report.filename"
-          :page-count="(data as any).report.pageCount"
-          :is-scanned="(data as any).report.isScanned"
-          :file-type="(data as any).report.fileType"
-          class="mb-6"
-        />
-        <!-- Header -->
-        <div class="text-center mb-8">
-          <div class="flex justify-end items-center gap-2 mb-4">
-            <button
-              class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-              :aria-label="
-                colorMode.value === 'dark'
-                  ? 'Switch to light mode'
-                  : 'Switch to dark mode'
-              "
-              @click="toggleColorMode"
-            >
-              <svg
-                v-if="colorMode.value === 'dark'"
-                class="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
+          <ReportFileBanner
+            :filename="(data as any).report.filename"
+            :page-count="(data as any).report.pageCount"
+            :is-scanned="(data as any).report.isScanned"
+            :file-type="(data as any).report.fileType"
+            class="mb-6"
+          />
+          <!-- Header -->
+          <div class="text-center mb-8">
+            <div class="flex justify-end items-center gap-2 mb-4">
+              <button
+                class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+                :aria-label="
+                  colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+                "
+                @click="toggleColorMode"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
-                />
-              </svg>
-              <svg
-                v-else
-                class="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
+                <svg
+                  v-if="colorMode.value === 'dark'"
+                  class="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  class="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
+                  />
+                </svg>
+              </button>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-bold mb-1">
+              {{ appName.replace("Audit", "Report") }}
+            </h1>
+            <p class="text-sm text-[var(--text-secondary)] mt-2">
+              <a
+                :href="auditUrl"
+                class="text-[var(--link)] hover:text-[var(--link-hover)] underline transition-colors"
+                >{{ appName }}</a
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
-                />
-              </svg>
-            </button>
-          </div>
-          <h1 class="text-xl sm:text-2xl font-bold mb-1">
-            {{ appName.replace("Audit", "Report") }}
-          </h1>
-          <p class="text-sm text-[var(--text-secondary)] mt-2">
-            <a
-              :href="auditUrl"
-              class="text-[var(--link)] hover:text-[var(--link-hover)] underline transition-colors"
-              >{{ appName }}</a
-            >
-          </p>
-          <p class="text-sm text-[var(--text-secondary)] mt-2">
-            <!-- The API (GET /api/reports/:id) never returns who shared a
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] mt-2">
+              <!-- The API (GET /api/reports/:id) never returns who shared a
                  report — the sharer's email is PII and is intentionally
                  dropped server-side (see apps/api/src/routes/reports.ts) —
                  so this has always rendered as "Shared on" unconditionally. -->
-            Shared on {{ formatDate(data.createdAt) }}
-          </p>
-          <p class="text-xs text-[var(--text-muted)] mt-1">
-            Shareable links expire after 365 days
-          </p>
-        </div>
+              Shared on {{ formatDate(data.createdAt) }}
+            </p>
+            <p class="text-xs text-[var(--text-muted)] mt-1">
+              Shareable links expire after 365 days
+            </p>
+          </div>
 
-        <!-- Score Hero -->
-        <div
-          class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
-        >
-          <ScoreCard :result="(data as any).report" :show-filename="false" />
-        </div>
-
-        <ReportActionBanner
-          v-if="data?.report?.categories"
-          :categories="(data as any).report.categories"
-          :file-type="(data as any).report.fileType"
-          class="mb-4"
-        />
-
-        <IssuesSummary
-          v-if="data?.report?.categories"
-          :categories="(data as any).report.categories"
-          class="mb-8"
-        />
-        <!-- Scanned warning -->
-        <div
-          v-if="data.report.isScanned"
-          class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
-        >
-          <p class="text-[var(--status-warning-orange)] font-medium text-sm">
-            This PDF appears to be a scanned image. Screen readers cannot access
-            its content. OCR and full remediation are required.
-          </p>
-        </div>
-
-        <!-- Warnings -->
-        <div
-          v-if="data.report.warnings?.length"
-          class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4"
-        >
-          <p
-            v-for="w in data.report.warnings"
-            :key="w"
-            class="text-[var(--status-warning-yellow)] text-sm"
+          <!-- Score Hero -->
+          <div
+            class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
           >
-            {{ w }}
-          </p>
-        </div>
+            <ScoreCard :result="(data as any).report" :show-filename="false" />
+          </div>
 
-        <MethodologyCard :file-type="(data as any).report.fileType" />
+          <ReportActionBanner
+            v-if="data?.report?.categories"
+            :categories="(data as any).report.categories"
+            :file-type="(data as any).report.fileType"
+            class="mb-4"
+          />
 
-        <ReportContent :result="(data as any).report" />
+          <IssuesSummary
+            v-if="data?.report?.categories"
+            :categories="(data as any).report.categories"
+            class="mb-8"
+          />
+          <!-- Scanned warning -->
+          <div
+            v-if="data.report.isScanned"
+            class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
+          >
+            <p class="text-[var(--status-warning-orange)] font-medium text-sm">
+              This PDF appears to be a scanned image. Screen readers cannot access its content. OCR
+              and full remediation are required.
+            </p>
+          </div>
 
+          <!-- Warnings -->
+          <div
+            v-if="data.report.warnings?.length"
+            class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4"
+          >
+            <p
+              v-for="w in data.report.warnings"
+              :key="w"
+              class="text-[var(--status-warning-yellow)] text-sm"
+            >
+              {{ w }}
+            </p>
+          </div>
+
+          <MethodologyCard :file-type="(data as any).report.fileType" />
+
+          <ReportContent :result="(data as any).report" />
         </div>
         <!-- /report content -->
 
@@ -156,9 +151,7 @@
           class="mt-8 text-center rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6"
         >
           <div class="flex flex-col items-center gap-3">
-            <p
-              class="text-xs text-[var(--text-secondary)] uppercase tracking-wide font-medium"
-            >
+            <p class="text-xs text-[var(--text-secondary)] uppercase tracking-wide font-medium">
               Download Report
             </p>
             <div class="flex flex-wrap justify-center gap-3">
@@ -260,13 +253,12 @@
               </button>
             </div>
             <p class="text-xs text-[var(--text-muted)]">
-              Text, HTML, and Markdown for reading; PDF via your browser's print dialog; JSON for LLMs.
+              Text, HTML, and Markdown for reading; PDF via your browser's print dialog; JSON for
+              LLMs.
             </p>
           </div>
           <div class="mt-4 pt-4 border-t border-[var(--border-subtle)]">
-            <p class="text-sm text-[var(--text-muted)] mb-3">
-              Want to audit your own document?
-            </p>
+            <p class="text-sm text-[var(--text-muted)] mb-3">Want to audit your own document?</p>
             <a
               :href="auditUrl"
               class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
@@ -315,7 +307,6 @@ import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 
-
 definePageMeta({ layout: false });
 
 const route = useRoute();
@@ -352,17 +343,10 @@ interface SharedReportResponse {
   expiresAt: string;
 }
 
-const { data, pending, error } = await useFetch<SharedReportResponse>(
-  `/api/reports/${id}`,
-);
+const { data, pending, error } = await useFetch<SharedReportResponse>(`/api/reports/${id}`);
 
-const {
-  exportJSON,
-  exportMarkdown,
-  exportText,
-  exportHtml,
-  exportPdfViaBrowserPrint,
-} = useReportExport();
+const { exportJSON, exportMarkdown, exportText, exportHtml, exportPdfViaBrowserPrint } =
+  useReportExport();
 
 function downloadJson() {
   if (data.value) {

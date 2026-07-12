@@ -16,11 +16,7 @@ import {
   listItem,
 } from "./helpers/minimalDocx.js";
 import JSZip from "jszip";
-import {
-  analyzeDocx,
-  readCapped,
-  DocxParseError,
-} from "../services/docxService.js";
+import { analyzeDocx, readCapped, DocxParseError } from "../services/docxService.js";
 
 describe("docx metadata", () => {
   it("extracts title, creator, language, and page count", async () => {
@@ -118,9 +114,7 @@ describe("docx images", () => {
       body: inlineImage({ descr: "Bar chart of quarterly sales" }),
     });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([
-      { altText: "Bar chart of quarterly sales", decorative: false },
-    ]);
+    expect(r.images).toEqual([{ altText: "Bar chart of quarterly sales", decorative: false }]);
   });
 
   it("reports a missing alt text as null", async () => {
@@ -167,9 +161,7 @@ describe("docx links", () => {
   it("extracts link text and resolves the target via relationships", async () => {
     const buf = await buildDocx({
       body: hyperlink("rId7", "Annual accessibility report"),
-      documentRels: hyperlinkRels([
-        { id: "rId7", target: "https://example.gov/report" },
-      ]),
+      documentRels: hyperlinkRels([{ id: "rId7", target: "https://example.gov/report" }]),
     });
     const r = await analyzeDocx(buf);
     expect(r.links).toEqual([
@@ -233,8 +225,7 @@ describe("docx color contrast", () => {
           color: "808080",
           bold: true,
           sizeHalfPt: 32,
-        }) +
-        paragraph("Small note text", { color: "808080" }),
+        }) + paragraph("Small note text", { color: "808080" }),
     });
     const r = await analyzeDocx(buf);
     // #808080 on white ≈ 3.95:1 — passes large (≥3) but fails normal (<4.5).
@@ -244,9 +235,7 @@ describe("docx color contrast", () => {
 
 describe("docx validation", () => {
   it("throws on a non-zip buffer", async () => {
-    await expect(analyzeDocx(Buffer.from("this is not a zip"))).rejects.toThrow(
-      DocxParseError,
-    );
+    await expect(analyzeDocx(Buffer.from("this is not a zip"))).rejects.toThrow(DocxParseError);
   });
 
   it("throws when word/document.xml is missing", async () => {
@@ -267,15 +256,11 @@ describe("docx resource limits (zip-bomb defense)", () => {
     // Highly compressible 50 KB entry (tiny compressed) vs a 10 KB cap →
     // the streaming reader must abort before buffering it all.
     const entry = await entryOf("A".repeat(50_000));
-    await expect(
-      readCapped(entry, 10_000, "word/document.xml"),
-    ).rejects.toThrow(DocxParseError);
+    await expect(readCapped(entry, 10_000, "word/document.xml")).rejects.toThrow(DocxParseError);
   });
 
   it("readCapped returns content that fits within the cap", async () => {
     const entry = await entryOf("hello world");
-    await expect(
-      readCapped(entry, 10_000, "word/document.xml"),
-    ).resolves.toBe("hello world");
+    await expect(readCapped(entry, 10_000, "word/document.xml")).resolves.toBe("hello world");
   });
 });

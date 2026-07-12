@@ -106,9 +106,7 @@ export interface DocxPartOverrides {
 }
 
 /** Build a `.docx` Buffer from overridable OOXML parts. */
-export async function buildDocx(
-  overrides: DocxPartOverrides = {},
-): Promise<Buffer> {
+export async function buildDocx(overrides: DocxPartOverrides = {}): Promise<Buffer> {
   const zip = new JSZip();
 
   if (!overrides.omitContentTypes) {
@@ -117,19 +115,15 @@ export async function buildDocx(
   if (!overrides.omitDocument) {
     const doc =
       overrides.documentXml ??
-      wordDocument(
-        overrides.body ?? "<w:p><w:r><w:t>Hello world</w:t></w:r></w:p>",
-      );
+      wordDocument(overrides.body ?? "<w:p><w:r><w:t>Hello world</w:t></w:r></w:p>");
     zip.file("word/document.xml", doc);
   }
   zip.file("word/styles.xml", overrides.stylesXml ?? DEFAULT_STYLES);
   zip.file("docProps/core.xml", overrides.coreXml ?? DEFAULT_CORE);
   zip.file("docProps/app.xml", overrides.appXml ?? DEFAULT_APP);
-  if (overrides.numberingXml)
-    zip.file("word/numbering.xml", overrides.numberingXml);
+  if (overrides.numberingXml) zip.file("word/numbering.xml", overrides.numberingXml);
   if (overrides.themeXml) zip.file("word/theme/theme1.xml", overrides.themeXml);
-  if (overrides.documentRels)
-    zip.file("word/_rels/document.xml.rels", overrides.documentRels);
+  if (overrides.documentRels) zip.file("word/_rels/document.xml.rels", overrides.documentRels);
   for (const [p, c] of Object.entries(overrides.extra ?? {})) zip.file(p, c);
 
   return zip.generateAsync({ type: "nodebuffer" });
@@ -179,10 +173,7 @@ export function table(opts: {
 }
 
 /** A real list-item paragraph (`<w:numPr>`). */
-export function listItem(
-  text: string,
-  opts: { numId?: number; ilvl?: number } = {},
-): string {
+export function listItem(text: string, opts: { numId?: number; ilvl?: number } = {}): string {
   const numId = opts.numId ?? 1;
   const ilvl = opts.ilvl ?? 0;
   return (
@@ -197,9 +188,7 @@ export function hyperlink(rId: string, text: string): string {
 }
 
 /** A relationships part mapping rId -> hyperlink target. */
-export function hyperlinkRels(
-  rels: Array<{ id: string; target: string }>,
-): string {
+export function hyperlinkRels(rels: Array<{ id: string; target: string }>): string {
   return (
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +

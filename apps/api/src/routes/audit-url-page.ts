@@ -1,15 +1,15 @@
-import { Router, Response, type IRouter } from 'express'
-import crypto from 'node:crypto'
-import { authMiddleware, AuthRequest } from '../middleware/authMiddleware.js'
-import { analyzeLimiter, isPrivilegedRequest } from '../middleware/rateLimiter.js'
-import { gateIdentity, recordAudit } from '../services/auditLog.js'
-import { DEPLOY, SHARED_REPORTS } from '#config'
-import db from '../db/sqlite.js'
-import { isAllowedUrl } from '../services/urlPolicy.js'
-import { auditPage, type PageAuditResult } from '../services/pageAuditor.js'
-import { sanitizeStoredReport } from '../services/reportSanitize.js'
+import { Router, Response, type IRouter } from "express";
+import crypto from "node:crypto";
+import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
+import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
+import { gateIdentity, recordAudit } from "../services/auditLog.js";
+import { DEPLOY, SHARED_REPORTS } from "#config";
+import db from "../db/sqlite.js";
+import { isAllowedUrl } from "../services/urlPolicy.js";
+import { auditPage, type PageAuditResult } from "../services/pageAuditor.js";
+import { sanitizeStoredReport } from "../services/reportSanitize.js";
 
-const router: IRouter = Router()
+const router: IRouter = Router();
 
 // ---------------------------------------------------------------------------
 // POST /api/audit-url-page
@@ -53,54 +53,50 @@ const router: IRouter = Router()
 // ---------------------------------------------------------------------------
 
 interface DedupRow {
-  id: string
-  report_json: string
-  expires_at: string
+  id: string;
+  report_json: string;
+  expires_at: string;
 }
 
 function getReportBaseUrl(): string {
-  const isProduction = process.env.NODE_ENV === 'production'
-  return isProduction ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL
+  const isProduction = process.env.NODE_ENV === "production";
+  return isProduction ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL;
 }
 
 function buildPageReportUrl(id: string): string {
-  return `${getReportBaseUrl()}/page-report/${id}`
+  return `${getReportBaseUrl()}/page-report/${id}`;
 }
 
 router.post(
-  '/audit-url-page',
+  "/audit-url-page",
   authMiddleware,
   analyzeLimiter,
   async (req: AuthRequest, res: Response) => {
     try {
-      const url = req.body?.url
-      if (typeof url !== 'string' || url.length === 0) {
-        res.status(400).json({ error: 'Missing required field: url' })
-        return
+      const url = req.body?.url;
+      if (typeof url !== "string" || url.length === 0) {
+        res.status(400).json({ error: "Missing required field: url" });
+        return;
       }
       const force =
-        req.body?.force === true ||
-        req.body?.force === 'true' ||
-        req.query?.force === 'true'
+        req.body?.force === true || req.body?.force === "true" || req.query?.force === "true";
 
       // Privileged (API_PRIVILEGED_TOKEN) callers may audit any public page;
       // anonymous callers are restricted to the ICJIA / illinois.gov allowlist.
       // The Chromium interceptor's private/reserved-IP block runs on every
       // request regardless, so internal targets stay unreachable either way.
-      const privileged = isPrivilegedRequest(req)
-      const check = isAllowedUrl(url)
+      const privileged = isPrivilegedRequest(req);
+      const check = isAllowedUrl(url);
       if (!privileged && !check.ok) {
-        res
-          .status(400)
-          .json({ error: 'URL not allowed', details: check.reason })
-        return
+        res.status(400).json({ error: "URL not allowed", details: check.reason });
+        return;
       }
 
       // Page audits dedup by sha256(url) rather than sha256(content) — the
       // page bytes change every render (timestamps, CSRF tokens, etc.) but
       // the page identity is stable. Same identity + same caller + unexpired
       // → reuse the cached report.
-      const contentHash = crypto.createHash('sha256').update(url).digest('hex')
+      const contentHash = crypto.createHash("sha256").update(url).digest("hex");
 
       if (!force) {
         const existing = db
@@ -113,12 +109,10 @@ router.post(
               ORDER BY created_at DESC
               LIMIT 1`,
           )
-          .get(req.user!.email, contentHash, new Date().toISOString()) as
-          | DedupRow
-          | undefined
+          .get(req.user!.email, contentHash, new Date().toISOString()) as DedupRow | undefined;
 
         if (existing) {
-          const cached = JSON.parse(existing.report_json) as PageAuditResult
+          const cached = JSON.parse(existing.report_json) as PageAuditResult;
           res.json({
             url: cached.url,
             pageTitle: cached.pageTitle,
@@ -135,8 +129,8 @@ router.post(
             reportUrl: buildPageReportUrl(existing.id),
             reportExpiresAt: existing.expires_at,
             cached: true,
-          })
-          return
+          });
+          return;
         }
       }
 
@@ -144,48 +138,44 @@ router.post(
       // Chromium request interceptor so document navigations (including any
       // redirect hops) are re-validated against the allowlist, and every
       // request is checked for private/reserved-IP targets (SSRF block).
-      let result: PageAuditResult
+      let result: PageAuditResult;
       try {
-        result = await auditPage(
-          url,
-          privileged ? () => true : (u) => isAllowedUrl(u).ok,
-        )
+        result = await auditPage(url, privileged ? () => true : (u) => isAllowedUrl(u).ok);
       } catch (err: any) {
         if (err?.status === 503) {
           res.status(503).json({
-            error: 'Server busy',
-            details:
-              'Too many page audits are in progress. Please retry shortly.',
-          })
-          return
+            error: "Server busy",
+            details: "Too many page audits are in progress. Please retry shortly.",
+          });
+          return;
         }
         // Log the detail server-side only — never echo raw err.message to
         // the client (it can leak library internals / paths, e.g. a
         // Chromium profile path or an internal stack fragment). Mirrors
         // audit-url.ts's generic-500 pattern; `msg` is still used below to
         // classify the failure, just never returned verbatim.
-        console.error('audit-url-page: page audit failed:', err)
-        const msg = err?.message ?? String(err)
+        console.error("audit-url-page: page audit failed:", err);
+        const msg = err?.message ?? String(err);
         if (/timeout|Timeout|net::ERR_/i.test(msg)) {
           res.status(504).json({
-            error: 'Page navigation timed out',
+            error: "Page navigation timed out",
             details:
-              'The page took too long to load or render. Try again, or verify the URL is reachable.',
-          })
-          return
+              "The page took too long to load or render. Try again, or verify the URL is reachable.",
+          });
+          return;
         }
         res.status(502).json({
-          error: 'Page audit failed',
+          error: "Page audit failed",
           details:
-            'The page could not be rendered or audited. It may be blocking automated access or returning an unexpected error.',
-        })
-        return
+            "The page could not be rendered or audited. It may be blocking automated access or returning an unexpected error.",
+        });
+        return;
       }
 
-      const id = crypto.randomBytes(16).toString('hex')
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS)
-      const reportExpiresAt = expiresAt.toISOString()
+      const id = crypto.randomBytes(16).toString("hex");
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS);
+      const reportExpiresAt = expiresAt.toISOString();
 
       // RB3-5 [pre-merge re-audit]: reports.ts / bulk-from-inventory.ts run
       // every stored report through sanitizeStoredReport() before their
@@ -201,8 +191,8 @@ router.post(
       // route's own auditPage() call, not raw client JSON, so there's
       // nothing here for reports.ts's stricter reject-and-400 to guard
       // against.
-      const sanitized = sanitizeStoredReport(result)
-      const reportToStore = sanitized.ok ? sanitized.report : result
+      const sanitized = sanitizeStoredReport(result);
+      const reportToStore = sanitized.ok ? sanitized.report : result;
 
       db.prepare(
         `INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
@@ -217,19 +207,19 @@ router.post(
         JSON.stringify(reportToStore),
         contentHash,
         reportExpiresAt,
-      )
+      );
 
       // Audit-log row for the remediation-gate / usage accounting.
       recordAudit({
-        eventType: 'audit-url-page',
+        eventType: "audit-url-page",
         email: gateIdentity(req.user?.email ?? null, req.ip),
         filename: result.url,
         score: result.score,
         grade: result.grade,
         contentHash,
         ipAddress: req.ip ?? null,
-        userAgent: req.get('user-agent') ?? null,
-      })
+        userAgent: req.get("user-agent") ?? null,
+      });
 
       res.json({
         url: result.url,
@@ -247,15 +237,15 @@ router.post(
         reportUrl: buildPageReportUrl(id),
         reportExpiresAt,
         cached: false,
-      })
+      });
     } catch (err: any) {
       // Log the detail server-side only — never echo raw err.message to the
       // client (it can leak library internals / paths). Mirrors
       // audit-url.ts's generic-500 pattern.
-      console.error('audit-url-page error:', err)
-      res.status(500).json({ error: 'Internal server error' })
+      console.error("audit-url-page error:", err);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
-)
+);
 
-export default router
+export default router;

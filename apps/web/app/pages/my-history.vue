@@ -5,7 +5,9 @@
     <div v-if="pending" class="text-[var(--text-muted)]">Loading…</div>
 
     <div v-else-if="!data?.data?.length" class="text-[var(--text-muted)]">
-      No analyses yet. <NuxtLink to="/" class="text-[var(--accent-green)] hover:underline">Analyze a file</NuxtLink> to get started.
+      No analyses yet.
+      <NuxtLink to="/" class="text-[var(--accent-green)] hover:underline">Analyze a file</NuxtLink>
+      to get started.
     </div>
 
     <div v-else>
@@ -20,19 +22,28 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[var(--border)]">
-            <tr v-for="row in data.data" :key="row.id" class="hover:bg-[var(--surface-card-50)] transition-colors">
+            <tr
+              v-for="row in data.data"
+              :key="row.id"
+              class="hover:bg-[var(--surface-card-50)] transition-colors"
+            >
               <td class="px-3 sm:px-4 py-3 text-[var(--text-heading)]">{{ row.filename }}</td>
-              <td class="text-center px-2 sm:px-4 py-3">{{ row.score ?? '—' }}</td>
+              <td class="text-center px-2 sm:px-4 py-3">{{ row.score ?? "—" }}</td>
               <td class="text-center px-2 sm:px-4 py-3">
                 <span
                   v-if="row.grade"
                   class="inline-block w-8 h-8 rounded-full text-sm font-bold leading-8 text-center"
-                  :style="{ backgroundColor: gradeColor(row.grade) + '20', color: gradeColor(row.grade) }"
+                  :style="{
+                    backgroundColor: gradeColor(row.grade) + '20',
+                    color: gradeColor(row.grade),
+                  }"
                 >
                   {{ row.grade }}
                 </span>
               </td>
-              <td class="text-right px-3 sm:px-4 py-3 text-[var(--text-muted)]">{{ formatDate(row.created_at) }}</td>
+              <td class="text-right px-3 sm:px-4 py-3 text-[var(--text-muted)]">
+                {{ formatDate(row.created_at) }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -62,36 +73,40 @@
 // The `auth` middleware (app/middleware/auth.ts) is kept in place and stays
 // a no-op until AUTH.REQUIRE_LOGIN is flipped to true server-side.
 
-const page = ref(1)
+const page = ref(1);
 
 // Mirrors the res.json() shape built in apps/api/src/routes/logs.ts (GET
 // /api/my-history) — a plain Express handler proxied through, not a Nitro
 // server route, so Nuxt can't infer this from the URL; declared here. This
 // query selects an explicit column list (narrower than /api/logs).
 interface HistoryRow {
-  id: number
-  filename: string | null
-  score: number | null
-  grade: string | null
-  created_at: string
+  id: number;
+  filename: string | null;
+  score: number | null;
+  grade: string | null;
+  created_at: string;
 }
 interface MyHistoryResponse {
-  data: HistoryRow[]
-  pagination: { page: number; limit: number; total: number; totalPages: number }
+  data: HistoryRow[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
-const { data, pending } = useFetch<MyHistoryResponse>('/api/my-history', {
+const { data, pending } = useFetch<MyHistoryResponse>("/api/my-history", {
   query: { page, limit: 20 },
-  credentials: 'include',
+  credentials: "include",
   watch: [page],
-})
+});
 
 const gradeColors: Record<string, string> = {
-  A: '#22c55e', B: '#14b8a6', C: '#eab308', D: '#f97316', F: '#ef4444',
-}
+  A: "#22c55e",
+  B: "#14b8a6",
+  C: "#eab308",
+  D: "#f97316",
+  F: "#ef4444",
+};
 
 function gradeColor(grade: string): string {
-  return gradeColors[grade] || '#666'
+  return gradeColors[grade] || "#666";
 }
 
 // A plain assignment expression (`@click="page = p"`) types as
@@ -99,12 +114,16 @@ function gradeColor(grade: string): string {
 // click handler prop (`(event) => void | Promise<void>`) rejects; a real
 // function body has no such implicit return.
 function goToPage(p: number) {
-  page.value = p
+  page.value = p;
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 </script>

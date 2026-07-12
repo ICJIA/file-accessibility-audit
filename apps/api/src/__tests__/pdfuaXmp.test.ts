@@ -44,7 +44,7 @@ describe("PDF/UA identifier from XMP", () => {
     expect(r.pdfUaPart).toBe("1");
   });
 
-  it("detects the attribute form (pdfuaid:part=\"1\")", async () => {
+  it('detects the attribute form (pdfuaid:part="1")', async () => {
     const buf = pdfWithXmp(
       ' <rdf:Description rdf:about="" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/" pdfuaid:part="1"/>',
     );

@@ -1,17 +1,14 @@
-import { Router, type IRouter, type Request, type Response, type NextFunction } from 'express'
-import multer from 'multer'
-import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { createReadStream, promises as fs, existsSync, statSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { authMiddleware, type AuthRequest } from '../middleware/authMiddleware.js'
-import {
-  analyzeLimiter,
-  remediationStatusLimiter,
-} from '../middleware/rateLimiter.js'
-import { analyzePDF } from '../services/pdfAnalyzer.js'
-import { buildChildSpawnEnv } from '../services/childSpawnEnv.js'
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import multer from "multer";
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createReadStream, promises as fs, existsSync, statSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { authMiddleware, type AuthRequest } from "../middleware/authMiddleware.js";
+import { analyzeLimiter, remediationStatusLimiter } from "../middleware/rateLimiter.js";
+import { analyzePDF } from "../services/pdfAnalyzer.js";
+import { buildChildSpawnEnv } from "../services/childSpawnEnv.js";
 import {
   createJob,
   getJob,
@@ -21,23 +18,15 @@ import {
   setInputAudit,
   getJobAuditPair,
   getJobVeraPdf,
-} from '../services/remediationJobs.js'
-import {
-  recordEvent,
-  getEventsForJob,
-  deleteAndVerify,
-} from '../services/remediationEvents.js'
-import { AUTH, DEPLOY, FILENAME, REMEDIATION } from '#config'
-import {
-  gateIdentity,
-  hasRecentAudit,
-  countRecentRemediations,
-} from '../services/auditLog.js'
+} from "../services/remediationJobs.js";
+import { recordEvent, getEventsForJob, deleteAndVerify } from "../services/remediationEvents.js";
+import { AUTH, DEPLOY, FILENAME, REMEDIATION } from "#config";
+import { gateIdentity, hasRecentAudit, countRecentRemediations } from "../services/auditLog.js";
 
-const router: IRouter = Router()
+const router: IRouter = Router();
 
-const HERE = path.dirname(fileURLToPath(import.meta.url))
-const WORKER_PATH = path.resolve(HERE, '../jobs/remediate.ts')
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const WORKER_PATH = path.resolve(HERE, "../jobs/remediate.ts");
 
 const remediateUpload = multer({
   storage: multer.memoryStorage(),
@@ -46,16 +35,13 @@ const remediateUpload = multer({
     files: 1,
   },
   fileFilter: (_req, file, cb) => {
-    if (
-      file.mimetype === 'application/pdf' ||
-      file.originalname.toLowerCase().endsWith('.pdf')
-    ) {
-      cb(null, true)
+    if (file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf")) {
+      cb(null, true);
     } else {
-      cb(new Error('Only PDF files are accepted'))
+      cb(new Error("Only PDF files are accepted"));
     }
   },
-})
+});
 
 /**
  * Feature-flag gate. While REMEDIATION.ENABLED is false the entire
@@ -63,29 +49,26 @@ const remediateUpload = multer({
  */
 function requireEnabled(_req: Request, res: Response, next: NextFunction): void {
   if (!REMEDIATION.ENABLED) {
-    res.status(404).json({ error: 'Not Found' })
-    return
+    res.status(404).json({ error: "Not Found" });
+    return;
   }
-  next()
+  next();
 }
 
 function sanitizeFilename(raw: string): string {
-  let name = path.basename(raw)
-  name = name.slice(0, FILENAME.MAX_LENGTH)
-  name = name.replace(
-    new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, 'g'),
-    '_',
-  )
-  return name || 'unnamed.pdf'
+  let name = path.basename(raw);
+  name = name.slice(0, FILENAME.MAX_LENGTH);
+  name = name.replace(new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, "g"), "_");
+  return name || "unnamed.pdf";
 }
 
 function sha256Hex(buf: Buffer): string {
-  return createHash('sha256').update(buf).digest('hex')
+  return createHash("sha256").update(buf).digest("hex");
 }
 
 async function ensureOutputRoot(): Promise<void> {
-  const outputRoot = path.resolve(REMEDIATION.OUTPUT_DIR)
-  await fs.mkdir(outputRoot, { recursive: true, mode: 0o700 })
+  const outputRoot = path.resolve(REMEDIATION.OUTPUT_DIR);
+  await fs.mkdir(outputRoot, { recursive: true, mode: 0o700 });
 }
 
 // Exported for testability (RB2-d spawn-env verification) — spawnWorker's
@@ -95,20 +78,16 @@ export function spawnWorker(jobId: string): void {
   // runtime loader used by both `pnpm dev` (`tsx watch`) and `pnpm start`
   // (`node --import tsx`); we pass it explicitly here so the worker
   // launches the same way regardless of how the parent was started.
-  const child = spawn(
-    process.execPath,
-    ['--import', 'tsx', WORKER_PATH, jobId],
-    {
-      detached: true,
-      stdio: 'ignore',
-      // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
-      // worker parses an attacker-controlled PDF, so it must not hold the
-      // API's secrets while still getting everything it needs to boot
-      // (PATH/HOME/NODE_*/TSX_*) and to run the JVM pipeline (JAVA_*).
-      env: buildChildSpawnEnv(),
-    },
-  )
-  child.unref()
+  const child = spawn(process.execPath, ["--import", "tsx", WORKER_PATH, jobId], {
+    detached: true,
+    stdio: "ignore",
+    // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
+    // worker parses an attacker-controlled PDF, so it must not hold the
+    // API's secrets while still getting everything it needs to boot
+    // (PATH/HOME/NODE_*/TSX_*) and to run the JVM pipeline (JAVA_*).
+    env: buildChildSpawnEnv(),
+  });
+  child.unref();
 }
 
 /* -------------------------------------------------------------------- */
@@ -116,26 +95,26 @@ export function spawnWorker(jobId: string): void {
 /* -------------------------------------------------------------------- */
 
 router.post(
-  '/remediate',
+  "/remediate",
   requireEnabled,
   authMiddleware,
   analyzeLimiter,
-  remediateUpload.single('file'),
+  remediateUpload.single("file"),
   async (req: AuthRequest, res: Response) => {
     try {
-      const file = req.file
+      const file = req.file;
       if (!file) {
-        res.status(400).json({ error: 'No file uploaded' })
-        return
+        res.status(400).json({ error: "No file uploaded" });
+        return;
       }
 
       // Magic bytes check — same posture as /api/analyze
-      const header = file.buffer.subarray(0, 5).toString('ascii')
-      if (header !== '%PDF-') {
+      const header = file.buffer.subarray(0, 5).toString("ascii");
+      if (header !== "%PDF-") {
         res.status(400).json({
-          error: 'This file does not appear to be a valid PDF.',
-        })
-        return
+          error: "This file does not appear to be a valid PDF.",
+        });
+        return;
       }
 
       // Capture the user's exact uploaded filename (spaces, unicode,
@@ -144,20 +123,19 @@ router.post(
       // drop the remediated file in over the original without breaking
       // links. The sanitized version is what we use for filesystem
       // paths, internal storage, and the path-traversal check below.
-      const originalFilename = String(file.originalname ?? '').slice(0, 500)
-      const filename = sanitizeFilename(file.originalname)
-      const email = AUTH.REQUIRE_LOGIN ? (req.user?.email ?? null) : null
+      const originalFilename = String(file.originalname ?? "").slice(0, 500);
+      const filename = sanitizeFilename(file.originalname);
+      const email = AUTH.REQUIRE_LOGIN ? (req.user?.email ?? null) : null;
 
       // Per-user concurrent job limit
       if (email) {
-        const active = countActiveJobsForEmail(email)
+        const active = countActiveJobsForEmail(email);
         if (active >= REMEDIATION.MAX_CONCURRENT_JOBS_PER_USER) {
           res.status(429).json({
-            error: 'You already have a remediation in progress.',
-            details:
-              'Please wait for your current remediation to finish before starting another.',
-          })
-          return
+            error: "You already have a remediation in progress.",
+            details: "Please wait for your current remediation to finish before starting another.",
+          });
+          return;
         }
       }
 
@@ -172,8 +150,8 @@ router.post(
       // the security review — a different anonymous caller can't
       // unlock remediation for content audited by someone else just
       // because they happen to share the 'anonymous' bucket.
-      const gateEmail = gateIdentity(email, req.ip)
-      const contentHash = sha256Hex(file.buffer)
+      const gateEmail = gateIdentity(email, req.ip);
+      const contentHash = sha256Hex(file.buffer);
 
       // (1) Audit-gate. Reject if no audit_log row exists for this
       // content from this caller within REMEDIATION.AUDIT_REQUIRED_
@@ -182,22 +160,12 @@ router.post(
       // persist). Forces every remediation to be preceded by an
       // audit so abusers can't bypass the audit pipeline's rate
       // limit by jumping straight to remediation.
-      if (
-        !hasRecentAudit(
-          contentHash,
-          gateEmail,
-          REMEDIATION.AUDIT_REQUIRED_WINDOW_MS,
-        )
-      ) {
-        const minutes = Math.round(
-          REMEDIATION.AUDIT_REQUIRED_WINDOW_MS / 60_000,
-        )
+      if (!hasRecentAudit(contentHash, gateEmail, REMEDIATION.AUDIT_REQUIRED_WINDOW_MS)) {
+        const minutes = Math.round(REMEDIATION.AUDIT_REQUIRED_WINDOW_MS / 60_000);
         const auditUrl =
-          process.env.NODE_ENV === 'production'
-            ? DEPLOY.PRODUCTION_URL
-            : DEPLOY.DEV_FRONTEND_URL
+          process.env.NODE_ENV === "production" ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL;
         res.status(403).json({
-          error: 'Audit required before remediation.',
+          error: "Audit required before remediation.",
           details:
             `This PDF must be audited first — upload it at ${auditUrl} ` +
             `and click "Auto-Remediate" from the results page. The audit ` +
@@ -205,8 +173,8 @@ router.post(
             `counts (browser upload, POST /api/analyze-url, or POST ` +
             `/api/audit-url).`,
           auditUrl,
-        })
-        return
+        });
+        return;
       }
 
       // (2) Daily cap. Reject when this caller has already started
@@ -214,13 +182,10 @@ router.post(
       // hours. Sized to comfortably cover a normal agency workflow
       // (~50 PDFs/day) while blocking abuse at scale (3000+ PDFs
       // would take a month at the cap).
-      const recentJobs = countRecentRemediations(
-        gateEmail,
-        24 * 60 * 60_000,
-      )
+      const recentJobs = countRecentRemediations(gateEmail, 24 * 60 * 60_000);
       if (recentJobs >= REMEDIATION.MAX_JOBS_PER_DAY_PER_USER) {
         res.status(429).json({
-          error: 'Daily remediation limit reached.',
+          error: "Daily remediation limit reached.",
           details:
             `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_USER} remediations ` +
             `per caller per 24 hours. You've used ${recentJobs}. Wait for ` +
@@ -229,24 +194,21 @@ router.post(
             `large-scale workflow.`,
           limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_USER,
           used: recentJobs,
-        })
-        return
+        });
+        return;
       }
 
       // Pre-flight audit — gives us inputScore and page count without
       // committing to a job yet. analyzePDF runs against the in-memory
       // buffer; nothing has been written to disk yet at this point.
-      const preflight = await analyzePDF(file.buffer, filename)
+      const preflight = await analyzePDF(file.buffer, filename);
 
-      if (
-        preflight.pageCount &&
-        preflight.pageCount > REMEDIATION.MAX_PAGE_COUNT
-      ) {
+      if (preflight.pageCount && preflight.pageCount > REMEDIATION.MAX_PAGE_COUNT) {
         res.status(413).json({
-          error: 'PDF is too long for auto-remediation.',
+          error: "PDF is too long for auto-remediation.",
           details: `Maximum is ${REMEDIATION.MAX_PAGE_COUNT} pages; this file has ${preflight.pageCount}.`,
-        })
-        return
+        });
+        return;
       }
 
       // contentHash was computed earlier for the audit-gate check.
@@ -262,22 +224,19 @@ router.post(
       // fast-path that avoids running analyzePDF when the caller is
       // obviously over cap. This in-transaction re-check is the
       // authoritative enforcement that closes the race window.
-      let createdJob: ReturnType<typeof createJob>
+      let createdJob: ReturnType<typeof createJob>;
       try {
-        const dbMod = (await import('../db/sqlite.js')).default
+        const dbMod = (await import("../db/sqlite.js")).default;
         const txn = dbMod.transaction(() => {
-          const nowCount = countRecentRemediations(
-            gateEmail,
-            24 * 60 * 60_000,
-          )
+          const nowCount = countRecentRemediations(gateEmail, 24 * 60 * 60_000);
           if (nowCount >= REMEDIATION.MAX_JOBS_PER_DAY_PER_USER) {
-            const err = new Error('cap_exceeded') as Error & {
-              code?: string
-              used?: number
-            }
-            err.code = 'cap_exceeded'
-            err.used = nowCount
-            throw err
+            const err = new Error("cap_exceeded") as Error & {
+              code?: string;
+              used?: number;
+            };
+            err.code = "cap_exceeded";
+            err.used = nowCount;
+            throw err;
           }
           return createJob({
             email,
@@ -285,13 +244,13 @@ router.post(
             originalFilename,
             contentHash,
             pageCount: preflight.pageCount ?? null,
-          })
-        })
-        createdJob = txn()
+          });
+        });
+        createdJob = txn();
       } catch (e: any) {
-        if (e?.code === 'cap_exceeded') {
+        if (e?.code === "cap_exceeded") {
           res.status(429).json({
-            error: 'Daily remediation limit reached.',
+            error: "Daily remediation limit reached.",
             details:
               `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_USER} ` +
               `remediations per caller per 24 hours. You've used ` +
@@ -299,63 +258,63 @@ router.post(
               `concurrent request consumed the last slot.)`,
             limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_USER,
             used: e.used,
-          })
-          return
+          });
+          return;
         }
-        throw e
+        throw e;
       }
-      const { job, downloadToken } = createdJob
+      const { job, downloadToken } = createdJob;
 
       // Persist the pre-flight input score on the job row immediately so
       // the worker doesn't have to re-audit the input. Also persist the
       // full audit (categories) so the result page can show category-
       // level before/after without re-auditing.
-      const setInputScore = (await import('../db/sqlite.js')).default.prepare(
-        'UPDATE remediation_jobs SET input_score = ? WHERE id = ?',
-      )
-      setInputScore.run(preflight.overallScore, job.id)
-      setInputAudit(job.id, JSON.stringify(preflight))
+      const setInputScore = (await import("../db/sqlite.js")).default.prepare(
+        "UPDATE remediation_jobs SET input_score = ? WHERE id = ?",
+      );
+      setInputScore.run(preflight.overallScore, job.id);
+      setInputAudit(job.id, JSON.stringify(preflight));
 
-      await ensureOutputRoot()
-      const jobDir = path.join(path.resolve(REMEDIATION.OUTPUT_DIR), job.id)
-      const workDir = path.join(jobDir, 'work')
-      await fs.mkdir(workDir, { recursive: true, mode: 0o700 })
-      const inputPath = path.join(workDir, 'input.pdf')
-      await fs.writeFile(inputPath, file.buffer, { mode: 0o600 })
+      await ensureOutputRoot();
+      const jobDir = path.join(path.resolve(REMEDIATION.OUTPUT_DIR), job.id);
+      const workDir = path.join(jobDir, "work");
+      await fs.mkdir(workDir, { recursive: true, mode: 0o700 });
+      const inputPath = path.join(workDir, "input.pdf");
+      await fs.writeFile(inputPath, file.buffer, { mode: 0o600 });
 
-      recordEvent(job.id, 'received', {
+      recordEvent(job.id, "received", {
         filename,
         size_bytes: file.buffer.length,
         page_count: preflight.pageCount,
         input_score: preflight.overallScore,
-      })
+      });
 
-      spawnWorker(job.id)
+      spawnWorker(job.id);
 
       res.status(202).json({
         jobId: job.id,
         downloadToken,
         inputScore: preflight.overallScore,
         inputGrade: preflight.grade,
-      })
+      });
     } catch (err) {
-      const e = err as Error & { status?: number }
-      console.error('Remediation request error:', e)
+      const e = err as Error & { status?: number };
+      console.error("Remediation request error:", e);
       if (e.status === 503) {
-        res.status(503).json({ error: 'Server busy' })
-        return
+        res.status(503).json({ error: "Server busy" });
+        return;
       }
-      res.status(500).json({ error: 'Could not start remediation' })
+      res.status(500).json({ error: "Could not start remediation" });
     }
   },
-)
+);
 
 /* -------------------------------------------------------------------- */
 /* GET /api/remediate/:jobId/status                                     */
 /* -------------------------------------------------------------------- */
 
 router.get(
-  '/remediate/:jobId/status',
+  "/remediate/:jobId/status",
   // Exempt from globalLimiter (the progress page polls this once per
   // second), so this dedicated flood guard is the only cap that applies.
   // It runs before requireEnabled so the cap holds even while the
@@ -365,15 +324,15 @@ router.get(
   requireEnabled,
   authMiddleware,
   (req: AuthRequest, res: Response) => {
-    const job = getJob(String(req.params.jobId))
+    const job = getJob(String(req.params.jobId));
     if (!job) {
-      res.status(404).json({ error: 'Job not found' })
-      return
+      res.status(404).json({ error: "Job not found" });
+      return;
     }
     // Authorize: row's email (if any) must match the requesting user
     if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
-      res.status(403).json({ error: 'Forbidden' })
-      return
+      res.status(403).json({ error: "Forbidden" });
+      return;
     }
 
     res.json({
@@ -393,49 +352,49 @@ router.get(
       // originalFilename is null for jobs created before v1.20.0.
       inputFilename: job.inputFilename,
       originalFilename: job.originalFilename,
-    })
+    });
   },
-)
+);
 
 /* -------------------------------------------------------------------- */
 /* GET /api/remediate/:jobId/download?token=...                         */
 /* -------------------------------------------------------------------- */
 
 router.get(
-  '/remediate/:jobId/download',
+  "/remediate/:jobId/download",
   requireEnabled,
   authMiddleware,
   async (req: AuthRequest, res: Response) => {
-    const job = getJob(String(req.params.jobId))
+    const job = getJob(String(req.params.jobId));
     if (!job) {
-      res.status(404).json({ error: 'Job not found' })
-      return
+      res.status(404).json({ error: "Job not found" });
+      return;
     }
     if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
-      res.status(403).json({ error: 'Forbidden' })
-      return
+      res.status(403).json({ error: "Forbidden" });
+      return;
     }
-    if (job.status !== 'complete' || !job.outputPath) {
-      if (job.status === 'expired') {
-        res.status(410).json({ error: 'Output expired and was deleted.' })
-        return
+    if (job.status !== "complete" || !job.outputPath) {
+      if (job.status === "expired") {
+        res.status(410).json({ error: "Output expired and was deleted." });
+        return;
       }
       res.status(409).json({
         error: `Job is ${job.status}.`,
-        details: 'Wait for completion before downloading.',
-      })
-      return
+        details: "Wait for completion before downloading.",
+      });
+      return;
     }
-    const presentedToken = String(req.query.token ?? '')
+    const presentedToken = String(req.query.token ?? "");
     if (!presentedToken || !verifyDownloadToken(job, presentedToken)) {
-      res.status(403).json({ error: 'Invalid or missing download token.' })
-      return
+      res.status(403).json({ error: "Invalid or missing download token." });
+      return;
     }
     if (!existsSync(job.outputPath)) {
-      setExpired(job.id)
-      recordEvent(job.id, 'expired', { reason: 'file already gone at download' })
-      res.status(410).json({ error: 'Output already deleted.' })
-      return
+      setExpired(job.id);
+      recordEvent(job.id, "expired", { reason: "file already gone at download" });
+      res.status(410).json({ error: "Output already deleted." });
+      return;
     }
 
     // Single-use enforcement: mark expired BEFORE we begin sending so a
@@ -443,7 +402,7 @@ router.get(
     // The file is still on disk at this point; cleanup happens on
     // stream close below. If the stream itself fails after this, the
     // file gets deleted by the next cleanup sweep (orphan removal).
-    setExpired(job.id)
+    setExpired(job.id);
 
     // Resolve the download filename. Priority:
     //   1. ?name=<custom> query param — caller-specified rename. The
@@ -457,20 +416,18 @@ router.get(
     //   3. job.inputFilename + '_remediated.pdf' — legacy fallback for
     //      jobs created before v1.20.0 (original_filename was null).
     const customName =
-      typeof req.query?.name === 'string' && req.query.name.length > 0
+      typeof req.query?.name === "string" && req.query.name.length > 0
         ? String(req.query.name)
-        : null
+        : null;
 
-    let downloadName: string
+    let downloadName: string;
     if (customName) {
-      const trimmed = customName.trim().slice(0, 250)
-      downloadName = /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`
+      const trimmed = customName.trim().slice(0, 250);
+      downloadName = /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`;
     } else if (job.originalFilename) {
-      downloadName = job.originalFilename
+      downloadName = job.originalFilename;
     } else {
-      downloadName = sanitizeFilename(
-        job.inputFilename.replace(/\.pdf$/i, '') + '_remediated.pdf',
-      )
+      downloadName = sanitizeFilename(job.inputFilename.replace(/\.pdf$/i, "") + "_remediated.pdf");
     }
 
     // RFC 6266 dual filename header — provides an ASCII fallback for
@@ -479,21 +436,21 @@ router.get(
     // unicode become underscores there; the UTF-8 filename* preserves
     // the exact name including spaces. Modern browsers (and curl)
     // honor filename* and present the exact original name to the user.
-    const asciiFallback = sanitizeFilename(downloadName)
-    const encodedName = encodeURIComponent(downloadName)
-    let fileSize = 0
+    const asciiFallback = sanitizeFilename(downloadName);
+    const encodedName = encodeURIComponent(downloadName);
+    let fileSize = 0;
     try {
-      fileSize = statSync(job.outputPath).size
+      fileSize = statSync(job.outputPath).size;
     } catch {
       // shouldn't happen; existsSync passed above
     }
-    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
-      'Content-Disposition',
+      "Content-Disposition",
       `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`,
-    )
+    );
     if (fileSize > 0) {
-      res.setHeader('Content-Length', String(fileSize))
+      res.setHeader("Content-Length", String(fileSize));
     }
 
     // Stream the file instead of loading the full buffer into memory.
@@ -501,59 +458,59 @@ router.get(
     // cap (512MB) under concurrent downloads. Stream errors and
     // client disconnects both trigger cleanup via the response 'close'
     // event.
-    const stream = createReadStream(job.outputPath)
-    let bytesSent = 0
-    stream.on('data', (chunk) => {
-      bytesSent += chunk.length
-    })
+    const stream = createReadStream(job.outputPath);
+    let bytesSent = 0;
+    stream.on("data", (chunk) => {
+      bytesSent += chunk.length;
+    });
 
     const cleanup = async (): Promise<void> => {
-      recordEvent(job.id, 'downloaded', { bytes_sent: bytesSent })
+      recordEvent(job.id, "downloaded", { bytes_sent: bytesSent });
       if (job.outputPath) {
-        await deleteAndVerify(job.id, job.outputPath, 'download')
+        await deleteAndVerify(job.id, job.outputPath, "download");
       }
-    }
-    res.once('close', () => {
-      void cleanup()
-    })
-    stream.on('error', (err) => {
-      recordEvent(job.id, 'error', {
-        error_type: 'download_stream_failed',
+    };
+    res.once("close", () => {
+      void cleanup();
+    });
+    stream.on("error", (err) => {
+      recordEvent(job.id, "error", {
+        error_type: "download_stream_failed",
         message: err.message,
-      })
+      });
       if (!res.headersSent) {
-        res.status(500).end()
+        res.status(500).end();
       } else {
-        res.end()
+        res.end();
       }
-    })
+    });
 
-    stream.pipe(res)
+    stream.pipe(res);
   },
-)
+);
 
 /* -------------------------------------------------------------------- */
 /* GET /api/remediate/:jobId/receipt                                    */
 /* -------------------------------------------------------------------- */
 
 router.get(
-  '/remediate/:jobId/receipt',
+  "/remediate/:jobId/receipt",
   requireEnabled,
   authMiddleware,
   (req: AuthRequest, res: Response) => {
-    const job = getJob(String(req.params.jobId))
+    const job = getJob(String(req.params.jobId));
     if (!job) {
-      res.status(404).json({ error: 'Job not found' })
-      return
+      res.status(404).json({ error: "Job not found" });
+      return;
     }
     if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
-      res.status(403).json({ error: 'Forbidden' })
-      return
+      res.status(403).json({ error: "Forbidden" });
+      return;
     }
 
-    const events = getEventsForJob(job.id)
-    const audits = getJobAuditPair(job.id)
-    const verapdf = getJobVeraPdf(job.id)
+    const events = getEventsForJob(job.id);
+    const audits = getJobAuditPair(job.id);
+    const verapdf = getJobVeraPdf(job.id);
     res.json({
       jobId: job.id,
       filename: job.inputFilename,
@@ -571,8 +528,8 @@ router.get(
         occurredAt: e.occurredAt,
         details: e.details,
       })),
-    })
+    });
   },
-)
+);
 
-export default router
+export default router;

@@ -10,21 +10,15 @@ describe("escapeHtml", () => {
   });
 
   it("neutralizes a script-tag payload", () => {
-    expect(escapeHtml("<script>alert(1)</script>")).toBe(
-      "&lt;script&gt;alert(1)&lt;/script&gt;",
-    );
+    expect(escapeHtml("<script>alert(1)</script>")).toBe("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 
   it("neutralizes a single-quoted attribute breakout payload", () => {
-    expect(escapeHtml("' onmouseover='alert(1)")).toBe(
-      "&#39; onmouseover=&#39;alert(1)",
-    );
+    expect(escapeHtml("' onmouseover='alert(1)")).toBe("&#39; onmouseover=&#39;alert(1)");
   });
 
   it("leaves benign text untouched", () => {
-    expect(escapeHtml("Quarterly Budget Report 2024")).toBe(
-      "Quarterly Budget Report 2024",
-    );
+    expect(escapeHtml("Quarterly Budget Report 2024")).toBe("Quarterly Budget Report 2024");
   });
 
   it("escapes ampersand first (no double-encoding artifacts)", () => {

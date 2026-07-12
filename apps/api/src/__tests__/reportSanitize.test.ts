@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { sanitizeStoredReport } from '../services/reportSanitize.js'
+import { describe, it, expect } from "vitest";
+import { sanitizeStoredReport } from "../services/reportSanitize.js";
 
 // POST /api/reports stores the report JSON verbatim and the public
 // /report/:id page renders it. This sanitizer is the store-boundary guard:
@@ -7,355 +7,351 @@ import { sanitizeStoredReport } from '../services/reportSanitize.js'
 // appears in the payload, and rejects a structurally-malformed categories
 // value (F2 SSR crash).
 
-describe('sanitizeStoredReport — help-link URL scheme (F1)', () => {
-  it('strips a javascript: help-link URL from top-level categories', () => {
+describe("sanitizeStoredReport — help-link URL scheme (F1)", () => {
+  it("strips a javascript: help-link URL from top-level categories", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       categories: [
         {
-          id: 'heading_structure',
+          id: "heading_structure",
           helpLinks: [
-            { label: 'safe', url: 'https://www.w3.org/x.html' },
-            { label: 'evil', url: 'javascript:alert(document.domain)' },
+            { label: "safe", url: "https://www.w3.org/x.html" },
+            { label: "evil", url: "javascript:alert(document.domain)" },
           ],
         },
       ],
-    })
-    expect(res.ok).toBe(true)
-    const cats = (res.report as any).categories
-    expect(cats[0].helpLinks).toHaveLength(1)
-    expect(cats[0].helpLinks[0].url).toBe('https://www.w3.org/x.html')
-  })
+    });
+    expect(res.ok).toBe(true);
+    const cats = (res.report as any).categories;
+    expect(cats[0].helpLinks).toHaveLength(1);
+    expect(cats[0].helpLinks[0].url).toBe("https://www.w3.org/x.html");
+  });
 
-  it('also strips unsafe URLs nested under scoreProfiles.*.categories (the render can read from there)', () => {
+  it("also strips unsafe URLs nested under scoreProfiles.*.categories (the render can read from there)", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       categories: [],
       scoreProfiles: {
         strict: {
           categories: [
             {
-              id: 'alt_text',
+              id: "alt_text",
               helpLinks: [
-                { label: 'evil', url: 'data:text/html,<script>alert(1)</script>' },
-                { label: 'ok', url: 'https://help.example.gov' },
+                { label: "evil", url: "data:text/html,<script>alert(1)</script>" },
+                { label: "ok", url: "https://help.example.gov" },
               ],
             },
           ],
         },
       },
-    })
-    expect(res.ok).toBe(true)
-    const nested = (res.report as any).scoreProfiles.strict.categories[0].helpLinks
-    expect(nested).toHaveLength(1)
-    expect(nested[0].url).toBe('https://help.example.gov')
-  })
+    });
+    expect(res.ok).toBe(true);
+    const nested = (res.report as any).scoreProfiles.strict.categories[0].helpLinks;
+    expect(nested).toHaveLength(1);
+    expect(nested[0].url).toBe("https://help.example.gov");
+  });
 
-  it('leaves a clean report untouched (value-equal)', () => {
+  it("leaves a clean report untouched (value-equal)", () => {
     const clean = {
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 90,
-      categories: [
-        { id: 'a', helpLinks: [{ label: 'l', url: 'https://x.gov/a' }] },
-      ],
-    }
-    const res = sanitizeStoredReport(clean)
-    expect(res.ok).toBe(true)
-    expect(res.report).toEqual(clean)
-  })
+      categories: [{ id: "a", helpLinks: [{ label: "l", url: "https://x.gov/a" }] }],
+    };
+    const res = sanitizeStoredReport(clean);
+    expect(res.ok).toBe(true);
+    expect(res.report).toEqual(clean);
+  });
 
-  it('does not mutate the caller-supplied object', () => {
+  it("does not mutate the caller-supplied object", () => {
     const input = {
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
-      categories: [
-        { id: 'a', helpLinks: [{ label: 'e', url: 'javascript:alert(1)' }] },
-      ],
-    }
-    sanitizeStoredReport(input)
+      categories: [{ id: "a", helpLinks: [{ label: "e", url: "javascript:alert(1)" }] }],
+    };
+    sanitizeStoredReport(input);
     // original still has the unsafe link — the sanitizer worked on a copy
-    expect(input.categories[0].helpLinks[0].url).toBe('javascript:alert(1)')
-  })
-})
+    expect(input.categories[0].helpLinks[0].url).toBe("javascript:alert(1)");
+  });
+});
 
-describe('sanitizeStoredReport — malformed structure (F2)', () => {
-  it('rejects a non-array categories value', () => {
+describe("sanitizeStoredReport — malformed structure (F2)", () => {
+  it("rejects a non-array categories value", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
-      categories: 'not-an-array',
-    })
-    expect(res.ok).toBe(false)
-    expect(res.error).toMatch(/categories/)
-  })
+      categories: "not-an-array",
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/categories/);
+  });
 
-  it('accepts a report with no categories key (categories optional)', () => {
-    const res = sanitizeStoredReport({ filename: 'x.pdf', overallScore: 50 })
-    expect(res.ok).toBe(true)
-  })
+  it("accepts a report with no categories key (categories optional)", () => {
+    const res = sanitizeStoredReport({ filename: "x.pdf", overallScore: 50 });
+    expect(res.ok).toBe(true);
+  });
 
-  it('rejects a non-object report', () => {
-    expect(sanitizeStoredReport(null).ok).toBe(false)
-    expect(sanitizeStoredReport('x').ok).toBe(false)
-  })
-})
+  it("rejects a non-object report", () => {
+    expect(sanitizeStoredReport(null).ok).toBe(false);
+    expect(sanitizeStoredReport("x").ok).toBe(false);
+  });
+});
 
-describe('sanitizeStoredReport — conformance finding URL scheme (F1b)', () => {
+describe("sanitizeStoredReport — conformance finding URL scheme (F1b)", () => {
   // Sibling of the F1 helpLinks guard: conformance.failures[].url and
   // conformance.notAssessed[].url render as <a href> too (ScoreCard.vue) and
   // in the HTML/Markdown exports, and are attacker-controllable on a forged
   // report. Unlike a help-link, a finding's sc/name/level/issue/reason are
   // substantive accessibility content — so an unsafe url neutralizes just
   // that field (to '') rather than dropping the whole finding.
-  it('neutralizes a javascript: URL on a conformance failure but keeps the finding', () => {
+  it("neutralizes a javascript: URL on a conformance failure but keeps the finding", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: {
-        status: 'fail',
-        headline: 'x',
+        status: "fail",
+        headline: "x",
         failures: [
           {
-            sc: '1.1.1',
-            name: 'Non-text Content',
-            level: 'A',
-            category: 'alt_text',
-            issue: '2 images have no alt text',
-            url: 'javascript:alert(document.domain)',
+            sc: "1.1.1",
+            name: "Non-text Content",
+            level: "A",
+            category: "alt_text",
+            issue: "2 images have no alt text",
+            url: "javascript:alert(document.domain)",
           },
         ],
         notAssessed: [],
       },
-    })
-    expect(res.ok).toBe(true)
-    const failure = (res.report as any).conformance.failures[0]
-    expect(failure.url).toBe('')
-    expect(failure.sc).toBe('1.1.1')
-    expect(failure.issue).toBe('2 images have no alt text')
-  })
+    });
+    expect(res.ok).toBe(true);
+    const failure = (res.report as any).conformance.failures[0];
+    expect(failure.url).toBe("");
+    expect(failure.sc).toBe("1.1.1");
+    expect(failure.issue).toBe("2 images have no alt text");
+  });
 
-  it('neutralizes a data: URL on a conformance notAssessed entry but keeps the criterion', () => {
+  it("neutralizes a data: URL on a conformance notAssessed entry but keeps the criterion", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: {
-        status: 'incomplete',
-        headline: 'x',
+        status: "incomplete",
+        headline: "x",
         failures: [],
         notAssessed: [
           {
-            sc: '1.4.3',
-            name: 'Contrast (Minimum)',
-            level: 'AA',
-            reason: 'not automated',
-            url: 'data:text/html,<script>alert(1)</script>',
+            sc: "1.4.3",
+            name: "Contrast (Minimum)",
+            level: "AA",
+            reason: "not automated",
+            url: "data:text/html,<script>alert(1)</script>",
           },
         ],
       },
-    })
-    expect(res.ok).toBe(true)
-    const na = (res.report as any).conformance.notAssessed[0]
-    expect(na.url).toBe('')
-    expect(na.sc).toBe('1.4.3')
-    expect(na.reason).toBe('not automated')
-  })
+    });
+    expect(res.ok).toBe(true);
+    const na = (res.report as any).conformance.notAssessed[0];
+    expect(na.url).toBe("");
+    expect(na.sc).toBe("1.4.3");
+    expect(na.reason).toBe("not automated");
+  });
 
-  it('leaves safe https conformance URLs untouched (value-equal)', () => {
+  it("leaves safe https conformance URLs untouched (value-equal)", () => {
     const clean = {
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 90,
       conformance: {
-        status: 'fail',
-        headline: 'x',
+        status: "fail",
+        headline: "x",
         failures: [
           {
-            sc: '1.1.1',
-            name: 'Non-text Content',
-            level: 'A',
-            category: 'alt_text',
-            issue: 'x',
-            url: 'https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html',
+            sc: "1.1.1",
+            name: "Non-text Content",
+            level: "A",
+            category: "alt_text",
+            issue: "x",
+            url: "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
           },
         ],
         notAssessed: [
           {
-            sc: '1.4.3',
-            name: 'Contrast (Minimum)',
-            level: 'AA',
-            reason: 'not automated',
-            url: 'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html',
+            sc: "1.4.3",
+            name: "Contrast (Minimum)",
+            level: "AA",
+            reason: "not automated",
+            url: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
           },
         ],
       },
-    }
-    const res = sanitizeStoredReport(clean)
-    expect(res.ok).toBe(true)
-    expect(res.report).toEqual(clean)
-  })
+    };
+    const res = sanitizeStoredReport(clean);
+    expect(res.ok).toBe(true);
+    expect(res.report).toEqual(clean);
+  });
 
-  it('does not mutate the caller-supplied object', () => {
+  it("does not mutate the caller-supplied object", () => {
     const input = {
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: {
-        status: 'fail',
-        headline: 'x',
+        status: "fail",
+        headline: "x",
         failures: [
           {
-            sc: '1.1.1',
-            name: 'x',
-            level: 'A',
-            category: 'x',
-            issue: 'x',
-            url: 'javascript:alert(1)',
+            sc: "1.1.1",
+            name: "x",
+            level: "A",
+            category: "x",
+            issue: "x",
+            url: "javascript:alert(1)",
           },
         ],
         notAssessed: [],
       },
-    }
-    sanitizeStoredReport(input)
-    expect(input.conformance.failures[0].url).toBe('javascript:alert(1)')
-  })
-})
+    };
+    sanitizeStoredReport(input);
+    expect(input.conformance.failures[0].url).toBe("javascript:alert(1)");
+  });
+});
 
-describe('sanitizeStoredReport — malformed conformance structure (F1b robustness)', () => {
+describe("sanitizeStoredReport — malformed conformance structure (F1b robustness)", () => {
   // The conformance object comes from attacker-controlled stored JSON, so the
   // F1b URL walk must never throw on a structurally-malformed conformance
   // shape (a throw here would 500 the POST). These pin the defensive guards in
   // stripUnsafeConformanceUrls; behavior is "ignore what isn't a real finding,
   // still neutralize the ones that are".
-  it('does not throw and returns ok when conformance is a string', () => {
+  it("does not throw and returns ok when conformance is a string", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
-      conformance: 'not-an-object',
-    })
-    expect(res.ok).toBe(true)
-    expect((res.report as any).conformance).toBe('not-an-object')
-  })
+      conformance: "not-an-object",
+    });
+    expect(res.ok).toBe(true);
+    expect((res.report as any).conformance).toBe("not-an-object");
+  });
 
-  it('does not throw and returns ok when conformance is null', () => {
+  it("does not throw and returns ok when conformance is null", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: null,
-    })
-    expect(res.ok).toBe(true)
-    expect((res.report as any).conformance).toBe(null)
-  })
+    });
+    expect(res.ok).toBe(true);
+    expect((res.report as any).conformance).toBe(null);
+  });
 
-  it('ignores non-array failures / notAssessed without throwing', () => {
+  it("ignores non-array failures / notAssessed without throwing", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: {
-        status: 'fail',
-        headline: 'x',
-        failures: 'not-an-array',
+        status: "fail",
+        headline: "x",
+        failures: "not-an-array",
         notAssessed: { nope: true },
       },
-    })
-    expect(res.ok).toBe(true)
-    const c = (res.report as any).conformance
-    expect(c.failures).toBe('not-an-array')
-    expect(c.notAssessed).toEqual({ nope: true })
-  })
+    });
+    expect(res.ok).toBe(true);
+    const c = (res.report as any).conformance;
+    expect(c.failures).toBe("not-an-array");
+    expect(c.notAssessed).toEqual({ nope: true });
+  });
 
-  it('skips null / non-object finding entries but still neutralizes a real unsafe finding', () => {
+  it("skips null / non-object finding entries but still neutralizes a real unsafe finding", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: {
-        status: 'fail',
-        headline: 'x',
+        status: "fail",
+        headline: "x",
         failures: [
           null,
-          'a-bare-string',
+          "a-bare-string",
           42,
           {
-            sc: '1.1.1',
-            name: 'Non-text Content',
-            level: 'A',
-            category: 'alt_text',
-            issue: 'x',
-            url: 'javascript:alert(1)',
+            sc: "1.1.1",
+            name: "Non-text Content",
+            level: "A",
+            category: "alt_text",
+            issue: "x",
+            url: "javascript:alert(1)",
           },
         ],
         notAssessed: [],
       },
-    })
-    expect(res.ok).toBe(true)
-    const failures = (res.report as any).conformance.failures
+    });
+    expect(res.ok).toBe(true);
+    const failures = (res.report as any).conformance.failures;
     // the junk entries survive untouched (nothing to sanitize)...
-    expect(failures[0]).toBe(null)
-    expect(failures[1]).toBe('a-bare-string')
-    expect(failures[2]).toBe(42)
+    expect(failures[0]).toBe(null);
+    expect(failures[1]).toBe("a-bare-string");
+    expect(failures[2]).toBe(42);
     // ...and the real finding still gets its unsafe url neutralized
-    expect(failures[3].url).toBe('')
-    expect(failures[3].sc).toBe('1.1.1')
-  })
+    expect(failures[3].url).toBe("");
+    expect(failures[3].sc).toBe("1.1.1");
+  });
 
-  it('does not throw when a finding is missing its url field entirely', () => {
+  it("does not throw when a finding is missing its url field entirely", () => {
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       conformance: {
-        status: 'fail',
-        headline: 'x',
-        failures: [{ sc: '1.1.1', name: 'Non-text Content', level: 'A' }],
+        status: "fail",
+        headline: "x",
+        failures: [{ sc: "1.1.1", name: "Non-text Content", level: "A" }],
         notAssessed: [],
       },
-    })
-    expect(res.ok).toBe(true)
-    const finding = (res.report as any).conformance.failures[0]
+    });
+    expect(res.ok).toBe(true);
+    const finding = (res.report as any).conformance.failures[0];
     // a missing url is treated as unsafe and normalized to '' (a falsy,
     // href-omitting value at every render/export sink) — the finding is kept
-    expect(finding.url).toBe('')
-    expect(finding.sc).toBe('1.1.1')
-  })
+    expect(finding.url).toBe("");
+    expect(finding.sc).toBe("1.1.1");
+  });
 
-  it('neutralizes an unsafe conformance url nested deeper in the payload while a sibling safe url survives', () => {
+  it("neutralizes an unsafe conformance url nested deeper in the payload while a sibling safe url survives", () => {
     // stripUnsafeConformanceUrls walks the WHOLE tree for any `conformance`
     // key (mirrors stripUnsafeHelpLinks), so a conformance object nested under
     // an arbitrary wrapper is still guarded.
     const res = sanitizeStoredReport({
-      filename: 'x.pdf',
+      filename: "x.pdf",
       overallScore: 50,
       history: {
         previous: {
           conformance: {
-            status: 'fail',
-            headline: 'x',
+            status: "fail",
+            headline: "x",
             failures: [
               {
-                sc: '1.1.1',
-                name: 'Non-text Content',
-                level: 'A',
-                category: 'alt_text',
-                issue: 'x',
-                url: 'javascript:alert(1)',
+                sc: "1.1.1",
+                name: "Non-text Content",
+                level: "A",
+                category: "alt_text",
+                issue: "x",
+                url: "javascript:alert(1)",
               },
             ],
             notAssessed: [
               {
-                sc: '1.4.3',
-                name: 'Contrast (Minimum)',
-                level: 'AA',
-                reason: 'not automated',
-                url: 'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html',
+                sc: "1.4.3",
+                name: "Contrast (Minimum)",
+                level: "AA",
+                reason: "not automated",
+                url: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
               },
             ],
           },
         },
       },
-    })
-    expect(res.ok).toBe(true)
-    const nested = (res.report as any).history.previous.conformance
-    expect(nested.failures[0].url).toBe('')
+    });
+    expect(res.ok).toBe(true);
+    const nested = (res.report as any).history.previous.conformance;
+    expect(nested.failures[0].url).toBe("");
     expect(nested.notAssessed[0].url).toBe(
-      'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html',
-    )
-  })
-})
+      "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+    );
+  });
+});

@@ -114,10 +114,7 @@ function decodeQpdfString(raw: string): string {
       // Try plain UTF-8
       const decoded = bytes.toString("utf8");
       // If most chars are printable, use it
-      const printable = decoded.replace(
-        /[^\x20-\x7E\u00A0-\uFFFF]/g,
-        "",
-      ).length;
+      const printable = decoded.replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, "").length;
       if (decoded.length > 0 && printable / decoded.length > 0.5) {
         return decoded.replace(/\0+$/, "");
       }
@@ -159,9 +156,7 @@ export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
   }
 }
 
-export async function analyzeWithQpdfAsync(
-  buffer: Buffer,
-): Promise<QpdfResult> {
+export async function analyzeWithQpdfAsync(buffer: Buffer): Promise<QpdfResult> {
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
 
@@ -275,11 +270,7 @@ function handleQpdfError(err: any): QpdfResult {
     if (typeof stdout === "string" && stdout.length > 0) {
       try {
         const parsed = JSON.parse(stdout);
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          (parsed.qpdf || parsed.objects)
-        ) {
+        if (parsed && typeof parsed === "object" && (parsed.qpdf || parsed.objects)) {
           return parseQpdfJson(parsed);
         }
       } catch {
@@ -411,10 +402,7 @@ function parseQpdfJson(json: any): QpdfResult {
       }
 
       // Count outline entries and collect titles
-      if (
-        o["/Type"] === "/Outlines" ||
-        (o["/First"] && o["/Last"] && !o["/Parent"])
-      ) {
+      if (o["/Type"] === "/Outlines" || (o["/First"] && o["/Last"] && !o["/Parent"])) {
         const titles: string[] = [];
         result.outlineCount = countOutlineEntries(o, objects, titles);
         result.outlineTitles = titles;
@@ -489,10 +477,7 @@ function parseQpdfJson(json: any): QpdfResult {
         }
         // Language spans — structure elements with their own /Lang
         if (o["/Lang"] && tag && tag !== "/Document") {
-          const spanLang =
-            typeof o["/Lang"] === "string"
-              ? o["/Lang"].replace(/^u:/, "")
-              : null;
+          const spanLang = typeof o["/Lang"] === "string" ? o["/Lang"].replace(/^u:/, "") : null;
           if (spanLang) {
             result.langSpans.push({ lang: spanLang, tag: tag.slice(1) });
           }
@@ -500,8 +485,7 @@ function parseQpdfJson(json: any): QpdfResult {
         // Figures with alt text
         if (tag === "/Figure") {
           const rawAlt = o["/Alt"];
-          const altText =
-            typeof rawAlt === "string" ? decodeQpdfString(rawAlt) : undefined;
+          const altText = typeof rawAlt === "string" ? decodeQpdfString(rawAlt) : undefined;
           const hasAlt = altText !== undefined && altText !== "";
           result.images.push({ ref: normRef(ref), hasAlt, altText });
         }
@@ -598,9 +582,7 @@ function parseQpdfJson(json: any): QpdfResult {
     // resolveRef (the object map is keyed "obj:N 0 R" on qpdf ≥ 11).
     if (result.hasAcroForm) {
       const knownRefs = new Set(
-        result.formFields
-          .map((field) => field.ref)
-          .filter((ref): ref is string => !!ref),
+        result.formFields.map((field) => field.ref).filter((ref): ref is string => !!ref),
       );
       for (const [_ref, obj] of Object.entries(objects)) {
         const o = obj as any;
@@ -612,8 +594,7 @@ function parseQpdfJson(json: any): QpdfResult {
           const fieldRefs = acroForm["/Fields"];
           if (Array.isArray(fieldRefs)) {
             for (const fieldRef of fieldRefs) {
-              const fieldKey =
-                typeof fieldRef === "string" ? fieldRef : fieldRef?.toString();
+              const fieldKey = typeof fieldRef === "string" ? fieldRef : fieldRef?.toString();
               if (!fieldKey || knownRefs.has(fieldKey)) continue;
               const field = resolveRef(fieldKey, objects) as any;
               if (field) {
@@ -629,9 +610,7 @@ function parseQpdfJson(json: any): QpdfResult {
                   });
                 if (isContainer) continue;
                 const name =
-                  typeof field["/T"] === "string"
-                    ? field["/T"].replace(/^u:/, "")
-                    : undefined;
+                  typeof field["/T"] === "string" ? field["/T"].replace(/^u:/, "") : undefined;
                 result.formFields.push({
                   ref: fieldKey,
                   hasTU: !!field["/TU"],
@@ -671,10 +650,7 @@ function parseQpdfJson(json: any): QpdfResult {
     // exists — otherwise returns an empty map.
     if (result.hasStructTree) {
       const pageRefToNum = buildPageRefToNum(json, objects);
-      result.structTreeMcidsByPage = collectStructTreeMcidsByPage(
-        objects,
-        pageRefToNum,
-      );
+      result.structTreeMcidsByPage = collectStructTreeMcidsByPage(objects, pageRefToNum);
     }
   } catch (err) {
     console.error("QPDF JSON parse error:", err);
@@ -698,12 +674,8 @@ function resolveRef(ref: string, objects: any): any {
   return objects[ref] ?? objects[`obj:${ref}`] ?? null;
 }
 
-function resolveStructureMap(
-  candidate: any,
-  objects: any,
-): Record<string, string> | null {
-  const resolved =
-    typeof candidate === "string" ? resolveRef(candidate, objects) : candidate;
+function resolveStructureMap(candidate: any, objects: any): Record<string, string> | null {
+  const resolved = typeof candidate === "string" ? resolveRef(candidate, objects) : candidate;
   if (!resolved || typeof resolved !== "object") return null;
 
   const entries = Object.entries(resolved).filter(
@@ -742,8 +714,7 @@ function collectDescendantTableRefs(
     const items = Array.isArray(kids) ? kids : [kids];
     for (const item of items) {
       if (typeof item === "number") continue;
-      if (item && typeof item === "object" && item["/MCID"] !== undefined)
-        continue;
+      if (item && typeof item === "object" && item["/MCID"] !== undefined) continue;
       if (typeof item === "string") {
         const child = resolveRef(item, objects);
         if (!child) continue;
@@ -797,8 +768,7 @@ function collectHeadingsInOrder(
     const items = Array.isArray(kids) ? kids : [kids];
     for (const item of items) {
       if (typeof item === "number") continue;
-      if (item && typeof item === "object" && item["/MCID"] !== undefined)
-        continue;
+      if (item && typeof item === "object" && item["/MCID"] !== undefined) continue;
       if (typeof item === "string") {
         const child = resolveRef(item, objects);
         if (child) walk(child, depth + 1);
@@ -811,11 +781,7 @@ function collectHeadingsInOrder(
   return headings;
 }
 
-function countOutlineEntries(
-  outline: any,
-  objects: any,
-  titles: string[],
-): number {
+function countOutlineEntries(outline: any, objects: any, titles: string[]): number {
   let count = 0;
   const visited = new Set<string>();
 
@@ -826,10 +792,7 @@ function countOutlineEntries(
       count++;
       const entry = resolveRef(current, objects);
       if (!entry) break;
-      const title =
-        typeof entry["/Title"] === "string"
-          ? entry["/Title"].replace(/^u:/, "")
-          : "";
+      const title = typeof entry["/Title"] === "string" ? entry["/Title"].replace(/^u:/, "") : "";
       if (title && titles.length < 50) {
         titles.push("  ".repeat(depth) + title);
       }
@@ -1134,8 +1097,7 @@ function analyzeList(
   // required: ISO 32000 permits items without a separate label (common
   // tooling emits LBody-only items), so missing <Lbl> is an advisory signal
   // (hasLabels) — not grounds for a confirmed structural failure.
-  result.isWellFormed =
-    result.itemCount > 0 && itemsWithBody === result.itemCount;
+  result.isWellFormed = result.itemCount > 0 && itemsWithBody === result.itemCount;
 
   return result;
 }
@@ -1198,17 +1160,13 @@ function calculateTreeDepth(objects: any): number {
 // `pages` array in document order with { object, pageposfrom1 }; prefer that
 // when available. Fall back to walking the /Pages tree from the catalog for
 // older QPDF output shapes.
-function buildPageRefToNum(
-  json: any,
-  objects: Record<string, any>,
-): Map<string, number> {
+function buildPageRefToNum(json: any, objects: Record<string, any>): Map<string, number> {
   const map = new Map<string, number>();
 
   if (Array.isArray(json?.pages)) {
     for (const page of json.pages) {
       const ref = typeof page?.object === "string" ? page.object : null;
-      const pos =
-        typeof page?.pageposfrom1 === "number" ? page.pageposfrom1 : null;
+      const pos = typeof page?.pageposfrom1 === "number" ? page.pageposfrom1 : null;
       if (ref && pos !== null) map.set(ref, pos);
     }
     if (map.size > 0) return map;
@@ -1226,9 +1184,7 @@ function buildPageRefToNum(
 
   const rootPagesRef = catalog["/Pages"];
   const rootPages =
-    typeof rootPagesRef === "string"
-      ? resolveRef(rootPagesRef, objects)
-      : rootPagesRef;
+    typeof rootPagesRef === "string" ? resolveRef(rootPagesRef, objects) : rootPagesRef;
   if (!rootPages) return map;
 
   let pageCounter = 0;
@@ -1310,9 +1266,7 @@ function collectStructTreeMcidsByPage(
     visited.add(node);
 
     const pushed = pushPg(node);
-    const currentPage = pageStack.length
-      ? pageStack[pageStack.length - 1]
-      : null;
+    const currentPage = pageStack.length ? pageStack[pageStack.length - 1] : null;
 
     const kids = node["/K"];
 

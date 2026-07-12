@@ -108,27 +108,19 @@ describe("integration: accessible PDF", () => {
   it("detects the PDF/UA identifier from XMP metadata (pdfjs, not qpdf)", () => {
     const cat = findCategory(result, "text_extractability");
     expect(cat.findings.some((f) => f.includes("PDF/UA"))).toBe(true);
-    expect(cat.findings.some((f) => f.includes("No PDF/UA identifier"))).toBe(
-      false,
-    );
+    expect(cat.findings.some((f) => f.includes("No PDF/UA identifier"))).toBe(false);
   });
 
   it("detects artifact tagging from the page content stream", () => {
     const cat = findCategory(result, "text_extractability");
-    expect(cat.findings.some((f) => f.includes("tagged as artifacts"))).toBe(
-      true,
-    );
-    expect(cat.findings.some((f) => f.includes("No artifact tags found"))).toBe(
-      false,
-    );
+    expect(cat.findings.some((f) => f.includes("tagged as artifacts"))).toBe(true);
+    expect(cat.findings.some((f) => f.includes("No artifact tags found"))).toBe(false);
   });
 
   it("does not append the Acrobat How-to-Fix guide to categories scoring 100", () => {
     for (const cat of result.categories) {
       if (cat.score === 100) {
-        expect(
-          cat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix")),
-        ).toBe(false);
+        expect(cat.findings.some((f) => f.includes("Adobe Acrobat: How to Fix"))).toBe(false);
       }
     }
   });
@@ -178,17 +170,13 @@ describe("integration: inaccessible PDF", () => {
   });
 
   it("has at least one critical issue", () => {
-    const criticals = result.categories.filter(
-      (c) => c.severity === "Critical",
-    );
+    const criticals = result.categories.filter((c) => c.severity === "Critical");
     expect(criticals.length).toBeGreaterThanOrEqual(1);
   });
 
   it("executive summary reflects the confirmed WCAG failures", () => {
     expect(result.conformance.status).toBe("fail");
-    expect(result.executiveSummary).toContain(
-      `does not yet meet WCAG ${WCAG.VERSION} Level AA`,
-    );
+    expect(result.executiveSummary).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
   });
 
   it("all categories have explanations and help links", () => {
@@ -216,9 +204,7 @@ describe("integration: comparative scoring", () => {
   }, 30_000);
 
   it("accessible PDF scores significantly higher", () => {
-    expect(accessible.overallScore).toBeGreaterThan(
-      inaccessible.overallScore + 30,
-    );
+    expect(accessible.overallScore).toBeGreaterThan(inaccessible.overallScore + 30);
   });
 
   it("accessible PDF has a better grade", () => {
@@ -251,12 +237,8 @@ describe("integration: comparative scoring", () => {
 
 describe("integration: malformed PDF handling", () => {
   it("rejects malformed PDFs instead of scoring them as scanned", async () => {
-    const malformed = Buffer.from(
-      "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\n%%EOF\n",
-    );
+    const malformed = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\n%%EOF\n");
 
-    await expect(analyzePDF(malformed, "broken.pdf")).rejects.toThrow(
-      "PDF parsing failed",
-    );
+    await expect(analyzePDF(malformed, "broken.pdf")).rejects.toThrow("PDF parsing failed");
   });
 });

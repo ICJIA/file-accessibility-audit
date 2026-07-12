@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  BANNER_EYEBROW,
-  bannerMetaLine,
-  fileTypeLabel,
-  pageNoun,
-} from "../utils/reportBanner";
+import { BANNER_EYEBROW, bannerMetaLine, fileTypeLabel, pageNoun } from "../utils/reportBanner";
 
 describe("reportBanner", () => {
   it("uses the agreed eyebrow label", () => {

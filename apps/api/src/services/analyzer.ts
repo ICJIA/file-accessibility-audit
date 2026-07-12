@@ -38,9 +38,7 @@ function isZip(buffer: Buffer): boolean {
  * confirms SpreadsheetML content, so a renamed Office file is never misread
  * as the wrong package type.
  */
-export async function detectFileType(
-  buffer: Buffer,
-): Promise<DetectedFileType | null> {
+export async function detectFileType(buffer: Buffer): Promise<DetectedFileType | null> {
   if (buffer.subarray(0, 5).toString("latin1") === "%PDF-") return "pdf";
 
   if (isZip(buffer)) {
@@ -60,10 +58,7 @@ export async function detectFileType(
       } catch {
         return null; // unreadable / oversized → not a valid Word package
       }
-      if (
-        contentTypes.includes("wordprocessingml.document") &&
-        zip.file("word/document.xml")
-      ) {
+      if (contentTypes.includes("wordprocessingml.document") && zip.file("word/document.xml")) {
         return "docx";
       }
       if (
@@ -72,10 +67,7 @@ export async function detectFileType(
       ) {
         return "pptx";
       }
-      if (
-        contentTypes.includes("spreadsheetml.sheet") &&
-        zip.file("xl/workbook.xml")
-      ) {
+      if (contentTypes.includes("spreadsheetml.sheet") && zip.file("xl/workbook.xml")) {
         return "xlsx";
       }
     } catch {
@@ -87,17 +79,9 @@ export async function detectFileType(
 
 /** Error for unsupported file types or a disabled DOCX/PPTX/XLSX pipeline. */
 export class FileTypeError extends Error {
-  code:
-    | "UNSUPPORTED_FILE_TYPE"
-    | "DOCX_DISABLED"
-    | "PPTX_DISABLED"
-    | "XLSX_DISABLED";
+  code: "UNSUPPORTED_FILE_TYPE" | "DOCX_DISABLED" | "PPTX_DISABLED" | "XLSX_DISABLED";
   constructor(
-    code:
-      | "UNSUPPORTED_FILE_TYPE"
-      | "DOCX_DISABLED"
-      | "PPTX_DISABLED"
-      | "XLSX_DISABLED",
+    code: "UNSUPPORTED_FILE_TYPE" | "DOCX_DISABLED" | "PPTX_DISABLED" | "XLSX_DISABLED",
     message: string,
   ) {
     super(message);
@@ -115,10 +99,7 @@ export class FileTypeError extends Error {
  * / PPTX_ENABLED=false / XLSX_ENABLED=false). analyzeDocx may throw
  * DocxParseError for a corrupt package.
  */
-export async function analyzeDocument(
-  buffer: Buffer,
-  filename: string,
-): Promise<AnalysisResult> {
+export async function analyzeDocument(buffer: Buffer, filename: string): Promise<AnalysisResult> {
   const type = await detectFileType(buffer);
 
   if (type === "pdf") return analyzePDF(buffer, filename);

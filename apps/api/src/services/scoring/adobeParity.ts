@@ -17,21 +17,10 @@
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 
-export type AdobeStatus =
-  | "passed"
-  | "failed"
-  | "manual"
-  | "skipped"
-  | "not_computed";
+export type AdobeStatus = "passed" | "failed" | "manual" | "skipped" | "not_computed";
 
 export type AdobeCategory =
-  | "Document"
-  | "Page Content"
-  | "Forms"
-  | "Alternate Text"
-  | "Tables"
-  | "Lists"
-  | "Headings";
+  "Document" | "Page Content" | "Forms" | "Alternate Text" | "Tables" | "Lists" | "Headings";
 
 export interface AdobeRuleResult {
   id: string;
@@ -70,10 +59,7 @@ function rule(
   return { id, category, name, description, status, vacuous, note };
 }
 
-export function buildAdobeParityReport(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): AdobeParityResult {
+export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): AdobeParityResult {
   const rules: AdobeRuleResult[] = [];
 
   const figureCount = qpdf.images.length;
@@ -155,9 +141,7 @@ export function buildAdobeParityReport(
       "Text language is specified",
       qpdf.hasLang ? "passed" : "failed",
       false,
-      qpdf.hasLang
-        ? `Language declared: ${qpdf.lang}`
-        : "No /Lang entry in the document catalog.",
+      qpdf.hasLang ? `Language declared: ${qpdf.lang}` : "No /Lang entry in the document catalog.",
     ),
   );
 
@@ -265,8 +249,7 @@ export function buildAdobeParityReport(
 
   // Character encoding: approximate via font embedding — non-embedded fonts
   // often mean unreliable encoding when rendered on systems lacking them.
-  const allFontsEmbedded =
-    qpdf.fonts.length === 0 || qpdf.fonts.every((f) => f.embedded);
+  const allFontsEmbedded = qpdf.fonts.length === 0 || qpdf.fonts.every((f) => f.embedded);
   rules.push(
     rule(
       "character_encoding",
@@ -391,11 +374,7 @@ export function buildAdobeParityReport(
       "Forms",
       "Field descriptions",
       "All form fields have description",
-      formFieldsVacuous
-        ? "passed"
-        : untaggedForm === 0
-          ? "passed"
-          : "failed",
+      formFieldsVacuous ? "passed" : untaggedForm === 0 ? "passed" : "failed",
       formFieldsVacuous,
       formFieldsVacuous
         ? "No form fields found — rule passes vacuously."
@@ -491,9 +470,7 @@ export function buildAdobeParityReport(
   const tablesVacuous = tableCount === 0;
   const tablesWithoutRows = qpdf.tables.filter((t) => !t.hasRowStructure).length;
   const tablesWithoutHeaders = qpdf.tables.filter((t) => !t.hasHeaders).length;
-  const tablesInconsistent = qpdf.tables.filter(
-    (t) => t.hasConsistentColumns === false,
-  ).length;
+  const tablesInconsistent = qpdf.tables.filter((t) => t.hasConsistentColumns === false).length;
 
   rules.push(
     rule(
@@ -531,11 +508,7 @@ export function buildAdobeParityReport(
       "Tables",
       "Headers",
       "Tables should have headers",
-      tablesVacuous
-        ? "passed"
-        : tablesWithoutHeaders === 0
-          ? "passed"
-          : "failed",
+      tablesVacuous ? "passed" : tablesWithoutHeaders === 0 ? "passed" : "failed",
       tablesVacuous,
       tablesVacuous
         ? "No tables found — rule passes vacuously."
@@ -551,11 +524,7 @@ export function buildAdobeParityReport(
       "Tables",
       "Regularity",
       "Tables must contain the same number of columns in each row and rows in each column",
-      tablesVacuous
-        ? "passed"
-        : tablesInconsistent === 0
-          ? "passed"
-          : "failed",
+      tablesVacuous ? "passed" : tablesInconsistent === 0 ? "passed" : "failed",
       tablesVacuous,
       tablesVacuous
         ? "No tables found — rule passes vacuously."
@@ -642,8 +611,7 @@ export function buildAdobeParityReport(
     manual: rules.filter((r) => r.status === "manual").length,
     skipped: rules.filter((r) => r.status === "skipped").length,
     notComputed: rules.filter((r) => r.status === "not_computed").length,
-    vacuousPasses: rules.filter((r) => r.status === "passed" && r.vacuous)
-      .length,
+    vacuousPasses: rules.filter((r) => r.status === "passed" && r.vacuous).length,
     total: rules.length,
   };
 

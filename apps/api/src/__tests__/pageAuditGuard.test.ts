@@ -37,7 +37,9 @@ describe("shouldAllowPageRequest", () => {
 
   it("allows about:blank and blob: with no network check", () => {
     expect(shouldAllowPageRequest("about:blank", true, isUrlAllowed).allow).toBe(true);
-    expect(shouldAllowPageRequest("blob:https://x/y", false, isUrlAllowed).needsIpCheck).toBe(false);
+    expect(shouldAllowPageRequest("blob:https://x/y", false, isUrlAllowed).needsIpCheck).toBe(
+      false,
+    );
   });
 
   it("aborts non-http(s) network schemes", () => {
@@ -54,8 +56,12 @@ describe("shouldAllowPageRequest", () => {
   it("aborts a document navigation to a NON-allowlisted host (open-redirect target)", () => {
     // The classic attack: an allowlisted page 302s here. As a document
     // navigation it must be rejected even though the IP might be public.
-    expect(shouldAllowPageRequest("http://169.254.169.254/latest/meta-data/", true, isUrlAllowed).allow).toBe(false);
-    expect(shouldAllowPageRequest("https://attacker.example.com/", true, isUrlAllowed).allow).toBe(false);
+    expect(
+      shouldAllowPageRequest("http://169.254.169.254/latest/meta-data/", true, isUrlAllowed).allow,
+    ).toBe(false);
+    expect(shouldAllowPageRequest("https://attacker.example.com/", true, isUrlAllowed).allow).toBe(
+      false,
+    );
   });
 
   it("allows an off-allowlist SUBRESOURCE (public CDN) but flags it for IP check", () => {
@@ -76,17 +82,16 @@ describe("shouldAllowPageRequest", () => {
     // document or subresource, must still come back needsIpCheck:true (the
     // async resolvePublicIp layer then aborts private/reserved targets).
     const allowAll = () => true;
-    expect(
-      shouldAllowPageRequest("https://anything.example.com/", true, allowAll),
-    ).toEqual({ allow: true, needsIpCheck: true });
+    expect(shouldAllowPageRequest("https://anything.example.com/", true, allowAll)).toEqual({
+      allow: true,
+      needsIpCheck: true,
+    });
     // A document nav straight at the cloud-metadata IP is NOT short-circuited
     // by the allowlist anymore, but it's flagged for the IP check that blocks it.
     expect(
       shouldAllowPageRequest("http://169.254.169.254/latest/meta-data/", true, allowAll),
     ).toEqual({ allow: true, needsIpCheck: true });
     // Non-http(s) schemes are still aborted regardless of the predicate.
-    expect(
-      shouldAllowPageRequest("file:///etc/passwd", true, allowAll).allow,
-    ).toBe(false);
+    expect(shouldAllowPageRequest("file:///etc/passwd", true, allowAll).allow).toBe(false);
   });
 });

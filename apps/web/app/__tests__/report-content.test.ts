@@ -8,8 +8,7 @@ vi.mock("~/composables/useWcag", () => ({
     level: "AA",
     label: "WCAG 2.2 Level AA",
     quickref: "https://www.w3.org/WAI/WCAG22/quickref/",
-    understandingUrl: (slug: string) =>
-      `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
+    understandingUrl: (slug: string) => `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
   }),
 }));
 
@@ -36,10 +35,7 @@ function cat(over: Record<string, unknown> = {}) {
   };
 }
 
-function mountReport(
-  categories: unknown[],
-  extra: Record<string, unknown> = {},
-) {
+function mountReport(categories: unknown[], extra: Record<string, unknown> = {}) {
   return mount(ReportContent, {
     props: { result: { categories, ...extra } as any },
     global: { stubs: { NaCell: true, AppTooltip: true } },
@@ -83,9 +79,7 @@ describe("ReportContent — score table", () => {
     // and the explanatory footnote appears.
     expect(wrapper.text()).toContain("Not Included in Scoring");
     expect(wrapper.text()).toContain("Form Fields");
-    expect(
-      wrapper.find('[data-testid="category-scores-footnote"]').exists(),
-    ).toBe(true);
+    expect(wrapper.find('[data-testid="category-scores-footnote"]').exists()).toBe(true);
   });
 
   it("omits the Not Included section and footnote when every category is scored", () => {
@@ -94,9 +88,7 @@ describe("ReportContent — score table", () => {
     // the rendered v-if state, not the `<!-- Not Included in Scoring -->`
     // comment node.
     expect(wrapper.text()).not.toContain("Not Included in Scoring");
-    expect(
-      wrapper.find('[data-testid="category-scores-footnote"]').exists(),
-    ).toBe(false);
+    expect(wrapper.find('[data-testid="category-scores-footnote"]').exists()).toBe(false);
   });
 });
 
@@ -138,9 +130,7 @@ describe("ReportContent — help-link href hardening (stored XSS)", () => {
   it("drops the href for a javascript: help-link URL but keeps the label", () => {
     const wrapper = mountReport([
       cat({
-        helpLinks: [
-          { label: "CLICK FOR HELP", url: "javascript:alert(document.domain)" },
-        ],
+        helpLinks: [{ label: "CLICK FOR HELP", url: "javascript:alert(document.domain)" }],
       }),
     ]);
     const html = wrapper.html();
@@ -154,9 +144,7 @@ describe("ReportContent — help-link href hardening (stored XSS)", () => {
   it("keeps the href for a legitimate https help-link URL", () => {
     const wrapper = mountReport([
       cat({
-        helpLinks: [
-          { label: "WCAG guidance", url: "https://www.w3.org/WAI/x.html" },
-        ],
+        helpLinks: [{ label: "WCAG guidance", url: "https://www.w3.org/WAI/x.html" }],
       }),
     ]);
     expect(wrapper.html()).toContain('href="https://www.w3.org/WAI/x.html"');
@@ -315,8 +303,6 @@ describe("ReportContent — document metadata", () => {
   it("omits the metadata card when fileType is set but its metadata object is absent", () => {
     const wrapper = mountReport([cat()], { fileType: "docx" });
     expect(wrapper.html()).not.toContain("Document Metadata");
-    expect(
-      wrapper.find('[data-testid="document-metadata"]').exists(),
-    ).toBe(false);
+    expect(wrapper.find('[data-testid="document-metadata"]').exists()).toBe(false);
   });
 });

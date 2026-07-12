@@ -64,9 +64,9 @@ describe("analyzePDF pdfjs timeout", () => {
 
   it("rejects with a timeout error when pdfjs exceeds PDFJS_TIMEOUT_MS", async () => {
     const { analyzePDF } = await import("../services/pdfAnalyzer.js");
-    await expect(
-      analyzePDF(Buffer.from("%PDF-1.7 fake"), "hang.pdf"),
-    ).rejects.toMatchObject({ killed: true });
+    await expect(analyzePDF(Buffer.from("%PDF-1.7 fake"), "hang.pdf")).rejects.toMatchObject({
+      killed: true,
+    });
   });
 
   it("frees the concurrency slot after a timeout (a second call still runs)", async () => {

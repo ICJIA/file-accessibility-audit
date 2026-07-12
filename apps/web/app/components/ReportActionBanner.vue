@@ -5,54 +5,54 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { tallySeverity } from '~/utils/severityTally'
+import { computed } from "vue";
+import { tallySeverity } from "~/utils/severityTally";
 
 const props = defineProps<{
-  categories: Array<{ severity?: string | null }>
+  categories: Array<{ severity?: string | null }>;
   /** Analyzed file type. The copy below is deliberately format-agnostic
    * ("this document"), so this isn't interpolated into the text — it's
    * accepted so callers can pass it consistently with sibling components
    * and so this component never has to be told it only handles PDFs. */
-  fileType?: 'pdf' | 'docx' | 'pptx' | 'xlsx'
-}>()
+  fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+}>();
 
-const tally = computed(() => tallySeverity(props.categories))
+const tally = computed(() => tallySeverity(props.categories));
 
-const wcag = useWcag()
+const wcag = useWcag();
 
 const copy = computed<string | null>(() => {
-  const t = tally.value
-  if (t.total === 0) return null
+  const t = tally.value;
+  if (t.total === 0) return null;
 
   if (t.critical > 0) {
     if (t.moderate > 0) {
-      return `${t.critical} critical and ${t.moderate} moderate issues must be fixed before publishing.`
+      return `${t.critical} critical and ${t.moderate} moderate issues must be fixed before publishing.`;
     }
-    const noun = t.critical === 1 ? 'issue' : 'issues'
-    return `${t.critical} critical ${noun} must be fixed before publishing.`
+    const noun = t.critical === 1 ? "issue" : "issues";
+    return `${t.critical} critical ${noun} must be fixed before publishing.`;
   }
 
   if (t.moderate > 0) {
-    const noun = t.moderate === 1 ? 'issue' : 'issues'
-    return `${t.moderate} moderate ${noun} found. Recommended to fix before publishing.`
+    const noun = t.moderate === 1 ? "issue" : "issues";
+    return `${t.moderate} moderate ${noun} found. Recommended to fix before publishing.`;
   }
 
   if (t.minor > 0) {
-    const noun = t.minor === 1 ? 'issue' : 'issues'
-    return `${t.minor} minor ${noun} found. Optional fixes — this document passes Illinois accessibility.`
+    const noun = t.minor === 1 ? "issue" : "issues";
+    return `${t.minor} minor ${noun} found. Optional fixes — this document passes Illinois accessibility.`;
   }
 
-  return `This document passes Illinois IITAA 2.1 + WCAG ${wcag.version} AA accessibility checks.`
-})
+  return `This document passes Illinois IITAA 2.1 + WCAG ${wcag.version} AA accessibility checks.`;
+});
 
 const severityClass = computed(() => {
-  const t = tally.value
-  if (t.critical > 0) return 'critical'
-  if (t.moderate > 0) return 'moderate'
-  if (t.minor > 0) return 'minor'
-  return 'pass'
-})
+  const t = tally.value;
+  if (t.critical > 0) return "critical";
+  if (t.moderate > 0) return "moderate";
+  if (t.minor > 0) return "minor";
+  return "pass";
+});
 </script>
 
 <style scoped>

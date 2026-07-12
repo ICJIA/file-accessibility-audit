@@ -24,9 +24,7 @@ describe("MethodologyCard", () => {
     expect(wrapper.text()).toContain("unzips the .pptx (OOXML) package");
     expect(wrapper.text()).toContain("the PowerPoint presentation's");
     expect(wrapper.text()).toContain("slide titles");
-    expect(wrapper.text()).toContain(
-      "Accessibility Checker rules for PowerPoint",
-    );
+    expect(wrapper.text()).toContain("Accessibility Checker rules for PowerPoint");
     expect(wrapper.text()).not.toContain("QPDF");
   });
 

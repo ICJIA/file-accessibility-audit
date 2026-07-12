@@ -12,9 +12,7 @@ import ProcessingOverlay from "../components/ProcessingOverlay.vue";
 describe("DropZone", () => {
   it("renders the drop area with prompt text", () => {
     const wrapper = mount(DropZone);
-    expect(wrapper.text()).toContain(
-      "Drop PDF, Word, PowerPoint, or Excel files here",
-    );
+    expect(wrapper.text()).toContain("Drop PDF, Word, PowerPoint, or Excel files here");
     expect(wrapper.text()).toContain("max 15 MB each");
   });
 
@@ -35,9 +33,7 @@ describe("DropZone", () => {
     });
     Object.defineProperty(dropEvent, "preventDefault", { value: () => {} });
 
-    await wrapper
-      .find("div")
-      .trigger("drop", { dataTransfer: { files: [file] } });
+    await wrapper.find("div").trigger("drop", { dataTransfer: { files: [file] } });
     // Since trigger does not pass dataTransfer through: processFile is
     // internal, so simulate via the input change approach instead:
     const input = wrapper.find('input[type="file"]');
@@ -116,9 +112,7 @@ describe("DropZone", () => {
       .findAll("div")
       .find((d) => d.classes().some((c) => c.includes("border-dashed")))!;
     await dropArea.trigger("dragenter");
-    expect(wrapper.text()).toContain(
-      "Drop your PDF, Word, PowerPoint, or Excel files here",
-    );
+    expect(wrapper.text()).toContain("Drop your PDF, Word, PowerPoint, or Excel files here");
   });
 
   it("emits file-selected for a valid .pptx", async () => {
@@ -160,9 +154,7 @@ describe("DropZone", () => {
     expect(accept).toContain(
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     );
-    expect(accept).toContain(
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
+    expect(accept).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   });
 
   it("rejects .pptx and drops it from copy when pptxEnabled is false", async () => {
@@ -171,12 +163,10 @@ describe("DropZone", () => {
     }));
     try {
       const wrapper = mount(DropZone);
-      expect(
-        wrapper.find('input[type="file"]').attributes("accept"),
-      ).not.toContain("presentationml");
-      expect(wrapper.text()).toContain(
-        "Drop PDF, Word, or Excel files here",
+      expect(wrapper.find('input[type="file"]').attributes("accept")).not.toContain(
+        "presentationml",
       );
+      expect(wrapper.text()).toContain("Drop PDF, Word, or Excel files here");
       const file = new File(["pptx"], "deck.pptx", {
         type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       });
@@ -187,9 +177,7 @@ describe("DropZone", () => {
       });
       await input.trigger("change");
       expect(wrapper.emitted("file-selected")).toBeFalsy();
-      expect(wrapper.text()).toContain(
-        "Please select PDF, Word (.docx), or Excel (.xlsx) files",
-      );
+      expect(wrapper.text()).toContain("Please select PDF, Word (.docx), or Excel (.xlsx) files");
     } finally {
       vi.unstubAllGlobals();
     }
@@ -389,15 +377,9 @@ describe("ScoreCard", () => {
     });
 
     expect(wrapper.find('[data-testid="score-mode-strict"]').exists()).toBe(false);
-    expect(
-      wrapper.find('[data-testid="score-mode-remediation"]').exists(),
-    ).toBe(false);
-    expect(
-      wrapper.find('[data-testid="mode-recommendation-title"]').exists(),
-    ).toBe(false);
-    expect(
-      wrapper.find('[data-testid="practical-disclaimer"]').exists(),
-    ).toBe(false);
+    expect(wrapper.find('[data-testid="score-mode-remediation"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="mode-recommendation-title"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="practical-disclaimer"]').exists()).toBe(false);
   });
 
   it("prefers the strict profile overall score when scoreProfiles.strict is provided", () => {
@@ -463,9 +445,7 @@ describe("ScoreCard", () => {
         props: { result: { ...baseResult, fileType } },
       });
       expect(wrapper.text()).toContain(`${app}'s built-in`);
-      expect(wrapper.text()).toContain(
-        `Because this ${app} file is the source document`,
-      );
+      expect(wrapper.text()).toContain(`Because this ${app} file is the source document`);
       expect(wrapper.text()).not.toContain("Adobe Acrobat");
     },
   );

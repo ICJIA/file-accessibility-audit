@@ -9,10 +9,7 @@
  * separate advisory flag.
  */
 import { describe, it, expect } from "vitest";
-import {
-  isFilenameLikeTitle,
-  analyzeWithPdfjs,
-} from "../services/pdfjsService.js";
+import { isFilenameLikeTitle, analyzeWithPdfjs } from "../services/pdfjsService.js";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
 
 describe("isFilenameLikeTitle", () => {

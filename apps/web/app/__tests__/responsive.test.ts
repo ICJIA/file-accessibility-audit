@@ -115,9 +115,7 @@ describe("Responsive — Index Page", () => {
 
   it("category scores table has min-width for horizontal scroll (in ReportContent)", () => {
     // the score table moved into the shared ReportContent component
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "min-w-[420px]",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("min-w-[420px]");
   });
 
   it("metadata rows stack vertically on mobile (flex-col sm:flex-row)", () => {
@@ -202,21 +200,15 @@ describe("Responsive — Report Page", () => {
   // The score table / metadata / findings markup is shared with the live
   // page via ReportContent.vue — scan the component, not the page.
   it("category scores table has overflow-x-auto (in ReportContent)", () => {
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "overflow-x-auto",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("overflow-x-auto");
   });
 
   it("metadata rows stack vertically on mobile (in ReportContent)", () => {
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "flex-col sm:flex-row",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("flex-col sm:flex-row");
   });
 
   it("findings cards use responsive padding (in ReportContent)", () => {
-    expect(readSource("components/ReportContent.vue")).toContain(
-      "p-3 sm:p-5",
-    );
+    expect(readSource("components/ReportContent.vue")).toContain("p-3 sm:p-5");
   });
 });
 

@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   hasSupportedExtension,
   SUPPORTED_EXTENSIONS,
   fetchPublications,
   loadPublicationsFromFile,
   type Publication,
-} from '../lib/graphql.js'
+} from "../lib/graphql.js";
 
 // ---------------------------------------------------------------------------
 // M3 migration (publist: PDF-only -> all four formats). publist.ts used to
@@ -27,160 +27,160 @@ import {
 
 function makePub(overrides: Partial<Publication> = {}): Publication {
   return {
-    id: '1',
-    title: 'Test Publication',
-    slug: 'test-publication',
-    fileURL: 'https://media.icjia.cloud/files/report.pdf',
-    publicationDate: '2024-01-01',
-    pubType: 'Report',
+    id: "1",
+    title: "Test Publication",
+    slug: "test-publication",
+    fileURL: "https://media.icjia.cloud/files/report.pdf",
+    publicationDate: "2024-01-01",
+    pubType: "Report",
     summary: null,
     tags: null,
     ...overrides,
-  }
+  };
 }
 
-describe('SUPPORTED_EXTENSIONS', () => {
-  it('matches the four formats audit.ts accepts: PDF, Word, PowerPoint, Excel', () => {
-    expect(SUPPORTED_EXTENSIONS).toEqual(['.pdf', '.docx', '.pptx', '.xlsx'])
-  })
-})
+describe("SUPPORTED_EXTENSIONS", () => {
+  it("matches the four formats audit.ts accepts: PDF, Word, PowerPoint, Excel", () => {
+    expect(SUPPORTED_EXTENSIONS).toEqual([".pdf", ".docx", ".pptx", ".xlsx"]);
+  });
+});
 
-describe('hasSupportedExtension', () => {
+describe("hasSupportedExtension", () => {
   it.each([
-    'https://media.icjia.cloud/files/report.pdf',
-    'https://media.icjia.cloud/files/report.docx',
-    'https://media.icjia.cloud/files/report.pptx',
-    'https://media.icjia.cloud/files/report.xlsx',
-  ])('accepts %s', (url) => {
-    expect(hasSupportedExtension(url)).toBe(true)
-  })
+    "https://media.icjia.cloud/files/report.pdf",
+    "https://media.icjia.cloud/files/report.docx",
+    "https://media.icjia.cloud/files/report.pptx",
+    "https://media.icjia.cloud/files/report.xlsx",
+  ])("accepts %s", (url) => {
+    expect(hasSupportedExtension(url)).toBe(true);
+  });
 
-  it('is case-insensitive', () => {
-    expect(hasSupportedExtension('https://x/REPORT.PDF')).toBe(true)
-    expect(hasSupportedExtension('https://x/Report.DocX')).toBe(true)
-  })
+  it("is case-insensitive", () => {
+    expect(hasSupportedExtension("https://x/REPORT.PDF")).toBe(true);
+    expect(hasSupportedExtension("https://x/Report.DocX")).toBe(true);
+  });
 
   it.each([
-    'https://x/report.doc', // legacy Word, not supported
-    'https://x/report.xls', // legacy Excel, not supported
-    'https://x/report.ppt', // legacy PowerPoint, not supported
-    'https://x/report.txt',
-    'https://x/report.zip',
-    'https://x/report', // no extension
-  ])('rejects unsupported %s', (url) => {
-    expect(hasSupportedExtension(url)).toBe(false)
-  })
+    "https://x/report.doc", // legacy Word, not supported
+    "https://x/report.xls", // legacy Excel, not supported
+    "https://x/report.ppt", // legacy PowerPoint, not supported
+    "https://x/report.txt",
+    "https://x/report.zip",
+    "https://x/report", // no extension
+  ])("rejects unsupported %s", (url) => {
+    expect(hasSupportedExtension(url)).toBe(false);
+  });
 
-  it('rejects null, undefined, and empty fileURL', () => {
-    expect(hasSupportedExtension(null)).toBe(false)
-    expect(hasSupportedExtension(undefined)).toBe(false)
-    expect(hasSupportedExtension('')).toBe(false)
-  })
-})
+  it("rejects null, undefined, and empty fileURL", () => {
+    expect(hasSupportedExtension(null)).toBe(false);
+    expect(hasSupportedExtension(undefined)).toBe(false);
+    expect(hasSupportedExtension("")).toBe(false);
+  });
+});
 
-describe('fetchPublications: extension filtering', () => {
+describe("fetchPublications: extension filtering", () => {
   afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   function stubFetchOnce(pubs: Publication[]) {
     // pubs.length < PAGE_SIZE (500) so fetchPublications' pagination loop
     // stops after this single page — one fetch call is all a test needs.
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ data: { publications: pubs } }),
       }),
-    )
+    );
   }
 
-  it('a PDF-only publication list is returned unchanged (backward compat)', async () => {
+  it("a PDF-only publication list is returned unchanged (backward compat)", async () => {
     const pubs = [
-      makePub({ id: '1', fileURL: 'https://x/a.pdf' }),
-      makePub({ id: '2', fileURL: 'https://x/b.pdf' }),
-    ]
-    stubFetchOnce(pubs)
+      makePub({ id: "1", fileURL: "https://x/a.pdf" }),
+      makePub({ id: "2", fileURL: "https://x/b.pdf" }),
+    ];
+    stubFetchOnce(pubs);
 
-    const result = await fetchPublications()
+    const result = await fetchPublications();
 
-    expect(result.map((p) => p.fileURL)).toEqual(['https://x/a.pdf', 'https://x/b.pdf'])
-  })
+    expect(result.map((p) => p.fileURL)).toEqual(["https://x/a.pdf", "https://x/b.pdf"]);
+  });
 
-  it('a mixed-format list keeps all four supported formats and drops the rest', async () => {
+  it("a mixed-format list keeps all four supported formats and drops the rest", async () => {
     const pubs = [
-      makePub({ id: '1', fileURL: 'https://x/a.pdf' }),
-      makePub({ id: '2', fileURL: 'https://x/b.docx' }),
-      makePub({ id: '3', fileURL: 'https://x/c.pptx' }),
-      makePub({ id: '4', fileURL: 'https://x/d.xlsx' }),
-      makePub({ id: '5', fileURL: 'https://x/e.doc' }), // legacy Word, still unsupported
-      makePub({ id: '6', fileURL: null }), // publication with no file
-    ]
-    stubFetchOnce(pubs)
+      makePub({ id: "1", fileURL: "https://x/a.pdf" }),
+      makePub({ id: "2", fileURL: "https://x/b.docx" }),
+      makePub({ id: "3", fileURL: "https://x/c.pptx" }),
+      makePub({ id: "4", fileURL: "https://x/d.xlsx" }),
+      makePub({ id: "5", fileURL: "https://x/e.doc" }), // legacy Word, still unsupported
+      makePub({ id: "6", fileURL: null }), // publication with no file
+    ];
+    stubFetchOnce(pubs);
 
-    const result = await fetchPublications()
+    const result = await fetchPublications();
 
-    expect(result.map((p) => p.id)).toEqual(['1', '2', '3', '4'])
-  })
+    expect(result.map((p) => p.id)).toEqual(["1", "2", "3", "4"]);
+  });
 
-  it('still dedupes by id after the broadened filter', async () => {
+  it("still dedupes by id after the broadened filter", async () => {
     const pubs = [
-      makePub({ id: '1', fileURL: 'https://x/a.docx' }),
-      makePub({ id: '1', fileURL: 'https://x/a.docx' }),
-    ]
-    stubFetchOnce(pubs)
+      makePub({ id: "1", fileURL: "https://x/a.docx" }),
+      makePub({ id: "1", fileURL: "https://x/a.docx" }),
+    ];
+    stubFetchOnce(pubs);
 
-    const result = await fetchPublications()
+    const result = await fetchPublications();
 
-    expect(result).toHaveLength(1)
-  })
-})
+    expect(result).toHaveLength(1);
+  });
+});
 
-describe('loadPublicationsFromFile: extension filtering', () => {
-  let dir: string
+describe("loadPublicationsFromFile: extension filtering", () => {
+  let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'publist-test-'))
-  })
+    dir = mkdtempSync(join(tmpdir(), "publist-test-"));
+  });
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true })
-  })
+    rmSync(dir, { recursive: true, force: true });
+  });
 
-  it('a PDF-only local file list is returned unchanged (backward compat)', () => {
-    const pubs = [makePub({ id: '1', fileURL: 'https://x/a.pdf' })]
-    const file = join(dir, 'pubs.json')
-    writeFileSync(file, JSON.stringify(pubs))
+  it("a PDF-only local file list is returned unchanged (backward compat)", () => {
+    const pubs = [makePub({ id: "1", fileURL: "https://x/a.pdf" })];
+    const file = join(dir, "pubs.json");
+    writeFileSync(file, JSON.stringify(pubs));
 
-    const result = loadPublicationsFromFile(file)
+    const result = loadPublicationsFromFile(file);
 
-    expect(result.map((p) => p.fileURL)).toEqual(['https://x/a.pdf'])
-  })
+    expect(result.map((p) => p.fileURL)).toEqual(["https://x/a.pdf"]);
+  });
 
-  it('a mixed-format local file list audits all four formats', () => {
+  it("a mixed-format local file list audits all four formats", () => {
     const pubs = [
-      makePub({ id: '1', fileURL: 'https://x/a.pdf' }),
-      makePub({ id: '2', fileURL: 'https://x/b.docx' }),
-      makePub({ id: '3', fileURL: 'https://x/c.pptx' }),
-      makePub({ id: '4', fileURL: 'https://x/d.xlsx' }),
-      makePub({ id: '5', fileURL: 'https://x/e.jpg' }),
-    ]
-    const file = join(dir, 'pubs.json')
-    writeFileSync(file, JSON.stringify(pubs))
+      makePub({ id: "1", fileURL: "https://x/a.pdf" }),
+      makePub({ id: "2", fileURL: "https://x/b.docx" }),
+      makePub({ id: "3", fileURL: "https://x/c.pptx" }),
+      makePub({ id: "4", fileURL: "https://x/d.xlsx" }),
+      makePub({ id: "5", fileURL: "https://x/e.jpg" }),
+    ];
+    const file = join(dir, "pubs.json");
+    writeFileSync(file, JSON.stringify(pubs));
 
-    const result = loadPublicationsFromFile(file)
+    const result = loadPublicationsFromFile(file);
 
-    expect(result.map((p) => p.id)).toEqual(['1', '2', '3', '4'])
-  })
+    expect(result.map((p) => p.id)).toEqual(["1", "2", "3", "4"]);
+  });
 
-  it('still accepts the { publications: [...] } wrapper shape', () => {
-    const pubs = [makePub({ id: '1', fileURL: 'https://x/a.pptx' })]
-    const file = join(dir, 'pubs.json')
-    writeFileSync(file, JSON.stringify({ publications: pubs }))
+  it("still accepts the { publications: [...] } wrapper shape", () => {
+    const pubs = [makePub({ id: "1", fileURL: "https://x/a.pptx" })];
+    const file = join(dir, "pubs.json");
+    writeFileSync(file, JSON.stringify({ publications: pubs }));
 
-    const result = loadPublicationsFromFile(file)
+    const result = loadPublicationsFromFile(file);
 
-    expect(result).toHaveLength(1)
-  })
-})
+    expect(result).toHaveLength(1);
+  });
+});

@@ -17,10 +17,7 @@ import type { PptxAnalysis } from "./pptxService.js";
 import type { XlsxAnalysis } from "./xlsxService.js";
 import { appendSupplementaryFindings } from "./scoring/supplementary.js";
 import { generateSummary } from "./scoring/summary.js";
-import {
-  buildAdobeParityReport,
-  type AdobeParityResult,
-} from "./scoring/adobeParity.js";
+import { buildAdobeParityReport, type AdobeParityResult } from "./scoring/adobeParity.js";
 import {
   evaluateConformance,
   evaluateDocxConformance,
@@ -39,13 +36,7 @@ import type {
   ScoreProfileResult,
   ScoringMode,
 } from "@file-audit/shared";
-export type {
-  CategoryResult,
-  HelpLink,
-  WcagCriterion,
-  ScoreProfileResult,
-  ScoringMode,
-};
+export type { CategoryResult, HelpLink, WcagCriterion, ScoreProfileResult, ScoringMode };
 
 // Machine-checkable PDF/UA-1 (ISO 14289-1) signals, summarized for the report's
 // "Conformance signals" panel. These are SIGNALS, not a conformance verdict —
@@ -121,10 +112,7 @@ function getSeverity(score: number | null): string | null {
   return "Critical";
 }
 
-export function scoreDocument(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): ScoringResult {
+export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResult {
   const warnings: string[] = [];
 
   if (qpdf.error || pdfjs.error) {
@@ -137,12 +125,7 @@ export function scoreDocument(
 
   const strictCategories = buildCategories(qpdf, pdfjs, "strict");
   const conformance = evaluateConformance(qpdf, pdfjs, strictCategories);
-  const strictAggregate = aggregateScore(
-    strictCategories,
-    isScanned,
-    "strict",
-    conformance,
-  );
+  const strictAggregate = aggregateScore(strictCategories, isScanned, "strict", conformance);
 
   // As of v1.21.0 only the Strict (WCAG + IITAA §E205.4) profile is
   // surfaced to users. The previous Practical / PDF-UA flavored profile
@@ -236,8 +219,7 @@ function docxCategory(
   };
 }
 
-const clamp100 = (n: number): number =>
-  Math.max(0, Math.min(100, Math.round(n)));
+const clamp100 = (n: number): number => Math.max(0, Math.min(100, Math.round(n)));
 
 function scoreDocxText(): CategoryResult {
   return docxCategory(
@@ -356,13 +338,9 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
       false,
     );
   }
-  const withAlt = nonDecorative.filter(
-    (i) => i.altText && i.altText.trim().length > 0,
-  ).length;
+  const withAlt = nonDecorative.filter((i) => i.altText && i.altText.trim().length > 0).length;
   let score = Math.round((withAlt / nonDecorative.length) * 100);
-  const findings = [
-    `${withAlt} of ${nonDecorative.length} meaningful image(s) have alt text.`,
-  ];
+  const findings = [`${withAlt} of ${nonDecorative.length} meaningful image(s) have alt text.`];
   if (withAlt < nonDecorative.length) {
     score = Math.min(score, 85);
     findings.push(
@@ -399,9 +377,7 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
     if (t.hasNestedTable) s = Math.min(s, 60);
     return s;
   });
-  const score = Math.round(
-    perTable.reduce((x, y) => x + y, 0) / perTable.length,
-  );
+  const score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
   const noHeader = a.tables.filter(
     (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
   ).length;
@@ -428,8 +404,7 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
 }
 
 const RAW_URL_RE = /^\s*(https?:\/\/|www\.)/i;
-const VAGUE_LINK_RE =
-  /^\s*(click here|here|read more|more|link|this|this link|learn more)\s*$/i;
+const VAGUE_LINK_RE = /^\s*(click here|here|read more|more|link|this|this link|learn more)\s*$/i;
 
 function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
   if (a.links.length === 0) {
@@ -444,15 +419,9 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
       false,
     );
   }
-  const bad = a.links.filter(
-    (l) => RAW_URL_RE.test(l.text) || VAGUE_LINK_RE.test(l.text.trim()),
-  );
-  let score = Math.round(
-    ((a.links.length - bad.length) / a.links.length) * 100,
-  );
-  const findings = [
-    `${a.links.length} link(s) found; ${bad.length} with unclear text.`,
-  ];
+  const bad = a.links.filter((l) => RAW_URL_RE.test(l.text) || VAGUE_LINK_RE.test(l.text.trim()));
+  let score = Math.round(((a.links.length - bad.length) / a.links.length) * 100);
+  const findings = [`${a.links.length} link(s) found; ${bad.length} with unclear text.`];
   if (bad.length > 0) {
     score = Math.min(score, 85);
     findings.push(
@@ -609,13 +578,7 @@ function buildDocxCategories(a: DocxAnalysis): CategoryResult[] {
 export function scoreDocx(analysis: DocxAnalysis): ScoringResult {
   const categories = buildDocxCategories(analysis);
   const conformance = evaluateDocxConformance(analysis);
-  const aggregate = aggregateScore(
-    categories,
-    false,
-    "strict",
-    conformance,
-    "Word document",
-  );
+  const aggregate = aggregateScore(categories, false, "strict", conformance, "Word document");
   return {
     overallScore: aggregate.overallScore,
     grade: aggregate.grade,
@@ -750,9 +713,7 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     idx.push(s.index);
     titleGroups.set(s.title, idx);
   }
-  const duplicateGroups = [...titleGroups.entries()].filter(
-    ([, idx]) => idx.length > 1,
-  );
+  const duplicateGroups = [...titleGroups.entries()].filter(([, idx]) => idx.length > 1);
 
   let score = 100;
   const findings: string[] = [];
@@ -817,9 +778,7 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
     );
   }
   const missing = nonDecorative.filter((i) => !i.altText);
-  const score = Math.round(
-    (100 * (nonDecorative.length - missing.length)) / nonDecorative.length,
-  );
+  const score = Math.round((100 * (nonDecorative.length - missing.length)) / nonDecorative.length);
   const findings = [
     `${nonDecorative.length - missing.length} of ${nonDecorative.length} meaningful image(s) have alt text.`,
   ];
@@ -840,9 +799,7 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
 }
 
 function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
-  const titledOutOfOrder = a.slides.filter(
-    (s) => s.title && !s.titleIsFirstShape,
-  );
+  const titledOutOfOrder = a.slides.filter((s) => s.title && !s.titleIsFirstShape);
   const denseSlides = a.slides.filter((s) => s.shapeCount > 10);
 
   const score = 100 - 15 * titledOutOfOrder.length;
@@ -858,9 +815,7 @@ function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
   }
 
   if (denseSlides.length > 0) {
-    const nums = denseSlides
-      .map((s) => `${s.index} (${s.shapeCount} shapes)`)
-      .join(", ");
+    const nums = denseSlides.map((s) => `${s.index} (${s.shapeCount} shapes)`).join(", ");
     findings.push(
       `Slide${denseSlides.length > 1 ? "s" : ""} ${nums} ${
         denseSlides.length > 1 ? "have" : "has"
@@ -909,9 +864,7 @@ function scorePptxTableMarkup(a: PptxAnalysis): CategoryResult {
     const isData = t.rowCount >= 2 && t.colCount >= 2;
     return !isData || t.hasHeaderRow ? 100 : 30;
   });
-  const score = Math.round(
-    perTable.reduce((x, y) => x + y, 0) / perTable.length,
-  );
+  const score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
   const findings = [`${a.tables.length} table(s) found.`];
   if (dataTablesNoHeader.length > 0) {
     findings.push(
@@ -951,9 +904,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
       "Color Contrast",
       PPTX.SCORING_WEIGHTS.color_contrast,
       100,
-      [
-        `${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`,
-      ],
+      [`${checkedRuns} colored text run(s) checked; all meet the WCAG contrast minimum.`],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). PowerPoint stores explicit run and shape fill colors, so this is checked directly where colors are set.",
       [PPTX_HELP.contrast],
     );
@@ -962,10 +913,7 @@ function scorePptxColorContrast(a: PptxAnalysis): CategoryResult {
   // scoreDocxContrast. A flat per-run subtraction let a deck where EVERY
   // checked run fails still read as "Minor"; failing 100% of checked runs
   // must not score anywhere near that.
-  const score = Math.min(
-    85,
-    Math.round(((checkedRuns - failing.length) / checkedRuns) * 100),
-  );
+  const score = Math.min(85, Math.round(((checkedRuns - failing.length) / checkedRuns) * 100));
   const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
   const findings = [
     `${checkedRuns} colored text run(s) checked; ${failing.length} below the WCAG minimum.`,
@@ -1046,18 +994,16 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
     );
   }
   const bad = a.links.filter((l) => !l.text || PPTX_RAW_URL_RE.test(l.text));
-  const score = Math.round(
-    (100 * (a.links.length - bad.length)) / a.links.length,
-  );
-  const findings = [
-    `${a.links.length} link(s) found; ${bad.length} with unclear text.`,
-  ];
+  const score = Math.round((100 * (a.links.length - bad.length)) / a.links.length);
+  const findings = [`${a.links.length} link(s) found; ${bad.length} with unclear text.`];
   if (bad.length > 0) {
     findings.push(
       `Empty or raw-URL link text: ${bad
         .slice(0, 5)
         .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
-        .join(", ")}. In PowerPoint: select the linked text → Insert → Link, and use a descriptive phrase instead of the raw address.`,
+        .join(
+          ", ",
+        )}. In PowerPoint: select the linked text → Insert → Link, and use a descriptive phrase instead of the raw address.`,
     );
   }
   return pptxCategory(
@@ -1234,7 +1180,7 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.sheet_names,
       null,
       ["No visible sheets were found."],
-      "Descriptive sheet names (not Excel defaults like \"Sheet1\") are the workbook's navigation — screen-reader users hear them when switching sheets.",
+      'Descriptive sheet names (not Excel defaults like "Sheet1") are the workbook\'s navigation — screen-reader users hear them when switching sheets.',
       [XLSX_HELP.sheetNames],
       false,
     );
@@ -1253,7 +1199,7 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
     XLSX.SCORING_WEIGHTS.sheet_names,
     clamp100(100 - 25 * defaultNamed.length),
     findings,
-    "Descriptive sheet names (not Excel defaults like \"Sheet1\") are the workbook's navigation — screen-reader users hear them when switching sheets.",
+    'Descriptive sheet names (not Excel defaults like "Sheet1") are the workbook\'s navigation — screen-reader users hear them when switching sheets.',
     [XLSX_HELP.sheetNames],
   );
 }
@@ -1302,7 +1248,9 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
     findings.push(
       `Advisory: ${mergedSheets.length} sheet(s) contain merged cells (${mergedSheets
         .map((s) => `"${s.name}": ${s.mergedRangeCount}`)
-        .join(", ")}), which can confuse screen-reader navigation. Avoid merged cells where possible.`,
+        .join(
+          ", ",
+        )}), which can confuse screen-reader navigation. Avoid merged cells where possible.`,
     );
   }
 
@@ -1342,12 +1290,8 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
       [XLSX_HELP.altText],
     );
   }
-  const missingAlt = nonDec.filter(
-    (i) => !i.altText || i.altText.trim().length === 0,
-  );
-  const score = Math.round(
-    (100 * (nonDec.length - missingAlt.length)) / nonDec.length,
-  );
+  const missingAlt = nonDec.filter((i) => !i.altText || i.altText.trim().length === 0);
+  const score = Math.round((100 * (nonDec.length - missingAlt.length)) / nonDec.length);
   const findings = [
     `${nonDec.length - missingAlt.length} of ${nonDec.length} meaningful image(s) have alt text.`,
   ];
@@ -1389,9 +1333,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       "Color Contrast",
       XLSX.SCORING_WEIGHTS.color_contrast,
       100,
-      [
-        `${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`,
-      ],
+      [`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`],
       "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
       [XLSX_HELP.contrast],
     );
@@ -1400,10 +1342,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
   // scoreDocxContrast/scorePptxColorContrast. A flat per-style subtraction
   // let a workbook where EVERY checked style fails still read as "Minor";
   // failing 100% of checked styles must not score anywhere near that.
-  const score = Math.min(
-    85,
-    Math.round(((checkedRuns - failing.length) / checkedRuns) * 100),
-  );
+  const score = Math.min(85, Math.round(((checkedRuns - failing.length) / checkedRuns) * 100));
   const worst = failing.reduce((x, y) => (x.ratio < y.ratio ? x : y));
   const findings = [
     `${checkedRuns} cell style(s) checked; ${failing.length} below the WCAG contrast minimum.`,
@@ -1436,18 +1375,16 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
     );
   }
   const bad = a.links.filter((l) => !l.text || XLSX_RAW_URL_RE.test(l.text));
-  const score = Math.round(
-    (100 * (a.links.length - bad.length)) / a.links.length,
-  );
-  const findings = [
-    `${a.links.length} link(s) found; ${bad.length} with unclear text.`,
-  ];
+  const score = Math.round((100 * (a.links.length - bad.length)) / a.links.length);
+  const findings = [`${a.links.length} link(s) found; ${bad.length} with unclear text.`];
   if (bad.length > 0) {
     findings.push(
       `Empty or raw-URL link text: ${bad
         .slice(0, 5)
         .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
-        .join(", ")}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase instead of the raw address.`,
+        .join(
+          ", ",
+        )}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase instead of the raw address.`,
     );
   }
   return xlsxCategory(
@@ -1499,13 +1436,7 @@ function buildXlsxCategories(a: XlsxAnalysis): CategoryResult[] {
 export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
   const categories = buildXlsxCategories(analysis);
   const conformance = evaluateXlsxConformance(analysis);
-  const aggregate = aggregateScore(
-    categories,
-    false,
-    "strict",
-    conformance,
-    "Excel workbook",
-  );
+  const aggregate = aggregateScore(categories, false, "strict", conformance, "Excel workbook");
   return {
     overallScore: aggregate.overallScore,
     grade: aggregate.grade,
@@ -1523,10 +1454,7 @@ export function scoreXlsx(analysis: XlsxAnalysis): ScoringResult {
 // Summarize the machine-checkable PDF/UA-1 signals for the report panel.
 // PDF/UA identifier + artifacts come from pdfjs (XMP + content stream), which
 // `qpdf --json` cannot expose; structure/MarkInfo/fonts come from qpdf.
-function computePdfUaSignals(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): PdfUaSignals {
+function computePdfUaSignals(qpdf: QpdfResult, pdfjs: PdfjsResult): PdfUaSignals {
   const fontCount = qpdf.fonts.length;
   const embeddedFontCount = qpdf.fonts.filter((f) => f.embedded).length;
   return {
@@ -1569,10 +1497,7 @@ function buildCategories(
   return categories;
 }
 
-function applyProfileWeights(
-  categories: CategoryResult[],
-  mode: ScoringMode,
-): void {
+function applyProfileWeights(categories: CategoryResult[], mode: ScoringMode): void {
   const weights = SCORING_PROFILES[mode].weights;
   for (const category of categories) {
     const profileWeight = weights[category.id as keyof typeof weights];
@@ -1607,12 +1532,7 @@ function aggregateScore(
   const weightedAverage = (cats: CategoryResult[]): number => {
     const totalWeight = cats.reduce((sum, c) => sum + c.weight, 0);
     if (totalWeight === 0) return 0;
-    return Math.round(
-      cats.reduce(
-        (sum, c) => sum + c.score! * (c.weight / totalWeight),
-        0,
-      ),
-    );
+    return Math.round(cats.reduce((sum, c) => sum + c.score! * (c.weight / totalWeight), 0));
   };
 
   const overallScore = weightedAverage(applicable);
@@ -1646,10 +1566,7 @@ function aggregateScore(
   };
 }
 
-function scoreTextExtractability(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): CategoryResult {
+function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   let score: number;
   const findings: string[] = [];
 
@@ -1658,9 +1575,7 @@ function scoreTextExtractability(
     findings.push("PDF contains extractable text");
     findings.push("Document is tagged (StructTreeRoot present)");
     if (pdfjs.textLength)
-      findings.push(
-        `Extracted ${pdfjs.textLength.toLocaleString()} characters of text content`,
-      );
+      findings.push(`Extracted ${pdfjs.textLength.toLocaleString()} characters of text content`);
   } else if (pdfjs.hasText && !qpdf.hasStructTree) {
     score = 50;
     findings.push("PDF contains extractable text");
@@ -1699,9 +1614,7 @@ function scoreTextExtractability(
       `  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`,
     );
     for (const font of qpdf.fonts.slice(0, 25)) {
-      findings.push(
-        `  ${font.name} — ${font.embedded ? "embedded" : "NOT embedded"}`,
-      );
+      findings.push(`  ${font.name} — ${font.embedded ? "embedded" : "NOT embedded"}`);
     }
     if (qpdf.fonts.length > 25) {
       findings.push(`  ... and ${qpdf.fonts.length - 25} more font(s)`);
@@ -1753,10 +1666,7 @@ function scoreTextExtractability(
   };
 }
 
-function scoreTitleLanguage(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): CategoryResult {
+function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   let score = 0;
   const findings: string[] = [];
 
@@ -1892,9 +1802,7 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
   findings.push(`--- Heading Tree ---`);
   findings.push(`  ${qpdf.headings.map((h) => h.level).join(" → ")}`);
 
-  const hasNumberedHeadings = qpdf.headings.some((h) =>
-    /^H[1-6]$/.test(h.level),
-  );
+  const hasNumberedHeadings = qpdf.headings.some((h) => /^H[1-6]$/.test(h.level));
 
   if (!hasNumberedHeadings) {
     findings.push(
@@ -1947,16 +1855,13 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
     const issues: string[] = [];
     if (hierarchyBroken) issues.push("hierarchy has gaps");
     if (hasMultipleH1) issues.push(`${h1Count} H1 headings instead of one`);
-    findings.unshift(
-      `Found ${levels.length} heading tags, but ${issues.join(" and ")}`,
-    );
+    findings.unshift(`Found ${levels.length} heading tags, but ${issues.join(" and ")}`);
     if (hierarchyBroken) {
       findings.push(
         "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
       );
     }
-    const score =
-      hierarchyBroken && hasMultipleH1 ? 55 : hasMultipleH1 ? 75 : 60;
+    const score = hierarchyBroken && hasMultipleH1 ? 55 : hasMultipleH1 ? 75 : 60;
     return {
       id: "heading_structure",
       label: "Heading Structure",
@@ -2012,9 +1917,7 @@ function detectSuspiciousAltText(text: string): string | null {
 
   // Common filename patterns used as alt text
   if (
-    /^(IMG_?\d|DSC_?\d|image\d|photo\d|picture\d|screenshot|untitled)/i.test(
-      t,
-    ) &&
+    /^(IMG_?\d|DSC_?\d|image\d|photo\d|picture\d|screenshot|untitled)/i.test(t) &&
     /\.(jpe?g|png|gif|bmp|tiff?|webp|svg|pdf)$/i.test(t)
   ) {
     return "appears to be a filename rather than a description";
@@ -2047,10 +1950,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     "Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.";
 
   const figures = qpdf.images.filter((img) => img.ref);
-  const untaggedImageSignals = Math.max(
-    pdfjs.imageCount,
-    qpdf.imageObjectCount,
-  );
+  const untaggedImageSignals = Math.max(pdfjs.imageCount, qpdf.imageObjectCount);
 
   // Untagged/raw image signals are too noisy to score automatically.
   if (figures.length === 0 && untaggedImageSignals > 0) {
@@ -2106,8 +2006,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   }
 
   const withAlt = figures.filter((f) => f.hasAlt).length;
-  const score =
-    withAlt === 0 ? 0 : Math.floor((withAlt / figures.length) * 100);
+  const score = withAlt === 0 ? 0 : Math.floor((withAlt / figures.length) * 100);
   const findings: string[] = [];
 
   if (withAlt === figures.length) {
@@ -2122,9 +2021,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       findings.push(`  ... and ${figures.length - 20} more image(s)`);
     }
   } else {
-    findings.push(
-      `${withAlt} of ${figures.length} image(s) have alternative text`,
-    );
+    findings.push(`${withAlt} of ${figures.length} image(s) have alternative text`);
     findings.push(`--- Images Missing Alt Text ---`);
     let missingCount = 0;
     for (let fi = 0; fi < figures.length && missingCount < 15; fi++) {
@@ -2135,9 +2032,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     }
     const totalMissing = figures.filter((f) => !f.hasAlt).length;
     if (totalMissing > 15) {
-      findings.push(
-        `  ... and ${totalMissing - 15} more image(s) without alt text`,
-      );
+      findings.push(`  ... and ${totalMissing - 15} more image(s) without alt text`);
     }
     if (withAlt > 0) {
       findings.push(`--- Images With Alt Text ---`);
@@ -2179,9 +2074,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       findings.push(`  Image ${s.index}: "${preview}" — ${s.reason}`);
     }
     if (suspicious.length > 15) {
-      findings.push(
-        `  ... and ${suspicious.length - 15} more suspicious alt text value(s)`,
-      );
+      findings.push(`  ... and ${suspicious.length - 15} more suspicious alt text value(s)`);
     }
     findings.push(
       `  Review these images and replace auto-generated or encoded alt text with meaningful descriptions.`,
@@ -2355,9 +2248,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
-      findings: [
-        "No tables detected in this document — this category does not affect the score",
-      ],
+      findings: ["No tables detected in this document — this category does not affect the score"],
       explanation: tableExplanation,
       helpLinks: tableLinks,
     };
@@ -2372,15 +2263,13 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   for (let ti = 0; ti < n; ti++) {
     const t = qpdf.tables[ti];
     const label = n > 1 ? `Table ${ti + 1}` : "Table";
-    const cols =
-      t.columnCounts.length > 0 ? `${t.columnCounts[0]} cols` : "no col data";
+    const cols = t.columnCounts.length > 0 ? `${t.columnCounts[0]} cols` : "no col data";
     const parts: string[] = [
       `${t.rowCount} rows × ${cols}`,
       `${t.headerCount} <TH>, ${t.dataCellCount} <TD>`,
     ];
     if (t.hasScope) parts.push("scope: present");
-    else if (t.headerCount > 0)
-      parts.push(`scope: missing on ${t.scopeMissingCount} header(s)`);
+    else if (t.headerCount > 0) parts.push(`scope: missing on ${t.scopeMissingCount} header(s)`);
     if (t.hasCaption) parts.push("caption: yes");
     if (t.hasNestedTable) parts.push("NESTED TABLE");
     if (t.hasConsistentColumns === false) {
@@ -2396,9 +2285,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   if (withHeaders === n) {
     score += 40;
     const totalTH = qpdf.tables.reduce((sum, t) => sum + t.headerCount, 0);
-    findings.push(
-      `All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`,
-    );
+    findings.push(`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`);
   } else if (withHeaders > 0) {
     score += 20;
     findings.push(
@@ -2419,9 +2306,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       `${n} table(s) found but none have header cells — screen readers cannot identify column or row headers`,
     );
     for (let ti = 0; ti < n; ti++) {
-      findings.push(
-        `  Table ${ti + 1}: ${qpdf.tables[ti].dataCellCount} <TD> cells, 0 <TH> cells`,
-      );
+      findings.push(`  Table ${ti + 1}: ${qpdf.tables[ti].dataCellCount} <TD> cells, 0 <TH> cells`);
     }
     findings.push(
       "Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>",
@@ -2433,9 +2318,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   if (withRows === n) {
     score += 20;
     const totalRows = qpdf.tables.reduce((sum, t) => sum + t.rowCount, 0);
-    findings.push(
-      `All ${n} table(s) have proper row structure — ${totalRows} <TR> row(s) total`,
-    );
+    findings.push(`All ${n} table(s) have proper row structure — ${totalRows} <TR> row(s) total`);
   } else if (withRows > 0) {
     score += 10;
     for (let ti = 0; ti < n; ti++) {
@@ -2455,9 +2338,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   }
 
   // 3. Scope attributes (10 points) — enhancement for complex tables
-  const withScope = qpdf.tables.filter(
-    (t) => t.hasHeaders && t.hasScope,
-  ).length;
+  const withScope = qpdf.tables.filter((t) => t.hasHeaders && t.hasScope).length;
   const tablesWithHeaders = qpdf.tables.filter((t) => t.hasHeaders);
   if (tablesWithHeaders.length === 0) {
     findings.push("Scope attributes: N/A (no header cells to check)");
@@ -2465,10 +2346,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     score += 10;
     findings.push("All <TH> cells have Scope attributes (/Column or /Row)");
   } else {
-    const totalMissing = qpdf.tables.reduce(
-      (sum, t) => sum + t.scopeMissingCount,
-      0,
-    );
+    const totalMissing = qpdf.tables.reduce((sum, t) => sum + t.scopeMissingCount, 0);
     if (withScope > 0) score += 5;
     findings.push(
       `${totalMissing} <TH> cell(s) missing Scope attribute — screen readers may not correctly associate headers with data`,
@@ -2524,16 +2402,10 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   }
 
   // 6. Consistent columns (10 points)
-  const withConsistent = qpdf.tables.filter(
-    (t) => t.hasConsistentColumns === true,
-  ).length;
-  const checkable = qpdf.tables.filter(
-    (t) => t.hasConsistentColumns !== null,
-  ).length;
+  const withConsistent = qpdf.tables.filter((t) => t.hasConsistentColumns === true).length;
+  const checkable = qpdf.tables.filter((t) => t.hasConsistentColumns !== null).length;
   if (checkable === 0) {
-    findings.push(
-      "Column consistency: could not be checked (no row structure)",
-    );
+    findings.push("Column consistency: could not be checked (no row structure)");
   } else if (withConsistent === checkable) {
     score += 10;
     findings.push("All tables have consistent column counts across rows");
@@ -2559,12 +2431,8 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   // /Scope is the recommended approach for simple tables, while the explicit
   // /Headers attribute is intended for complex tables. Crediting only /Headers
   // would wrongly dock a fully-conformant scope-based simple table 5 points.
-  const withExplicitHeaders = qpdf.tables.filter(
-    (t) => t.hasHeaderAssociation,
-  ).length;
-  const withAssoc = qpdf.tables.filter(
-    (t) => t.hasHeaderAssociation || t.hasScope,
-  ).length;
+  const withExplicitHeaders = qpdf.tables.filter((t) => t.hasHeaderAssociation).length;
+  const withAssoc = qpdf.tables.filter((t) => t.hasHeaderAssociation || t.hasScope).length;
   if (withAssoc > 0) {
     score += 5;
     if (withExplicitHeaders > 0) {
@@ -2572,9 +2440,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
         `${withExplicitHeaders} table(s) use explicit header-cell associations (/Headers attribute)`,
       );
     } else {
-      findings.push(
-        "Header cells are programmatically associated with data cells via /Scope",
-      );
+      findings.push("Header cells are programmatically associated with data cells via /Scope");
     }
   }
 
@@ -2674,9 +2540,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
-      findings: [
-        "No links found in this document — this category does not affect the score",
-      ],
+      findings: ["No links found in this document — this category does not affect the score"],
       explanation: linkExplanation,
       helpLinks: linkLinks,
     };
@@ -2694,9 +2558,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
   // penalized. A visible raw URL satisfies WCAG 2.4.4 (the destination is
   // determinable) and is surfaced as advisory only — it does not lower the
   // score. This keeps the verdict aligned with WCAG and with PAC.
-  const score = Math.floor(
-    ((pdfjs.links.length - needsFix.length) / pdfjs.links.length) * 100,
-  );
+  const score = Math.floor(((pdfjs.links.length - needsFix.length) / pdfjs.links.length) * 100);
   const findings: string[] = [];
 
   if (needsFix.length === 0 && rawUrls.length === 0) {
@@ -2741,9 +2603,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
         findings.push(`  "${link.text.trim()}" → ${link.url}`);
       }
       if (descriptive.length > 10) {
-        findings.push(
-          `  ... and ${descriptive.length - 10} more descriptive link(s)`,
-        );
+        findings.push(`  ... and ${descriptive.length - 10} more descriptive link(s)`);
       }
     }
     if (needsFix.length > 0) {
@@ -2795,9 +2655,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
       score: null,
       grade: null,
       severity: null,
-      findings: [
-        "No form fields found in this document — this category does not affect the score",
-      ],
+      findings: ["No form fields found in this document — this category does not affect the score"],
       explanation: formExplanation,
       helpLinks: formLinks,
     };
@@ -2813,17 +2671,13 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
     findings.push(`All fields have accessible tooltip labels (TU)`);
     findings.push(`--- Form Field Details ---`);
     for (const field of qpdf.formFields.slice(0, 20)) {
-      findings.push(
-        `  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`,
-      );
+      findings.push(`  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`);
     }
     if (qpdf.formFields.length > 20) {
       findings.push(`  ... and ${qpdf.formFields.length - 20} more field(s)`);
     }
   } else {
-    findings.push(
-      `${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`,
-    );
+    findings.push(`${withLabels} of ${qpdf.formFields.length} field(s) have accessible labels`);
     findings.push(`--- Unlabeled Form Fields ---`);
     const unlabeled = qpdf.formFields.filter((f) => !f.hasTU);
     for (const field of unlabeled.slice(0, 20)) {
@@ -2832,17 +2686,13 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
       );
     }
     if (unlabeled.length > 20) {
-      findings.push(
-        `  ... and ${unlabeled.length - 20} more unlabeled field(s)`,
-      );
+      findings.push(`  ... and ${unlabeled.length - 20} more unlabeled field(s)`);
     }
     if (withLabels > 0) {
       findings.push(`--- Labeled Form Fields ---`);
       const labeled = qpdf.formFields.filter((f) => f.hasTU);
       for (const field of labeled.slice(0, 10)) {
-        findings.push(
-          `  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`,
-        );
+        findings.push(`  ${field.name ? `"${field.name}"` : "(unnamed)"} — has /TU label ✓`);
       }
       if (labeled.length > 10) {
         findings.push(`  ... and ${labeled.length - 10} more labeled field(s)`);
@@ -2866,10 +2716,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   };
 }
 
-function scoreReadingOrder(
-  qpdf: QpdfResult,
-  pdfjs: PdfjsResult,
-): CategoryResult {
+function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const readingLinks: CategoryResult["helpLinks"] = [
     {
       label: "Adobe: Fix Reading Order",
@@ -2995,4 +2842,3 @@ function scoreReadingOrder(
 // scoring/readingOrderFidelity.ts so the conformance gate can consume the
 // same evidence (1.3.2 may only be asserted from an actual order comparison,
 // never from heuristic category scores).
-

@@ -42,9 +42,7 @@ describe("Score display — grade color mapping", () => {
 
       // The grade circle border should have the correct color
       const circle = wrapper.find("div.w-28");
-      expect(circle.attributes("style")).toContain(
-        `border-color: ${expectedColor}`,
-      );
+      expect(circle.attributes("style")).toContain(`border-color: ${expectedColor}`);
     },
   );
 
@@ -173,9 +171,9 @@ describe("Score display — verdict explanation", () => {
         },
       },
     });
-    expect(
-      wrapper.find('[data-testid="verdict-explanation"]').text(),
-    ).toContain("programmatically determinable");
+    expect(wrapper.find('[data-testid="verdict-explanation"]').text()).toContain(
+      "programmatically determinable",
+    );
   });
 });
 

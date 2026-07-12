@@ -18,11 +18,7 @@ import type { DocxMetadata } from "./docxService.js";
 import type { PptxMetadata } from "./pptxService.js";
 import type { XlsxMetadata } from "./xlsxService.js";
 import type { ScoringResult } from "./scorer.js";
-import type {
-  OoxmlType,
-  OoxmlWorkerRequest,
-  OoxmlWorkerResult,
-} from "./ooxmlWorker.js";
+import type { OoxmlType, OoxmlWorkerRequest, OoxmlWorkerResult } from "./ooxmlWorker.js";
 
 // The child-process entry point, resolved once. Spawned as
 // `node --import tsx ooxmlWorker.ts` — the same launch the API itself uses
@@ -97,24 +93,20 @@ export function runOoxmlInWorker<T extends OoxmlType>(
   timeoutMs: number,
 ): Promise<OoxmlRunResult<T>> {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      ["--import", "tsx", WORKER_PATH],
-      {
-        // fd3 IPC channel with advanced (structured-clone) serialization so
-        // the Buffer moves efficiently and arrives as a Buffer (no base64).
-        // stdin ignored; stdout/stderr inherited so any child diagnostics
-        // surface in the parent's logs, matching the remediation worker.
-        stdio: ["ignore", "inherit", "inherit", "ipc"],
-        serialization: "advanced",
-        // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
-        // child parses attacker-controlled document bytes, so it must not
-        // hold the API's secrets (JWT_SECRET, API_PRIVILEGED_TOKEN, SMTP
-        // creds, ...) while still getting everything it needs to boot under
-        // `node --import tsx` (PATH/HOME/NODE_*/TSX_*).
-        env: buildChildSpawnEnv(),
-      },
-    );
+    const child = spawn(process.execPath, ["--import", "tsx", WORKER_PATH], {
+      // fd3 IPC channel with advanced (structured-clone) serialization so
+      // the Buffer moves efficiently and arrives as a Buffer (no base64).
+      // stdin ignored; stdout/stderr inherited so any child diagnostics
+      // surface in the parent's logs, matching the remediation worker.
+      stdio: ["ignore", "inherit", "inherit", "ipc"],
+      serialization: "advanced",
+      // Denylisted copy of the parent's env (see childSpawnEnv.ts): this
+      // child parses attacker-controlled document bytes, so it must not
+      // hold the API's secrets (JWT_SECRET, API_PRIVILEGED_TOKEN, SMTP
+      // creds, ...) while still getting everything it needs to boot under
+      // `node --import tsx` (PATH/HOME/NODE_*/TSX_*).
+      env: buildChildSpawnEnv(),
+    });
 
     let settled = false;
     // Set synchronously the instant the timeout fires — BEFORE the promise

@@ -72,13 +72,13 @@ describe("detectFileType: pptx", () => {
   });
 });
 
-describe('detectFileType: xlsx', () => {
-  it('detects a real xlsx by content and dispatches with sheet-count pageCount', async () => {
-    const buf = await buildXlsx({ sheets: [{ name: 'A' }, { name: 'B' }] })
-    expect(await detectFileType(buf)).toBe('xlsx')
-    const r = await analyzeDocument(buf, 'book.xlsx')
-    expect(r.fileType).toBe('xlsx')
-    expect(r.pageCount).toBe(2) // sheets
-    expect(r.xlsxMetadata?.title).toBe('Grant Ledger')
-  })
-})
+describe("detectFileType: xlsx", () => {
+  it("detects a real xlsx by content and dispatches with sheet-count pageCount", async () => {
+    const buf = await buildXlsx({ sheets: [{ name: "A" }, { name: "B" }] });
+    expect(await detectFileType(buf)).toBe("xlsx");
+    const r = await analyzeDocument(buf, "book.xlsx");
+    expect(r.fileType).toBe("xlsx");
+    expect(r.pageCount).toBe(2); // sheets
+    expect(r.xlsxMetadata?.title).toBe("Grant Ledger");
+  });
+});

@@ -1,11 +1,11 @@
-import './test-helpers'
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import "./test-helpers";
+import { describe, it, expect } from "vitest";
+import { mount } from "@vue/test-utils";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-import DropZone from '../components/DropZone.vue'
-import ScoreCard from '../components/ScoreCard.vue'
+import DropZone from "../components/DropZone.vue";
+import ScoreCard from "../components/ScoreCard.vue";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -13,272 +13,271 @@ import ScoreCard from '../components/ScoreCard.vue'
 
 /** Parse hex color to { r, g, b } */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '')
+  const h = hex.replace("#", "");
   return {
     r: parseInt(h.substring(0, 2), 16),
     g: parseInt(h.substring(2, 4), 16),
     b: parseInt(h.substring(4, 6), 16),
-  }
+  };
 }
 
 /** Relative luminance per WCAG 2.1 */
 function luminance({ r, g, b }: { r: number; g: number; b: number }): number {
   // 3-in, 3-out: the cast just tells noUncheckedIndexedAccess what .map()
   // already guarantees for a fixed 3-element input.
-  const [rs, gs, bs] = [r, g, b].map(c => {
-    const s = c / 255
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  }) as [number, number, number]
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+  const [rs, gs, bs] = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }) as [number, number, number];
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 }
 
 /** Contrast ratio between two hex colors (WCAG 2.1) */
 function contrastRatio(fg: string, bg: string): number {
-  const l1 = luminance(hexToRgb(fg))
-  const l2 = luminance(hexToRgb(bg))
-  const lighter = Math.max(l1, l2)
-  const darker = Math.min(l1, l2)
-  return (lighter + 0.05) / (darker + 0.05)
+  const l1 = luminance(hexToRgb(fg));
+  const l2 = luminance(hexToRgb(bg));
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 // Dark mode CSS variable values (from main.css :root)
 const darkBg = {
-  primary: '#0a0a0a',
-  card: '#111111',
-  cardAlt: '#0d0d0d',
-}
+  primary: "#0a0a0a",
+  card: "#111111",
+  cardAlt: "#0d0d0d",
+};
 
 // Light mode CSS variable values (from main.css html.light)
 const lightBg = {
-  primary: '#f9fafb',
-  card: '#ffffff',
-  cardAlt: '#f9fafb',
-}
+  primary: "#f9fafb",
+  card: "#ffffff",
+  cardAlt: "#f9fafb",
+};
 
 // Dark mode text colors
 const darkText = {
-  secondary: '#d4d4d4',
-  muted: '#a3a3a3',
-}
+  secondary: "#d4d4d4",
+  muted: "#a3a3a3",
+};
 
 // Light mode text colors
 const lightText = {
-  secondary: '#374151',
-  muted: '#4b5563',
-}
+  secondary: "#374151",
+  muted: "#4b5563",
+};
 
 // ---------------------------------------------------------------------------
 // WCAG 2.1 Color Contrast Tests (SC 1.4.3 — Level AA: 4.5:1 for normal text)
 // ---------------------------------------------------------------------------
-describe('WCAG 2.1 Color Contrast — Dark Mode', () => {
-  it('dark textSecondary meets 4.5:1 contrast on all dark backgrounds', () => {
-    const fg = darkText.secondary
+describe("WCAG 2.1 Color Contrast — Dark Mode", () => {
+  it("dark textSecondary meets 4.5:1 contrast on all dark backgrounds", () => {
+    const fg = darkText.secondary;
     for (const [name, bg] of Object.entries(darkBg)) {
-      const ratio = contrastRatio(fg, bg)
-      expect(ratio, `textSecondary on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio(fg, bg);
+      expect(ratio, `textSecondary on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5);
     }
-  })
+  });
 
-  it('dark textMuted meets 4.5:1 contrast on all dark backgrounds', () => {
-    const fg = darkText.muted
+  it("dark textMuted meets 4.5:1 contrast on all dark backgrounds", () => {
+    const fg = darkText.muted;
     for (const [name, bg] of Object.entries(darkBg)) {
-      const ratio = contrastRatio(fg, bg)
-      expect(ratio, `textMuted on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio(fg, bg);
+      expect(ratio, `textMuted on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5);
     }
-  })
+  });
 
-  it('white text meets 4.5:1 on all dark backgrounds', () => {
+  it("white text meets 4.5:1 on all dark backgrounds", () => {
     for (const [name, bg] of Object.entries(darkBg)) {
-      const ratio = contrastRatio('#ffffff', bg)
-      expect(ratio, `white on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio("#ffffff", bg);
+      expect(ratio, `white on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5);
     }
-  })
+  });
 
-  it('grade colors meet 3:1 contrast for large text (SC 1.4.3)', () => {
-    const gradeColors = ['#22c55e', '#14b8a6', '#eab308', '#f97316', '#ef4444']
+  it("grade colors meet 3:1 contrast for large text (SC 1.4.3)", () => {
+    const gradeColors = ["#22c55e", "#14b8a6", "#eab308", "#f97316", "#ef4444"];
     for (const color of gradeColors) {
-      const ratio = contrastRatio(color, darkBg.card)
-      expect(ratio, `grade color ${color} on card bg`).toBeGreaterThanOrEqual(3)
+      const ratio = contrastRatio(color, darkBg.card);
+      expect(ratio, `grade color ${color} on card bg`).toBeGreaterThanOrEqual(3);
     }
-  })
+  });
 
-  it('dark link color (blue-400) meets 4.5:1 on dark backgrounds', () => {
-    const blue400 = '#60a5fa'
+  it("dark link color (blue-400) meets 4.5:1 on dark backgrounds", () => {
+    const blue400 = "#60a5fa";
     for (const [name, bg] of Object.entries(darkBg)) {
-      const ratio = contrastRatio(blue400, bg)
-      expect(ratio, `blue-400 on ${name}`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio(blue400, bg);
+      expect(ratio, `blue-400 on ${name}`).toBeGreaterThanOrEqual(4.5);
     }
-  })
+  });
 
-  it('green-700 CTA button meets 4.5:1 with white text', () => {
-    const green700 = '#15803d'
-    const ratio = contrastRatio('#ffffff', green700)
-    expect(ratio).toBeGreaterThanOrEqual(4.5)
-  })
-})
+  it("green-700 CTA button meets 4.5:1 with white text", () => {
+    const green700 = "#15803d";
+    const ratio = contrastRatio("#ffffff", green700);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+});
 
-describe('WCAG 2.1 Color Contrast — Light Mode', () => {
-  it('light textSecondary meets 4.5:1 contrast on all light backgrounds', () => {
-    const fg = lightText.secondary
+describe("WCAG 2.1 Color Contrast — Light Mode", () => {
+  it("light textSecondary meets 4.5:1 contrast on all light backgrounds", () => {
+    const fg = lightText.secondary;
     for (const [name, bg] of Object.entries(lightBg)) {
-      const ratio = contrastRatio(fg, bg)
-      expect(ratio, `textSecondary on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio(fg, bg);
+      expect(ratio, `textSecondary on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5);
     }
-  })
+  });
 
-  it('light textMuted meets 4.5:1 contrast on all light backgrounds', () => {
-    const fg = lightText.muted
+  it("light textMuted meets 4.5:1 contrast on all light backgrounds", () => {
+    const fg = lightText.muted;
     for (const [name, bg] of Object.entries(lightBg)) {
-      const ratio = contrastRatio(fg, bg)
-      expect(ratio, `textMuted on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio(fg, bg);
+      expect(ratio, `textMuted on ${name} (${bg})`).toBeGreaterThanOrEqual(4.5);
     }
-  })
+  });
 
-  it('light link color (blue-600) meets 4.5:1 on light backgrounds', () => {
-    const blue600 = '#2563eb'
+  it("light link color (blue-600) meets 4.5:1 on light backgrounds", () => {
+    const blue600 = "#2563eb";
     for (const [name, bg] of Object.entries(lightBg)) {
-      const ratio = contrastRatio(blue600, bg)
-      expect(ratio, `blue-600 on ${name}`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrastRatio(blue600, bg);
+      expect(ratio, `blue-600 on ${name}`).toBeGreaterThanOrEqual(4.5);
     }
-  })
-})
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Source file contrast regression tests — ensure no hardcoded low-contrast classes
 // ---------------------------------------------------------------------------
-describe('Contrast Regression (no low-contrast classes in source)', () => {
+describe("Contrast Regression (no low-contrast classes in source)", () => {
   const sourceFiles = [
-    'components/DropZone.vue',
-    'components/ScoreCard.vue',
-    'components/ReportContent.vue',
-    'components/ProcessingOverlay.vue',
-    'layouts/default.vue',
-    'pages/index.vue',
-    'pages/report/[id].vue',
-  ]
+    "components/DropZone.vue",
+    "components/ScoreCard.vue",
+    "components/ReportContent.vue",
+    "components/ProcessingOverlay.vue",
+    "layouts/default.vue",
+    "pages/index.vue",
+    "pages/report/[id].vue",
+  ];
 
   for (const file of sourceFiles) {
     it(`${file} does not use text-neutral-500`, () => {
-      const content = readFileSync(resolve(__dirname, '..', file), 'utf-8')
-      const templateMatch = content.match(/<template>([\s\S]*?)<\/template>/)
+      const content = readFileSync(resolve(__dirname, "..", file), "utf-8");
+      const templateMatch = content.match(/<template>([\s\S]*?)<\/template>/);
       if (templateMatch) {
-        expect(templateMatch[1]).not.toContain('text-neutral-500')
+        expect(templateMatch[1]).not.toContain("text-neutral-500");
       }
-    })
+    });
 
     it(`${file} does not use text-neutral-600`, () => {
-      const content = readFileSync(resolve(__dirname, '..', file), 'utf-8')
-      const templateMatch = content.match(/<template>([\s\S]*?)<\/template>/)
+      const content = readFileSync(resolve(__dirname, "..", file), "utf-8");
+      const templateMatch = content.match(/<template>([\s\S]*?)<\/template>/);
       if (templateMatch) {
-        expect(templateMatch[1]).not.toContain('text-neutral-600')
+        expect(templateMatch[1]).not.toContain("text-neutral-600");
       }
-    })
+    });
   }
-})
+});
 
 // ---------------------------------------------------------------------------
 // Semantic HTML & ARIA Landmark Tests (WCAG 2.4.1)
 // ---------------------------------------------------------------------------
-describe('Semantic HTML & Landmarks', () => {
-  it('shared report page has a <main> landmark', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'pages/report/[id].vue'), 'utf-8')
-    expect(content).toContain('<main')
-  })
+describe("Semantic HTML & Landmarks", () => {
+  it("shared report page has a <main> landmark", () => {
+    const content = readFileSync(resolve(__dirname, "..", "pages/report/[id].vue"), "utf-8");
+    expect(content).toContain("<main");
+  });
 
-  it('default layout has a <main> element', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'layouts/default.vue'), 'utf-8')
-    expect(content).toContain('<main')
-  })
+  it("default layout has a <main> element", () => {
+    const content = readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
+    expect(content).toContain("<main");
+  });
 
-  it('default layout has a <header> element', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'layouts/default.vue'), 'utf-8')
-    expect(content).toContain('<header')
-  })
+  it("default layout has a <header> element", () => {
+    const content = readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
+    expect(content).toContain("<header");
+  });
 
-  it('default layout has a <footer> element', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'layouts/default.vue'), 'utf-8')
-    expect(content).toContain('<footer')
-  })
+  it("default layout has a <footer> element", () => {
+    const content = readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
+    expect(content).toContain("<footer");
+  });
 
-  it('default layout has a <nav> element', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'layouts/default.vue'), 'utf-8')
-    expect(content).toContain('<nav')
-  })
-})
+  it("default layout has a <nav> element", () => {
+    const content = readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
+    expect(content).toContain("<nav");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Link Accessibility (WCAG 2.4.4 — Link Purpose)
 // ---------------------------------------------------------------------------
-describe('Link Accessibility', () => {
+describe("Link Accessibility", () => {
   it('external links in report page include rel="noopener noreferrer"', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'pages/report/[id].vue'), 'utf-8')
-    const extLinks = content.match(/target="_blank"/g)
-    const relAttrs = content.match(/rel="noopener noreferrer"/g)
+    const content = readFileSync(resolve(__dirname, "..", "pages/report/[id].vue"), "utf-8");
+    const extLinks = content.match(/target="_blank"/g);
+    const relAttrs = content.match(/rel="noopener noreferrer"/g);
     if (extLinks) {
-      expect(relAttrs?.length).toBe(extLinks.length)
+      expect(relAttrs?.length).toBe(extLinks.length);
     }
-  })
+  });
 
   it('external (cross-origin) links in default layout include rel="noopener noreferrer"', () => {
-    const content = readFileSync(resolve(__dirname, '..', 'layouts/default.vue'), 'utf-8')
+    const content = readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
     // Count only anchors that target external origins. Same-origin
     // navigations like /data-retention or /technical-details open in
     // a new tab but use `rel="noopener"` only — `noreferrer` would
     // unnecessarily strip referrer for our own pages.
-    const externalAnchors = content.match(
-      /<a[^>]*href="https?:[^"]*"[^>]*target="_blank"[^>]*>/g,
-    ) ?? []
+    const externalAnchors =
+      content.match(/<a[^>]*href="https?:[^"]*"[^>]*target="_blank"[^>]*>/g) ?? [];
     for (const a of externalAnchors) {
-      expect(a).toMatch(/rel="noopener noreferrer"/)
+      expect(a).toMatch(/rel="noopener noreferrer"/);
     }
-  })
-})
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Component-level Accessibility Tests
 // ---------------------------------------------------------------------------
-describe('DropZone Accessibility', () => {
-  it('file input has an accept attribute for screen readers', () => {
-    const wrapper = mount(DropZone)
-    const input = wrapper.find('input[type="file"]')
-    expect(input.attributes('accept')).toContain('pdf')
-  })
+describe("DropZone Accessibility", () => {
+  it("file input has an accept attribute for screen readers", () => {
+    const wrapper = mount(DropZone);
+    const input = wrapper.find('input[type="file"]');
+    expect(input.attributes("accept")).toContain("pdf");
+  });
 
-  it('uses cursor-pointer on the interactive drop area', () => {
-    const wrapper = mount(DropZone)
-    const dropArea = wrapper.find('[class*="cursor-pointer"]')
-    expect(dropArea.exists()).toBe(true)
-  })
-})
+  it("uses cursor-pointer on the interactive drop area", () => {
+    const wrapper = mount(DropZone);
+    const dropArea = wrapper.find('[class*="cursor-pointer"]');
+    expect(dropArea.exists()).toBe(true);
+  });
+});
 
-describe('ScoreCard Accessibility', () => {
+describe("ScoreCard Accessibility", () => {
   const baseResult = {
-    filename: 'test.pdf',
+    filename: "test.pdf",
     pageCount: 5,
     overallScore: 85,
-    grade: 'B',
-    executiveSummary: 'Good accessibility.',
-  }
+    grade: "B",
+    executiveSummary: "Good accessibility.",
+  };
 
-  it('does not use opacity classes that reduce text readability', () => {
-    const wrapper = mount(ScoreCard, { props: { result: baseResult } })
-    const html = wrapper.html()
-    expect(html).not.toContain('opacity-60')
-    expect(html).not.toContain('opacity-50')
-    expect(html).not.toContain('opacity-40')
-  })
+  it("does not use opacity classes that reduce text readability", () => {
+    const wrapper = mount(ScoreCard, { props: { result: baseResult } });
+    const html = wrapper.html();
+    expect(html).not.toContain("opacity-60");
+    expect(html).not.toContain("opacity-50");
+    expect(html).not.toContain("opacity-40");
+  });
 
-  it('renders the caveat about Adobe Acrobat testing', () => {
-    const wrapper = mount(ScoreCard, { props: { result: baseResult } })
-    expect(wrapper.text()).toContain('Adobe Acrobat')
-    expect(wrapper.text()).toContain('source document')
-  })
+  it("renders the caveat about Adobe Acrobat testing", () => {
+    const wrapper = mount(ScoreCard, { props: { result: baseResult } });
+    expect(wrapper.text()).toContain("Adobe Acrobat");
+    expect(wrapper.text()).toContain("source document");
+  });
 
   it('caveat link to Adobe help page has target="_blank" and rel attributes', () => {
-    const wrapper = mount(ScoreCard, { props: { result: baseResult } })
-    const adobeLink = wrapper.find('a[href*="helpx.adobe.com"]')
-    expect(adobeLink.exists()).toBe(true)
-    expect(adobeLink.attributes('target')).toBe('_blank')
-    expect(adobeLink.attributes('rel')).toContain('noopener')
-  })
-})
+    const wrapper = mount(ScoreCard, { props: { result: baseResult } });
+    const adobeLink = wrapper.find('a[href*="helpx.adobe.com"]');
+    expect(adobeLink.exists()).toBe(true);
+    expect(adobeLink.attributes("target")).toBe("_blank");
+    expect(adobeLink.attributes("rel")).toContain("noopener");
+  });
+});

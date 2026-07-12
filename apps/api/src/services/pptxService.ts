@@ -164,8 +164,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   const slidePaths = Object.keys(zip.files)
     .filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))
     .sort(
-      (a, b) =>
-        Number(/slide(\d+)\.xml$/.exec(a)![1]) - Number(/slide(\d+)\.xml$/.exec(b)![1]),
+      (a, b) => Number(/slide(\d+)\.xml$/.exec(a)![1]) - Number(/slide(\d+)\.xml$/.exec(b)![1]),
     );
   if (slidePaths.length > PPTX.MAX_SLIDES) {
     throw new PptxParseError(
@@ -269,8 +268,7 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     analysis.slides.push({
       index: i + 1,
       title: titleText.length > 0 ? titleText : null,
-      titleIsFirstShape:
-        !!titleSp && contentBearing.length > 0 && contentBearing[0] === titleSp,
+      titleIsFirstShape: !!titleSp && contentBearing.length > 0 && contentBearing[0] === titleSp,
       shapeCount: shapes.length,
     });
 
@@ -355,9 +353,7 @@ function collectSlideContent(
       const tbl = frame.tbl;
       const rows = descendants(tbl, "tr").length;
       const grid = firstChild(tbl, "tblGrid");
-      const cols = grid
-        ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length
-        : 0;
+      const cols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
       const tblPr = firstChild(tbl, "tblPr");
       analysis.tables.push({
         hasHeaderRow: !!tblPr && attrOf(tblPr, "firstRow") === "1",

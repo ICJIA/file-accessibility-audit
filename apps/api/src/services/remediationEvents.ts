@@ -71,11 +71,16 @@ export function recordEvent(
     } catch (e) {
       serialized = null;
       // best-effort: log the failure as its own event without recursing
-      insertStmt.run(jobId, "error", Date.now(), JSON.stringify({
-        error_type: "event_details_serialize_failed",
-        original_event: event,
-        message: (e as Error).message,
-      }));
+      insertStmt.run(
+        jobId,
+        "error",
+        Date.now(),
+        JSON.stringify({
+          error_type: "event_details_serialize_failed",
+          original_event: event,
+          message: (e as Error).message,
+        }),
+      );
     }
   }
   insertStmt.run(jobId, event, Date.now(), serialized);
@@ -110,10 +115,7 @@ function hashPath(path: string): string {
  * ENOENT was observed — callers can use this to gate downstream
  * cleanup or compliance reporting.
  */
-export async function verifyAbsent(
-  jobId: string,
-  filePath: string,
-): Promise<boolean> {
+export async function verifyAbsent(jobId: string, filePath: string): Promise<boolean> {
   const pathHash = hashPath(filePath);
   try {
     await fs.stat(filePath);

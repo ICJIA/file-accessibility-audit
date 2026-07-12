@@ -117,7 +117,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "In Acrobat: expand each <Table> tag in the Tags panel, change header cell tags from <TD> to <TH>, and add scope attributes (Row or Column) to header cells. In Word: select the header row → Table Layout → Repeat Header Rows. In PowerPoint or Excel: select the table → Table Design → check \"Header Row\".",
+      'In Acrobat: expand each <Table> tag in the Tags panel, change header cell tags from <TD> to <TH>, and add scope attributes (Row or Column) to header cells. In Word: select the header row → Table Layout → Repeat Header Rows. In PowerPoint or Excel: select the table → Table Design → check "Header Row".',
   },
   color_contrast: {
     criteria: [
@@ -143,7 +143,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable",
     remediation:
-      "Replace raw URLs and vague phrases like \"click here\" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click → Edit Link). For a PDF, fix the link text in the source document before export, or edit link properties directly in Acrobat (Edit PDF → Links).",
+      'Replace raw URLs and vague phrases like "click here" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click → Edit Link). For a PDF, fix the link text in the source document before export, or edit link properties directly in Acrobat (Edit PDF → Links).',
   },
   form_accessibility: {
     criteria: [

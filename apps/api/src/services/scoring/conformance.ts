@@ -161,9 +161,7 @@ export function evaluateConformance(
   }
 
   // 3. Tagged figures without alternative text.
-  const figuresMissingAlt = qpdf.images.filter(
-    (img) => img.ref && !img.hasAlt,
-  ).length;
+  const figuresMissingAlt = qpdf.images.filter((img) => img.ref && !img.hasAlt).length;
   if (figuresMissingAlt > 0) {
     add(
       "1.1.1",
@@ -264,8 +262,7 @@ export function evaluateConformance(
       sc: "1.4.3",
       name: "Contrast (Minimum)",
       level: "AA",
-      reason:
-        "This tool does not yet measure rendered text/background color contrast.",
+      reason: "This tool does not yet measure rendered text/background color contrast.",
       url: wcagUrl("1.4.3"),
     },
   ];
@@ -351,9 +348,7 @@ function finalizeVerdict(
         ? `${aaCount} Level AA failure${aaCount === 1 ? "" : "s"}`
         : `${aCount} Level A and ${aaCount} Level AA failures`;
 
-  const contrastNote = contrastNotEvaluated
-    ? ", and color contrast was not evaluated"
-    : "";
+  const contrastNote = contrastNotEvaluated ? ", and color contrast was not evaluated" : "";
   const headline =
     status === "fail"
       ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
@@ -372,9 +367,7 @@ function finalizeVerdict(
  * and theme run colors are in the XML), so 1.4.3 can be a confirmed failure
  * here and is only listed "not assessed" when no colored text was resolvable.
  */
-export function evaluateDocxConformance(
-  analysis: DocxAnalysis,
-): ConformanceVerdict {
+export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerdict {
   const failures: ConformanceFinding[] = [];
   const add = (
     sc: string,
@@ -438,9 +431,7 @@ export function evaluateDocxConformance(
 
   // 5. Confirmed low-contrast text → 1.4.3 (machine-checkable for Word).
   if (analysis.contrast.failing.length > 0) {
-    const worst = analysis.contrast.failing.reduce((a, b) =>
-      a.ratio < b.ratio ? a : b,
-    );
+    const worst = analysis.contrast.failing.reduce((a, b) => (a.ratio < b.ratio ? a : b));
     add(
       "1.4.3",
       "Contrast (Minimum)",
@@ -488,9 +479,7 @@ export function evaluateDocxConformance(
  * Color contrast is machine-checkable the same way as docx (explicit run/theme
  * colors are in the XML), so 1.4.3 can be a confirmed failure here too.
  */
-export function evaluatePptxConformance(
-  analysis: PptxAnalysis,
-): ConformanceVerdict {
+export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerdict {
   const failures: ConformanceFinding[] = [];
   const add = (
     sc: string,
@@ -558,9 +547,7 @@ export function evaluatePptxConformance(
   // 5. Confirmed low-contrast text → 1.4.3 (machine-checkable via explicit
   //    run/theme colors, same discipline as the docx gate).
   if (analysis.contrast.failing.length > 0) {
-    const worst = analysis.contrast.failing.reduce((a, b) =>
-      a.ratio < b.ratio ? a : b,
-    );
+    const worst = analysis.contrast.failing.reduce((a, b) => (a.ratio < b.ratio ? a : b));
     add(
       "1.4.3",
       "Contrast (Minimum)",
@@ -626,9 +613,7 @@ export function evaluatePptxConformance(
  * resolve yet), so asserting a confirmed failure would overstate what's true —
  * this is a structural fact about the file format, not a v1 boundary.
  */
-export function evaluateXlsxConformance(
-  analysis: XlsxAnalysis,
-): ConformanceVerdict {
+export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerdict {
   const failures: ConformanceFinding[] = [];
   const add = (
     sc: string,
@@ -683,9 +668,7 @@ export function evaluateXlsxConformance(
   // 4. Confirmed low-contrast cell styles → 1.4.3 (machine-checkable via
   //    literal rgb colors on solid fills).
   if (analysis.contrast.failing.length > 0) {
-    const worst = analysis.contrast.failing.reduce((a, b) =>
-      a.ratio < b.ratio ? a : b,
-    );
+    const worst = analysis.contrast.failing.reduce((a, b) => (a.ratio < b.ratio ? a : b));
     add(
       "1.4.3",
       "Contrast (Minimum)",

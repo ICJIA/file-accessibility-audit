@@ -4,12 +4,8 @@ export function useWcag() {
   const pub = useRuntimeConfig().public;
   const version = String(pub.wcagVersion ?? "2.2");
   const level = String(pub.wcagLevel ?? "AA");
-  const base = String(
-    pub.wcagUnderstandingBase ?? "https://www.w3.org/WAI/WCAG22/Understanding/",
-  );
-  const quickref = String(
-    pub.wcagQuickref ?? "https://www.w3.org/WAI/WCAG22/quickref/",
-  );
+  const base = String(pub.wcagUnderstandingBase ?? "https://www.w3.org/WAI/WCAG22/Understanding/");
+  const quickref = String(pub.wcagQuickref ?? "https://www.w3.org/WAI/WCAG22/quickref/");
   return {
     version,
     level,

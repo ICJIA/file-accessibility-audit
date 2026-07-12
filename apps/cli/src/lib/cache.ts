@@ -139,32 +139,22 @@ export function initCache(cacheDir?: string): Database.Database {
     db.exec("ALTER TABLE publist_cache ADD COLUMN tags TEXT");
   } catch {}
   try {
-    db.exec(
-      "ALTER TABLE publist_cache ADD COLUMN pdf_ua_compliance_score INTEGER",
-    );
+    db.exec("ALTER TABLE publist_cache ADD COLUMN pdf_ua_compliance_score INTEGER");
   } catch {}
   try {
-    db.exec(
-      "ALTER TABLE publist_cache ADD COLUMN pdf_ua_compliance_grade TEXT",
-    );
+    db.exec("ALTER TABLE publist_cache ADD COLUMN pdf_ua_compliance_grade TEXT");
   } catch {}
   try {
-    db.exec(
-      "ALTER TABLE publist_cache ADD COLUMN pdf_ua_compliance_severity TEXT",
-    );
+    db.exec("ALTER TABLE publist_cache ADD COLUMN pdf_ua_compliance_severity TEXT");
   } catch {}
   try {
-    db.exec(
-      "ALTER TABLE publist_cache ADD COLUMN color_contrast_score INTEGER",
-    );
+    db.exec("ALTER TABLE publist_cache ADD COLUMN color_contrast_score INTEGER");
   } catch {}
   try {
     db.exec("ALTER TABLE publist_cache ADD COLUMN color_contrast_grade TEXT");
   } catch {}
   try {
-    db.exec(
-      "ALTER TABLE publist_cache ADD COLUMN color_contrast_severity TEXT",
-    );
+    db.exec("ALTER TABLE publist_cache ADD COLUMN color_contrast_severity TEXT");
   } catch {}
   // RB3-1 [IMPORTANT, pre-merge re-audit]: slide_titles (PPTX) and
   // sheet_names (XLSX) are each the highest-weighted category for their
@@ -194,15 +184,10 @@ export function initCache(cacheDir?: string): Database.Database {
   return db;
 }
 
-export function getCached(
-  db: Database.Database,
-  fileURL: string,
-): CachedRow | undefined {
+export function getCached(db: Database.Database, fileURL: string): CachedRow | undefined {
   // Consider both success and permanent errors (404, etc.) as cached
   return db
-    .prepare(
-      "SELECT * FROM publist_cache WHERE file_url = ? AND (status = ? OR status = ?)",
-    )
+    .prepare("SELECT * FROM publist_cache WHERE file_url = ? AND (status = ? OR status = ?)")
     .get(fileURL, "success", "permanent_error") as CachedRow | undefined;
 }
 
@@ -233,14 +218,7 @@ export function upsertResult(
     }
   }
 
-  const cols = [
-    "file_url",
-    "title",
-    "publication_date",
-    "pub_type",
-    "overall_score",
-    "grade",
-  ];
+  const cols = ["file_url", "title", "publication_date", "pub_type", "overall_score", "grade"];
   const vals: any[] = [
     pub.fileURL,
     pub.title,
@@ -317,28 +295,19 @@ export function getErrorCount(db: Database.Database): number {
   return row.cnt;
 }
 
-export function backfillMetadata(
-  db: Database.Database,
-  pubs: Publication[],
-): number {
+export function backfillMetadata(db: Database.Database, pubs: Publication[]): number {
   const stmt = db.prepare(
     "UPDATE publist_cache SET summary = ?, tags = ? WHERE file_url = ? AND summary IS NULL",
   );
   let count = 0;
   const pubMap = new Map(pubs.map((p) => [p.fileURL, p]));
   const rows = db
-    .prepare(
-      "SELECT file_url FROM publist_cache WHERE summary IS NULL AND status = ?",
-    )
+    .prepare("SELECT file_url FROM publist_cache WHERE summary IS NULL AND status = ?")
     .all("success") as { file_url: string }[];
   for (const row of rows) {
     const pub = pubMap.get(row.file_url);
     if (pub) {
-      stmt.run(
-        pub.summary ?? null,
-        pub.tags ? JSON.stringify(pub.tags) : null,
-        row.file_url,
-      );
+      stmt.run(pub.summary ?? null, pub.tags ? JSON.stringify(pub.tags) : null, row.file_url);
       count++;
     }
   }

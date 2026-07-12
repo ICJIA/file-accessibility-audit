@@ -26,10 +26,7 @@ function baseResult(overrides: any = {}) {
         score: 20,
         grade: "F",
         severity: "Critical",
-        findings: [
-          "3 images missing alt text",
-          "1 decorative image not marked as artifact",
-        ],
+        findings: ["3 images missing alt text", "1 decorative image not marked as artifact"],
         explanation: "Ensures non-decorative images have alt text.",
       },
       {
@@ -194,9 +191,7 @@ describe("buildAiAnalysis", () => {
   });
 
   it("includes warnings when present", () => {
-    const out = buildAiAnalysis(
-      baseResult({ warnings: ["Metadata missing creation date"] }),
-    );
+    const out = buildAiAnalysis(baseResult({ warnings: ["Metadata missing creation date"] }));
     expect(out).toContain("## Warnings");
     expect(out).toContain("Metadata missing creation date");
   });

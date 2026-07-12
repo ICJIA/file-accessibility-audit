@@ -17,10 +17,7 @@ import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import db from "../db/sqlite.js";
 import { REMEDIATION, SHARED_REPORTS } from "#config";
-import {
-  deleteAndVerify,
-  recordEvent,
-} from "./remediationEvents.js";
+import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
 import { setExpired, setFailed } from "./remediationJobs.js";
 
 const STUCK_RUNNING_MS = 10 * 60_000;
@@ -40,9 +37,7 @@ const selectStuckRunning = db.prepare(
    WHERE status IN ('pending','running') AND created_at < ?`,
 );
 
-const selectAllRecentIds = db.prepare(
-  `SELECT id FROM remediation_jobs WHERE created_at > ?`,
-);
+const selectAllRecentIds = db.prepare(`SELECT id FROM remediation_jobs WHERE created_at > ?`);
 
 const purgeOldJobs = db.prepare(
   `DELETE FROM remediation_jobs
@@ -50,9 +45,7 @@ const purgeOldJobs = db.prepare(
      AND COALESCE(completed_at, created_at) < ?`,
 );
 
-const purgeOldEvents = db.prepare(
-  `DELETE FROM remediation_events WHERE occurred_at < ?`,
-);
+const purgeOldEvents = db.prepare(`DELETE FROM remediation_events WHERE occurred_at < ?`);
 
 // v1.20.1+: audit_log retention. audit_log is the canonical "this
 // content has been audited" record used by the /api/remediate
@@ -60,9 +53,7 @@ const purgeOldEvents = db.prepare(
 // DoS vector flagged as P2.3 in the v1.20.1 red/blue review.
 // created_at is stored as a SQLite TEXT timestamp (DATETIME DEFAULT
 // CURRENT_TIMESTAMP), so the cutoff is an ISO string.
-const purgeOldAuditLog = db.prepare(
-  `DELETE FROM audit_log WHERE created_at < ?`,
-);
+const purgeOldAuditLog = db.prepare(`DELETE FROM audit_log WHERE created_at < ?`);
 
 export interface CleanupResult {
   expiredOutputs: number;
@@ -151,9 +142,7 @@ export async function runCleanup(): Promise<CleanupResult> {
       // either purged or aren't ours.
       const recentCutoff = now - 7 * 86_400_000;
       const knownIds = new Set(
-        (selectAllRecentIds.all(recentCutoff) as { id: string }[]).map(
-          (r) => r.id,
-        ),
+        (selectAllRecentIds.all(recentCutoff) as { id: string }[]).map((r) => r.id),
       );
       for (const entry of readdirSync(outputRoot)) {
         const entryPath = join(outputRoot, entry);
@@ -207,8 +196,7 @@ export async function runCleanup(): Promise<CleanupResult> {
    *    audit_log uses TEXT timestamps (DATETIME DEFAULT CURRENT_TIMESTAMP),
    *    so the cutoff is an ISO 8601 string. */
   try {
-    const cutoffMs =
-      now - SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS * 86_400_000;
+    const cutoffMs = now - SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS * 86_400_000;
     const cutoffIso = new Date(cutoffMs).toISOString();
     const info = purgeOldAuditLog.run(cutoffIso);
     result.purgedAuditLog = info.changes;

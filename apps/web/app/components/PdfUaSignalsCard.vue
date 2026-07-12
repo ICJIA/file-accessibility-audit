@@ -5,31 +5,21 @@
   >
     <!-- Header -->
     <header>
-      <p
-        class="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-300"
-      >
+      <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-300">
         Conformance signals · beyond the WCAG score
       </p>
-      <h2
-        class="mt-1 text-lg sm:text-xl font-semibold text-[var(--text-heading)]"
-      >
+      <h2 class="mt-1 text-lg sm:text-xl font-semibold text-[var(--text-heading)]">
         PDF/UA-1 signals (ISO 14289-1)
       </h2>
-      <p
-        class="mt-1 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
-      >
-        The machine-checkable PDF/UA-1 markers this audit can read directly from
-        the file. These are <strong>signals, not a conformance verdict</strong> —
-        a formal PDF/UA-1 validation needs PAC or veraPDF (see below).
+      <p class="mt-1 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+        The machine-checkable PDF/UA-1 markers this audit can read directly from the file. These are
+        <strong>signals, not a conformance verdict</strong> — a formal PDF/UA-1 validation needs PAC
+        or veraPDF (see below).
       </p>
     </header>
 
     <!-- Signal grid -->
-    <ul
-      class="mt-4 grid gap-2 sm:grid-cols-2"
-      role="list"
-      data-testid="pdfua-signal-list"
-    >
+    <ul class="mt-4 grid gap-2 sm:grid-cols-2" role="list" data-testid="pdfua-signal-list">
       <li
         v-for="s in signals"
         :key="s.label"
@@ -42,10 +32,9 @@
           >{{ toneIcon(s.tone) }}</span
         >
         <span class="min-w-0">
-          <span
-            class="block text-xs sm:text-sm font-medium text-[var(--text-heading)]"
-            >{{ s.label }}</span
-          >
+          <span class="block text-xs sm:text-sm font-medium text-[var(--text-heading)]">{{
+            s.label
+          }}</span>
           <span class="block text-[11px] sm:text-xs text-[var(--text-secondary)]">{{
             s.value
           }}</span>
@@ -81,27 +70,25 @@
           >veraPDF</a
         >
         (<code class="font-mono">verapdf --flavour ua1</code>) check the full
-        <strong>Matterhorn Protocol</strong> (31 checkpoints / 136 failure
-        conditions) — including things only they or a human reviewer can confirm:
+        <strong>Matterhorn Protocol</strong> (31 checkpoints / 136 failure conditions) — including
+        things only they or a human reviewer can confirm:
       </p>
-      <ul
-        class="mt-2 ml-4 list-disc text-xs sm:text-sm leading-relaxed space-y-1"
-      >
+      <ul class="mt-2 ml-4 list-disc text-xs sm:text-sm leading-relaxed space-y-1">
         <li>
-          <strong>Reading-order correctness</strong> — this tool estimates tag vs.
-          visual order; PAC surfaces it for human confirmation.
+          <strong>Reading-order correctness</strong> — this tool estimates tag vs. visual order; PAC
+          surfaces it for human confirmation.
         </li>
         <li>
           Whether each heading, list, and table relationship is
           <strong>semantically correct</strong>, not merely present.
         </li>
         <li>
-          That <strong>all</strong> real content is tagged and all decoration is
-          artifacted — no stray untagged content anywhere.
+          That <strong>all</strong> real content is tagged and all decoration is artifacted — no
+          stray untagged content anywhere.
         </li>
         <li>
-          Role-map validity, nested-structure rules, and the remaining Matterhorn
-          conditions that require human judgment.
+          Role-map validity, nested-structure rules, and the remaining Matterhorn conditions that
+          require human judgment.
         </li>
       </ul>
     </div>
@@ -140,9 +127,7 @@ const signals = computed<SignalRow[]>(() => {
   const rows: SignalRow[] = [
     {
       label: "PDF/UA-1 identifier",
-      value: s.hasIdentifier
-        ? `Declared — Part ${s.part ?? "1"}`
-        : "Not declared in XMP metadata",
+      value: s.hasIdentifier ? `Declared — Part ${s.part ?? "1"}` : "Not declared in XMP metadata",
       tone: s.hasIdentifier ? "good" : "warn",
     },
     {
@@ -171,8 +156,7 @@ const signals = computed<SignalRow[]>(() => {
         s.fontCount === 0
           ? "No fonts in document"
           : `${s.embeddedFontCount} of ${s.fontCount} embedded`,
-      tone:
-        s.fontCount === 0 ? "info" : s.allFontsEmbedded ? "good" : "warn",
+      tone: s.fontCount === 0 ? "info" : s.allFontsEmbedded ? "good" : "warn",
     },
     {
       label: "Structure depth",

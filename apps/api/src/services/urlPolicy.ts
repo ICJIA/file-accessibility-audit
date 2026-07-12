@@ -6,17 +6,17 @@
  * these functions; safeFetch re-validates via validateUrlForFetch on every
  * redirect hop.
  */
-import type { Response } from 'express'
-import { SafeFetchError } from './safeFetch.js'
-import { ANALYSIS } from '#config'
+import type { Response } from "express";
+import { SafeFetchError } from "./safeFetch.js";
+import { ANALYSIS } from "#config";
 
 // Cap URL-fetched PDFs at the same size as direct uploads. safeFetch buffers
 // the body in memory before the analysis semaphore is acquired, so an
 // oversized cap (the old 100 MB — 6.6× the upload cap) let a handful of
 // concurrent fetches blow past the process memory ceiling. Matching the
 // upload cap keeps the memory budget consistent across all audit paths.
-export const MAX_PDF_BYTES = ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024
-export const FETCH_TIMEOUT_MS = 30_000
+export const MAX_PDF_BYTES = ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024;
+export const FETCH_TIMEOUT_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // URL allowlist
@@ -34,79 +34,79 @@ export const FETCH_TIMEOUT_MS = 30_000
 const DEFAULT_ALLOWED_HOSTS = [
   // Illinois state government — covers every *.illinois.gov agency
   // hosting PDFs (huge fleet surface).
-  'illinois.gov',
+  "illinois.gov",
   // ICJIA owned/operated domains
-  'icjia.cloud',
-  'icjia.app',
-  'icjia-api.cloud',
+  "icjia.cloud",
+  "icjia.app",
+  "icjia-api.cloud",
   // Partner / program domains
-  'ilheals.com',
+  "ilheals.com",
   // Specific subdomains kept for documentation; the bare-domain
   // entries above already cover them. Listed so operators reading
   // the source can see what's known-good without grepping logs.
-  'icjia.illinois.gov',
-  'dvfr.icjia-api.cloud',
-  'i2i.icjia-api.cloud',
-  'vpp.icjia-api.cloud',
-  'infonet.icjia-api.cloud',
-]
+  "icjia.illinois.gov",
+  "dvfr.icjia-api.cloud",
+  "i2i.icjia-api.cloud",
+  "vpp.icjia-api.cloud",
+  "infonet.icjia-api.cloud",
+];
 
 function getAllowedHosts(): Set<string> {
-  const fromEnv = (process.env.ANALYZE_URL_ALLOWED_HOSTS ?? '')
-    .split(',')
+  const fromEnv = (process.env.ANALYZE_URL_ALLOWED_HOSTS ?? "")
+    .split(",")
     .map((s) => s.trim())
-    .filter(Boolean)
-  return new Set([...DEFAULT_ALLOWED_HOSTS, ...fromEnv])
+    .filter(Boolean);
+  return new Set([...DEFAULT_ALLOWED_HOSTS, ...fromEnv]);
 }
 
 export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; parsed?: URL } {
-  let parsed: URL
+  let parsed: URL;
   try {
-    parsed = new URL(rawUrl)
+    parsed = new URL(rawUrl);
   } catch {
-    return { ok: false, reason: 'malformed URL' }
+    return { ok: false, reason: "malformed URL" };
   }
 
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return { ok: false, reason: 'only http/https URLs are accepted', parsed }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return { ok: false, reason: "only http/https URLs are accepted", parsed };
   }
 
   // Refuse private/local hostnames to prevent SSRF
-  const host = parsed.hostname.toLowerCase()
+  const host = parsed.hostname.toLowerCase();
   if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host === '0.0.0.0' ||
-    host === '::1' ||
-    host === '[::1]' ||
-    host.endsWith('.local') ||
-    host.endsWith('.internal') ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host === "[::1]" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
     /^10\./.test(host) ||
     /^192\.168\./.test(host) ||
     /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) ||
     /^169\.254\./.test(host)
   ) {
-    return { ok: false, reason: `private/local address '${host}' is not allowed`, parsed }
+    return { ok: false, reason: `private/local address '${host}' is not allowed`, parsed };
   }
 
-  const allowed = getAllowedHosts()
+  const allowed = getAllowedHosts();
   // Allow exact match OR subdomain match against each allowlisted host
-  let matched = false
+  let matched = false;
   for (const ah of allowed) {
-    if (host === ah || host.endsWith('.' + ah)) {
-      matched = true
-      break
+    if (host === ah || host.endsWith("." + ah)) {
+      matched = true;
+      break;
     }
   }
   if (!matched) {
     return {
       ok: false,
-      reason: `host '${host}' is not in the allowlist. Allowed: ${[...allowed].join(', ')}`,
+      reason: `host '${host}' is not in the allowlist. Allowed: ${[...allowed].join(", ")}`,
       parsed,
-    }
+    };
   }
 
-  return { ok: true, parsed }
+  return { ok: true, parsed };
 }
 
 /**
@@ -116,34 +116,34 @@ export function isAllowedUrl(rawUrl: string): { ok: boolean; reason?: string; pa
  */
 export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
   switch (err.code) {
-    case 'malformed_url':
-    case 'redirect_invalid':
-      res.status(400).json({ error: 'URL not allowed', details: err.message })
-      return
-    case 'private_ip':
+    case "malformed_url":
+    case "redirect_invalid":
+      res.status(400).json({ error: "URL not allowed", details: err.message });
+      return;
+    case "private_ip":
       // SSRF block. 400 to the client; the details message names the
       // hostname + resolved IP, useful for the operator but not
       // dangerous to expose since the attacker provided the hostname.
       res.status(400).json({
-        error: 'URL resolves to a private/reserved address',
+        error: "URL resolves to a private/reserved address",
         details: err.message,
-      })
-      return
-    case 'oversized':
-      res.status(413).json({ error: err.message })
-      return
-    case 'timeout':
-      res.status(504).json({ error: err.message })
-      return
-    case 'too_many_redirects':
-    case 'redirect_loop':
-      res.status(502).json({ error: err.message })
-      return
-    case 'dns_failed':
-    case 'network_error':
+      });
+      return;
+    case "oversized":
+      res.status(413).json({ error: err.message });
+      return;
+    case "timeout":
+      res.status(504).json({ error: err.message });
+      return;
+    case "too_many_redirects":
+    case "redirect_loop":
+      res.status(502).json({ error: err.message });
+      return;
+    case "dns_failed":
+    case "network_error":
     default:
-      res.status(502).json({ error: 'Fetch failed', details: err.message })
-      return
+      res.status(502).json({ error: "Fetch failed", details: err.message });
+      return;
   }
 }
 
@@ -153,9 +153,9 @@ export function sendSafeFetchError(res: Response, err: SafeFetchError): void {
  * the same redirect-handling loop in safeFetch can reject mid-chain.
  */
 export function validateUrlForFetch(u: URL): void {
-  const check = isAllowedUrl(u.toString())
+  const check = isAllowedUrl(u.toString());
   if (!check.ok) {
-    throw new SafeFetchError('malformed_url', check.reason ?? 'URL not allowed')
+    throw new SafeFetchError("malformed_url", check.reason ?? "URL not allowed");
   }
 }
 
@@ -168,10 +168,7 @@ export function validateUrlForFetch(u: URL): void {
  * safeFetch) still applies, so internal targets remain unreachable.
  */
 export function validateUrlPublic(u: URL): void {
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') {
-    throw new SafeFetchError(
-      'malformed_url',
-      'only http/https URLs are accepted',
-    )
+  if (u.protocol !== "https:" && u.protocol !== "http:") {
+    throw new SafeFetchError("malformed_url", "only http/https URLs are accepted");
   }
 }

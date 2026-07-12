@@ -186,9 +186,7 @@ export const WCAG_CATEGORY_MAP: Record<
   alt_text: [{ sc: "1.1.1", name: "Non-text Content", level: "A" }],
   bookmarks: [{ sc: "2.4.5", name: "Multiple Ways", level: "AA" }],
   table_markup: [{ sc: "1.3.1", name: "Info and Relationships", level: "A" }],
-  link_quality: [
-    { sc: "2.4.4", name: "Link Purpose (In Context)", level: "A" },
-  ],
+  link_quality: [{ sc: "2.4.4", name: "Link Purpose (In Context)", level: "A" }],
   reading_order: [{ sc: "1.3.2", name: "Meaningful Sequence", level: "A" }],
   form_accessibility: [
     { sc: "1.3.1", name: "Info and Relationships", level: "A" },

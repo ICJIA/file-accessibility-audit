@@ -134,12 +134,48 @@ export const WCAG = {
 // rather than mutating this one.
 // ---------------------------------------------------------------------------
 export const WCAG_22_NEW_AA = [
-  { sc: "2.4.11", name: "Focus Not Obscured (Minimum)", level: "AA", slug: "focus-not-obscured-minimum", pdfFormRelevant: false },
-  { sc: "2.5.7", name: "Dragging Movements", level: "AA", slug: "dragging-movements", pdfFormRelevant: false },
-  { sc: "2.5.8", name: "Target Size (Minimum)", level: "AA", slug: "target-size-minimum", pdfFormRelevant: true },
-  { sc: "3.2.6", name: "Consistent Help", level: "A", slug: "consistent-help", pdfFormRelevant: false },
-  { sc: "3.3.7", name: "Redundant Entry", level: "A", slug: "redundant-entry", pdfFormRelevant: true },
-  { sc: "3.3.8", name: "Accessible Authentication (Minimum)", level: "AA", slug: "accessible-authentication-minimum", pdfFormRelevant: true },
+  {
+    sc: "2.4.11",
+    name: "Focus Not Obscured (Minimum)",
+    level: "AA",
+    slug: "focus-not-obscured-minimum",
+    pdfFormRelevant: false,
+  },
+  {
+    sc: "2.5.7",
+    name: "Dragging Movements",
+    level: "AA",
+    slug: "dragging-movements",
+    pdfFormRelevant: false,
+  },
+  {
+    sc: "2.5.8",
+    name: "Target Size (Minimum)",
+    level: "AA",
+    slug: "target-size-minimum",
+    pdfFormRelevant: true,
+  },
+  {
+    sc: "3.2.6",
+    name: "Consistent Help",
+    level: "A",
+    slug: "consistent-help",
+    pdfFormRelevant: false,
+  },
+  {
+    sc: "3.3.7",
+    name: "Redundant Entry",
+    level: "A",
+    slug: "redundant-entry",
+    pdfFormRelevant: true,
+  },
+  {
+    sc: "3.3.8",
+    name: "Accessible Authentication (Minimum)",
+    level: "AA",
+    slug: "accessible-authentication-minimum",
+    pdfFormRelevant: true,
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -268,7 +304,7 @@ export const EMAIL = {
   /**
    * Default sender address for OTP emails.
    *
-   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.   
+   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.  
    * Can be overridden in .env with SMTP_FROM.
    */
   DEFAULT_FROM: "admin@icjia.cloud",
@@ -349,8 +385,7 @@ export const DOCX = {
   ENABLED: process.env.DOCX_ENABLED !== "false",
 
   /** Canonical MIME type for .docx (WordprocessingML). */
-  MIME_TYPE:
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  MIME_TYPE: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 
   /**
    * Max UNCOMPRESSED bytes for any single part read out of the .docx ZIP
@@ -429,8 +464,7 @@ export const PPTX = {
   ENABLED: process.env.PPTX_ENABLED !== "false",
 
   /** Canonical MIME type for .pptx (PresentationML). */
-  MIME_TYPE:
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  MIME_TYPE: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 
   /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale
    *  and budget math as DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */
@@ -491,8 +525,7 @@ export const XLSX = {
   ENABLED: process.env.XLSX_ENABLED !== "false",
 
   /** Canonical MIME type for .xlsx (SpreadsheetML). */
-  MIME_TYPE:
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  MIME_TYPE: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
   /** Max UNCOMPRESSED bytes per ZIP part (zip-bomb guard) — same rationale as
    *  DOCX.MAX_UNCOMPRESSED_BYTES. SAFE TO CHANGE. */

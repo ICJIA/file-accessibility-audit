@@ -1,4 +1,4 @@
-import { createRequire } from 'node:module'
+import { createRequire } from "node:module";
 
 // Single source of truth for the CLI's reported version — read directly from
 // this package's own package.json instead of a hand-maintained literal
@@ -17,7 +17,7 @@ import { createRequire } from 'node:module'
 // this file's original source path. Moving this file into a subdirectory
 // (e.g. src/lib/) would silently break the bundled build by changing that
 // depth — keep it here, at the src/ root, next to index.ts.
-const require = createRequire(import.meta.url)
-const pkg = require('../package.json') as { version: string }
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
 
-export const VERSION: string = pkg.version
+export const VERSION: string = pkg.version;

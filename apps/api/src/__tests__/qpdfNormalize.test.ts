@@ -21,29 +21,23 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { qpdfNormalize } from "../services/qpdfNormalize.js";
 
-const mockExecFile = vi.mocked(execFile) as unknown as ReturnType<
-  typeof vi.fn
->;
+const mockExecFile = vi.mocked(execFile) as unknown as ReturnType<typeof vi.fn>;
 const mockExists = vi.mocked(existsSync);
 
 function execResolves(): void {
-  mockExecFile.mockImplementation(
-    (_bin: any, _args: any, _opts: any, cb: any) => {
-      cb(null, "", "");
-      return {} as any;
-    },
-  );
+  mockExecFile.mockImplementation((_bin: any, _args: any, _opts: any, cb: any) => {
+    cb(null, "", "");
+    return {} as any;
+  });
 }
 
 function execRejectsWith(code: number, stderr = ""): void {
-  mockExecFile.mockImplementation(
-    (_bin: any, _args: any, _opts: any, cb: any) => {
-      const err: any = new Error(`qpdf exited ${code}`);
-      err.code = code;
-      cb(err, "", stderr);
-      return {} as any;
-    },
-  );
+  mockExecFile.mockImplementation((_bin: any, _args: any, _opts: any, cb: any) => {
+    const err: any = new Error(`qpdf exited ${code}`);
+    err.code = code;
+    cb(err, "", stderr);
+    return {} as any;
+  });
 }
 
 beforeEach(() => {

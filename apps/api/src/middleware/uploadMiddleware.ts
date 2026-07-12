@@ -1,7 +1,7 @@
-import multer from 'multer'
-import { ANALYSIS, DOCX, PPTX, XLSX } from '#config'
+import multer from "multer";
+import { ANALYSIS, DOCX, PPTX, XLSX } from "#config";
 
-const storage = multer.memoryStorage()
+const storage = multer.memoryStorage();
 
 /**
  * Builds the upload-rejection message from the enabled formats' labels with
@@ -16,11 +16,11 @@ const storage = multer.memoryStorage()
 export function acceptedFormatsMessage(labels: string[]): string {
   const list =
     labels.length <= 1
-      ? (labels[0] ?? '')
+      ? (labels[0] ?? "")
       : labels.length === 2
         ? `${labels[0]} and ${labels[1]}`
-        : `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`
-  return `Only ${list} files are accepted`
+        : `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+  return `Only ${list} files are accepted`;
 }
 
 /**
@@ -33,7 +33,7 @@ export function acceptedFormatsMessage(labels: string[]): string {
  * the route's own try/catch entirely, going straight to that handler.
  */
 export class UnsupportedFileTypeError extends Error {
-  readonly status = 400
+  readonly status = 400;
 }
 
 /**
@@ -47,25 +47,19 @@ export function uploadFileFilter(
   file: { mimetype: string; originalname: string },
   cb: (error: Error | null, acceptFile?: boolean) => void,
 ): void {
-  const name = file.originalname.toLowerCase()
-  const isPdf = file.mimetype === 'application/pdf' || name.endsWith('.pdf')
-  const isDocx =
-    DOCX.ENABLED &&
-    (file.mimetype === DOCX.MIME_TYPE || name.endsWith('.docx'))
-  const isPptx =
-    PPTX.ENABLED &&
-    (file.mimetype === PPTX.MIME_TYPE || name.endsWith('.pptx'))
-  const isXlsx =
-    XLSX.ENABLED &&
-    (file.mimetype === XLSX.MIME_TYPE || name.endsWith('.xlsx'))
+  const name = file.originalname.toLowerCase();
+  const isPdf = file.mimetype === "application/pdf" || name.endsWith(".pdf");
+  const isDocx = DOCX.ENABLED && (file.mimetype === DOCX.MIME_TYPE || name.endsWith(".docx"));
+  const isPptx = PPTX.ENABLED && (file.mimetype === PPTX.MIME_TYPE || name.endsWith(".pptx"));
+  const isXlsx = XLSX.ENABLED && (file.mimetype === XLSX.MIME_TYPE || name.endsWith(".xlsx"));
   if (isPdf || isDocx || isPptx || isXlsx) {
-    cb(null, true)
+    cb(null, true);
   } else {
-    const labels = ['PDF']
-    if (DOCX.ENABLED) labels.push('Word (.docx)')
-    if (PPTX.ENABLED) labels.push('PowerPoint (.pptx)')
-    if (XLSX.ENABLED) labels.push('Excel (.xlsx)')
-    cb(new UnsupportedFileTypeError(acceptedFormatsMessage(labels)))
+    const labels = ["PDF"];
+    if (DOCX.ENABLED) labels.push("Word (.docx)");
+    if (PPTX.ENABLED) labels.push("PowerPoint (.pptx)");
+    if (XLSX.ENABLED) labels.push("Excel (.xlsx)");
+    cb(new UnsupportedFileTypeError(acceptedFormatsMessage(labels)));
   }
 }
 
@@ -76,4 +70,4 @@ export const uploadMiddleware = multer({
     files: 1,
   },
   fileFilter: uploadFileFilter,
-})
+});

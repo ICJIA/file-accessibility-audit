@@ -81,20 +81,13 @@ describe("scoringProfiles", () => {
     expect(displayed).toHaveLength(1);
     // Non-null: the toHaveLength(1) assertion above guarantees index 0 exists.
     expect(displayed[0]!.score).toBe(70);
-    expect(displayed[0]!.findings).toEqual([
-      "Tagged PDF detected",
-      "PDF/UA identifier found",
-    ]);
+    expect(displayed[0]!.findings).toEqual(["Tagged PDF detected", "PDF/UA identifier found"]);
   });
 
   it("keeps the original categories when a profile has no category overrides", () => {
-    const categories = [
-      { id: "bookmarks", score: 100, grade: "A", severity: "Pass" },
-    ];
+    const categories = [{ id: "bookmarks", score: 100, grade: "A", severity: "Pass" }];
 
-    expect(categoriesForScoringMode(categories, undefined, "strict")).toEqual(
-      categories,
-    );
+    expect(categoriesForScoringMode(categories, undefined, "strict")).toEqual(categories);
   });
 
   it.each([
@@ -104,11 +97,8 @@ describe("scoringProfiles", () => {
     [60, "D", "Moderate"],
     [20, "F", "Critical"],
     [null, null, null],
-  ])(
-    "derives grade %s and severity %s from category score",
-    (score, grade, severity) => {
-      expect(gradeForScore(score as number | null)).toBe(grade);
-      expect(severityForScore(score as number | null)).toBe(severity);
-    },
-  );
+  ])("derives grade %s and severity %s from category score", (score, grade, severity) => {
+    expect(gradeForScore(score as number | null)).toBe(grade);
+    expect(severityForScore(score as number | null)).toBe(severity);
+  });
 });

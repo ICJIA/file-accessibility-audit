@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { ANALYSIS } from '#config'
-import { downloadFile } from '../commands/publist.js'
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { ANALYSIS } from "#config";
+import { downloadFile } from "../commands/publist.js";
 
 // ---------------------------------------------------------------------------
 // M3 migration (publist: PDF-only -> all four formats). downloadFile() was
@@ -39,7 +39,7 @@ import { downloadFile } from '../commands/publist.js'
 // command with no existing test seam or HTTP/GraphQL harness.
 // ---------------------------------------------------------------------------
 
-const MAX_FILE_SIZE = (ANALYSIS?.MAX_FILE_SIZE_MB ?? 50) * 1024 * 1024
+const MAX_FILE_SIZE = (ANALYSIS?.MAX_FILE_SIZE_MB ?? 50) * 1024 * 1024;
 
 /**
  * A synthetic `Response.body` stand-in: a getReader()-shaped object backed
@@ -48,145 +48,150 @@ const MAX_FILE_SIZE = (ANALYSIS?.MAX_FILE_SIZE_MB ?? 50) * 1024 * 1024
  * ReadableStream's internal call counts aren't observable from outside).
  */
 function makeMockBody(chunks: Uint8Array[]) {
-  let i = 0
+  let i = 0;
   const read = vi.fn(async () => {
     if (i < chunks.length) {
-      return { done: false, value: chunks[i++] }
+      return { done: false, value: chunks[i++] };
     }
-    return { done: true, value: undefined }
-  })
-  const cancel = vi.fn(async () => {})
+    return { done: true, value: undefined };
+  });
+  const cancel = vi.fn(async () => {});
   return {
     getReader: () => ({ read, cancel }),
     _read: read,
     _cancel: cancel,
-  }
+  };
 }
 
-describe('downloadFile', () => {
+describe("downloadFile", () => {
   afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
-  it('returns the streamed response body as a Buffer on 200 OK', async () => {
-    const body = makeMockBody([new TextEncoder().encode('hello world')])
+  it("returns the streamed response body as a Buffer on 200 OK", async () => {
+    const body = makeMockBody([new TextEncoder().encode("hello world")]);
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        statusText: 'OK',
+        statusText: "OK",
         headers: { get: () => null },
         body,
       }),
-    )
+    );
 
-    const result = await downloadFile('https://x/report.docx')
+    const result = await downloadFile("https://x/report.docx");
 
-    expect(Buffer.isBuffer(result)).toBe(true)
-    expect(result.toString('utf-8')).toBe('hello world')
-  })
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.toString("utf-8")).toBe("hello world");
+  });
 
-  it('reassembles a Buffer correctly across multiple small chunks', async () => {
+  it("reassembles a Buffer correctly across multiple small chunks", async () => {
     const body = makeMockBody([
-      new TextEncoder().encode('hello '),
-      new TextEncoder().encode('accessible '),
-      new TextEncoder().encode('world'),
-    ])
+      new TextEncoder().encode("hello "),
+      new TextEncoder().encode("accessible "),
+      new TextEncoder().encode("world"),
+    ]);
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        statusText: 'OK',
+        statusText: "OK",
         headers: { get: () => null },
         body,
       }),
-    )
+    );
 
-    const result = await downloadFile('https://x/chunked.xlsx')
+    const result = await downloadFile("https://x/chunked.xlsx");
 
-    expect(result.toString('utf-8')).toBe('hello accessible world')
-  })
+    expect(result.toString("utf-8")).toBe("hello accessible world");
+  });
 
-  it('throws with the HTTP status on a non-ok response', async () => {
+  it("throws with the HTTP status on a non-ok response", async () => {
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: false,
         status: 404,
-        statusText: 'Not Found',
+        statusText: "Not Found",
         headers: { get: () => null },
       }),
-    )
+    );
 
-    await expect(downloadFile('https://x/missing.pptx')).rejects.toThrow('HTTP 404 Not Found')
-  })
+    await expect(downloadFile("https://x/missing.pptx")).rejects.toThrow("HTTP 404 Not Found");
+  });
 
-  it('rejects when the content-length header exceeds the size cap, without ever touching the body', async () => {
-    let bodyAccessed = false
+  it("rejects when the content-length header exceeds the size cap, without ever touching the body", async () => {
+    let bodyAccessed = false;
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        statusText: 'OK',
-        headers: { get: (name: string) => (name === 'content-length' ? String(MAX_FILE_SIZE + 1) : null) },
+        statusText: "OK",
+        headers: {
+          get: (name: string) => (name === "content-length" ? String(MAX_FILE_SIZE + 1) : null),
+        },
         get body() {
-          bodyAccessed = true
-          throw new Error('should not be read — content-length gate should reject first')
+          bodyAccessed = true;
+          throw new Error("should not be read — content-length gate should reject first");
         },
       }),
-    )
+    );
 
-    await expect(downloadFile('https://x/huge.xlsx')).rejects.toThrow('File too large')
-    expect(bodyAccessed).toBe(false)
-  })
+    await expect(downloadFile("https://x/huge.xlsx")).rejects.toThrow("File too large");
+    expect(bodyAccessed).toBe(false);
+  });
 
-  it('rejects once a single oversized chunk exceeds the cap, even without a content-length header', async () => {
-    const body = makeMockBody([new Uint8Array(MAX_FILE_SIZE + 1)])
+  it("rejects once a single oversized chunk exceeds the cap, even without a content-length header", async () => {
+    const body = makeMockBody([new Uint8Array(MAX_FILE_SIZE + 1)]);
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        statusText: 'OK',
+        statusText: "OK",
         headers: { get: () => null }, // no content-length — first cap can't fire
         body,
       }),
-    )
+    );
 
-    await expect(downloadFile('https://x/huge.pdf')).rejects.toThrow('File too large')
-  })
+    await expect(downloadFile("https://x/huge.pdf")).rejects.toThrow("File too large");
+  });
 
-  it('stops reading once cumulative streamed bytes exceed the cap, WITHOUT buffering an unbounded/misleading body (cancels the reader instead of draining it)', async () => {
+  it("stops reading once cumulative streamed bytes exceed the cap, WITHOUT buffering an unbounded/misleading body (cancels the reader instead of draining it)", async () => {
     // A body that, if fully drained, would be well over 3x the cap —
     // simulating a server that omits (or lies about) Content-Length while
     // streaming unbounded bytes. The pre-fix implementation buffered the
     // FULL body via resp.arrayBuffer() before ever checking the size, which
     // would read every one of these chunks; the fix must stop partway
     // through instead.
-    const chunkSize = Math.ceil(MAX_FILE_SIZE / 3)
-    const totalChunksIfFullyDrained = 10
-    const chunks = Array.from({ length: totalChunksIfFullyDrained }, () => new Uint8Array(chunkSize))
-    const body = makeMockBody(chunks)
+    const chunkSize = Math.ceil(MAX_FILE_SIZE / 3);
+    const totalChunksIfFullyDrained = 10;
+    const chunks = Array.from(
+      { length: totalChunksIfFullyDrained },
+      () => new Uint8Array(chunkSize),
+    );
+    const body = makeMockBody(chunks);
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        statusText: 'OK',
+        statusText: "OK",
         headers: { get: () => null },
         body,
       }),
-    )
+    );
 
-    await expect(downloadFile('https://x/unbounded-stream.pdf')).rejects.toThrow('File too large')
+    await expect(downloadFile("https://x/unbounded-stream.pdf")).rejects.toThrow("File too large");
 
     // Stopped early: far fewer reads than the full chunk list would require.
-    expect(body._read.mock.calls.length).toBeLessThan(totalChunksIfFullyDrained)
+    expect(body._read.mock.calls.length).toBeLessThan(totalChunksIfFullyDrained);
     // The stream was explicitly cancelled rather than drained to completion.
-    expect(body._cancel).toHaveBeenCalled()
-  })
-})
+    expect(body._cancel).toHaveBeenCalled();
+  });
+});

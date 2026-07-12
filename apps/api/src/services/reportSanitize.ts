@@ -20,32 +20,30 @@
  * sanitizing here keeps the stored JSON — consumed by the report GET API and
  * any downstream tooling — clean at rest.
  */
-import { isSafeHttpUrl } from '@file-audit/shared'
+import { isSafeHttpUrl } from "@file-audit/shared";
 
 export interface SanitizeResult {
-  ok: boolean
-  report?: unknown
-  error?: string
+  ok: boolean;
+  report?: unknown;
+  error?: string;
 }
 
 /** Recursively drop help-links with unsafe URLs from any `helpLinks` array. */
 function stripUnsafeHelpLinks(node: unknown): void {
   if (Array.isArray(node)) {
-    for (const item of node) stripUnsafeHelpLinks(item)
-    return
+    for (const item of node) stripUnsafeHelpLinks(item);
+    return;
   }
-  if (node && typeof node === 'object') {
-    const obj = node as Record<string, unknown>
+  if (node && typeof node === "object") {
+    const obj = node as Record<string, unknown>;
     if (Array.isArray(obj.helpLinks)) {
       obj.helpLinks = obj.helpLinks.filter(
         (l) =>
-          l != null &&
-          typeof l === 'object' &&
-          isSafeHttpUrl((l as Record<string, unknown>).url),
-      )
+          l != null && typeof l === "object" && isSafeHttpUrl((l as Record<string, unknown>).url),
+      );
     }
     for (const key of Object.keys(obj)) {
-      if (key !== 'helpLinks') stripUnsafeHelpLinks(obj[key])
+      if (key !== "helpLinks") stripUnsafeHelpLinks(obj[key]);
     }
   }
 }
@@ -60,54 +58,50 @@ function stripUnsafeHelpLinks(node: unknown): void {
  */
 function stripUnsafeConformanceUrls(node: unknown): void {
   if (Array.isArray(node)) {
-    for (const item of node) stripUnsafeConformanceUrls(item)
-    return
+    for (const item of node) stripUnsafeConformanceUrls(item);
+    return;
   }
-  if (node && typeof node === 'object') {
-    const obj = node as Record<string, unknown>
-    if (obj.conformance && typeof obj.conformance === 'object') {
-      const conformance = obj.conformance as Record<string, unknown>
-      for (const listKey of ['failures', 'notAssessed']) {
-        const list = conformance[listKey]
-        if (!Array.isArray(list)) continue
+  if (node && typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+    if (obj.conformance && typeof obj.conformance === "object") {
+      const conformance = obj.conformance as Record<string, unknown>;
+      for (const listKey of ["failures", "notAssessed"]) {
+        const list = conformance[listKey];
+        if (!Array.isArray(list)) continue;
         for (const finding of list) {
-          if (finding == null || typeof finding !== 'object') continue
-          const f = finding as Record<string, unknown>
-          if (!isSafeHttpUrl(f.url)) f.url = ''
+          if (finding == null || typeof finding !== "object") continue;
+          const f = finding as Record<string, unknown>;
+          if (!isSafeHttpUrl(f.url)) f.url = "";
         }
       }
     }
     for (const key of Object.keys(obj)) {
-      if (key !== 'conformance') stripUnsafeConformanceUrls(obj[key])
+      if (key !== "conformance") stripUnsafeConformanceUrls(obj[key]);
     }
   }
 }
 
 export function sanitizeStoredReport(report: unknown): SanitizeResult {
-  if (report == null || typeof report !== 'object') {
-    return { ok: false, error: 'report must be an object' }
+  if (report == null || typeof report !== "object") {
+    return { ok: false, error: "report must be an object" };
   }
-  const r = report as Record<string, unknown>
+  const r = report as Record<string, unknown>;
   // F2: categories is optional, but if present it must be an array — a
   // non-array would throw during the shared-report render.
-  if (
-    'categories' in r &&
-    r.categories != null &&
-    !Array.isArray(r.categories)
-  ) {
-    return { ok: false, error: 'report.categories must be an array' }
+  if ("categories" in r && r.categories != null && !Array.isArray(r.categories)) {
+    return { ok: false, error: "report.categories must be an array" };
   }
 
   // Work on a copy so the caller's object is never mutated. structuredClone
   // also rejects functions/circular refs — a malformed payload throws here
   // and is treated as invalid rather than stored.
-  let cleaned: unknown
+  let cleaned: unknown;
   try {
-    cleaned = structuredClone(report)
+    cleaned = structuredClone(report);
   } catch {
-    return { ok: false, error: 'report is not serializable' }
+    return { ok: false, error: "report is not serializable" };
   }
-  stripUnsafeHelpLinks(cleaned)
-  stripUnsafeConformanceUrls(cleaned)
-  return { ok: true, report: cleaned }
+  stripUnsafeHelpLinks(cleaned);
+  stripUnsafeConformanceUrls(cleaned);
+  return { ok: true, report: cleaned };
 }

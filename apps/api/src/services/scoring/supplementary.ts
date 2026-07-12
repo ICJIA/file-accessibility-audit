@@ -112,9 +112,7 @@ export function appendSupplementaryFindings(
       readingCatForLists.findings.push(`  ${label}: ${parts.join(" | ")}`);
     }
     if (wellFormed === qpdf.lists.length) {
-      readingCatForLists.findings.push(
-        `All lists are well-formed (each <LI> has an <LBody>)`,
-      );
+      readingCatForLists.findings.push(`All lists are well-formed (each <LI> has an <LBody>)`);
       const withoutLabels = qpdf.lists.filter((l) => !l.hasLabels).length;
       if (withoutLabels > 0) {
         readingCatForLists.findings.push(
@@ -130,11 +128,7 @@ export function appendSupplementaryFindings(
         "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
       );
     }
-  } else if (
-    readingCatForLists &&
-    qpdf.lists.length === 0 &&
-    qpdf.hasStructTree
-  ) {
+  } else if (readingCatForLists && qpdf.lists.length === 0 && qpdf.hasStructTree) {
     readingCatForLists.findings.push(`--- List Structure Analysis ---`);
     readingCatForLists.findings.push(
       "No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements",
@@ -207,9 +201,7 @@ export function appendSupplementaryFindings(
         for (const entry of qpdf.roleMapEntries.slice(0, 8)) {
           readingCat.findings.push(`  ${entry}`);
         }
-        readingCat.findings.push(
-          `  ... and ${qpdf.roleMapEntries.length - 8} more`,
-        );
+        readingCat.findings.push(`  ... and ${qpdf.roleMapEntries.length - 8} more`);
       }
     } else if (qpdf.hasStructTree) {
       readingCat.findings.push(

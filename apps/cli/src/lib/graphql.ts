@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { PUBLIST } from '#config'
+import { readFileSync } from "node:fs";
+import { PUBLIST } from "#config";
 
 // Document types the accessibility scoring engine can audit end-to-end via
 // analyzeDocument's content-sniffing dispatcher (apps/api/src/services/
@@ -8,7 +8,7 @@ import { PUBLIST } from '#config'
 // historically returned only PDFs in practice, but a publication's fileURL
 // may point to any of these, so publist audits whichever it actually is
 // instead of hard-filtering to `.pdf`.
-export const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx'] as const
+export const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".pptx", ".xlsx"] as const;
 
 /**
  * True if fileURL ends with one of the four supported document extensions
@@ -16,25 +16,25 @@ export const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx'] as const
  * without a live GraphQL call.
  */
 export function hasSupportedExtension(fileURL: string | null | undefined): boolean {
-  if (!fileURL) return false
-  const lower = fileURL.toLowerCase()
-  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext))
+  if (!fileURL) return false;
+  const lower = fileURL.toLowerCase();
+  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
 export interface Publication {
-  id: string
-  title: string
-  slug: string
-  fileURL: string | null
-  publicationDate: string | null
-  pubType: string | null
-  summary: string | null
-  tags: string[] | null
+  id: string;
+  title: string;
+  slug: string;
+  fileURL: string | null;
+  publicationDate: string | null;
+  pubType: string | null;
+  summary: string | null;
+  tags: string[] | null;
 }
 
 export async function fetchPublications(): Promise<Publication[]> {
-  const all: Publication[] = []
-  let offset = 0
+  const all: Publication[] = [];
+  let offset = 0;
 
   while (true) {
     const query = `query {
@@ -48,47 +48,52 @@ export async function fetchPublications(): Promise<Publication[]> {
         summary
         tags
       }
-    }`
+    }`;
 
     const resp = await fetch(PUBLIST.GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
       signal: AbortSignal.timeout(30_000),
-    })
+    });
 
     if (!resp.ok) {
-      throw new Error(`GraphQL API returned HTTP ${resp.status}`)
+      throw new Error(`GraphQL API returned HTTP ${resp.status}`);
     }
 
-    const json = await resp.json() as { data?: { publications?: Publication[] }, errors?: { message: string }[] }
+    const json = (await resp.json()) as {
+      data?: { publications?: Publication[] };
+      errors?: { message: string }[];
+    };
 
     if (json.errors?.length) {
-      throw new Error(`GraphQL error: ${json.errors[0].message}`)
+      throw new Error(`GraphQL error: ${json.errors[0].message}`);
     }
 
-    const pubs = json.data?.publications ?? []
-    all.push(...pubs)
+    const pubs = json.data?.publications ?? [];
+    all.push(...pubs);
 
-    if (pubs.length < PUBLIST.PAGE_SIZE) break
-    offset += PUBLIST.PAGE_SIZE
+    if (pubs.length < PUBLIST.PAGE_SIZE) break;
+    offset += PUBLIST.PAGE_SIZE;
   }
 
   // Dedup by id
-  const unique = [...new Map(all.map(p => [p.id, p])).values()]
+  const unique = [...new Map(all.map((p) => [p.id, p])).values()];
 
   // Filter to supported document types: PDF, Word (.docx), PowerPoint
   // (.pptx), or Excel (.xlsx) — see SUPPORTED_EXTENSIONS above.
-  return unique.filter(p => hasSupportedExtension(p.fileURL))
+  return unique.filter((p) => hasSupportedExtension(p.fileURL));
 }
 
 export function loadPublicationsFromFile(filePath: string): Publication[] {
-  const raw = readFileSync(filePath, 'utf-8')
-  const data = JSON.parse(raw)
+  const raw = readFileSync(filePath, "utf-8");
+  const data = JSON.parse(raw);
 
-  const pubs: Publication[] = Array.isArray(data) ? data : data.publications ?? data.data?.publications ?? []
+  const pubs: Publication[] = Array.isArray(data)
+    ? data
+    : (data.publications ?? data.data?.publications ?? []);
 
   // Filter to supported document types: PDF, Word (.docx), PowerPoint
   // (.pptx), or Excel (.xlsx) — see SUPPORTED_EXTENSIONS above.
-  return pubs.filter(p => hasSupportedExtension(p.fileURL))
+  return pubs.filter((p) => hasSupportedExtension(p.fileURL));
 }

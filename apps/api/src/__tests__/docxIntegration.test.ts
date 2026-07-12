@@ -30,9 +30,7 @@ describe("docx integration: accessible document", () => {
         hyperlink("rId5", "Read the full accessibility report") +
         listItem("First point") +
         listItem("Second point"),
-      documentRels: hyperlinkRels([
-        { id: "rId5", target: "https://example.gov/report" },
-      ]),
+      documentRels: hyperlinkRels([{ id: "rId5", target: "https://example.gov/report" }]),
     });
 
     const r = await analyzeDocument(buf, "accessible.docx");

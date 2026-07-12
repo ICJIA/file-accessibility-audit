@@ -2,18 +2,9 @@ import { createHash, randomUUID, randomBytes } from "node:crypto";
 import db from "../db/sqlite.js";
 import { REMEDIATION } from "#config";
 
-export type RemediationJobStatus =
-  | "pending"
-  | "running"
-  | "complete"
-  | "failed"
-  | "expired";
+export type RemediationJobStatus = "pending" | "running" | "complete" | "failed" | "expired";
 
-export type RemediationStep =
-  | "preparing"
-  | "tagging"
-  | "validating"
-  | "comparing";
+export type RemediationStep = "preparing" | "tagging" | "validating" | "comparing";
 
 export interface RemediationJob {
   id: string;
@@ -77,8 +68,7 @@ function rowToJob(r: JobRow): RemediationJob {
     progressPct: r.progress_pct,
     inputScore: r.input_score,
     outputScore: r.output_score,
-    outputValid:
-      r.output_valid === null ? null : r.output_valid === 1,
+    outputValid: r.output_valid === null ? null : r.output_valid === 1,
     outputPath: r.output_path,
     downloadTokenHash: r.download_token_hash,
     failureReason: r.failure_reason,
@@ -96,9 +86,7 @@ const insertJob = db.prepare(
    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
 );
 
-const selectJobById = db.prepare(
-  "SELECT * FROM remediation_jobs WHERE id = ?",
-);
+const selectJobById = db.prepare("SELECT * FROM remediation_jobs WHERE id = ?");
 
 const updateStep = db.prepare(
   "UPDATE remediation_jobs SET step = ?, progress_pct = ? WHERE id = ?",
@@ -157,9 +145,7 @@ export interface CreatedJob {
 export function createJob(input: CreateJobInput): CreatedJob {
   const id = randomUUID();
   const downloadToken = randomBytes(32).toString("base64url");
-  const downloadTokenHash = createHash("sha256")
-    .update(downloadToken)
-    .digest("hex");
+  const downloadTokenHash = createHash("sha256").update(downloadToken).digest("hex");
   const now = Date.now();
   // expires_at is set conservatively at creation time using the output
   // TTL; finalizeJob() refreshes it relative to completion time.
@@ -186,11 +172,7 @@ export function getJob(id: string): RemediationJob | null {
   return row ? rowToJob(row) : null;
 }
 
-export function setStep(
-  id: string,
-  step: RemediationStep,
-  progressPct: number,
-): void {
+export function setStep(id: string, step: RemediationStep, progressPct: number): void {
   updateStep.run(step, progressPct, id);
 }
 
@@ -247,15 +229,10 @@ const selectAuditPairStmt = db.prepare(
 
 export function getJobAuditPair(id: string): JobAuditPair {
   const row = selectAuditPairStmt.get(id) as
-    | { input_audit_json: string | null; output_audit_json: string | null }
-    | undefined;
+    { input_audit_json: string | null; output_audit_json: string | null } | undefined;
   return {
-    inputAudit: row?.input_audit_json
-      ? JSON.parse(row.input_audit_json)
-      : null,
-    outputAudit: row?.output_audit_json
-      ? JSON.parse(row.output_audit_json)
-      : null,
+    inputAudit: row?.input_audit_json ? JSON.parse(row.input_audit_json) : null,
+    outputAudit: row?.output_audit_json ? JSON.parse(row.output_audit_json) : null,
   };
 }
 
@@ -272,12 +249,7 @@ export function setVeraPdfResult(
   passed: boolean,
   summaryJson: string,
 ): void {
-  setVeraStmt.run(
-    available ? 1 : 0,
-    available ? (passed ? 1 : 0) : null,
-    summaryJson,
-    id,
-  );
+  setVeraStmt.run(available ? 1 : 0, available ? (passed ? 1 : 0) : null, summaryJson, id);
 }
 
 export interface JobVeraPdf {
@@ -302,12 +274,9 @@ export function getJobVeraPdf(id: string): JobVeraPdf {
     return { available: null, passed: null, summary: null };
   }
   return {
-    available:
-      row.verapdf_available === null ? null : row.verapdf_available === 1,
+    available: row.verapdf_available === null ? null : row.verapdf_available === 1,
     passed: row.verapdf_passed === null ? null : row.verapdf_passed === 1,
-    summary: row.verapdf_summary_json
-      ? JSON.parse(row.verapdf_summary_json)
-      : null,
+    summary: row.verapdf_summary_json ? JSON.parse(row.verapdf_summary_json) : null,
   };
 }
 
@@ -329,10 +298,7 @@ export function countActiveJobsForEmail(email: string): number {
  * hash. SHA-256 of the presented token is compared via Buffer equals which
  * is constant-time for equal-length inputs (always 32 bytes here).
  */
-export function verifyDownloadToken(
-  job: RemediationJob,
-  presented: string,
-): boolean {
+export function verifyDownloadToken(job: RemediationJob, presented: string): boolean {
   if (!job.downloadTokenHash) return false;
   const presentedHash = createHash("sha256").update(presented).digest();
   const storedHash = Buffer.from(job.downloadTokenHash, "hex");
