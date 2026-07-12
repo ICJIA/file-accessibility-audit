@@ -23,16 +23,50 @@ import type { Readable } from "node:stream";
 
 export type PONode = Record<string, unknown>;
 
+// processEntities is left at its library default (true) — DELIBERATELY, not
+// an oversight. Investigated for C2 (XML entity hardening) against the
+// installed fast-xml-parser@5.9.3: setting processEntities:false makes
+// replaceEntitiesValue() (src/xmlparser/OrderedObjParser.js) short-circuit
+// ALL entity decoding, including the five built-in XML entities (&amp; &lt;
+// &gt; &apos; &quot;) — it would corrupt ordinary document text and alt text
+// that happens to contain one of them (e.g. "Smith &amp; Co."). Verified with
+// a throwaway probe script and pinned by the "&amp; still decodes" test in
+// ooxml.test.ts. DOCTYPE rejection (below) is the actual defense instead.
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   removeNSPrefix: true,
   preserveOrder: true,
   trimValues: false,
+  processEntities: true,
 });
 
+// DOCTYPE_RE matches a literal "<!DOCTYPE" (case-insensitive) anywhere in a
+// part's raw XML text, BEFORE it is ever handed to fast-xml-parser. OOXML
+// parts (document.xml, presentation.xml, workbook.xml, or any other part in
+// a docx/pptx/xlsx) never legitimately carry a DOCTYPE, so this has zero cost
+// for real documents. It is belt-and-braces alongside fast-xml-parser
+// v5.9.3's own DocTypeReader, which already (independent of processEntities):
+//   - unconditionally throws on SYSTEM (external) and "%" (parameter)
+//     entity declarations ("External/Parameter entities are not
+//     supported"), closing the classic file-read/SSRF XXE vector, and
+//   - never registers an internal <!ENTITY> whose value itself contains
+//     "&" (i.e. references another entity), so a recursive "billion
+//     laughs" expansion chain can never be assembled in the first place.
+// But a construct with no legitimate reason to appear in an OOXML part
+// should not rely SOLELY on a third-party parser's internal security
+// posture — hence rejecting it outright, here, before parse.
+const DOCTYPE_RE = /<!DOCTYPE/i;
+
+/**
+ * Parse a part's raw XML into fast-xml-parser's preserveOrder node array.
+ * Returns [] for null/empty input, for a part containing a <!DOCTYPE
+ * declaration (see DOCTYPE_RE above — treated exactly like any other
+ * unparseable input, not a distinct error shape), and for XML that
+ * fast-xml-parser itself fails to parse.
+ */
 export function parseXml(xml: string | null): PONode[] {
-  if (!xml) return [];
+  if (!xml || DOCTYPE_RE.test(xml)) return [];
   try {
     return parser.parse(xml) as PONode[];
   } catch {

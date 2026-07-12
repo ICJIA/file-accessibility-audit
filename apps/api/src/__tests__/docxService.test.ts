@@ -14,6 +14,7 @@ import {
   hyperlink,
   hyperlinkRels,
   listItem,
+  DOCX_NS,
 } from "./helpers/minimalDocx.js";
 import JSZip from "jszip";
 import { analyzeDocx, readCapped, DocxParseError } from "../services/docxService.js";
@@ -319,5 +320,60 @@ describe("docx aggregate zip-package limits (C1 DoS hardening)", () => {
     const { buildDocx: build } = await import("./helpers/minimalDocx.js");
     const buf = await build();
     await expect(analyze(buf)).resolves.toBeTruthy();
+  });
+});
+
+describe("docx entity + DOCTYPE hardening (C2, full analyze path)", () => {
+  it("&amp;/&lt;/&gt; in heading text and image alt text still decode correctly end-to-end", async () => {
+    const buf = await buildDocx({
+      body:
+        styledParagraph("Heading1", "Smith &amp; Co. reports &lt;Q3&gt; results") +
+        inlineImage({ descr: "Revenue &gt; target &amp; on track" }),
+    });
+    const a = await analyzeDocx(buf);
+    expect(a.headings).toEqual([{ level: 1, text: "Smith & Co. reports <Q3> results" }]);
+    expect(a.images[0].altText).toBe("Revenue > target & on track");
+  });
+
+  it("a DOCTYPE-bearing word/document.xml is neutralized (no entity expansion, no crash), not parsed", async () => {
+    const documentXml =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<!DOCTYPE w:document [<!ENTITY xxe "INJECTED-VALUE">]>` +
+      `<w:document ${DOCX_NS}><w:body><w:p><w:r><w:t>&xxe;</w:t></w:r></w:p></w:body></w:document>`;
+    const buf = await buildDocx({ documentXml });
+    const a = await analyzeDocx(buf);
+    // The whole part fails to parse (parseXml's DOCTYPE guard), so nothing
+    // is extracted from it — critically, the injected entity value never
+    // surfaces anywhere in the analysis.
+    expect(a.paragraphCount).toBe(0);
+    expect(a.headings).toEqual([]);
+    expect(JSON.stringify(a)).not.toContain("INJECTED-VALUE");
+  });
+
+  it("a DOCTYPE elsewhere (e.g. styles.xml) is neutralized without crashing the whole analysis", async () => {
+    // The Heading1 style IS legitimately defined here — if the DOCTYPE guard
+    // did NOT neutralize this part, fast-xml-parser would parse it fine (no
+    // SYSTEM/parameter entity, just a simple leaf &xxe;) and the "Still
+    // readable" paragraph below would be recognized as a real heading. With
+    // the guard, this whole part fails to parse, so it isn't.
+    const stylesXml =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<!DOCTYPE w:styles [<!ENTITY xxe "INJECTED-VALUE">]>` +
+      `<w:styles ${DOCX_NS}>` +
+      `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/></w:style>` +
+      `&xxe;` +
+      `</w:styles>`;
+    const buf = await buildDocx({
+      stylesXml,
+      body: styledParagraph("Heading1", "Still readable"),
+    });
+    const a = await analyzeDocx(buf);
+    // styles.xml failing to parse means no heading-style map is built, so
+    // the "Heading1"-styled paragraph is no longer recognized as a heading
+    // — but the analysis still completes without crashing or leaking the
+    // injected value.
+    expect(a.paragraphCount).toBe(1);
+    expect(a.headings).toEqual([]);
+    expect(JSON.stringify(a)).not.toContain("INJECTED-VALUE");
   });
 });

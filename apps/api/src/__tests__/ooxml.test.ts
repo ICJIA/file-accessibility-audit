@@ -50,6 +50,42 @@ describe("XML walker helpers", () => {
     expect(parseXml("<unclosed")).toEqual([]);
   });
 
+  describe("parseXml: DOCTYPE rejection + entity handling (C2 XXE/entity hardening)", () => {
+    it("rejects (returns []) a part carrying a <!DOCTYPE with an internal entity — the entity is never expanded into the output", () => {
+      // Proven exploitable against this exact parser config (verified against
+      // the installed fast-xml-parser@5.9.3 before this guard existed):
+      // fast-xml-parser happily parses this and expands &xxe; to
+      // "INJECTED-VALUE". OOXML parts never legitimately carry a DOCTYPE, so
+      // parseXml now rejects any part containing one, treating it exactly
+      // like any other unparseable input (the existing [] contract above).
+      const payload =
+        `<?xml version="1.0"?>` +
+        `<!DOCTYPE root [<!ENTITY xxe "INJECTED-VALUE">]>` +
+        `<root>&xxe;</root>`;
+      const result = parseXml(payload);
+      expect(result).toEqual([]);
+      expect(JSON.stringify(result)).not.toContain("INJECTED-VALUE");
+    });
+
+    it("rejects DOCTYPE case-insensitively", () => {
+      const payload = `<?xml version="1.0"?><!doctype root []><root>x</root>`;
+      expect(parseXml(payload)).toEqual([]);
+    });
+
+    it("still decodes the five built-in XML entities in ordinary text — processEntities stayed enabled", () => {
+      // Companion to the DOCTYPE tests above: proves the DOCTYPE guard did
+      // NOT come at the cost of processEntities:false, which would leave
+      // &amp; etc. undecoded in every legitimate document (verified against
+      // fast-xml-parser@5.9.3's replaceEntitiesValue, which short-circuits
+      // ALL entity decoding — including the five XML built-ins — when
+      // processEntities.enabled is false).
+      const xml = `<root><t>Smith &amp; Co. says &lt;hello&gt; &quot;world&quot; &apos;now&apos;</t></root>`;
+      const root = rootElement(parseXml(xml), "root")!;
+      const t = firstChild(root, "t")!;
+      expect(rawText(t)).toBe(`Smith & Co. says <hello> "world" 'now'`);
+    });
+  });
+
   it("rootElement skips the xml declaration and finds the root by local name", () => {
     const root = rootElement(parseXml(SAMPLE), "document");
     expect(root).toBeDefined();
