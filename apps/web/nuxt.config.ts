@@ -132,8 +132,7 @@ export default defineNuxtConfig({
         { name: "author", content: orgName },
         {
           name: "keywords",
-          content:
-            "PDF accessibility, Word accessibility, .docx accessibility, PowerPoint accessibility, .pptx accessibility, Excel accessibility, .xlsx accessibility, presentation accessibility, spreadsheet accessibility, WCAG 2.2, WCAG 2.1, ADA Title II, IITAA, Illinois Information Technology Accessibility Act, Section 508, accessibility audit, PDF checker, Word checker, PowerPoint checker, Excel checker, screen reader, accessibility score, document remediation",
+          content: "document accessibility, WCAG 2.2, ADA Title II, IITAA, accessibility audit",
         },
       ],
       link: [
