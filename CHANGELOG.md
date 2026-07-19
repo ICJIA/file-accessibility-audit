@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.36.1] - 2026-07-19
+
+Accuracy patch prompted by a real accessible static-XFA form (`controls/example-8`) that v1.36.0 scored 90/A with a refused ("incomplete — XFA") verdict; it now scores 96/A with a clean verdict. Four fixes:
+
+### Fixed
+
+- **Static XFA is audited normally.** The v1.36.0 "XFA → incomplete" rule now fires only for DYNAMIC XFA (catalog `/NeedsRendering` true — the placeholder-page case). Static XFA ships a full conventional rendering that is exactly what viewers display; refusing a verdict there wrongly withheld clean verdicts from accessible Designer forms. Static XFA gets a not-scored disclosure in Form Accessibility instead ("the XFA template layer itself was not separately audited").
+- **Indirect catalog references are resolved.** Designer/LiveCycle output stores `/Lang` and `/ViewerPreferences /DisplayDocTitle` as indirect references; the parser read the raw reference string, reporting "252 0 R" as the document language and treating a set DisplayDocTitle as missing (a false −15 on the title). Scalar reference targets (v2 `{value}` wrappers and v1 bare scalars) now resolve; `/NeedsRendering` gets the same treatment.
+- **Reading-order lower bands are Moderate, not Critical.** 50–80% tag-vs-draw-order agreement is routine for correctly tagged forms (fields paint in creation order; tags order logically) and the metric cannot say which side is wrong — the band now scores 65 (was 40) and <50% scores 30 (was 10); the 1.3.2 manual-review notAssessed entry covers both lower bands. No control-corpus document sat in these bands, so all 22 prior scores are unchanged.
+- **`/Headers`-associated tables no longer lose Scope points.** The explicit `/Headers` attribute is a complete, spec-correct association method (the conformance gate and PAC already treat Scope-or-Headers as equivalent); missing `/Scope` on such tables is now a belt-and-braces advisory instead of a deduction.
+
+Controls corpus: all 22 pre-existing documents byte-identical; example-8 90/A "incomplete" → 96/A "no-automated-failures". Tests 1,528 → 1,537.
+
 ## [1.36.0] - 2026-07-19
 
 Accuracy & verdict-integrity release — the full P0/P1/P2 fix set from the 2026-07-19 four-agent review of the audit algorithms, across all four formats. Governing principle now enforced everywhere: **never assert a confirmed WCAG violation (or a Critical score) from a defaulted or unresolved value** — unresolved becomes notAssessed/advisory instead.

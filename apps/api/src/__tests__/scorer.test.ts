@@ -43,6 +43,7 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     accessibilityAllowed: null,
     displayDocTitle: null,
     hasXfa: false,
+    needsRendering: false,
     suspectsFlag: false,
     structTreeDepth: 0,
     contentOrder: [],
@@ -556,6 +557,93 @@ describe("weight renormalization", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500, pageCount: 3 });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "text_extractability").findings.join(" ")).toContain("suspect");
+  });
+
+  it("mid-band order divergence scores 65 (Moderate manual-review), not 40 (Critical)", () => {
+    // ~70% LCS agreement between tag order and DRAW order — a correctly
+    // tagged form routinely diverges this much (fields painted in creation
+    // order, tags ordered logically). The metric cannot say which side is
+    // wrong, so the signal is "review manually", not Critical.
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 5,
+      structTreeMcidsByPage: { 1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+      contentOrder: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      contentStreamMcidsByPage: { 1: [2, 0, 1, 5, 3, 4, 8, 6, 7, 9] },
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "reading_order").score).toBe(65);
+  });
+
+  it("static XFA forms get a disclosure advisory in form accessibility", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      hasXfa: true,
+      needsRendering: false,
+      hasAcroForm: true,
+      formFields: [{ ref: "5 0 R", hasTU: true, name: "field1" }],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "form_accessibility");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/static XFA/i);
+  });
+
+  it("missing TH Scope is advisory (not deducted) when /Headers association exists", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      tables: [
+        makeTable({
+          hasHeaders: true,
+          headerCount: 4,
+          hasScope: false,
+          scopeMissingCount: 4,
+          hasRowStructure: true,
+          rowCount: 5,
+          hasConsistentColumns: true,
+          columnCounts: [4, 4, 4, 4, 4],
+          hasHeaderAssociation: true,
+        }),
+      ],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "table_markup");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/Headers/);
+  });
+
+  it("missing TH Scope still deducts when no /Headers association exists", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      tables: [
+        makeTable({
+          hasHeaders: true,
+          headerCount: 4,
+          hasScope: false,
+          scopeMissingCount: 4,
+          hasRowStructure: true,
+          rowCount: 5,
+          hasConsistentColumns: true,
+          columnCounts: [4, 4, 4, 4, 4],
+          hasHeaderAssociation: false,
+        }),
+      ],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "table_markup").score).toBeLessThan(100);
   });
 
   it("all categories N/A results in score 0", () => {

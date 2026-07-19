@@ -83,9 +83,13 @@ export interface QpdfResult {
    *  PDF technique needs BOTH a title and this flag; without it viewers show
    *  the filename. */
   displayDocTitle: boolean | null;
-  /** AcroForm carries /XFA — a LiveCycle form whose real UI this pipeline
-   *  (and pdfjs) cannot see; analysis must not judge the placeholder page. */
+  /** AcroForm carries /XFA (LiveCycle/Designer form technology). */
   hasXfa: boolean;
+  /** Catalog /NeedsRendering === true — the DYNAMIC-XFA marker: page content
+   *  is a placeholder and the real UI renders from the XFA template only.
+   *  Static XFA (flag absent) ships a full conventional rendering that IS
+   *  what every viewer shows, and must be audited normally. */
+  needsRendering: boolean;
   /** MarkInfo /Suspects === true — the producer itself flags the tagging as
    *  unreliable (typically OCR/auto-tag output). Advisory. */
   suspectsFlag: boolean;
@@ -255,6 +259,7 @@ function emptyQpdfResult(error: string | null): QpdfResult {
     isEncrypted: false,
     displayDocTitle: null,
     hasXfa: false,
+    needsRendering: false,
     suspectsFlag: false,
     accessibilityAllowed: null,
     structTreeDepth: 0,
@@ -332,9 +337,22 @@ function parseQpdfJson(json: any): QpdfResult {
     // to the walk below and the image census is permanently zero.
     const objects: Record<string, any> = {};
     for (const [ref, raw] of Object.entries(rawObjects)) {
-      if (!raw || typeof raw !== "object") continue;
-      objects[ref] = (raw as any).value ?? (raw as any).stream?.dict ?? raw;
+      if (raw === null || raw === undefined) continue;
+      // v2 wraps dicts as {value} and streams as {stream:{dict}}; scalar
+      // OBJECTS (an indirect string/boolean like a /Lang target) are
+      // {value: "u:en-US"} in v2 and bare scalars in v1 — keep both so
+      // resolveRef can return them.
+      objects[ref] =
+        typeof raw === "object" ? ((raw as any).value ?? (raw as any).stream?.dict ?? raw) : raw;
     }
+
+    // Catalog values are frequently INDIRECT references in Designer/
+    // LiveCycle output (/Lang → "252 0 R" → "en-US"; /DisplayDocTitle →
+    // "273 0 R" → true). Reading the raw string reported "252 0 R" as the
+    // document language and treated a set DisplayDocTitle as missing.
+    const SCALAR_REF_RE = /^\d+ \d+ R$/;
+    const resolveScalar = (raw: unknown): unknown =>
+      typeof raw === "string" && SCALAR_REF_RE.test(raw) ? resolveRef(raw, objects) : raw;
 
     const roleMap: Record<string, string> = {};
     const applyRoleMap = (candidate: any): void => {
@@ -395,9 +413,9 @@ function parseQpdfJson(json: any): QpdfResult {
         if (o["/StructTreeRoot"]) result.hasStructTree = true;
         if (o["/Lang"]) {
           result.hasLang = true;
-          // Strip QPDF "u:" Unicode prefix (e.g., "u:EN-US" → "EN-US")
-          const rawLang = typeof o["/Lang"] === "string" ? o["/Lang"] : null;
-          result.lang = rawLang?.replace(/^u:/, "") ?? null;
+          // Resolve indirect refs, then strip QPDF's "u:" Unicode prefix.
+          const langValue = resolveScalar(o["/Lang"]);
+          result.lang = typeof langValue === "string" ? langValue.replace(/^u:/, "") : null;
         }
         if (o["/Outlines"]) result.hasOutlines = true;
         if (o["/AcroForm"]) {
@@ -413,9 +431,14 @@ function parseQpdfJson(json: any): QpdfResult {
             typeof o["/ViewerPreferences"] === "string"
               ? resolveRef(o["/ViewerPreferences"], objects)
               : o["/ViewerPreferences"];
-          if (typeof prefs?.["/DisplayDocTitle"] === "boolean") {
-            result.displayDocTitle = prefs["/DisplayDocTitle"];
+          const ddt = resolveScalar(prefs?.["/DisplayDocTitle"]);
+          if (typeof ddt === "boolean") {
+            result.displayDocTitle = ddt;
           }
+        }
+        // Dynamic-XFA marker (see QpdfResult.needsRendering).
+        if (o["/NeedsRendering"] !== undefined) {
+          result.needsRendering = resolveScalar(o["/NeedsRendering"]) === true;
         }
         // MarkInfo — indicates document distinguishes marked content from artifacts
         if (o["/MarkInfo"]) {

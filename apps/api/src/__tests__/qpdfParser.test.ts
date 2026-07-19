@@ -1005,6 +1005,56 @@ describe("viewer preferences — DisplayDocTitle", () => {
   });
 });
 
+describe("indirect-reference catalog values (real Designer/LiveCycle output)", () => {
+  it("resolves an indirect /Lang reference to its string value", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Lang": "252 0 R" },
+          "252 0 R": { value: "u:en-US" },
+        },
+      ],
+    });
+    expect(result.hasLang).toBe(true);
+    expect(result.lang).toBe("en-US");
+  });
+
+  it("resolves an indirect /DisplayDocTitle reference to its boolean value", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": {
+            "/Type": "/Catalog",
+            "/ViewerPreferences": { "/DisplayDocTitle": "273 0 R" },
+          },
+          "273 0 R": { value: true },
+        },
+      ],
+    });
+    expect(result.displayDocTitle).toBe(true);
+  });
+
+  it("reads /NeedsRendering (the dynamic-XFA marker), including via reference", () => {
+    const direct = parseJson({
+      qpdf: [null, { "1 0 R": { "/Type": "/Catalog", "/NeedsRendering": true } }],
+    });
+    expect(direct.needsRendering).toBe(true);
+
+    const viaRef = parseJson({
+      qpdf: [
+        null,
+        { "1 0 R": { "/Type": "/Catalog", "/NeedsRendering": "9 0 R" }, "9 0 R": { value: true } },
+      ],
+    });
+    expect(viaRef.needsRendering).toBe(true);
+
+    const absent = parseJson({ qpdf: [null, { "1 0 R": { "/Type": "/Catalog" } }] });
+    expect(absent.needsRendering).toBe(false);
+  });
+});
+
 describe("XFA form detection", () => {
   it("detects /XFA on the AcroForm dictionary", () => {
     const result = parseJson({

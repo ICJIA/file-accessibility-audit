@@ -220,11 +220,46 @@ describe("conformance gate — 1.3.1 table claim scope", () => {
 });
 
 describe("conformance gate — XFA forms", () => {
-  it("returns incomplete for XFA (LiveCycle) forms instead of judging the placeholder", async () => {
+  it("returns incomplete for DYNAMIC XFA (NeedsRendering) instead of judging the placeholder", async () => {
     const evaluate = await loadGate();
-    const v = evaluate(makeQpdf({ hasXfa: true, hasStructTree: false }), makePdfjs(), []);
+    const v = evaluate(
+      makeQpdf({ hasXfa: true, needsRendering: true, hasStructTree: false }),
+      makePdfjs(),
+      [],
+    );
     expect(v.status).toBe("incomplete");
     expect(v.headline).toMatch(/XFA|form technology/i);
     expect(v.failures).toHaveLength(0);
+  });
+
+  it("evaluates STATIC XFA normally — the conventional content IS what viewers show", async () => {
+    // Static XFA (no NeedsRendering) ships a full conventional rendering;
+    // refusing a verdict for it wrongly withheld clean verdicts from
+    // accessible Designer forms.
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ hasXfa: true, needsRendering: false, hasStructTree: true }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    expect(v.status).toBe("no-automated-failures");
+  });
+});
+
+describe("conformance gate — mid-band order divergence still flags manual review", () => {
+  it("lists 1.3.2 as notAssessed for ~70% draw-order agreement", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({
+        hasStructTree: true,
+        structTreeMcidsByPage: { 1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+      }),
+      makePdfjs({
+        contentStreamMcidsByPage: { 1: [2, 0, 1, 5, 3, 4, 8, 6, 7, 9] },
+      }),
+      [{ id: "reading_order", score: 65 }] as any,
+    );
+    expect(v.failures.some((f: any) => f.sc === "1.3.2")).toBe(false);
+    expect(v.notAssessed.some((n: any) => n.sc === "1.3.2")).toBe(true);
   });
 });
