@@ -68,6 +68,29 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.35.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.35.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-19</strong> · scope: a new automated status-check address used
+            for uptime monitoring — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          v1.35.0 adds a single public status-check address that reports whether both halves of the
+          service — the website itself and the analysis engine behind it — are running, so an
+          external monitoring service can alert the team the moment either goes down. The check was
+          reviewed before shipping: it reveals only "running or not" for each half and how long the
+          analysis engine has been up — no user data, no file names, and nothing about any audit
+          anyone has run. It was also designed so that deliberately overloading the status check
+          cannot trick the monitoring service into reporting a false outage.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.34.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

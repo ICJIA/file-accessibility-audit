@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /healthz
 Disallow: /login
 Disallow: /my-history
 Disallow: /history

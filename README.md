@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,410 tests** across 94 test files (API 876, Web 485, CLI 49). Run all three suites with one summary:
+**1,418 tests** across 95 test files (API 876, Web 493, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -825,10 +825,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      876 passed (48 files)
-  ✔ Web      485 passed (40 files)
+  ✔ Web      493 passed (41 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1410 tests passed across 94 files
+  ✔ 1418 tests passed across 95 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -885,7 +885,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (485 tests)
+### Web Tests (493 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -915,6 +915,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `usePaginatedReports.test.ts` | 7 | The `usePaginatedReports` composable shared by the history pages: fetches the given URL on mount at page 1 with credentials included, exposes the response under `data`, `goToPage(n)` refetches with the new page in the query (a no-op when the page is unchanged), and a fetch error sets `error` (cleared once a later page succeeds) |
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
 | `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
+| `healthz.test.ts` | 8 | `resolveHealthz`, the aggregation behind the `/healthz` uptime-probe URL served by the Nuxt tier: 200 with both tiers ok (and the API's uptime echoed) only when the loopback `/api/health` probe answers `status:"ok"`; 503 with `api:"down"` when the probe rejects (unreachable/timeout) or returns a non-ok, empty, or null body; a 429 from the API's own rate limiter counts as alive (flooding `/healthz` can't fabricate an outage) while any other HTTP error stays down; `apiUptime` omitted when down |
 | `csp.test.ts` | 5 | `buildCspHeader`: the per-request nonce lands in `script-src` with `'unsafe-inline'` dropped there (while `style-src` keeps it), the tight high-value directives are preserved, and no nonce value can cause `'unsafe-inline'` to leak into `script-src` |
 | `download.test.ts` | 5 | The native `downloadBlob` helper that replaced `file-saver`: creates an object URL from the blob, clicks a detached anchor with the given filename and href, sets the `download` attribute before clicking, revokes the object URL afterward, and never leaves the anchor attached to the document |
 | `escapeHtml.test.ts` | 5 | `escapeHtml`: escapes all five HTML-significant characters, neutralizes `<script>` and quote-breakout payloads, leaves benign text untouched, and escapes `&` first so entities aren't double-encoded |
@@ -985,6 +986,15 @@ For local production testing (without PM2):
 pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ```
 
+### Health checks & uptime monitoring
+
+Two endpoints, one probe URL:
+
+- **`GET /api/health`** (Express) — `{"status":"ok","uptime":"…"}`. The per-tier smoke-test URL used after deploys.
+- **`GET /healthz`** (Nuxt) — aggregate check for uptime monitors. Served by the web process, which probes the API over loopback (`NUXT_API_INTERNAL_URL`, default `http://127.0.0.1:5103`) and returns `200 {"status":"ok","web":"ok","api":"ok",…}` only when both tiers answer; any API failure — unreachable, timeout, non-ok body — yields `503` with `"api":"down"` (exception: a 429 from the API's own rate limiter counts as alive, so request floods aimed at `/healthz` can't fabricate an outage alert). Because production nginx sends `/api/*` straight to Express and everything else to Nuxt, this single URL fails if either PM2 process (or nginx itself) is down.
+
+Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/healthz` — a plain HTTP(S) monitor suffices, since the route genuinely 503s when degraded. The probe is unauthenticated and far below the anonymous rate limit at any sane interval. `robots.txt` disallows `/healthz` for crawlers, which does not affect uptime monitors.
+
 ## Security
 
 The application undergoes a security review before every release plus periodic standalone comprehensive audits; the running history is in [Review history](#review-history) below. Current posture:
@@ -1014,6 +1024,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.35.0 — 2026-07-19 · /healthz aggregate uptime endpoint (not a security release)
+
+v1.35.0 adds one unauthenticated, read-only endpoint: `GET /healthz` on the web tier loopback-probes the API's existing `/api/health` and answers 503 unless both processes are up, so a single external uptime monitor covers both. Reviewed for information disclosure and signal integrity before shipping: the response carries only per-tier up/down status and the API process's uptime string — no user data, filenames, or report contents (nothing beyond what the already-public `/api/health` exposed); the probe is read-only with a 3 s timeout and no retries; and a 429 from the API's own rate limiter counts as alive, so flooding `/healthz` cannot fabricate an "API down" alert (the probe shares the API's loopback rate bucket). No endpoint authentication, retention window, or data-handling path otherwise changed.
 
 ### v1.34.0 — 2026-07-12 · Preventive hardening: OOXML zip limits, session revocation, job-status authorization, schema migrations
 

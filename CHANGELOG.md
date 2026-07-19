@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.35.0] - 2026-07-19
+
+Uptime-monitoring release: one probe URL now proves both production processes are up.
+
+### Added
+
+- **`GET /healthz` aggregate health endpoint** (Nitro server route: `apps/web/server/routes/healthz.get.ts` + `server/utils/health.ts`). Production nginx routes `/api/*` straight to Express and everything else to Nuxt, so the two PM2 processes fail independently and no single URL proved both were up (`/` covers only the web tier, `/api/health` only the API). `/healthz` is served by the web process and probes the API's existing `/api/health` over loopback (3 s timeout, no retries; default `http://127.0.0.1:<API_PORT>`, overridable via `NUXT_API_INTERNAL_URL`): `200 {status:"ok",web:"ok",api:"ok",apiUptime}` only when both tiers answer, `503 {…,api:"down"}` otherwise — point one external uptime monitor (e.g. UptimeRobot) at `https://audit.icjia.app/healthz` and it alerts if either process, or nginx itself, is down. Deliberately independent of the dev-only Nitro `/api/**` proxy routeRule; responds `Cache-Control: no-store`; `robots.txt` disallows the path for crawlers (uptime monitors don't consult robots.txt).
+- **Uptime-signal integrity:** a 429 from the API's own rate limiter counts as alive — `/healthz` itself is un-throttled on the Nitro tier while its loopback probe shares the API's `127.0.0.1` rate bucket, so without this a >100 req/min flood at `/healthz` could fabricate a false "API down" alert. Only 429 is special-cased; any other HTTP error still reports down.
+
+### Changed
+
+- README documents the health endpoints and monitoring setup (Deployment § Health checks & uptime monitoring); data-retention § 10 gains the auditor-facing entry.
+
+Tests 1,410 → 1,418 (API 876 / web 493 / CLI 49); lint, typecheck, and build green; verified end-to-end against the built Nitro output (API up → 200; API killed → 503 in ~7 ms).
+
 ## [1.34.0] - 2026-07-12
 
 Infrastructure, hardening, and structural-quality release from a five-track whole-app review: the codebase gains CI, linting, and a proper package boundary around the audit engine; the app gains five preventive security hardenings; the scoring engine and report output are unchanged (PDF and Word remain frozen for calibration — verified by the untouched 876-test API suite passing throughout).

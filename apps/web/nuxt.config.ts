@@ -146,6 +146,12 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Server-only (never shipped to the client): loopback URL the /healthz
+    // route uses to probe the Express API directly. Deliberately NOT the
+    // Nitro /api/** proxy routeRule below — that rule is a dev affordance
+    // (nginx shadows it in production), so /healthz must not depend on it.
+    // Overridable at deploy time via NUXT_API_INTERNAL_URL.
+    apiInternalUrl: `http://127.0.0.1:${DEPLOY.API_PORT}`,
     public: {
       appName,
       siteUrl,
