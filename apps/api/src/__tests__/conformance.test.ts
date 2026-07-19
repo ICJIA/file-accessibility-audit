@@ -80,6 +80,79 @@ describe("conformance gate — WCAG 2.2", () => {
   });
 });
 
+describe("conformance gate — encryption accessibility permission", () => {
+  it("asserts a confirmed Level A failure when security settings deny assistive technology", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ isEncrypted: true, accessibilityAllowed: false }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    expect(v.status).toBe("fail");
+    const f = v.failures.find(
+      (x: any) =>
+        x.issue.includes("security settings") && x.issue.includes("assistive-technology"),
+    );
+    expect(f).toBeDefined();
+    expect(f!.sc).toBe("1.1.1");
+    expect(f!.level).toBe("A");
+  });
+
+  it("does not fire when encryption explicitly permits accessibility", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ isEncrypted: true, accessibilityAllowed: true }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    expect(v.failures.filter((x: any) => x.issue.includes("security settings"))).toHaveLength(0);
+  });
+
+  it("does not fire for unencrypted documents (accessibilityAllowed null/undefined)", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(makeQpdf(), makePdfjs(), cleanCategories);
+    expect(v.failures.filter((x: any) => x.issue.includes("security settings"))).toHaveLength(0);
+  });
+});
+
+describe("conformance gate — 1.1.1 scanned-document evidence", () => {
+  it("does not assert 1.1.1 for a short born-digital document (little text, no images)", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf(),
+      makePdfjs({ hasText: false, textLength: 30, imageCount: 0 }),
+      cleanCategories,
+    );
+    expect(
+      v.failures.filter(
+        (f: any) => f.issue.includes("scanned") || f.issue.includes("No extractable text"),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("asserts 1.1.1 for a truly text-free document whose pages are images", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ hasStructTree: false }),
+      makePdfjs({ hasText: false, textLength: 0, imageCount: 4 }),
+      cleanCategories,
+    );
+    const f = v.failures.find((x: any) => x.issue.includes("scanned"));
+    expect(f).toBeDefined();
+    expect(f!.sc).toBe("1.1.1");
+  });
+
+  it("does not assert the scanned claim for an empty document (no text, no images)", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf(),
+      makePdfjs({ hasText: false, textLength: 0, imageCount: 0 }),
+      cleanCategories,
+    );
+    expect(v.failures.filter((f: any) => f.issue.includes("scanned"))).toHaveLength(0);
+  });
+});
+
 describe("conformance gate — 1.3.2 Meaningful Sequence evidence", () => {
   it("does NOT assert 1.3.2 from a low heuristic category score alone", async () => {
     // A flat-but-correctly-ordered structure tree scores 30 in the
@@ -95,10 +168,12 @@ describe("conformance gate — 1.3.2 Meaningful Sequence evidence", () => {
     expect(v.failures.some((f: any) => f.sc === "1.3.2")).toBe(false);
   });
 
-  it("asserts 1.3.2 when the rigorous MCID comparison finds substantial disorder", async () => {
-    // Struct-tree order is the exact reverse of the content-stream order on
-    // the only page — the rigorous comparison itself proves the disorder,
-    // regardless of what the category score happens to be.
+  it("routes heavy tag-vs-draw-order divergence to notAssessed, never a confirmed failure", async () => {
+    // Struct-tree order is the exact reverse of the content-stream DRAW
+    // order. That proves the two orders disagree — it cannot prove which
+    // side is wrong (remediation deliberately re-orders tags away from a
+    // bad stream order, and AT follows the tags). Asserting a confirmed
+    // 1.3.2 here punished professionally remediated documents.
     const evaluate = await loadGate();
     const v = evaluate(
       makeQpdf({
@@ -110,6 +185,46 @@ describe("conformance gate — 1.3.2 Meaningful Sequence evidence", () => {
       }),
       [{ id: "reading_order", score: 100 }] as any,
     );
-    expect(v.failures.some((f: any) => f.sc === "1.3.2")).toBe(true);
+    expect(v.failures.some((f: any) => f.sc === "1.3.2")).toBe(false);
+    const na = v.notAssessed.find((n: any) => n.sc === "1.3.2");
+    expect(na).toBeDefined();
+    expect(na!.reason).toMatch(/diverge|draw order/i);
+  });
+});
+
+describe("conformance gate — 1.3.1 table claim scope", () => {
+  it("does not assert the table claim for sub-2x2 (layout-like) tables", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({
+        tables: [
+          { hasHeaders: false, rowCount: 1, columnCounts: [3] },
+          { hasHeaders: false, rowCount: 5, columnCounts: [1] },
+        ],
+      }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    expect(v.failures.filter((f: any) => f.issue.includes("header cells"))).toHaveLength(0);
+  });
+
+  it("still asserts the claim for a real headerless data table", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ tables: [{ hasHeaders: false, rowCount: 3, columnCounts: [3, 3, 3] }] }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    expect(v.failures.some((f: any) => f.issue.includes("header cells"))).toBe(true);
+  });
+});
+
+describe("conformance gate — XFA forms", () => {
+  it("returns incomplete for XFA (LiveCycle) forms instead of judging the placeholder", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(makeQpdf({ hasXfa: true, hasStructTree: false }), makePdfjs(), []);
+    expect(v.status).toBe("incomplete");
+    expect(v.headline).toMatch(/XFA|form technology/i);
+    expect(v.failures).toHaveLength(0);
   });
 });

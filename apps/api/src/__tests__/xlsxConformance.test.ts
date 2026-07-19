@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+// Single-column "Format as Table for banding" lists must not fire the gate.
 import { evaluateXlsxConformance } from "../services/scoring/conformance.js";
 import type { XlsxAnalysis } from "../services/xlsxService.js";
 
@@ -19,9 +20,22 @@ function analysis(over: Partial<XlsxAnalysis>): XlsxAnalysis {
     images: [],
     links: [],
     contrast: { checkedRuns: 1, unresolvedRuns: 0, failing: [] },
+    totalCellsWithValue: 10,
+    textBoxCount: 0,
     ...over,
   };
 }
+
+describe("evaluateXlsxConformance — headerless-table gate scope", () => {
+  it("does not fire 1.3.1 for a single-column headerless table (banding list)", () => {
+    const v = evaluateXlsxConformance(
+      analysis({
+        tables: [{ sheetName: "Data", name: "Tasks", hasHeaderRow: false, columnCount: 1 }],
+      }),
+    );
+    expect(v.failures.filter((f) => f.sc === "1.3.1")).toHaveLength(0);
+  });
+});
 
 describe("evaluateXlsxConformance", () => {
   it("is clean for a well-formed workbook, with 3.1.1 honestly not assessed", () => {
@@ -34,7 +48,7 @@ describe("evaluateXlsxConformance", () => {
     const v = evaluateXlsxConformance(
       analysis({
         metadata: { title: null, creator: null, sheetCount: 1 },
-        images: [{ altText: null, decorative: false }],
+        images: [{ altText: null, decorative: false, titleOnly: false }],
         tables: [{ sheetName: "Data", name: "Bad", hasHeaderRow: false }],
         contrast: {
           checkedRuns: 1,

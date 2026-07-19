@@ -103,6 +103,7 @@ export interface DocxPartOverrides {
   omitContentTypes?: boolean;
   /** Omit `word/document.xml` (invalid-package test). */
   omitDocument?: boolean;
+  omitCore?: boolean;
 }
 
 /** Build a `.docx` Buffer from overridable OOXML parts. */
@@ -119,7 +120,7 @@ export async function buildDocx(overrides: DocxPartOverrides = {}): Promise<Buff
     zip.file("word/document.xml", doc);
   }
   zip.file("word/styles.xml", overrides.stylesXml ?? DEFAULT_STYLES);
-  zip.file("docProps/core.xml", overrides.coreXml ?? DEFAULT_CORE);
+  if (!overrides.omitCore) zip.file("docProps/core.xml", overrides.coreXml ?? DEFAULT_CORE);
   zip.file("docProps/app.xml", overrides.appXml ?? DEFAULT_APP);
   if (overrides.numberingXml) zip.file("word/numbering.xml", overrides.numberingXml);
   if (overrides.themeXml) zip.file("word/theme/theme1.xml", overrides.themeXml);
@@ -142,8 +143,49 @@ export function inlineImage(
   return (
     `<w:p><w:r><w:drawing><wp:inline>` +
     `<wp:docPr id="1" name="Picture 1"${descr}${title}>${decorative}</wp:docPr>` +
-    `<a:graphic><a:graphicData><pic:pic/></a:graphicData></a:graphic>` +
+    `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic/></a:graphicData></a:graphic>` +
     `</wp:inline></w:drawing></w:r></w:p>`
+  );
+}
+
+/** A text box — a wordprocessingShape drawing whose payload is text. */
+export function textBox(text: string, opts: { descr?: string } = {}): string {
+  const descr = opts.descr !== undefined ? ` descr="${opts.descr}"` : "";
+  return (
+    `<w:p><w:r><w:drawing><wp:anchor>` +
+    `<wp:docPr id="7" name="Text Box 7"${descr}/>` +
+    `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:txbx><w:txbxContent><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:txbxContent></wps:txbx>` +
+    `</wps:wsp></a:graphicData></a:graphic>` +
+    `</wp:anchor></w:drawing></w:r></w:p>`
+  );
+}
+
+/** A wordprocessingShape drawing with NO text payload (icon / decorative rule). */
+export function emptyShape(opts: { descr?: string } = {}): string {
+  const descr = opts.descr !== undefined ? ` descr="${opts.descr}"` : "";
+  return (
+    `<w:p><w:r><w:drawing><wp:inline>` +
+    `<wp:docPr id="8" name="Shape 8"${descr}/>` +
+    `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:spPr/></wps:wsp>` +
+    `</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
+  );
+}
+
+/** A chart drawing (graphicFrame payload). */
+export function chartDrawing(opts: { descr?: string } = {}): string {
+  const descr = opts.descr !== undefined ? ` descr="${opts.descr}"` : "";
+  return (
+    `<w:p><w:r><w:drawing><wp:inline>` +
+    `<wp:docPr id="9" name="Chart 9"${descr}/>` +
+    `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">` +
+    `<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId9" ` +
+    `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>` +
+    `</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
   );
 }
 

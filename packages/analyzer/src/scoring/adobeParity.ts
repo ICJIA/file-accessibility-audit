@@ -73,17 +73,25 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
   // Document (8 rules)
   // ──────────────────────────────────────────────────────────────────
 
+  // The permission flag is read directly from qpdf's security-handler
+  // capabilities, so encrypted-but-accessible documents (all AES-256/R6
+  // files, and legacy files with the flag on) pass instead of being blanket-
+  // failed for merely being encrypted.
+  const encrypted = qpdf.isEncrypted || pdfjs.metadata.isEncrypted;
+  const accessibilityDenied = qpdf.accessibilityAllowed === false;
   rules.push(
     rule(
       "accessibility_permission_flag",
       "Document",
       "Accessibility permission flag",
       "Accessibility permission flag must be set",
-      pdfjs.metadata.isEncrypted ? "failed" : "passed",
+      accessibilityDenied ? "failed" : "passed",
       false,
-      pdfjs.metadata.isEncrypted
-        ? "Document is encrypted — security settings may block assistive technology."
-        : "Document is not encrypted; assistive tech can read content.",
+      accessibilityDenied
+        ? "The security handler denies assistive-technology access (accessibility permission flag off) — screen readers cannot read this document."
+        : encrypted
+          ? "Document is encrypted, but its security settings explicitly permit assistive-technology access."
+          : "Document is not encrypted; assistive tech can read content.",
     ),
   );
 
@@ -145,22 +153,24 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
     ),
   );
 
-  // Title: Adobe's rule passes if the title is shown in the title bar,
-  // which depends on ViewerPreferences/DisplayDocTitle AND /Info/Title.
-  // We don't parse DisplayDocTitle, so this is an approximation when the
-  // Info title is missing.
+  // Title: Adobe's rule passes only when the title is SHOWN in the title
+  // bar — i.e. an /Info (or XMP) title exists AND ViewerPreferences/
+  // DisplayDocTitle is true. Both signals are parsed now.
   const hasInfoTitle = !!(pdfjs.title && pdfjs.title.trim().length > 0);
+  const titleShown = hasInfoTitle && qpdf.displayDocTitle === true;
   rules.push(
     rule(
       "title",
       "Document",
       "Title",
       "Document title is showing in title bar",
-      hasInfoTitle ? "passed" : "not_computed",
+      titleShown ? "passed" : "failed",
       false,
-      hasInfoTitle
-        ? `Title metadata present: "${pdfjs.title}"`
-        : "No /Info/Title string found. Acrobat's Title rule can still pass via ViewerPreferences/DisplayDocTitle — this tool doesn't parse that flag, so the verdict depends on Acrobat's direct check. In either case, a missing title string means screen readers announce the filename instead.",
+      titleShown
+        ? `Title metadata present and DisplayDocTitle is set: "${pdfjs.title}"`
+        : hasInfoTitle
+          ? `Title metadata present ("${pdfjs.title}") but ViewerPreferences/DisplayDocTitle is not set — viewers show the filename in the title bar. Fix in Acrobat: File → Properties → Initial View → Show: Document Title.`
+          : "No /Info/Title string found — screen readers announce the filename instead.",
     ),
   );
 
@@ -552,17 +562,21 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
 
   const listsVacuous = listCount === 0;
   const listsMalformed = qpdf.lists.filter((l) => !l.isWellFormed).length;
+  // LI-placement (LI must be a child of L) is not something this pipeline
+  // verifies — the list walker starts FROM <L> elements, so a stray <LI>
+  // outside any list is invisible to it. Reporting "passed" here fabricated
+  // a verified-sounding verdict; not_computed is the honest status.
   rules.push(
     rule(
       "list_items",
       "Lists",
       "List items",
       "LI must be a child of L",
-      listsVacuous ? "passed" : "passed",
+      listsVacuous ? "passed" : "not_computed",
       listsVacuous,
       listsVacuous
         ? "No lists found — rule passes vacuously."
-        : `${listCount} list(s) detected with proper <L>/<LI> parent-child structure.`,
+        : `${listCount} list(s) detected. This tool walks lists from their <L> roots and does not verify the placement of every <LI>; Acrobat checks placement directly.`,
     ),
   );
 
@@ -587,17 +601,30 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
   // ──────────────────────────────────────────────────────────────────
 
   const headingsVacuous = headingCount === 0;
+  // Real Acrobat FAILS Appropriate Nesting on skipped heading levels — a
+  // condition this pipeline already detects. Deriving the verdict from the
+  // same skip detection keeps the panel from showing "Acrobat: passed"
+  // beside this tool's own skipped-level finding.
+  let headingSkips = 0;
+  const numericLevels = qpdf.headings
+    .map((h) => Number(/^H(\d)$/.exec(h.level)?.[1]))
+    .filter((n) => Number.isFinite(n));
+  for (let i = 1; i < numericLevels.length; i++) {
+    if (numericLevels[i] - numericLevels[i - 1] > 1) headingSkips++;
+  }
   rules.push(
     rule(
       "appropriate_nesting",
       "Headings",
       "Appropriate nesting",
       "Appropriate nesting",
-      headingsVacuous ? "passed" : "passed",
+      headingsVacuous ? "passed" : headingSkips === 0 ? "passed" : "failed",
       headingsVacuous,
       headingsVacuous
-        ? "No heading tags found — rule passes vacuously. Acrobat has no 'document must contain headings' rule; this tool scores heading_structure as F on substantive documents without headings."
-        : `${headingCount} heading tag(s) found. Acrobat only flags nesting violations (e.g., <H3> inside <H1>); it does not penalize multiple <H1> tags or missing hierarchy.`,
+        ? "No heading tags found — rule passes vacuously. Acrobat has no 'document must contain headings' rule; this tool scores heading_structure separately for substantive documents without headings."
+        : headingSkips === 0
+          ? `${headingCount} heading tag(s) found with no skipped levels. Acrobat flags nesting violations only; it does not penalize multiple <H1> tags.`
+          : `${headingSkips} skipped heading level(s) detected (e.g. H1 → H3) — Acrobat's Appropriate Nesting rule fails on this.`,
     ),
   );
 

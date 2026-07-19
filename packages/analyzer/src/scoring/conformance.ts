@@ -126,6 +126,20 @@ export function evaluateConformance(
     };
   }
 
+  // XFA (LiveCycle) forms render their real UI from the XFA template, which
+  // neither qpdf's object walk nor pdfjs can see — the analyzable "page" is
+  // usually just the "Please update your viewer" placeholder. Judging that
+  // placeholder produced confident failures about content no user is shown.
+  if (qpdf.hasXfa) {
+    return {
+      status: "incomplete",
+      failures: [],
+      notAssessed: [],
+      headline:
+        "This PDF is an XFA (LiveCycle) form — an unsupported form technology whose real content is not visible to automated analysis. No WCAG conformance verdict could be determined; a full manual review in a viewer that supports XFA is required.",
+    };
+  }
+
   const failures: ConformanceFinding[] = [];
 
   const add = (
@@ -138,6 +152,23 @@ export function evaluateConformance(
     failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
   };
 
+  // 0. Security settings deny assistive technology (Matterhorn 26-002 /
+  //    PDF/UA 7.16). Confirmed directly from the security handler's
+  //    accessibility capability: conforming viewers refuse screen readers
+  //    text access to the ENTIRE document — the same user-facing condition
+  //    as a document with no extractable text (check 2 below), which is why
+  //    it is asserted under the same criterion. Strictly `=== false`: null/
+  //    undefined means unencrypted or unknown and must never fire.
+  if (qpdf.accessibilityAllowed === false) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "text_extractability",
+      "The document's security settings deny assistive-technology access (the accessibility permission flag is off — PDF/UA 7.16 / Matterhorn 26-002). Screen readers in conforming viewers cannot read any of its content, regardless of tagging. Re-save the PDF without restrictive security, or enable text access for screen readers in the security settings.",
+    );
+  }
+
   // 1. Untagged document — no structure tree at all.
   if (!qpdf.hasStructTree) {
     add(
@@ -149,14 +180,24 @@ export function evaluateConformance(
     );
   }
 
-  // 2. No extractable text — a scanned image of text.
-  if (!pdfjs.error && !pdfjs.hasText) {
+  // 2. No extractable text — a scanned image of text. Strictly
+  //    textLength === 0, NOT the 50-character `hasText` scoring heuristic:
+  //    a short born-digital notice HAS extractable text, and asserting "no
+  //    text was found" about it would be factually false. Image presence is
+  //    required for the scanned-image framing; a zero-text zero-image
+  //    document has no content to alternate (the untagged claim above covers
+  //    its structural problem when present).
+  if (
+    !pdfjs.error &&
+    pdfjs.textLength === 0 &&
+    (pdfjs.imageCount > 0 || qpdf.imageObjectCount > 0)
+  ) {
     add(
       "1.1.1",
       "Non-text Content",
       "A",
       "text_extractability",
-      "No extractable text was found — the document appears to be scanned images of text, which a screen reader cannot read.",
+      "No extractable text was found and the pages consist of images — the document appears to be scanned images of text, which a screen reader cannot read.",
     );
   }
 
@@ -209,8 +250,14 @@ export function evaluateConformance(
     );
   }
 
-  // 7. Tagged tables with no header cells.
-  const tablesNoHeaders = qpdf.tables.filter((t) => !t.hasHeaders).length;
+  // 7. Tagged tables with no header cells. Sub-2×2 tables (single row or
+  //    single column) are overwhelmingly layout constructs — the OOXML gates
+  //    already skip them, and asserting a confirmed Level A failure for a
+  //    tagged layout table made the PDF verdict diverge from the DOCX one on
+  //    the identical construct. The scoring category still reviews them.
+  const tablesNoHeaders = qpdf.tables.filter(
+    (t) => !t.hasHeaders && t.rowCount >= 2 && (t.columnCounts[0] ?? 2) >= 2,
+  ).length;
   if (tablesNoHeaders > 0) {
     add(
       "1.3.1",
@@ -235,23 +282,20 @@ export function evaluateConformance(
     }
   }
 
-  // 9. Confirmed reading-order drift — asserted ONLY from the rigorous
-  //    struct-tree vs. content-stream MCID comparison itself, never from the
-  //    reading_order category score. The category can be low for heuristic
-  //    reasons (e.g. a flat structure tree scores 30) that say nothing about
-  //    whether the order actually matches — asserting 1.3.2 from those would
-  //    be an unconfirmed claim. Guarded by hasStructTree so we do not
-  //    double-count finding #1.
+  // 9. Reading-order divergence — measured by the rigorous struct-tree vs
+  //    content-stream MCID comparison, but NEVER asserted as a confirmed
+  //    1.3.2 failure: the content stream is DRAW order, not visual reading
+  //    order, and the struct tree exists precisely to override it. A low
+  //    similarity proves the two orders disagree — not which side is wrong
+  //    (professional remediation deliberately re-orders tags away from a bad
+  //    stream order, and assistive technology follows the tags). Heavy
+  //    divergence is routed to notAssessed as an explicit manual-review item
+  //    instead (see below).
+  let orderDivergencePct: number | null = null;
   if (qpdf.hasStructTree) {
     const fidelity = computeReadingOrderFidelity(qpdf, pdfjs);
     if (fidelity.score !== null && fidelity.score <= 40) {
-      add(
-        "1.3.2",
-        "Meaningful Sequence",
-        "A",
-        "reading_order",
-        `The tagged reading order matched the visual order on only ${fidelity.similarityPct}% of comparable content (${fidelity.pagesAnalyzed} page(s) compared), so assistive technology will read the document out of sequence.`,
-      );
+      orderDivergencePct = fidelity.similarityPct;
     }
   }
 
@@ -267,7 +311,15 @@ export function evaluateConformance(
     },
   ];
   const readingOrderCat = categories.find((c) => c.id === "reading_order");
-  if (readingOrderCat && readingOrderCat.score === null) {
+  if (orderDivergencePct !== null) {
+    notAssessed.push({
+      sc: "1.3.2",
+      name: "Meaningful Sequence",
+      level: "A",
+      reason: `The tag order diverges substantially from the content stream's draw order (only ${orderDivergencePct}% agreement). This is not automatically a violation — remediated documents re-order tags on purpose — but the reading order should be verified manually with a screen reader.`,
+      url: wcagUrl("1.3.2"),
+    });
+  } else if (readingOrderCat && readingOrderCat.score === null) {
     notAssessed.push({
       sc: "1.3.2",
       name: "Meaningful Sequence",
@@ -368,6 +420,20 @@ function finalizeVerdict(
  * here and is only listed "not assessed" when no colored text was resolvable.
  */
 export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerdict {
+  // The document body could not be parsed — every content-derived signal is
+  // empty, and a "no-automated-failures" verdict over unanalyzed content
+  // would be a false clean bill (the PDF gate has had this incomplete state
+  // since v1.22; DOCX silently lacked it).
+  if (analysis.parse && !analysis.parse.documentOk) {
+    return {
+      status: "incomplete",
+      failures: [],
+      notAssessed: [],
+      headline:
+        "The Word document's body could not be parsed, so its content was never analyzed and no WCAG conformance verdict could be determined. A full manual review is required.",
+    };
+  }
+
   const failures: ConformanceFinding[] = [];
   const add = (
     sc: string,
@@ -378,6 +444,8 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
   ): void => {
     failures.push({ sc, name, level, category, issue, url: wcagUrl(sc) });
   };
+  const stylesUnreadable = analysis.parse?.stylesState === "unparseable";
+  const coreUnreadable = analysis.parse?.coreState === "unparseable";
 
   // 1. Non-decorative images without alt text → 1.1.1.
   const imagesMissingAlt = analysis.images.filter(
@@ -393,8 +461,11 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
-  // 2. No declared document language → 3.1.1.
-  if (!analysis.metadata.language) {
+  // 2. No declared document language → 3.1.1. Suppressed when the parts the
+  //    language is read FROM could not be parsed — "the part said nothing"
+  //    and "the part could not be read" must not produce the same confirmed
+  //    claim.
+  if (!analysis.metadata.language && !stylesUnreadable && !coreUnreadable) {
     add(
       "3.1.1",
       "Language of Page",
@@ -404,8 +475,8 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
     );
   }
 
-  // 3. No document title → 2.4.2.
-  if (!analysis.metadata.title) {
+  // 3. No document title → 2.4.2 (suppressed when core.xml was unparseable).
+  if (!analysis.metadata.title && !coreUnreadable) {
     add(
       "2.4.2",
       "Page Titled",
@@ -416,8 +487,12 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
   }
 
   // 4. Data tables (≥2×2, to skip layout tables) with no header row → 1.3.1.
+  //    Tables with NO data-table indicators anywhere (no table style, no
+  //    borders, no shading, no header marks) are overwhelmingly layout grids
+  //    — asserting a confirmed Level A violation on them was the layout-table
+  //    false positive promoted to the verdict. They stay a scoring concern.
   const dataTablesNoHeader = analysis.tables.filter(
-    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
+    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true,
   ).length;
   if (dataTablesNoHeader > 0) {
     add(
@@ -654,7 +729,12 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
   //    data-region heuristic (a used range with no Table object) and never
   //    merged cells — both are scoring-only advisories, not confirmed
   //    WCAG violations (see the doc comment above).
-  const tablesNoHeader = analysis.tables.filter((t) => !t.hasHeaderRow).length;
+  // Single-column defined tables ("Format as Table" used for row banding on
+  // a plain list) carry no data-cell/header association to break — gate only
+  // multi-column tables (unknown span counts as multi, the safe default).
+  const tablesNoHeader = analysis.tables.filter(
+    (t) => !t.hasHeaderRow && (t.columnCount ?? 2) >= 2,
+  ).length;
   if (tablesNoHeader > 0) {
     add(
       "1.3.1",

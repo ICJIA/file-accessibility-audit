@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.36.0] - 2026-07-19
+
+Accuracy & verdict-integrity release — the full P0/P1/P2 fix set from the 2026-07-19 four-agent review of the audit algorithms, across all four formats. Governing principle now enforced everywhere: **never assert a confirmed WCAG violation (or a Critical score) from a defaulted or unresolved value** — unresolved becomes notAssessed/advisory instead.
+
+### Fixed — false confirmed verdicts and silent passes
+
+- **AT-blocked encrypted PDFs are caught** (the worst silent pass): qpdf's `encrypt.capabilities.accessibility` is now read; legacy-encrypted files that deny screen-reader access were scoring 100/A with a clean verdict — they now fail 1.1.1 with a Critical text-extractability finding (PDF/UA 7.16 / Matterhorn 26-002). The Adobe-parity panel simultaneously stops failing *every* encrypted document.
+- **Short born-digital PDFs are no longer "scanned images"**: the confirmed 1.1.1 scanned-document claim now requires truly zero extracted text AND page images (the 50-character `hasText` heuristic remains scoring-only, with honest "minimal text" wording); `isScanned` follows the same rule.
+- **DOCX contrast** resolves table-cell shading (`w:tcPr/w:shd`) and treats styled-table and text-box backgrounds as unresolved — white-on-dark header rows (the correct practice) no longer produce confirmed 1.4.3 failures at "1:1". **PPTX contrast** requires background provenance (explicit same-shape or slide `bgPr` fill; layout/master/`bgRef` backgrounds are unresolved) and no longer holds inherited-size titles to the 4.5:1 bar in the 3.0–4.5 band.
+- **Word text boxes are not images**: drawings are classified by `graphicData` URI, so text-bearing shapes no longer fail 1.1.1 for missing alt (pictures/charts/SmartArt still require it).
+- **PPTX language**: run-level `a:rPr@lang` (where PowerPoint actually stores language) satisfies 3.1.1 via a dominant-language fallback — Google Slides exports no longer get false "no language declared" failures.
+- **XLSX link text is read from the linked cells** (shared strings incl. rich runs, inline strings, cached values; range refs use their first cell; `display` is the fallback) — real workbooks had every link flagged "(empty)". Unresolvable links are excluded from judgment, never counted as violations.
+- **Reading order**: the struct-tree vs content-stream comparison measures DRAW-order agreement, which cannot prove the tags are wrong — heavy divergence is now a notAssessed manual-review item instead of a confirmed 1.3.2, the 0.8–0.97 band deducts lightly (85), and all prose says "draw order". Professionally remediated documents are no longer punished for re-ordering tags.
+- **Gate scope corrections**: PDF table claim gains the ≥2×2 layout filter the OOXML gates had; DOCX headerless-table claims skip layout-like tables (no style/borders/shading/header marks) and honor `w:tblHeader w:val="0"` + first-row semantics; XLSX skips single-column banded lists; hidden Excel sheets, hidden/NoView form fields, and hidden slides no longer drive findings; XFA (LiveCycle) forms return an honest `incomplete` instead of failing their placeholder page; DOCX gains the `incomplete` state for unparseable bodies plus per-part parse tracking (unreadable styles/core parts no longer produce confirmed 3.1.1/2.4.2 claims); Figure `/ActualText` counts as a text alternative; `mc:AlternateContent` is walked Choice-only (text-box content was double/triple-counted, inflating verdict evidence).
+
+### Changed — cross-format scoring equity
+
+- **One link-text doctrine** (`classifyLinkText` shared in scoring/common.ts): raw URLs satisfy 2.4.4 and are advisory-only in every format (DOCX previously scored an all-URL memo 0 while its PDF twin scored 100); vague phrases ("click here") are penalized everywhere (PPTX/XLSX previously let them pass).
+- **One alt-text convention**: any missing alt caps the category at 85 (Minor ceiling) and all-decorative is N/A in DOCX, PPTX, and XLSX alike; Title-only alt (AT reads Description, not Title) counts as missing with a targeted advisory.
+- **Proportional deductions with floors/caps** replace linear cliffs: slide titles and sheet names score by ratio (floor 40 / cap 85 — a 95%-titled 100-slide deck was scoring an identical 0 to an all-untitled one), heading-level skips cap at −30.
+- **Parity**: a heading-less SHORT PDF scores heading_structure N/A like DOCX (same memo was 70/C as PDF, 100/A as DOCX; substantive documents keep the 0); missing XLSX title scores 50 like every other format (was a full-category 0); XLSX "Advisory:" labels no longer deduct (merged cells are a note; a workbook with no header semantics anywhere caps table_markup at 60 with honest wording; pivot sheets stop getting impossible "Insert → Table" advice); PPTX reading_order is N/A when no visible slide has a title (was a vacuous 100).
+- **DisplayDocTitle** (`/ViewerPreferences`) is parsed: a title that viewers won't show earns 35/50 with a targeted fix, and the Adobe-parity Title rule now reports Acrobat's actual verdict; parity list/nesting rules stop fabricating "passed" (nesting derives from the real skip detection).
+- Executive summary A/B branches never claim "cleared every check" beside a Critical/Moderate category.
+
+### Added — extraction coverage
+
+- DOCX: headers/footers, footnotes/endnotes (images, hyperlinks with per-part rels, contrast), field-code hyperlinks (`fldSimple` + `instrText` begin/separate/end), legacy VML images (`w:pict`/`v:imagedata` with `v:shape@alt`), custom heading styles via `outlineLvl`/`basedOn` chains and direct paragraph `outlineLvl` (agency `ChapterTitle` templates were invisible AND flagged fake), style-level list numbering + `numId=0` exclusion + numbered headings no longer "manual bullets", empty-heading advisory.
+- PPTX: master-inherited bullets for body placeholders, decorative pics excluded from title-first, group-level alt/decorative covers members, consecutive link runs merged + picture-level links, slide order from `sldIdLst`, hidden-slide detection, `firstRow` ST_Boolean.
+- XLSX: chartsheets audited (chart alt review) with generic rels-path resolution, used-range = max(declared dimension, real cells), text-extractability keyed to actual cell values with text-box disclosure, localized default sheet names (Hoja/Feuil/Tabelle/…, copy suffixes), pivot detection, defined-table column spans.
+- PDF: MarkInfo `/Suspects` advisory, painted-images-beyond-figures advisory (partial tagging no longer claims full alt coverage), qpdf v2 stream-object unwrap (the image-XObject census was permanently zero on modern qpdf; test fixtures regenerated to the true v2 shape).
+
+Verified against the 19-document controls corpus: PDF scores essentially unchanged (±3 — DisplayDocTitle docking vs reading-order softening), both sample decks and both public datasets shed exactly their false confirmed failures (sample-1 83/B fail(3) → 92/A fail(1); rdca datasets 76/C → 90/A). Tests 1,418 → 1,528 (API 986 / web 493 / CLI 49); lint, typecheck, build green.
+
 ## [1.35.0] - 2026-07-19
 
 Uptime-monitoring release: one probe URL now proves both production processes are up.

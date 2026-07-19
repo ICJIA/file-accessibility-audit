@@ -4,12 +4,18 @@ import JSZip from "jszip";
 export interface SheetOpts {
   name: string;
   hidden?: boolean;
+  /** Emit this sheet as a CHARTSHEET part (xl/chartsheets/sheetN.xml). */
+  chartsheet?: boolean;
+  /** Add a pivotTable relationship to this sheet (no part written — the
+   *  analyzer detects pivots by relationship type alone). */
+  pivot?: boolean;
   /** dimension ref, e.g. "A1:D20"; omit for an empty sheet (no dimension). */
   dimensionRef?: string;
   /** Number of <mergeCell> entries. */
   mergeCount?: number;
-  /** Hyperlinks: display may be omitted to exercise the ""-text path. */
-  hyperlinks?: Array<{ id: string; target: string; display?: string }>;
+  /** Hyperlinks: display may be omitted to exercise the cell-resolution path;
+   *  ref (default "A1") points at the cell whose text is the link's text. */
+  hyperlinks?: Array<{ id: string; target: string; display?: string; ref?: string }>;
   /** Defined tables attached to this sheet. headerRowCount: undefined = attr
    *  absent (header ON). padBytes: when set, pads the table part with that
    *  many bytes of an inert XML comment — used to build large defined-table
@@ -51,8 +57,9 @@ export interface SheetOpts {
     ref: string;
     styleIndex?: number;
     value?: string;
-    /** v = <v> value (default), is = inline string, f = formula. */
-    kind?: "v" | "is" | "f";
+    /** v = <v> value (default), is = inline string, f = formula,
+     *  s = shared string (value is the sst index). */
+    kind?: "v" | "is" | "f" | "s";
     /** Emit a bare `<c r="{ref}" s="N"/>` with no value child. */
     empty?: boolean;
   }>;
@@ -61,6 +68,9 @@ export interface SheetOpts {
 export interface BuildXlsxOpts {
   sheets: SheetOpts[];
   coreXml?: string; // default carries a dc:title + dc:creator
+  /** xl/sharedStrings.xml entries: plain strings become <si><t>…</t></si>;
+   *  a { richRuns } entry becomes <si><r><t>…</t></r>…</si>. */
+  sharedStrings?: Array<string | { richRuns: string[] }>;
   /** cellXfs entries: font color/size/bold × solid-fill color (both ARGB or 6-hex). */
   styles?: Array<{
     fontRgb?: string;
@@ -85,6 +95,7 @@ function renderCell(c: NonNullable<SheetOpts["cells"]>[number]): string {
   const value = c.value ?? "1";
   if (kind === "f") return `<c r="${c.ref}"${sAttr}><f>${value}</f></c>`;
   if (kind === "is") return `<c r="${c.ref}"${sAttr} t="inlineStr"><is><t>${value}</t></is></c>`;
+  if (kind === "s") return `<c r="${c.ref}"${sAttr} t="s"><v>${value}</v></c>`;
   return `<c r="${c.ref}"${sAttr}><v>${value}</v></c>`;
 }
 
@@ -118,6 +129,20 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
       `<?xml version="1.0"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Grant Ledger</dc:title><dc:creator>ICJIA</dc:creator></cp:coreProperties>`,
   );
 
+  if (opts.sharedStrings?.length) {
+    const sis = opts.sharedStrings
+      .map((s) =>
+        typeof s === "string"
+          ? `<si><t>${s}</t></si>`
+          : `<si>${s.richRuns.map((r) => `<r><t>${r}</t></r>`).join("")}</si>`,
+      )
+      .join("");
+    zip.file(
+      "xl/sharedStrings.xml",
+      `<?xml version="1.0"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${opts.sharedStrings.length}" uniqueCount="${opts.sharedStrings.length}">${sis}</sst>`,
+    );
+  }
+
   const sheetEls = opts.sheets
     .map(
       (s, i) =>
@@ -132,8 +157,8 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     "xl/_rels/workbook.xml.rels",
     `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${opts.sheets
       .map(
-        (_, i) =>
-          `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`,
+        (s, i) =>
+          `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${s.chartsheet ? "chartsheet" : "worksheet"}" Target="${s.chartsheet ? "chartsheets" : "worksheets"}/sheet${i + 1}.xml"/>`,
       )
       .join("")}</Relationships>`,
   );
@@ -185,7 +210,7 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
       ? `<hyperlinks>${s.hyperlinks
           .map(
             (h) =>
-              `<hyperlink ref="A1" r:id="${h.id}"${h.display !== undefined ? ` display="${h.display}"` : ""}/>`,
+              `<hyperlink ref="${h.ref ?? "A1"}" r:id="${h.id}"${h.display !== undefined ? ` display="${h.display}"` : ""}/>`,
           )
           .join("")}</hyperlinks>`
       : "";
@@ -194,6 +219,11 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
         `<Relationship Id="${h.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${h.target}" TargetMode="External"/>`,
       ),
     );
+    if (s.pivot) {
+      rels.push(
+        `<Relationship Id="rIdP${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotTable" Target="../pivotTables/pivotTable${i + 1}.xml"/>`,
+      );
+    }
     s.tables?.forEach((t) => {
       tableIdx++;
       const hdr = t.headerRowCount === undefined ? "" : ` headerRowCount="${t.headerRowCount}"`;
@@ -239,15 +269,29 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     } else if (s.drawings?.length || s.rawDrawings) {
       addDrawingPart(s.drawings, s.rawDrawings);
     }
-    zip.file(
-      `xl/worksheets/sheet${i + 1}.xml`,
-      `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${dim}${renderSheetData(s.cells)}${merges}${links}</worksheet>`,
-    );
-    if (rels.length) {
+    if (s.chartsheet) {
+      const drawingRel = rels.find((r) => r.includes("/drawing"));
       zip.file(
-        `xl/worksheets/_rels/sheet${i + 1}.xml.rels`,
-        `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join("")}</Relationships>`,
+        `xl/chartsheets/sheet${i + 1}.xml`,
+        `<?xml version="1.0"?><chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${drawingRel ? `<drawing r:id="rIdD${drawingIdx}"/>` : ""}</chartsheet>`,
       );
+      if (rels.length) {
+        zip.file(
+          `xl/chartsheets/_rels/sheet${i + 1}.xml.rels`,
+          `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join("")}</Relationships>`,
+        );
+      }
+    } else {
+      zip.file(
+        `xl/worksheets/sheet${i + 1}.xml`,
+        `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${dim}${renderSheetData(s.cells)}${merges}${links}</worksheet>`,
+      );
+      if (rels.length) {
+        zip.file(
+          `xl/worksheets/_rels/sheet${i + 1}.xml.rels`,
+          `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join("")}</Relationships>`,
+        );
+      }
     }
   });
 

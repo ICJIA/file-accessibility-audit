@@ -32,6 +32,11 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     artifactCount: 0,
     actualTextCount: 0,
     expansionTextCount: 0,
+    isEncrypted: false,
+    accessibilityAllowed: null,
+    displayDocTitle: null,
+    hasXfa: false,
+    suspectsFlag: false,
     structTreeDepth: 0,
     contentOrder: [],
     structTreeMcidsByPage: {},
@@ -177,11 +182,12 @@ describe("buildAdobeParityReport", () => {
     expect(nesting.status).toBe("passed");
     expect(nesting.vacuous).toBe(true);
 
-    // Title: no /Info/Title — this tool can't determine Acrobat's verdict
-    // without ViewerPreferences, so it should be "not_computed".
+    // Title: no /Info/Title and no DisplayDocTitle — both signals are parsed
+    // now, so the rule fails outright (screen readers announce the filename),
+    // matching Acrobat's own verdict on this file.
     const title = report.rules.find((r) => r.id === "title")!;
-    expect(title.status).toBe("not_computed");
-    expect(title.note).toMatch(/DisplayDocTitle|ViewerPreferences/);
+    expect(title.status).toBe("failed");
+    expect(title.note).toMatch(/filename/);
   });
 
   it("reproduces the WomenInPolicing case: well-tagged doc with real figures, tables, and headings", () => {
@@ -276,6 +282,23 @@ describe("buildAdobeParityReport", () => {
     expect(report.rules.find((r) => r.id === "summary")!.status).toBe("skipped");
     expect(report.rules.find((r) => r.id === "logical_reading_order")!.status).toBe("manual");
     expect(report.rules.find((r) => r.id === "color_contrast")!.status).toBe("manual");
+  });
+
+  it("fails the accessibility-permission rule only when the flag actually denies AT", () => {
+    const denied = buildAdobeParityReport(
+      makeQpdf({ isEncrypted: true, accessibilityAllowed: false }),
+      makePdfjs({ metadata: { ...makePdfjs().metadata, isEncrypted: true } }),
+    );
+    const deniedRule = denied.rules.find((r) => r.id === "accessibility_permission_flag")!;
+    expect(deniedRule.status).toBe("failed");
+
+    const allowed = buildAdobeParityReport(
+      makeQpdf({ isEncrypted: true, accessibilityAllowed: true }),
+      makePdfjs({ metadata: { ...makePdfjs().metadata, isEncrypted: true } }),
+    );
+    const allowedRule = allowed.rules.find((r) => r.id === "accessibility_permission_flag")!;
+    expect(allowedRule.status).toBe("passed");
+    expect(allowedRule.note).toContain("explicitly permit");
   });
 
   it("fails 'Tagged PDF' when there is no StructTreeRoot", () => {

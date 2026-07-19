@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import {
   buildPptx,
   bodyShape,
+  bodyPlaceholderShape,
   para,
   picture,
   pptTable,
@@ -82,9 +83,9 @@ describe("pptxService: images, tables, links, lists, media", () => {
     });
     const a = await analyzePptx(buf);
     expect(a.images).toEqual([
-      { altText: "Org chart", decorative: false },
-      { altText: null, decorative: true },
-      { altText: null, decorative: false },
+      { altText: "Org chart", decorative: false, titleOnly: false },
+      { altText: null, decorative: true, titleOnly: false },
+      { altText: null, decorative: false, titleOnly: false },
     ]);
   });
 
@@ -154,9 +155,146 @@ describe("pptxService: images, tables, links, lists, media", () => {
   });
 });
 
+describe("pptxService: P2 accuracy fixes", () => {
+  it('accepts firstRow="true" (ST_Boolean) as a header row', async () => {
+    const frame =
+      `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="9" name="T"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>` +
+      `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">` +
+      `<a:tbl><a:tblPr firstRow="true"/><a:tblGrid><a:gridCol/><a:gridCol/></a:tblGrid>` +
+      `<a:tr><a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>H1</a:t></a:r></a:p></a:txBody></a:tc>` +
+      `<a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:t>H2</a:t></a:r></a:p></a:txBody></a:tc></a:tr>` +
+      `<a:tr><a:tc><a:txBody><a:bodyPr/><a:p/></a:txBody></a:tc><a:tc><a:txBody><a:bodyPr/><a:p/></a:txBody></a:tc></a:tr>` +
+      `</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+    const buf = await buildPptx({ slides: [{ title: "T", body: frame }] });
+    const a = await analyzePptx(buf);
+    expect(a.tables[0].hasHeaderRow).toBe(true);
+  });
+
+  it("ignores decorative pics when judging title-reads-first", async () => {
+    const buf = await buildPptx({
+      slides: [{ title: "Agenda", beforeTitle: picture({ decorative: true }) }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.slides[0].titleIsFirstShape).toBe(true);
+  });
+
+  it("group-level alt covers the group's member pictures", async () => {
+    const group =
+      `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="20" name="G" descr="Team diagram"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>` +
+      `<p:grpSpPr/>${picture({})}${picture({})}</p:grpSp>`;
+    const buf = await buildPptx({ slides: [{ title: "T", body: group }] });
+    const a = await analyzePptx(buf);
+    expect(a.images).toEqual([{ altText: "Team diagram", decorative: false, titleOnly: false }]);
+  });
+
+  it("merges consecutive runs of one hyperlink into a single link", async () => {
+    const linkedPara =
+      `<a:p><a:r><a:rPr lang="en-US"><a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rIdH1"/></a:rPr><a:t>Learn </a:t></a:r>` +
+      `<a:r><a:rPr lang="en-US"><a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rIdH1"/></a:rPr><a:t>more</a:t></a:r></a:p>`;
+    const buf = await buildPptx({
+      slides: [
+        {
+          title: "T",
+          body: bodyShape(linkedPara),
+          rels: hyperlinkRels([{ id: "rIdH1", target: "https://example.gov/info" }]),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.links).toEqual([{ text: "Learn more", url: "https://example.gov/info" }]);
+  });
+
+  it("collects picture-level links (image buttons) with their alt as text", async () => {
+    const linkedPic =
+      `<p:pic><p:nvPicPr><p:cNvPr id="30" name="Btn" descr="Report cover">` +
+      `<a:hlinkClick xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rIdH2"/>` +
+      `</p:cNvPr><p:cNvPicPr/><p:nvPr/></p:nvPicPr></p:pic>`;
+    const buf = await buildPptx({
+      slides: [
+        {
+          title: "T",
+          body: linkedPic,
+          rels: hyperlinkRels([{ id: "rIdH2", target: "https://example.gov/report" }]),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.links).toEqual([{ text: "Report cover", url: "https://example.gov/report" }]);
+  });
+
+  it("counts master-inherited bullets in body placeholders as real list items", async () => {
+    const master =
+      `<?xml version="1.0"?><p:sldMaster ${""}xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+      `<p:txStyles><p:bodyStyle><a:lvl1pPr><a:buChar char="•"/></a:lvl1pPr></p:bodyStyle></p:txStyles></p:sldMaster>`;
+    const buf = await buildPptx({
+      masterXml: master,
+      slides: [
+        {
+          title: null,
+          body: bodyPlaceholderShape(
+            para("Alpha") + para("Beta") + para("No bullet here", { bullet: "none" }),
+          ),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.lists.realListItems).toBe(2);
+    expect(a.lists.manualBulletParagraphs).toBe(0);
+  });
+
+  it("marks hidden slides", async () => {
+    const buf = await buildPptx({
+      slides: [{ title: "Visible" }, { title: null, hidden: true }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.slides[0].hidden).toBe(false);
+    expect(a.slides[1].hidden).toBe(true);
+  });
+});
+
+describe("pptxService: language", () => {
+  it("falls back to the dominant run-level lang when the deck declares no default", async () => {
+    // Google Slides exports declare no presentation default but stamp lang
+    // on every run — asserting "no language declared" about them was false.
+    const buf = await buildPptx({
+      declareLanguage: false,
+      slides: [
+        {
+          title: null,
+          body: bodyShape(
+            para("Hello", { lang: "en-US" }) +
+              para("Monde", { lang: "fr-FR" }) +
+              para("World", { lang: "en-US" }),
+          ),
+        },
+      ],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.metadata.language).toBe("en-US");
+  });
+
+  it("keeps language null when no language exists anywhere", async () => {
+    const buf = await buildPptx({
+      declareLanguage: false,
+      slides: [{ title: null, body: bodyShape(para("Plain text")) }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.metadata.language).toBe(null);
+  });
+
+  it("prefers the deck-level default over run languages", async () => {
+    const buf = await buildPptx({
+      slides: [{ title: null, body: bodyShape(para("Bonjour", { lang: "fr-FR" })) }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.metadata.language).toBe("en-US");
+  });
+});
+
 describe("pptxService: contrast", () => {
   it("fails a low-contrast explicit color and passes a high-contrast one", async () => {
     const buf = await buildPptx({
+      slideBgHex: "FFFFFF", // explicit slide background — required for provenance
       slides: [
         {
           title: "T",
@@ -197,6 +335,7 @@ describe("pptxService: contrast", () => {
 
   it("resolves theme scheme colors and applies the large-text threshold", async () => {
     const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
       slides: [
         {
           title: "T",
@@ -221,6 +360,42 @@ describe("pptxService: contrast", () => {
     const a = await analyzePptx(buf);
     expect(a.contrast.checkedRuns).toBe(0);
     expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("counts explicit-color runs as unresolved when no explicit background exists", async () => {
+    // No slide bgPr, no shape fill — the background comes from the layout/
+    // master (bgRef, designed cards). Assuming white here falsely failed
+    // white-titled dark-template decks at "1:1".
+    const buf = await buildPptx({
+      slides: [{ title: "T", body: bodyShape(para("white title text", { colorHex: "FFFFFF" })) }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.checkedRuns).toBe(0);
+    expect(a.contrast.failing).toHaveLength(0);
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("treats the 3.0–4.5 band as unresolved when the effective font size is inherited", async () => {
+    // #949494 on explicit white ≈ 3.05:1 — passes the large-text bar, fails
+    // the normal bar; with the size inherited from the placeholder chain we
+    // cannot know which bar applies.
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [{ title: "T", body: bodyShape(para("maybe-large grey", { colorHex: "949494" })) }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing).toHaveLength(0);
+    expect(a.contrast.failing.map((f) => f.text)).not.toContain("maybe-large grey");
+    expect(a.contrast.unresolvedRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("still fails a size-unknown run that misses even the large-text bar", async () => {
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [{ title: "T", body: bodyShape(para("nearly invisible", { colorHex: "DDDDDD" })) }],
+    });
+    const a = await analyzePptx(buf);
+    expect(a.contrast.failing.map((f) => f.text)).toEqual(["nearly invisible"]);
   });
 });
 
@@ -411,7 +586,12 @@ describe("pptxService: theme scheme colors resolved once per analysis (V3 DoS ha
     ).join("");
     // title: null — a title run has no rPr at all, which would otherwise add
     // an unrelated unresolved-run to the count this test is isolating.
-    const buf = await buildPptx({ slides: [{ title: null, body: bodyShape(paragraphs) }] });
+    // slideBgHex: contrast needs a provenance-resolved background for runs
+    // to count as checked; this test isolates fg scheme-color resolution.
+    const buf = await buildPptx({
+      slideBgHex: "FFFFFF",
+      slides: [{ title: null, body: bodyShape(paragraphs) }],
+    });
     const a = await analyzePptx(buf);
     expect(a.contrast.checkedRuns).toBe(12);
     expect(a.contrast.unresolvedRuns).toBe(0);

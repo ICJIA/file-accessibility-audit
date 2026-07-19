@@ -56,8 +56,8 @@ describe("xlsxService: tables, drawings, links", () => {
     });
     const a = await analyzeXlsx(buf);
     expect(a.tables).toEqual([
-      { sheetName: "Data", name: "GoodTable", hasHeaderRow: true },
-      { sheetName: "Data", name: "BadTable", hasHeaderRow: false },
+      { sheetName: "Data", name: "GoodTable", hasHeaderRow: true, columnCount: 3 },
+      { sheetName: "Data", name: "BadTable", hasHeaderRow: false, columnCount: 3 },
     ]);
     expect(a.sheets[0].hasDefinedTable).toBe(true);
   });
@@ -78,9 +78,9 @@ describe("xlsxService: tables, drawings, links", () => {
     });
     const a = await analyzeXlsx(buf);
     expect(a.images).toEqual([
-      { altText: "Staff photo", decorative: false },
-      { altText: null, decorative: false },
-      { altText: null, decorative: true },
+      { altText: "Staff photo", decorative: false, titleOnly: false },
+      { altText: null, decorative: false, titleOnly: false },
+      { altText: null, decorative: true, titleOnly: false },
     ]);
   });
 
@@ -95,7 +95,7 @@ describe("xlsxService: tables, drawings, links", () => {
       ],
     });
     const a = await analyzeXlsx(buf);
-    expect(a.images).toEqual([{ altText: "Two-cell anchored", decorative: false }]);
+    expect(a.images).toEqual([{ altText: "Two-cell anchored", decorative: false, titleOnly: false }]);
   });
 
   it("collects every object in a grouped anchor (nothing silently dropped)", async () => {
@@ -108,29 +108,196 @@ describe("xlsxService: tables, drawings, links", () => {
     });
     const a = await analyzeXlsx(buf);
     expect(a.images).toEqual([
-      { altText: "Grouped photo", decorative: false },
-      { altText: null, decorative: false },
+      { altText: "Grouped photo", decorative: false, titleOnly: false },
+      { altText: null, decorative: false, titleOnly: false },
     ]);
   });
 
-  it('reads hyperlinks with display text, and "" when display is absent', async () => {
+  it("resolves link text from the referenced cell — shared strings, inline strings, cached values", async () => {
+    // Real Excel writes <hyperlink ref r:id/> with NO display attribute; the
+    // visible text lives in the cell. Reading only `display` flagged every
+    // link in real workbooks as "(empty)".
     const buf = await buildXlsx({
+      sharedStrings: ["Annual Report 2024", { richRuns: ["Grant ", "Ledger"] }],
       sheets: [
         {
           name: "L",
-          dimensionRef: "A1:B2",
+          dimensionRef: "A1:B4",
+          cells: [
+            { ref: "A1", kind: "s", value: "0" },
+            { ref: "A2", kind: "s", value: "1" },
+            { ref: "A3", kind: "is", value: "Inline title" },
+            { ref: "A4", kind: "v", value: "42" },
+          ],
           hyperlinks: [
-            { id: "rIdH1", target: "https://example.gov/a", display: "Annual report" },
-            { id: "rIdH2", target: "https://example.gov/b" },
+            { id: "rIdH1", target: "https://example.gov/a", ref: "A1" },
+            { id: "rIdH2", target: "https://example.gov/b", ref: "A2" },
+            { id: "rIdH3", target: "https://example.gov/c", ref: "A3" },
+            { id: "rIdH4", target: "https://example.gov/d", ref: "A4" },
           ],
         },
       ],
     });
     const a = await analyzeXlsx(buf);
     expect(a.links).toEqual([
-      { text: "Annual report", url: "https://example.gov/a" },
-      { text: "", url: "https://example.gov/b" },
+      { text: "Annual Report 2024", url: "https://example.gov/a", resolved: true },
+      { text: "Grant Ledger", url: "https://example.gov/b", resolved: true },
+      { text: "Inline title", url: "https://example.gov/c", resolved: true },
+      { text: "42", url: "https://example.gov/d", resolved: true },
     ]);
+  });
+
+  it("falls back to the display attribute when the referenced cell has no text", async () => {
+    const buf = await buildXlsx({
+      sheets: [
+        {
+          name: "L",
+          dimensionRef: "A1:B2",
+          hyperlinks: [
+            { id: "rIdH1", target: "https://example.gov/a", display: "Annual report", ref: "C9" },
+          ],
+        },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.links).toEqual([
+      { text: "Annual report", url: "https://example.gov/a", resolved: true },
+    ]);
+  });
+
+  it("marks a link unresolved when neither cell text nor display exists — never an empty-text violation", async () => {
+    const buf = await buildXlsx({
+      sheets: [
+        {
+          name: "L",
+          dimensionRef: "A1:B2",
+          hyperlinks: [{ id: "rIdH2", target: "https://example.gov/b", ref: "Z99" }],
+        },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.links).toEqual([{ text: "", url: "https://example.gov/b", resolved: false }]);
+  });
+
+  it("resolves a range ref by its first cell and keeps a found-but-empty cell as resolved", async () => {
+    const buf = await buildXlsx({
+      sharedStrings: ["Spanning title"],
+      sheets: [
+        {
+          name: "L",
+          dimensionRef: "A1:B2",
+          cells: [
+            { ref: "A1", kind: "s", value: "0" },
+            { ref: "B1", empty: true },
+          ],
+          hyperlinks: [
+            { id: "rIdH1", target: "https://example.gov/a", ref: "A1:A3" },
+            { id: "rIdH2", target: "https://example.gov/b", ref: "B1" },
+          ],
+        },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.links).toEqual([
+      { text: "Spanning title", url: "https://example.gov/a", resolved: true },
+      { text: "", url: "https://example.gov/b", resolved: true },
+    ]);
+  });
+});
+
+describe("xlsxService: hidden sheets, chartsheets, dimensions, text boxes", () => {
+  it("skips hidden sheets' content entirely (tables, images, links)", async () => {
+    const buf = await buildXlsx({
+      sheets: [
+        {
+          name: "Visible",
+          dimensionRef: "A1:B4",
+          cells: [{ ref: "A1", kind: "is", value: "Data" }],
+        },
+        {
+          name: "Lookups",
+          hidden: true,
+          dimensionRef: "A1:B9",
+          tables: [{ name: "HiddenT", headerRowCount: 0 }],
+          drawings: [{ kind: "pic" }],
+          hyperlinks: [{ id: "rIdH9", target: "https://example.gov/h", display: "hidden link" }],
+        },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.tables).toEqual([]);
+    expect(a.images).toEqual([]);
+    expect(a.links).toEqual([]);
+    expect(a.sheets[1].hidden).toBe(true);
+  });
+
+  it("audits chartsheet drawings so chart alt text is reviewed", async () => {
+    const buf = await buildXlsx({
+      sheets: [
+        { name: "Data", dimensionRef: "A1:B4" },
+        { name: "Dashboard", chartsheet: true, drawings: [{ kind: "chart", descr: "Sales chart" }] },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.images).toEqual([{ altText: "Sales chart", decorative: false, titleOnly: false }]);
+  });
+
+  it("uses the larger of the declared dimension and the real cell count", async () => {
+    const cells = Array.from({ length: 15 }, (_, i) => ({
+      ref: `A${i + 1}`,
+      kind: "is" as const,
+      value: `v${i}`,
+    }));
+    const buf = await buildXlsx({
+      sheets: [{ name: "Data", dimensionRef: "A1:A1", cells }],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.sheets[0].usedRangeCellCount).toBe(15);
+  });
+
+  it("counts drawing text boxes and cell values for extractability honesty", async () => {
+    const buf = await buildXlsx({
+      sheets: [
+        {
+          name: "Info",
+          rawDrawings:
+            `<xdr:oneCellAnchor><xdr:sp><xdr:nvSpPr><xdr:cNvPr id="5" name="TextBox 1"/><xdr:cNvSpPr/></xdr:nvSpPr>` +
+            `<xdr:spPr/><xdr:txBody xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:bodyPr/><a:p><a:r><a:t>Narrative text lives here</a:t></a:r></a:p></xdr:txBody>` +
+            `</xdr:sp></xdr:oneCellAnchor>`,
+        },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.textBoxCount).toBe(1);
+    expect(a.totalCellsWithValue).toBe(0);
+  });
+
+  it("recognizes localized and copied default sheet names", async () => {
+    const buf = await buildXlsx({
+      sheets: [
+        { name: "Hoja1", dimensionRef: "A1:A2" },
+        { name: "Tabelle2 (2)", dimensionRef: "A1:A2" },
+        { name: "FY26 Grants", dimensionRef: "A1:A2" },
+      ],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.sheets.map((s) => s.defaultNamed)).toEqual([true, true, false]);
+  });
+
+  it("flags sheets carrying pivot tables", async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: "Report", dimensionRef: "A1:H40", pivot: true }],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.sheets[0].hasPivot).toBe(true);
+  });
+
+  it("records defined-table column spans for the gate's layout guard", async () => {
+    const buf = await buildXlsx({
+      sheets: [{ name: "L", dimensionRef: "A1:C9", tables: [{ name: "T1", headerRowCount: 0 }] }],
+    });
+    const a = await analyzeXlsx(buf);
+    expect(a.tables[0].columnCount).toBe(3); // fixture table ref is A1:C4
   });
 });
 

@@ -9,6 +9,7 @@ import type { PptxAnalysis } from "../pptxService.js";
 import {
   getGrade,
   getSeverity,
+  classifyLinkText,
   clamp100,
   aggregateScore,
   applyWcagCriteria,
@@ -125,9 +126,13 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     );
   }
 
-  const untitled = a.slides.filter((s) => !s.title);
+  // Hidden slides are not presented — they neither need titles nor belong in
+  // the outline judgment.
+  const visible = a.slides.filter((s) => !s.hidden);
+  const hiddenCount = a.slides.length - visible.length;
+  const untitled = visible.filter((s) => !s.title);
   const titleGroups = new Map<string, number[]>();
-  for (const s of a.slides) {
+  for (const s of visible) {
     if (!s.title) continue;
     const idx = titleGroups.get(s.title) ?? [];
     idx.push(s.index);
@@ -135,11 +140,21 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
   }
   const duplicateGroups = [...titleGroups.entries()].filter(([, idx]) => idx.length > 1);
 
-  let score = 100;
+  // Proportional with a floor and cap — the old linear −20/slide scored a
+  // 100-slide deck with 95 titled slides (95% compliant) an identical 0 to
+  // an all-untitled deck. Ratio-based mirrors the alt-text convention; the
+  // cap keeps any untitled slide out of "No issues found", the floor keeps
+  // small decks from cratering on one miss.
+  let score =
+    untitled.length > 0
+      ? Math.max(
+          40,
+          Math.min(85, Math.round((100 * (visible.length - untitled.length)) / visible.length)),
+        )
+      : 100;
   const findings: string[] = [];
 
   if (untitled.length > 0) {
-    score -= 20 * untitled.length;
     const nums = untitled.map((s) => s.index).join(", ");
     findings.push(
       `Slide${untitled.length > 1 ? "s" : ""} ${nums} ${
@@ -157,8 +172,11 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
     }
   }
 
-  if (findings.length === 0) {
-    findings.push(`All ${a.slides.length} slide(s) have a distinct title.`);
+  if (hiddenCount > 0) {
+    findings.push(`${hiddenCount} hidden slide(s) were excluded from title judgment.`);
+  }
+  if (untitled.length === 0 && duplicateGroups.length === 0) {
+    findings.push(`All ${visible.length} visible slide(s) have a distinct title.`);
   }
 
   return pptxCategory(
@@ -187,18 +205,24 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
   }
   const nonDecorative = a.images.filter((i) => !i.decorative);
   if (nonDecorative.length === 0) {
+    // N/A, matching DOCX: nothing to assess — a vacuous 100 lifted the
+    // weighted average as a reward for absence.
     return pptxCategory(
       "alt_text",
       "Alt Text on Images",
       PPTX.SCORING_WEIGHTS.alt_text,
-      100,
+      null,
       ["All images are marked decorative, so none require alt text."],
       "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [PPTX_HELP.altText],
+      false,
     );
   }
   const missing = nonDecorative.filter((i) => !i.altText);
-  const score = Math.round((100 * (nonDecorative.length - missing.length)) / nonDecorative.length);
+  let score = Math.round((100 * (nonDecorative.length - missing.length)) / nonDecorative.length);
+  // Cap 85 (Minor ceiling) whenever any image lacks alt — cross-format
+  // convention shared with DOCX so one barrier has one grade consequence.
+  if (missing.length > 0) score = Math.min(score, 85);
   const findings = [
     `${nonDecorative.length - missing.length} of ${nonDecorative.length} meaningful image(s) have alt text.`,
   ];
@@ -219,8 +243,27 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
 }
 
 function scorePptxReadingOrder(a: PptxAnalysis): CategoryResult {
-  const titledOutOfOrder = a.slides.filter((s) => s.title && !s.titleIsFirstShape);
-  const denseSlides = a.slides.filter((s) => s.shapeCount > 10);
+  const visible = a.slides.filter((s) => !s.hidden);
+  const titled = visible.filter((s) => s.title);
+  // The only order signal this check has is "the title reads first" — with
+  // no titled visible slides there is nothing to verify, and returning a
+  // vacuous 100 partially refunded the slide_titles zero it accompanied.
+  if (titled.length === 0) {
+    return pptxCategory(
+      "reading_order",
+      "Reading Order",
+      PPTX.SCORING_WEIGHTS.reading_order,
+      null,
+      [
+        "No titled slides to order-check — reading order was not assessed. Verify manually with the Tab key or the Selection Pane.",
+      ],
+      "Reading order determines the sequence assistive technology announces a slide's content. A slide's title should read first, orienting the listener before the body content.",
+      [PPTX_HELP.overview],
+      true,
+    );
+  }
+  const titledOutOfOrder = titled.filter((s) => !s.titleIsFirstShape);
+  const denseSlides = visible.filter((s) => s.shapeCount > 10);
 
   const score = 100 - 15 * titledOutOfOrder.length;
   const findings: string[] = [];
@@ -398,8 +441,6 @@ function scorePptxListStructure(a: PptxAnalysis): CategoryResult {
   );
 }
 
-const PPTX_RAW_URL_RE = /^(https?:\/\/|www\.)/i;
-
 function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
   if (a.links.length === 0) {
     return pptxCategory(
@@ -408,22 +449,31 @@ function scorePptxLinkQuality(a: PptxAnalysis): CategoryResult {
       PPTX.SCORING_WEIGHTS.link_quality,
       null,
       ["No hyperlinks were found."],
-      "Link text should describe the destination. Empty link text and raw URLs are unhelpful out of context.",
+      "Link text should describe the destination. Empty or vague link text is unhelpful out of context.",
       [PPTX_HELP.overview],
       false,
     );
   }
-  const bad = a.links.filter((l) => !l.text || PPTX_RAW_URL_RE.test(l.text));
-  const score = Math.round((100 * (a.links.length - bad.length)) / a.links.length);
-  const findings = [`${a.links.length} link(s) found; ${bad.length} with unclear text.`];
-  if (bad.length > 0) {
+  // Shared 2.4.4 doctrine (scoring/common.ts): raw URLs are advisory-only;
+  // empty/vague/too-short text is penalized. The old rule penalized raw URLs
+  // but let "click here" pass untouched — backwards on both counts.
+  const needsFix = a.links.filter((l) => classifyLinkText(l.text) === "needsFix");
+  const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
+  const score = Math.round((100 * (a.links.length - needsFix.length)) / a.links.length);
+  const findings = [`${a.links.length} link(s) found; ${needsFix.length} with unclear text.`];
+  if (needsFix.length > 0) {
     findings.push(
-      `Empty or raw-URL link text: ${bad
+      `Empty or vague link text: ${needsFix
         .slice(0, 5)
-        .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
+        .map((l) => (l.text.trim() ? `"${l.text}"` : "(empty)"))
         .join(
           ", ",
-        )}. In PowerPoint: select the linked text → Insert → Link, and use a descriptive phrase instead of the raw address.`,
+        )}. In PowerPoint: select the linked text → Insert → Link, and use a descriptive phrase.`,
+    );
+  }
+  if (rawUrls.length > 0) {
+    findings.push(
+      `Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.`,
     );
   }
   return pptxCategory(

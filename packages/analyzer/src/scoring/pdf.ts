@@ -13,6 +13,7 @@ import {
   getSeverity,
   aggregateScore,
   applyWcagCriteria,
+  classifyLinkText,
   type ScoringResult,
   type PdfUaSignals,
 } from "./common.js";
@@ -37,7 +38,15 @@ export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResu
     );
   }
 
-  const isScanned = !pdfjs.error && !pdfjs.hasText && !qpdf.hasStructTree;
+  // "Scanned" is a factual classification used in the executive summary and
+  // report framing — it must require truly zero extractable text AND page
+  // images. The 50-char `hasText` heuristic alone misclassified short
+  // born-digital documents (one-page notices, cover sheets) as scans.
+  const isScanned =
+    !pdfjs.error &&
+    pdfjs.textLength === 0 &&
+    (pdfjs.imageCount > 0 || qpdf.imageObjectCount > 0) &&
+    !qpdf.hasStructTree;
 
   const strictCategories = buildCategories(qpdf, pdfjs, "strict");
   const conformance = evaluateConformance(qpdf, pdfjs, strictCategories);
@@ -131,7 +140,20 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
   let score: number;
   const findings: string[] = [];
 
-  if (pdfjs.hasText && qpdf.hasStructTree) {
+  if (qpdf.accessibilityAllowed === false) {
+    // The security handler denies assistive-technology access outright —
+    // nothing else about the text layer matters until that is lifted.
+    score = 0;
+    findings.push(
+      "The document's security settings deny assistive-technology access — the accessibility permission flag is off (PDF/UA 7.16 / Matterhorn 26-002).",
+    );
+    findings.push(
+      "Screen readers in conforming viewers cannot read ANY content of this document, regardless of tagging or text quality.",
+    );
+    findings.push(
+      "How to fix: In Adobe Acrobat, open File → Properties → Security and either remove security or enable 'Enable text access for screen reader devices for the visually impaired', then re-save. Modern AES-256 encryption always permits accessibility.",
+    );
+  } else if (pdfjs.hasText && qpdf.hasStructTree) {
     score = 100;
     findings.push("PDF contains extractable text");
     findings.push("Document is tagged (StructTreeRoot present)");
@@ -145,23 +167,56 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
       "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document). Tags create a hidden structure that tells screen readers the reading order, headings, and other elements.",
     );
   } else if (!pdfjs.hasText && qpdf.hasStructTree) {
+    // The hasText threshold (~50 chars) is a scoring heuristic; the wording
+    // must stay factual for documents that DO have a little real text.
     score = 25;
-    findings.push("No extractable text found, but document has tag structure");
-    findings.push(
-      "This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.",
-    );
-    findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In This File.",
-    );
+    if (pdfjs.textLength > 0) {
+      findings.push(
+        `Only ${pdfjs.textLength} characters of extractable text were found — too little to assess the text layer with confidence`,
+      );
+      findings.push(
+        "Document is tagged (StructTreeRoot present). If this is genuinely a very short document, the low score reflects limited assessable content rather than a confirmed barrier.",
+      );
+    } else {
+      findings.push("No extractable text found, but document has tag structure");
+      findings.push(
+        "This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.",
+      );
+      findings.push(
+        "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In This File.",
+      );
+    }
   } else {
     score = 0;
-    findings.push("No extractable text found");
-    findings.push("No tag structure found");
+    if (pdfjs.textLength > 0) {
+      findings.push(`Only ${pdfjs.textLength} characters of extractable text were found`);
+      findings.push("No tag structure found");
+      findings.push(
+        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF, so the little text present is exposed to screen readers in order.",
+      );
+    } else if (pdfjs.imageCount > 0 || qpdf.imageObjectCount > 0) {
+      findings.push("No extractable text found");
+      findings.push("No tag structure found");
+      findings.push(
+        "This PDF appears to be a scanned image — it is essentially a photograph of text. Screen readers cannot read it at all.",
+      );
+      findings.push(
+        "How to fix: (1) Run OCR in Adobe Acrobat: All tools → Scan & OCR → Recognize Text. (2) Then add tags: All tools → Prepare for accessibility → Automatically tag PDF.",
+      );
+    } else {
+      findings.push("No text content was found in this document");
+      findings.push("No tag structure found");
+      findings.push(
+        "The document contains neither extractable text nor page images — there is no content for a screen reader to read.",
+      );
+    }
+  }
+
+  // The producer's own Suspects flag — the file declares its tags unreliable
+  // (typically OCR/auto-tag output). Advisory only; the tree is still scored.
+  if (qpdf.suspectsFlag) {
     findings.push(
-      "This PDF appears to be a scanned image — it is essentially a photograph of text. Screen readers cannot read it at all.",
-    );
-    findings.push(
-      "How to fix: (1) Run OCR in Adobe Acrobat: All tools → Scan & OCR → Recognize Text. (2) Then add tags: All tools → Prepare for accessibility → Automatically tag PDF.",
+      "Advisory: the document's MarkInfo carries Suspects = true — the producing tool itself marked the tagging as suspect (common after OCR or automatic tagging). Treat the tag structure with extra scrutiny in manual review.",
     );
   }
 
@@ -243,9 +298,22 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
       findings.push(
         'How to fix: In Adobe Acrobat, go to File → Properties → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
       );
+    } else if (qpdf.displayDocTitle !== true) {
+      // Title present but /ViewerPreferences /DisplayDocTitle is unset or
+      // false — conforming viewers show the FILENAME, not this title. This
+      // is the exact flag professional remediation sets (WCAG 2.4.2's PDF
+      // technique requires both), so partial credit with a targeted fix.
+      score += 35;
+      findings.push(`Document title: "${pdfjs.title}"`);
+      findings.push(
+        "The title is set, but the DisplayDocTitle viewer preference is not — viewers will show the filename in the title bar instead of this title.",
+      );
+      findings.push(
+        "How to fix: In Adobe Acrobat, go to File → Properties → Initial View tab → set Show: Document Title, then save.",
+      );
     } else {
       score += 50;
-      findings.push(`Document title: "${pdfjs.title}"`);
+      findings.push(`Document title: "${pdfjs.title}" (shown by viewers — DisplayDocTitle is set)`);
     }
   } else {
     findings.push("No document title found in metadata");
@@ -329,6 +397,32 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
 
   if (qpdf.headings.length === 0) {
     const roleMappedParagraphs = getHeadingLikeParagraphMappings(qpdf);
+
+    // A SHORT document with no headings, no heading-like role-mapped tags,
+    // and no bookmark outline is plausibly heading-less by design — WCAG
+    // does not require headings in content that has no sections, and the
+    // DOCX path already treats this case as N/A. Scoring it 0/Critical made
+    // the identical one-page memo grade 70/C as PDF and 100/A as DOCX.
+    // Substantive documents (many pages/paragraphs, or heading-like signals)
+    // keep the 0.
+    const substantive =
+      qpdf.totalPageCount >= 4 || qpdf.paragraphCount >= 20 || qpdf.outlineCount > 0;
+    if (!substantive && roleMappedParagraphs.length === 0) {
+      return {
+        id: "heading_structure",
+        label: "Heading Structure",
+        weight: SCORING_WEIGHTS.heading_structure,
+        score: null,
+        grade: null,
+        severity: null,
+        findings: [
+          "No headings were found. Short documents may not need them; longer documents should use H1–H6 tags so screen-reader users can navigate.",
+        ],
+        explanation: headingExplanation,
+        helpLinks: headingLinks,
+      };
+    }
+
     const findings = ["No heading tags found in the document structure"];
 
     if (roleMappedParagraphs.length > 0) {
@@ -570,8 +664,14 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const score = withAlt === 0 ? 0 : Math.floor((withAlt / figures.length) * 100);
   const findings: string[] = [];
 
+  // Painted images beyond the tagged figures: once ≥1 <Figure> exists the
+  // category scores tagged figures only, but a partially tagged document can
+  // paint many MORE images that are absent from the tag tree entirely (worse
+  // than missing alt). Never claim full coverage over those.
+  const paintedBeyondFigures = Math.max(pdfjs.imageCount, qpdf.imageObjectCount) - figures.length;
+
   if (withAlt === figures.length) {
-    findings.push(`All ${figures.length} image(s) have alternative text`);
+    findings.push(`All ${figures.length} tagged image(s) have alternative text`);
     findings.push(`--- Image Alt Text Details ---`);
     for (let fi = 0; fi < figures.length && fi < 20; fi++) {
       const fig = figures[fi];
@@ -613,6 +713,12 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     );
     findings.push(
       'Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".',
+    );
+  }
+
+  if (paintedBeyondFigures > 0) {
+    findings.push(
+      `Advisory — manual review: ${paintedBeyondFigures} more image(s) are painted in the document than are tagged as <Figure>. Content images not tagged as figures are missing from the reading order entirely; decorative ones should be artifacted. Verify in Acrobat's Tags panel which of these need tagging.`,
     );
   }
 
@@ -1029,33 +1135,6 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
 // here", "read more", …). 2.4.4 is judged "in context", so the surrounding
 // sentence can sometimes rescue a weak link — these are flagged for review,
 // not asserted as definite failures.
-const VAGUE_LINK_PHRASES = new Set([
-  "click here",
-  "click",
-  "here",
-  "read more",
-  "more",
-  "learn more",
-  "see more",
-  "this",
-  "this link",
-  "link",
-  "link here",
-  "go",
-  "go here",
-  "continue",
-  "details",
-  "see details",
-  "more info",
-  "more information",
-  "info",
-  "download",
-  "view",
-  "open",
-  "visit",
-  "click this link",
-]);
-
 // Classify visible link text for WCAG 2.4.4 (Link Purpose).
 //   - "rawUrl"      — the visible text is the URL itself. The destination is
 //                     determinable, so 2.4.4 is met (and PAC does not flag it).
@@ -1063,17 +1142,8 @@ const VAGUE_LINK_PHRASES = new Set([
 //   - "needsFix"    — empty, a vague phrase ("click here"), or 1–2 chars. The
 //                     purpose is not conveyed; this is penalized.
 //   - "descriptive" — self-describing text.
-type LinkClass = "descriptive" | "rawUrl" | "needsFix";
-
-function classifyLinkText(text: string): LinkClass {
-  const t = text.trim().toLowerCase();
-  if (t.length === 0) return "needsFix"; // empty link text — no purpose conveyed
-  if (/^(https?:\/\/|www\.)/i.test(t)) return "rawUrl"; // visible URL — advisory
-  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return "needsFix";
-  // 1–2 alphanumeric characters cannot describe a destination.
-  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return "needsFix";
-  return "descriptive";
-}
+// The classifier itself lives in scoring/common.ts (imported at the top of
+// this file) so docx/pptx/xlsx apply the identical doctrine.
 
 function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
   const linkLinks: CategoryResult["helpLinks"] = [
@@ -1353,7 +1423,7 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       `Reading-order fidelity: ${rigorous.similarityPct}% (${rigorous.pagesAnalyzed} of ${qpdf.totalPageCount} page(s) compared)`,
     );
     findings.push(
-      `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (visual draw order) on every page that had both. Higher = the tag order matches the visual flow.`,
+      `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong.`,
     );
     if (rigorous.pagesWithDrift > 0) {
       findings.push(
@@ -1362,7 +1432,7 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
     }
     if (rigorous.score < 100) {
       findings.push(
-        `Reading order scored ${rigorous.score}/100 — the tagged order matched the visual draw order on ${rigorous.similarityPct}% of comparable content (a perfect 100 requires ≥ 97%). The gap is usually a few tags whose order differs slightly from the visual flow; review the page(s) noted above in Acrobat's Order panel.`,
+        `Reading order scored ${rigorous.score}/100 — the tagged order agreed with the content stream's draw order on ${rigorous.similarityPct}% of comparable content (a perfect 100 requires ≥ 97%). Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.`,
       );
     }
     return {

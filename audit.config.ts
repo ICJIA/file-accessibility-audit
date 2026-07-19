@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "accuracy-fixes-2026-07-19",
+    badge: "Improved",
+    text: "Major accuracy upgrade across all four formats: the audit now catches PDFs whose security settings block screen readers outright (they used to pass), checks real background colors before judging contrast (no more false alarms on white-on-dark headers or designed slide layouts), reads Excel link text from the linked cells, recognizes custom Word heading styles and per-run slide languages, audits Word headers/footers/footnotes and Excel chart sheets, and reports 'needs manual review' instead of guessing whenever the evidence can't be resolved from the file.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 19, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "pptx-xlsx-support-2026-07",
     badge: "New",
     text: "Now supporting Microsoft PowerPoint (.pptx) and Excel (.xlsx) files — upload a presentation or workbook for the same WCAG 2.2 AA accessibility audit as PDFs and Word documents, with findings and fix guidance tailored to each app.",

@@ -78,10 +78,19 @@ export function computeReadingOrderFidelity(
   // Top band is 0.97 (not 0.99) so a near-perfect document is not docked for a
   // 1–2% longest-common-subsequence wobble that is really MCID-extraction
   // jitter (artifact handling, multi-MCID runs) rather than genuine disorder.
+  //
+  // IMPORTANT on what this measures: the comparison is tag order vs the
+  // content stream's DRAW order — not "visual reading order". The struct
+  // tree exists precisely to override draw order, and remediation tools
+  // deliberately re-order tags away from it, so a mid-band divergence is
+  // evidence of DISAGREEMENT, not proof the tags are wrong. The 0.8–0.97
+  // band therefore deducts lightly (85, Minor); only heavy divergence drops
+  // further, and the conformance gate never asserts a confirmed 1.3.2 from
+  // this metric alone (see conformance.ts).
   let score: number;
   if (similarity >= 0.97) score = 100;
   else if (similarity >= 0.9) score = 90;
-  else if (similarity >= 0.8) score = 70;
+  else if (similarity >= 0.8) score = 85;
   else if (similarity >= 0.5) score = 40;
   else score = 10;
 
