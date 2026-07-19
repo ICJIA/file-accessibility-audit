@@ -36,6 +36,7 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     accessibilityAllowed: null,
     displayDocTitle: null,
     hasXfa: false,
+    needsRendering: false,
     suspectsFlag: false,
     structTreeDepth: 0,
     contentOrder: [],

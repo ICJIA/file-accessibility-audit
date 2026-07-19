@@ -6,7 +6,7 @@
  */
 import { SCORING_WEIGHTS, ANALYSIS, WCAG, SCORING_PROFILES } from "#config";
 import type { CategoryResult, ScoringMode } from "@file-audit/shared";
-import type { QpdfResult } from "../qpdfService.js";
+import type { QpdfResult, TableAnalysis } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import {
   getGrade,
@@ -1004,23 +1004,43 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     );
   }
 
-  // 3. Scope attributes (10 points) — enhancement for complex tables
-  const withScope = qpdf.tables.filter((t) => t.hasHeaders && t.hasScope).length;
+  // 3. Header association (10 points): /Scope, OR the explicit /Headers
+  //    attribute — the two spec-legal ways to associate data cells with
+  //    headers. A table using /Headers (the more robust method for complex
+  //    tables) has COMPLETE association; missing Scope there is redundant
+  //    and advisory only, matching how the conformance gate (and PAC)
+  //    already treat Scope-or-Headers as equivalent.
+  const associated = (t: TableAnalysis): boolean => t.hasScope || t.hasHeaderAssociation;
+  const withAssociation = qpdf.tables.filter((t) => t.hasHeaders && associated(t)).length;
   const tablesWithHeaders = qpdf.tables.filter((t) => t.hasHeaders);
   if (tablesWithHeaders.length === 0) {
     findings.push("Scope attributes: N/A (no header cells to check)");
-  } else if (withScope === tablesWithHeaders.length) {
+  } else if (withAssociation === tablesWithHeaders.length) {
     score += 10;
-    findings.push("All <TH> cells have Scope attributes (/Column or /Row)");
-  } else {
-    const totalMissing = qpdf.tables.reduce((sum, t) => sum + t.scopeMissingCount, 0);
-    if (withScope > 0) score += 5;
+    const scopeOnly = tablesWithHeaders.every((t) => t.hasScope);
     findings.push(
-      `${totalMissing} <TH> cell(s) missing Scope attribute — screen readers may not correctly associate headers with data`,
+      scopeOnly
+        ? "All <TH> cells have Scope attributes (/Column or /Row)"
+        : "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)",
+    );
+    const headersOnly = tablesWithHeaders.filter((t) => !t.hasScope && t.hasHeaderAssociation);
+    if (headersOnly.length > 0) {
+      findings.push(
+        `Advisory — not scored: ${headersOnly.length} table(s) rely on /Headers associations without /Scope on the <TH> cells. That is complete and spec-correct; adding Scope as well is belt-and-braces for viewers with partial /Headers support.`,
+      );
+    }
+  } else {
+    const totalMissing = qpdf.tables.reduce(
+      (sum, t) => (associated(t) ? sum : sum + t.scopeMissingCount),
+      0,
+    );
+    if (withAssociation > 0) score += 5;
+    findings.push(
+      `${totalMissing} <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data`,
     );
     for (let ti = 0; ti < n; ti++) {
       const t = qpdf.tables[ti];
-      if (t.headerCount > 0 && t.scopeMissingCount > 0) {
+      if (t.headerCount > 0 && t.scopeMissingCount > 0 && !associated(t)) {
         findings.push(
           `  Table ${ti + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`,
         );
@@ -1297,6 +1317,12 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   const findings: string[] = [];
 
   findings.push(`${qpdf.formFields.length} form field(s) detected`);
+
+  if (qpdf.hasXfa && !qpdf.needsRendering) {
+    findings.push(
+      "Advisory — not scored: this is a static XFA form. The conventional PDF content audited here is exactly what viewers display, but the embedded XFA template layer itself was not separately audited.",
+    );
+  }
 
   if (withLabels === qpdf.formFields.length) {
     findings.push(`All fields have accessible tooltip labels (TU)`);

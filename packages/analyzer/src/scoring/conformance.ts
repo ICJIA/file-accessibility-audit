@@ -126,11 +126,14 @@ export function evaluateConformance(
     };
   }
 
-  // XFA (LiveCycle) forms render their real UI from the XFA template, which
-  // neither qpdf's object walk nor pdfjs can see — the analyzable "page" is
-  // usually just the "Please update your viewer" placeholder. Judging that
-  // placeholder produced confident failures about content no user is shown.
-  if (qpdf.hasXfa) {
+  // DYNAMIC XFA (LiveCycle, /NeedsRendering true) renders its real UI from
+  // the XFA template, which neither qpdf's object walk nor pdfjs can see —
+  // the analyzable "page" is just the "Please update your viewer"
+  // placeholder, so no honest verdict is possible. STATIC XFA (flag absent)
+  // ships a full conventional rendering that IS what every viewer shows and
+  // is evaluated normally — refusing a verdict there wrongly withheld clean
+  // verdicts from accessible Designer forms.
+  if (qpdf.hasXfa && qpdf.needsRendering) {
     return {
       status: "incomplete",
       failures: [],
@@ -294,7 +297,9 @@ export function evaluateConformance(
   let orderDivergencePct: number | null = null;
   if (qpdf.hasStructTree) {
     const fidelity = computeReadingOrderFidelity(qpdf, pdfjs);
-    if (fidelity.score !== null && fidelity.score <= 40) {
+    // Both lower bands (≤65 = under 80% agreement) warrant the explicit
+    // manual-review entry.
+    if (fidelity.score !== null && fidelity.score <= 65) {
       orderDivergencePct = fidelity.similarityPct;
     }
   }

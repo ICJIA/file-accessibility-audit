@@ -87,12 +87,16 @@ export function computeReadingOrderFidelity(
   // band therefore deducts lightly (85, Minor); only heavy divergence drops
   // further, and the conformance gate never asserts a confirmed 1.3.2 from
   // this metric alone (see conformance.ts).
+  // Lower bands are Moderate (65) and 30 — not 40/10: 50–80% agreement is
+  // routine for correctly tagged FORMS (fields painted in creation order,
+  // tags ordered logically), and the metric cannot say which side is wrong.
+  // The signal is "review manually", never Critical-by-default.
   let score: number;
   if (similarity >= 0.97) score = 100;
   else if (similarity >= 0.9) score = 90;
   else if (similarity >= 0.8) score = 85;
-  else if (similarity >= 0.5) score = 40;
-  else score = 10;
+  else if (similarity >= 0.5) score = 65;
+  else score = 30;
 
   return {
     score,
