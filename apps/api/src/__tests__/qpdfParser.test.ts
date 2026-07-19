@@ -859,6 +859,264 @@ describe("figure/image alt text detection", () => {
 });
 
 // ---------------------------------------------------------------------------
+// qpdf v2 stream-object unwrapping
+//
+// Real qpdf ≥ 11 wraps stream objects as { stream: { dict: {...}, length } }
+// (never { value }), so Image XObjects are only visible to the walk once that
+// wrapper is unwrapped. The hybrid bare-dict fixtures elsewhere in this file
+// exercise v1 tolerance; these fixtures are the true modern shape.
+// ---------------------------------------------------------------------------
+
+describe("qpdf v2 stream-wrapped objects", () => {
+  it("counts an image XObject wrapped in the v2 {stream:{dict}} shape", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:5 0 R": {
+            stream: {
+              dict: { "/Type": "/XObject", "/Subtype": "/Image", "/Width": 100 },
+              length: 1234,
+            },
+          },
+        },
+      ],
+    });
+    expect(result.imageObjectCount).toBe(1);
+  });
+
+  it("does not count an image's /SMask soft-mask stream as a second image", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "obj:1 0 R": { value: { "/Type": "/Catalog" } },
+          "obj:5 0 R": {
+            stream: {
+              dict: { "/Type": "/XObject", "/Subtype": "/Image", "/SMask": "6 0 R" },
+              length: 10,
+            },
+          },
+          "obj:6 0 R": {
+            stream: {
+              dict: { "/Type": "/XObject", "/Subtype": "/Image" },
+              length: 10,
+            },
+          },
+        },
+      ],
+    });
+    expect(result.imageObjectCount).toBe(1);
+  });
+
+  it("still unwraps value-wrapped dict objects (v2 catalog)", () => {
+    const result = parseJson({
+      qpdf: [null, { "obj:1 0 R": { value: { "/Type": "/Catalog", "/Lang": "en" } } }],
+    });
+    expect(result.hasLang).toBe(true);
+    expect(result.lang).toBe("en");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Encryption permission flags (top-level "encrypt" key)
+//
+// qpdf reports the security handler's permission capabilities for encrypted
+// documents. capabilities.accessibility === false means conforming viewers
+// deny assistive-technology text access — the most severe possible barrier
+// (Matterhorn 26-002), previously invisible to the audit.
+// ---------------------------------------------------------------------------
+
+describe("encryption permission flags", () => {
+  it("reads accessibility-denied encryption from the top-level encrypt key", () => {
+    const result = parseJson({
+      encrypt: {
+        encrypted: true,
+        capabilities: { accessibility: false, extract: false, printlow: true },
+      },
+      qpdf: [null, { "obj:1 0 R": { value: { "/Type": "/Catalog" } } }],
+    });
+    expect(result.isEncrypted).toBe(true);
+    expect(result.accessibilityAllowed).toBe(false);
+  });
+
+  it("reads accessibility-permitted encryption", () => {
+    const result = parseJson({
+      encrypt: { encrypted: true, capabilities: { accessibility: true } },
+      qpdf: [null, { "obj:1 0 R": { value: { "/Type": "/Catalog" } } }],
+    });
+    expect(result.isEncrypted).toBe(true);
+    expect(result.accessibilityAllowed).toBe(true);
+  });
+
+  it("leaves accessibilityAllowed null for unencrypted documents", () => {
+    const result = parseJson({
+      encrypt: { encrypted: false, capabilities: { accessibility: true } },
+      qpdf: [null, { "obj:1 0 R": { value: { "/Type": "/Catalog" } } }],
+    });
+    expect(result.isEncrypted).toBe(false);
+    expect(result.accessibilityAllowed).toBe(null);
+  });
+
+  it("leaves both fields at defaults when the encrypt key is absent", () => {
+    const result = parseJson({
+      qpdf: [null, { "obj:1 0 R": { value: { "/Type": "/Catalog" } } }],
+    });
+    expect(result.isEncrypted).toBe(false);
+    expect(result.accessibilityAllowed).toBe(null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Viewer preferences (DisplayDocTitle), XFA, Suspects, hidden fields,
+// Figure /ActualText
+// ---------------------------------------------------------------------------
+
+describe("viewer preferences — DisplayDocTitle", () => {
+  it("reads DisplayDocTitle from an inline ViewerPreferences dict", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/ViewerPreferences": { "/DisplayDocTitle": true } },
+        },
+      ],
+    });
+    expect(result.displayDocTitle).toBe(true);
+  });
+
+  it("resolves a ViewerPreferences reference", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/ViewerPreferences": "9 0 R" },
+          "9 0 R": { "/DisplayDocTitle": false },
+        },
+      ],
+    });
+    expect(result.displayDocTitle).toBe(false);
+  });
+
+  it("is null when the catalog has no ViewerPreferences", () => {
+    const result = parseJson({ qpdf: [null, { "1 0 R": { "/Type": "/Catalog" } }] });
+    expect(result.displayDocTitle).toBe(null);
+  });
+});
+
+describe("XFA form detection", () => {
+  it("detects /XFA on the AcroForm dictionary", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/AcroForm": "5 0 R" },
+          "5 0 R": { "/XFA": ["template", "6 0 R"], "/Fields": [] },
+        },
+      ],
+    });
+    expect(result.hasXfa).toBe(true);
+  });
+
+  it("plain AcroForms are not XFA", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/AcroForm": "5 0 R" },
+          "5 0 R": { "/Fields": [] },
+        },
+      ],
+    });
+    expect(result.hasXfa).toBe(false);
+  });
+});
+
+describe("MarkInfo /Suspects", () => {
+  it("surfaces a true Suspects flag", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": {
+            "/Type": "/Catalog",
+            "/MarkInfo": { "/Marked": true, "/Suspects": true },
+          },
+        },
+      ],
+    });
+    expect(result.suspectsFlag).toBe(true);
+    expect(result.isMarkedContent).toBe(true);
+  });
+
+  it("defaults to false without the flag", () => {
+    const result = parseJson({
+      qpdf: [null, { "1 0 R": { "/Type": "/Catalog", "/MarkInfo": { "/Marked": true } } }],
+    });
+    expect(result.suspectsFlag).toBe(false);
+  });
+});
+
+describe("hidden/no-view form fields", () => {
+  it("skips widgets whose /F flags mark them Hidden (bit 2)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "5 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "calcHelper", "/F": 2 },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(0);
+  });
+
+  it("skips widgets whose /F flags mark them NoView (bit 6)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "5 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "sig", "/F": 32 },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(0);
+  });
+
+  it("still counts ordinary visible widgets (Print flag)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "5 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "name", "/F": 4 },
+        },
+      ],
+    });
+    expect(result.formFields).toHaveLength(1);
+  });
+});
+
+describe("Figure /ActualText as a text alternative", () => {
+  it("credits a Figure carrying only /ActualText", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "3 0 R": { "/S": "/Figure", "/ActualText": "E = mc squared" },
+        },
+      ],
+    });
+    const fig = result.images.find((i) => i.ref === "3 0 R");
+    expect(fig).toBeDefined();
+    expect(fig!.hasAlt).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // MCID content order collection
 // ---------------------------------------------------------------------------
 

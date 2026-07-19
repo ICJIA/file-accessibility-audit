@@ -31,6 +31,8 @@ import {
   attrOf,
   firstChild,
   descendants,
+  rawText,
+  textOf,
   rootElement,
   parseRelationshipEntries,
   corePropertyText,
@@ -58,10 +60,26 @@ export interface XlsxAnalysis {
     mergedRangeCount: number;
     usedRangeCellCount: number;
     hasDefinedTable: boolean;
+    /** Sheet carries a pivot-table relationship (pivots materialize as plain
+     *  cells — "Insert → Table" advice is wrong for them). */
+    hasPivot?: boolean;
   }>;
-  tables: Array<{ sheetName: string; name: string; hasHeaderRow: boolean }>;
-  images: Array<{ altText: string | null; decorative: boolean }>;
-  links: Array<{ text: string; url: string | null }>;
+  tables: Array<{
+    sheetName: string;
+    name: string;
+    hasHeaderRow: boolean;
+    /** Column span from the table's ref range; null when unparseable. */
+    columnCount?: number | null;
+  }>;
+  images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
+  /**
+   * text = the linked cell's visible text (shared/inline/cached string),
+   * falling back to the legacy `display` attribute. resolved: false means
+   * NEITHER existed (the ref cell is absent from sheetData and no display
+   * was written) — such links must be excluded from link-quality judgment,
+   * never counted as empty-text violations.
+   */
+  links: Array<{ text: string; url: string | null; resolved: boolean }>;
   contrast: {
     checkedRuns: number;
     unresolvedRuns: number;
@@ -73,6 +91,12 @@ export interface XlsxAnalysis {
       large: boolean;
     }>;
   };
+  /** Non-empty cells (value/inline-string/formula) across VISIBLE sheets —
+   *  evidence for the text-extractability claim. */
+  totalCellsWithValue: number;
+  /** Drawing text boxes (xdr:sp with text) across visible sheets — content
+   *  the cell-based checks cannot see; disclosed, not silently passed. */
+  textBoxCount: number;
 }
 
 export class XlsxParseError extends Error {
@@ -83,12 +107,34 @@ export class XlsxParseError extends Error {
   }
 }
 
-const DEFAULT_SHEET_NAME_RE = /^sheet ?\d+$/i;
+// Excel's default sheet names in the common install locales (plus the
+// "Name (2)" copy suffix Excel appends on duplication) — an English-only
+// "Sheet1" check silently passed Hoja1/Feuil1/Tabelle1 workbooks.
+const DEFAULT_SHEET_NAME_RE =
+  /^(sheet|hoja|feuil|tabelle|foglio|planilha|blad|ark|taul|arkusz|munkalap|list|лист) ?\d+( \(\d+\))?$/i;
 
 /** "AA" → 27. Base-26 spreadsheet column letters. */
 function colToNumber(letters: string): number {
   let n = 0;
   for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+}
+
+/** Column span of a range ref: "A1:C4" → 3, "A1" → 1, malformed → null. */
+function columnSpanOfRef(ref: string | undefined): number | null {
+  if (!ref) return null;
+  const m = /^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(ref.trim().toUpperCase());
+  if (!m) return null;
+  if (!m[3]) return 1;
+  return Math.abs(colToNumber(m[3]) - colToNumber(m[1])) + 1;
+}
+
+/** Non-empty cells — a value, inline string, or formula child. */
+function countValueCells(sheetRoot: PONode): number {
+  let n = 0;
+  for (const cell of descendants(sheetRoot, "c")) {
+    if (firstChild(cell, "v") || firstChild(cell, "is") || firstChild(cell, "f")) n++;
+  }
   return n;
 }
 
@@ -203,7 +249,21 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     images: [],
     links: [],
     contrast: { checkedRuns: 0, unresolvedRuns: 0, failing: [] },
+    totalCellsWithValue: 0,
+    textBoxCount: 0,
   };
+
+  // Shared strings, indexed by <si> position. textOf concatenates every t
+  // descendant, so plain <si><t> and rich-text <si><r><t>…</r> both resolve.
+  // Needed to read hyperlink text from cells (real Excel writes no `display`
+  // attribute — the visible link text IS the cell's string). Size is bounded
+  // by the per-part uncompressed read cap.
+  const sstRoot = rootElement(parseXml(await read("xl/sharedStrings.xml")), "sst");
+  const sharedStrings: string[] = sstRoot
+    ? childrenOf(sstRoot)
+        .filter((n) => tagOf(n) === "si")
+        .map((si) => textOf(si))
+    : [];
 
   let totalCells = 0;
   const appliedStyleIndices = new Set<number>();
@@ -228,40 +288,65 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     const rel = workbookRels.find((r) => r.id === rid);
     const sheetPath = rel ? resolveXlTarget(rel.target, "xl") : null;
     const sheetXml = sheetPath ? await read(sheetPath) : null;
-    const sheetRoot = rootElement(parseXml(sheetXml), "worksheet");
+    const parsed = parseXml(sheetXml);
+    // Chartsheets (<chartsheet> root, xl/chartsheets/…) hold their chart in a
+    // drawing rel like worksheets do — previously their root failed the
+    // "worksheet" match and the whole sheet (chart alt text included)
+    // silently vanished from the audit.
+    const sheetRoot = rootElement(parsed, "worksheet") ?? rootElement(parsed, "chartsheet");
+    const hidden = state === "hidden" || state === "veryHidden";
 
-    // usedRangeCellCount is DISPLAY/SCORING metadata only (feeds
-    // scoreXlsxTableMarkup's "≥12 cells" heuristic) — still sourced from the
-    // self-reported <dimension ref>, same as before. It must NEVER drive the
-    // MAX_CELLS security cap below — see countCellsAnyDepth's doc comment.
+    // usedRangeCellCount: the LARGER of the self-declared <dimension ref>
+    // and the actually-parsed cell count — streaming writers omit or stub
+    // the dimension, which silently renormalized the format's highest-weight
+    // category away. Never drives the MAX_CELLS security cap.
     const dimension = sheetRoot ? descendants(sheetRoot, "dimension")[0] : undefined;
-    const usedRangeCellCount = cellCountOfRef(dimension ? attrOf(dimension, "ref") : undefined);
+    const declaredCellCount = cellCountOfRef(dimension ? attrOf(dimension, "ref") : undefined);
 
     const realCellCount = sheetRoot ? countCellsAnyDepth(sheetRoot) : 0;
+    const usedRangeCellCount = Math.max(declaredCellCount, realCellCount);
     totalCells += realCellCount;
     if (totalCells > XLSX.MAX_CELLS) {
       throw new XlsxParseError(
         `This workbook has too many cells (${totalCells.toLocaleString()}+) to analyze.`,
       );
     }
-    if (sheetRoot) collectAppliedCellStyles(sheetRoot, appliedStyleIndices);
 
     const merged = sheetRoot ? descendants(sheetRoot, "mergeCell").length : 0;
 
-    const sheetRelsPath = sheetPath
-      ? sheetPath.replace(/worksheets\/(sheet\d+\.xml)$/, "worksheets/_rels/$1.rels")
-      : null;
+    // Rels path derived from the part's OWN directory (dir/_rels/name.rels),
+    // so chartsheets and non-standard worksheet part names resolve too.
+    const sheetRelsPath = sheetPath ? sheetPath.replace(/([^/]+)$/, "_rels/$1.rels") : null;
     const sheetRels = parseRelationshipEntries(sheetRelsPath ? await read(sheetRelsPath) : null);
 
-    await collectSheetContent(analysis, name, sheetRoot, sheetRels, read, contentCounts);
+    // Hidden sheets are not presented to any reader (≈ display:none for AT):
+    // their lookup tables, reference images, and styles must not drive
+    // findings or confirmed verdict claims. Skip content collection wholesale
+    // and disclose the exclusion via the sheet record.
+    if (!hidden && sheetRoot) {
+      collectAppliedCellStyles(sheetRoot, appliedStyleIndices);
+      analysis.totalCellsWithValue += countValueCells(sheetRoot);
+      const sheetDir = sheetPath ? sheetPath.replace(/\/[^/]+$/, "") : "xl/worksheets";
+      await collectSheetContent(
+        analysis,
+        name,
+        sheetRoot,
+        sheetRels,
+        read,
+        contentCounts,
+        sharedStrings,
+        sheetDir,
+      );
+    }
 
     analysis.sheets.push({
       name,
-      hidden: state === "hidden" || state === "veryHidden",
+      hidden,
       defaultNamed: DEFAULT_SHEET_NAME_RE.test(name),
       mergedRangeCount: merged,
       usedRangeCellCount,
       hasDefinedTable: sheetRels.some((r) => /\/table$/.test(r.type)),
+      hasPivot: sheetRels.some((r) => /\/pivotTable$/.test(r.type)),
     });
   }
 
@@ -314,6 +399,8 @@ async function collectSheetContent(
     hyperlinks: number;
     auxPartBytes: number;
   },
+  sharedStrings: string[],
+  sheetDir: string,
 ): Promise<void> {
   // Defined tables (the gate's only table signal): headerRowCount attribute
   // ABSENT means 1 (header on, Excel's default); explicit "0" means off.
@@ -331,13 +418,14 @@ async function collectSheetContent(
     );
   }
   for (const rel of tableRels) {
-    const tableXml = await readAuxPart(resolveXlTarget(rel.target, "xl/worksheets"), read, counts);
+    const tableXml = await readAuxPart(resolveXlTarget(rel.target, sheetDir), read, counts);
     const tableRoot = rootElement(parseXml(tableXml), "table");
     if (!tableRoot) continue;
     analysis.tables.push({
       sheetName,
       name: attrOf(tableRoot, "displayName") ?? attrOf(tableRoot, "name") ?? "",
       hasHeaderRow: attrOf(tableRoot, "headerRowCount") !== "0",
+      columnCount: columnSpanOfRef(attrOf(tableRoot, "ref")),
     });
   }
 
@@ -365,13 +453,15 @@ async function collectSheetContent(
     );
   }
   for (const rel of drawingRels) {
-    const drawingXml = await readAuxPart(
-      resolveXlTarget(rel.target, "xl/worksheets"),
-      read,
-      counts,
-    );
+    const drawingXml = await readAuxPart(resolveXlTarget(rel.target, sheetDir), read, counts);
     const drawingRoot = rootElement(parseXml(drawingXml), "wsDr");
     if (!drawingRoot) continue;
+    // Drawing text boxes hold real narrative content (dataset descriptions,
+    // legal notes) invisible to every cell-based check — counted so the
+    // text-extractability claim can be honest about what it did not read.
+    for (const sp of descendants(drawingRoot, "sp")) {
+      if (textOf(sp).trim().length > 0) analysis.textBoxCount++;
+    }
     // FIX C (pre-count, cap-before-walk): count every would-be-added drawing
     // object on the WHOLE part and check the accumulated cap BEFORE the
     // anchor/push loop appends anything — mirroring the MAX_CELLS pre-count and
@@ -396,7 +486,12 @@ async function collectSheetContent(
     }
   }
 
-  // Hyperlinks: display attr or "" (cell text not resolved — v1 boundary).
+  // Hyperlinks. Real Excel writes <hyperlink ref="B16" r:id="…"/> with NO
+  // display attribute — the visible link text is the referenced CELL's text.
+  // Resolve it (shared string, inline string, or cached value); fall back to
+  // the legacy display attribute; and when neither exists mark the link
+  // unresolved so link-quality scoring excludes it instead of calling a
+  // perfectly good link "(empty)".
   if (sheetRoot) {
     const linkEls = descendants(sheetRoot, "hyperlink");
     // FIX C (pre-count, cap-before-walk): same guarantee for hyperlinks —
@@ -409,12 +504,43 @@ async function collectSheetContent(
         `This workbook has too many hyperlinks (${counts.hyperlinks.toLocaleString()}+) to analyze.`,
       );
     }
+    // A ref may be a range ("A1:A3") — the text lives in its first cell.
+    const firstCellOfRef = (link: PONode): string =>
+      (attrOf(link, "ref") ?? "").split(":")[0].trim();
+    const wantedRefs = new Set(linkEls.map(firstCellOfRef).filter((r) => r !== ""));
+    const cellTextByRef = new Map<string, string>();
+    if (wantedRefs.size > 0) {
+      for (const cell of descendants(sheetRoot, "c")) {
+        const ref = attrOf(cell, "r");
+        if (!ref || !wantedRefs.has(ref)) continue;
+        const type = attrOf(cell, "t");
+        let text: string;
+        if (type === "s") {
+          const vNode = firstChild(cell, "v");
+          const idx = vNode ? Number(rawText(vNode)) : NaN;
+          text =
+            Number.isInteger(idx) && idx >= 0 && idx < sharedStrings.length
+              ? sharedStrings[idx]
+              : "";
+        } else if (type === "inlineStr") {
+          text = textOf(cell);
+        } else {
+          const vNode = firstChild(cell, "v");
+          text = vNode ? rawText(vNode) : "";
+        }
+        cellTextByRef.set(ref, text.trim());
+      }
+    }
     const relMap = new Map(sheetRels.map((r) => [r.id, r.target]));
     for (const link of linkEls) {
       const rid = attrOf(link, "id");
+      const cellText = cellTextByRef.get(firstCellOfRef(link));
+      const display = attrOf(link, "display");
+      const text = (cellText ? cellText : (display ?? cellText ?? "")).trim();
       analysis.links.push({
-        text: (attrOf(link, "display") ?? "").trim(),
+        text,
         url: rid && relMap.has(rid) ? relMap.get(rid)! : null,
+        resolved: cellText !== undefined || display !== undefined,
       });
     }
   }

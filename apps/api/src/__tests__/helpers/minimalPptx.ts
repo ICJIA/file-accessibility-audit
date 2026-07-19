@@ -8,6 +8,8 @@ import JSZip from "jszip";
 export interface SlideOpts {
   /** Title placeholder text; null = no title placeholder on the slide. */
   title?: string | null;
+  /** Emit show="0" on the slide (hidden slide). */
+  hidden?: boolean;
   /** Raw <p:sp>/<p:pic>/<p:graphicFrame> XML inserted BEFORE the title shape. */
   beforeTitle?: string;
   /** Raw shape XML inserted after the title shape. */
@@ -33,6 +35,13 @@ export function titleShape(text: string, type: "title" | "ctrTitle" = "title"): 
     <p:spPr/><p:txBody><a:bodyPr/><a:p><a:r><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
 }
 
+/** A BODY PLACEHOLDER shape (p:ph type="body") — inherits the master's body
+ *  list styles, unlike the plain bodyShape below. */
+export function bodyPlaceholderShape(paragraphs: string): string {
+  return `<p:sp><p:nvSpPr><p:cNvPr id="4" name="Content Placeholder"/><p:cNvSpPr/><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>
+    <p:spPr/><p:txBody><a:bodyPr/>${paragraphs}</p:txBody></p:sp>`;
+}
+
 export function bodyShape(paragraphs: string, opts: { fillHex?: string } = {}): string {
   const fill = opts.fillHex ? `<a:solidFill><a:srgbClr val="${opts.fillHex}"/></a:solidFill>` : "";
   return `<p:sp><p:nvSpPr><p:cNvPr id="3" name="Body"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
@@ -49,6 +58,8 @@ export function para(
     sizeHundredthsPt?: number;
     bold?: boolean;
     linkRelId?: string;
+    /** Run language: string forces an a:rPr with that lang; null renders any rPr without a lang attr; undefined keeps the legacy default (lang="en-US" whenever an rPr is emitted for other reasons). */
+    lang?: string | null;
   } = {},
 ): string {
   const bu =
@@ -68,7 +79,11 @@ export function para(
   const link = opts.linkRelId ? `<a:hlinkClick r:id="${opts.linkRelId}"/>` : "";
   const attrs =
     (opts.sizeHundredthsPt ? ` sz="${opts.sizeHundredthsPt}"` : "") + (opts.bold ? ' b="1"' : "");
-  const rPr = fill || link || attrs ? `<a:rPr lang="en-US"${attrs}>${fill}${link}</a:rPr>` : "";
+  const langAttr = opts.lang === null ? "" : ` lang="${opts.lang ?? "en-US"}"`;
+  const rPr =
+    fill || link || attrs || opts.lang !== undefined
+      ? `<a:rPr${langAttr}${attrs}>${fill}${link}</a:rPr>`
+      : "";
   return `<a:p>${pPr}<a:r>${rPr}<a:t>${text}</a:t></a:r></a:p>`;
 }
 
@@ -116,6 +131,8 @@ export interface BuildPptxOpts {
   slideBgHex?: string;
   /** Override ppt/theme/theme1.xml (default = Office scheme from Task 2's test). */
   themeXml?: string;
+  /** Write ppt/slideMasters/slideMaster1.xml (absent by default). */
+  masterXml?: string;
 }
 
 export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
@@ -166,6 +183,8 @@ export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
   <a:accent1><a:srgbClr val="4472C4"/></a:accent1></a:clrScheme></a:themeElements></a:theme>`,
   );
 
+  if (opts.masterXml) zip.file("ppt/slideMasters/slideMaster1.xml", opts.masterXml);
+
   const bg = opts.slideBgHex
     ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${opts.slideBgHex}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`
     : "";
@@ -178,7 +197,7 @@ export async function buildPptx(opts: BuildPptxOpts): Promise<Buffer> {
         : titleShape(s.title);
     zip.file(
       `ppt/slides/slide${i + 1}.xml`,
-      `<?xml version="1.0"?><p:sld ${NS}><p:cSld>${bg}<p:spTree>
+      `<?xml version="1.0"?><p:sld ${NS}${s.hidden ? ' show="0"' : ""}><p:cSld>${bg}<p:spTree>
 <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
 ${s.beforeTitle ?? ""}${title}${s.body ?? ""}
 </p:spTree>${s.extraCSldXml ?? ""}</p:cSld></p:sld>`,

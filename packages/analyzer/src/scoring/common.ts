@@ -146,3 +146,50 @@ export function aggregateScore(
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Link-text classification (WCAG 2.4.4) — ONE doctrine for all four formats.
+// Moved here from pdf.ts so docx/pptx/xlsx apply the identical calibration
+// decided in v1.25.0: a visible raw URL SATISFIES 2.4.4 (the destination is
+// programmatically determinable) and is advisory-only; empty, vague, or
+// too-short text is the actual violation.
+// ---------------------------------------------------------------------------
+
+const VAGUE_LINK_PHRASES = new Set([
+  "click here",
+  "click",
+  "here",
+  "read more",
+  "more",
+  "learn more",
+  "see more",
+  "this",
+  "this link",
+  "link",
+  "link here",
+  "go",
+  "go here",
+  "continue",
+  "details",
+  "see details",
+  "more info",
+  "more information",
+  "info",
+  "download",
+  "view",
+  "open",
+  "visit",
+  "click this link",
+]);
+
+export type LinkClass = "descriptive" | "rawUrl" | "needsFix";
+
+export function classifyLinkText(text: string): LinkClass {
+  const t = text.trim().toLowerCase();
+  if (t.length === 0) return "needsFix"; // empty link text — no purpose conveyed
+  if (/^(https?:\/\/|www\.)/i.test(t)) return "rawUrl"; // visible URL — advisory
+  if (VAGUE_LINK_PHRASES.has(t.replace(/[.!?:;\s]+$/g, ""))) return "needsFix";
+  // 1–2 alphanumeric characters cannot describe a destination.
+  if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return "needsFix";
+  return "descriptive";
+}

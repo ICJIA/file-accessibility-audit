@@ -26,9 +26,48 @@ function analysis(over: Partial<DocxAnalysis> = {}): DocxAnalysis {
     lists: { realListItems: 0, manualBulletParagraphs: 0 },
     contrast: { checkedRuns: 5, unresolvedRuns: 0, failing: [] },
     paragraphCount: 4,
+    emptyHeadingCount: 0,
+    parse: { documentOk: true, stylesState: "ok", coreState: "ok" },
     ...over,
   };
 }
+
+describe("evaluateDocxConformance — layout tables and parse state", () => {
+  it("does not assert the table claim for layout-like tables", () => {
+    const v = evaluateDocxConformance(
+      analysis({
+        tables: [
+          {
+            hasHeaderRow: false,
+            rowCount: 3,
+            colCount: 3,
+            hasNestedTable: false,
+            looksLikeLayout: true,
+          },
+        ],
+      }),
+    );
+    expect(v.failures.filter((f) => f.issue.includes("header row"))).toHaveLength(0);
+  });
+
+  it("returns incomplete when the document body could not be parsed", () => {
+    const v = evaluateDocxConformance(
+      analysis({ parse: { documentOk: false, stylesState: "ok", coreState: "ok" } }),
+    );
+    expect(v.status).toBe("incomplete");
+    expect(v.failures).toHaveLength(0);
+  });
+
+  it("suppresses 3.1.1/2.4.2 when their source parts were unparseable", () => {
+    const v = evaluateDocxConformance(
+      analysis({
+        metadata: { title: null, creator: null, language: null, pageCount: 1, wordCount: 10 },
+        parse: { documentOk: true, stylesState: "unparseable", coreState: "unparseable" },
+      }),
+    );
+    expect(v.failures.filter((f) => f.sc === "3.1.1" || f.sc === "2.4.2")).toHaveLength(0);
+  });
+});
 
 describe("evaluateDocxConformance", () => {
   it("passes a clean document with no automated failures", () => {
@@ -38,13 +77,13 @@ describe("evaluateDocxConformance", () => {
   });
 
   it("fails 1.1.1 when a non-decorative image lacks alt text", () => {
-    const v = evaluateDocxConformance(analysis({ images: [{ altText: null, decorative: false }] }));
+    const v = evaluateDocxConformance(analysis({ images: [{ altText: null, decorative: false, titleOnly: false }] }));
     expect(v.status).toBe("fail");
     expect(v.failures.some((f) => f.sc === "1.1.1")).toBe(true);
   });
 
   it("does not fail 1.1.1 for a decorative image with no alt text", () => {
-    const v = evaluateDocxConformance(analysis({ images: [{ altText: null, decorative: true }] }));
+    const v = evaluateDocxConformance(analysis({ images: [{ altText: null, decorative: true, titleOnly: false }] }));
     expect(v.failures.some((f) => f.sc === "1.1.1")).toBe(false);
   });
 

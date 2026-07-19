@@ -64,7 +64,7 @@ describe("scorePptx", () => {
     expect(ids).not.toContain("bookmarks");
   });
 
-  it("slide_titles penalizes untitled slides and duplicates, naming slide numbers", () => {
+  it("slide_titles scores proportionally (floor 40 / cap 85) and deducts duplicates", () => {
     const r = scorePptx(
       baseAnalysis({
         slides: [
@@ -75,9 +75,43 @@ describe("scorePptx", () => {
       }),
     );
     const cat = r.categories.find((c) => c.id === "slide_titles")!;
-    expect(cat.score).toBe(70); // 100 − 20 (slide 1) − 10 (one duplicate group)
+    // 2 of 3 titled → clamp(67, 40..85) = 67, minus 10 for one duplicate group.
+    expect(cat.score).toBe(57);
     expect(cat.findings.join(" ")).toContain("Slide 1");
     expect(cat.findings.join(" ")).toContain('"Update"');
+  });
+
+  it("slide_titles: a large mostly-titled deck is Minor, not zero", () => {
+    const slides = Array.from({ length: 100 }, (_, i) => ({
+      index: i + 1,
+      title: i < 95 ? `Topic ${i + 1}` : null,
+      titleIsFirstShape: true,
+      shapeCount: 1,
+    }));
+    const r = scorePptx(baseAnalysis({ slides }));
+    // 95% titled — the old linear −20/slide scored this 0/Critical.
+    expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(85);
+  });
+
+  it("hidden slides are excluded from slide-title judgment", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [
+          { index: 1, title: "Only visible", titleIsFirstShape: true, shapeCount: 1 },
+          { index: 2, title: null, titleIsFirstShape: false, shapeCount: 1, hidden: true },
+        ],
+      }),
+    );
+    expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(100);
+  });
+
+  it("reading_order is not assessed when no visible slide has a title", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        slides: [{ index: 1, title: null, titleIsFirstShape: false, shapeCount: 3 }],
+      }),
+    );
+    expect(r.categories.find((c) => c.id === "reading_order")!.score).toBeNull();
   });
 
   it("reading_order deducts for title-not-first and advises on shape-heavy slides", () => {
@@ -89,6 +123,43 @@ describe("scorePptx", () => {
     const cat = r.categories.find((c) => c.id === "reading_order")!;
     expect(cat.score).toBe(85);
     expect(cat.findings.join(" ")).toMatch(/12 shapes/);
+  });
+
+  it("link_quality: raw URLs advisory-only, vague phrases penalized (PDF-parity doctrine)", () => {
+    const r = scorePptx(
+      baseAnalysis({
+        links: [
+          { text: "https://example.gov/x", url: "https://example.gov/x" },
+          { text: "click here", url: "https://example.gov/y" },
+          { text: "Program overview", url: "https://example.gov/z" },
+        ],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "link_quality")!;
+    // raw URL satisfies 2.4.4 (advisory); "click here" is the real violation.
+    expect(cat.score).toBe(67);
+    expect(cat.findings.join(" ")).toContain("not scored against you");
+  });
+
+  it("alt_text caps at 85 with any missing alt and is N/A when all images are decorative", () => {
+    const capped = scorePptx(
+      baseAnalysis({
+        images: [
+          { altText: null, decorative: false, titleOnly: false },
+          ...Array.from({ length: 39 }, () => ({
+            altText: "ok",
+            decorative: false,
+            titleOnly: false,
+          })),
+        ],
+      }),
+    );
+    expect(capped.categories.find((c) => c.id === "alt_text")!.score).toBe(85);
+
+    const allDecorative = scorePptx(
+      baseAnalysis({ images: [{ altText: null, decorative: true, titleOnly: false }] }),
+    );
+    expect(allDecorative.categories.find((c) => c.id === "alt_text")!.score).toBe(null);
   });
 
   it("null-scores empty categories so they renormalize away", () => {

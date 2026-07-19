@@ -9,6 +9,7 @@ import type { DocxAnalysis } from "../docxService.js";
 import {
   getGrade,
   getSeverity,
+  classifyLinkText,
   clamp100,
   aggregateScore,
   applyWcagCriteria,
@@ -154,11 +155,18 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       if (a.headings[i].level - a.headings[i - 1].level > 1) skips++;
     }
     if (skips > 0) {
-      score -= skips * 15;
+      // Capped: a long document with a recurring template quirk should read
+      // as "one systematic issue", not saturate the category to zero.
+      score -= Math.min(30, skips * 15);
       findings.push(
         `${skips} place(s) skip a heading level (e.g. Heading 1 → Heading 3). Don't skip levels — screen-reader users infer structure from them.`,
       );
     }
+  }
+  if ((a.emptyHeadingCount ?? 0) > 0) {
+    findings.push(
+      `Advisory — not scored: ${a.emptyHeadingCount} empty Heading-styled paragraph(s) (no text — often a spacing habit). They clutter the navigable outline; use paragraph spacing instead.`,
+    );
   }
   if (fakes > 0) {
     score -= total === 0 ? 70 : Math.min(40, fakes * 15);
@@ -203,6 +211,12 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
     findings.push(
       `${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text and add a description.`,
     );
+    const titleOnly = nonDecorative.filter((i) => i.titleOnly && !i.altText).length;
+    if (titleOnly > 0) {
+      findings.push(
+        `${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title. Move the text into the Description box.`,
+      );
+    }
   }
   return docxCategory(
     "alt_text",
@@ -260,9 +274,6 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
   );
 }
 
-const RAW_URL_RE = /^\s*(https?:\/\/|www\.)/i;
-const VAGUE_LINK_RE = /^\s*(click here|here|read more|more|link|this|this link|learn more)\s*$/i;
-
 function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
   if (a.links.length === 0) {
     return docxCategory(
@@ -271,21 +282,30 @@ function scoreDocxLinks(a: DocxAnalysis): CategoryResult {
       DOCX.SCORING_WEIGHTS.link_quality,
       null,
       ["No hyperlinks were found."],
-      "Link text should describe the destination. Raw URLs and vague phrases like 'click here' are unhelpful out of context.",
+      "Link text should describe the destination. Vague phrases like 'click here' are unhelpful out of context.",
       [DOCX_HELP.links],
       false,
     );
   }
-  const bad = a.links.filter((l) => RAW_URL_RE.test(l.text) || VAGUE_LINK_RE.test(l.text.trim()));
-  let score = Math.round(((a.links.length - bad.length) / a.links.length) * 100);
-  const findings = [`${a.links.length} link(s) found; ${bad.length} with unclear text.`];
-  if (bad.length > 0) {
-    score = Math.min(score, 85);
+  // Shared 2.4.4 doctrine (scoring/common.ts, calibrated in the PDF path):
+  // raw URLs SATISFY 2.4.4 and are advisory-only; empty/vague/too-short text
+  // is the actual violation. The old raw-URL penalty (plus an 85-point cap)
+  // scored an all-URL reference memo 0 as DOCX while its PDF twin scored 100.
+  const needsFix = a.links.filter((l) => classifyLinkText(l.text) === "needsFix");
+  const rawUrls = a.links.filter((l) => classifyLinkText(l.text) === "rawUrl");
+  const score = Math.round(((a.links.length - needsFix.length) / a.links.length) * 100);
+  const findings = [`${a.links.length} link(s) found; ${needsFix.length} with unclear text.`];
+  if (needsFix.length > 0) {
     findings.push(
-      `Vague or raw-URL link text: ${bad
+      `Vague or empty link text: ${needsFix
         .slice(0, 5)
-        .map((l) => `"${l.text}"`)
+        .map((l) => (l.text.trim() ? `"${l.text}"` : "(empty)"))
         .join(", ")}. Use descriptive link text that makes sense on its own.`,
+    );
+  }
+  if (rawUrls.length > 0) {
+    findings.push(
+      `Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable), but a descriptive label reads better in a screen reader's list of links.`,
     );
   }
   return docxCategory(

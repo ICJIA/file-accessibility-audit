@@ -9,6 +9,7 @@ import type { XlsxAnalysis } from "../xlsxService.js";
 import {
   getGrade,
   getSeverity,
+  classifyLinkText,
   clamp100,
   aggregateScore,
   applyWcagCriteria,
@@ -71,16 +72,47 @@ function xlsxCategory(
   };
 }
 
-function scoreXlsxText(): CategoryResult {
+function scoreXlsxText(a: XlsxAnalysis): CategoryResult {
+  // The old version asserted "fully extractable text in real cells"
+  // UNCONDITIONALLY — including for workbooks whose entire narrative lives
+  // in drawing text boxes over an empty grid, or that are one pasted
+  // screenshot. The claim is now keyed to evidence.
+  if (a.totalCellsWithValue === 0) {
+    const findings = [
+      "No cell values were found in this workbook's visible sheets, so the usual Excel guarantee — extractable text in real cells — does not apply here.",
+    ];
+    if (a.textBoxCount > 0) {
+      findings.push(
+        `${a.textBoxCount} drawing text box(es) hold this workbook's text content. Text boxes float over the grid and are not reached by cell navigation — move important narrative into real cells where possible.`,
+      );
+    }
+    findings.push("Text extractability was not assessed for this workbook.");
+    return xlsxCategory(
+      "text_extractability",
+      "Text Extractability",
+      XLSX.SCORING_WEIGHTS.text_extractability,
+      null,
+      findings,
+      "Excel normally stores real cell text screen readers can always read; this workbook has no cell values, so that guarantee could not be confirmed.",
+      [XLSX_HELP.overview],
+      true,
+    );
+  }
+  const findings = [
+    `${a.totalCellsWithValue.toLocaleString()} cell(s) contain extractable, selectable values — unlike a scanned image, this content is always available to assistive technology.`,
+  ];
+  if (a.textBoxCount > 0) {
+    findings.push(
+      `Note: ${a.textBoxCount} drawing text box(es) also hold text that cell-based checks do not audit.`,
+    );
+  }
   return xlsxCategory(
     "text_extractability",
     "Text Extractability",
     XLSX.SCORING_WEIGHTS.text_extractability,
     100,
-    [
-      "Excel worksheets contain fully extractable, selectable text in real cells — unlike a scanned image, the content is always available to assistive technology.",
-    ],
-    "Excel stores real cell text (never a flat image), so screen readers can always read the values. This foundational check therefore passes automatically for .xlsx; the remaining categories assess how well that data is structured.",
+    findings,
+    "Excel stores real cell text (never a flat image), so screen readers can always read the values. The remaining categories assess how well that data is structured.",
     [XLSX_HELP.overview],
   );
 }
@@ -102,7 +134,10 @@ function scoreXlsxTitleLanguage(a: XlsxAnalysis): CategoryResult {
     "title_language",
     "Title & Language",
     XLSX.SCORING_WEIGHTS.title_language,
-    hasTitle ? 100 : 0,
+    // 50, not 0: a missing title costs HALF this category in every other
+    // format (language being structurally absent in Excel is not the
+    // author's fault and must not double the penalty).
+    hasTitle ? 100 : 50,
     findings,
     "A meaningful workbook title is announced by screen readers when the file opens. Unlike Word or PowerPoint, Excel workbooks have no document-language property to declare, so that half of this check is always not assessed.",
     [XLSX_HELP.overview],
@@ -131,11 +166,24 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
           (s) =>
             `Rename "${s.name}" to describe its contents — sheet names are the workbook's navigation.`,
         );
+  // Proportional with floor/cap (mirrors slide titles): the old −25 per
+  // sheet zeroed a 20-sheet workbook over 4 leftover names while barely
+  // touching a 2-sheet one.
+  const score =
+    defaultNamed.length === 0
+      ? 100
+      : Math.max(
+          40,
+          Math.min(
+            85,
+            Math.round((100 * (visible.length - defaultNamed.length)) / visible.length),
+          ),
+        );
   return xlsxCategory(
     "sheet_names",
     "Sheet Names",
     XLSX.SCORING_WEIGHTS.sheet_names,
-    clamp100(100 - 25 * defaultNamed.length),
+    score,
     findings,
     'Descriptive sheet names (not Excel defaults like "Sheet1") are the workbook\'s navigation — screen-reader users hear them when switching sheets.',
     [XLSX_HELP.sheetNames],
@@ -170,25 +218,44 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
     );
   }
 
+  // Dataful sheets with no header semantics anywhere. Pivot sheets are
+  // excluded — pivots materialize as plain cells and cannot be converted to
+  // an Excel Table, so the advice would be wrong for them.
   const datafulWithoutTable = a.sheets.some(
-    (s) => s.usedRangeCellCount >= 12 && !s.hasDefinedTable,
+    (s) => !s.hidden && s.usedRangeCellCount >= 12 && !s.hasDefinedTable && !s.hasPivot,
   );
-  if (datafulWithoutTable) {
-    score -= 10;
+  if (datafulWithoutTable && a.tables.length === 0) {
+    // No header semantics in the whole workbook — the format's stated
+    // fundamental. The old "Advisory: −10" both under-penalized it and broke
+    // the advisory-means-unscored promise; 60 (Moderate) reflects the config's
+    // own weighting of table structure.
+    score = Math.min(score, 60);
     findings.push(
-      "Advisory: some worksheet data is laid out as a plain cell range rather than a defined Excel Table. In Excel: select the range → Insert → Table so screen readers can navigate it by header.",
+      "Worksheet data is laid out as plain cell ranges with no defined Excel Table anywhere, so screen readers cannot announce column headers while navigating. In Excel: select each data range → Insert → Table.",
+    );
+  } else if (datafulWithoutTable) {
+    findings.push(
+      "Note — not scored: some worksheet data sits outside the defined table(s) as plain ranges. Consider Insert → Table for those ranges too.",
     );
   }
 
-  const mergedSheets = a.sheets.filter((s) => s.mergedRangeCount > 0);
-  if (mergedSheets.length > 0) {
-    score -= Math.min(15, 5 * mergedSheets.length);
+  const pivotSheets = a.sheets.filter((s) => !s.hidden && s.hasPivot);
+  if (pivotSheets.length > 0) {
     findings.push(
-      `Advisory: ${mergedSheets.length} sheet(s) contain merged cells (${mergedSheets
+      `Note — not scored: ${pivotSheets.length} sheet(s) contain pivot tables (${pivotSheets
+        .map((s) => `"${s.name}"`)
+        .join(", ")}). Pivots cannot become Excel Tables; verify their readability manually.`,
+    );
+  }
+
+  const mergedSheets = a.sheets.filter((s) => !s.hidden && s.mergedRangeCount > 0);
+  if (mergedSheets.length > 0) {
+    findings.push(
+      `Note — not scored: ${mergedSheets.length} sheet(s) contain merged cells (${mergedSheets
         .map((s) => `"${s.name}": ${s.mergedRangeCount}`)
         .join(
           ", ",
-        )}), which can confuse screen-reader navigation. Avoid merged cells where possible.`,
+        )}), which can confuse screen-reader navigation. Whether they harm depends on placement — review manually.`,
     );
   }
 
@@ -218,25 +285,37 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
   }
   const nonDec = a.images.filter((i) => !i.decorative);
   if (nonDec.length === 0) {
+    // N/A, matching DOCX: an all-decorative workbook has nothing to assess —
+    // returning 100 lifted the weighted average as a reward for absence.
     return xlsxCategory(
       "alt_text",
       "Alt Text on Images",
       XLSX.SCORING_WEIGHTS.alt_text,
-      100,
+      null,
       ["All images are marked decorative, so none require alt text."],
       "Every meaningful image, chart, or graphic needs alternative text describing it for screen-reader users. Decorative images should be marked decorative instead.",
       [XLSX_HELP.altText],
+      false,
     );
   }
   const missingAlt = nonDec.filter((i) => !i.altText || i.altText.trim().length === 0);
-  const score = Math.round((100 * (nonDec.length - missingAlt.length)) / nonDec.length);
+  let score = Math.round((100 * (nonDec.length - missingAlt.length)) / nonDec.length);
   const findings = [
     `${nonDec.length - missingAlt.length} of ${nonDec.length} meaningful image(s) have alt text.`,
   ];
   if (missingAlt.length > 0) {
+    // Cap 85 (Minor ceiling) whenever any image lacks alt — cross-format
+    // convention shared with DOCX so one barrier has one grade consequence.
+    score = Math.min(score, 85);
     findings.push(
       `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → Edit Alt Text and add a description.`,
     );
+    const titleOnly = nonDec.filter((i) => i.titleOnly && !i.altText).length;
+    if (titleOnly > 0) {
+      findings.push(
+        `${titleOnly} of those have only the Title property filled — screen readers read the Description (alt text) field, not Title.`,
+      );
+    }
   }
   return xlsxCategory(
     "alt_text",
@@ -297,8 +376,6 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
   );
 }
 
-const XLSX_RAW_URL_RE = /^(https?:\/\/|www\.)/i;
-
 function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
   if (a.links.length === 0) {
     return xlsxCategory(
@@ -312,17 +389,48 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
       false,
     );
   }
-  const bad = a.links.filter((l) => !l.text || XLSX_RAW_URL_RE.test(l.text));
-  const score = Math.round((100 * (a.links.length - bad.length)) / a.links.length);
-  const findings = [`${a.links.length} link(s) found; ${bad.length} with unclear text.`];
-  if (bad.length > 0) {
+  // Unresolved links (no cell text AND no display attribute in the file)
+  // cannot be judged — excluding them beats calling a working link "(empty)".
+  const assessable = a.links.filter((l) => l.resolved);
+  const unresolvedCount = a.links.length - assessable.length;
+  if (assessable.length === 0) {
+    return xlsxCategory(
+      "link_quality",
+      "Link Quality",
+      XLSX.SCORING_WEIGHTS.link_quality,
+      null,
+      [
+        `${a.links.length} link(s) found, but their text could not be resolved from the file — link quality was not assessed.`,
+      ],
+      "Link text should describe the destination. Empty link text and raw URLs are unhelpful out of context.",
+      [XLSX_HELP.overview],
+      true,
+    );
+  }
+  // Shared 2.4.4 doctrine (scoring/common.ts): raw URLs are advisory-only;
+  // empty/vague/too-short text is penalized.
+  const needsFix = assessable.filter((l) => classifyLinkText(l.text) === "needsFix");
+  const rawUrls = assessable.filter((l) => classifyLinkText(l.text) === "rawUrl");
+  const score = Math.round((100 * (assessable.length - needsFix.length)) / assessable.length);
+  const findings = [`${assessable.length} link(s) assessed; ${needsFix.length} with unclear text.`];
+  if (unresolvedCount > 0) {
     findings.push(
-      `Empty or raw-URL link text: ${bad
+      `${unresolvedCount} additional link(s) had no resolvable text in the file and were not assessed.`,
+    );
+  }
+  if (needsFix.length > 0) {
+    findings.push(
+      `Empty or vague link text: ${needsFix
         .slice(0, 5)
         .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
         .join(
           ", ",
-        )}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase instead of the raw address.`,
+        )}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase.`,
+    );
+  }
+  if (rawUrls.length > 0) {
+    findings.push(
+      `Advisory — not scored against you: ${rawUrls.length} link(s) show the raw URL as their visible text. This satisfies WCAG 2.4.4, but a descriptive label reads better in a screen reader's list of links.`,
     );
   }
   return xlsxCategory(
@@ -353,7 +461,7 @@ function scoreXlsxForms(): CategoryResult {
 
 function buildXlsxCategories(a: XlsxAnalysis): CategoryResult[] {
   const categories = [
-    scoreXlsxText(),
+    scoreXlsxText(a),
     scoreXlsxTitleLanguage(a),
     scoreXlsxSheetNames(a),
     scoreXlsxTableMarkup(a),

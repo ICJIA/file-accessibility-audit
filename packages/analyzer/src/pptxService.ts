@@ -2,10 +2,9 @@
  * PPTX (OOXML / PresentationML) accessibility extractor. Pure JS on the
  * shared services/ooxml.ts core; output PptxAnalysis feeds scorePptx().
  *
- * v1 boundaries (see the Phase 2 plan): slide numbering follows the
- * ppt/slides/slide<N>.xml filenames (sldIdLst's id/r:id attributes collide
- * under removeNSPrefix); default master-inherited bullets are not resolved;
- * speaker notes are not read.
+ * Boundaries: speaker notes are not read; slide numbering resolves through
+ * p:sldIdLst + presentation rels (filename order as fallback); master
+ * bodyStyle bullets are inherited for body-placeholder paragraphs.
  */
 import JSZip from "jszip";
 import { PPTX, OOXML } from "#config";
@@ -44,12 +43,14 @@ export interface PptxMetadata {
 export interface PptxAnalysis {
   metadata: PptxMetadata;
   slides: Array<{
+    /** Slide is hidden (p:sld show="0") — excluded from title judgment. */
+    hidden?: boolean;
     index: number;
     title: string | null;
     titleIsFirstShape: boolean;
     shapeCount: number;
   }>;
-  images: Array<{ altText: string | null; decorative: boolean }>;
+  images: Array<{ altText: string | null; decorative: boolean; titleOnly: boolean }>;
   tables: Array<{ hasHeaderRow: boolean; rowCount: number; colCount: number }>;
   links: Array<{ text: string; url: string | null }>;
   lists: { realListItems: number; manualBulletParagraphs: number };
@@ -176,17 +177,45 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   // eslint-disable-next-line no-useless-assignment
   themeRoot = undefined;
 
-  // Slide parts in filename order (v1 boundary — see module doc comment).
-  const slidePaths = Object.keys(zip.files)
+  // Slide parts in PRESENTATION order — resolved from p:sldIdLst through the
+  // presentation rels, so findings point at the slides the author actually
+  // sees after reordering. Filename order is only the fallback when the id
+  // list or rels are missing/unresolvable.
+  const filenameOrdered = Object.keys(zip.files)
     .filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))
     .sort(
       (a, b) => Number(/slide(\d+)\.xml$/.exec(a)![1]) - Number(/slide(\d+)\.xml$/.exec(b)![1]),
     );
+  let slidePaths = filenameOrdered;
+  if (presRoot) {
+    const presRels = parseRelationshipEntries(await read("ppt/_rels/presentation.xml.rels"));
+    const relTargets = new Map(
+      presRels.map((r) => [r.id, `ppt/${r.target.replace(/^\.\//, "").replace(/^\//, "")}`]),
+    );
+    // <p:sldId id="256" r:id="rId2"/> — with removeNSPrefix, r:id serializes
+    // after id and lands in the same "id" attribute slot, so attrOf yields
+    // the RELATIONSHIP id (matching how xlsxService reads sheet r:id).
+    const orderedPaths = descendants(presRoot, "sldId")
+      .map((sldId) => relTargets.get(attrOf(sldId, "id") ?? ""))
+      .filter((p): p is string => !!p && filenameOrdered.includes(p));
+    if (orderedPaths.length > 0) {
+      const remainder = filenameOrdered.filter((p) => !orderedPaths.includes(p));
+      slidePaths = [...orderedPaths, ...remainder];
+    }
+  }
   if (slidePaths.length > PPTX.MAX_SLIDES) {
     throw new PptxParseError(
       `This presentation has too many slides (${slidePaths.length.toLocaleString()}) to analyze.`,
     );
   }
+
+  // Master part — used for the language fallback AND the body list styles
+  // (PowerPoint-native decks inherit their bullets from bodyStyle, with no
+  // explicit bu* on the slide paragraphs).
+  const masterRoot = rootElement(
+    parseXml(await read("ppt/slideMasters/slideMaster1.xml")),
+    "sldMaster",
+  );
 
   // Language: presentation defaultTextStyle a:defRPr lang, else first master.
   let language: string | null = null;
@@ -194,12 +223,27 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     const defRPr = descendants(presRoot, "defRPr").find((d) => attrOf(d, "lang"));
     language = defRPr ? (attrOf(defRPr, "lang") ?? null) : null;
   }
-  if (!language) {
-    const masterXml = await read("ppt/slideMasters/slideMaster1.xml");
-    const masterRoot = rootElement(parseXml(masterXml), "sldMaster");
-    if (masterRoot) {
-      const defRPr = descendants(masterRoot, "defRPr").find((d) => attrOf(d, "lang"));
-      language = defRPr ? (attrOf(defRPr, "lang") ?? null) : null;
+  if (!language && masterRoot) {
+    const defRPr = descendants(masterRoot, "defRPr").find((d) => attrOf(d, "lang"));
+    language = defRPr ? (attrOf(defRPr, "lang") ?? null) : null;
+  }
+
+  // Per-level body bullet defaults from the master's bodyStyle: lvlNpPr with
+  // buChar/buAutoNum = bulleted level; buNone = explicitly unbulleted.
+  const masterBodyBullets = new Map<number, "bullet" | "none">();
+  if (masterRoot) {
+    const bodyStyle = descendants(masterRoot, "bodyStyle")[0];
+    if (bodyStyle) {
+      for (const child of childrenOf(bodyStyle)) {
+        const m = /^lvl(\d)pPr$/.exec(tagOf(child) ?? "");
+        if (!m) continue;
+        const lvl = Number(m[1]);
+        if (firstChild(child, "buChar") || firstChild(child, "buAutoNum")) {
+          masterBodyBullets.set(lvl, "bullet");
+        } else if (firstChild(child, "buNone")) {
+          masterBodyBullets.set(lvl, "none");
+        }
+      }
     }
   }
 
@@ -224,6 +268,14 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
   // checked against MAX_TEXT_ELEMENTS. Kept local (not on PptxAnalysis) so the
   // analysis OUTPUT shape is unchanged for valid documents.
   let textElementCount = 0;
+
+  // Run-level language tally. PresentationML stores language on each run's
+  // a:rPr@lang; deck-level defaults are frequently ABSENT (Google Slides
+  // exports systematically omit them) while every run still declares its
+  // language. Used after the slide loop as a fallback for
+  // metadata.language, so 3.1.1 is only ever asserted when no language
+  // exists anywhere in the file.
+  const runLangTally = new Map<string, number>();
 
   for (let i = 0; i < slidePaths.length; i++) {
     const slideXml = await read(slidePaths[i]);
@@ -278,17 +330,34 @@ export async function analyzePptx(buffer: Buffer): Promise<PptxAnalysis> {
     const titleText = titleSp ? textOf(titleSp).trim() : "";
     const contentBearing = shapes.filter((s) => {
       const t = tagOf(s);
-      if (t === "pic" || t === "graphicFrame") return true;
+      if (t === "pic") {
+        // A decorative picture (full-bleed background wash, ornament) is
+        // skipped by assistive technology — it must not void "the title
+        // reads first" just because it precedes the title in z-order.
+        const cNvPr = descendants(s, "cNvPr")[0];
+        return !(cNvPr && drawingAltText(cNvPr).decorative);
+      }
+      if (t === "graphicFrame") return true;
       return t === "sp" && textOf(s).trim().length > 0;
     });
     analysis.slides.push({
       index: i + 1,
+      hidden: attrOf(slideRoot, "show") === "0",
       title: titleText.length > 0 ? titleText : null,
       titleIsFirstShape: !!titleSp && contentBearing.length > 0 && contentBearing[0] === titleSp,
       shapeCount: shapes.length,
     });
 
-    collectSlideContent(analysis, slideRoot, relMap, schemeColorMap, spTree);
+    for (const rPr of descendants(slideRoot, "rPr")) {
+      const runLang = attrOf(rPr, "lang");
+      if (runLang) runLangTally.set(runLang, (runLangTally.get(runLang) ?? 0) + 1);
+    }
+
+    collectSlideContent(analysis, slideRoot, relMap, schemeColorMap, spTree, masterBodyBullets);
+  }
+
+  if (!analysis.metadata.language && runLangTally.size > 0) {
+    analysis.metadata.language = [...runLangTally.entries()].sort((a, b) => b[1] - a[1])[0][0];
   }
 
   return analysis;
@@ -319,13 +388,29 @@ function walkPicsAndFrames(
   frameStack: FrameAcc[],
   standalonePics: PONode[],
   frames: FrameAcc[],
+  coveredGroups: PONode[],
 ): void {
   const tag = tagOf(node);
+  if (tag === "grpSp") {
+    // Alt text (or the decorative mark) set on the GROUP — the pattern
+    // Microsoft's Alt Text UI applies to grouped objects — covers its
+    // members: AT announces the group as one object. Counting each member
+    // as alt-less produced false confirmed 1.1.1 failures.
+    const groupPr = descendants(node, "cNvPr")[0]; // nvGrpSpPr precedes members
+    if (groupPr) {
+      const alt = drawingAltText(groupPr);
+      if (alt.altText || alt.decorative) {
+        coveredGroups.push(groupPr);
+        return;
+      }
+    }
+    // No group-level alt — fall through and walk members individually.
+  }
   if (tag === "graphicFrame") {
     const acc: FrameAcc = {};
     frames.push(acc);
     frameStack.push(acc);
-    for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames);
+    for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
     frameStack.pop();
     return;
   }
@@ -343,7 +428,7 @@ function walkPicsAndFrames(
     const top = frameStack[frameStack.length - 1];
     if (top && !top.cNvPr) top.cNvPr = node;
   }
-  for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames);
+  for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
 }
 
 function collectSlideContent(
@@ -352,14 +437,20 @@ function collectSlideContent(
   relMap: Map<string, string>,
   schemeColorMap: Map<string, string>,
   spTree: PONode | undefined,
+  masterBodyBullets: Map<number, "bullet" | "none">,
 ): void {
   // Images: pictures always — except a pic nested inside a graphicFrame,
   // which is the OLE-object fallback preview; the frame itself is the one
   // visual object (counted below), so counting its inner pic too would
-  // double-bill a single object's missing alt text.
+  // double-bill a single object's missing alt text. Groups carrying their
+  // own alt/decorative cover their members (one announced object).
   const standalonePics: PONode[] = [];
   const frames: FrameAcc[] = [];
-  walkPicsAndFrames(slideRoot, [], standalonePics, frames);
+  const coveredGroups: PONode[] = [];
+  walkPicsAndFrames(slideRoot, [], standalonePics, frames, coveredGroups);
+  for (const groupPr of coveredGroups) {
+    analysis.images.push(drawingAltText(groupPr));
+  }
   for (const pic of standalonePics) {
     const cNvPr = descendants(pic, "cNvPr")[0];
     if (cNvPr) analysis.images.push(drawingAltText(cNvPr));
@@ -371,8 +462,10 @@ function collectSlideContent(
       const grid = firstChild(tbl, "tblGrid");
       const cols = grid ? childrenOf(grid).filter((c) => tagOf(c) === "gridCol").length : 0;
       const tblPr = firstChild(tbl, "tblPr");
+      // ST_Boolean admits "true" as well as "1".
+      const firstRow = tblPr ? (attrOf(tblPr, "firstRow") ?? "") : "";
       analysis.tables.push({
-        hasHeaderRow: !!tblPr && attrOf(tblPr, "firstRow") === "1",
+        hasHeaderRow: firstRow === "1" || firstRow.toLowerCase() === "true",
         rowCount: rows,
         colCount: cols,
       });
@@ -381,25 +474,63 @@ function collectSlideContent(
     }
   }
 
-  // Links: any run whose rPr carries a:hlinkClick with an r:id.
-  for (const run of descendants(slideRoot, "r")) {
-    const rPr = firstChild(run, "rPr");
-    const hlink = rPr ? firstChild(rPr, "hlinkClick") : undefined;
+  // Text links. PowerPoint splits one hyperlink across several runs on any
+  // formatting boundary — CONSECUTIVE runs sharing one r:id within a
+  // paragraph are ONE link (fragments inflated counts and diluted ratios).
+  for (const p of descendants(slideRoot, "p")) {
+    let currentId: string | null = null;
+    let buf = "";
+    const flush = (): void => {
+      if (currentId !== null) {
+        analysis.links.push({
+          text: buf.trim(),
+          url: relMap.get(currentId) ?? null,
+        });
+      }
+      currentId = null;
+      buf = "";
+    };
+    for (const run of childrenOf(p).filter((c) => tagOf(c) === "r")) {
+      const rPr = firstChild(run, "rPr");
+      const hlink = rPr ? firstChild(rPr, "hlinkClick") : undefined;
+      const id = hlink ? (attrOf(hlink, "id") ?? "") : undefined;
+      if (id === undefined) {
+        flush();
+        continue;
+      }
+      if (currentId !== null && id !== currentId) flush();
+      currentId = id;
+      buf += textOf(run);
+    }
+    flush();
+  }
+  // Shape/picture-level links (image buttons): a:hlinkClick on the cNvPr.
+  // The object's alt text is its accessible name, so it doubles as link text.
+  for (const cNvPr of descendants(slideRoot, "cNvPr")) {
+    const hlink = firstChild(cNvPr, "hlinkClick");
     if (!hlink) continue;
     const id = attrOf(hlink, "id");
+    const alt = drawingAltText(cNvPr);
     analysis.links.push({
-      text: textOf(run).trim(),
+      text: (alt.altText ?? "").trim(),
       url: id && relMap.has(id) ? relMap.get(id)! : null,
     });
   }
 
-  // Lists: explicit bullet evidence only (v1 boundary — master defaults not
-  // resolved). Title paragraphs are excluded; they're headings, not list items.
+  // Lists. Real items are explicit buChar/buAutoNum, OR — the PowerPoint-
+  // native pattern — paragraphs in a BODY PLACEHOLDER whose level inherits a
+  // bullet from the master's bodyStyle (no explicit bu* on the slide at
+  // all). Title paragraphs are excluded; explicit buNone opts a paragraph
+  // out of inheritance.
   const titleParagraphs = new Set<PONode>();
+  const placeholderParagraphs = new Set<PONode>();
   if (spTree) {
     for (const sp of contentShapes(spTree)) {
-      if (tagOf(sp) === "sp" && isTitlePlaceholder(sp)) {
+      if (tagOf(sp) !== "sp") continue;
+      if (isTitlePlaceholder(sp)) {
         for (const p of descendants(sp, "p")) titleParagraphs.add(p);
+      } else if (descendants(sp, "ph").length > 0) {
+        for (const p of descendants(sp, "p")) placeholderParagraphs.add(p);
       }
     }
   }
@@ -408,8 +539,17 @@ function collectSlideContent(
     const pPr = firstChild(p, "pPr");
     const hasExplicitBullet =
       !!pPr && (!!firstChild(pPr, "buChar") || !!firstChild(pPr, "buAutoNum"));
-    if (hasExplicitBullet) analysis.lists.realListItems++;
-    else if (MANUAL_BULLET_RE.test(textOf(p))) analysis.lists.manualBulletParagraphs++;
+    const hasExplicitNone = !!pPr && !!firstChild(pPr, "buNone");
+    const level = pPr ? Number(attrOf(pPr, "lvl") ?? "0") + 1 : 1;
+    const inheritsBullet =
+      !hasExplicitNone &&
+      placeholderParagraphs.has(p) &&
+      masterBodyBullets.get(level) === "bullet" &&
+      textOf(p).trim().length > 0;
+    if (hasExplicitBullet || inheritsBullet) analysis.lists.realListItems++;
+    else if (!hasExplicitNone && MANUAL_BULLET_RE.test(textOf(p))) {
+      analysis.lists.manualBulletParagraphs++;
+    }
   }
 
   collectSlideContrast(analysis, slideRoot, schemeColorMap, spTree);
@@ -441,32 +581,48 @@ function collectSlideContrast(
   schemeColorMap: Map<string, string>,
   spTree: PONode | undefined,
 ): void {
-  // Slide background: explicit solid fill on p:bg, else white.
+  // Background PROVENANCE: only two backgrounds are treated as resolved —
+  // an explicit solid fill on the shape itself, or an explicit solid fill
+  // on the slide's own p:bg/p:bgPr. Everything else (p:bgRef theme
+  // references, layout/master-inherited backgrounds, gradient/picture
+  // fills, shapes stacked over cards) is genuinely unknown at this layer.
+  // The previous "else white" default failed white-titled dark-template
+  // decks at "1:1" as a CONFIRMED 1.4.3 violation; unresolved runs are
+  // counted and honestly reported as not-assessed instead.
   const bgNode = descendants(slideRoot, "bg")[0];
   const bgPr = bgNode ? firstChild(bgNode, "bgPr") : undefined;
-  const slideBg = explicitFill(bgPr, schemeColorMap) ?? "FFFFFF";
+  const slideBg: string | null = explicitFill(bgPr, schemeColorMap);
 
   if (!spTree) return;
   for (const sp of contentShapes(spTree)) {
     if (tagOf(sp) !== "sp") continue;
     const spPr = firstChild(sp, "spPr");
-    const shapeBg = explicitFill(spPr, schemeColorMap) ?? slideBg;
+    const shapeBg: string | null = explicitFill(spPr, schemeColorMap) ?? slideBg;
     for (const run of descendants(sp, "r")) {
       const text = textOf(run).trim();
       if (!text) continue;
       const rPr = firstChild(run, "rPr");
       const fg = rPr ? explicitFill(rPr, schemeColorMap) : null;
-      if (!fg) {
+      if (!fg || !shapeBg) {
+        analysis.contrast.unresolvedRuns++;
+        continue;
+      }
+      const sz = rPr ? Number(attrOf(rPr, "sz")) : NaN;
+      const sizeKnown = Number.isFinite(sz);
+      const bold = rPr ? attrOf(rPr, "b") === "1" : false;
+      const large =
+        (sizeKnown && sz >= LARGE_HUNDREDTHS) || (bold && sizeKnown && sz >= LARGE_BOLD_HUNDREDTHS);
+      const ratio = contrastRatio(fg, shapeBg);
+      // Font size is frequently inherited from the placeholder/layout/master
+      // chain (no sz on the run). A ratio in the 3.0–4.5 band passes as
+      // large text and fails as normal text — with the size unknown, which
+      // bar applies cannot be determined, so the run is unresolved rather
+      // than failed (master-sized 36pt titles were being held to 4.5:1).
+      if (!sizeKnown && ratio >= CONTRAST_MIN_LARGE && ratio < CONTRAST_MIN_NORMAL) {
         analysis.contrast.unresolvedRuns++;
         continue;
       }
       analysis.contrast.checkedRuns++;
-      const sz = rPr ? Number(attrOf(rPr, "sz")) : NaN;
-      const bold = rPr ? attrOf(rPr, "b") === "1" : false;
-      const large =
-        (Number.isFinite(sz) && sz >= LARGE_HUNDREDTHS) ||
-        (bold && Number.isFinite(sz) && sz >= LARGE_BOLD_HUNDREDTHS);
-      const ratio = contrastRatio(fg, shapeBg);
       const min = large ? CONTRAST_MIN_LARGE : CONTRAST_MIN_NORMAL;
       if (ratio < min) {
         analysis.contrast.failing.push({

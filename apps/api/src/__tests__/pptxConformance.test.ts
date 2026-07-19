@@ -28,7 +28,7 @@ describe("evaluatePptxConformance", () => {
     const v = evaluatePptxConformance(
       analysis({
         metadata: { title: null, creator: null, language: null, slideCount: 1 },
-        images: [{ altText: null, decorative: false }],
+        images: [{ altText: null, decorative: false, titleOnly: false }],
         tables: [{ hasHeaderRow: false, rowCount: 3, colCount: 3 }],
         contrast: {
           checkedRuns: 1,

@@ -77,6 +77,26 @@ export interface QpdfResult {
   artifactCount: number;
   actualTextCount: number;
   expansionTextCount: number;
+  /** True when the document is encrypted (any revision/handler). */
+  isEncrypted: boolean;
+  /** /ViewerPreferences /DisplayDocTitle — null when absent. WCAG 2.4.2's
+   *  PDF technique needs BOTH a title and this flag; without it viewers show
+   *  the filename. */
+  displayDocTitle: boolean | null;
+  /** AcroForm carries /XFA — a LiveCycle form whose real UI this pipeline
+   *  (and pdfjs) cannot see; analysis must not judge the placeholder page. */
+  hasXfa: boolean;
+  /** MarkInfo /Suspects === true — the producer itself flags the tagging as
+   *  unreliable (typically OCR/auto-tag output). Advisory. */
+  suspectsFlag: boolean;
+  /**
+   * The security handler's accessibility capability: false means conforming
+   * viewers deny assistive-technology text access (Matterhorn 26-002 — the
+   * most severe possible barrier). null = unencrypted or unknown. Modern
+   * AES-256/R6 encryption cannot deny accessibility, so false in practice
+   * means a legacy security handler with the accessibility flag off.
+   */
+  accessibilityAllowed: boolean | null;
   structTreeDepth: number;
   contentOrder: number[]; // MCIDs in structure tree order
   // Per-page MCID sequence as collected by walking the structure tree in
@@ -232,6 +252,11 @@ function emptyQpdfResult(error: string | null): QpdfResult {
     artifactCount: 0,
     actualTextCount: 0,
     expansionTextCount: 0,
+    isEncrypted: false,
+    displayDocTitle: null,
+    hasXfa: false,
+    suspectsFlag: false,
+    accessibilityAllowed: null,
     structTreeDepth: 0,
     contentOrder: [],
     structTreeMcidsByPage: {},
@@ -286,14 +311,29 @@ function parseQpdfJson(json: any): QpdfResult {
   const result: QpdfResult = emptyQpdfResult(null);
 
   try {
+    // Top-level "encrypt" key (same shape in JSON v1 and v2). qpdf emits it
+    // even for unencrypted files (encrypted: false), so the capability is
+    // only meaningful when the document is actually encrypted.
+    const encrypt = json.encrypt;
+    if (encrypt && typeof encrypt === "object") {
+      result.isEncrypted = encrypt.encrypted === true;
+      const accessibility = encrypt.capabilities?.accessibility;
+      if (result.isEncrypted && typeof accessibility === "boolean") {
+        result.accessibilityAllowed = accessibility;
+      }
+    }
+
     const rawObjects = json.objects || json.qpdf?.[1] || {};
 
-    // QPDF v2 JSON wraps objects as { value: {...}, stream?: {...} }
-    // Normalize so we always work with the inner value.
+    // QPDF v2 JSON wraps non-stream objects as { value: {...} } and STREAM
+    // objects as { stream: { dict: {...}, length } } — with no value key at
+    // all. Normalize both so we always work with the inner dict; without the
+    // stream branch every Image XObject (streams by definition) is invisible
+    // to the walk below and the image census is permanently zero.
     const objects: Record<string, any> = {};
     for (const [ref, raw] of Object.entries(rawObjects)) {
       if (!raw || typeof raw !== "object") continue;
-      objects[ref] = (raw as any).value ?? raw;
+      objects[ref] = (raw as any).value ?? (raw as any).stream?.dict ?? raw;
     }
 
     const roleMap: Record<string, string> = {};
@@ -333,6 +373,13 @@ function parseQpdfJson(json: any): QpdfResult {
       }
     }
 
+    // Image XObjects, collected as refs so mask streams can be subtracted
+    // after the walk: /SMask (soft masks) and stream-form /Mask entries are
+    // themselves Image XObjects, but they are channels OF a visible image,
+    // not additional images — counting them would double-report.
+    const imageXObjectRefs = new Set<string>();
+    const maskRefs = new Set<string>();
+
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
       if (!obj || typeof obj !== "object") continue;
@@ -353,7 +400,23 @@ function parseQpdfJson(json: any): QpdfResult {
           result.lang = rawLang?.replace(/^u:/, "") ?? null;
         }
         if (o["/Outlines"]) result.hasOutlines = true;
-        if (o["/AcroForm"]) result.hasAcroForm = true;
+        if (o["/AcroForm"]) {
+          result.hasAcroForm = true;
+          const acroForm =
+            typeof o["/AcroForm"] === "string" ? resolveRef(o["/AcroForm"], objects) : o["/AcroForm"];
+          if (acroForm?.["/XFA"] !== undefined) result.hasXfa = true;
+        }
+        // Viewer preferences — DisplayDocTitle decides whether conforming
+        // viewers show the metadata title or the filename (WCAG 2.4.2 / PDF18).
+        if (o["/ViewerPreferences"]) {
+          const prefs =
+            typeof o["/ViewerPreferences"] === "string"
+              ? resolveRef(o["/ViewerPreferences"], objects)
+              : o["/ViewerPreferences"];
+          if (typeof prefs?.["/DisplayDocTitle"] === "boolean") {
+            result.displayDocTitle = prefs["/DisplayDocTitle"];
+          }
+        }
         // MarkInfo — indicates document distinguishes marked content from artifacts
         if (o["/MarkInfo"]) {
           result.hasMarkInfo = true;
@@ -363,6 +426,9 @@ function parseQpdfJson(json: any): QpdfResult {
               : o["/MarkInfo"];
           if (markInfo?.["/Marked"] === true) {
             result.isMarkedContent = true;
+          }
+          if (markInfo?.["/Suspects"] === true) {
+            result.suspectsFlag = true;
           }
         }
         // RoleMap — custom tag role mappings to standard PDF tags
@@ -409,9 +475,11 @@ function parseQpdfJson(json: any): QpdfResult {
         result.outlineTitles = titles;
       }
 
-      // Image XObjects
+      // Image XObjects (visible only after the stream-dict unwrap above)
       if (o["/Subtype"] === "/Image") {
-        result.imageObjectCount++;
+        imageXObjectRefs.add(normRef(ref));
+        if (typeof o["/SMask"] === "string") maskRefs.add(normRef(o["/SMask"]));
+        if (typeof o["/Mask"] === "string") maskRefs.add(normRef(o["/Mask"]));
       }
 
       // Metadata streams — check for PDF/UA identifier in XMP
@@ -483,11 +551,20 @@ function parseQpdfJson(json: any): QpdfResult {
             result.langSpans.push({ lang: spanLang, tag: tag.slice(1) });
           }
         }
-        // Figures with alt text
+        // Figures with a text alternative. /Alt is the primary carrier, but
+        // ISO 32000 also allows /ActualText as replacement text (Matterhorn
+        // 13-004 fails only when NEITHER is present) — LaTeX and remediation
+        // tools emit ActualText-only figures for formulas and logos.
         if (tag === "/Figure") {
           const rawAlt = o["/Alt"];
-          const altText = typeof rawAlt === "string" ? decodeQpdfString(rawAlt) : undefined;
-          const hasAlt = altText !== undefined && altText !== "";
+          const rawActual = o["/ActualText"];
+          const altText =
+            typeof rawAlt === "string" && decodeQpdfString(rawAlt) !== ""
+              ? decodeQpdfString(rawAlt)
+              : typeof rawActual === "string" && decodeQpdfString(rawActual) !== ""
+                ? decodeQpdfString(rawActual)
+                : undefined;
+          const hasAlt = altText !== undefined;
           result.images.push({ ref: normRef(ref), hasAlt, altText });
         }
 
@@ -504,6 +581,12 @@ function parseQpdfJson(json: any): QpdfResult {
       //            otherwise each option is falsely reported as an unlabeled
       //            field.
       if (o["/Type"] === "/Annot" && o["/Subtype"] === "/Widget") {
+        // Widgets flagged Hidden (bit 2) or NoView (bit 6) are unreachable
+        // by every user, assistive tech included — calc helpers, invisible
+        // signature fields. Counting them produced confirmed "unlabeled
+        // field" findings about controls no one can land on.
+        const annotFlags = typeof o["/F"] === "number" ? o["/F"] : 0;
+        if ((annotFlags & 2) !== 0 || (annotFlags & 32) !== 0) continue;
         if (typeof o["/T"] === "string") {
           // Merged field+widget dict — a terminal field in its own right.
           // Seed the seen-set: malformed-but-real PDFs sometimes give the
@@ -562,6 +645,10 @@ function parseQpdfJson(json: any): QpdfResult {
           });
         }
       }
+    }
+
+    for (const imageRef of imageXObjectRefs) {
+      if (!maskRefs.has(imageRef)) result.imageObjectCount++;
     }
 
     // Resolve table candidates into top-level tables. A /Table that appears in

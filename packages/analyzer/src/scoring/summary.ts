@@ -43,11 +43,14 @@ export function generateSummary(
   const critical = categories.filter((c) => c.severity === "Critical");
   const moderate = categories.filter((c) => c.severity === "Moderate");
 
-  if (grade === "A") {
+  // The "cleared every check" phrasing must never appear beside a category
+  // the table shows as Critical/Moderate — a 91/A with a Critical reading-
+  // order category falls through to the severity branches below instead.
+  if (grade === "A" && critical.length === 0 && moderate.length === 0) {
     return `This ${noun} scored ${score}/100 (grade ${grade}) and cleared every automated WCAG check across all ${applicable.length} assessed categories — a strong result. This is not a determination of conformance: confirm color contrast and the correctness of alt text, headings, and reading order in a manual review before publishing.`;
   }
 
-  if (grade === "B") {
+  if (grade === "B" && critical.length === 0) {
     return `This ${noun} scored ${score}/100 (grade ${grade}) and cleared the automated WCAG checks, with minor issues remaining — ${clean.length} of ${applicable.length} categories are fully issue-free. Review the findings below, then confirm with a manual check before publishing.`;
   }
 

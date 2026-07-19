@@ -125,6 +125,29 @@ describe("XML walker helpers", () => {
   });
 });
 
+describe("mc:AlternateContent flattening", () => {
+  it("walks the Choice branch only — Fallback duplicates are invisible", () => {
+    const xml =
+      `<w:body xmlns:w="a" xmlns:mc="b">` +
+      `<w:p><w:r><mc:AlternateContent>` +
+      `<mc:Choice Requires="wps"><w:t>modern</w:t></mc:Choice>` +
+      `<mc:Fallback><w:t>legacy duplicate</w:t></mc:Fallback>` +
+      `</mc:AlternateContent></w:r></w:p></w:body>`;
+    const body = rootElement(parseXml(xml), "body")!;
+    const texts = descendants(body, "t").map((t) => rawText(t));
+    expect(texts).toEqual(["modern"]);
+  });
+
+  it("uses the Fallback when no Choice exists", () => {
+    const xml =
+      `<w:body xmlns:w="a" xmlns:mc="b">` +
+      `<w:p><mc:AlternateContent><mc:Fallback><w:t>only branch</w:t></mc:Fallback>` +
+      `</mc:AlternateContent></w:p></w:body>`;
+    const body = rootElement(parseXml(xml), "body")!;
+    expect(descendants(body, "t").map((t) => rawText(t))).toEqual(["only branch"]);
+  });
+});
+
 describe("parseRelationships", () => {
   const RELS = `<?xml version="1.0"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -167,18 +190,24 @@ describe("drawingAltText", () => {
     return rootElement(parseXml(xml), "docPr")!;
   }
 
-  it("prefers descr, falls back to title, null when both empty", () => {
+  it("takes descr as alt; a title alone is NOT alt (flagged titleOnly)", () => {
+    // Assistive technology reads the Description (descr) field. A Title-only
+    // image is unread by most screen readers, so it must count as missing
+    // alt — with the titleOnly flag so scorers can point at the fix.
     expect(drawingAltText(props('<wp:docPr xmlns:wp="x" descr="A chart" title="T"/>'))).toEqual({
       altText: "A chart",
       decorative: false,
+      titleOnly: false,
     });
-    expect(drawingAltText(props('<wp:docPr xmlns:wp="x" descr="  " title="Fallback"/>'))).toEqual({
-      altText: "Fallback",
+    expect(drawingAltText(props('<wp:docPr xmlns:wp="x" descr="  " title="Old style"/>'))).toEqual({
+      altText: null,
       decorative: false,
+      titleOnly: true,
     });
     expect(drawingAltText(props('<wp:docPr xmlns:wp="x"/>'))).toEqual({
       altText: null,
       decorative: false,
+      titleOnly: false,
     });
   });
 

@@ -10,6 +10,9 @@ import {
   styledParagraph,
   paragraph,
   inlineImage,
+  textBox,
+  emptyShape,
+  chartDrawing,
   table,
   hyperlink,
   hyperlinkRels,
@@ -115,19 +118,273 @@ describe("docx images", () => {
       body: inlineImage({ descr: "Bar chart of quarterly sales" }),
     });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([{ altText: "Bar chart of quarterly sales", decorative: false }]);
+    expect(r.images).toEqual([{ altText: "Bar chart of quarterly sales", decorative: false, titleOnly: false }]);
   });
 
   it("reports a missing alt text as null", async () => {
     const buf = await buildDocx({ body: inlineImage({}) });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([{ altText: null, decorative: false }]);
+    expect(r.images).toEqual([{ altText: null, decorative: false, titleOnly: false }]);
   });
 
   it("marks decorative images", async () => {
     const buf = await buildDocx({ body: inlineImage({ decorative: true }) });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([{ altText: null, decorative: true }]);
+    expect(r.images).toEqual([{ altText: null, decorative: true, titleOnly: false }]);
+  });
+
+  it("does not count a text box (text-bearing shape) as an image", async () => {
+    const buf = await buildDocx({ body: textBox("Justice reinvestment works.") });
+    const r = await analyzeDocx(buf);
+    expect(r.images).toEqual([]);
+  });
+
+  it("still counts a shape with no text content as an image needing alt", async () => {
+    const buf = await buildDocx({ body: emptyShape() });
+    const r = await analyzeDocx(buf);
+    expect(r.images).toEqual([{ altText: null, decorative: false, titleOnly: false }]);
+  });
+
+  it("counts a chart as an image needing alt", async () => {
+    const buf = await buildDocx({ body: chartDrawing() });
+    const r = await analyzeDocx(buf);
+    expect(r.images).toEqual([{ altText: null, decorative: false, titleOnly: false }]);
+  });
+});
+
+describe("docx custom heading styles (outlineLvl / basedOn)", () => {
+  const CUSTOM_STYLES =
+    `<?xml version="1.0"?><w:styles ${DOCX_NS}>` +
+    `<w:docDefaults><w:rPrDefault><w:rPr><w:lang w:val="en-US"/></w:rPr></w:rPrDefault></w:docDefaults>` +
+    `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:outlineLvl w:val="0"/></w:pPr></w:style>` +
+    `<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:outlineLvl w:val="1"/></w:pPr></w:style>` +
+    `<w:style w:type="paragraph" w:styleId="ChapterTitle"><w:name w:val="Chapter Title"/><w:basedOn w:val="Heading1"/><w:pPr><w:outlineLvl w:val="0"/></w:pPr></w:style>` +
+    `<w:style w:type="paragraph" w:styleId="SectionHead"><w:name w:val="Section Head"/><w:basedOn w:val="Heading2"/></w:style>` +
+    `</w:styles>`;
+
+  it("detects a custom style with its own outlineLvl as a real heading", async () => {
+    const buf = await buildDocx({
+      stylesXml: CUSTOM_STYLES,
+      body: styledParagraph("ChapterTitle", "Chapter 1: Overview"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.headings).toEqual([{ level: 1, text: "Chapter 1: Overview" }]);
+    expect(r.fakeHeadings).toEqual([]);
+  });
+
+  it("resolves the heading level through the basedOn chain", async () => {
+    const buf = await buildDocx({
+      stylesXml: CUSTOM_STYLES,
+      body: styledParagraph("SectionHead", "Methodology"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.headings).toEqual([{ level: 2, text: "Methodology" }]);
+  });
+
+  it("honors a direct paragraph-level outlineLvl", async () => {
+    const buf = await buildDocx({
+      body: `<w:p><w:pPr><w:outlineLvl w:val="1"/></w:pPr><w:r><w:t>Inline outline</w:t></w:r></w:p>`,
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.headings).toEqual([{ level: 2, text: "Inline outline" }]);
+  });
+
+  it("does not push empty Heading-styled paragraphs as headings, but counts them", async () => {
+    const buf = await buildDocx({
+      body: styledParagraph("Heading1", "") + styledParagraph("Heading1", "Real"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.headings).toEqual([{ level: 1, text: "Real" }]);
+    expect(r.emptyHeadingCount).toBe(1);
+  });
+});
+
+describe("docx AlternateContent (text boxes serialize Choice + Fallback)", () => {
+  it("counts text-box content once, not per branch", async () => {
+    const inner =
+      `<w:p><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>Big Pull Quote</w:t></w:r></w:p>`;
+    const body =
+      `<w:p><w:r><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">` +
+      `<mc:Choice Requires="wps"><w:drawing><wp:anchor><wp:docPr id="7" name="TB"/>` +
+      `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:txbx><w:txbxContent>${inner}</w:txbxContent></wps:txbx></wps:wsp>` +
+      `</a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice>` +
+      `<mc:Fallback><w:pict><w:txbxContent>${inner}</w:txbxContent></w:pict></mc:Fallback>` +
+      `</mc:AlternateContent></w:r></w:p>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.fakeHeadings).toHaveLength(1);
+  });
+});
+
+describe("docx lists — style numbering, numId=0, numbered headings", () => {
+  const LIST_STYLES =
+    `<?xml version="1.0"?><w:styles ${DOCX_NS}>` +
+    `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/></w:style>` +
+    `<w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/>` +
+    `<w:pPr><w:numPr><w:numId w:val="2"/></w:numPr></w:pPr></w:style>` +
+    `</w:styles>`;
+
+  it("counts style-level numbering (built-in List Bullet) as real list items", async () => {
+    const buf = await buildDocx({
+      stylesXml: LIST_STYLES,
+      body:
+        styledParagraph("ListBullet", "First point") + styledParagraph("ListBullet", "Second point"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.realListItems).toBe(2);
+    expect(r.lists.manualBulletParagraphs).toBe(0);
+  });
+
+  it("does not count numId=0 (numbering removed) as a real list item", async () => {
+    const buf = await buildDocx({
+      body: `<w:p><w:pPr><w:numPr><w:numId w:val="0"/></w:numPr></w:pPr><w:r><w:t>plain</w:t></w:r></w:p>`,
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.realListItems).toBe(0);
+  });
+
+  it("does not count numbered HEADINGS as manual bullets", async () => {
+    const buf = await buildDocx({
+      stylesXml: LIST_STYLES,
+      body: styledParagraph("Heading1", "1. Introduction"),
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.lists.manualBulletParagraphs).toBe(0);
+  });
+});
+
+describe("docx table header semantics", () => {
+  it("honors w:tblHeader w:val=0 (explicitly OFF) as no header row", async () => {
+    const body =
+      `<w:tbl><w:tblPr><w:tblStyle w:val="Grid"/></w:tblPr><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:trPr><w:tblHeader w:val="0"/></w:trPr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.tables[0].hasHeaderRow).toBe(false);
+  });
+
+  it("only a FIRST-row tblHeader counts (Word ignores non-top header rows)", async () => {
+    const body =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+      `<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.tables[0].hasHeaderRow).toBe(false);
+  });
+
+  it("flags style-less, border-less, shading-less tables as layout-like", async () => {
+    const layout =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>`;
+    const styled =
+      `<w:tbl><w:tblPr><w:tblStyle w:val="GridTable"/></w:tblPr><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+      `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body: layout + styled });
+    const r = await analyzeDocx(buf);
+    expect(r.tables[0].looksLikeLayout).toBe(true);
+    expect(r.tables[1].looksLikeLayout).toBe(false);
+  });
+});
+
+describe("docx field-code hyperlinks", () => {
+  it("reads fldSimple HYPERLINK fields", async () => {
+    const body =
+      `<w:p><w:fldSimple w:instr=' HYPERLINK "https://example.gov/statute" '>` +
+      `<w:r><w:t>Statute text</w:t></w:r></w:fldSimple></w:p>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.links).toEqual([{ text: "Statute text", url: "https://example.gov/statute" }]);
+  });
+
+  it("reads complex instrText HYPERLINK fields (begin/separate/end)", async () => {
+    const body =
+      `<w:p>` +
+      `<w:r><w:fldChar w:fldCharType="begin"/></w:r>` +
+      `<w:r><w:instrText xml:space="preserve"> HYPERLINK "https://example.gov/form" </w:instrText></w:r>` +
+      `<w:r><w:fldChar w:fldCharType="separate"/></w:r>` +
+      `<w:r><w:t>Apply online</w:t></w:r>` +
+      `<w:r><w:fldChar w:fldCharType="end"/></w:r>` +
+      `</w:p>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.links).toEqual([{ text: "Apply online", url: "https://example.gov/form" }]);
+  });
+});
+
+describe("docx legacy VML images", () => {
+  it("counts a w:pict v:imagedata image with its v:shape alt", async () => {
+    const body =
+      `<w:p><w:r><w:pict><v:shape xmlns:v="urn:schemas-microsoft-com:vml" alt="Old letterhead logo">` +
+      `<v:imagedata r:id="rId9"/></v:shape></w:pict></w:r></w:p>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.images).toEqual([{ altText: "Old letterhead logo", decorative: false, titleOnly: false }]);
+  });
+});
+
+describe("docx headers/footers/footnotes coverage", () => {
+  it("audits images in header parts", async () => {
+    const buf = await buildDocx({
+      body: paragraph("Body text"),
+      extra: {
+        "word/header1.xml": `<?xml version="1.0"?><w:hdr ${DOCX_NS}>${inlineImage({})}</w:hdr>`,
+      },
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.images).toHaveLength(1);
+    expect(r.images[0].altText).toBe(null);
+  });
+
+  it("audits hyperlinks in footnotes with the footnote part's own rels", async () => {
+    const buf = await buildDocx({
+      body: paragraph("Body text"),
+      extra: {
+        "word/footnotes.xml":
+          `<?xml version="1.0"?><w:footnotes ${DOCX_NS}>` +
+          `<w:footnote w:id="1"><w:p>${hyperlink("rIdF1", "click here")}</w:p></w:footnote>` +
+          `</w:footnotes>`,
+        "word/_rels/footnotes.xml.rels":
+          `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+          `<Relationship Id="rIdF1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.gov/cite" TargetMode="External"/>` +
+          `</Relationships>`,
+      },
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.links).toEqual([{ text: "click here", url: "https://example.gov/cite" }]);
+  });
+});
+
+describe("docx per-part parse state", () => {
+  it("reports an unparseable styles part", async () => {
+    const buf = await buildDocx({ body: paragraph("x"), stylesXml: "<w:styles broken" });
+    const r = await analyzeDocx(buf);
+    expect(r.parse.stylesState).toBe("unparseable");
+    expect(r.parse.documentOk).toBe(true);
+  });
+
+  it("reports an unparseable document body", async () => {
+    const buf = await buildDocx({
+      body: paragraph("x"),
+      extra: { "word/document.xml": "this is not xml at all <" },
+    });
+    const r = await analyzeDocx(buf);
+    expect(r.parse.documentOk).toBe(false);
+  });
+
+  it("distinguishes an absent core part from an unparseable one", async () => {
+    const absent = await buildDocx({ body: paragraph("x"), omitCore: true });
+    const rAbsent = await analyzeDocx(absent);
+    expect(rAbsent.parse.coreState).toBe("absent");
+
+    const broken = await buildDocx({ body: paragraph("x"), coreXml: "<cp:core broken" });
+    const rBroken = await analyzeDocx(broken);
+    expect(rBroken.parse.coreState).toBe("unparseable");
   });
 });
 
@@ -138,7 +395,13 @@ describe("docx tables", () => {
     });
     const r = await analyzeDocx(buf);
     expect(r.tables).toEqual([
-      { hasHeaderRow: true, rowCount: 3, colCount: 2, hasNestedTable: false },
+      {
+        hasHeaderRow: true,
+        rowCount: 3,
+        colCount: 2,
+        hasNestedTable: false,
+        looksLikeLayout: false,
+      },
     ]);
   });
 
@@ -231,6 +494,70 @@ describe("docx color contrast", () => {
     const r = await analyzeDocx(buf);
     // #808080 on white ≈ 3.95:1 — passes large (≥3) but fails normal (<4.5).
     expect(r.contrast.failing.map((f) => f.text)).toEqual(["Small note text"]);
+  });
+
+  it("resolves table-cell shading — white header text on a dark cell fill passes", async () => {
+    const body =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:fill="1F4E79"/></w:tcPr>` +
+      `<w:p><w:r><w:rPr><w:color w:val="FFFFFF"/></w:rPr><w:t>Header</w:t></w:r></w:p>` +
+      `</w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.contrast.failing).toEqual([]);
+    expect(r.contrast.checkedRuns).toBe(1);
+    expect(r.contrast.unresolvedRuns).toBe(0);
+  });
+
+  it("still flags genuinely low contrast against an explicit cell fill", async () => {
+    const body =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:fill="FEFEFE"/></w:tcPr>` +
+      `<w:p><w:r><w:rPr><w:color w:val="FFFFFF"/></w:rPr><w:t>Ghost text</w:t></w:r></w:p>` +
+      `</w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.contrast.failing.map((f) => f.text)).toEqual(["Ghost text"]);
+    expect(r.contrast.failing[0].background).toBe("#FEFEFE");
+  });
+
+  it("treats cells of a styled table without explicit cell fill as unresolved, never assumed white", async () => {
+    const body =
+      `<w:tbl><w:tblPr><w:tblStyle w:val="GridTable4-Accent1"/></w:tblPr><w:tblGrid><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc>` +
+      `<w:p><w:r><w:rPr><w:color w:val="FFFFFF"/></w:rPr><w:t>Banded header</w:t></w:r></w:p>` +
+      `</w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.contrast.failing).toEqual([]);
+    expect(r.contrast.checkedRuns).toBe(0);
+    expect(r.contrast.unresolvedRuns).toBe(1);
+  });
+
+  it("treats text inside a text box as unresolved background (shape fills are not parsed)", async () => {
+    const body =
+      `<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="7" name="TB"/>` +
+      `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+      `<wps:txbx><w:txbxContent><w:p><w:r><w:rPr><w:color w:val="FFFFFF"/></w:rPr>` +
+      `<w:t>White on dark card</w:t></w:r></w:p></w:txbxContent></wps:txbx>` +
+      `</wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.contrast.failing).toEqual([]);
+    expect(r.contrast.checkedRuns).toBe(0);
+    expect(r.contrast.unresolvedRuns).toBe(1);
+  });
+
+  it("cells of a plain unstyled table inherit the page background", async () => {
+    const body =
+      `<w:tbl><w:tblPr/><w:tblGrid><w:gridCol/></w:tblGrid>` +
+      `<w:tr><w:tc>` +
+      `<w:p><w:r><w:rPr><w:color w:val="FFFF00"/></w:rPr><w:t>Yellow on page</w:t></w:r></w:p>` +
+      `</w:tc></w:tr></w:tbl>`;
+    const buf = await buildDocx({ body });
+    const r = await analyzeDocx(buf);
+    expect(r.contrast.failing.map((f) => f.text)).toEqual(["Yellow on page"]);
   });
 });
 

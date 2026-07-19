@@ -60,7 +60,13 @@ describe("docx integration: inaccessible document", () => {
         paragraph("A BIG FAKE HEADING", { bold: true, sizeHalfPt: 36 }) +
         paragraph("Low contrast note", { color: "BBBBBB" }) +
         inlineImage({}) +
-        table({ rows: 3, cols: 3 }) +
+        // A STYLED headerless table — bare style-less/border-less grids are
+        // treated as layout tables and no longer reach the verdict.
+        `<w:tbl><w:tblPr><w:tblStyle w:val="GridTable4"/></w:tblPr>` +
+        `<w:tblGrid><w:gridCol/><w:gridCol/><w:gridCol/></w:tblGrid>` +
+        `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+        `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr>` +
+        `<w:tr><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>` +
         paragraph("• manually typed bullet one") +
         paragraph("• manually typed bullet two"),
     });

@@ -47,12 +47,18 @@ describe("pptx integration: inaccessible deck", () => {
     const buf = await buildPptx({
       coreXml: `<?xml version="1.0"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>x</dc:creator></cp:coreProperties>`,
       declareLanguage: false,
+      // Explicit slide background: the contrast gate only fires on
+      // provenance-resolved color pairs, never on an assumed white.
+      slideBgHex: "FFFFFF",
       slides: [
         { title: null, body: picture({}) + pptTable({ rows: 3, cols: 3 }) },
         {
           title: null,
+          // lang: null — run-level languages now satisfy 3.1.1, so a deck
+          // that is hostile on language must omit lang on its runs too.
           body: bodyShape(
-            para("• fake", { colorHex: "DDDDDD" }) + para("• bullets", { colorHex: "DDDDDD" }),
+            para("• fake", { colorHex: "DDDDDD", lang: null }) +
+              para("• bullets", { colorHex: "DDDDDD", lang: null }),
           ),
         },
       ],

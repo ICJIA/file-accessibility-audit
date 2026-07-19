@@ -68,6 +68,39 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.36.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.36.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-19</strong> · scope: a dedicated accuracy review of the audit
+            algorithms themselves — how the tool judges PDF, Word, PowerPoint, and Excel files —
+            followed by fixes for every issue it confirmed.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          v1.36.0 makes the audit's judgments more trustworthy in both directions. The review
+          found places where the tool accused documents of accessibility failures they did not
+          have — for example, white text on dark table headers (a correct, accessible design) was
+          being reported as an extreme color-contrast violation because the tool didn't look up
+          the header's background color, and slide decks that record their language on every line
+          of text were told they had "no language declared". Those false alarms are fixed: the
+          tool now only asserts a confirmed WCAG failure when it actually resolved the evidence
+          from the file, and says "not assessed — review manually" when it could not.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The review also closed the reverse problem — a serious barrier that used to pass
+          silently: a PDF whose (older-style) security settings forbid screen readers from
+          reading it at all could previously receive a perfect score. Such files are now failed
+          with a clear explanation and fix. The tool additionally reads more of each document
+          than before (Word headers, footers and footnotes, legacy link and image formats, Excel
+          chart sheets), so fewer barriers can hide in unread corners.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.35.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

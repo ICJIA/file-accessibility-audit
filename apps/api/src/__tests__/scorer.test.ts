@@ -39,6 +39,11 @@ function makeQpdf(overrides: Partial<QpdfResult> = {}): QpdfResult {
     artifactCount: 0,
     actualTextCount: 0,
     expansionTextCount: 0,
+    isEncrypted: false,
+    accessibilityAllowed: null,
+    displayDocTitle: null,
+    hasXfa: false,
+    suspectsFlag: false,
     structTreeDepth: 0,
     contentOrder: [],
     structTreeMcidsByPage: {},
@@ -104,6 +109,7 @@ function fullyAccessible(): { qpdf: QpdfResult; pdfjs: PdfjsResult } {
       hasStructTree: true,
       hasLang: true,
       lang: "en-US",
+      displayDocTitle: true,
       hasOutlines: true,
       outlineCount: 5,
       hasMarkInfo: true,
@@ -253,7 +259,8 @@ describe("scoreDocument — fully accessible PDF", () => {
 
 describe("scoreDocument — scanned PDF", () => {
   const qpdf = makeQpdf(); // defaults: no struct tree, no anything
-  const pdfjs = makePdfjs({ pageCount: 1 });
+  // A real scan has zero extractable text AND page images.
+  const pdfjs = makePdfjs({ pageCount: 1, imageCount: 3 });
   const result = scoreDocument(qpdf, pdfjs);
 
   it("isScanned is true", () => {
@@ -283,6 +290,34 @@ describe("scoreDocument — scanned PDF", () => {
 });
 
 // ---------------------------------------------------------------------------
+// scoreDocument: short born-digital PDF — has (a little) real text, no images.
+// Must NOT be classified as a scanned document: the "scanned image / OCR"
+// framing was factually false for one-page notices and cover sheets.
+// ---------------------------------------------------------------------------
+
+describe("scoreDocument — short born-digital PDF (little text, no images)", () => {
+  const qpdf = makeQpdf(); // untagged
+  const pdfjs = makePdfjs({ hasText: false, textLength: 30, imageCount: 0 });
+  const result = scoreDocument(qpdf, pdfjs);
+
+  it("is not classified as scanned", () => {
+    expect(result.isScanned).toBe(false);
+  });
+
+  it("does not claim a scanned image in the executive summary", () => {
+    expect(result.executiveSummary).not.toContain("scanned image");
+  });
+
+  it("text_extractability keeps its low score but says minimal text, not photograph-of-text", () => {
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBe(0); // scoring calibration unchanged
+    const text = cat.findings.join(" ");
+    expect(text).not.toContain("photograph of text");
+    expect(text).toContain("30");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // scoreDocument: mixed results
 // ---------------------------------------------------------------------------
 
@@ -302,7 +337,7 @@ describe("scoreDocument — mixed results", () => {
   });
 
   it("title without lang scores 50 for title_language", () => {
-    const qpdf = makeQpdf();
+    const qpdf = makeQpdf({ displayDocTitle: true });
     const pdfjs = makePdfjs({ title: "My Document", lang: null });
     const result = scoreDocument(qpdf, pdfjs);
     expect(findCategory(result, "title_language").score).toBe(50);
@@ -417,6 +452,7 @@ describe("weight renormalization", () => {
       hasStructTree: true,
       hasLang: true,
       lang: "en",
+      displayDocTitle: true,
       // No images, no tables, no forms, no outlines, no headings
       images: [],
       tables: [],
@@ -434,11 +470,14 @@ describe("weight renormalization", () => {
     });
     const result = scoreDocument(qpdf, pdfjs);
 
-    // text_extractability = 100, title_language = 100, heading_structure = 0 (F),
+    // text_extractability = 100, title_language = 100,
+    // heading_structure = null — a SHORT document with no headings and no
+    // heading-like signals is plausibly heading-less by design; WCAG does
+    // not require headings in content that has no sections, and the DOCX
+    // path already treats this as N/A. (The old 0/Critical here made the
+    // same memo score 70/C as PDF and 100/A as DOCX.)
     // alt_text = null (no images), bookmarks = null, table_markup = null,
     // link_quality = null, form_accessibility = null, reading_order = null
-    // Applicable: text(0.20), title(0.15), heading(0.15)
-    // Total weight = 0.50
     const text = findCategory(result, "text_extractability");
     const title = findCategory(result, "title_language");
     const heading = findCategory(result, "heading_structure");
@@ -447,12 +486,76 @@ describe("weight renormalization", () => {
 
     expect(text.score).toBe(100);
     expect(title.score).toBe(100);
-    expect(heading.score).toBe(0); // no headings -> F
+    expect(heading.score).toBeNull(); // short doc, no headings → N/A
     expect(alt.score).toBeNull(); // no images -> N/A
     expect(reading.score).toBeNull();
 
-    // Expected: (100*0.20 + 100*0.15 + 0*0.15) / 0.50 = 70
-    expect(result.overallScore).toBe(70);
+    // Applicable: text(0.20) + title(0.15), both 100 → 100.
+    expect(result.overallScore).toBe(100);
+  });
+
+  it("still scores heading_structure 0 for a SUBSTANTIVE document with no headings", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      hasLang: true,
+      lang: "en",
+      headings: [],
+      paragraphCount: 80,
+      totalPageCount: 12,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+    });
+    const pdfjs = makePdfjs({ pageCount: 12, hasText: true, textLength: 9000, title: "T" });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "heading_structure").score).toBe(0);
+  });
+
+  it("title credit is docked when DisplayDocTitle is not set (viewers show the filename)", () => {
+    const base = {
+      hasStructTree: true,
+      hasLang: true,
+      lang: "en",
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+    };
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500, title: "Annual Report", pageCount: 3 });
+    const withFlag = scoreDocument(
+      makeQpdf({ ...base, displayDocTitle: true }),
+      pdfjs,
+    );
+    expect(findCategory(withFlag, "title_language").score).toBe(100);
+
+    const withoutFlag = scoreDocument(makeQpdf(base), pdfjs);
+    const cat = findCategory(withoutFlag, "title_language");
+    expect(cat.score).toBe(85); // 35 (title without DDT) + 50 (language)
+    expect(cat.findings.join(" ")).toContain("filename");
+  });
+
+  it("notes painted images beyond the tagged figures instead of claiming full alt coverage", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+      images: [{ ref: "3 0 R", hasAlt: true, altText: "Chart" }],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500, imageCount: 8, pageCount: 3 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "alt_text");
+    const text = cat.findings.join(" ");
+    expect(text).toContain("tagged image(s)");
+    expect(text).toMatch(/manual review|not tagged|outside the tag/i);
+  });
+
+  it("surfaces the producer's Suspects flag as an advisory", () => {
+    const qpdf = makeQpdf({
+      hasStructTree: true,
+      suspectsFlag: true,
+      structTreeDepth: 3,
+      contentOrder: [0, 1, 2],
+    });
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500, pageCount: 3 });
+    const result = scoreDocument(qpdf, pdfjs);
+    expect(findCategory(result, "text_extractability").findings.join(" ")).toContain("suspect");
   });
 
   it("all categories N/A results in score 0", () => {
@@ -573,7 +676,8 @@ describe("severity thresholds", () => {
 describe("executive summary", () => {
   it("scanned PDF gets OCR-required summary", () => {
     const qpdf = makeQpdf();
-    const pdfjs = makePdfjs();
+    // A real scan: zero extractable text AND page images.
+    const pdfjs = makePdfjs({ imageCount: 3 });
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.executiveSummary).toContain("scanned image");
     expect(result.executiveSummary).toContain("OCR");
@@ -706,7 +810,9 @@ describe("generateSummary", () => {
 
 describe("scoreHeadingStructure edge cases", () => {
   it("no headings → score 0, grade F", () => {
-    const qpdf = makeQpdf({ headings: [] });
+    // Substantive document (many paragraphs) — short heading-less docs are
+    // N/A instead (see the minimal-document test above).
+    const qpdf = makeQpdf({ headings: [], paragraphCount: 40 });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "heading_structure");

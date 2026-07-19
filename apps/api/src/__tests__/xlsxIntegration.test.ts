@@ -47,20 +47,27 @@ describe("xlsx integration: inaccessible workbook", () => {
           mergeCount: 4,
           tables: [{ name: "Bad", headerRowCount: 0 }],
           drawings: [{ kind: "pic" }],
-          hyperlinks: [
-            { id: "rIdH1", target: "https://example.gov/x", display: "https://example.gov/x" },
-          ],
+          // The linked CELL's text is the raw URL — link text now resolves
+          // from the cell (real Excel writes no display attr), so the
+          // hostile shape is a bare-URL cell, not a display attribute.
+          hyperlinks: [{ id: "rIdH1", target: "https://example.gov/x", ref: "A2" }],
           // Applied to a real cell so 1.4.3 fires legitimately — an unused
           // style (the pre-fix-2 fixture's <sheetData/> was always empty) is
           // never evaluated (fix-2: contrast false-positive hardening).
-          cells: [{ ref: "A1", styleIndex: 1, value: "Total" }],
+          cells: [
+            { ref: "A1", styleIndex: 1, value: "Total" },
+            { ref: "A2", kind: "is", value: "https://example.gov/x" },
+          ],
         },
         { name: "Sheet2", dimensionRef: "A1:D30" },
       ],
       styles: [{ fontRgb: "FFDDDDDD", fillRgb: "FFFFFFFF" }], // ≈1.35:1 → fails
     });
     const r = await analyzeDocument(buf, "inaccessible.xlsx");
-    expect(r.overallScore).toBeLessThanOrEqual(35);
+    // ≤50 (was ≤35): the v1.36.0 equity recalibration scores a missing title
+    // 50 like every other format and stopped deducting for merged cells —
+    // the verdict below still fails on all four confirmed criteria.
+    expect(r.overallScore).toBeLessThanOrEqual(50);
     expect(r.conformance.status).toBe("fail");
     expect(r.conformance.failures.map((f) => f.sc)).toEqual(
       expect.arrayContaining(["1.1.1", "2.4.2", "1.3.1", "1.4.3"]),

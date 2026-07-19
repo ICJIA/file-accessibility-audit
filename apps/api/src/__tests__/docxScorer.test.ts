@@ -29,6 +29,8 @@ function analysis(over: Partial<DocxAnalysis> = {}): DocxAnalysis {
     lists: { realListItems: 0, manualBulletParagraphs: 0 },
     contrast: { checkedRuns: 4, unresolvedRuns: 0, failing: [] },
     paragraphCount: 6,
+    emptyHeadingCount: 0,
+    parse: { documentOk: true, stylesState: "ok", coreState: "ok" },
     ...over,
   };
 }
@@ -37,7 +39,7 @@ describe("scoreDocx", () => {
   it("scores a clean, accessible document as grade A with no failures", () => {
     const r = scoreDocx(
       analysis({
-        images: [{ altText: "Sales chart", decorative: false }],
+        images: [{ altText: "Sales chart", decorative: false, titleOnly: false }],
         tables: [{ hasHeaderRow: true, rowCount: 3, colCount: 2, hasNestedTable: false }],
       }),
     );
@@ -86,6 +88,67 @@ describe("scoreDocx", () => {
     expect(r.overallScore).toBeGreaterThanOrEqual(90);
   });
 
+  it("caps the heading-skip deduction so many skips do not zero the category", () => {
+    const r = scoreDocx(
+      analysis({
+        headings: [
+          { level: 1, text: "a" },
+          { level: 3, text: "b" },
+          { level: 1, text: "c" },
+          { level: 3, text: "d" },
+          { level: 5, text: "e" },
+          { level: 1, text: "f" },
+          { level: 3, text: "g" },
+        ],
+      }),
+    );
+    // 4 skips × 15 = 60 uncapped; capped at 30 → 70.
+    expect(r.categories.find((c) => c.id === "heading_structure")!.score).toBe(70);
+  });
+
+  it("counts Title-only images as missing alt with a targeted advisory", () => {
+    const r = scoreDocx(
+      analysis({ images: [{ altText: null, decorative: false, titleOnly: true }] }),
+    );
+    const cat = r.categories.find((c) => c.id === "alt_text")!;
+    expect(cat.score).toBe(0);
+    expect(cat.findings.join(" ")).toContain("Title");
+  });
+
+  it("notes empty heading paragraphs as an advisory without deducting", () => {
+    const r = scoreDocx(analysis({ emptyHeadingCount: 2 }));
+    const cat = r.categories.find((c) => c.id === "heading_structure")!;
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toMatch(/empty/i);
+  });
+
+  it("link_quality: raw-URL links are advisory only — never penalized (PDF-parity doctrine)", () => {
+    const r = scoreDocx(
+      analysis({
+        links: [
+          { text: "https://example.gov/report.pdf", url: "https://example.gov/report.pdf" },
+          { text: "www.example.gov/data.csv", url: "https://example.gov/data.csv" },
+        ],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "link_quality")!;
+    expect(cat.score).toBe(100);
+    expect(cat.findings.join(" ")).toContain("not scored against you");
+  });
+
+  it("link_quality: vague and empty link text is penalized", () => {
+    const r = scoreDocx(
+      analysis({
+        links: [
+          { text: "click here", url: "https://example.gov/a" },
+          { text: "Annual Report 2024", url: "https://example.gov/b" },
+        ],
+      }),
+    );
+    const cat = r.categories.find((c) => c.id === "link_quality")!;
+    expect(cat.score).toBe(50);
+  });
+
   it("fails an inaccessible document and grades it F", () => {
     const r = scoreDocx(
       analysis({
@@ -98,7 +161,7 @@ describe("scoreDocx", () => {
         },
         headings: [],
         fakeHeadings: [{ text: "Looks Like A Heading" }],
-        images: [{ altText: null, decorative: false }],
+        images: [{ altText: null, decorative: false, titleOnly: false }],
         tables: [{ hasHeaderRow: false, rowCount: 3, colCount: 3, hasNestedTable: false }],
         contrast: {
           checkedRuns: 2,

@@ -86,7 +86,28 @@ export function childrenOf(node: PONode): PONode[] {
   const t = tagOf(node);
   if (!t || t === "#text") return [];
   const v = node[t];
-  return Array.isArray(v) ? (v as PONode[]) : [];
+  if (!Array.isArray(v)) return [];
+  // mc:AlternateContent serializes the same content twice — a modern
+  // mc:Choice branch plus a legacy mc:Fallback (VML) duplicate. Walking both
+  // double-counted text-box text, images, list items, and contrast runs
+  // everywhere. Flatten to the FIRST Choice (matching how modern Office
+  // consumes it), falling back to Fallback only when no Choice exists.
+  if (!(v as PONode[]).some((c) => tagOf(c) === "AlternateContent")) {
+    return v as PONode[];
+  }
+  const out: PONode[] = [];
+  for (const c of v as PONode[]) {
+    if (tagOf(c) === "AlternateContent") {
+      const branches = (c["AlternateContent"] as PONode[]) ?? [];
+      const branch =
+        branches.find((k) => tagOf(k) === "Choice") ??
+        branches.find((k) => tagOf(k) === "Fallback");
+      if (branch) out.push(...childrenOf(branch));
+      continue;
+    }
+    out.push(c);
+  }
+  return out;
 }
 
 export function attrOf(node: PONode, name: string): string | undefined {
@@ -175,14 +196,16 @@ export function corePropertyText(coreRoot: PONode | undefined, tag: string): str
 export function drawingAltText(propsNode: PONode): {
   altText: string | null;
   decorative: boolean;
+  /** True when only the Title property is filled — assistive technology
+   *  reads the Description (descr) field, so a Title alone is NOT alt text
+   *  (Word-2010-era documents commonly have only Title filled). */
+  titleOnly: boolean;
 } {
   const descr = attrOf(propsNode, "descr")?.trim();
   const title = attrOf(propsNode, "title")?.trim();
-  let altText: string | null = null;
-  if (descr) altText = descr;
-  else if (title) altText = title;
+  const altText = descr ? descr : null;
   const decorative = descendants(propsNode, "decorative").some((d) => attrOf(d, "val") === "1");
-  return { altText, decorative };
+  return { altText, decorative, titleOnly: !descr && !!title };
 }
 
 // ---------------------------------------------------------------------------
