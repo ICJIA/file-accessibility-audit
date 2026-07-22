@@ -188,9 +188,9 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
-    id: "figure-accuracy-2026-07-22",
+    id: "phantom-tags-accuracy-2026-07-22",
     badge: "Improved",
-    text: "PDF scoring accuracy fix: some PDFs — often those exported from design tools like Adobe InDesign — carry leftover 'phantom' image tags that aren't part of the document a screen reader actually reads. The audit was counting those as real images missing a description and unfairly lowering the score. The tool now ignores image tags that aren't connected to the live document structure, and correctly recognizes when every image on a page is deliberately marked as decorative (and needs no description) — so well-built documents are no longer penalized.",
+    text: "PDF scoring accuracy fix: some PDFs — often those exported from design tools like Adobe InDesign — carry leftover 'phantom' tags (images, lists, and tables) that aren't part of the document a screen reader actually reads. The audit was counting those as real content — flagging images as missing descriptions, lists as 'incomplete structure', and tables as broken — and unfairly lowering the score. The tool now ignores tags that aren't connected to the live document structure, and recognizes when a page's images are deliberately marked as decorative (and need no description), so well-built documents are no longer penalized.",
     linkText: "",
     linkTo: "",
     /** Shown under the text so visitors can see the tool is actively maintained. */

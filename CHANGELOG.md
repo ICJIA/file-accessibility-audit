@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.36.3] - 2026-07-22
+
+Follow-on to v1.36.2, same root cause. The user who reported the phantom-figure false positive on `controls/2022-DVFR-Annual-Report-A0.pdf` found the tool still counted **27 phantom `<L>` lists** (reported as "incomplete structure") and 3 phantom `<Table>` objects. v1.36.2 only de-phantomed `<Figure>`; this generalizes the reachability gate to all orphaned container tags. A0 goes 96/A → **100/A**.
+
+### Fixed
+
+- **Orphaned `<L>` and `<Table>` phantoms are pruned like `<Figure>`.** The qpdf walk collected every object carrying `/S` regardless of tree reachability, so InDesign/Acrobat export leftovers — container tags with no `/P` parent that are named by no element's `/K` — were scored as real structure: A0's 27 empty phantom lists produced 27 false "incomplete structure" list findings (and a false WCAG 1.3.1 malformed-list conformance failure), and 3 phantom tables dragged `table_markup` to 70. `<Figure>`, `<L>`, and `<Table>` are now collected only when reachable (`structReachable`), and the reachability set (`referencedStructRefs` + a `docHasStructTree` guard, so untagged documents are never pruned) is built in a pre-pass. Headings, paragraphs, MCIDs, and other signal counts are not gated (no control document carries orphaned ones).
+
+Controls corpus: 22 of 23 PDFs byte-identical; A0 96/A → 100/A (lists 71 → 44, tables 5 → 2, `table_markup` 70 → 100, conformance failures 1 → 0). Tests 1,541 → 1,544.
+
 ## [1.36.2] - 2026-07-22
 
 Accuracy patch prompted by a user-reported document (`controls/2022-DVFR-Annual-Report-A0.pdf`) that v1.36.1 scored 89/B with a false "3 of 6 images missing alt text" finding; it now scores 96/A with a clean, accurate verdict. Two related fixes to PDF image handling:

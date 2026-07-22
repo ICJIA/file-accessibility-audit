@@ -398,25 +398,33 @@ function parseQpdfJson(json: any): QpdfResult {
     const imageXObjectRefs = new Set<string>();
     const maskRefs = new Set<string>();
 
-    // Struct-tree reachability tracking, so orphaned <Figure> phantoms — objects
-    // that carry /S /Figure but are not part of the live structure tree — can be
-    // dropped after the walk. Authoring tools (notably InDesign → Acrobat) leave
-    // behind <Figure> struct objects that have no /P parent and are named by no
-    // element's /K; a screen reader never reaches them, so counting them as real
-    // images (and flagging a missing /Alt on them) is a false positive.
-    //   referencedStructRefs — every ref named as a child inside any /K
-    //   figuresWithParent     — figure refs that carry a /P (their own parent)
+    // Struct-tree reachability. Authoring tools (notably InDesign → Acrobat)
+    // leave behind phantom struct objects — headings, lists, tables, figures
+    // that carry /S but are not part of the live structure tree: they have no
+    // /P parent AND are named by no element's /K. A screen reader never reaches
+    // them, so counting them as real structure (a missing-alt figure, an
+    // "incomplete" list, a phantom table) is a false positive. Build the set of
+    // every ref named as a child inside any /K in a pre-pass so reachability can
+    // be decided as the main walk below collects each structure element.
     const referencedStructRefs = new Set<string>();
-    const figuresWithParent = new Set<string>();
+    let docHasStructTree = false;
+    for (const obj of Object.values(objects)) {
+      const o = obj as any;
+      if (!o || typeof o !== "object") continue;
+      if (o["/K"] !== undefined) collectStructKidRefs(o["/K"], referencedStructRefs);
+      // Orphan-pruning is only meaningful when a structure tree exists to be
+      // reachable from. Without a StructTreeRoot there is no "live tree", so
+      // nothing is pruned (this is also why the parser's unit fixtures, which
+      // omit the root, are unaffected).
+      if (o["/Type"] === "/StructTreeRoot" || o["/StructTreeRoot"] !== undefined) {
+        docHasStructTree = true;
+      }
+    }
 
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
       if (!obj || typeof obj !== "object") continue;
       const o = obj as any;
-
-      // Record every struct child ref named in this element's /K, so figure
-      // reachability can be decided after the full object map is known.
-      if (o["/K"] !== undefined) collectStructKidRefs(o["/K"], referencedStructRefs);
 
       // Check for StructTreeRoot
       if (o["/Type"] === "/StructTreeRoot" || o["/StructTreeRoot"]) {
@@ -540,9 +548,22 @@ function parseQpdfJson(json: any): QpdfResult {
         }
       }
 
-      // Structure elements (headings, tables, figures with alt)
+      // Structure elements (headings, tables, lists, figures with alt).
       if (o["/S"]) {
         const tag = mapToStandardTag(o["/S"], roleMap);
+        // Container tags (<Figure>, <L>, <Table>) are collected only if the
+        // element is reachable in the live tree — it carries a /P parent, or
+        // some element names it in a /K. An orphaned container with neither is a
+        // phantom left behind by authoring tools (notably InDesign → Acrobat);
+        // assistive tech never traverses it, so scoring it produces a false
+        // finding (a missing-alt figure, an "incomplete structure" list, a
+        // phantom table). Headings/paragraphs/MCIDs etc. are not gated: no
+        // control document carries orphaned ones, and they are signal counts,
+        // not container-level findings.
+        const structReachable =
+          !docHasStructTree ||
+          o["/P"] !== undefined ||
+          referencedStructRefs.has(normRef(ref));
         // Headings
         if (
           tag === "/H" ||
@@ -559,11 +580,11 @@ function parseQpdfJson(json: any): QpdfResult {
         // loop so they don't inflate the top-level table/row counts. The ref
         // is normalized because it is later compared against value-side refs
         // collected from /K arrays ("N 0 R", never "obj:N 0 R").
-        if (tag === "/Table") {
+        if (tag === "/Table" && structReachable) {
           tableCandidates.push({ ref: normRef(ref), obj: o });
         }
         // Lists
-        if (tag === "/L") {
+        if (tag === "/L" && structReachable) {
           result.lists.push(analyzeList(o, objects, roleMap));
         }
         // Paragraphs
@@ -593,7 +614,7 @@ function parseQpdfJson(json: any): QpdfResult {
         // ISO 32000 also allows /ActualText as replacement text (Matterhorn
         // 13-004 fails only when NEITHER is present) — LaTeX and remediation
         // tools emit ActualText-only figures for formulas and logos.
-        if (tag === "/Figure") {
+        if (tag === "/Figure" && structReachable) {
           const rawAlt = o["/Alt"];
           const rawActual = o["/ActualText"];
           const altText =
@@ -604,7 +625,6 @@ function parseQpdfJson(json: any): QpdfResult {
                 : undefined;
           const hasAlt = altText !== undefined;
           result.images.push({ ref: normRef(ref), hasAlt, altText });
-          if (o["/P"] !== undefined) figuresWithParent.add(normRef(ref));
         }
 
         // Collect MCIDs for reading order
@@ -685,14 +705,6 @@ function parseQpdfJson(json: any): QpdfResult {
         }
       }
     }
-
-    // Drop orphaned <Figure> phantoms: a figure survives only if it is reachable
-    // in the live structure tree — either it carries its own /P parent, or some
-    // element names it in a /K. Objects with neither are export leftovers a
-    // screen reader never encounters, so they must not be scored as images.
-    result.images = result.images.filter(
-      (img) => figuresWithParent.has(img.ref) || referencedStructRefs.has(img.ref),
-    );
 
     for (const imageRef of imageXObjectRefs) {
       if (!maskRefs.has(imageRef)) result.imageObjectCount++;

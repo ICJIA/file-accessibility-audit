@@ -507,7 +507,7 @@ describe("table detection", () => {
         null,
         {
           "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
-          "2 0 R": { "/Type": "/StructTreeRoot", "/RoleMap": "3 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/RoleMap": "3 0 R", "/K": ["4 0 R"] },
           "3 0 R": {
             "/CustomTable": "/Table",
             "/CustomRow": "/TR",
@@ -527,6 +527,69 @@ describe("table detection", () => {
     expect(result.tables[0].dataCellCount).toBe(1);
     expect(result.tables[0].rowCount).toBe(1);
     expect(result.tables[0].hasScope).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Orphaned struct pruning — <L>/<Table>/<Figure> objects that carry /S but are
+// unreachable in the live tree (no /P parent, named by no /K) are export
+// leftovers (e.g. InDesign → Acrobat) that assistive tech never traverses. They
+// are pruned when a StructTreeRoot exists; without one there is no live tree, so
+// nothing is pruned. (Real case: 2022-DVFR-Annual-Report-A0.pdf carried 27
+// phantom <L> and 3 phantom <Table> reported as "incomplete structure".)
+// ---------------------------------------------------------------------------
+
+describe("orphaned struct pruning", () => {
+  it("drops orphaned phantom <L> lists but keeps the reachable one", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/L", "/P": "2 0 R", "/K": ["4 0 R"] }, // real, reachable
+          "4 0 R": { "/S": "/LI", "/K": ["5 0 R"] },
+          "5 0 R": { "/S": "/LBody" },
+          "8 0 R": { "/S": "/L" }, // phantom: no /P, named by no /K
+          "9 0 R": { "/S": "/L" }, // phantom
+        },
+      ],
+    });
+    expect(result.lists).toHaveLength(1);
+    expect(result.lists[0].isWellFormed).toBe(true);
+  });
+
+  it("drops orphaned phantom <Table> objects but keeps the reachable one", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/Table", "/P": "2 0 R", "/K": ["4 0 R"] }, // real
+          "4 0 R": { "/S": "/TR", "/K": ["5 0 R"] },
+          "5 0 R": { "/S": "/TD" },
+          "8 0 R": { "/S": "/Table" }, // phantom
+          "9 0 R": { "/S": "/Table" }, // phantom
+        },
+      ],
+    });
+    expect(result.tables).toHaveLength(1);
+  });
+
+  it("without a StructTreeRoot, structs are not pruned (no live tree to judge against)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" }, // no StructTreeRoot
+          "8 0 R": { "/S": "/L", "/K": ["9 0 R"] }, // unreferenced, but no tree → kept
+          "9 0 R": { "/S": "/LI", "/K": ["10 0 R"] },
+          "10 0 R": { "/S": "/LBody" },
+        },
+      ],
+    });
+    expect(result.lists).toHaveLength(1);
   });
 });
 
@@ -851,8 +914,9 @@ describe("figure/image alt text detection", () => {
       qpdf: [
         null,
         {
-          "1 0 R": { "/Type": "/Catalog" },
-          "3 0 R": { "/S": "/Figure", "/P": "9 0 R", "/Alt": "Chart" },
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "9 0 R" },
+          "9 0 R": { "/Type": "/StructTreeRoot" }, // tree exists → orphan-pruning is active
+          "3 0 R": { "/S": "/Figure", "/P": "7 0 R", "/Alt": "Chart" }, // reachable via /P only
         },
       ],
     });
@@ -864,7 +928,8 @@ describe("figure/image alt text detection", () => {
       qpdf: [
         null,
         {
-          "1 0 R": { "/Type": "/Catalog" },
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "9 0 R" },
+          "9 0 R": { "/Type": "/StructTreeRoot" }, // a live tree exists to be orphaned from
           "2 0 R": { "/Subtype": "/Image" },
           // Phantom <Figure> objects the way InDesign/Acrobat leave them: /S and
           // layout attrs, but no /P and named by no element's /K. A screen reader
