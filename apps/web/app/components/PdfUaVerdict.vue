@@ -57,9 +57,11 @@ const open = ref(false);
             {{ open ? "↑" : "↓" }}
           </button>
           <ul v-if="open" class="mt-2 text-xs space-y-1.5 text-[var(--text-muted)]">
-            <li v-for="f in verdict.failures" :key="f.ruleId + f.clause">
+            <li v-for="f in verdict.failures" :key="f.ruleId + '|' + f.clause">
               <span class="font-mono text-[var(--text)]">{{ f.clause }}</span>
-              <span v-if="f.ruleId && !String(f.ruleId).startsWith(f.clause)">
+              <span
+                v-if="f.ruleId && f.ruleId !== f.clause && !String(f.ruleId).startsWith(f.clause + '-')"
+              >
                 · {{ f.ruleId }}</span
               >
               <span v-if="f.description"> — {{ f.description }}</span>

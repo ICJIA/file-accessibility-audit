@@ -35,6 +35,20 @@ describe("PdfUaVerdict.vue", () => {
     expect(w.text()).toContain("Structure element missing");
     expect(w.text()).toContain("2");
   });
+  it("shows ruleId when clause is only a coarse string-prefix, not a true '<clause>-' match (regression)", async () => {
+    const w = mount(PdfUaVerdict, {
+      props: {
+        verdict: {
+          ...base,
+          failures: [
+            { ruleId: "7.1-3", clause: "7", description: "Unrelated checkpoint", count: 1 },
+          ],
+        },
+      },
+    });
+    await w.find("button").trigger("click");
+    expect(w.text()).toContain("7.1-3");
+  });
   it("shows a Pass badge with no checkpoint list when passed", () => {
     const w = mount(PdfUaVerdict, {
       props: { verdict: { ...base, passed: true, totalFailureCount: 0, failures: [] } },
