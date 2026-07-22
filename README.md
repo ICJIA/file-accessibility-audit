@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.36.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1544%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.37.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1557%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,544 tests** across 95 test files (API 1002, Web 493, CLI 49). Run all three suites with one summary:
+**1,557 tests** across 98 test files (API 1008, Web 500, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -824,20 +824,22 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1002 passed (48 files)
-  ✔ Web      493 passed (41 files)
+  ✔ API      1008 passed (50 files)
+  ✔ Web      500 passed (42 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1544 tests passed across 95 files
+  ✔ 1557 tests passed across 98 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1002 tests)
+### API Tests (1008 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `scorer.test.ts` | 155 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, filename-like titles earning partial credit without a false 2.4.2 failure, help-link accuracy (version-matched W3C Understanding URLs, no broken WebAIM anchors), and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text, the Acrobat fix guide) |
 | `qpdfParser.test.ts` | 120 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count and ColSpan/RowSpan-aware column consistency, list analysis (LI/Lbl/LBody — LBody required, Lbl advisory), multi-widget form fields (radio groups collapse to one field with /TU from the parent), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, orphaned-phantom pruning (container tags — `<Figure>`, `<L>`, `<Table>` — that carry `/S` but have no `/P` parent and are named by no `/K` are excluded when a StructTreeRoot exists, but never pruned in a treeless document), MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON, qpdf exit-code-3 recovery (warnings with valid stdout JSON), and real qpdf-v2 `obj:`-key fixtures |
+| `veraPdfBuffer.test.ts` | 3 | The audit-time veraPDF wrapper `runVeraPdfOnBuffer`: returns `available:false` without writing a temp file when `VERAPDF_PATH` is unset; otherwise writes a short-lived temp PDF, runs veraPDF against that path with the 30 s audit timeout, and unlinks it in `finally` (including when veraPDF rejects); never throws |
+| `analyzeVeraPdf.test.ts` | 3 | The `/analyze` route attaching `pdfUaVerdict`: attached for a PDF when veraPDF is available, omitted when unavailable (`available:false`), and veraPDF not invoked for a non-PDF upload |
 | `bulk-from-inventory.test.ts` | 41 | Bulk inventory scoring across all four formats: input validation, NDJSON parsing, `filterCategory` generalized beyond pdf-only (docx/pptx/xlsx), per-file content-type detection (real format sniffing, not the old blanket %PDF- gate), per-file `*_DISABLED`/`*_PARSE_FAILED`/timeout error-code mapping, and result-structure assertions (one bad entry never aborts the batch) |
 | `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement (against the real `services/urlPolicy.ts` exports, no longer a re-implemented copy), and route-level input/PDF validation and fetch-error handling |
 | `xlsxService.test.ts` | 44 | Excel `.xlsx` parsing: workbook/sheet metadata, used-range and merged-cell counts, defined tables, picture/chart alt text and hyperlinks, cell-style contrast (large-text threshold, theme-indexed colors unresolved, empty cells excluded), and DoS hardening — a real-cell-count `MAX_CELLS` cap (not the spoofable dimension ref), pre-counted drawing/hyperlink/table caps that reject before any read fan-out, a cumulative auxiliary-part byte budget that catches large object-sparse drawing parts fast, and aggregate zip-package limits (entry-count and total-uncompressed-size caps, even when no single part exceeds `XLSX.MAX_UNCOMPRESSED_BYTES`) |
@@ -885,7 +887,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (493 tests)
+### Web Tests (500 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -927,6 +929,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |
 | `pdfUaSignalsCard.test.ts` | 3 | The PDF/UA-1 conformance-signals panel - signal rows, identifier presence, and signals-vs-verdict framing |
 | `severityTally.test.ts` | 3 | The `tallySeverity` utility - per-severity finding counts |
+| `pdfUaVerdict.test.ts` | 7 | The shared `PdfUaVerdict.vue` component: renders nothing when veraPDF is unavailable; a Fail badge that never shows a bare "Conformant" and always carries the manual-review caveat; the failed-checkpoint list collapsed by default and revealed on expand; delimiter-aware ruleId suppression (an unrelated `7.1-3` is not dropped under clause `7`); a Pass badge; and a "Could not validate" state when veraPDF errored |
 | `dataRetentionVersion.test.ts` | 2 | The data-retention page no longer hardcodes the stale `1.18.0` version literal — `TOOL_VERSION` now derives from `runtimeConfig.public.appVersion`, the same source the footer uses |
 | `ProcessingOverlay.test.ts` | 2 | The ProcessingOverlay component's live region (Task F6): the stage text is wrapped in `role="status" aria-live="polite"`, and an updated stage is announced when the prop changes |
 | `remediationGuard.test.ts` | 2 | index.vue's remediation-button guard: gates `RemediateButton` on `fileType === 'pdf'` (a positive allowlist), replacing the old negative `!== 'docx'` check that would have wrongly offered PDF-only remediation for pptx/xlsx |
@@ -1024,6 +1027,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.37.0 — 2026-07-22 · PDF/UA-1 (veraPDF) verdict on audits (not a security release)
+
+Adds an informational PDF/UA-1 machine-check verdict (veraPDF) to the audit and saved-report pages. Reviewed for new surface before shipping: veraPDF runs read-only against a short-lived temp copy (its own, same pattern and lifecycle as the already-disclosed qpdf temp copy — written and deleted within the same request), never throws, and is bounded by a 30 s audit-time timeout (`VERAPDF_AUDIT_TIMEOUT_MS`) so it can't stall the request. The verdict is a standalone field that does not change the Strict grade or any scored category (controls corpus 0/23 changed). The persisted verdict rides the existing whole-result JSON store and carries no URLs, so it adds no stored-XSS surface — all values render through escaped interpolation, and the only link is the server-configured veraPDF homepage. Config-gated on `REMEDIATION_VERAPDF_PATH`; absent on a tier, the panel is hidden. Tests 1,544 → 1,557.
 
 ### v1.36.3 — 2026-07-22 · Orphaned list/table phantoms (accuracy patch, not a security release)
 

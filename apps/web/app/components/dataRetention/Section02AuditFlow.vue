@@ -39,8 +39,12 @@
         Once the HTTP response has been sent, the in-memory buffer is unreferenced and
         garbage-collected by the Node.js runtime in the next collection cycle. For a PDF, the qpdf
         analyzer (a command-line tool that needs a file path) works from a short-lived, randomly
-        named temp copy that is deleted within the same request, even when analysis fails. For a
-        Word, PowerPoint, or Excel file, analysis runs inside a dedicated child Node.js process —
+        named temp copy that is deleted within the same request, even when analysis fails. When
+        veraPDF (the PDF/UA-1 validator) is configured, a PDF audit also writes its own short-lived,
+        randomly named temp copy — separate from qpdf's, but following the same pattern and
+        lifecycle — so veraPDF can produce the PDF/UA-1 machine-check verdict, and that copy is
+        likewise deleted within the same request, even when the check fails. For a Word, PowerPoint, or
+        Excel file, analysis runs inside a dedicated child Node.js process —
         spawned fresh for that request and terminated immediately afterward — which unzips and
         parses the in-memory buffer directly with JSZip and fast-xml-parser (see § 5); no temporary
         file is ever created for these formats. In every case, the uploaded content does not persist

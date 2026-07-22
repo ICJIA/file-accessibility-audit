@@ -44,7 +44,10 @@ export interface VeraPdfVerdict {
  * Never throws — returns `available: false` if veraPDF isn't installed
  * or any error happens. Callers should record the verdict regardless.
  */
-export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
+export async function runVeraPdf(
+  pdfPath: string,
+  timeoutMs: number = REMEDIATION.VERAPDF_TIMEOUT_MS,
+): Promise<VeraPdfVerdict> {
   const bin = REMEDIATION.VERAPDF_PATH;
   if (!bin) {
     return {
@@ -65,7 +68,7 @@ export async function runVeraPdf(pdfPath: string): Promise<VeraPdfVerdict> {
       // Bound the veraPDF JVM so a pathological tagged output can't hang the
       // remediation pipeline. A timeout surfaces as a non-zero exit handled
       // by the catch below (treated as "could not validate"), never blocking.
-      { maxBuffer: 32 * 1024 * 1024, timeout: REMEDIATION.VERAPDF_TIMEOUT_MS },
+      { maxBuffer: 32 * 1024 * 1024, timeout: timeoutMs },
     );
     stdout = result.stdout;
   } catch (e) {

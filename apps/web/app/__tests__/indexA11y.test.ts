@@ -24,10 +24,10 @@ import DropZone from "../components/DropZone.vue";
 //
 // index.vue renders several components (DropZone, ProcessingOverlay,
 // BatchProgress, AnnouncementBanner, RemediateButton, SourceDocumentNotice,
-// ScoreCard, AppTooltip) the Nuxt-auto-import way — used in the template
-// with no explicit <script setup> import, resolved at runtime by Nuxt's
-// build step. Plain vitest has no such step, so they must be registered
-// explicitly here: DropZone as the real component (its emitted
+// ScoreCard, PdfUaVerdict, AppTooltip) the Nuxt-auto-import way — used in the
+// template with no explicit <script setup> import, resolved at runtime by
+// Nuxt's build step. Plain vitest has no such step, so they must be
+// registered explicitly here: DropZone as the real component (its emitted
 // `file-selected` event is what drives analyzeFile()), the rest as stubs
 // (their internals aren't this test's concern). The already-imported
 // components (ReportActionBanner, ReportDownloadBar, ...) are handled by
@@ -57,6 +57,7 @@ function mountIndex(options: { attachTo?: HTMLElement } = {}) {
         RemediateButton: true,
         SourceDocumentNotice: true,
         ScoreCard: true,
+        PdfUaVerdict: true,
         ReportContent: true,
         AppTooltip: true,
         LazyTechnicalExplainer: true,

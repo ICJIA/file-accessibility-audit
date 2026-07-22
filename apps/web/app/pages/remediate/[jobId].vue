@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRemediationJob, type CategoryResult } from "~/composables/useRemediationJob";
+import type { PdfUaVerdict } from "@file-audit/shared";
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
 // v1.21+: single Strict (WCAG + IITAA §E205.4) score. The historical
@@ -469,6 +470,24 @@ const eventLabels: Record<string, string> = {
 const runtimeConfig = useRuntimeConfig();
 const iitaaUrl = computed(() => String(runtimeConfig.public.iitaaUrl ?? ""));
 const verapdfUrl = computed(() => String(runtimeConfig.public.verapdfUrl ?? ""));
+
+// receipt.veraPdf is a nested DTO (summary.*) specific to the remediation
+// job API. The shared <PdfUaVerdict> component (also used on the audit
+// result and shared-report pages) consumes the flat PdfUaVerdict shape
+// from @file-audit/shared — map once here instead of re-declaring the
+// verdict + failed-rule markup a third time on this page.
+const pdfUaVerdict = computed<PdfUaVerdict | null>(() => {
+  const v = receipt.value?.veraPdf;
+  if (!v) return null;
+  return {
+    available: !!v.available,
+    passed: !!v.passed,
+    profile: v.summary?.profile ?? "ua1",
+    failures: v.summary?.failures ?? [],
+    totalFailureCount: v.summary?.totalFailureCount ?? 0,
+    error: v.summary?.error,
+  };
+});
 
 function labelForEvent(name: string): string {
   return eventLabels[name] ?? name;
@@ -1276,75 +1295,13 @@ function labelForEvent(name: string): string {
           PDF/UA-1 conformance check
         </h3>
 
-        <!-- veraPDF verdict -->
-        <template v-if="receipt.veraPdf.available">
-          <div class="flex items-start gap-3 mb-4">
-            <span
-              class="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
-              :class="
-                receipt.veraPdf.passed
-                  ? 'bg-emerald-700/40 text-emerald-200'
-                  : 'bg-amber-700/40 text-amber-200'
-              "
-            >
-              {{ receipt.veraPdf.passed ? "✓" : "!" }}
-            </span>
-            <div class="flex-1 text-sm">
-              <p class="font-medium mb-1">
-                <template v-if="receipt.veraPdf.passed">
-                  veraPDF reported PDF/UA-1 conformance.
-                </template>
-                <template v-else>
-                  veraPDF found {{ receipt.veraPdf.summary?.totalFailureCount ?? "some" }}
-                  PDF/UA-1 rule failures.
-                </template>
-              </p>
-              <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-                The remediated PDF was validated with
-                <a
-                  v-if="verapdfUrl"
-                  :href="verapdfUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-blue-300 hover:text-blue-200 underline"
-                  >veraPDF</a
-                >
-                <span v-else>veraPDF</span> — the open-source PDF/UA-1 validator from the PDF
-                Association + Dual Lab. It checks technical conformance to ISO 14289-1 (tag
-                presence, structure tree, MarkInfo, language, title, etc.).
-              </p>
-            </div>
-          </div>
-
-          <!-- Top failing rules if any -->
-          <div
-            v-if="
-              !receipt.veraPdf.passed &&
-              receipt.veraPdf.summary?.failures &&
-              receipt.veraPdf.summary.failures.length > 0
-            "
-            class="mb-4 pl-10"
-          >
-            <p class="text-xs font-semibold uppercase tracking-wider text-amber-300 mb-2">
-              Top failing rules
-            </p>
-            <ul class="text-xs space-y-1.5 text-[var(--text-muted)]">
-              <li
-                v-for="f in receipt.veraPdf.summary.failures.slice(0, 5)"
-                :key="f.ruleId + f.clause"
-              >
-                <span class="font-mono text-[var(--text)]">{{ f.ruleId }}</span>
-                <!-- ruleId is "clause-testNumber" (e.g. 7.1-1) on veraPDF ≥1.30;
-                     repeat the clause only when it isn't already the prefix -->
-                <span v-if="f.clause && !String(f.ruleId).startsWith(f.clause)">
-                  · {{ f.clause }}</span
-                >
-                <span v-if="f.description"> — {{ f.description }}</span>
-                <span class="text-amber-400 ml-1">({{ f.count }})</span>
-              </li>
-            </ul>
-          </div>
-        </template>
+        <!-- veraPDF verdict + failed rules (shared component — DRY with
+             the audit result and shared report pages) -->
+        <PdfUaVerdict
+          v-if="pdfUaVerdict?.available"
+          :verdict="pdfUaVerdict"
+          :verapdf-url="verapdfUrl"
+        />
 
         <!-- veraPDF unavailable -->
         <template v-else>

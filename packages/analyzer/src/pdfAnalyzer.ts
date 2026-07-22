@@ -4,6 +4,7 @@ import { scoreDocument, ScoringResult } from "./scorer.js";
 import type { DocxMetadata } from "./docxService.js";
 import type { PptxMetadata } from "./pptxService.js";
 import type { XlsxMetadata } from "./xlsxService.js";
+import type { PdfUaVerdict } from "@file-audit/shared";
 import { ANALYSIS } from "#config";
 
 // Simple semaphore for concurrency limiting with timeout
@@ -60,6 +61,8 @@ export interface AnalysisResult extends ScoringResult {
   pptxMetadata?: PptxMetadata;
   /** Excel metadata — present only for XLSX results. */
   xlsxMetadata?: XlsxMetadata;
+  /** PDF/UA-1 machine-check verdict (veraPDF). PDF results only; absent when veraPDF isn't configured. */
+  pdfUaVerdict?: PdfUaVerdict;
 }
 
 /**

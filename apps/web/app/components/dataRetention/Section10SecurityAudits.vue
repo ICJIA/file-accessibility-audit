@@ -68,6 +68,29 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.37.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.37.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-07-22</strong> · scope: a new PDF/UA-1 conformance verdict shown on
+            audit results — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          Audit results now show a PDF/UA-1 (ISO 14289-1) machine-check verdict from veraPDF — the
+          open-source validator — alongside the accessibility grade. It was reviewed before shipping:
+          veraPDF reads a short-lived temporary copy of your PDF (its own copy, created and deleted
+          within the same request, exactly like the existing qpdf copy — nothing new is retained), it
+          cannot stall the page (a 30-second cap; if it can't finish it simply reports "could not
+          validate"), and the verdict is shown for information only — it does not change your
+          accessibility grade. No user data is stored beyond what a saved report already keeps.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.36.3 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

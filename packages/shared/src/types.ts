@@ -185,6 +185,28 @@ export interface XlsxMetadata {
 
 export type FileType = "pdf" | "docx" | "pptx" | "xlsx";
 
+/** One failed PDF/UA-1 rule from veraPDF (a Matterhorn machine-checkable condition). */
+export interface PdfUaRuleFailure {
+  ruleId: string;
+  clause: string;
+  description: string;
+  count: number;
+}
+
+/**
+ * veraPDF PDF/UA-1 (ISO 14289-1) machine-check verdict, surfaced on audits.
+ * Machine-checkable conditions only — NOT a claim of full PDF/UA conformance.
+ * `available:false` means veraPDF was not configured/installed.
+ */
+export interface PdfUaVerdict {
+  available: boolean;
+  passed: boolean;
+  profile: string;
+  failures: PdfUaRuleFailure[];
+  totalFailureCount: number;
+  error?: string;
+}
+
 /**
  * The full shape returned by POST /api/analyze and (near-verbatim, via
  * sanitizeStoredReport) stored for GET /api/reports/:id. Several fields are
@@ -216,4 +238,6 @@ export interface AnalysisResult {
   pptxMetadata?: PptxMetadata;
   /** Present only for XLSX results. */
   xlsxMetadata?: XlsxMetadata;
+  /** PDF/UA-1 machine-check verdict (veraPDF). PDF results only; absent when veraPDF isn't configured. */
+  pdfUaVerdict?: PdfUaVerdict;
 }

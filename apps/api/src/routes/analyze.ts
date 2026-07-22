@@ -3,7 +3,8 @@ import path from "node:path";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { analyzeLimiter } from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
-import { analyzeDocument } from "../services/analyzer.js";
+import { analyzeDocument, detectFileType } from "../services/analyzer.js";
+import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
 import { gateIdentity, recordAudit, sha256Hex } from "../services/auditLog.js";
 import { FILENAME } from "#config";
 
@@ -39,7 +40,17 @@ router.post(
       // — when the format's flag is off — Word/PowerPoint uploads throw
       // FileTypeError; a corrupt package throws DocxParseError/PptxParseError.
       // All are mapped in the catch below.
-      const result = await analyzeDocument(file.buffer, filename);
+      // Detect type up front so veraPDF (PDF/UA-1) runs concurrently with the
+      // analysis for PDFs only — cost is max(analyze, veraPDF), not the sum.
+      const detectedType = await detectFileType(file.buffer).catch(() => null);
+      const [result, pdfUaVerdict] = await Promise.all([
+        analyzeDocument(file.buffer, filename),
+        detectedType === "pdf" ? runVeraPdfOnBuffer(file.buffer) : Promise.resolve(null),
+      ]);
+      // Only attach when veraPDF actually ran (available). Absent field = hidden panel.
+      if (pdfUaVerdict && pdfUaVerdict.available) {
+        result.pdfUaVerdict = pdfUaVerdict;
+      }
 
       // Always record the audit — audit_log is the canonical "this
       // content has been audited" record consulted by /api/remediate's
