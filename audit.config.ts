@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "pdfua-verdict-2026-07-22",
+    badge: "New",
+    text: "Audit results now include a PDF/UA-1 (ISO 14289-1) machine-check verdict from veraPDF — a Pass/Fail badge with the exact technical checkpoints that failed, shown alongside your accessibility grade. It's the automatable equivalent of the checks in Adobe/PAC-style PDF/UA tools, covering the machine-verifiable requirements (full conformance still needs a human to confirm alt-text quality and reading order).",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 22, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "phantom-tags-accuracy-2026-07-22",
     badge: "Improved",
     text: "PDF scoring accuracy fix: some PDFs — often those exported from design tools like Adobe InDesign — carry leftover 'phantom' tags (images, lists, and tables) that aren't part of the document a screen reader actually reads. The audit was counting those as real content — flagging images as missing descriptions, lists as 'incomplete structure', and tables as broken — and unfairly lowering the score. The tool now ignores tags that aren't connected to the live document structure, and recognizes when a page's images are deliberately marked as decorative (and need no description), so well-built documents are no longer penalized.",

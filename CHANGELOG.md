@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.37.0] - 2026-07-22
+
+Feature: a **PDF/UA-1 (ISO 14289-1) machine-check verdict** on the audit results page and saved reports, via veraPDF — the automatable equivalent of PAC's Matterhorn checks (PAC itself is a Windows GUI with no CLI/API).
+
+### Added
+
+- **PDF/UA-1 verdict panel** on the audit page and `/report/:id`: a binary **Pass / Fail / "Could not validate"** badge plus an expandable list of failed Matterhorn checkpoints (clause · rule · description · count), honestly labeled as *machine-checkable conditions only* (never a bare "Conformant" — full PDF/UA conformance also needs manual review). Rendered by a shared `PdfUaVerdict.vue` component now reused by the remediation page too.
+- veraPDF runs at `POST /api/analyze` **concurrently** with the analysis (`Promise.all`, cost = max), **PDF-only**, and **config-gated** on `REMEDIATION.VERAPDF_PATH` — the panel is hidden entirely when veraPDF isn't installed. A short-lived temp copy (its own, same pattern/lifecycle as the qpdf temp copy, deleted in the same request) feeds `verapdf --flavour ua1`; the verdict never throws and never blocks the audit. Audit-time runs use a shorter `VERAPDF_AUDIT_TIMEOUT_MS` (30 s) than the remediation job's 120 s, so a pathological PDF degrades to "Could not validate" instead of stalling.
+- The verdict persists with saved reports (rides the existing whole-result JSON store — no schema change) and is disclosed in the data-retention audit-flow section.
+
+### Notes
+
+- **No scoring change.** The verdict is a standalone informational field beside the Strict grade — it does not affect the grade or any scored category. Verified against the 23-document controls corpus: 0/23 scores changed.
+- **Deploy:** the audit tier needs the veraPDF binary installed and `REMEDIATION_VERAPDF_PATH` set for the panel to appear; consider veraPDF JVM memory/concurrency when enabling on a busy tier.
+
+Tests 1,544 → 1,557 (API 1008 / Web 500 / CLI 49); lint, typecheck, build green.
+
 ## [1.36.3] - 2026-07-22
 
 Follow-on to v1.36.2, same root cause. The user who reported the phantom-figure false positive on `controls/2022-DVFR-Annual-Report-A0.pdf` found the tool still counted **27 phantom `<L>` lists** (reported as "incomplete structure") and 3 phantom `<Table>` objects. v1.36.2 only de-phantomed `<Figure>`; this generalizes the reachability gate to all orphaned container tags. A0 goes 96/A → **100/A**.
