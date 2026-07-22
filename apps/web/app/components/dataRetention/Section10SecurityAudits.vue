@@ -68,6 +68,29 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.36.3 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.36.3</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-07-22</strong> · scope: extends the v1.36.2 PDF image fix to
+            lists and tables, from the same reported document — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The same "phantom tag" problem fixed for images in v1.36.2 also affected lists and
+          tables: a design tool had left behind dozens of empty list and table tags that are not
+          part of the document a screen reader reads, and the audit was reporting them as broken
+          ("incomplete") structure and lowering the score. The tool now ignores these disconnected
+          tags for lists and tables as well, so the reported document is scored on its real content
+          only. This changes only how existing information in the file is interpreted — no new
+          information is read from your documents.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.36.2 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
