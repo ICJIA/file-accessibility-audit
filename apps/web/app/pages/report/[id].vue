@@ -103,6 +103,16 @@
             <ScoreCard :result="data.report" :show-filename="false" />
           </div>
 
+          <!-- PDF/UA-1 machine-check verdict (veraPDF) — informational,
+             subordinate to the grade above; self-hides when the verdict is
+             absent (non-PDF, or veraPDF unavailable). -->
+          <PdfUaVerdict
+            v-if="data.report?.pdfUaVerdict"
+            :verdict="data.report.pdfUaVerdict"
+            :verapdf-url="String(config.public.verapdfUrl ?? '')"
+            class="mb-6"
+          />
+
           <ReportActionBanner
             v-if="data?.report?.categories"
             :categories="data.report.categories"
