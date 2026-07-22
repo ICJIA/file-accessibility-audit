@@ -28,6 +28,11 @@ export interface PdfjsResult {
   outlineCount: number;
   links: Array<{ url: string; text: string }>;
   imageCount: number;
+  // Painted images NOT enclosed by any /Artifact run — i.e. the content images
+  // that actually participate in the reading order and require alt text. Lets
+  // the scorer distinguish "every image is a decorative artifact" (no alt
+  // needed) from "untagged content images" when the struct tree has 0 figures.
+  nonArtifactImageCount?: number;
   emptyPages: number[];
   // PDF/UA-1 identifier from the XMP metadata (pdfuaid:part). pdfjs parses the
   // XMP stream; `qpdf --json` (no stream-data flag) cannot expose it, so this
@@ -67,6 +72,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     outlineCount: 0,
     links: [],
     imageCount: 0,
+    nonArtifactImageCount: 0,
     emptyPages: [],
     hasPdfUaIdentifier: false,
     pdfUaPart: null,
@@ -207,6 +213,8 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     const MIN_IMAGE_DIM = 50; // pixels — skip spacers, borders, tiny decorative elements
     const seenPerPage = new Set<string>();
     let imageCount = 0;
+    // Subset of imageCount painted OUTSIDE any /Artifact run — the content images.
+    let nonArtifactImageCount = 0;
     // Count top-level /Artifact marked-content runs (a run nested inside
     // another artifact is not counted twice). This is the real artifact signal
     // — artifacts live in the content stream, not the structure tree.
@@ -279,12 +287,16 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           // If we can't resolve the image, count it conservatively
         }
         imageCount++;
+        // An image is a content image only if no enclosing marked-content run is
+        // an /Artifact. Artifacted images are decorative and need no alt text.
+        if (!artifactStack.some((f) => f)) nonArtifactImageCount++;
       }
       if (pageMcids.length > 0) {
         result.contentStreamMcidsByPage[i] = pageMcids;
       }
     }
     result.imageCount = imageCount;
+    result.nonArtifactImageCount = nonArtifactImageCount;
     result.artifactRunCount = artifactRunCount;
 
     result.textLength = totalText.trim().length;

@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.36.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1537%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.36.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1541%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,537 tests** across 95 test files (API 995, Web 493, CLI 49). Run all three suites with one summary:
+**1,541 tests** across 95 test files (API 999, Web 493, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -824,20 +824,20 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      995 passed (48 files)
+  ✔ API      999 passed (48 files)
   ✔ Web      493 passed (41 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1537 tests passed across 95 files
+  ✔ 1541 tests passed across 95 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (995 tests)
+### API Tests (999 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
-| `scorer.test.ts` | 153 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, filename-like titles earning partial credit without a false 2.4.2 failure, help-link accuracy (version-matched W3C Understanding URLs, no broken WebAIM anchors), and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text, the Acrobat fix guide) |
-| `qpdfParser.test.ts` | 115 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count and ColSpan/RowSpan-aware column consistency, list analysis (LI/Lbl/LBody — LBody required, Lbl advisory), multi-widget form fields (radio groups collapse to one field with /TU from the parent), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON, qpdf exit-code-3 recovery (warnings with valid stdout JSON), and real qpdf-v2 `obj:`-key fixtures |
+| `scorer.test.ts` | 155 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, filename-like titles earning partial credit without a false 2.4.2 failure, help-link accuracy (version-matched W3C Understanding URLs, no broken WebAIM anchors), and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text, the Acrobat fix guide) |
+| `qpdfParser.test.ts` | 117 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count and ColSpan/RowSpan-aware column consistency, list analysis (LI/Lbl/LBody — LBody required, Lbl advisory), multi-widget form fields (radio groups collapse to one field with /TU from the parent), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text (orphaned phantom `<Figure>` objects — no `/P` parent and named by no `/K` — excluded from the count), MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON, qpdf exit-code-3 recovery (warnings with valid stdout JSON), and real qpdf-v2 `obj:`-key fixtures |
 | `bulk-from-inventory.test.ts` | 41 | Bulk inventory scoring across all four formats: input validation, NDJSON parsing, `filterCategory` generalized beyond pdf-only (docx/pptx/xlsx), per-file content-type detection (real format sniffing, not the old blanket %PDF- gate), per-file `*_DISABLED`/`*_PARSE_FAILED`/timeout error-code mapping, and result-structure assertions (one bad entry never aborts the batch) |
 | `analyze-url.test.ts` | 38 | Analyze-from-URL: SSRF prevention (private/local-address blocking), scheme validation, allowlist enforcement (against the real `services/urlPolicy.ts` exports, no longer a re-implemented copy), and route-level input/PDF validation and fetch-error handling |
 | `xlsxService.test.ts` | 44 | Excel `.xlsx` parsing: workbook/sheet metadata, used-range and merged-cell counts, defined tables, picture/chart alt text and hyperlinks, cell-style contrast (large-text threshold, theme-indexed colors unresolved, empty cells excluded), and DoS hardening — a real-cell-count `MAX_CELLS` cap (not the spoofable dimension ref), pre-counted drawing/hyperlink/table caps that reject before any read fan-out, a cumulative auxiliary-part byte budget that catches large object-sparse drawing parts fast, and aggregate zip-package limits (entry-count and total-uncompressed-size caps, even when no single part exceeds `XLSX.MAX_UNCOMPRESSED_BYTES`) |
@@ -1024,6 +1024,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.36.2 — 2026-07-22 · Orphaned-figure false-positive accuracy patch (not a security release)
+
+Prompted by a user-reported PDF (`controls/2022-DVFR-Annual-Report-A0.pdf`) that scored 89/B on a false "3 of 6 images missing alt text" finding. The qpdf walk collected every object carrying `/S /Figure`, including orphaned struct objects unreachable in the live structure tree (no `/P` parent and named by no element's `/K`) — export leftovers from InDesign/Acrobat that assistive technology never encounters. Those phantom figures are now excluded (a figure survives only if it carries a `/P` or is named in some `/K`), and a document whose only painted images all sit inside `/Artifact` runs now reports a clean "all images are decorative artifacts" N/A instead of the "images detected but no `<Figure>` tags" manual-review advisory (via pdfjs's new `nonArtifactImageCount`). No new input-handling path or attack surface — a parsing-accuracy change only. Verified against the 23-document controls corpus: 22 byte-identical, the reported file 89/B → 96/A. Tests 1,537 → 1,541.
 
 ### v1.36.1 — 2026-07-19 · Static-XFA and indirect-reference accuracy patch (not a security release)
 

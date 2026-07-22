@@ -398,10 +398,25 @@ function parseQpdfJson(json: any): QpdfResult {
     const imageXObjectRefs = new Set<string>();
     const maskRefs = new Set<string>();
 
+    // Struct-tree reachability tracking, so orphaned <Figure> phantoms — objects
+    // that carry /S /Figure but are not part of the live structure tree — can be
+    // dropped after the walk. Authoring tools (notably InDesign → Acrobat) leave
+    // behind <Figure> struct objects that have no /P parent and are named by no
+    // element's /K; a screen reader never reaches them, so counting them as real
+    // images (and flagging a missing /Alt on them) is a false positive.
+    //   referencedStructRefs — every ref named as a child inside any /K
+    //   figuresWithParent     — figure refs that carry a /P (their own parent)
+    const referencedStructRefs = new Set<string>();
+    const figuresWithParent = new Set<string>();
+
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
       if (!obj || typeof obj !== "object") continue;
       const o = obj as any;
+
+      // Record every struct child ref named in this element's /K, so figure
+      // reachability can be decided after the full object map is known.
+      if (o["/K"] !== undefined) collectStructKidRefs(o["/K"], referencedStructRefs);
 
       // Check for StructTreeRoot
       if (o["/Type"] === "/StructTreeRoot" || o["/StructTreeRoot"]) {
@@ -589,6 +604,7 @@ function parseQpdfJson(json: any): QpdfResult {
                 : undefined;
           const hasAlt = altText !== undefined;
           result.images.push({ ref: normRef(ref), hasAlt, altText });
+          if (o["/P"] !== undefined) figuresWithParent.add(normRef(ref));
         }
 
         // Collect MCIDs for reading order
@@ -669,6 +685,14 @@ function parseQpdfJson(json: any): QpdfResult {
         }
       }
     }
+
+    // Drop orphaned <Figure> phantoms: a figure survives only if it is reachable
+    // in the live structure tree — either it carries its own /P parent, or some
+    // element names it in a /K. Objects with neither are export leftovers a
+    // screen reader never encounters, so they must not be scored as images.
+    result.images = result.images.filter(
+      (img) => figuresWithParent.has(img.ref) || referencedStructRefs.has(img.ref),
+    );
 
     for (const imageRef of imageXObjectRefs) {
       if (!maskRefs.has(imageRef)) result.imageObjectCount++;
@@ -882,6 +906,22 @@ function analyzeList(
   result.isWellFormed = result.itemCount > 0 && itemsWithBody === result.itemCount;
 
   return result;
+}
+
+/**
+ * Walk a /K value and record every struct-element reference ("N 0 R") it names
+ * as a direct child. /K may be a single ref string, an MCID integer, or an array
+ * mixing refs, MCID integers, and MCR/OBJR dicts. Only direct child refs matter
+ * for figure reachability, so bare "N 0 R" strings (at the top level or inside a
+ * /K array) are collected; MCID integers and MCR/OBJR dicts (whose /Pg and /Obj
+ * refs point at content, not struct children) are deliberately not descended.
+ */
+function collectStructKidRefs(k: unknown, out: Set<string>): void {
+  if (typeof k === "string" && /^\d+ \d+ R$/.test(k)) {
+    out.add(normRef(k));
+  } else if (Array.isArray(k)) {
+    for (const item of k) collectStructKidRefs(item, out);
+  }
 }
 
 function collectMCIDs(obj: any, mcids: number[]): void {

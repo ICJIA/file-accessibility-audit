@@ -291,6 +291,45 @@ describe("scoreDocument — scanned PDF", () => {
 });
 
 // ---------------------------------------------------------------------------
+// scoreDocument: images all marked as decorative artifacts (0 tagged figures).
+// A report whose only images are an artifacted cover graphic and closing logos
+// must NOT be flagged "images detected but no <Figure> tags" — those images are
+// correctly hidden from assistive technology and need no alt text.
+// ---------------------------------------------------------------------------
+
+describe("scoreDocument — all images are decorative artifacts (0 figures)", () => {
+  const base = () => makeQpdf({ hasStructTree: true, images: [], imageObjectCount: 4 });
+
+  it("all painted images artifacted → alt_text N/A, no 'untagged images' alarm", () => {
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 2000,
+      pageCount: 6,
+      imageCount: 4,
+      nonArtifactImageCount: 0,
+    });
+    const alt = findCategory(scoreDocument(base(), pdfjs), "alt_text");
+    expect(alt.notAssessed).toBe(true);
+    expect(alt.score).toBeNull();
+    expect((alt.findings ?? []).join(" ")).toMatch(/artifact|decorative/i);
+    expect((alt.findings ?? []).join(" ")).not.toMatch(/no tagged <Figure> elements were found/);
+  });
+
+  it("non-artifacted painted images → keeps the untagged-content manual-review advisory", () => {
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 2000,
+      pageCount: 6,
+      imageCount: 4,
+      nonArtifactImageCount: 4,
+    });
+    const alt = findCategory(scoreDocument(base(), pdfjs), "alt_text");
+    expect(alt.notAssessed).toBe(true);
+    expect((alt.findings ?? []).join(" ")).toMatch(/no tagged <Figure> elements were found/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // scoreDocument: short born-digital PDF — has (a little) real text, no images.
 // Must NOT be classified as a scanned document: the "scanned image / OCR"
 // framing was factually false for one-page notices and cover sheets.

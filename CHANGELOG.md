@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.36.2] - 2026-07-22
+
+Accuracy patch prompted by a user-reported document (`controls/2022-DVFR-Annual-Report-A0.pdf`) that v1.36.1 scored 89/B with a false "3 of 6 images missing alt text" finding; it now scores 96/A with a clean, accurate verdict. Two related fixes to PDF image handling:
+
+### Fixed
+
+- **Orphaned `<Figure>` phantoms are no longer scored as images.** The qpdf walk collected every object carrying `/S /Figure`, including struct objects that are not reachable in the live structure tree — no `/P` parent and named by no element's `/K`. Design tools (notably InDesign → Acrobat) leave these phantom figures behind; a screen reader never encounters them, so counting them as real images (and flagging a missing `/Alt`) was a false positive. A figure now survives only if it is reachable (`figuresWithParent || referencedStructRefs`) — `qpdfService.collectStructKidRefs`. The reported document carried 6 such phantoms (3 without `/Alt`); every other control document has zero, so only that file's score moves.
+- **Fully-artifacted image sets read as "no content images", not "untagged images".** When the struct tree has 0 figures but the page paints images, the scorer now consults pdfjs's new `nonArtifactImageCount` (painted images outside any `/Artifact` run). If every painted image is a decorative artifact — and qpdf sees no image objects beyond those — the category reports a clean N/A ("all images are decorative artifacts, no alt text required") instead of the alarming "images detected but no `<Figure>` elements" manual-review advisory. The advisory still fires for genuinely untagged content images.
+
+Controls corpus: 22 of 23 PDFs byte-identical; the reported document 89/B → 96/A. Tests 1,537 → 1,541.
+
 ## [1.36.1] - 2026-07-19
 
 Accuracy patch prompted by a real accessible static-XFA form (`controls/example-8`) that v1.36.0 scored 90/A with a refused ("incomplete — XFA") verdict; it now scores 96/A with a clean verdict. Four fixes:

@@ -68,6 +68,30 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.36.2 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.36.2</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-07-22</strong> · scope: a single accuracy fix to PDF image
+            detection, prompted by a document a user reported — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          Some PDFs — often those exported from design tools like Adobe InDesign — carry leftover
+          "phantom" image tags that are not part of the document a screen reader actually reads. The
+          audit was counting those phantom tags as real images and reporting them as missing a
+          description, which unfairly lowered the score of otherwise well-built documents. The tool
+          now ignores image tags that are not connected to the live document structure, and
+          correctly recognizes when every image on a page is deliberately marked as decorative and
+          therefore needs no description. This changes only how existing information in the file is
+          interpreted — no new information is read from your documents.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.36.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
