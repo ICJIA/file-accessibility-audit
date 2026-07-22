@@ -263,6 +263,16 @@
             <ScoreCard :result="result" :show-filename="false" />
           </div>
 
+          <!-- PDF/UA-1 machine-check verdict (veraPDF) — informational,
+             subordinate to the Strict grade above; self-hides when the
+             verdict is absent (non-PDF, or veraPDF unavailable). -->
+          <PdfUaVerdict
+            v-if="result?.pdfUaVerdict"
+            :verdict="result.pdfUaVerdict"
+            :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
+            class="mb-6"
+          />
+
           <!-- Auto-Remediate (visible right under the score; component
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each
