@@ -46,6 +46,9 @@ describe("PdfUaSignalsCard", () => {
     expect(w.text()).toMatch(/readiness/i);
     expect(w.text()).toMatch(/6 of 6/);
     expect(w.text()).toMatch(/essentials met/i);
+    // The count and label must not run together in text content (screen-reader
+    // linear reading / copy-paste) — there must be a separator between them.
+    expect(w.text()).not.toMatch(/6PDF/i);
   });
 
   it("counts fewer essentials met when some are missing", () => {
