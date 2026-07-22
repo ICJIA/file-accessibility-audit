@@ -55,4 +55,22 @@ describe("PdfUaVerdict.vue", () => {
     });
     expect(w.text()).toMatch(/Pass/);
   });
+  it("shows a neutral 'Could not validate' state when veraPDF errored, never a Fail verdict", () => {
+    const w = mount(PdfUaVerdict, {
+      props: {
+        verdict: {
+          available: true,
+          passed: false,
+          profile: "ua1",
+          error: "veraPDF timed out",
+          totalFailureCount: 0,
+          failures: [],
+        },
+      },
+    });
+    expect(w.text()).toMatch(/could not validate/i);
+    expect(w.text()).toContain("veraPDF timed out");
+    expect(w.text()).not.toMatch(/\b(Pass|Fail)\b/);
+    expect(w.find("button").exists()).toBe(false);
+  });
 });

@@ -1,13 +1,22 @@
 <!-- apps/web/app/components/PdfUaVerdict.vue -->
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { PdfUaVerdict } from "@file-audit/shared";
 
-defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string }>();
+const props = defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string }>();
 // Default collapsed: the failed-checkpoint list is non-empty on ~95% of
 // documents, so it must not dump a long list unprompted. Expandable via the
 // toggle button below.
 const open = ref(false);
+
+// veraPDF errored rather than producing a real verdict (timeout, no stdout,
+// unparseable output — see runVeraPdfOnBuffer's catch branch in
+// apps/api/src/services/veraPdfBuffer.ts, which sets `error` and leaves
+// totalFailureCount at 0). Must render as a neutral "could not validate"
+// state, never as the definitive Fail veraPDF never actually returned.
+const couldNotValidate = computed(
+  () => Boolean(props.verdict?.error) && props.verdict?.totalFailureCount === 0,
+);
 </script>
 
 <template>
@@ -19,18 +28,28 @@ const open = ref(false);
       <span
         class="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
         :class="
-          verdict.passed ? 'bg-emerald-700/40 text-emerald-200' : 'bg-amber-700/40 text-amber-200'
+          couldNotValidate
+            ? 'border border-[var(--border)] text-[var(--text-muted)]'
+            : verdict.passed
+              ? 'bg-emerald-700/40 text-emerald-200'
+              : 'bg-amber-700/40 text-amber-200'
         "
-        >{{ verdict.passed ? "✓" : "!" }}</span
+        >{{ couldNotValidate ? "?" : verdict.passed ? "✓" : "!" }}</span
       >
       <div class="flex-1 text-sm">
-        <p class="font-medium mb-1">
+        <p v-if="couldNotValidate" class="font-medium mb-1 text-[var(--text-muted)]">
+          PDF/UA-1 machine checks (veraPDF): Could not validate
+        </p>
+        <p v-else class="font-medium mb-1">
           PDF/UA-1 machine checks (veraPDF): {{ verdict.passed ? "Pass" : "Fail" }}
           <span v-if="!verdict.passed" class="text-[var(--text-muted)] font-normal">
             — {{ verdict.totalFailureCount }} rule failure{{
               verdict.totalFailureCount === 1 ? "" : "s"
             }}
           </span>
+        </p>
+        <p v-if="couldNotValidate" class="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
+          {{ verdict.error }}
         </p>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Machine-checkable conditions only (ISO 14289-1 via
@@ -46,7 +65,7 @@ const open = ref(false);
           automatically.
         </p>
 
-        <div v-if="!verdict.passed && verdict.failures?.length" class="mt-3">
+        <div v-if="!couldNotValidate && !verdict.passed && verdict.failures?.length" class="mt-3">
           <button
             type="button"
             class="text-xs uppercase tracking-wider text-amber-300 hover:text-amber-200"
