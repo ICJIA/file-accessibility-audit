@@ -39,4 +39,28 @@ describe("PdfUaSignalsCard", () => {
     });
     expect(w.text()).toMatch(/not declared/i);
   });
+
+  it("shows a PDF/UA readiness headline counting the boolean essentials met", () => {
+    const w = mount(PdfUaSignalsCard, { props: { signals: fullSignals } });
+    // fullSignals has all six boolean essentials true.
+    expect(w.text()).toMatch(/readiness/i);
+    expect(w.text()).toMatch(/6 of 6/);
+    expect(w.text()).toMatch(/essentials met/i);
+  });
+
+  it("counts fewer essentials met when some are missing", () => {
+    const w = mount(PdfUaSignalsCard, {
+      props: { signals: { ...fullSignals, hasIdentifier: false, hasLanguage: false } },
+    });
+    // Two of the six booleans dropped → 4 of 6.
+    expect(w.text()).toMatch(/4 of 6/);
+  });
+
+  it("does not count Structure depth or Artifacts as essentials (they stay informational)", () => {
+    // Flat structure (depth 1) and zero artifacts, but all six booleans still met.
+    const w = mount(PdfUaSignalsCard, {
+      props: { signals: { ...fullSignals, structTreeDepth: 1, artifactRunCount: 0 } },
+    });
+    expect(w.text()).toMatch(/6 of 6/);
+  });
 });
