@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "figure-accuracy-2026-07-22",
+    badge: "Improved",
+    text: "PDF scoring accuracy fix: some PDFs — often those exported from design tools like Adobe InDesign — carry leftover 'phantom' image tags that aren't part of the document a screen reader actually reads. The audit was counting those as real images missing a description and unfairly lowering the score. The tool now ignores image tags that aren't connected to the live document structure, and correctly recognizes when every image on a page is deliberately marked as decorative (and needs no description) — so well-built documents are no longer penalized.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 22, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "accuracy-fixes-2026-07-19",
     badge: "Improved",
     text: "Major accuracy upgrade across all four formats: the audit now catches PDFs whose security settings block screen readers outright (they used to pass), checks real background colors before judging contrast (no more false alarms on white-on-dark headers or designed slide layouts), reads Excel link text from the linked cells, recognizes custom Word heading styles and per-run slide languages, audits Word headers/footers/footnotes and Excel chart sheets, and reports 'needs manual review' instead of guessing whenever the evidence can't be resolved from the file.",

@@ -607,6 +607,39 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const figures = qpdf.images.filter((img) => img.ref);
   const untaggedImageSignals = Math.max(pdfjs.imageCount, qpdf.imageObjectCount);
 
+  // With no tagged figures but images on the page, distinguish decorative
+  // artifacts (no alt needed) from untagged content. pdfjs walks the content
+  // stream and knows which images sit inside an /Artifact run; when every
+  // painted image is artifacted — and qpdf sees no image objects beyond those —
+  // there is no content image to describe, so the alarming "untagged images"
+  // advisory below would be a false positive (e.g. a report whose only images
+  // are an artifacted cover graphic and closing logos).
+  const paintedImages = pdfjs.imageCount;
+  const paintedContentImages = pdfjs.nonArtifactImageCount ?? paintedImages;
+  const allImagesArtifacted =
+    !pdfjs.error &&
+    paintedImages > 0 &&
+    paintedContentImages === 0 &&
+    qpdf.imageObjectCount <= paintedImages;
+
+  if (figures.length === 0 && allImagesArtifacted) {
+    return {
+      id: "alt_text",
+      label: "Alt Text on Images",
+      weight: SCORING_WEIGHTS.alt_text,
+      score: null,
+      grade: null,
+      severity: null,
+      notAssessed: true,
+      findings: [
+        `${paintedImages} image(s) detected — all are marked as artifacts (decorative) and excluded from the reading order, so no alt text is required.`,
+        "Artifacted images are correctly hidden from screen readers. If any of these images actually convey information, they should instead be tagged as <Figure> with /Alt text — verify in Acrobat's Tags panel that none are meaningful content.",
+      ],
+      explanation: altExplanation,
+      helpLinks: altLinks,
+    };
+  }
+
   // Untagged/raw image signals are too noisy to score automatically.
   if (figures.length === 0 && untaggedImageSignals > 0) {
     const advisoryFindings: string[] = [

@@ -804,6 +804,7 @@ describe("figure/image alt text detection", () => {
         {
           "1 0 R": { "/Type": "/Catalog" },
           "2 0 R": { "/Subtype": "/Image" },
+          "4 0 R": { "/S": "/Document", "/K": ["3 0 R"] }, // parent → figure is live
           "3 0 R": { "/S": "/Figure", "/Alt": "A photo of a sunset" },
         },
       ],
@@ -819,6 +820,7 @@ describe("figure/image alt text detection", () => {
         null,
         {
           "1 0 R": { "/Type": "/Catalog" },
+          "4 0 R": { "/S": "/Document", "/K": ["3 0 R"] },
           "3 0 R": { "/S": "/Figure" }, // no /Alt
         },
       ],
@@ -834,6 +836,7 @@ describe("figure/image alt text detection", () => {
         null,
         {
           "1 0 R": { "/Type": "/Catalog" },
+          "4 0 R": { "/S": "/Document", "/K": ["3 0 R"] },
           "3 0 R": { "/S": "/Figure", "/Alt": "" },
         },
       ],
@@ -841,6 +844,39 @@ describe("figure/image alt text detection", () => {
     const fig = result.images.find((i) => i.ref === "3 0 R");
     expect(fig).toBeDefined();
     expect(fig!.hasAlt).toBe(false);
+  });
+
+  it("figure kept when it carries its own /P parent (no /K back-reference)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "3 0 R": { "/S": "/Figure", "/P": "9 0 R", "/Alt": "Chart" },
+        },
+      ],
+    });
+    expect(result.images.find((i) => i.ref === "3 0 R")).toBeDefined();
+  });
+
+  it("orphaned figure (no /P, named by no /K) is excluded — export leftover", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": { "/Subtype": "/Image" },
+          // Phantom <Figure> objects the way InDesign/Acrobat leave them: /S and
+          // layout attrs, but no /P and named by no element's /K. A screen reader
+          // never reaches these, so they must not be scored as images.
+          "3 0 R": { "/S": "/Figure", "/A": "8 0 R" }, // no /Alt, orphaned
+          "5 0 R": { "/S": "/Figure", "/Alt": "Orphan with alt", "/A": "8 0 R" },
+        },
+      ],
+    });
+    expect(result.images).toHaveLength(0);
+    // The Image XObject is still counted at the object-graph level.
+    expect(result.imageObjectCount).toBe(1);
   });
 
   it("standalone Image XObject increments raw image count without creating a figure", () => {
@@ -1156,6 +1192,7 @@ describe("Figure /ActualText as a text alternative", () => {
         null,
         {
           "1 0 R": { "/Type": "/Catalog" },
+          "4 0 R": { "/S": "/Document", "/K": ["3 0 R"] },
           "3 0 R": { "/S": "/Figure", "/ActualText": "E = mc squared" },
         },
       ],
