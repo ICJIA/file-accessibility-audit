@@ -1235,6 +1235,14 @@ export const REMEDIATION = {
   VERAPDF_TIMEOUT_MS: 120_000,
 
   /**
+   * Shorter wall-clock timeout for the veraPDF check on the synchronous AUDIT
+   * path (runVeraPdfOnBuffer), so an interactive audit isn't stalled by a
+   * pathological tagged PDF. The background remediation job keeps the longer
+   * VERAPDF_TIMEOUT_MS. On timeout the verdict degrades to "could not validate".
+   */
+  VERAPDF_AUDIT_TIMEOUT_MS: 30_000,
+
+  /**
    * JVM max heap size for the OpenDataLoader child process.
    * Passed via JAVA_TOOL_OPTIONS=-Xmx<value>m. Caps memory a single
    * remediation can consume regardless of input pathology.

@@ -19,7 +19,7 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
   try {
     fs.writeFileSync(tmpPath, buffer);
-    return await runVeraPdf(tmpPath);
+    return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS);
   } catch (err: any) {
     return {
       available: true, passed: false, profile: "ua1",

@@ -15,7 +15,12 @@ vi.mock("../services/veraPdf.js", () => ({ runVeraPdf }));
 
 // VERAPDF_PATH is read from #config; override per test via the mock below.
 const { cfg } = vi.hoisted(() => ({
-  cfg: { REMEDIATION: { VERAPDF_PATH: "/usr/bin/verapdf" as string | null } },
+  cfg: {
+    REMEDIATION: {
+      VERAPDF_PATH: "/usr/bin/verapdf" as string | null,
+      VERAPDF_AUDIT_TIMEOUT_MS: 30_000,
+    },
+  },
 }));
 vi.mock("#config", () => cfg);
 
@@ -45,7 +50,7 @@ describe("runVeraPdfOnBuffer", () => {
     expect(writeFileSync).toHaveBeenCalledTimes(1);
     const tmpPath = writeFileSync.mock.calls[0][0] as string;
     expect(tmpPath).toMatch(/\.pdf$/);
-    expect(runVeraPdf).toHaveBeenCalledWith(tmpPath);
+    expect(runVeraPdf).toHaveBeenCalledWith(tmpPath, cfg.REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS);
     expect(unlinkSync).toHaveBeenCalledWith(tmpPath);
     expect(verdict.passed).toBe(false);
     expect(verdict.totalFailureCount).toBe(2);
