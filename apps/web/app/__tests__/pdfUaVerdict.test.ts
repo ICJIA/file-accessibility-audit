@@ -35,6 +35,26 @@ describe("PdfUaVerdict.vue", () => {
     expect(w.text()).toContain("Structure element missing");
     expect(w.text()).toContain("2");
   });
+  it("shows an actionable 'Fix:' hint under each failed checkpoint", async () => {
+    const w = mount(PdfUaVerdict, {
+      props: {
+        verdict: {
+          ...base,
+          failures: [
+            {
+              ruleId: "7.1-2",
+              clause: "7.1",
+              description: "Content shall either be marked as an Artifact or tagged as real content.",
+              count: 3,
+            },
+          ],
+        },
+      },
+    });
+    await w.find("button").trigger("click");
+    expect(w.text()).toContain("Fix:");
+    expect(w.text()).toMatch(/artifact/i);
+  });
   it("shows ruleId when clause is only a coarse string-prefix, not a true '<clause>-' match (regression)", async () => {
     const w = mount(PdfUaVerdict, {
       props: {
