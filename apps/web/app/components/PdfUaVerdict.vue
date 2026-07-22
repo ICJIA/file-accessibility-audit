@@ -4,9 +4,10 @@ import { ref } from "vue";
 import type { PdfUaVerdict } from "@file-audit/shared";
 
 defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string }>();
-// Default expanded: a Fail verdict should show its reasons without an extra
-// click. Still collapsible — the toggle button below can hide the list.
-const open = ref(true);
+// Default collapsed: the failed-checkpoint list is non-empty on ~95% of
+// documents, so it must not dump a long list unprompted. Expandable via the
+// toggle button below.
+const open = ref(false);
 </script>
 
 <template>

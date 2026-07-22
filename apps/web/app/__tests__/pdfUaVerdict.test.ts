@@ -24,8 +24,13 @@ describe("PdfUaVerdict.vue", () => {
     expect(w.text()).not.toMatch(/\bConformant\b/);
     expect(w.text()).toMatch(/manual review/i);
   });
-  it("lists failed checkpoints with clause, description and count", () => {
+  it("hides failed checkpoints by default (collapsed)", () => {
     const w = mount(PdfUaVerdict, { props: { verdict: base } });
+    expect(w.text()).not.toContain("Structure element missing");
+  });
+  it("lists failed checkpoints (clause, description, count) after expanding", async () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: base } });
+    await w.find("button").trigger("click");
     expect(w.text()).toContain("7.1");
     expect(w.text()).toContain("Structure element missing");
     expect(w.text()).toContain("2");
