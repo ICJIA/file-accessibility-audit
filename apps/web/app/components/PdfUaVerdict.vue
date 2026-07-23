@@ -56,7 +56,7 @@ const paretoPct = computed(() => Math.min(100, Math.round(topThreeShare.value * 
 // The toggle's scope phrase ("the 4" / "the top 20 of 34").
 const toggleScope = computed(() =>
   truncated.value
-    ? `the top ${shownCount.value} of ${fmt(distinctRuleCount.value)}`
+    ? `the top ${fmt(shownCount.value)} of ${fmt(distinctRuleCount.value)}`
     : `the ${fmt(distinctRuleCount.value)}`,
 );
 
@@ -110,7 +110,8 @@ function fmt(n: number): string {
             ><template v-else
               >These {{ fmt(distinctRuleCount) }} rule types account for all
               {{ fmt(totalOccurrences) }}</template
-            ><template v-if="showPareto"> — and the top 3 cause ~{{ paretoPct }}% of them</template
+            ><template v-if="showPareto">
+              — and the top 3 cause ~{{ fmt(paretoPct) }}% of them</template
             >.
           </p>
         </template>
