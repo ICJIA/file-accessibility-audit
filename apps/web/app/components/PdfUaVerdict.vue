@@ -11,6 +11,11 @@ const props = defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string; grade?: 
 const open = ref(false);
 // The grade-vs-machine-check reconciliation explainer is its own collapsible.
 const whyOpen = ref(false);
+// The Douglas Adams attribution behind the "Don't Panic" chip. A native `title`
+// tooltip alone is too slow to appear, invisible on touch, and unannounced to
+// screen readers — so the chip is a real disclosure button and the credit is
+// actual on-page text. Collapsed by default: it's a footnote, not a lecture.
+const adamsOpen = ref(false);
 
 // veraPDF errored rather than producing a real verdict (timeout, no stdout,
 // unparseable output — see runVeraPdfOnBuffer's catch branch in
@@ -102,14 +107,39 @@ function fmt(n: number): string {
           PDF/UA-1 machine checks (veraPDF):
           {{ verdict.passed ? "Pass" : "Additional checks could be addressed" }}
         </p>
-        <p v-if="showDontPanic" class="mb-2">
-          <span
-            data-testid="pdfua-dont-panic"
-            class="inline-flex items-center rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-1.5 text-base sm:text-lg font-bold uppercase tracking-wide text-emerald-200"
-            title="In large, friendly letters. — The Hitchhiker's Guide to the Galaxy"
-            >Don't Panic</span
+        <template v-if="showDontPanic">
+          <p class="mb-2">
+            <!-- inline-block (not inline-flex) so the footnote marker can be a true
+                 superscript; `relative` keeps it out of the line box, so the pill's
+                 geometry is byte-for-byte what v1.37.4 shipped. -->
+            <button
+              type="button"
+              data-testid="pdfua-adams-toggle"
+              class="group inline-block cursor-pointer rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-1.5 text-base sm:text-lg font-bold uppercase tracking-wide text-emerald-200 transition-colors hover:border-emerald-400/70 hover:bg-emerald-500/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+              :aria-expanded="adamsOpen"
+              title="In large, friendly letters. — The Hitchhiker's Guide to the Galaxy, Douglas Adams (1979)"
+              @click="adamsOpen = !adamsOpen"
+            >
+              <span data-testid="pdfua-dont-panic">Don't Panic</span
+              ><span
+                aria-hidden="true"
+                class="relative -top-1 ml-0.5 text-[0.6em] font-normal leading-none text-emerald-300/70 group-hover:text-emerald-200"
+                >*</span
+              >
+            </button>
+          </p>
+          <p
+            v-if="adamsOpen"
+            data-testid="pdfua-adams-note"
+            class="mb-3 max-w-prose border-l-2 border-emerald-400/40 pl-3 text-xs leading-relaxed text-[var(--text-muted)]"
           >
-        </p>
+            <span aria-hidden="true">*</span> Borrowed, with thanks, from
+            <strong class="font-medium text-[var(--text-secondary)]">Douglas Adams</strong> — the
+            words printed in large, friendly letters on the cover of
+            <em>The Hitchhiker's Guide to the Galaxy</em> (1979). Sound advice for interstellar
+            hitchhiking and PDF remediation alike.
+          </p>
+        </template>
 
         <!-- Reframed count: distinct rule types lead; occurrence sum demoted. -->
         <template v-if="showReframe">

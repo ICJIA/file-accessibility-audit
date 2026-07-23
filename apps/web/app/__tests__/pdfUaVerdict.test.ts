@@ -250,6 +250,35 @@ describe("PdfUaVerdict.vue — Don't Panic badge + grade-aware reconciliation", 
     expect(w.text()).toMatch(/You're in good shape/);
   });
 
+  it("keeps the Douglas Adams credit collapsed until the chip is activated", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "A" } });
+    expect(w.find('[data-testid="pdfua-adams-note"]').exists()).toBe(false);
+    expect(w.text()).not.toMatch(/Douglas Adams/);
+    // The chip must be a real button — a bare <span> with a title attribute is
+    // invisible to touch and to screen readers.
+    const chip = w.get('[data-testid="pdfua-adams-toggle"]');
+    expect(chip.element.tagName).toBe("BUTTON");
+    expect(chip.attributes("aria-expanded")).toBe("false");
+  });
+
+  it("credits Douglas Adams by name and work when the chip is clicked", async () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "A" } });
+    await w.get('[data-testid="pdfua-adams-toggle"]').trigger("click");
+    const note = w.get('[data-testid="pdfua-adams-note"]');
+    expect(note.text()).toMatch(/Douglas Adams/);
+    expect(note.text()).toMatch(/Hitchhiker's Guide to the Galaxy/);
+    expect(note.text()).toMatch(/borrowed, with thanks/i);
+    expect(w.get('[data-testid="pdfua-adams-toggle"]').attributes("aria-expanded")).toBe("true");
+  });
+
+  it("collapses the Adams credit again on a second click", async () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "A" } });
+    const chip = w.get('[data-testid="pdfua-adams-toggle"]');
+    await chip.trigger("click");
+    await chip.trigger("click");
+    expect(w.find('[data-testid="pdfua-adams-note"]').exists()).toBe(false);
+  });
+
   it("also shows the badge for a B grade", () => {
     const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "B" } });
     expect(w.find('[data-testid="pdfua-dont-panic"]').exists()).toBe(true);
