@@ -13,7 +13,14 @@ import { runVeraPdf, type VeraPdfVerdict } from "./veraPdf.js";
  */
 export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict> {
   if (!REMEDIATION.VERAPDF_PATH) {
-    return { available: false, passed: false, profile: "ua1", failures: [], totalFailureCount: 0 };
+    return {
+      available: false,
+      passed: false,
+      profile: "ua1",
+      failures: [],
+      totalFailureCount: 0,
+      distinctRuleCount: 0,
+    };
   }
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
@@ -22,8 +29,12 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
     return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS);
   } catch (err: any) {
     return {
-      available: true, passed: false, profile: "ua1",
-      failures: [], totalFailureCount: 0,
+      available: true,
+      passed: false,
+      profile: "ua1",
+      failures: [],
+      totalFailureCount: 0,
+      distinctRuleCount: 0,
       error: err?.message ? String(err.message) : "veraPDF invocation failed",
     };
   } finally {

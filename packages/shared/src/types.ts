@@ -204,6 +204,8 @@ export interface PdfUaVerdict {
   profile: string;
   failures: PdfUaRuleFailure[];
   totalFailureCount: number;
+  /** Distinct failing rules before the 20-item truncation — the honest "how many kinds of problem" count. Optional: absent on reports saved before this field existed. */
+  distinctRuleCount?: number;
   error?: string;
 }
 

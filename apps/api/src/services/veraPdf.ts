@@ -35,6 +35,8 @@ export interface VeraPdfVerdict {
   failures: VeraPdfRuleFailure[];
   /** Total failure count across all rules (before truncation) */
   totalFailureCount: number;
+  /** Distinct failing rules before the 20-item truncation (optional for legacy/mocked verdicts). */
+  distinctRuleCount?: number;
   /** Human-readable error if veraPDF itself errored out */
   error?: string;
 }
@@ -56,6 +58,7 @@ export async function runVeraPdf(
       profile: "ua1",
       failures: [],
       totalFailureCount: 0,
+      distinctRuleCount: 0,
     };
   }
 
@@ -83,6 +86,7 @@ export async function runVeraPdf(
         profile: "ua1",
         failures: [],
         totalFailureCount: 0,
+        distinctRuleCount: 0,
         error: err.message ?? "veraPDF exited with error and no output",
       };
     }
@@ -102,6 +106,7 @@ export async function runVeraPdf(
       profile: "ua1",
       failures: [],
       totalFailureCount: 0,
+      distinctRuleCount: 0,
       error: "could not parse veraPDF JSON output",
     };
   }
@@ -134,6 +139,7 @@ export function extractVerdict(parsed: unknown, fellbackToErrorStdout: boolean):
       profile: "ua1",
       failures: [],
       totalFailureCount: 0,
+      distinctRuleCount: 0,
       error: "veraPDF output did not include a validationResult",
       ...(typeof alt === "object" && alt !== null ? {} : {}),
     };
@@ -187,6 +193,14 @@ export function extractVerdict(parsed: unknown, fellbackToErrorStdout: boolean):
     })
     .filter((f) => f.count > 0);
 
+  // Sort by occurrence count desc BEFORE truncating, so the stored top-20 is
+  // genuinely the 20 highest-count rules — the UI lists them "most frequent
+  // first" and the Pareto rollup depends on it. Array.sort is stable on Node 22.
+  failures.sort((a, b) => b.count - a.count);
+
+  // True number of distinct failing rules, captured before the slice(0, 20).
+  const distinctRuleCount = failures.length;
+
   // Prefer the authoritative server-reported count when veraPDF exposes
   // it (1.30.x details.failedChecks). Falls back to summing the
   // displayed rule list, which is post-truncation so it under-counts on
@@ -206,5 +220,6 @@ export function extractVerdict(parsed: unknown, fellbackToErrorStdout: boolean):
     // report if they need every rule.
     failures: failures.slice(0, 20),
     totalFailureCount,
+    distinctRuleCount,
   };
 }
