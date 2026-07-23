@@ -4,11 +4,13 @@ import { computed, ref } from "vue";
 import type { PdfUaVerdict } from "@file-audit/shared";
 import { pdfUaFixHint } from "./pdfUaFixHint";
 
-const props = defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string }>();
+const props = defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string; grade?: string }>();
 // Default collapsed: the failed-checkpoint list is non-empty on ~95% of
 // documents, so it must not dump a long list unprompted. Expandable via the
 // toggle button below.
 const open = ref(false);
+// The grade-vs-machine-check reconciliation explainer is its own collapsible.
+const whyOpen = ref(false);
 
 // veraPDF errored rather than producing a real verdict (timeout, no stdout,
 // unparseable output — see runVeraPdfOnBuffer's catch branch in
@@ -18,6 +20,15 @@ const open = ref(false);
 const couldNotValidate = computed(
   () => Boolean(props.verdict?.error) && props.verdict?.totalFailureCount === 0,
 );
+
+// Grade-aware reassurance. The "Don't Panic" framing only applies when the WCAG
+// grade — the measure that matters for real users — is actually good; we never
+// tell someone with a failing grade that they're fine. Grade is optional (the
+// remediation page reuses this panel with no grade → neutral explainer).
+const isFail = computed(() => !couldNotValidate.value && !props.verdict?.passed);
+const gradeKnown = computed(() => typeof props.grade === "string" && props.grade.length > 0);
+const gradeIsGood = computed(() => props.grade === "A" || props.grade === "B");
+const showDontPanic = computed(() => isFail.value && gradeIsGood.value);
 
 // Defensive client-side sort so "most frequent first" and the Pareto top-3
 // hold even for verdicts saved before the API sorted them (Task 1).
@@ -87,8 +98,15 @@ function fmt(n: number): string {
         <p v-if="couldNotValidate" class="font-medium mb-1 text-[var(--text-muted)]">
           PDF/UA-1 machine checks (veraPDF): Could not validate
         </p>
-        <p v-else class="font-medium mb-1">
-          PDF/UA-1 machine checks (veraPDF): {{ verdict.passed ? "Pass" : "Fail" }}
+        <p v-else class="font-medium mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>PDF/UA-1 machine checks (veraPDF): {{ verdict.passed ? "Pass" : "Fail" }}</span>
+          <span
+            v-if="showDontPanic"
+            data-testid="pdfua-dont-panic"
+            class="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-200"
+            title="In large, friendly letters."
+            >Don't Panic</span
+          >
         </p>
 
         <!-- Reframed count: distinct rule types lead; occurrence sum demoted. -->
@@ -160,6 +178,78 @@ function fmt(n: number): string {
               <div class="mt-0.5 text-[var(--text-secondary)]">
                 <span class="text-emerald-300/80">Fix:</span> {{ pdfUaFixHint(f) }}
               </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Grade-aware reconciliation: why a machine-check Fail can sit beside a
+             strong WCAG grade, and what to do about it. Only on a Fail. -->
+        <div
+          v-if="isFail"
+          data-testid="pdfua-reconcile"
+          class="mt-4 rounded-lg border px-3.5 py-3"
+          :class="
+            gradeIsGood
+              ? 'border-emerald-400/30 bg-emerald-500/[0.07]'
+              : gradeKnown
+                ? 'border-amber-400/30 bg-amber-500/[0.07]'
+                : 'border-[var(--border)] bg-[var(--surface)]'
+          "
+        >
+          <p class="text-xs sm:text-sm leading-relaxed text-[var(--text-secondary)]">
+            <template v-if="gradeIsGood"
+              ><strong class="text-[var(--text-heading)]">You're in good shape.</strong> Your WCAG
+              grade is the measure that matters most for real-world use, and it's strong — a
+              machine-check Fail here doesn't undo that. It just shows where there's room to
+              improve.</template
+            ><template v-else-if="gradeKnown"
+              ><strong class="text-[var(--text-heading)]">Worth your attention.</strong> These
+              machine checks add to gaps your WCAG grade already flags — both are worth
+              addressing.</template
+            ><template v-else
+              ><strong class="text-[var(--text-heading)]"
+                >Different tools ask different questions.</strong
+              >
+              Here's how this stricter check relates to the WCAG grade.</template
+            >
+          </p>
+          <button
+            type="button"
+            data-testid="pdfua-why-toggle"
+            class="mt-1.5 text-xs uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            :aria-expanded="whyOpen"
+            @click="whyOpen = !whyOpen"
+          >
+            Why the tools differ — and what's worth doing {{ whyOpen ? "↑" : "↓" }}
+          </button>
+          <ul
+            v-if="whyOpen"
+            class="mt-2 space-y-2 list-disc pl-4 text-xs sm:text-sm leading-relaxed text-[var(--text-secondary)]"
+          >
+            <li>
+              <strong class="text-[var(--text-heading)]">Your grade is the headline.</strong> WCAG
+              2.2 AA measures whether real people using assistive tech can actually use this
+              document — that's the measure that matters most for real-world use.
+            </li>
+            <li>
+              <strong class="text-[var(--text-heading)]"
+                >Accessibility is never quite "done," though.</strong
+              >
+              This panel runs PDF/UA-1 — a stricter, all-or-nothing machine check of the file's
+              structure, where a single technicality flips it to Fail even on an excellent document.
+              Because different tools ask different questions,
+              <strong class="text-[var(--text-heading)]"
+                >Adobe Acrobat, PAC, and veraPDF can each say something the grade doesn't</strong
+              >
+              — none is wrong, they're just pickier.
+            </li>
+            <li>
+              <strong class="text-[var(--text-heading)]"
+                >So it's a punch-list, not an alarm.</strong
+              >
+              Some items are cosmetic (e.g. font metadata); some are small real gaps (e.g. an
+              untagged image). If you need formal PDF/UA-1 conformance — or just want to go further
+              — the failed checkpoints above are your to-do list.
             </li>
           </ul>
         </div>

@@ -269,6 +269,7 @@
           <PdfUaVerdict
             v-if="result?.pdfUaVerdict"
             :verdict="result.pdfUaVerdict"
+            :grade="result?.grade"
             :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
             class="mb-6"
           />

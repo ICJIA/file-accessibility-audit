@@ -63,13 +63,8 @@ export function pdfUaFixHint(f: PdfUaFailureLike): string {
   }
 
   // 6. Font embedding / glyph coverage.
-  if (
-    d.includes("cidset") ||
-    d.includes("font") ||
-    d.includes("embedded") ||
-    d.includes("glyph")
-  ) {
-    return "Re-create the PDF with fully embedded fonts (a complete CIDSet included) — e.g. Distiller or Print-to-PDF with font embedding on.";
+  if (d.includes("cidset") || d.includes("font") || d.includes("embedded") || d.includes("glyph")) {
+    return "A cosmetic font-embedding technicality (often a Word/Office export artifact); the text still reads fine. To repair the embedded font's CIDSet while keeping your tags, use Acrobat's Preflight font fix-ups or a PDF/UA tool like axesPDF — avoid Print-to-PDF / re-distilling, which strips the tag tree.";
   }
 
   // 7. Document / passage language.
