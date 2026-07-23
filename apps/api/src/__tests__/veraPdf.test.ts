@@ -95,3 +95,88 @@ describe("extractVerdict — veraPDF 1.30.x shape", () => {
     expect(v.failures).toEqual([]);
   });
 });
+
+describe("extractVerdict — sorting and distinct-rule count", () => {
+  it("sorts failing rules by occurrence count (desc) before truncation", () => {
+    const parsed = {
+      report: {
+        jobs: [
+          {
+            validationResult: [
+              {
+                profileName: "PDF/UA-1 validation profile",
+                isCompliant: false,
+                details: {
+                  failedChecks: 16,
+                  ruleSummaries: [
+                    {
+                      specification: "ISO 14289-1",
+                      clause: "7.1",
+                      testNumber: 1,
+                      failedChecks: 2,
+                      description: "a",
+                    },
+                    {
+                      specification: "ISO 14289-1",
+                      clause: "7.2",
+                      testNumber: 1,
+                      failedChecks: 9,
+                      description: "b",
+                    },
+                    {
+                      specification: "ISO 14289-1",
+                      clause: "7.3",
+                      testNumber: 1,
+                      failedChecks: 5,
+                      description: "c",
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const v = extractVerdict(parsed, false);
+    expect(v.failures.map((f) => f.count)).toEqual([9, 5, 2]);
+    expect(v.failures[0].ruleId).toBe("7.2-1");
+    expect(v.distinctRuleCount).toBe(3);
+  });
+
+  it("caps the stored list at 20 but keeps the true distinct count and the highest-count rules", () => {
+    const ruleSummaries = Array.from({ length: 25 }, (_, i) => ({
+      specification: "ISO 14289-1",
+      clause: "8." + (i + 1),
+      testNumber: 1,
+      failedChecks: i + 1,
+      description: "rule " + (i + 1),
+    }));
+    const parsed = {
+      report: {
+        jobs: [
+          {
+            validationResult: [
+              {
+                profileName: "PDF/UA-1",
+                isCompliant: false,
+                details: { failedChecks: 325, ruleSummaries },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const v = extractVerdict(parsed, false);
+    expect(v.failures).toHaveLength(20);
+    expect(v.distinctRuleCount).toBe(25);
+    expect(v.failures[0].count).toBe(25); // highest kept, sorted first
+    expect(Math.min(...v.failures.map((f) => f.count))).toBe(6); // counts 1..5 dropped
+  });
+
+  it("reports distinctRuleCount 0 when veraPDF output has no validation result", () => {
+    const v = extractVerdict({}, false);
+    expect(v.distinctRuleCount).toBe(0);
+    expect(v.error).toBeTruthy();
+  });
+});
