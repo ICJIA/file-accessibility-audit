@@ -94,3 +94,129 @@ describe("PdfUaVerdict.vue", () => {
     expect(w.find("button").exists()).toBe(false);
   });
 });
+
+describe("PdfUaVerdict.vue — number reframe", () => {
+  const failVerdict = (over = {}) => ({
+    available: true,
+    passed: false,
+    profile: "ua1",
+    distinctRuleCount: 4,
+    totalFailureCount: 1000,
+    failures: [
+      { ruleId: "7.1-1", clause: "7.1", description: "figure lacks alt text", count: 500 },
+      { ruleId: "8.4-2", clause: "8.4", description: "TH cell missing Scope", count: 300 },
+      { ruleId: "7.2-1", clause: "7.2", description: "heading skip", count: 100 },
+      { ruleId: "6.3-1", clause: "6.3", description: "metadata missing", count: 100 },
+    ],
+    ...over,
+  });
+
+  it("leads with distinct rule types and demotes the occurrence total", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failVerdict() } });
+    expect(w.text()).toMatch(/4 rule types to fix/);
+    expect(w.text()).toMatch(/1,000 total occurrences/);
+  });
+
+  it("explains that veraPDF counts every occurrence", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failVerdict() } });
+    expect(w.text()).toMatch(/counts every occurrence separately/i);
+    expect(w.text()).toMatch(/These 4 rule types account for all 1,000/);
+  });
+
+  it("shows the Pareto clause when the top 3 dominate (>=4 types, >=60%)", () => {
+    // top 3 = 500 + 300 + 100 = 900 of 1000 = 90%
+    const w = mount(PdfUaVerdict, { props: { verdict: failVerdict() } });
+    expect(w.text()).toMatch(/top 3 cause ~90% of them/);
+  });
+
+  it("omits the Pareto clause for a flat distribution (<60%)", () => {
+    const flat = failVerdict({
+      distinctRuleCount: 6,
+      totalFailureCount: 600,
+      failures: Array.from({ length: 6 }, (_, i) => ({
+        ruleId: "9." + (i + 1) + "-1",
+        clause: "9." + (i + 1),
+        description: "rule " + (i + 1),
+        count: 100,
+      })),
+    });
+    const w = mount(PdfUaVerdict, { props: { verdict: flat } });
+    expect(w.text()).toMatch(/counts every occurrence separately/i);
+    expect(w.text()).not.toMatch(/top 3 cause/);
+  });
+
+  it("omits the Pareto clause when there are fewer than 4 rule types", () => {
+    const three = failVerdict({
+      distinctRuleCount: 3,
+      totalFailureCount: 520,
+      failures: [
+        { ruleId: "7.1-1", clause: "7.1", description: "a", count: 500 },
+        { ruleId: "7.2-1", clause: "7.2", description: "b", count: 10 },
+        { ruleId: "7.3-1", clause: "7.3", description: "c", count: 10 },
+      ],
+    });
+    const w = mount(PdfUaVerdict, { props: { verdict: three } });
+    expect(w.text()).toMatch(/3 rule types to fix/);
+    expect(w.text()).not.toMatch(/top 3 cause/);
+  });
+
+  it("uses singular copy for a single rule type", () => {
+    const one = failVerdict({
+      distinctRuleCount: 1,
+      totalFailureCount: 42,
+      failures: [{ ruleId: "7.1-1", clause: "7.1", description: "a", count: 42 }],
+    });
+    const w = mount(PdfUaVerdict, { props: { verdict: one } });
+    expect(w.text()).toMatch(/1 rule type to fix/);
+    expect(w.text()).toMatch(/This rule type accounts for all 42/);
+    expect(w.text()).not.toMatch(/top 3 cause/);
+  });
+
+  it("shows 'top N of M' in the toggle when more distinct rules exist than were stored", () => {
+    const many = failVerdict({
+      distinctRuleCount: 34,
+      totalFailureCount: 5000,
+      failures: Array.from({ length: 20 }, (_, i) => ({
+        ruleId: "8." + (i + 1) + "-1",
+        clause: "8." + (i + 1),
+        description: "rule " + (i + 1),
+        count: 20 - i,
+      })),
+    });
+    const w = mount(PdfUaVerdict, { props: { verdict: many } });
+    expect(w.text()).toMatch(/34 rule types to fix/);
+    expect(w.find("button").text()).toMatch(/top 20 of 34 rule types/i);
+  });
+
+  it("falls back to the shown list length when distinctRuleCount is absent (legacy report)", () => {
+    const legacy = {
+      available: true,
+      passed: false,
+      profile: "ua1",
+      totalFailureCount: 8,
+      failures: [
+        { ruleId: "7.1-1", clause: "7.1", description: "a", count: 5 },
+        { ruleId: "7.2-1", clause: "7.2", description: "b", count: 3 },
+      ],
+    };
+    const w = mount(PdfUaVerdict, { props: { verdict: legacy } });
+    expect(w.text()).toMatch(/2 rule types to fix/);
+  });
+
+  it("orders the expanded list most-frequent-first even if props arrive unsorted", async () => {
+    const unsorted = failVerdict({
+      distinctRuleCount: 3,
+      totalFailureCount: 16,
+      failures: [
+        { ruleId: "AAA-1", clause: "7.1", description: "low", count: 2 },
+        { ruleId: "BBB-1", clause: "7.2", description: "high", count: 9 },
+        { ruleId: "CCC-1", clause: "7.3", description: "mid", count: 5 },
+      ],
+    });
+    const w = mount(PdfUaVerdict, { props: { verdict: unsorted } });
+    await w.find("button").trigger("click");
+    const items = w.findAll("li");
+    expect(items.at(0)!.text()).toContain("BBB-1"); // count 9 first
+    expect(items.at(2)!.text()).toContain("AAA-1"); // count 2 last
+  });
+});
