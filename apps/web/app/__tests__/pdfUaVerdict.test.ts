@@ -44,7 +44,8 @@ describe("PdfUaVerdict.vue", () => {
             {
               ruleId: "7.1-2",
               clause: "7.1",
-              description: "Content shall either be marked as an Artifact or tagged as real content.",
+              description:
+                "Content shall either be marked as an Artifact or tagged as real content.",
               count: 3,
             },
           ],

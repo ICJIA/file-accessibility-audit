@@ -95,9 +95,12 @@ function fmt(n: number): string {
         <template v-if="showReframe">
           <p class="mb-1 text-sm">
             <span class="font-semibold text-[var(--text)]"
-              >{{ fmt(distinctRuleCount) }} rule type{{ distinctRuleCount === 1 ? "" : "s" }} to fix</span
+              >{{ fmt(distinctRuleCount) }} rule type{{ distinctRuleCount === 1 ? "" : "s" }} to
+              fix</span
             ><span class="text-[var(--text-muted)] font-normal">
-              · {{ fmt(totalOccurrences) }} total occurrence{{ totalOccurrences === 1 ? "" : "s" }}</span
+              · {{ fmt(totalOccurrences) }} total occurrence{{
+                totalOccurrences === 1 ? "" : "s"
+              }}</span
             >
           </p>
           <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
@@ -105,8 +108,10 @@ function fmt(n: number): string {
             <template v-if="distinctRuleCount === 1"
               >This rule type accounts for all {{ fmt(totalOccurrences) }}</template
             ><template v-else
-              >These {{ fmt(distinctRuleCount) }} rule types account for all {{ fmt(totalOccurrences) }}</template
-            ><template v-if="showPareto"> — and the top 3 cause ~{{ paretoPct }}% of them</template>.
+              >These {{ fmt(distinctRuleCount) }} rule types account for all
+              {{ fmt(totalOccurrences) }}</template
+            ><template v-if="showPareto"> — and the top 3 cause ~{{ paretoPct }}% of them</template
+            >.
           </p>
         </template>
         <p v-if="couldNotValidate" class="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
@@ -143,7 +148,9 @@ function fmt(n: number): string {
             <li v-for="f in sortedFailures" :key="f.ruleId + '|' + f.clause">
               <span class="font-mono text-[var(--text)]">{{ f.clause }}</span>
               <span
-                v-if="f.ruleId && f.ruleId !== f.clause && !String(f.ruleId).startsWith(f.clause + '-')"
+                v-if="
+                  f.ruleId && f.ruleId !== f.clause && !String(f.ruleId).startsWith(f.clause + '-')
+                "
               >
                 · {{ f.ruleId }}</span
               >
