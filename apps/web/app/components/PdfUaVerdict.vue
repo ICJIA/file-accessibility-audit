@@ -90,21 +90,23 @@ function fmt(n: number): string {
             ? 'border border-[var(--border)] text-[var(--text-muted)]'
             : verdict.passed
               ? 'bg-emerald-700/40 text-emerald-200'
-              : 'bg-amber-700/40 text-amber-200'
+              : 'bg-sky-700/40 text-sky-200'
         "
-        >{{ couldNotValidate ? "?" : verdict.passed ? "✓" : "!" }}</span
+        >{{ couldNotValidate ? "?" : verdict.passed ? "✓" : "+" }}</span
       >
       <div class="flex-1 text-sm">
         <p v-if="couldNotValidate" class="font-medium mb-1 text-[var(--text-muted)]">
           PDF/UA-1 machine checks (veraPDF): Could not validate
         </p>
-        <p v-else class="font-medium mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>PDF/UA-1 machine checks (veraPDF): {{ verdict.passed ? "Pass" : "Fail" }}</span>
+        <p v-else class="font-medium mb-1">
+          PDF/UA-1 machine checks (veraPDF):
+          {{ verdict.passed ? "Pass" : "Additional checks could be addressed" }}
+        </p>
+        <p v-if="showDontPanic" class="mb-2">
           <span
-            v-if="showDontPanic"
             data-testid="pdfua-dont-panic"
-            class="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-200"
-            title="In large, friendly letters."
+            class="inline-flex items-center rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-1.5 text-base sm:text-lg font-bold uppercase tracking-wide text-emerald-200"
+            title="In large, friendly letters. — The Hitchhiker's Guide to the Galaxy"
             >Don't Panic</span
           >
         </p>
@@ -182,8 +184,8 @@ function fmt(n: number): string {
           </ul>
         </div>
 
-        <!-- Grade-aware reconciliation: why a machine-check Fail can sit beside a
-             strong WCAG grade, and what to do about it. Only on a Fail. -->
+        <!-- Grade-aware reconciliation: why the machine-check result can sit beside a
+             strong WCAG grade, and what to do about it. Only on a non-pass verdict. -->
         <div
           v-if="isFail"
           data-testid="pdfua-reconcile"
@@ -199,8 +201,8 @@ function fmt(n: number): string {
           <p class="text-xs sm:text-sm leading-relaxed text-[var(--text-secondary)]">
             <template v-if="gradeIsGood"
               ><strong class="text-[var(--text-heading)]">You're in good shape.</strong> Your WCAG
-              grade is the measure that matters most for real-world use, and it's strong — a
-              machine-check Fail here doesn't undo that. It just shows where there's room to
+              grade is the measure that matters most for real-world use, and it's strong — the extra
+              machine-check items here don't undo that. They just show where there's room to
               improve.</template
             ><template v-else-if="gradeKnown"
               ><strong class="text-[var(--text-heading)]">Worth your attention.</strong> These
@@ -236,8 +238,8 @@ function fmt(n: number): string {
                 >Accessibility is never quite "done," though.</strong
               >
               This panel runs PDF/UA-1 — a stricter, all-or-nothing machine check of the file's
-              structure, where a single technicality flips it to Fail even on an excellent document.
-              Because different tools ask different questions,
+              structure, where a single technicality is enough to flag the whole file, even on an
+              excellent document. Because different tools ask different questions,
               <strong class="text-[var(--text-heading)]"
                 >Adobe Acrobat, PAC, and veraPDF can each say something the grade doesn't</strong
               >
@@ -249,7 +251,7 @@ function fmt(n: number): string {
               >
               Some items are cosmetic (e.g. font metadata); some are small real gaps (e.g. an
               untagged image). If you need formal PDF/UA-1 conformance — or just want to go further
-              — the failed checkpoints above are your to-do list.
+              — the checkpoints listed above are your to-do list.
             </li>
           </ul>
         </div>

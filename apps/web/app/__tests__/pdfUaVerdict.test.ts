@@ -17,10 +17,11 @@ describe("PdfUaVerdict.vue", () => {
     const w = mount(PdfUaVerdict, { props: { verdict: { ...base, available: false } } });
     expect(w.text()).toBe("");
   });
-  it("shows a Fail badge and never the bare word Conformant", () => {
+  it("frames the non-pass verdict as additional checks — never the bare words Fail or Conformant", () => {
     const w = mount(PdfUaVerdict, { props: { verdict: base } });
     expect(w.text()).toMatch(/PDF\/UA-1 machine checks/i);
-    expect(w.text()).toMatch(/Fail/);
+    expect(w.text()).toMatch(/additional checks could be addressed/i);
+    expect(w.text()).not.toMatch(/\bFail\b/);
     expect(w.text()).not.toMatch(/\bConformant\b/);
     expect(w.text()).toMatch(/manual review/i);
   });
@@ -245,6 +246,7 @@ describe("PdfUaVerdict.vue — Don't Panic badge + grade-aware reconciliation", 
     const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "A" } });
     expect(w.get('[data-testid="pdfua-dont-panic"]').text()).toBe("Don't Panic");
     expect(w.html()).toContain("In large, friendly letters");
+    expect(w.html()).toContain("Hitchhiker"); // the deeper Adams nod on hover
     expect(w.text()).toMatch(/You're in good shape/);
   });
 
