@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.37.2] - 2026-07-23
+
+Presentation fix for the veraPDF PDF/UA-1 verdict (v1.37.0): the panel no longer leads with the raw per-occurrence failure sum, which read as thousands of distinct problems and clashed with a strong WCAG grade on the same report. No scoring change (pure UI + verdict data-shape; controls corpus unchanged).
+
+### Changed
+
+- **The veraPDF verdict headlines the actionable count, not the occurrence sum.** veraPDF emits one failure _per occurrence_, so "Fail — 6,941 rule failures" overstated the work — it's really a handful of distinct rule types, each counted once per object. The panel now leads with **"N rule types to fix"** (the distinct-rule count), demotes the occurrence total to muted context, and adds a one-line explainer that veraPDF counts every occurrence separately — plus a Pareto callout ("the top 3 cause ~X% of them") shown only when there are ≥4 rule types **and** the top 3 genuinely cover ≥60% of occurrences (a flat spread is never dressed up as a Pareto). All counts use thousands separators; the checkpoint list renders most-frequent-first and reads "top 20 of N" when truncated.
+
+### Fixed
+
+- **veraPDF failures are now sorted by occurrence count before truncation.** The verdict stores the top 20 rules for compactness; previously they were sliced in veraPDF's emission order, so the stored list — and therefore both "most frequent first" and the new Pareto math — could omit the actual highest-count rules. Failures are sorted count-descending before the slice, and the true pre-truncation distinct-rule count is recorded on the verdict (`distinctRuleCount`, optional; reports saved earlier fall back to the shown-list length — no schema change).
+
+Tests 1,572 → 1,584 (API 1011 / Web 524 / CLI 49); lint, typecheck, build green.
+
 ## [1.37.1] - 2026-07-22
 
 Two follow-up enhancements that make the v1.37.0 PDF/UA-1 verdict actionable and at-a-glance. No scoring change (pure UI; controls corpus unchanged).
