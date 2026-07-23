@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.37.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1557%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.37.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1572%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,557 tests** across 98 test files (API 1008, Web 500, CLI 49). Run all three suites with one summary:
+**1,572 tests** across 99 test files (API 1008, Web 515, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -825,10 +825,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      1008 passed (50 files)
-  ✔ Web      500 passed (42 files)
+  ✔ Web      515 passed (43 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1557 tests passed across 98 files
+  ✔ 1572 tests passed across 99 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -887,7 +887,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (500 tests)
+### Web Tests (515 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -927,9 +927,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `MethodologyCard.test.ts` | 4 | The MethodologyCard component: names the correct per-format toolchain description (PDF by default, Word for docx, PowerPoint for pptx, Excel for xlsx) |
 | `indexA11y.test.ts` | 3 | index.vue's error and results a11y (Task F6): the analysis-failed banner carries `role="alert"`, and a successful single-file analysis produces a focusable results heading and moves DOM focus to it |
 | `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |
-| `pdfUaSignalsCard.test.ts` | 3 | The PDF/UA-1 conformance-signals panel - signal rows, identifier presence, and signals-vs-verdict framing |
+| `pdfUaSignalsCard.test.ts` | 6 | The PDF/UA-1 conformance-signals panel — signal rows, identifier presence, signals-vs-verdict framing, and the deterministic "N of 6 essentials met" readiness headline (counts the six boolean essentials only; structure depth and artifacts stay informational; count and label don't run together in text content) |
+| `pdfUaFixHint.test.ts` | 11 | The `pdfUaFixHint` helper mapping each veraPDF failure to a short Acrobat-oriented fix, keyed off the rule description: untagged-content → tag/artifact hint, TH `Scope` → scope hint (matched before the generic table rule, since the scope text also mentions TH), TR/TH/TD → table hint, CIDSet/font → embedding hint, and a clause-inclusive generic fallback for unmapped rules |
 | `severityTally.test.ts` | 3 | The `tallySeverity` utility - per-severity finding counts |
-| `pdfUaVerdict.test.ts` | 7 | The shared `PdfUaVerdict.vue` component: renders nothing when veraPDF is unavailable; a Fail badge that never shows a bare "Conformant" and always carries the manual-review caveat; the failed-checkpoint list collapsed by default and revealed on expand; delimiter-aware ruleId suppression (an unrelated `7.1-3` is not dropped under clause `7`); a Pass badge; and a "Could not validate" state when veraPDF errored |
+| `pdfUaVerdict.test.ts` | 8 | The shared `PdfUaVerdict.vue` component: renders nothing when veraPDF is unavailable; a Fail badge that never shows a bare "Conformant" and always carries the manual-review caveat; the failed-checkpoint list collapsed by default and revealed on expand; delimiter-aware ruleId suppression (an unrelated `7.1-3` is not dropped under clause `7`); a Pass badge; and a "Could not validate" state when veraPDF errored |
 | `dataRetentionVersion.test.ts` | 2 | The data-retention page no longer hardcodes the stale `1.18.0` version literal — `TOOL_VERSION` now derives from `runtimeConfig.public.appVersion`, the same source the footer uses |
 | `ProcessingOverlay.test.ts` | 2 | The ProcessingOverlay component's live region (Task F6): the stage text is wrapped in `role="status" aria-live="polite"`, and an updated stage is announced when the prop changes |
 | `remediationGuard.test.ts` | 2 | index.vue's remediation-button guard: gates `RemediateButton` on `fileType === 'pdf'` (a positive allowlist), replacing the old negative `!== 'docx'` check that would have wrongly offered PDF-only remediation for pptx/xlsx |
@@ -1027,6 +1028,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.37.1 — 2026-07-22 · PDF/UA panel enhancements (not a security release)
+
+UI-only follow-up to v1.37.0: per-checkpoint fix hints on the veraPDF verdict panel, and a deterministic "N of 6 PDF/UA-1 essentials met" readiness headline on the signals card. No new input-handling, network, storage, or scoring surface — the fix hints are a pure function of the rule text already in the verdict, and the readiness rollup is computed from signals the audit already produces (no veraPDF). Controls corpus unchanged. Tests 1,557 → 1,572.
 
 ### v1.37.0 — 2026-07-22 · PDF/UA-1 (veraPDF) verdict on audits (not a security release)
 

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.37.1] - 2026-07-22
+
+Two follow-up enhancements that make the v1.37.0 PDF/UA-1 verdict actionable and at-a-glance. No scoring change (pure UI; controls corpus unchanged).
+
+### Added
+
+- **Per-checkpoint fix hints** on the veraPDF verdict panel: each failed Matterhorn checkpoint now shows a short, Acrobat-oriented "Fix:" line (e.g. untagged content → "Automatically tag PDF, then Fix reading order"; TH scope → "give each header cell a Scope of Row/Column"), keyed off the rule description with a safe generic fallback. Turns the panel from purely diagnostic into actionable.
+- **PDF/UA-1 readiness headline** on the signals card: a deterministic "N of 6 PDF/UA-1 essentials met" rollup, computed from the always-runs signals (tagged, marked content, fonts embedded, language, title, PDF/UA identifier) — no veraPDF needed, so it's server-independent and shown on every PDF audit. Framed as structural essentials, distinct from the WCAG grade and the (config-gated) veraPDF verdict; structure depth and artifact count stay informational.
+
+Tests 1,557 → 1,572 (API 1008 / Web 515 / CLI 49); lint, typecheck, build green.
+
 ## [1.37.0] - 2026-07-22
 
 Feature: a **PDF/UA-1 (ISO 14289-1) machine-check verdict** on the audit results page and saved reports, via veraPDF — the automatable equivalent of PAC's Matterhorn checks (PAC itself is a Windows GUI with no CLI/API).
