@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { PdfUaVerdict } from "@file-audit/shared";
+import { pdfUaFixHint } from "./pdfUaFixHint";
 
 const props = defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string }>();
 // Default collapsed: the failed-checkpoint list is non-empty on ~95% of
@@ -85,6 +86,9 @@ const couldNotValidate = computed(
               >
               <span v-if="f.description"> — {{ f.description }}</span>
               <span class="text-amber-400 ml-1">({{ f.count }})</span>
+              <div class="mt-0.5 text-[var(--text-secondary)]">
+                <span class="text-emerald-300/80">Fix:</span> {{ pdfUaFixHint(f) }}
+              </div>
             </li>
           </ul>
         </div>

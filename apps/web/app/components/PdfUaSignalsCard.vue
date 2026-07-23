@@ -18,6 +18,28 @@
       </p>
     </header>
 
+    <!-- Readiness headline: how many of the six boolean structural essentials are met -->
+    <div
+      class="mt-3 rounded-xl border px-3.5 py-2.5"
+      :class="
+        allEssentialsMet
+          ? 'border-emerald-400/30 bg-emerald-500/10'
+          : 'border-amber-400/30 bg-amber-500/10'
+      "
+      data-testid="pdfua-readiness"
+    >
+      <p class="text-sm"><span
+          class="text-base font-bold tabular-nums"
+          :class="allEssentialsMet ? 'text-emerald-200' : 'text-amber-200'"
+          >{{ essentialsMet }} of {{ essentialsTotal }}</span
+        ><span class="font-semibold text-[var(--text-heading)]">&nbsp;PDF/UA-1 essentials met (readiness)</span></p>
+      <p class="mt-1 text-[11px] sm:text-xs text-[var(--text-secondary)] leading-relaxed">
+        Structural essentials read directly from the file. Content-level PDF/UA requirements — alt
+        text, table headers, heading structure — are covered by the accessibility findings in this
+        report.
+      </p>
+    </div>
+
     <!-- Signal grid -->
     <ul class="mt-4 grid gap-2 sm:grid-cols-2" role="list" data-testid="pdfua-signal-list">
       <li
@@ -115,6 +137,24 @@ interface PdfUaSignals {
 }
 
 const props = defineProps<{ signals: PdfUaSignals }>();
+
+// PDF/UA readiness rollup — how many of the six boolean structural essentials
+// are met, computed deterministically from the signals (no veraPDF needed).
+// Structure depth and artifact count stay informational (they're spectrums /
+// counts, not pass/fail requirements), so they are not folded into this count.
+const essentialChecks = computed(() => [
+  props.signals.hasIdentifier,
+  props.signals.isTagged,
+  props.signals.isMarkedContent,
+  props.signals.allFontsEmbedded,
+  props.signals.hasLanguage,
+  props.signals.hasTitle,
+]);
+// Total is derived from the array length so it can't drift out of sync if the
+// essentials list changes.
+const essentialsTotal = computed(() => essentialChecks.value.length);
+const essentialsMet = computed(() => essentialChecks.value.filter(Boolean).length);
+const allEssentialsMet = computed(() => essentialsMet.value === essentialsTotal.value);
 
 interface SignalRow {
   label: string;
