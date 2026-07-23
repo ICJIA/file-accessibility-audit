@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.37.4] - 2026-07-23
+
+Copy/UI polish on the veraPDF panel (follow-up to v1.37.3). No scoring change.
+
+### Changed
+
+- **The veraPDF verdict no longer leads with the word "Fail."** A non-conformant machine-check result now reads **"Additional checks could be addressed"** (the status icon softened from an amber `!` to a sky `+`), and "Fail" is gone from the reconciliation copy — framing PDF/UA-1 gaps as optional improvements rather than an alarm, consistent with the WCAG grade being the measure that matters for real users. The actual failing rules remain one click away in the existing "show the rule types" expander.
+- **The "Don't Panic" reassurance badge is now larger and on its own line** (bold, uppercase), and its hover tooltip spells out the reference — _"In large, friendly letters. — The Hitchhiker's Guide to the Galaxy."_
+
+Tests unchanged at 1,591 (API 1011 / Web 531 / CLI 49); lint, typecheck, build green.
+
 ## [1.37.3] - 2026-07-23
 
 Follow-up to v1.37.2: makes the veraPDF panel reassuring and actionable when a strong WCAG grade sits beside a machine-check Fail. No scoring change (pure UI; controls corpus unchanged).
