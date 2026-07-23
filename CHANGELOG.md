@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.37.3] - 2026-07-23
+
+Follow-up to v1.37.2: makes the veraPDF panel reassuring and actionable when a strong WCAG grade sits beside a machine-check Fail. No scoring change (pure UI; controls corpus unchanged).
+
+### Added
+
+- **Grade-aware reconciliation on the veraPDF panel.** When PDF/UA-1 machine checks Fail, the panel now explains why that can coexist with a strong WCAG grade: a friendly **"Don't Panic"** badge when the grade is good (A/B), an honest "worth your attention" note when it's poor (C–F), and a neutral explainer when no grade is available (the remediation page's reuse of the panel). A collapsible "Why the tools differ — and what's worth doing" lays out that WCAG (graded, human-impact) and PDF/UA-1 (binary, formal file conformance) answer different questions — so Adobe Acrobat, PAC, and veraPDF can each differ from the grade — and frames the failures as a punch-list, not an alarm. The grade is threaded into the panel from the audit and shared-report pages.
+
+### Fixed
+
+- **CIDSet / font-embedding fix hint no longer recommends tag-stripping remediation.** The hint previously suggested "Distiller or Print-to-PDF," which flattens a tagged PDF and destroys its structure tree — trading a cosmetic conformance nit for a real accessibility regression. It now points to tag-preserving repairs (Acrobat Preflight font fix-ups, or a PDF/UA tool such as axesPDF) and explicitly warns against re-distilling.
+
+Tests 1,584 → 1,591 (API 1011 / Web 531 / CLI 49); lint, typecheck, build green.
+
 ## [1.37.2] - 2026-07-23
 
 Presentation fix for the veraPDF PDF/UA-1 verdict (v1.37.0): the panel no longer leads with the raw per-occurrence failure sum, which read as thousands of distinct problems and clashed with a strong WCAG grade on the same report. No scoring change (pure UI + verdict data-shape; controls corpus unchanged).
