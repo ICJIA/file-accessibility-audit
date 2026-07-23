@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.37.5] - 2026-07-23
+
+Attribution and accessibility fix on the veraPDF panel's "Don't Panic" chip (follow-up to v1.37.4). No scoring change.
+
+### Fixed
+
+- **The "Don't Panic" chip now actually credits Douglas Adams — and is reachable by everyone.** The reference previously lived only in a native `title` tooltip, which requires a ~1s hover, never appears on touch devices, and is not announced to screen readers: for most people nothing happened, and the borrowed phrase read as uncredited. The chip is now a real `<button>` with `aria-expanded` that reveals an on-page footnote crediting **Douglas Adams** by name and citing _The Hitchhiker's Guide to the Galaxy_ (1979). A superscript asterisk marks it as a citation and is `relative`-positioned so it stays out of the line box — the chip's geometry is unchanged from v1.37.4. Collapsed by default; the `title` remains as a fast path for mouse users and now names Adams too.
+
+Tests 1,591 → 1,594 (API 1011 / Web 534 / CLI 49); lint, typecheck, build green.
+
 ## [1.37.4] - 2026-07-23
 
 Copy/UI polish on the veraPDF panel (follow-up to v1.37.3). No scoring change.

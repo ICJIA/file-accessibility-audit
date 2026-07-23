@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.37.4-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1591%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.37.5-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1594%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,591 tests** across 99 test files (API 1011, Web 531, CLI 49). Run all three suites with one summary:
+**1,594 tests** across 99 test files (API 1011, Web 534, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -828,7 +828,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      515 passed (43 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1591 tests passed across 99 files
+  ✔ 1594 tests passed across 99 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -1028,6 +1028,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.37.5 — 2026-07-23 · "Don't Panic" chip attribution + keyboard/touch reach (not a security release)
+
+UI only: the chip became a real `<button>` with `aria-expanded` that discloses an on-page Douglas Adams credit, replacing a `title`-only tooltip that was unreachable by touch and unannounced to screen readers. Static text — no user input is rendered, so no new injection surface; no network, storage, or scoring change. Controls corpus unchanged. Tests 1,591 → 1,594.
 
 ### v1.37.4 — 2026-07-23 · veraPDF panel copy polish (not a security release)
 
