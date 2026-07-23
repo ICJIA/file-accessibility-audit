@@ -221,3 +221,93 @@ describe("PdfUaVerdict.vue — number reframe", () => {
     expect(items.at(2)!.text()).toContain("AAA-1"); // count 2 last
   });
 });
+
+describe("PdfUaVerdict.vue — Don't Panic badge + grade-aware reconciliation", () => {
+  const failV = (over = {}) => ({
+    available: true,
+    passed: false,
+    profile: "ua1",
+    distinctRuleCount: 2,
+    totalFailureCount: 5,
+    failures: [
+      { ruleId: "7.21.4.2-2", clause: "7.21.4.2", description: "CIDSet incomplete", count: 3 },
+      {
+        ruleId: "7.1-3",
+        clause: "7.1",
+        description: "Content shall be marked as Artifact",
+        count: 2,
+      },
+    ],
+    ...over,
+  });
+
+  it("shows the Don't Panic badge (with the Adams wink) when grade is good (A) and veraPDF fails", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "A" } });
+    expect(w.get('[data-testid="pdfua-dont-panic"]').text()).toBe("Don't Panic");
+    expect(w.html()).toContain("In large, friendly letters");
+    expect(w.text()).toMatch(/You're in good shape/);
+  });
+
+  it("also shows the badge for a B grade", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "B" } });
+    expect(w.find('[data-testid="pdfua-dont-panic"]').exists()).toBe(true);
+  });
+
+  it("does NOT show the badge for a poor grade (D) — honest framing instead", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "D" } });
+    expect(w.find('[data-testid="pdfua-dont-panic"]').exists()).toBe(false);
+    expect(w.text()).toMatch(/Worth your attention/);
+    expect(w.text()).not.toMatch(/You're in good shape/);
+  });
+
+  it("shows a neutral reconciliation (no badge, no reassurance claim) when no grade is provided", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV() } });
+    expect(w.find('[data-testid="pdfua-dont-panic"]').exists()).toBe(false);
+    expect(w.text()).not.toMatch(/You're in good shape/);
+    expect(w.text()).toMatch(/different questions/i);
+  });
+
+  it("explains why the tools differ (Acrobat/PAC/veraPDF) only on expand", async () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: failV(), grade: "A" } });
+    expect(w.text()).not.toMatch(/Adobe Acrobat, PAC/); // collapsed by default
+    await w.get('[data-testid="pdfua-why-toggle"]').trigger("click");
+    expect(w.text()).toMatch(/Adobe Acrobat, PAC, and veraPDF/);
+    expect(w.text()).toMatch(/punch-list/i);
+    expect(w.text()).toMatch(/WCAG 2\.2 AA/);
+  });
+
+  it("shows no badge or reconciliation when veraPDF passes", () => {
+    const w = mount(PdfUaVerdict, {
+      props: {
+        verdict: {
+          ...failV(),
+          passed: true,
+          totalFailureCount: 0,
+          failures: [],
+          distinctRuleCount: 0,
+        },
+        grade: "A",
+      },
+    });
+    expect(w.find('[data-testid="pdfua-dont-panic"]').exists()).toBe(false);
+    expect(w.find('[data-testid="pdfua-reconcile"]').exists()).toBe(false);
+  });
+
+  it("shows no badge or reconciliation in the 'could not validate' state", () => {
+    const w = mount(PdfUaVerdict, {
+      props: {
+        verdict: {
+          available: true,
+          passed: false,
+          profile: "ua1",
+          error: "veraPDF timed out",
+          totalFailureCount: 0,
+          failures: [],
+        },
+        grade: "A",
+      },
+    });
+    expect(w.find('[data-testid="pdfua-dont-panic"]').exists()).toBe(false);
+    expect(w.find('[data-testid="pdfua-reconcile"]').exists()).toBe(false);
+  });
+});
