@@ -16,6 +16,7 @@ import {
   mapToStandardTag,
   collectDescendantTableRefs,
   collectHeadingsInOrder,
+  findStructTreeRoot,
   analyzeTable,
   type TableAnalysis,
 } from "./qpdfStructTree.js";
@@ -364,6 +365,15 @@ function parseQpdfJson(json: any): QpdfResult {
         .filter((k) => k.startsWith("/"))
         .map((k) => `${k.slice(1)} → ${roleMap[k].replace(/^\//, "")}`);
     };
+
+    // Resolve the RoleMap BEFORE the structure walk below. Two reasons:
+    // the root may be a DIRECT dictionary in the Catalog (the old code only
+    // followed a string ref, so an inline root's RoleMap was never read and
+    // every role-mapped heading/table/list silently vanished); and the walk
+    // maps each element's tag as it goes, so a RoleMap discovered partway
+    // through would not apply to the elements already passed.
+    const preRoot = findStructTreeRoot(objects);
+    if (preRoot?.["/RoleMap"]) applyRoleMap(preRoot["/RoleMap"]);
 
     // Top-level /Table struct elements are collected with their object ref so
     // that tables nested inside another table's cell can be filtered out once
@@ -865,10 +875,16 @@ function analyzeList(
   let maxNesting = 0;
   let itemsWithBody = 0;
 
+  // See analyzeTable's `visited` note: a /K entry may name an ancestor or a
+  // shared child, and re-expanding every path both double-counts <LI> items
+  // and costs exponential time.
+  const visited = new Set<any>();
   const walk = (node: any, depth: number, isCountingNesting: boolean): void => {
     if (depth > 15 || !node) return;
     const resolved = resolve(node);
     if (!resolved) return;
+    if (visited.has(resolved)) return;
+    visited.add(resolved);
     const tag = mapToStandardTag(resolved["/S"], roleMap);
 
     if (tag === "/LI") {
@@ -960,8 +976,17 @@ function collectMCIDs(obj: any, mcids: number[]): void {
 function calculateTreeDepth(objects: any): number {
   let maxDepth = 0;
 
+  // Cycle/DAG guard. Without it a single /K entry naming an ancestor makes
+  // this descend to the depth-50 cap and report a shallow tree as "richly
+  // nested" — while costing fanout^50 work in the main process. A real
+  // structure tree is a tree (every StructElem carries exactly one /P), so
+  // visiting each element once measures the true depth.
+  const visited = new Set<any>();
   const measure = (node: any, depth: number): void => {
     if (depth > 50) return; // safety limit
+    if (!node || typeof node !== "object") return;
+    if (visited.has(node)) return;
+    visited.add(node);
     maxDepth = Math.max(maxDepth, depth);
     const kids = node?.["/K"];
     if (!kids) return;
@@ -980,12 +1005,8 @@ function calculateTreeDepth(objects: any): number {
     }
   };
 
-  for (const obj of Object.values(objects)) {
-    if ((obj as any)?.["/Type"] === "/StructTreeRoot") {
-      measure(obj, 0);
-      break;
-    }
-  }
+  const root = findStructTreeRoot(objects);
+  if (root) measure(root, 0);
 
   return maxDepth;
 }
@@ -1022,7 +1043,16 @@ function buildPageRefToNum(json: any, objects: Record<string, any>): Map<string,
   if (!rootPages) return map;
 
   let pageCounter = 0;
+  // A /Pages node whose /Kids names an ancestor otherwise recurses until the
+  // stack overflows; parseQpdfJson's catch swallows the RangeError and
+  // discards the ENTIRE structural analysis, reporting a tagged document as
+  // unparseable. (This fallback runs only when qpdf omits the top-level
+  // `pages` array — e.g. the exit-3 warning-recovery path.)
+  const visited = new Set<any>();
   const walk = (node: any): void => {
+    if (!node || typeof node !== "object") return;
+    if (visited.has(node)) return;
+    visited.add(node);
     const type = node?.["/Type"];
     if (type === "/Page") {
       // Find the ref for this object by matching in objects dict. The key is
@@ -1067,13 +1097,7 @@ function collectStructTreeMcidsByPage(
 ): Record<number, number[]> {
   const out: Record<number, number[]> = {};
 
-  let root: any = null;
-  for (const obj of Object.values(objects)) {
-    if ((obj as any)?.["/Type"] === "/StructTreeRoot") {
-      root = obj;
-      break;
-    }
-  }
+  const root = findStructTreeRoot(objects);
   if (!root) return out;
 
   const pageStack: Array<number | null> = [];

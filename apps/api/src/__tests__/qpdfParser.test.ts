@@ -2275,3 +2275,83 @@ describe("multi-row RowSpan carry", () => {
     expect(result.tables[0].hasConsistentColumns).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The structure tree root can be a DIRECT dictionary stored inside the
+// Catalog rather than its own indirect object. calculateTreeDepth,
+// collectHeadingsInOrder and collectStructTreeMcidsByPage all located the
+// root by scanning TOP-LEVEL objects for /Type == /StructTreeRoot, so an
+// inline root was invisible to every one of them: depth read 0 (a real tree
+// reported as flat, which drops reading_order to 30/Critical), headings fell
+// back to object-number order instead of document order, the per-page MCID
+// map came back empty (so reading-order fidelity could never be computed),
+// and the RoleMap was only followed when /StructTreeRoot was a string ref —
+// so role-mapped headings and tables were silently dropped.
+//
+// Real-world source: controls/ILHEALSFallWinter2022FINAL-remediated.pdf.
+// ---------------------------------------------------------------------------
+describe("StructTreeRoot stored inline in the Catalog", () => {
+  const inlineRootJson = () => ({
+    pages: [{ object: "4 0 R", pageposfrom1: 1 }],
+    qpdf: [
+      null,
+      {
+        "obj:1 0 R": {
+          "/Type": "/Catalog",
+          "/Pages": "3 0 R",
+          "/StructTreeRoot": {
+            "/Type": "/StructTreeRoot",
+            "/K": ["5 0 R"],
+            "/RoleMap": { "/MyHead": "/H1", "/MyBody": "/P" },
+          },
+        },
+        "obj:3 0 R": { "/Type": "/Pages", "/Kids": ["4 0 R"] },
+        "obj:4 0 R": { "/Type": "/Page" },
+        "obj:5 0 R": { "/S": "/Document", "/K": ["6 0 R", "7 0 R"] },
+        "obj:6 0 R": { "/S": "/MyHead", "/Pg": "4 0 R", "/K": [0], "/P": "5 0 R" },
+        "obj:7 0 R": { "/S": "/MyBody", "/Pg": "4 0 R", "/K": [1], "/P": "5 0 R" },
+      },
+    ],
+  });
+
+  it("measures the real tree depth instead of reporting a flat tree", () => {
+    const result = parseJson(inlineRootJson());
+    expect(result.hasStructTree).toBe(true);
+    // root(0) -> Document(1) -> MyHead/MyBody(2)
+    expect(result.structTreeDepth).toBe(2);
+  });
+
+  it("applies the RoleMap that lives on the inline root", () => {
+    const result = parseJson(inlineRootJson());
+    expect(result.hasRoleMap).toBe(true);
+    expect(result.roleMapEntries).toContain("MyHead → H1");
+  });
+
+  it("collects role-mapped headings from the inline tree", () => {
+    const result = parseJson(inlineRootJson());
+    expect(result.headings.map((h) => h.level)).toEqual(["H1"]);
+  });
+
+  it("collects per-page MCIDs so reading-order fidelity can be computed", () => {
+    const result = parseJson(inlineRootJson());
+    expect(result.structTreeMcidsByPage).toEqual({ 1: [0, 1] });
+  });
+
+  it("still resolves a conventional indirect StructTreeRoot", () => {
+    const result = parseJson({
+      pages: [{ object: "4 0 R", pageposfrom1: 1 }],
+      qpdf: [
+        null,
+        {
+          "obj:1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "obj:2 0 R": { "/Type": "/StructTreeRoot", "/K": ["5 0 R"] },
+          "obj:4 0 R": { "/Type": "/Page" },
+          "obj:5 0 R": { "/S": "/H1", "/Pg": "4 0 R", "/K": [0], "/P": "2 0 R" },
+        },
+      ],
+    });
+    expect(result.structTreeDepth).toBe(1);
+    expect(result.headings.map((h) => h.level)).toEqual(["H1"]);
+    expect(result.structTreeMcidsByPage).toEqual({ 1: [0] });
+  });
+});

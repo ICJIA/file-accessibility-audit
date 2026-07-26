@@ -69,6 +69,91 @@ export interface ScoringResult {
   pdfUa?: PdfUaSignals;
 }
 
+/**
+ * True when a StructTreeRoot exists but demonstrably references NO content —
+ * the document is "tagged" only in the sense that the root object is present.
+ *
+ * WHY: both the scorer and the conformance gate used to treat the mere
+ * PRESENCE of a StructTreeRoot as proof of tagging. A file whose tag tree
+ * holds nothing (every character of body text outside it) therefore scored a
+ * perfect Text Extractability and returned "no automated WCAG failures",
+ * while the SAME file with the root stripped correctly failed 1.3.1 — so
+ * adding an empty root laundered a failing document into a clean verdict.
+ * A screen reader following those tags gets exactly what it gets from an
+ * untagged file: nothing.
+ *
+ * Deliberately a CONJUNCTION of independent signals, and every one of them
+ * must be present-and-empty rather than merely absent. An extraction gap in
+ * any single signal can then only suppress the finding, never fabricate it —
+ * the same "assert from measured evidence, never from a missing field"
+ * discipline the rest of the gate follows.
+ *
+ * `textLength` is the raw character count, NOT the 50-char `hasText`
+ * heuristic: the claim being made is "this text is outside the tree", which
+ * is only meaningful if there is text at all.
+ */
+export function structTreeIsContentFree(
+  qpdf: {
+    hasStructTree: boolean;
+    paragraphCount?: number;
+    headings?: unknown[];
+    images?: unknown[];
+    tables?: unknown[];
+    lists?: unknown[];
+    contentOrder?: number[];
+    structTreeMcidsByPage?: Record<number, number[]>;
+  },
+  pdfjs: { textLength?: number },
+): boolean {
+  if (!qpdf.hasStructTree) return false;
+  // There must be text that the tree is failing to cover.
+  if (!(typeof pdfjs.textLength === "number" && pdfjs.textLength > 0)) return false;
+  // No content-bearing structure element of any kind.
+  if (qpdf.paragraphCount !== 0) return false;
+  for (const list of [qpdf.headings, qpdf.images, qpdf.tables, qpdf.lists]) {
+    if (!Array.isArray(list) || list.length > 0) return false;
+  }
+  // No marked content reachable from the tree, by either collection route.
+  if (!Array.isArray(qpdf.contentOrder) || qpdf.contentOrder.length > 0) return false;
+  const byPage = qpdf.structTreeMcidsByPage;
+  if (!byPage || typeof byPage !== "object") return false;
+  if (Object.keys(byPage).length > 0) return false;
+  return true;
+}
+
+/**
+ * How many painted CONTENT images have no <Figure> tag covering them —
+ * images that participate in the reading order and require a text
+ * alternative, but are absent from the structure tree entirely.
+ *
+ * Returns null when the question cannot be answered from measured evidence
+ * (pdfjs failed, or it never reported artifact coverage), so callers can stay
+ * honest instead of guessing.
+ *
+ * WHY `nonArtifactImageCount` AND NOT the raw image count: the raw count
+ * includes decorative graphics the author correctly marked as /Artifact, and
+ * that noise is exactly why this signal used to be advisory-only. pdfjs walks
+ * the content stream and already excludes anything inside an /Artifact run,
+ * so what remains is the set that genuinely needs alt text.
+ *
+ * WHY subtract the FIGURE count rather than compare per-image: <Figure>
+ * legitimately wraps vector artwork and grouped content, so a document can
+ * have far more figures than raster images (44 vs 5 is real, observed in
+ * controls/). Clamping at zero means that case can never manufacture phantom
+ * untagged images.
+ */
+export function untaggedContentImageCount(
+  qpdf: { images?: Array<{ ref?: string }> },
+  pdfjs: { error?: string | null; nonArtifactImageCount?: number },
+): number | null {
+  if (pdfjs.error) return null;
+  if (typeof pdfjs.nonArtifactImageCount !== "number") return null;
+  const taggedFigures = Array.isArray(qpdf.images)
+    ? qpdf.images.filter((img) => img.ref).length
+    : 0;
+  return Math.max(0, pdfjs.nonArtifactImageCount - taggedFigures);
+}
+
 export function getGrade(score: number): string {
   for (const t of GRADE_THRESHOLDS) {
     if (score >= t.min) return t.grade;

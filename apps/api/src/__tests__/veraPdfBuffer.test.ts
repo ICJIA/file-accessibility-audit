@@ -19,6 +19,11 @@ const { cfg } = vi.hoisted(() => ({
     REMEDIATION: {
       VERAPDF_PATH: "/usr/bin/verapdf" as string | null,
       VERAPDF_AUDIT_TIMEOUT_MS: 30_000,
+      // veraPDF now takes a concurrency slot before writing its temp file
+      // (see veraPdfBuffer.ts). These must mirror the real config or every
+      // call queues forever and silently reports available:false.
+      VERAPDF_MAX_CONCURRENT: 2,
+      VERAPDF_QUEUE_TIMEOUT_MS: 60_000,
     },
   },
 }));

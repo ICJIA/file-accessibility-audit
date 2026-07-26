@@ -315,7 +315,12 @@ describe("scoreDocument — all images are decorative artifacts (0 figures)", ()
     expect((alt.findings ?? []).join(" ")).not.toMatch(/no tagged <Figure> elements were found/);
   });
 
-  it("non-artifacted painted images → keeps the untagged-content manual-review advisory", () => {
+  it("non-artifacted painted images with no <Figure> at all → scores 0, not N/A", () => {
+    // Previously this returned notAssessed/N/A, which dropped alt_text out of
+    // the weighted average entirely — so a document whose content images were
+    // never tagged out-scored one with a single missing /Alt. The images here
+    // are the ones left AFTER excluding every correctly-artifacted graphic,
+    // so there is nothing noisy left to be cautious about.
     const pdfjs = makePdfjs({
       hasText: true,
       textLength: 2000,
@@ -324,8 +329,8 @@ describe("scoreDocument — all images are decorative artifacts (0 figures)", ()
       nonArtifactImageCount: 4,
     });
     const alt = findCategory(scoreDocument(base(), pdfjs), "alt_text");
-    expect(alt.notAssessed).toBe(true);
-    expect((alt.findings ?? []).join(" ")).toMatch(/no tagged <Figure> elements were found/);
+    expect(alt.score).toBe(0);
+    expect((alt.findings ?? []).join(" ")).toMatch(/not tagged as <Figure>|none are tagged/i);
   });
 });
 
@@ -571,19 +576,31 @@ describe("weight renormalization", () => {
     expect(cat.findings.join(" ")).toContain("filename");
   });
 
-  it("notes painted images beyond the tagged figures instead of claiming full alt coverage", () => {
+  it("counts painted images beyond the tagged figures against coverage, not as full coverage", () => {
+    // 8 content images painted outside any /Artifact run, only 1 of them
+    // tagged. Claiming "all 1 tagged image has alt text" here would report
+    // full coverage over a document where 7 images are absent from the
+    // reading order. `nonArtifactImageCount` is what makes the claim safe —
+    // without it (pdfjs failed, or reported no artifact data) the category
+    // stays silent rather than guessing from the raw image count, which is
+    // what used to produce false alarms on correctly-artifacted documents.
     const qpdf = makeQpdf({
       hasStructTree: true,
       structTreeDepth: 3,
       contentOrder: [0, 1, 2],
       images: [{ ref: "3 0 R", hasAlt: true, altText: "Chart" }],
     });
-    const pdfjs = makePdfjs({ hasText: true, textLength: 500, imageCount: 8, pageCount: 3 });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      imageCount: 8,
+      nonArtifactImageCount: 8,
+      pageCount: 3,
+    });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "alt_text");
-    const text = cat.findings.join(" ");
-    expect(text).toContain("tagged image(s)");
-    expect(text).toMatch(/manual review|not tagged|outside the tag/i);
+    expect(cat.score).toBe(12); // 1 described of 8 describable
+    expect(cat.findings.join(" ")).toMatch(/not tagged as <Figure>/i);
   });
 
   it("surfaces the producer's Suspects flag as an advisory", () => {
@@ -2255,5 +2272,125 @@ describe("help links and How-to-fix accuracy", () => {
         }
       }
     }
+  });
+});
+
+describe("text_extractability — StructTreeRoot present but empty", () => {
+  // A tag tree that references no content leaves a screen reader exactly
+  // where an untagged file does, so it must not score as a tagged document.
+  // Reproduces controls/ILHEALSFallWinter2022FINAL-remediated.pdf.
+  const emptyTree = () =>
+    makeQpdf({
+      hasStructTree: true,
+      isMarkedContent: true,
+      structTreeDepth: 0,
+      paragraphCount: 0,
+      headings: [],
+      images: [],
+      tables: [],
+      lists: [],
+      contentOrder: [],
+      structTreeMcidsByPage: {},
+    });
+
+  it("scores 50 (as untagged), not 100, when the tree references no content", () => {
+    const result = scoreDocument(
+      emptyTree(),
+      makePdfjs({ hasText: true, textLength: 9948, pageCount: 4 }),
+    );
+    const cat = result.categories.find((c) => c.id === "text_extractability")!;
+    expect(cat.score).toBe(50);
+  });
+
+  it("says the tag tree is empty rather than 'Document is tagged'", () => {
+    const result = scoreDocument(
+      emptyTree(),
+      makePdfjs({ hasText: true, textLength: 9948, pageCount: 4 }),
+    );
+    const cat = result.categories.find((c) => c.id === "text_extractability")!;
+    expect(cat.findings.some((f) => /empty|no content|references no/i.test(f))).toBe(true);
+    expect(cat.findings).not.toContain("Document is tagged (StructTreeRoot present)");
+  });
+
+  it("still scores 100 for a tagged document whose tree carries content", () => {
+    const result = scoreDocument(
+      makeQpdf({
+        hasStructTree: true,
+        paragraphCount: 40,
+        contentOrder: [0, 1, 2],
+        structTreeMcidsByPage: { 1: [0, 1, 2] },
+      }),
+      makePdfjs({ hasText: true, textLength: 9948, pageCount: 4 }),
+    );
+    const cat = result.categories.find((c) => c.id === "text_extractability")!;
+    expect(cat.score).toBe(100);
+  });
+});
+
+describe("alt_text — content images that were never tagged as <Figure>", () => {
+  it("scores 0 rather than N/A when every content image is untagged", () => {
+    // Strictly worse than a tagged figure missing /Alt, yet the category
+    // used to return N/A and drop out of the weighted average entirely.
+    const result = scoreDocument(
+      makeQpdf({ hasStructTree: true, paragraphCount: 20, contentOrder: [0], imageObjectCount: 10 }),
+      makePdfjs({
+        hasText: true,
+        textLength: 5000,
+        imageCount: 10,
+        nonArtifactImageCount: 10,
+      }),
+    );
+    const cat = result.categories.find((c) => c.id === "alt_text")!;
+    expect(cat.score).toBe(0);
+  });
+
+  it("counts untagged content images in the denominator alongside tagged figures", () => {
+    // 2 tagged figures, both with alt, plus 2 painted content images that
+    // never made it into the tag tree => 2 of 4 covered.
+    const result = scoreDocument(
+      makeQpdf({
+        hasStructTree: true,
+        paragraphCount: 20,
+        contentOrder: [0],
+        imageObjectCount: 4,
+        images: [
+          { ref: "5 0 R", hasAlt: true, altText: "A" },
+          { ref: "6 0 R", hasAlt: true, altText: "B" },
+        ],
+      }),
+      makePdfjs({ hasText: true, textLength: 5000, imageCount: 4, nonArtifactImageCount: 4 }),
+    );
+    const cat = result.categories.find((c) => c.id === "alt_text")!;
+    expect(cat.score).toBe(50);
+  });
+
+  it("stays N/A when every painted image is artifacted", () => {
+    const result = scoreDocument(
+      makeQpdf({ hasStructTree: true, paragraphCount: 20, contentOrder: [0], imageObjectCount: 4 }),
+      makePdfjs({ hasText: true, textLength: 5000, imageCount: 4, nonArtifactImageCount: 0 }),
+    );
+    const cat = result.categories.find((c) => c.id === "alt_text")!;
+    expect(cat.score).toBeNull();
+  });
+
+  it("does not penalise a fully tagged document whose figures outnumber raster images", () => {
+    // <Figure> legitimately wraps vector content, so figures can exceed the
+    // painted-image count. That must never create phantom untagged images.
+    const result = scoreDocument(
+      makeQpdf({
+        hasStructTree: true,
+        paragraphCount: 20,
+        contentOrder: [0],
+        imageObjectCount: 2,
+        images: Array.from({ length: 8 }, (_, i) => ({
+          ref: `${10 + i} 0 R`,
+          hasAlt: true,
+          altText: `Chart ${i}`,
+        })),
+      }),
+      makePdfjs({ hasText: true, textLength: 5000, imageCount: 2, nonArtifactImageCount: 2 }),
+    );
+    const cat = result.categories.find((c) => c.id === "alt_text")!;
+    expect(cat.score).toBe(100);
   });
 });

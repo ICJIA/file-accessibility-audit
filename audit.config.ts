@@ -1254,6 +1254,35 @@ export const REMEDIATION = {
   VERAPDF_AUDIT_TIMEOUT_MS: 30_000,
 
   /**
+   * Maximum veraPDF JVMs running at once across the whole process.
+   *
+   * WHY THIS EXISTS: routes/analyze.ts runs veraPDF via `Promise.all`
+   * alongside analyzeDocument, and only analyzeDocument takes the analysis
+   * semaphore — so before this cap existed, every in-flight upload spawned
+   * its own JVM with no bound. ANALYSIS.MAX_CONCURRENT_ANALYSES is 2 because
+   * a 4GB droplet can afford two ~50MB analyses; a JVM is several times that,
+   * and the analyze rate limiter (500/hour/IP) bounds RATE, not CONCURRENCY.
+   *
+   * Defaults to the analysis cap so every ADMITTED analysis can still get a
+   * verdict (no user-visible "panel appeared for them but not me"), while
+   * requests queued behind the analysis semaphore can no longer spawn JVMs.
+   *
+   * SAFE TO CHANGE: Yes — lower to 1 to be more frugal on a small droplet;
+   * raise only alongside MAX_CONCURRENT_ANALYSES and the RAM budget.
+   */
+  VERAPDF_MAX_CONCURRENT: 2,
+
+  /**
+   * How long a veraPDF check waits for a concurrency slot before giving up.
+   * On expiry the verdict degrades to `available: false` (the PDF/UA panel is
+   * simply hidden) rather than failing the audit — the check is supplementary,
+   * so it must never take the whole upload down with it.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  VERAPDF_QUEUE_TIMEOUT_MS: 60_000,
+
+  /**
    * JVM max heap size for the OpenDataLoader child process.
    * Passed via JAVA_TOOL_OPTIONS=-Xmx<value>m. Caps memory a single
    * remediation can consume regardless of input pathology.

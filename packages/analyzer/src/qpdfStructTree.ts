@@ -42,6 +42,38 @@ export function resolveRef(ref: string, objects: any): any {
   return objects[ref] ?? objects[`obj:${ref}`] ?? null;
 }
 
+/**
+ * Locate the structure tree root.
+ *
+ * The Catalog's /StructTreeRoot entry is the authoritative pointer, and it may
+ * be either an indirect reference OR a DIRECT dictionary written inline in the
+ * Catalog. Scanning top-level objects for /Type == /StructTreeRoot — which is
+ * what every walker used to do — cannot see the inline form at all, because
+ * the dictionary is nested inside the Catalog and is never its own entry in
+ * the object map. The symptom was a real, populated tree reported as depth 0
+ * with no headings and no MCIDs.
+ *
+ * Falls back to the top-level scan so a file whose Catalog is missing or
+ * unresolvable still works exactly as before.
+ */
+export function findStructTreeRoot(objects: Record<string, any>): any | null {
+  for (const obj of Object.values(objects)) {
+    const o = obj as any;
+    if (!o || typeof o !== "object" || o["/Type"] !== "/Catalog") continue;
+    const raw = o["/StructTreeRoot"];
+    if (typeof raw === "string") {
+      const resolved = resolveRef(raw, objects);
+      if (resolved && typeof resolved === "object") return resolved;
+    } else if (raw && typeof raw === "object") {
+      return raw;
+    }
+  }
+  for (const obj of Object.values(objects)) {
+    if ((obj as any)?.["/Type"] === "/StructTreeRoot") return obj;
+  }
+  return null;
+}
+
 export function mapToStandardTag(
   tag: string | null | undefined,
   roleMap: Record<string, string>,
@@ -95,13 +127,7 @@ export function collectHeadingsInOrder(
   objects: Record<string, any>,
   roleMap: Record<string, string>,
 ): Array<{ level: string; tag: string }> {
-  let root: any = null;
-  for (const obj of Object.values(objects)) {
-    if ((obj as any)?.["/Type"] === "/StructTreeRoot") {
-      root = obj;
-      break;
-    }
-  }
+  const root = findStructTreeRoot(objects);
   if (!root) return [];
 
   const headings: Array<{ level: string; tag: string }> = [];
@@ -227,11 +253,19 @@ export function analyzeTable(
     return typeof v === "number" && v >= 1 ? Math.floor(v) : 1;
   };
 
-  // Walk the table subtree collecting all signals in a single pass
+  // Walk the table subtree collecting all signals in a single pass.
+  // `visited` is required for both correctness and cost: a /K entry may name
+  // an ancestor (cycle) or a shared child (DAG), and without it every PATH
+  // through the graph is re-expanded — counting the same cells once per path
+  // and turning a handful of objects into exponential work. Matches the guard
+  // collectDescendantTableRefs/collectHeadingsInOrder already use.
+  const visited = new Set<any>();
   const walk = (node: any, depth: number): void => {
     if (depth > 15 || !node) return;
     const resolved = resolve(node);
     if (!resolved) return;
+    if (visited.has(resolved)) return;
+    visited.add(resolved);
     const tag = getTag(resolved);
 
     if (tag === "/TH") {
