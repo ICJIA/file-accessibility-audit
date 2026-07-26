@@ -67,3 +67,40 @@ describe("PdfUaSignalsCard", () => {
     expect(w.text()).toMatch(/6 of 6/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// PDF/UA-1 signals are not a WCAG verdict, and the card's own framing works
+// against that: a "Conformance signals · beyond the WCAG score" banner over a
+// green "N of 6 essentials met" readiness box reads as a pass. A user reported
+// exactly this confusion — "users don't know that PDF/UA conformance scores
+// don't mean perfect WCAG" — on a report that simultaneously said "2 critical
+// issues must be fixed before publishing".
+//
+// PDF/UA-1 essentials are STRUCTURAL markers (is it tagged? are fonts
+// embedded?). They say nothing about whether alt text is meaningful, headings
+// are correct, or the reading order makes sense — the things the WCAG grade
+// measures. So whenever blocking WCAG issues remain, the card says so.
+// ---------------------------------------------------------------------------
+describe("PdfUaSignalsCard — signals are not a WCAG pass", () => {
+  const criticals = [{ severity: "Critical" }, { severity: "Critical" }, { severity: "Minor" }];
+
+  it("warns that meeting the essentials is not a WCAG pass when Critical issues remain", () => {
+    const w = mount(PdfUaSignalsCard, {
+      props: { signals: fullSignals, categories: criticals },
+    });
+    expect(w.text()).toMatch(/does not mean|not a WCAG/i);
+    expect(w.text()).toMatch(/2 critical/i);
+  });
+
+  it("stays silent when there are no Critical issues", () => {
+    const w = mount(PdfUaSignalsCard, {
+      props: { signals: fullSignals, categories: [{ severity: "Minor" }] },
+    });
+    expect(w.text()).not.toMatch(/does not mean the document/i);
+  });
+
+  it("stays silent when no categories are supplied (the remediation page reuse)", () => {
+    const w = mount(PdfUaSignalsCard, { props: { signals: fullSignals } });
+    expect(w.text()).not.toMatch(/does not mean the document/i);
+  });
+});

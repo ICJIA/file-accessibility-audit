@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.38.2] - 2026-07-26
+
+Completes the v1.38.1 reordering: the **second** PDF/UA panel now sits below the blocking issues too. No scoring change.
+
+### Fixed
+
+- **The "PDF/UA-1 signals" card no longer renders at the top of the report, above the critical issues.** v1.38.1 moved the veraPDF verdict below the blocking issues, but missed this second, separate PDF/UA surface — it is rendered by `ScoreCard` itself, so it appeared inside the score hero, above the "N critical issues must be fixed before publishing" banner. Both PDF/UA panels are now grouped together below the issues. `ScoreCard` gained a `showPdfUaSignals` prop (default `true`) so the remediation page's before/after cards are unchanged.
+
+- **PDF/UA-1 signals are no longer presentable as a WCAG pass.** The card leads with a "Conformance signals · beyond the WCAG score" banner over a green "N of 6 essentials met" readiness box, which reads as a pass — on a document that may simultaneously carry critical WCAG failures. PDF/UA-1 essentials are *structural* markers (tagged, marked, fonts embedded); they cannot tell whether alt text is meaningful or the reading order makes sense, which is exactly what the grade measures. When Critical issues remain, the card now states that meeting the essentials does not mean the document is accessible, and names how many issues are still outstanding — counted with the same helper the action banner and the veraPDF panel use, so all three numbers agree.
+
+Tests 1,637 → 1,644 (Web 547 → 554); lint, typecheck, build green.
+
 ## [1.38.1] - 2026-07-26
 
 Report layout fix: blocking issues now come before the informational PDF/UA panel. No scoring change — every score, grade and verdict is byte-identical to v1.38.0.

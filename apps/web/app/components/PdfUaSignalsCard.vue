@@ -38,6 +38,19 @@
         text, table headers, heading structure — are covered by the accessibility findings in this
         report.
       </p>
+      <p
+        v-if="outstandingCritical > 0"
+        data-testid="pdfua-signals-wcag-caveat"
+        class="mt-2 text-[11px] sm:text-xs text-[var(--text-secondary)] leading-relaxed"
+      >
+        <strong class="text-[var(--text-heading)]"
+          >Meeting these does not mean the document is accessible.</strong
+        >
+        PDF/UA-1 essentials are structural markers; they cannot tell whether alt text is meaningful
+        or the reading order makes sense.
+        {{ outstandingCritical }} critical {{ outstandingCritical === 1 ? "issue" : "issues" }} above
+        must still be fixed before publishing.
+      </p>
     </div>
 
     <!-- Signal grid -->
@@ -119,6 +132,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { tallySeverity } from "~/utils/severityTally";
 
 type Tone = "good" | "warn" | "bad" | "info";
 
@@ -136,7 +150,24 @@ interface PdfUaSignals {
   hasTitle: boolean;
 }
 
-const props = defineProps<{ signals: PdfUaSignals }>();
+const props = defineProps<{
+  signals: PdfUaSignals;
+  /**
+   * Scoring categories, used only to warn that PDF/UA-1 signals are not a WCAG
+   * pass while Critical issues remain. Optional: the remediation page reuses
+   * this card with no categories, and the caveat simply doesn't render there.
+   */
+  categories?: Array<{ severity?: string | null }>;
+}>();
+
+// PDF/UA-1 essentials are STRUCTURAL markers — tagged, marked, fonts embedded.
+// They say nothing about whether alt text is meaningful, headings are right, or
+// the reading order makes sense, which is what the WCAG grade measures. The
+// card's own framing ("beyond the WCAG score", a green "N of 6 met" box) reads
+// as a pass, so whenever blocking WCAG issues remain we say so outright.
+// Counted with the same tallySeverity() the action banner uses, so the number
+// here can never disagree with the one above it.
+const outstandingCritical = computed(() => tallySeverity(props.categories).critical);
 
 // PDF/UA readiness rollup — how many of the six boolean structural essentials
 // are met, computed deterministically from the signals (no veraPDF needed).

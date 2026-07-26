@@ -607,3 +607,50 @@ describe("ProcessingOverlay", () => {
     expect(wrapper.text()).not.toContain("Step 1");
   });
 });
+
+// ---------------------------------------------------------------------------
+// ScoreCard — PDF/UA-1 signals placement
+// ---------------------------------------------------------------------------
+// The signals card used to render unconditionally inside ScoreCard, which put
+// conformance-flavoured content at the very TOP of a report — above the
+// "N critical issues must be fixed before publishing" banner. PDF/UA-1 signals
+// describe formal tagging markers, not whether the document is usable, and a
+// reader who meets them first can reasonably conclude the file is fine.
+// The report pages now place the card below the blocking issues themselves;
+// the default stays true so the remediation page's before/after cards are
+// unchanged.
+// ---------------------------------------------------------------------------
+describe("ScoreCard — PDF/UA signals placement", () => {
+  const withSignals = {
+    filename: "test-report.pdf",
+    pageCount: 12,
+    overallScore: 73,
+    grade: "C",
+    executiveSummary: "Needs improvement.",
+    pdfUa: {
+      hasIdentifier: false,
+      part: null,
+      isTagged: true,
+      isMarkedContent: true,
+      artifactRunCount: 4,
+      structTreeDepth: 5,
+      fontCount: 3,
+      embeddedFontCount: 3,
+      allFontsEmbedded: true,
+      hasLanguage: true,
+      hasTitle: true,
+    },
+  };
+
+  it("still renders the signals card by default (remediation before/after cards)", () => {
+    const w = mount(ScoreCard, { props: { result: withSignals } });
+    expect(w.findComponent({ name: "PdfUaSignalsCard" }).exists()).toBe(true);
+  });
+
+  it("omits the signals card when the page places it itself", () => {
+    const w = mount(ScoreCard, {
+      props: { result: withSignals, showPdfUaSignals: false },
+    });
+    expect(w.findComponent({ name: "PdfUaSignalsCard" }).exists()).toBe(false);
+  });
+});

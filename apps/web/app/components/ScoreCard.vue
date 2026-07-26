@@ -112,10 +112,16 @@
       </p>
     </div>
 
-    <!-- PDF/UA-1 conformance signals — paired with the WCAG verdict above.
-         Signals only, not a verdict; the card points to PAC / veraPDF for the
-         formal PDF/UA-1 (ISO 14289-1) conformance test. -->
-    <PdfUaSignalsCard v-if="result.pdfUa" :signals="result.pdfUa" class="max-w-2xl mx-auto mt-5" />
+    <!-- PDF/UA-1 conformance signals. Signals only, not a verdict; the card
+         points to PAC / veraPDF for the formal PDF/UA-1 (ISO 14289-1) test.
+         Suppressed via showPdfUaSignals on the audit and shared-report pages,
+         which render it themselves BELOW the blocking issues — see the prop's
+         note. Still shown inline for the remediation before/after cards. -->
+    <PdfUaSignalsCard
+      v-if="result.pdfUa && showPdfUaSignals"
+      :signals="result.pdfUa"
+      class="max-w-2xl mx-auto mt-5"
+    />
 
     <!-- Verdict explanation (counts) -->
     <!-- eslint-disable vue/no-v-html -- verdictExplanation (below) only interpolates numeric counts via pluralize() into a fixed "N critical/moderate issue(s)" string with a hardcoded <span style> wrapper; no report-derived string content ever reaches v-html here. -->
@@ -245,8 +251,17 @@ const props = withDefaults(
     // duplicating it. Defaults true so other callers (e.g. the remediation
     // before/after cards) keep showing the filename line unchanged.
     showFilename?: boolean;
+    // PDF/UA-1 signals describe formal tagging markers, NOT whether the
+    // document is usable — so rendering them inside the score hero put
+    // conformance-flavoured content above the "N critical issues must be fixed
+    // before publishing" banner, where a reader could take them as a clean
+    // bill of health. The audit and shared-report pages pass false and place
+    // the card themselves, below the blocking issues and beside the veraPDF
+    // verdict. Defaults true so the remediation before/after cards are
+    // unchanged.
+    showPdfUaSignals?: boolean;
   }>(),
-  { showFilename: true },
+  { showFilename: true, showPdfUaSignals: true },
 );
 
 /**

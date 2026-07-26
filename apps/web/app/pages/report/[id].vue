@@ -100,7 +100,7 @@
           <div
             class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
           >
-            <ScoreCard :result="data.report" :show-filename="false" />
+            <ScoreCard :result="data.report" :show-filename="false" :show-pdf-ua-signals="false" />
           </div>
 
           <!-- BLOCKING information first. The PDF/UA panel below can show a
@@ -122,6 +122,19 @@
             v-if="data?.report?.categories"
             :categories="data.report.categories"
             class="mb-8"
+          />
+
+          <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
+             ScoreCard (which rendered it at the very top of the report, above
+             the blocking issues) so conformance-flavoured markers can no longer
+             be mistaken for a clean bill of health. Grouped here with the
+             veraPDF verdict: both are PDF/UA, both are secondary to the WCAG
+             issues above. -->
+          <PdfUaSignalsCard
+            v-if="data.report?.pdfUa"
+            :signals="data.report.pdfUa"
+            :categories="data.report?.categories"
+            class="max-w-2xl mx-auto mb-6"
           />
 
           <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and

@@ -68,6 +68,34 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.38.2 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.38.2</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-07-26</strong> · scope: completes the v1.38.1 report-ordering fix
+            for a second technical panel — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The previous release moved one technical panel below the list of issues that must be
+          fixed, but there are two, and the other one was missed: a "PDF/UA-1 signals" card that
+          appeared at the very top of the report, immediately under the score and above the critical
+          issues. Both now sit below the issues. The distinction matters because these signals are
+          easy to mistake for a passing grade: they report structural facts about the file — whether
+          it carries accessibility tags, whether its fonts are embedded — and cannot judge whether an
+          image description is meaningful or whether the document reads in a sensible order, which is
+          what the accessibility grade measures. A document can therefore satisfy every one of these
+          structural markers and still be unusable for someone with a disability. When critical
+          issues remain, the card now says that plainly instead of leaving the reader to infer it.
+          This is a presentation change only — no scores, grades, or verdicts changed, and no new
+          information is read from your documents.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.38.1 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

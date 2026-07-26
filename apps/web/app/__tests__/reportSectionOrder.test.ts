@@ -54,6 +54,15 @@ describe.each([
     expect(score).toBeLessThan(at(src, "PdfUaVerdict"));
   });
 
+  it("shows the PDF/UA-1 signals card after the issues, not inside the score hero", () => {
+    // This card ("PDF/UA-1 signals (ISO 14289-1)") is rendered by ScoreCard
+    // itself, which puts it at the very top of the report — above the
+    // critical-issues banner. It is the SECOND PDF/UA surface on the page
+    // (PdfUaVerdict is the veraPDF one) and carries the same risk: a reader
+    // sees conformance-flavoured information first and assumes the document is fine.
+    expect(at(src, "IssuesSummary")).toBeLessThan(at(src, "PdfUaSignalsCard"));
+  });
+
   it("keeps the PDF/UA verdict above the methodology and category detail", () => {
     // It is informational, not noise — it should still precede the
     // long-form explanatory sections.

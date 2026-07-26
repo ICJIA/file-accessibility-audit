@@ -1029,6 +1029,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
 
+### v1.38.2 — 2026-07-26 · Second PDF/UA panel moved below the blocking issues (not a security release)
+
+Presentation only, completing v1.38.1. The "PDF/UA-1 signals (ISO 14289-1)" card is rendered by `ScoreCard`, so it sat inside the score hero — above the critical-issues banner — and was missed by the v1.38.1 reorder. Both PDF/UA surfaces are now grouped below the issues (`ScoreCard` gained `showPdfUaSignals`, default `true`, so the remediation before/after cards are unchanged), and the card now states that meeting the structural essentials does not mean the document is accessible whenever Critical issues remain. No new attack surface; the added markup interpolates an integer count derived from server-side severity labels, no user input is rendered. No network, storage or scoring change; pre-existing posture re-verified. Controls corpus unchanged. Tests 1,637 → 1,644.
+
 ### v1.38.1 — 2026-07-26 · Report ordering — blocking issues above the informational PDF/UA panel (not a security release)
 
 Presentation only: the critical-issues banner and the issues-to-fix list moved above the PDF/UA-1 (veraPDF) panel on both the audit page and shared reports, and a veraPDF "Pass" alongside unresolved Critical WCAG issues now says so explicitly instead of rendering a bare green tick. Rationale: the two checks answer different questions — PDF/UA-1 verifies formal tagging, the WCAG grade reflects real usability — so a Pass can legitimately coexist with Critical failures, and showing it first invited authors to stop reading. No new attack surface introduced; no user input is rendered by the changed markup (the caveat interpolates an integer count derived from server-side severity labels), no network, storage, or scoring change, and pre-existing posture re-verified. Controls corpus unchanged. Tests 1,624 → 1,637.

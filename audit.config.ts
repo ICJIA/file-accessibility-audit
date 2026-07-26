@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "pdfua-not-a-wcag-pass-2026-07-26",
+    badge: "Improved",
+    text: "Both PDF/UA panels now sit below the issues you need to fix, and neither can be mistaken for a clean bill of health. The \u201cPDF/UA-1 signals\u201d card used to appear at the very top of your report, right under the score \u2014 above the critical issues. PDF/UA-1 essentials are structural markers (is the file tagged? are the fonts embedded?); they cannot tell whether your alt text is meaningful or your reading order makes sense, which is what the accessibility grade measures. So a document can meet every PDF/UA-1 essential and still have critical issues that block publishing \u2014 and when that is the case, the card now says so directly.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "report-order-criticals-first-2026-07-26",
     badge: "Improved",
     text: 'Your report now leads with what actually blocks publishing. The critical issues and their fix steps appear directly under your score, above the technical PDF/UA-1 (veraPDF) panel — which is informational. That panel can show a green "Pass" on a document that still has critical WCAG issues to fix, because the two checks answer different questions: PDF/UA-1 verifies the file\'s formal tagging, while your WCAG grade is what decides whether people can actually use the document. When both are true, the panel now says so in plain language instead of just showing a green tick.',
