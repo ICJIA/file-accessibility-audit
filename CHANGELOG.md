@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.38.0] - 2026-07-26
+
+A fresh-eyes review of the audit algorithms, followed by fixes for the five defects it confirmed. **This release changes scores and verdicts for some documents** — see the note at the end. It is also a **security release**: it closes a remotely-triggerable denial of service, a secret-inheritance gap, and a path-disclosure leak.
+
+### Fixed
+
+- **A structure tree that contains nothing is no longer treated as a tagged document.** Both the score and the WCAG verdict tested only whether a `StructTreeRoot` object *existed*. A file whose tag tree held nothing — every character of body text outside it — therefore earned a perfect Text Extractability (100) and a clean "no automated WCAG failures" verdict, while the **same file with the root stripped** correctly failed 1.3.1. Adding an empty root laundered a failing document into a passing one. Such a document now scores 50 (identical to untagged, which is what it is for a screen-reader user) and fails 1.3.1 with an explanation. The detection is a conjunction of independent signals, each of which must be *present-and-empty* rather than merely absent, so a gap in any single signal can only suppress the finding — never fabricate one.
+
+- **Content images that were never tagged as `<Figure>` are now counted and failed.** They are *strictly worse* than a tagged figure with missing alt text — they are absent from the reading order entirely — yet the tool counted only tagged figures, so the worse case scored N/A and dropped out of the weighted average. A document with 10 untagged content images scored **100/A with a clean verdict**, while the same document with 1 of 10 figures missing `/Alt` scored 98/A and failed 1.1.1. Untagged content images now count against alt-text coverage and raise a confirmed 1.1.1 failure. The count is measured from PDF.js's artifact-aware content-stream walk, so graphics the author correctly marked as decorative `/Artifact`s are excluded — the noise that made this signal advisory-only before.
+
+- **A `StructTreeRoot` written directly inside the Catalog is no longer invisible.** The root can be a direct dictionary rather than its own indirect object, in which case it is not an entry in the object map at all and the previous `/Type` scan could never find it. A real, populated structure tree consequently read as **depth 0** (reporting a false "flat tree" and dropping Reading Order to 30/Critical), headings fell back to object-number order instead of document order, the per-page MCID map came back empty so reading-order fidelity could never be computed, and the `/RoleMap` was only followed when the root was a reference — silently discarding role-mapped headings and tables. The root is now resolved through the Catalog's own pointer in either form, with the old scan kept as a fallback. `/RoleMap` resolution also moved to a pre-pass, so it no longer depends on the order objects happen to appear in.
+
+- **A false "images painted beyond the tagged figures" advisory.** It compared the raw image count against the figure count, ignoring artifacts entirely — so a document whose only extra images were correctly artifacted decorative graphics was told they were "missing from the reading order entirely." It fired on a control that otherwise scored a perfect 100/A. Fixed as a consequence of the artifact-aware count above.
+
+### Security
+
+- **Denial of service via a crafted structure tree (fixed).** A PDF's structure tree is an object *graph*: nothing prevents a `/K` entry from naming an ancestor (a cycle) or two elements from sharing a child (a DAG). Four walkers — tree-depth measurement, list analysis, table analysis, and the page-tree fallback — resolved indirect references with no visited-set, so every *path* through the graph was re-expanded: cost grew exponentially in the depth limit rather than linearly in the object count. Measured against the unguarded code, a **three-object** cyclic tree took the depth walker **9 seconds** at a fanout of 2 and never returned at a fanout of 3. Because this work runs synchronously in the main API process (only the qpdf subprocess and the PDF.js pass were time-boxed), a single small upload could block the event loop for every other request, health checks included — and PM2's `max_memory_restart` could not catch it, since a blocked loop does not grow the heap. All four walkers now carry the same visited-set guard the other four walkers already had. Real documents are unaffected: all 23 control PDFs report byte-identical structure-tree depths.
+
+- **veraPDF no longer inherits the API's secrets.** `buildChildSpawnEnv()` — the denylist already applied to qpdf and to the OOXML and remediation workers, precisely because they parse attacker-controlled bytes — was not applied to veraPDF, a JVM parsing hostile PDFs. As of v1.37.0 it runs on the main audit path for every PDF upload, so it was inheriting `JWT_SECRET`, `API_PRIVILEGED_TOKEN`, and the SMTP credentials on each one.
+
+- **veraPDF concurrency is now bounded.** It runs alongside the analysis rather than inside it, and only the analysis took the 2-slot semaphore — so every in-flight upload spawned its own JVM, unbounded, on a box sized for two ~50 MB analyses. (The analyze rate limit bounds *rate*, not *concurrency*.) veraPDF now has its own budget, `REMEDIATION.VERAPDF_MAX_CONCURRENT`, acquired **before** the temporary file is written so a queued caller costs neither a JVM nor a copy of the upload on disk. If no slot frees up in time the PDF/UA panel is simply hidden — a supplementary check never takes the audit down with it.
+
+- **Server paths no longer leak to clients.** When veraPDF failed, the underlying `Command failed: <binary path> --flavour ua1 … <temp path>` message was returned verbatim in the API response and persisted into shared reports. The detail now goes to the server log; callers get a generic message.
+
+### Note on score changes
+
+Re-auditing the same document can now produce a different score than it did on v1.37.5. Across the 23-document control corpus, **19 are byte-identical** and 4 changed — every one of them in the direction of catching a real barrier the tool previously missed, and no previously-clean document became failing except the one that genuinely should have. Shared reports saved before this release keep their original snapshot values, so a stored report and a fresh audit of the same file may disagree; the fresh audit is the correct one.
+
+Tests 1,594 → 1,624 (API 1011 → 1041 / Web 534 / CLI 49); lint, typecheck, build green.
+
 ## [1.37.5] - 2026-07-23
 
 Attribution and accessibility fix on the veraPDF panel's "Don't Panic" chip (follow-up to v1.37.4). No scoring change.

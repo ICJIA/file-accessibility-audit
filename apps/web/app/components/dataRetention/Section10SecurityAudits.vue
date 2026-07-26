@@ -68,6 +68,62 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.38.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.38.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Audited <strong>2026-07-26</strong> · scope: a fresh-eyes review of the audit algorithms
+            themselves, plus the security posture of the PDF/UA checker added in v1.37.0 —
+            <strong>this one is a security release</strong>.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          This review looked at the audit engine with fresh eyes and found three ways a document
+          could be judged wrongly — all of them in the direction of being too generous, which is the
+          more damaging direction for a compliance tool. The most serious: a PDF could carry an
+          <em>empty</em> set of accessibility tags — the shelf was there, but nothing was on it — and
+          the tool would report it as a properly tagged document with no detected WCAG failures. The
+          identical file with the empty shelf removed was correctly failed. In other words, a
+          document could be made to "pass" by adding tagging that did nothing. Empty tagging is now
+          treated exactly like no tagging, because that is what it means for someone using a screen
+          reader.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          The second: images that were never tagged at all used to be skipped rather than counted
+          against a document, even though they are <em>worse</em> for a screen-reader user than a
+          tagged image with a missing description — an untagged image is invisible to the reader
+          entirely. A document with ten such images could score 100 while a document with a single
+          missing description scored 98 and was marked as failing. Untagged images now count. The
+          third was narrower: a particular way of storing the tag structure made a real, complete set
+          of tags look empty to part of the tool, which then reported a false "flat structure"
+          problem.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+          On the security side, three findings were fixed. A specially crafted PDF — only a few
+          hundred bytes — could send the analyzer into a loop that consumed the server's attention
+          entirely, making the site unresponsive for everyone until it was restarted; the file-size
+          limit was no protection, because the file did not need to be large. The PDF/UA checker
+          introduced in v1.37.0 was also being given a copy of the server's own passwords and keys,
+          which it has no need for and which every other external tool the site uses had already been
+          shielded from; and it could be started an unlimited number of times at once, so a burst of
+          uploads could exhaust the server's memory. It is now limited to two at a time. Finally,
+          when that checker failed it was reporting the server's own internal file paths back to the
+          browser; it now reports a plain message and keeps the detail in the server log.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          <strong>What this means for you:</strong> re-auditing a document may now give a different
+          score than it did before this release — in every case that changed, because the tool now
+          catches a real barrier it used to miss. Reports you saved earlier keep the score they were
+          given at the time, so an old saved report and a fresh audit of the same file can disagree;
+          the fresh one is correct. Of the 23 reference documents used to check the engine, 19 were
+          completely unaffected.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.37.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
