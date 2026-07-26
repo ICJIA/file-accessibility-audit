@@ -30,6 +30,7 @@ import type { PptxAnalysis } from "../pptxService.js";
 import type { XlsxAnalysis } from "../xlsxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
+import { structTreeIsContentFree, untaggedContentImageCount } from "./common.js";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
 
 export interface ConformanceFinding {
@@ -172,7 +173,11 @@ export function evaluateConformance(
     );
   }
 
-  // 1. Untagged document — no structure tree at all.
+  // 1. Untagged document — no structure tree at all, OR a StructTreeRoot that
+  //    references no content. The two are the same barrier in practice: a
+  //    screen reader following an empty tag tree gets nothing, exactly as it
+  //    does from an untagged file. Gating on the root's mere presence let a
+  //    document be laundered into a clean verdict by adding an empty root.
   if (!qpdf.hasStructTree) {
     add(
       "1.3.1",
@@ -180,6 +185,14 @@ export function evaluateConformance(
       "A",
       "text_extractability",
       "The document has no tag structure (StructTreeRoot), so headings, lists, tables, and reading order cannot be conveyed to assistive technology.",
+    );
+  } else if (structTreeIsContentFree(qpdf, pdfjs)) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "text_extractability",
+      "The document has a tag structure (StructTreeRoot), but it references no content — no paragraphs, headings, figures, tables, lists, or marked content are inside it. Every character of the text sits outside the structure tree, so assistive technology receives no headings, relationships, or reading order, exactly as if the document were untagged. Re-tag the document (Acrobat: All tools → Prepare for accessibility → Automatically tag PDF), then verify in the Tags panel that the body content appears under the tags.",
     );
   }
 
@@ -213,6 +226,23 @@ export function evaluateConformance(
       "A",
       "alt_text",
       `${figuresMissingAlt} image(s) tagged as <Figure> have no alternative text (/Alt).`,
+    );
+  }
+
+  // 3b. Content images with no <Figure> tag at all. Strictly worse than a
+  //     tagged figure missing /Alt — these are absent from the reading order
+  //     entirely — yet counting only tagged figures meant the worse case
+  //     asserted nothing at all. Fires only on images painted OUTSIDE any
+  //     /Artifact run, so correctly-artifacted decorative graphics are
+  //     excluded (that noise is why this was advisory-only before).
+  const untaggedImages = untaggedContentImageCount(qpdf, pdfjs);
+  if (untaggedImages !== null && untaggedImages > 0) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "alt_text",
+      `${untaggedImages} image(s) are painted as page content but are not tagged as <Figure>, so they carry no alternative text and are missing from the reading order entirely. Tag each one as <Figure> with /Alt text, or — if it is purely decorative — mark it as an Artifact so it is deliberately hidden from assistive technology.`,
     );
   }
 

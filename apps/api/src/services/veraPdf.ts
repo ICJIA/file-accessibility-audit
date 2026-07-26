@@ -14,6 +14,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { REMEDIATION } from "#config";
+import { buildChildSpawnEnv } from "./childSpawnEnv.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -71,7 +72,15 @@ export async function runVeraPdf(
       // Bound the veraPDF JVM so a pathological tagged output can't hang the
       // remediation pipeline. A timeout surfaces as a non-zero exit handled
       // by the catch below (treated as "could not validate"), never blocking.
-      { maxBuffer: 32 * 1024 * 1024, timeout: timeoutMs },
+      {
+        maxBuffer: 32 * 1024 * 1024,
+        timeout: timeoutMs,
+        // Same rationale as the qpdf spawn sites (RB3-2) and the OOXML /
+        // remediation workers (RB2-d): veraPDF is a JVM parsing
+        // ATTACKER-CONTROLLED PDF bytes and must not inherit the API's own
+        // secrets. It needs none of them — PATH/JAVA_HOME/TMPDIR survive.
+        env: buildChildSpawnEnv(),
+      },
     );
     stdout = result.stdout;
   } catch (e) {
@@ -80,6 +89,12 @@ export async function runVeraPdf(
     const err = e as { stdout?: string; stderr?: string; message?: string };
     stdout = err.stdout ?? "";
     if (!stdout) {
+      // execFile's message is "Command failed: <binary path> --flavour ua1 …
+      // <temp path>". This field is serialized to the client by
+      // routes/analyze.ts and persisted into shared reports (reportSanitize
+      // does not touch it), so the detail goes to the server log and the
+      // caller gets a generic string.
+      console.error("veraPDF invocation failed:", err.message);
       return {
         available: true,
         passed: false,
@@ -87,7 +102,7 @@ export async function runVeraPdf(
         failures: [],
         totalFailureCount: 0,
         distinctRuleCount: 0,
-        error: err.message ?? "veraPDF exited with error and no output",
+        error: "veraPDF exited with an error and produced no output",
       };
     }
     exitWasError = true;

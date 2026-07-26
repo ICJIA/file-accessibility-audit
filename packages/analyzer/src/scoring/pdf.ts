@@ -14,6 +14,8 @@ import {
   aggregateScore,
   applyWcagCriteria,
   classifyLinkText,
+  structTreeIsContentFree,
+  untaggedContentImageCount,
   type ScoringResult,
   type PdfUaSignals,
 } from "./common.js";
@@ -152,6 +154,23 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     );
     findings.push(
       "How to fix: In Adobe Acrobat, open File → Properties → Security and either remove security or enable 'Enable text access for screen reader devices for the visually impaired', then re-save. Modern AES-256 encryption always permits accessibility.",
+    );
+  } else if (pdfjs.hasText && qpdf.hasStructTree && structTreeIsContentFree(qpdf, pdfjs)) {
+    // The root object exists but the tree references nothing — the same
+    // barrier as an untagged file, so the same score. Reporting this as
+    // "Document is tagged" credited a document whose entire body text sits
+    // outside the structure tree.
+    score = 50;
+    findings.push("PDF contains extractable text");
+    findings.push(
+      "A tag structure (StructTreeRoot) is present but EMPTY — it references no paragraphs, headings, figures, tables, lists, or marked content.",
+    );
+    if (pdfjs.textLength)
+      findings.push(
+        `All ${pdfjs.textLength.toLocaleString()} characters of text sit outside the structure tree, so a screen reader following the tags receives nothing — the same result as an untagged document.`,
+      );
+    findings.push(
+      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF, then open the Tags panel and confirm the body content now appears beneath the tags.",
     );
   } else if (pdfjs.hasText && qpdf.hasStructTree) {
     score = 100;
@@ -640,7 +659,41 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     };
   }
 
-  // Untagged/raw image signals are too noisy to score automatically.
+  // Content images with no <Figure> tag at all — measured from pdfjs's
+  // artifact-aware walk, so correctly-artifacted decorative graphics are
+  // already excluded. null when pdfjs could not measure it.
+  const untaggedContentImages = untaggedContentImageCount(qpdf, pdfjs);
+
+  // No tagged figures, but there ARE content images painted outside every
+  // /Artifact run. This is the WORST alt-text case — nothing is described and
+  // nothing is even in the reading order — and it used to return N/A, which
+  // dropped the category out of the weighted average and let this document
+  // out-score one with a single missing /Alt.
+  if (figures.length === 0 && untaggedContentImages !== null && untaggedContentImages > 0) {
+    return {
+      id: "alt_text",
+      label: "Alt Text on Images",
+      weight: SCORING_WEIGHTS.alt_text,
+      score: 0,
+      grade: getGrade(0),
+      severity: getSeverity(0),
+      findings: [
+        `${untaggedContentImages} content image(s) are painted on the page but none are tagged as <Figure> — they have no alternative text and are missing from the reading order entirely.`,
+        "These are the images left AFTER excluding everything correctly marked as a decorative Artifact, so each one is either content that needs a description or decoration that still needs to be artifacted.",
+        "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order. Select each image, then either click Figure and add alternate text (right-click → Edit Alternate Text), or click Background/Artifact if it is purely decorative.",
+        `--- Image Census ---`,
+        `  Tagged <Figure> elements: 0`,
+        `  Content images painted outside any /Artifact run: ${untaggedContentImages}`,
+        `  Total image rendering operations observed: ${pdfjs.imageCount}`,
+        `  Image XObjects in the PDF object graph: ${qpdf.imageObjectCount}`,
+      ],
+      explanation: altExplanation,
+      helpLinks: altLinks,
+    };
+  }
+
+  // Raw image signals with no artifact-coverage evidence are still too noisy
+  // to score automatically (pdfjs failed, or reported no artifact data).
   if (figures.length === 0 && untaggedImageSignals > 0) {
     const advisoryFindings: string[] = [
       `${untaggedImageSignals} image-like object(s) detected, but no tagged <Figure> elements were found`,
@@ -694,14 +747,15 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   }
 
   const withAlt = figures.filter((f) => f.hasAlt).length;
-  const score = withAlt === 0 ? 0 : Math.floor((withAlt / figures.length) * 100);
+  // Content images absent from the tag tree count AGAINST coverage rather
+  // than being ignored: a partially tagged document can paint many more
+  // images than it tags, and those are worse off than a figure with no /Alt.
+  // Scoring tagged figures alone let a document claim "all images described"
+  // while half of them were never in the reading order.
+  const untaggedInDenominator = untaggedContentImages ?? 0;
+  const describableTotal = figures.length + untaggedInDenominator;
+  const score = withAlt === 0 ? 0 : Math.floor((withAlt / describableTotal) * 100);
   const findings: string[] = [];
-
-  // Painted images beyond the tagged figures: once ≥1 <Figure> exists the
-  // category scores tagged figures only, but a partially tagged document can
-  // paint many MORE images that are absent from the tag tree entirely (worse
-  // than missing alt). Never claim full coverage over those.
-  const paintedBeyondFigures = Math.max(pdfjs.imageCount, qpdf.imageObjectCount) - figures.length;
 
   if (withAlt === figures.length) {
     findings.push(`All ${figures.length} tagged image(s) have alternative text`);
@@ -749,9 +803,12 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     );
   }
 
-  if (paintedBeyondFigures > 0) {
+  if (untaggedInDenominator > 0) {
     findings.push(
-      `Advisory — manual review: ${paintedBeyondFigures} more image(s) are painted in the document than are tagged as <Figure>. Content images not tagged as figures are missing from the reading order entirely; decorative ones should be artifacted. Verify in Acrobat's Tags panel which of these need tagging.`,
+      `${untaggedInDenominator} further content image(s) are painted in the document but are not tagged as <Figure> at all — they are missing from the reading order entirely, which is worse than a figure with no /Alt. They are counted against this category's coverage above.`,
+    );
+    findings.push(
+      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order, select each untagged image, then either click Figure and add alternate text, or click Background/Artifact if it is decorative.",
     );
   }
 

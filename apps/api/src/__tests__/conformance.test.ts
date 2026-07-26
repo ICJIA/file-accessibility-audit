@@ -263,3 +263,137 @@ describe("conformance gate — mid-band order divergence still flags manual revi
     expect(v.notAssessed.some((n: any) => n.sc === "1.3.2")).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// A StructTreeRoot that exists but references no content is not a tagged
+// document. The gate used to test only for the ROOT's presence, so a file
+// whose tag tree held nothing — every character of body text outside it —
+// came back "no automated WCAG failures", while the same file with the root
+// stripped correctly failed 1.3.1. Adding an empty root must not launder a
+// failing document into a clean verdict.
+//
+// Real-world source: controls/ILHEALSFallWinter2022FINAL-remediated.pdf —
+// 9,948 characters of text, /MCID appears zero times in the whole file, and
+// the tree is StructTreeRoot -> /Document -> 19 x /Link.
+// ---------------------------------------------------------------------------
+
+/** A structure tree that demonstrably references no content at all. */
+function vacuousTree(overrides: any = {}) {
+  return makeQpdf({
+    hasStructTree: true,
+    paragraphCount: 0,
+    headings: [],
+    images: [],
+    tables: [],
+    lists: [],
+    contentOrder: [],
+    structTreeMcidsByPage: {},
+    ...overrides,
+  });
+}
+
+describe("conformance gate — structure tree present but empty", () => {
+  it("fails 1.3.1 when the tree references no content and the document has text", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(vacuousTree(), makePdfjs({ textLength: 9948 }), cleanCategories);
+
+    expect(v.status).toBe("fail");
+    const f = v.failures.find((x: any) => x.sc === "1.3.1");
+    expect(f?.category).toBe("text_extractability");
+  });
+
+  it("does not fire when the tree carries paragraph content", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      vacuousTree({ paragraphCount: 80, contentOrder: [0, 1, 2] }),
+      makePdfjs({ textLength: 9948 }),
+      cleanCategories,
+    );
+    expect(v.failures.some((x: any) => x.sc === "1.3.1")).toBe(false);
+  });
+
+  it("does not fire when the tree carries only figures (no paragraphs, no MCIDs)", async () => {
+    // Content-bearing elements exist even though no marked content was
+    // collected — not enough evidence to assert the tree is empty.
+    const evaluate = await loadGate();
+    const v = evaluate(
+      vacuousTree({ images: [{ ref: "5 0 R", hasAlt: true, altText: "A chart" }] }),
+      makePdfjs({ textLength: 9948 }),
+      cleanCategories,
+    );
+    expect(v.failures.some((x: any) => x.sc === "1.3.1")).toBe(false);
+  });
+
+  it("does not fire when there is no text for the tree to be missing", async () => {
+    // A genuinely empty document has an empty tree legitimately; the
+    // scanned-image and untagged checks already cover its real problems.
+    const evaluate = await loadGate();
+    const v = evaluate(vacuousTree(), makePdfjs({ textLength: 0 }), cleanCategories);
+    expect(v.failures.some((x: any) => x.sc === "1.3.1")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Content images that are painted but never tagged as <Figure> are strictly
+// WORSE for a screen-reader user than a tagged figure with a missing /Alt —
+// they are absent from the reading order entirely. The gate counted only
+// tagged figures, so the worse case asserted nothing and the alt_text
+// category scored it N/A, letting such a document out-score one with a
+// single missing /Alt.
+//
+// `nonArtifactImageCount` is the honest signal: images pdfjs painted OUTSIDE
+// any /Artifact run, i.e. exactly the ones that participate in the reading
+// order and require a text alternative. Images the author correctly
+// artifacted are already excluded, which is what made the old raw-count
+// signal too noisy to act on.
+// ---------------------------------------------------------------------------
+describe("conformance gate — content images that were never tagged", () => {
+  it("fails 1.1.1 for non-artifact images with no <Figure> tag at all", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ images: [], imageObjectCount: 4 }),
+      makePdfjs({ imageCount: 4, nonArtifactImageCount: 4 }),
+      cleanCategories,
+    );
+    const f = v.failures.find((x: any) => x.sc === "1.1.1");
+    expect(f?.category).toBe("alt_text");
+    expect(f?.issue).toContain("4");
+  });
+
+  it("does not fire when every painted image is artifacted", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ images: [], imageObjectCount: 4 }),
+      makePdfjs({ imageCount: 4, nonArtifactImageCount: 0 }),
+      cleanCategories,
+    );
+    expect(v.failures.some((x: any) => x.sc === "1.1.1")).toBe(false);
+  });
+
+  it("does not fire when the content images are all covered by tagged figures", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({
+        images: [
+          { ref: "5 0 R", hasAlt: true, altText: "A" },
+          { ref: "6 0 R", hasAlt: true, altText: "B" },
+        ],
+        imageObjectCount: 2,
+      }),
+      makePdfjs({ imageCount: 2, nonArtifactImageCount: 2 }),
+      cleanCategories,
+    );
+    expect(v.failures.some((x: any) => x.sc === "1.1.1")).toBe(false);
+  });
+
+  it("does not fire when pdfjs could not measure artifact coverage", async () => {
+    // No nonArtifactImageCount => no evidence => no confirmed claim.
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({ images: [], imageObjectCount: 9 }),
+      makePdfjs({ imageCount: 9, nonArtifactImageCount: undefined }),
+      cleanCategories,
+    );
+    expect(v.failures.some((x: any) => x.sc === "1.1.1")).toBe(false);
+  });
+});
