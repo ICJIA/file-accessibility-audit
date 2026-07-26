@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "report-order-criticals-first-2026-07-26",
+    badge: "Improved",
+    text: 'Your report now leads with what actually blocks publishing. The critical issues and their fix steps appear directly under your score, above the technical PDF/UA-1 (veraPDF) panel — which is informational. That panel can show a green "Pass" on a document that still has critical WCAG issues to fix, because the two checks answer different questions: PDF/UA-1 verifies the file\'s formal tagging, while your WCAG grade is what decides whether people can actually use the document. When both are true, the panel now says so in plain language instead of just showing a green tick.',
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "July 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "audit-integrity-2026-07-26",
     badge: "Improved",
     text: "Accuracy and integrity fixes to how documents are judged — every one of them catching a real barrier the audit used to miss. A PDF carrying an EMPTY set of accessibility tags (the structure was there, but nothing was inside it) was being reported as properly tagged with no detected failures; it is now treated exactly like an untagged file, because that is what it means for someone using a screen reader. Images that were never tagged at all — invisible to a screen reader, and worse than an image with a missing description — now count against the score instead of being skipped. Re-auditing a document may therefore give a different score than before: reports you saved earlier keep the score they were given at the time, and the fresh audit is the correct one.",

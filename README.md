@@ -1029,6 +1029,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
 
+### v1.38.1 — 2026-07-26 · Report ordering — blocking issues above the informational PDF/UA panel (not a security release)
+
+Presentation only: the critical-issues banner and the issues-to-fix list moved above the PDF/UA-1 (veraPDF) panel on both the audit page and shared reports, and a veraPDF "Pass" alongside unresolved Critical WCAG issues now says so explicitly instead of rendering a bare green tick. Rationale: the two checks answer different questions — PDF/UA-1 verifies formal tagging, the WCAG grade reflects real usability — so a Pass can legitimately coexist with Critical failures, and showing it first invited authors to stop reading. No new attack surface introduced; no user input is rendered by the changed markup (the caveat interpolates an integer count derived from server-side severity labels), no network, storage, or scoring change, and pre-existing posture re-verified. Controls corpus unchanged. Tests 1,624 → 1,637.
+
 ### v1.38.0 — 2026-07-26 · Audit-algorithm review — **security release** (DoS, secret inheritance, path disclosure) + verdict-integrity fixes
 
 A fresh-eyes review of the audit algorithms, with fixes for the five defects it confirmed. Three carry security weight:

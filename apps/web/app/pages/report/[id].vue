@@ -103,17 +103,14 @@
             <ScoreCard :result="data.report" :show-filename="false" />
           </div>
 
-          <!-- PDF/UA-1 machine-check verdict (veraPDF) — informational,
-             subordinate to the grade above; self-hides when the verdict is
-             absent (non-PDF, or veraPDF unavailable). -->
-          <PdfUaVerdict
-            v-if="data.report?.pdfUaVerdict"
-            :verdict="data.report.pdfUaVerdict"
-            :grade="data.report?.grade"
-            :verapdf-url="String(config.public.verapdfUrl ?? '')"
-            class="mb-6"
-          />
-
+          <!-- BLOCKING information first. The PDF/UA panel below can show a
+             green "Pass" on a document that still has Critical WCAG failures
+             — they answer different questions, and only these decide whether
+             the document is publishable. Ordered above the informational
+             panels so a reader (especially a non-technical one) cannot read a
+             machine-check pass as "done" before ever seeing what blocks
+             publication. Do not move these below PdfUaVerdict; the ordering
+             is pinned by app/__tests__/reportSectionOrder.test.ts. -->
           <ReportActionBanner
             v-if="data?.report?.categories"
             :categories="data.report.categories"
@@ -126,6 +123,21 @@
             :categories="data.report.categories"
             class="mb-8"
           />
+
+          <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
+             deliberately below the blocking issues above: a "Pass" here does
+             not mean the document is publishable, only that the formal
+             machine-checkable PDF/UA-1 rules were met. Self-hides when the
+             verdict is absent (non-PDF, or veraPDF unavailable). -->
+          <PdfUaVerdict
+            v-if="data.report?.pdfUaVerdict"
+            :verdict="data.report.pdfUaVerdict"
+            :grade="data.report?.grade"
+            :categories="data.report?.categories"
+            :verapdf-url="String(config.public.verapdfUrl ?? '')"
+            class="mb-6"
+          />
+
           <!-- Scanned warning -->
           <div
             v-if="data.report.isScanned"

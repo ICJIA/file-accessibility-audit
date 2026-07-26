@@ -263,18 +263,24 @@
             <ScoreCard :result="result" :show-filename="false" />
           </div>
 
-          <!-- PDF/UA-1 machine-check verdict (veraPDF) — informational,
-             subordinate to the Strict grade above; self-hides when the
-             verdict is absent (non-PDF, or veraPDF unavailable). -->
-          <PdfUaVerdict
-            v-if="result?.pdfUaVerdict"
-            :verdict="result.pdfUaVerdict"
-            :grade="result?.grade"
-            :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
-            class="mb-6"
+          <!-- BLOCKING information first. The PDF/UA panel below can show a
+             green "Pass" on a document that still has Critical WCAG failures
+             — they answer different questions, and only these decide whether
+             the document is publishable. Ordered above the informational
+             panels so an author (especially a non-technical one) cannot read
+             a machine-check pass as "done" before ever seeing what blocks
+             publication. Do not move these below PdfUaVerdict; the ordering
+             is pinned by app/__tests__/reportSectionOrder.test.ts. -->
+          <ReportActionBanner
+            v-if="result?.categories"
+            :categories="result.categories"
+            :file-type="result?.fileType"
+            class="mb-4"
           />
 
-          <!-- Auto-Remediate (visible right under the score; component
+          <IssuesSummary v-if="result?.categories" :categories="result.categories" class="mb-8" />
+
+          <!-- Auto-Remediate (component
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each
              tab can be remediated independently. PDF-only: the remediation
@@ -294,14 +300,19 @@
             <SourceDocumentNotice variant="audit" :file-type="result?.fileType" />
           </div>
 
-          <ReportActionBanner
-            v-if="result?.categories"
-            :categories="result.categories"
-            :file-type="result?.fileType"
-            class="mb-4"
+          <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
+             deliberately below the blocking issues above: a "Pass" here does
+             not mean the document is publishable, only that the formal
+             machine-checkable PDF/UA-1 rules were met. Self-hides when the
+             verdict is absent (non-PDF, or veraPDF unavailable). -->
+          <PdfUaVerdict
+            v-if="result?.pdfUaVerdict"
+            :verdict="result.pdfUaVerdict"
+            :grade="result?.grade"
+            :categories="result?.categories"
+            :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
+            class="mb-6"
           />
-
-          <IssuesSummary v-if="result?.categories" :categories="result.categories" class="mb-8" />
 
           <MethodologyCard :file-type="result?.fileType" />
 

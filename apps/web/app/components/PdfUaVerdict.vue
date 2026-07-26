@@ -3,8 +3,20 @@
 import { computed, ref } from "vue";
 import type { PdfUaVerdict } from "@file-audit/shared";
 import { pdfUaFixHint } from "./pdfUaFixHint";
+import { tallySeverity } from "~/utils/severityTally";
 
-const props = defineProps<{ verdict: PdfUaVerdict; verapdfUrl?: string; grade?: string }>();
+const props = defineProps<{
+  verdict: PdfUaVerdict;
+  verapdfUrl?: string;
+  grade?: string;
+  /**
+   * Scoring categories, used only to warn that a PDF/UA-1 Pass is not a
+   * publishing green light while Critical WCAG issues remain. Optional: the
+   * remediation page reuses this panel with no categories, and the caveat
+   * simply doesn't render there.
+   */
+  categories?: Array<{ severity?: string | null }>;
+}>();
 // Default collapsed: the failed-checkpoint list is non-empty on ~95% of
 // documents, so it must not dump a long list unprompted. Expandable via the
 // toggle button below.
@@ -34,6 +46,18 @@ const isFail = computed(() => !couldNotValidate.value && !props.verdict?.passed)
 const gradeKnown = computed(() => typeof props.grade === "string" && props.grade.length > 0);
 const gradeIsGood = computed(() => props.grade === "A" || props.grade === "B");
 const showDontPanic = computed(() => isFail.value && gradeIsGood.value);
+
+// The inverse of showDontPanic, and the more dangerous direction: veraPDF can
+// PASS a document that still carries Critical WCAG failures, because the two
+// checks answer different questions — PDF/UA-1 verifies the file's formal
+// tagging, the WCAG grade decides whether people can actually use it. A bare
+// green tick there reads as "done" to an author who isn't steeped in the
+// distinction. Counted with the same tallySeverity() the action banner uses,
+// so the number here can never disagree with the one above it.
+const outstandingCritical = computed(() => tallySeverity(props.categories).critical);
+const showPassCaveat = computed(
+  () => !couldNotValidate.value && props.verdict?.passed === true && outstandingCritical.value > 0,
+);
 
 // Defensive client-side sort so "most frequent first" and the Pareto top-3
 // hold even for verdicts saved before the API sorted them (Task 1).
@@ -106,6 +130,13 @@ function fmt(n: number): string {
         <p v-else class="font-medium mb-1">
           PDF/UA-1 machine checks (veraPDF):
           {{ verdict.passed ? "Pass" : "Additional checks could be addressed" }}
+        </p>
+        <p v-if="showPassCaveat" class="mb-2 text-[var(--text-secondary)]">
+          <strong class="text-[var(--text-heading)]">This is not a publishing green light</strong>
+          — {{ outstandingCritical }} critical
+          {{ outstandingCritical === 1 ? "issue" : "issues" }} above must still be fixed. PDF/UA-1
+          checks the file's formal tagging; the WCAG grade is what decides whether people can
+          actually use the document.
         </p>
         <template v-if="showDontPanic">
           <p class="mb-2">

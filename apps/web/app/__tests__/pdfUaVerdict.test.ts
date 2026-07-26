@@ -342,3 +342,55 @@ describe("PdfUaVerdict.vue — Don't Panic badge + grade-aware reconciliation", 
     expect(w.find('[data-testid="pdfua-reconcile"]').exists()).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// A PDF/UA-1 "Pass" is NOT a publishing green light. The two checks answer
+// different questions: veraPDF verifies the file's formal tagging, while the
+// WCAG grade is what decides whether people can actually use the document —
+// so a document can pass every machine-checkable PDF/UA-1 rule and still
+// carry Critical WCAG failures. A user hit exactly that: a green "✓ Pass"
+// on a report that also said "2 critical issues must be fixed before
+// publishing". The panel now names the outstanding criticals in that case.
+//
+// Page ordering carries most of this (the blocking issues render above the
+// panel — see reportSectionOrder.test.ts); this is the second line of
+// defence for someone who scrolls straight to the green tick.
+// ---------------------------------------------------------------------------
+describe("PdfUaVerdict.vue — a Pass alongside unresolved Critical WCAG issues", () => {
+  const passed = { ...base, passed: true, totalFailureCount: 0, failures: [] };
+  const withCriticals = [{ severity: "Critical" }, { severity: "Critical" }, { severity: "Minor" }];
+
+  it("warns that a Pass is not a green light when Critical issues remain", () => {
+    const w = mount(PdfUaVerdict, {
+      props: { verdict: passed, grade: "C", categories: withCriticals },
+    });
+    expect(w.text()).toMatch(/not a publishing green light/i);
+  });
+
+  it("names how many Critical issues are still outstanding", () => {
+    const w = mount(PdfUaVerdict, {
+      props: { verdict: passed, grade: "C", categories: withCriticals },
+    });
+    expect(w.text()).toMatch(/2 critical/i);
+  });
+
+  it("stays silent when the document passes and has no Critical issues", () => {
+    const w = mount(PdfUaVerdict, {
+      props: { verdict: passed, grade: "A", categories: [{ severity: "Minor" }] },
+    });
+    expect(w.text()).toMatch(/Pass/);
+    expect(w.text()).not.toMatch(/not a publishing green light/i);
+  });
+
+  it("stays silent when no categories are supplied (the remediation page reuse)", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: passed } });
+    expect(w.text()).not.toMatch(/not a publishing green light/i);
+  });
+
+  it("does not add the caveat to a non-pass verdict, which already explains itself", () => {
+    const w = mount(PdfUaVerdict, {
+      props: { verdict: base, grade: "C", categories: withCriticals },
+    });
+    expect(w.text()).not.toMatch(/not a publishing green light/i);
+  });
+});

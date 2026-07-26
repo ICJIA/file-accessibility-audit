@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.38.1] - 2026-07-26
+
+Report layout fix: blocking issues now come before the informational PDF/UA panel. No scoring change — every score, grade and verdict is byte-identical to v1.38.0.
+
+### Fixed
+
+- **Critical issues are now shown above the PDF/UA-1 (veraPDF) panel, not below it.** The two checks answer different questions, and only one of them decides whether a document can be published: PDF/UA-1 verifies the file's formal tagging, while the WCAG grade reflects whether people can actually use the document. Because of that, veraPDF can return a green "✓ Pass" on a document that still carries Critical WCAG failures — and the panel was rendering *above* the "N critical issues must be fixed before publishing" banner. An author, especially a non-technical one, reads the first green badge as "done" and stops scrolling. The order on both the audit page and shared reports is now: score → critical-issues banner → issues to fix (with fix steps) → auto-remediate / source-document notice → PDF/UA-1 panel → methodology → category scores. The ordering is pinned by a test so it cannot silently regress.
+
+- **A PDF/UA-1 "Pass" no longer reads as a publishing green light while Critical issues remain.** When veraPDF passes but the document still has Critical WCAG failures, the panel now states plainly that this is not a green light, names how many critical issues are still outstanding, and explains the distinction in one sentence. It counts those issues with the same helper the action banner uses, so the two numbers can never disagree. A document that genuinely has no critical issues still shows the plain "Pass" exactly as before, and the panel is unchanged on the remediation page, which reuses it without category data.
+
+Tests 1,624 → 1,637 (API 1041 / Web 534 → 547 / CLI 49); lint, typecheck, build green.
+
 ## [1.38.0] - 2026-07-26
 
 A fresh-eyes review of the audit algorithms, followed by fixes for the five defects it confirmed. **This release changes scores and verdicts for some documents** — see the note at the end. It is also a **security release**: it closes a remotely-triggerable denial of service, a secret-inheritance gap, and a path-disclosure leak.

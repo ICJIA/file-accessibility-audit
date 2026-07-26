@@ -68,6 +68,33 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.38.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.38.1</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-07-26</strong> · scope: the order in which report sections are
+            presented — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          A report can carry two different verdicts that mean different things, and they were shown
+          in a misleading order. The technical PDF/UA-1 check (which examines whether a PDF's tagging
+          is formally well-formed) was displayed above the list of accessibility issues that actually
+          have to be fixed before publishing — and that technical check can report "Pass" on a
+          document that still has critical problems, because it answers a narrower question than the
+          accessibility grade does. Someone reading their report could see a green result first and
+          reasonably conclude they were finished. The critical issues and their fix steps now appear
+          directly beneath the score, above the technical panel; and when the technical check passes
+          while critical issues remain, it now says so in plain language rather than showing a bare
+          green tick. This is a presentation change only — no scores, grades, or verdicts changed,
+          and no new information is read from your documents.
+          <strong>No change to what data is collected or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.38.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
