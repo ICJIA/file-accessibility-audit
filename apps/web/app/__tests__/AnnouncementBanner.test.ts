@@ -121,4 +121,64 @@ describe("AnnouncementBanner", () => {
     // Must not throw; with no valid dismissed-id list, the banner still shows.
     expect(wrapper.find('[role="region"]').exists()).toBe(true);
   });
+
+  it("always offers the archive link so dismissed updates stay reachable", async () => {
+    const wrapper = mount(AnnouncementBanner);
+    await nextTick();
+    const archive = wrapper
+      .findAll("a")
+      .find((a) => a.attributes("href") === "/announcements" || a.text().includes("See all"));
+    expect(archive).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------
+  // v1.39.0 regression: /status is a Nitro SERVER route, not a Vue page.
+  // A plain NuxtLink navigates client-side, so the Vue router finds no match
+  // and renders its own "Page not found: /status" — the server is never
+  // contacted. `external` forces a real document navigation. This shipped
+  // broken; the test exists so it cannot ship broken again.
+  // ---------------------------------------------------------------------
+  describe("linkExternal", () => {
+    function mountWith(announcement: Record<string, unknown>) {
+      vi.stubGlobal(
+        "useRuntimeConfig",
+        vi.fn(() => ({
+          public: { wcagVersion: "2.2", announcements: [announcement] },
+        })),
+      );
+      return mount(AnnouncementBanner);
+    }
+
+    it("marks a server-route link as external", async () => {
+      const wrapper = mountWith({
+        id: "ext",
+        badge: "New",
+        text: "t",
+        linkText: "status",
+        linkTo: "/status",
+        linkExternal: true,
+      });
+      await nextTick();
+      const link = wrapper.findAll("a").find((a) => a.text().includes("status"));
+      expect(link).toBeTruthy();
+      // The NuxtLink stub passes `external` through to the anchor as a string.
+      expect(link!.attributes("external")).toBe("true");
+    });
+
+    it("leaves an ordinary in-app link non-external", async () => {
+      const wrapper = mountWith({
+        id: "int",
+        badge: "New",
+        text: "t",
+        linkText: "page",
+        linkTo: "/wcag-2-2",
+      });
+      await nextTick();
+      const link = wrapper.findAll("a").find((a) => a.text().includes("page"));
+      expect(link).toBeTruthy();
+      // Explicitly false, not merely absent — an ordinary page link must keep
+      // SPA navigation rather than forcing a full document reload.
+      expect(link!.attributes("external")).toBe("false");
+    });
+  });
 });

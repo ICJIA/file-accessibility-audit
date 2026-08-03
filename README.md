@@ -825,10 +825,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      1082 passed (54 files)
-  ✔ Web      567 passed (45 files)
+  ✔ Web      570 passed (45 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1698 tests passed across 105 files
+  ✔ 1701 tests passed across 105 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -889,7 +889,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (567 tests)
+### Web Tests (570 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1079,6 +1079,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.39.1 — 2026-08-03 · Banner link hotfix + announcement archive (not a security release)
+
+The v1.39.0 banner link to `/status` rendered the SPA 404. `/status` is a Nitro **server** route, so the Vue router has no match for it and an ordinary `<NuxtLink>` navigates client-side, never contacting the server — visiting the URL directly always worked, which disguised a link bug as a deploy failure. Announcement entries now carry `linkExternal`, required for any target that is a server route, with both states pinned by tests. Also adds `/announcements`, an archive of past banner entries (the banner shows one entry and is permanently dismissible, so prior updates were otherwise unreachable). No data-handling, retention, or authentication change; the archive renders only notices already published on the home page.
 
 ### v1.39.0 — 2026-08-03 · Public `/status` endpoint — reviewed for disclosure (not a security-fix release)
 

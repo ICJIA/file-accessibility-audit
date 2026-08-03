@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.39.1] - 2026-08-03
+
+Hotfix for v1.39.0: the banner link to the new status page 404'd. Adds an archive of past announcements.
+
+### Fixed
+
+- **The "View the status page" link in the home-page banner no longer shows "Page not found: /status".** `/status` is a Nitro *server* route, not a Vue page, so the Vue router has no match for it. The banner used an ordinary `<NuxtLink>`, which navigates **client-side** — the router found nothing, rendered its own 404, and never contacted the server. Visiting the URL directly always worked, which is what made it look like a deploy problem rather than a link problem. Announcement entries now carry a `linkExternal` flag that forces a real document navigation; it is required for any link whose target is a server route. Both states are pinned by tests so this cannot ship broken again.
+
+### Added
+
+- **An archive of every past announcement at `/announcements`,** linked as "See all updates" from the banner. The banner shows only the most recent entry and can be dismissed permanently, so previous updates were otherwise unreachable. The archive applies the same WCAG-version filter the banner does, so it never shows an announcement that does not describe the running configuration.
+
+### Notes
+
+The banner entry for the status page had its `id` bumped rather than being replaced by a new entry. Prepending a new announcement would have buried the status-page one — which, because of the bug above, no visitor could successfully act on. Changing the id re-shows it once, including to anyone who had already dismissed it.
+
+Tests 1,698 → 1,701 (Web 567 → 570); lint, typecheck, build green.
+
 ## [1.39.0] - 2026-08-03
 
 Adds a public service-status page at **`https://audit.icjia.app/status`** — health, engine checks, and how many documents the tool has audited, as JSON. No scoring change: every score, grade and verdict is byte-identical to v1.38.2.

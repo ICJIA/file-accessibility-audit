@@ -11,15 +11,28 @@
     >
     <p class="flex-1 text-sm text-[var(--text-secondary)] leading-relaxed">
       {{ current.text }}
+      <!-- `external` forces a real document navigation instead of a client-side
+           route change. Required for targets that are Nitro SERVER routes
+           (e.g. /status) rather than Vue pages: the Vue router has no match
+           for those, so a normal NuxtLink renders the SPA 404 without ever
+           contacting the server. See linkExternal in audit.config.ts. -->
       <NuxtLink
         v-if="current.linkTo"
         :to="current.linkTo"
+        :external="current.linkExternal === true"
         class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
         >{{ current.linkText }}</NuxtLink
       >
-      <span v-if="current.date" class="mt-1 block text-xs text-[var(--text-muted)]"
-        >Updated {{ current.date }}</span
-      >
+      <span class="mt-1 block text-xs text-[var(--text-muted)]">
+        <template v-if="current.date">Updated {{ current.date }} · </template>
+        <!-- /announcements is a Vue page, so no `external` needed here. -->
+        <NuxtLink
+          to="/announcements"
+          class="underline hover:text-[var(--text-heading)]"
+          aria-label="See all previous announcements"
+          >See all updates</NuxtLink
+        >
+      </span>
     </p>
     <button
       type="button"
@@ -44,6 +57,8 @@ const announcements = (pub.announcements ?? []) as Array<{
   text: string;
   linkText?: string;
   linkTo?: string;
+  /** Set true when linkTo is a server route rather than a Vue page. */
+  linkExternal?: boolean;
   date?: string;
   requiresWcagVersion?: string | null;
 }>;

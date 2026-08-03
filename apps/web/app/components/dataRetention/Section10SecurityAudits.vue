@@ -68,6 +68,28 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.39.1 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.39.1</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: a broken link and a new archive page — not
+            a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The link to the new status page, added in the previous release, produced a "page not
+          found" error when clicked from the home-page banner, though the page itself worked
+          normally when its address was typed directly. That is fixed. This release also adds a page
+          listing every past announcement, since the banner shows only the most recent one and can
+          be dismissed. That archive displays the same notices already shown on the home page and
+          reads nothing from your documents.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.39.0 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

@@ -188,11 +188,25 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
-    id: "public-status-page-2026-08-03",
+    /**
+     * id bumped from `public-status-page-2026-08-03` in v1.39.1. The original
+     * shipped with a broken link (see linkExternal below), so everyone who
+     * clicked it got a 404 — and anyone who dismissed the banner would never
+     * have seen a corrected version. Changing the id re-shows it once.
+     */
+    id: "public-status-page-2026-08-03-r2",
     badge: "New",
     text: "There is now a status page at /status showing whether the audit service is running, whether each of its checking engines is working, and how many documents have been audited — broken down by PDF, Word, PowerPoint and Excel. It is plain data, updated continuously, for anyone who wants to confirm the tool is healthy or see how much it is being used. It contains only totals: no file names, no email addresses, and nothing identifying anyone who has used the service.",
     linkText: "View the status page",
     linkTo: "/status",
+    /**
+     * REQUIRED here. /status is a Nitro SERVER route, not a Vue page, so the
+     * Vue router has no match for it: a normal NuxtLink navigates client-side
+     * and renders the SPA "Page not found: /status" screen without ever
+     * reaching the server. `external` forces a real document navigation.
+     * Set this for any linkTo that is a server route.
+     */
+    linkExternal: true,
     /** Shown under the text so visitors can see the tool is actively maintained. */
     date: "August 3, 2026",
     /** Only shown while the app is on this WCAG version (null = always). */
