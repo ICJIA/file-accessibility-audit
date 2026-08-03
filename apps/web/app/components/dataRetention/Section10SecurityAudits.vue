@@ -68,6 +68,36 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.41.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.41.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: navigation and an accessibility fix — not
+            a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          The header now carries a "Status" link and no longer carries an "Analyze" link — clicking
+          the site title clears your results and starts a new file, which it already did. Because
+          that title is now the only way to start over, it was also fixed to work with a keyboard:
+          previously it responded only to a mouse click, which made it unusable for anyone
+          navigating by keyboard or screen reader. On a tool that audits other people's documents
+          for exactly this kind of problem, that was worth correcting promptly.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          This release also adds automatic checks that run after each deployment, confirming the
+          service answers correctly and that its search-engine instructions file is being served.
+          That file is currently <em>not</em> being served in production due to a web-server
+          configuration issue unrelated to this application's code; the pages that most need to stay
+          out of search results carry a separate instruction in their response headers, which is
+          working. The configuration fix is queued.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.40.3 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

@@ -61,6 +61,18 @@ describe("uptime-monitor routes answer HEAD as well as GET", () => {
     });
   }
 
+  it("links /status from the navbar with a PLAIN <a>, never a NuxtLink", () => {
+    // /status is a Nitro SERVER route with no Vue page behind it. A NuxtLink
+    // navigates client-side, finds no matching route, and renders the SPA
+    // "Page not found: /status" without ever contacting the server — the
+    // exact bug that shipped in v1.39.0. Typing the URL directly still
+    // worked, which is what disguised a link bug as a deploy failure.
+    const layout = readFileSync(resolve(__dirname, "..", "layouts", "default.vue"), "utf-8");
+    expect(layout).toMatch(/<a\s[^>]*href="\/status"/);
+    expect(layout).not.toMatch(/<NuxtLink[^>]*to="\/status"/);
+    expect(layout).not.toMatch(/:to="'\/status'"/);
+  });
+
   it("leaves other server routes untouched", () => {
     // publist is not a monitor target; its .get.ts suffix is correct and this
     // change should not have swept it up.

@@ -825,10 +825,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      1084 passed (54 files)
-  ✔ Web      589 passed (47 files)
+  ✔ Web      592 passed (47 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1722 tests passed across 107 files
+  ✔ 1725 tests passed across 107 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -889,7 +889,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (589 tests)
+### Web Tests (592 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1082,6 +1082,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.41.0 — 2026-08-03 · Header cleanup + keyboard fix + deploy smoke checks (not a security release)
+
+Adds a **Status** link to the header (a plain `<a>`, never a `<NuxtLink>` — `/status` is a Nitro server route, and a NuxtLink renders the SPA 404 without contacting the server; pinned by test). Removes the redundant **Analyze** links from both the desktop nav and the mobile dropdown: clicking the site title clears results and starts a new file. Because that title is now the *only* reset path, it was changed from a bare `<h1>` + `@click` — no focus, no Enter activation, no role — to an `<a href="/">` inside the `<h1>`, restoring keyboard operability (**WCAG 2.1.1**). `rebuild.sh` gained non-fatal post-deploy smoke checks covering `/healthz`, `/status` (GET and HEAD), `/robots.txt` and `/favicon.ico`.
+
+**`/robots.txt` and `/favicon.ico` still 404 in production — the fix is on the server, not in this repo.** Working assets return `etag`/`last-modified` (served by Nitro through the proxy); these two return nginx's own HTML 404 with no etag. They are exactly the two paths in Laravel Forge's default vhost template (`location = /favicon.ico`, `location = /robots.txt`), whose exact-match blocks outrank `proxy_pass` and resolve against a `root` that holds neither file for a Nuxt app. Delete both blocks, then `sudo nginx -t && sudo service nginx reload`.
 
 ### v1.40.3 — 2026-08-03 · `/status` and `/healthz` answer HEAD (monitoring fix, not a security release)
 

@@ -2,11 +2,23 @@
   <div>
     <header class="border-b border-[var(--border)] px-3 sm:px-6 py-4">
       <div class="mx-auto max-w-4xl flex items-center justify-between">
-        <h1
-          class="text-base sm:text-lg font-semibold tracking-tight cursor-pointer hover:text-[var(--text-secondary)] transition-colors"
-          @click="goAnalyze"
-        >
-          {{ config.public.appName }}
+        <!-- The title is the way to start a new audit — the redundant
+             "Analyze" nav links were removed in v1.41.0.
+             It is an <a href="/">, not a bare @click on the <h1>, because it
+             is now the ONLY route back: a click handler on a heading is not
+             focusable, not keyboard-operable, and invisible to assistive
+             technology. On an accessibility auditing tool that would be an
+             especially poor thing to ship. As a link it gets keyboard focus,
+             Enter activation, middle-click/open-in-new-tab and no-JS
+             behaviour for free; @click.prevent adds the state reset. -->
+        <h1 class="text-base sm:text-lg font-semibold tracking-tight">
+          <a
+            href="/"
+            class="cursor-pointer hover:text-[var(--text-secondary)] transition-colors"
+            @click.prevent="goAnalyze"
+          >
+            {{ config.public.appName }}
+          </a>
         </h1>
         <div class="flex items-center gap-2 sm:gap-4">
           <!-- Mobile hamburger -->
@@ -44,13 +56,6 @@
           <!-- Desktop nav -->
           <nav v-if="user" class="hidden md:flex items-center gap-4">
             <a
-              href="/"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer"
-              @click.prevent="goAnalyze"
-            >
-              Analyze
-            </a>
-            <a
               v-if="config.public.faqsUrl"
               :href="config.public.faqsUrl"
               target="_blank"
@@ -77,8 +82,8 @@
               <UButton size="xs" variant="ghost" color="neutral" @click="logout"> Logout </UButton>
             </template>
           </nav>
-          <!-- Always-visible updates link.
-               Deliberately OUTSIDE the <nav v-if="user"> above so its
+          <!-- Always-visible site links.
+               Deliberately OUTSIDE the <nav v-if="user"> above so their
                visibility never depends on auth state.
 
                NOTE: that nav DOES currently render for ordinary visitors —
@@ -86,18 +91,35 @@
                while AUTH.REQUIRE_LOGIN is false, so `user` is truthy. But
                that is incidental, and turning login on (or changing the
                anonymous sentinel to null) would silently hide anything
-               placed inside it. This link must survive that.
+               placed inside it. These links must survive that.
 
-               /announcements is a Vue page, so NuxtLink (SPA navigation) is
-               correct here — unlike /status, which is a server route and
-               needs a real document navigation. -->
-          <nav aria-label="Site updates" class="flex items-center">
+               The two links use DIFFERENT elements on purpose:
+                 /announcements is a Vue page  -> NuxtLink (SPA navigation)
+                 /status is a Nitro SERVER route -> plain <a>
+
+               A NuxtLink to /status would navigate client-side, find no
+               matching Vue route, and render the SPA "Page not found:
+               /status" without ever contacting the server. That exact bug
+               shipped in v1.39.0 and was fixed in v1.39.1 — do not
+               "tidy" this into a NuxtLink. -->
+          <nav aria-label="Site information" class="flex items-center gap-3 sm:gap-4">
             <NuxtLink
               to="/announcements"
               class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               What's New
             </NuxtLink>
+            <!-- Plain <a>, NOT NuxtLink — see the note above. Opens in a new
+                 tab so clicking it mid-audit cannot discard an in-progress
+                 report. -->
+            <a
+              href="/status"
+              target="_blank"
+              rel="noopener"
+              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              Status
+            </a>
           </nav>
           <!-- Color mode toggle -->
           <button
@@ -146,16 +168,6 @@
           v-if="user && mobileMenuOpen"
           class="md:hidden mx-auto max-w-4xl border-t border-[var(--border-subtle)] pt-3 pb-1 px-3 flex flex-col gap-2"
         >
-          <a
-            href="/"
-            class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]"
-            @click.prevent="
-              goAnalyze?.();
-              mobileMenuOpen = false;
-            "
-          >
-            Analyze
-          </a>
           <a
             v-if="config.public.faqsUrl"
             :href="config.public.faqsUrl"

@@ -204,6 +204,35 @@ describe("Semantic HTML & Landmarks", () => {
     const content = readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
     expect(content).toContain("<nav");
   });
+
+  // WCAG 2.1.1 Keyboard. The header title is the ONLY way to reset the app
+  // and start a new audit — the redundant "Analyze" nav links were removed in
+  // v1.41.0. It must therefore be operable without a mouse.
+  //
+  // A bare `@click` on the <h1> (which is what this was) gives no focus, no
+  // Enter activation, and no role: a keyboard or screen-reader user simply
+  // cannot reach it. Shipping that on an accessibility auditing tool would be
+  // a bad look as well as a real barrier.
+  describe("header title reset control", () => {
+    const layout = () => readFileSync(resolve(__dirname, "..", "layouts/default.vue"), "utf-8");
+
+    it("is a real link, not a click handler bolted onto the heading", () => {
+      const content = layout();
+      // The <h1> itself must carry no click handler...
+      expect(content).not.toMatch(/<h1[^>]*@click/);
+      // ...and must wrap an anchor that goes home and resets.
+      expect(content).toMatch(/<h1[\s\S]{0,200}?<a\s[\s\S]{0,200}?href="\/"/);
+      expect(content).toMatch(/@click\.prevent="goAnalyze"/);
+    });
+
+    it("no longer duplicates the reset as an 'Analyze' nav link", () => {
+      // Two controls doing the same thing is the redundancy this replaced;
+      // if one comes back, this heading is no longer the single obvious way
+      // to start over.
+      const content = layout();
+      expect(content).not.toMatch(/>\s*Analyze\s*</);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

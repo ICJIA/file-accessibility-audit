@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.41.0] - 2026-08-03
+
+Header cleanup: adds a Status link, removes the redundant Analyze link, and makes the site title keyboard-operable. Adds post-deploy smoke checks that catch the production `robots.txt` 404.
+
+### Added
+
+- **A "Status" link in the header**, pointing at `/status`. It is a plain `<a>`, **not** a `<NuxtLink>` — `/status` is a Nitro *server* route with no Vue page behind it, so a NuxtLink would navigate client-side, find no match, and render the SPA "Page not found: /status" without ever contacting the server. That exact bug shipped in v1.39.0; a test now pins the element type so it cannot return. Opens in a new tab so clicking it mid-audit cannot discard an in-progress report.
+
+- **Post-deploy smoke checks in `rebuild.sh`.** Non-fatal — PM2 has already restarted successfully by then, so a failed probe is information rather than a reason to abort a working deploy. Probes `/healthz`, `/status` (GET **and** HEAD), `/robots.txt` and `/favicon.ico`, and prints the exact nginx fix when the last two fail.
+
+### Changed
+
+- **The "Analyze" links are gone from both the desktop nav and the mobile dropdown.** Clicking the site title clears results and starts a new file — behaviour the title already had, now the single obvious way to do it. Both were removed so mobile and desktop do not end up with different navigation.
+
+### Fixed
+
+- **The site title is now keyboard-operable (WCAG 2.1.1).** It was a bare `<h1>` with an `@click` handler: no focus, no Enter activation, no role — unreachable without a mouse. Now that it is the *only* way to reset, that would have been a real barrier, and a poor one to ship on an accessibility auditing tool. It is an `<a href="/">` wrapped in the `<h1>`, which brings keyboard focus, Enter activation, middle-click/open-in-new-tab and no-JS behaviour for free; `@click.prevent` adds the state reset.
+
+### Notes
+
+**`/robots.txt` and `/favicon.ico` 404 in production, and this release does not fix it — the fix is on the server.** Diagnosed conclusively: every working static asset (`/favicon.png`, `/llms.txt`, `/og-image.png`) returns `etag` + `last-modified`, i.e. served by Nitro through the proxy; these two return nginx's own HTML 404 with no etag. They are precisely the two paths in Laravel Forge's default vhost template:
+
+```nginx
+location = /favicon.ico { access_log off; log_not_found off; }
+location = /robots.txt  { access_log off; log_not_found off; }
+```
+
+An exact-match `location =` block outranks the `proxy_pass` to Nuxt and resolves against the vhost `root` (Forge's default `/home/forge/<site>/public`), which holds neither file for a Nuxt app — so nginx answers 404 itself and never forwards the request. **Fix:** delete those two blocks from the site's nginx config, then `sudo nginx -t && sudo service nginx reload`. Until then the entire `robots.txt` is missing in production; `/status` and `/healthz` are still covered by their `X-Robots-Tag` headers, but `/login`, `/my-history`, `/history` and `/publist` have no backstop.
+
+Tests 1,722 → 1,725 (Web 589 → 592); lint, typecheck, build green.
+
 ## [1.40.3] - 2026-08-03
 
 `/status` and `/healthz` now answer HEAD requests, which several uptime monitors send by default.

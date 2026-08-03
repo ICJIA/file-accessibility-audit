@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "navbar-status-and-reset-2026-08-03",
+    badge: "Improved",
+    text: "The top of the page is simpler. There is now a “Status” link showing whether the audit service and each of its checking engines are running, and the “Analyze” link has been removed — click the site title on the left to clear your results and start a new file. The title works with the keyboard as well as the mouse, which the old version did not.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 3, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     /**
      * id bumped from `public-status-page-2026-08-03` in v1.39.1. The original
      * shipped with a broken link (see linkExternal below), so everyone who

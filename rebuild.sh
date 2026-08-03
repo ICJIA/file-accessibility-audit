@@ -258,3 +258,90 @@ _stage="pm2-restarted"
 
 echo "Done. Checking status..."
 pm2 status
+
+# ---------------------------------------------------------------------
+# Post-deploy smoke checks.
+#
+# Non-fatal by design: PM2 has already restarted successfully by this
+# point, so a failed probe here is information, not a reason to abort a
+# deploy that otherwise worked.
+#
+# These exist because two of the paths below have silently 404'd in
+# production for months. Nothing in the build catches it: the files are
+# correct in .output/public, and every OTHER static asset serves fine —
+# nginx intercepts these two specific paths before they ever reach Nuxt.
+# ---------------------------------------------------------------------
+SMOKE_URL="${SMOKE_URL:-https://audit.icjia.app}"
+
+echo ""
+echo "Post-deploy smoke checks against ${SMOKE_URL} ..."
+
+_probe() {
+  # $1 = path, $2 = expected status, $3 = HTTP method
+  _code=$(curl -s -o /dev/null -w '%{http_code}' -X "${3:-GET}" --max-time 20 "${SMOKE_URL}$1" 2>/dev/null || echo "000")
+  if [ "$_code" = "$2" ]; then
+    echo "  ✓ ${3:-GET} $1 -> $_code"
+    return 0
+  fi
+  echo "  ✗ ${3:-GET} $1 -> $_code (expected $2)"
+  return 1
+}
+
+_smoke_failed=0
+
+# The app itself. HEAD is checked explicitly because uptime monitors
+# send it by default and these routes 404'd it before v1.40.3.
+_probe /healthz 200 GET  || _smoke_failed=1
+_probe /status  200 GET  || _smoke_failed=1
+_probe /status  200 HEAD || _smoke_failed=1
+
+# Static files nginx is known to intercept. See the note below.
+_robots_ok=1
+_probe /robots.txt  200 GET || _robots_ok=0
+_probe /favicon.ico 200 GET || _robots_ok=0
+
+if [ "$_robots_ok" -eq 0 ]; then
+  cat <<'ROBOTS_HINT'
+
+  ---------------------------------------------------------------
+  robots.txt and/or favicon.ico are 404ing.
+
+  This is an nginx configuration issue, NOT a build problem — both
+  files ARE present in apps/web/.output/public, and every other
+  static asset serves correctly.
+
+  Cause: Laravel Forge's default vhost template contains
+
+      location = /favicon.ico { access_log off; log_not_found off; }
+      location = /robots.txt  { access_log off; log_not_found off; }
+
+  An exact-match `location =` block outranks the proxy_pass to
+  Nuxt, and resolves against the vhost `root` (Forge's default
+  /home/forge/<site>/public) — which holds neither file for a Nuxt
+  app. So nginx answers 404 itself and never forwards the request.
+
+  Fix: edit the site's nginx config (Forge UI, or
+  /etc/nginx/sites-available/<site>), DELETE those two location
+  blocks, then:
+
+      sudo nginx -t && sudo service nginx reload
+
+  Impact while broken: the entire robots.txt is missing in
+  production, so no Disallow rule is being honoured by crawlers.
+  /status and /healthz are still protected by their X-Robots-Tag
+  response headers, but /login, /my-history, /history and /publist
+  have no such backstop.
+  ---------------------------------------------------------------
+
+ROBOTS_HINT
+  _smoke_failed=1
+fi
+
+if [ "$_smoke_failed" -eq 0 ]; then
+  echo ""
+  echo "✓ All post-deploy smoke checks passed."
+else
+  echo ""
+  echo "WARNING: one or more post-deploy checks failed (see above)."
+  echo "         The deploy itself succeeded; these are runtime/config issues."
+fi
