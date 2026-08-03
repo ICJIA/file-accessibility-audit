@@ -825,10 +825,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      1084 passed (54 files)
-  ✔ Web      580 passed (46 files)
+  ✔ Web      589 passed (47 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1713 tests passed across 106 files
+  ✔ 1722 tests passed across 107 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -889,7 +889,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (580 tests)
+### Web Tests (589 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -920,6 +920,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
 | `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
 | `announcementsArchive.test.ts` | 10 | Reachability of the `/announcements` archive, whose whole purpose is defeated if the banner can hide it. Asserts the archive is linked from both the header and the footer (surfaces that render on every page regardless of banner state), that the page never reads the banner's dismissal store or `localStorage` at all, that it renders every entry rather than only the newest, and that it applies the same WCAG-version filter and honours `linkExternal`. The load-bearing one: the header link must sit **outside** the `v-if="user"` nav — `AUTH.REQUIRE_LOGIN` is false, so a link placed inside would look correct in review while being invisible to every anonymous visitor |
+| `monitorRouteMethods.test.ts` | 9 | The uptime-monitor routes (`/status`, `/healthz`) must answer **HEAD** as well as GET — several monitors, UptimeRobot included, send HEAD by default, and as `*.get.ts` files Nitro 404'd them, which would report a healthy service as down. Asserts both halves of the fix: the filename carries no method suffix (and the `.get.ts` variant is gone), and an explicit guard narrows to GET/HEAD with a `405` + `Allow` header otherwise. Also pins that HEAD still runs the real probe rather than short-circuiting — a HEAD that always returned 200 would be worse than the 404 it replaced — that `X-Robots-Tag` is set before any work, and that `publist.get.ts` was not swept up by the rename |
 | `status.test.ts` | 13 | `resolveStatus`, the Nuxt-tier aggregation behind the public `/status` URL. The monitoring-critical case: a core failure must reach the caller as **503 with the payload intact** — Express answers 503 when qpdf or the database is broken, and discarding that body in favour of a bare `api:"down"` would throw away the exact diagnosis the endpoint exists to deliver. Also covers optional-engine failures staying 200, an unreachable API returning a deliberately *minimal* rather than partial body (no fabricated zeros), a rate-limit body reported as reachable-but-unknown without leaking the limiter's message, `isOutage` treating absent engine data as "not evidence of failure", and the API payload never being able to override `web`/`api` |
 | `healthz.test.ts` | 8 | `resolveHealthz`, the aggregation behind the `/healthz` liveness-fallback URL served by the Nuxt tier (superseded as the monitoring target by `/status`, but retained because it runs no probes and so still answers when `/status` cannot): 200 with both tiers ok (and the API's uptime echoed) only when the loopback `/api/health` probe answers `status:"ok"`; 503 with `api:"down"` when the probe rejects (unreachable/timeout) or returns a non-ok, empty, or null body; a 429 from the API's own rate limiter counts as alive (flooding `/healthz` can't fabricate an outage) while any other HTTP error stays down; `apiUptime` omitted when down |
 | `csp.test.ts` | 5 | `buildCspHeader`: the per-request nonce lands in `script-src` with `'unsafe-inline'` dropped there (while `style-src` keeps it), the tight high-value directives are preserved, and no nonce value can cause `'unsafe-inline'` to leak into `script-src` |
@@ -1081,6 +1082,14 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.40.3 — 2026-08-03 · `/status` and `/healthz` answer HEAD (monitoring fix, not a security release)
+
+Both were Nitro `*.get.ts` route files, so Nitro matched only GET and returned **404 to HEAD** — the method several uptime monitors, UptimeRobot included, send by default. A monitor configured that way would report the service down while it was healthy. Both files are now unsuffixed (`status.ts`, `healthz.ts`), matching any method, with an explicit guard narrowing back to GET/HEAD and `405 Allow: GET, HEAD` for anything else. HEAD runs the **real probe** rather than short-circuiting, so the code reflects reality; verified against the built server (API down → GET and HEAD both 503; API up → both 200; POST/DELETE → 405). `X-Robots-Tag` is still set on every response. Express's `/api/status` already handled HEAD automatically, so no API change was needed.
+
+### v1.40.2 — 2026-08-03 · Scoring moved to the footer (not a security release)
+
+The Scoring Rubric dialog's trigger moved from the header nav to the footer link row; the dialog content is unchanged. Also corrected a comment and test rationale from v1.39.2 that wrongly claimed the header's `<nav v-if="user">` never renders for anonymous visitors — `/api/auth/me` returns `{ "email": "anonymous" }` rather than `null` while `AUTH.REQUIRE_LOGIN` is false, so `user` is truthy and the nav does render. The "What's New" placement outside that nav remains correct, but because enabling login (or changing the anonymous sentinel to `null`) would silently hide anything inside it — not for the reason originally stated.
 
 ### v1.40.1 — 2026-08-03 · Last fixable advisory cleared (`esbuild`)
 

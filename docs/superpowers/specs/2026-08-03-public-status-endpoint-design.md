@@ -37,7 +37,7 @@ see [Considered and rejected](#considered-and-rejected).
 
 Production nginx routes `/api/*` **straight to Express**, bypassing Nuxt. A route that must
 answer at `audit.icjia.app/status` therefore has to be served by the Nuxt tier. This is the
-same constraint documented in `apps/web/server/routes/healthz.get.ts`, and this design
+same constraint documented in `apps/web/server/routes/healthz.ts`, and this design
 mirrors that route's structure.
 
 | Route | Tier | Responsibility |
@@ -350,7 +350,7 @@ rescue the metric even if reason 1 did not already sink it.)
 - `apps/api/src/services/status.ts` — payload builder; probes and clock injected
 - `apps/api/src/routes/status.ts` — Express router
 - `apps/web/server/utils/status.ts` — pure 200/503 selection and `web` merge
-- `apps/web/server/routes/status.get.ts` — Nitro route
+- `apps/web/server/routes/status.ts` — Nitro route (unsuffixed so it answers HEAD as well as GET)
 - `apps/api/src/__tests__/status.test.ts`
 - `apps/api/src/__tests__/statusPrivacy.test.ts`
 - `apps/web/app/__tests__/status.test.ts`

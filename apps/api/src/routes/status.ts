@@ -1,7 +1,7 @@
 // GET /api/status — public service-status document.
 //
 // The Nitro tier re-serves this at https://audit.icjia.app/status; see
-// apps/web/server/routes/status.get.ts. All the work (and all the privacy
+// apps/web/server/routes/status.ts. All the work (and all the privacy
 // rules) live in services/status.ts — this file is only wiring.
 
 import express from "express";

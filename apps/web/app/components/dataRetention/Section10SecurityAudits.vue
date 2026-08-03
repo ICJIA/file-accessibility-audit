@@ -68,6 +68,29 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.40.3 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.40.3</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: uptime-monitoring reliability — not a
+            security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The two addresses an external monitoring service uses to confirm this site is running did
+          not respond to one of the two standard ways of asking. A monitor set up that way would
+          have reported the service as down while it was working normally — a false alarm that, if
+          repeated, teaches people to ignore real ones. Both addresses now answer either form of
+          request, and they report the true result rather than a canned "everything is fine". These
+          addresses return only whether the service is up; they are the same ones described in the
+          entries below.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.40.2 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

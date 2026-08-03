@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.40.3] - 2026-08-03
+
+`/status` and `/healthz` now answer HEAD requests, which several uptime monitors send by default.
+
+### Fixed
+
+- **`GET /status` and `GET /healthz` returned 404 to HEAD requests.** Both were Nitro `*.get.ts` route files, so Nitro matched only GET. Several uptime monitors — UptimeRobot among them — send HEAD by default, and one configured that way would have reported the service **down while it was perfectly healthy**: the worst kind of monitoring failure, because it teaches you to ignore the alert. Both files are now unsuffixed (`status.ts`, `healthz.ts`), which matches any method, with an explicit guard narrowing that back to GET and HEAD; anything else gets `405` with an `Allow: GET, HEAD` header.
+
+  A HEAD request runs the **real probe** rather than short-circuiting, so the status code reflects reality — a HEAD that always returned 200 would be worse than the 404 it replaced. Verified against the built server: with the API down, `GET` and `HEAD` both return 503; with it up, both return 200, and `POST`/`DELETE` return 405. `X-Robots-Tag: noindex, nofollow` is still set on every response.
+
+`GET /api/status` on the Express tier already handled HEAD — Express routes GET handlers for HEAD automatically — so no API change was needed.
+
+Tests 1,713 → 1,722 (Web 580 → 589); lint, typecheck, build green.
+
 ## [1.40.2] - 2026-08-03
 
 Moves the Scoring Rubric from the top navigation to the footer.
