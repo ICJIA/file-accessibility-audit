@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.39.3] - 2026-08-03
+
+The status page's document counts now refresh within seconds instead of up to a minute.
+
+### Changed
+
+- **`/status` database aggregates are cached for 5 seconds instead of 60.** Auditing a document and then checking the status page showed the count unchanged, which reads as the page being broken rather than merely cached. The original 60s value mistakenly applied the engine-probe cost reasoning to queries that have no such cost: a `COUNT(*)` over a few thousand rows is sub-millisecond, and a request flood is already bounded by the endpoint's own 120/min per-IP limiter. Freshness is worth far more here than the handful of scans the longer cache saved.
+
+The **engine-probe cache is unchanged at 10 minutes** and is the one that actually matters — those probes spawn processes including a veraPDF JVM, so their cost must stay decoupled from how often a monitor polls. The two TTLs are deliberately independent; conflating them is what caused this.
+
+Tests unchanged at 1,711 (they assert against the constant, not a literal); lint, typecheck, build green.
+
 ## [1.39.2] - 2026-08-03
 
 Makes the v1.39.1 announcement archive actually reachable: "What's New" now appears in the header and footer.

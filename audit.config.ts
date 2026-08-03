@@ -1146,13 +1146,23 @@ export const STATUS = {
    * How long the database aggregates (document counts, last-audit time,
    * remediation job counts) stay cached, in ms.
    *
-   * These are pure SQL, so they are cheap enough to keep near-live. Kept
-   * SEPARATE from ENGINE_PROBE_TTL_MS below because the two halves of the
-   * payload differ in cost by orders of magnitude.
+   * These are pure SQL — a COUNT(*) over a few thousand rows is sub-
+   * millisecond — so this is NOT a cost control. It exists only to coalesce
+   * a burst of simultaneous requests into one set of queries.
+   *
+   * Lowered from 60s in v1.39.3. At a minute, auditing a document and then
+   * checking /status showed the count unchanged, which reads as the page
+   * being broken rather than merely cached. The freshness is worth far more
+   * than the handful of scans it saves, and a flood is already bounded by
+   * this endpoint's own 120/min per-IP limiter (RATE_LIMITS.status).
+   *
+   * Kept SEPARATE from ENGINE_PROBE_TTL_MS below, which is the one that
+   * genuinely matters: those probes spawn processes including a veraPDF JVM.
+   * Do not conflate the two.
    *
    * SAFE TO CHANGE: Yes.
    */
-  AGGREGATE_TTL_MS: 60 * 1000, // 1 minute
+  AGGREGATE_TTL_MS: 5 * 1000, // 5 seconds
 
   /**
    * How long engine probe results (qpdf / veraPDF / Chromium) stay cached,

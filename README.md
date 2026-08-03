@@ -1038,7 +1038,7 @@ veraPDF or Chromium being unavailable removes the PDF/UA verdict or page audits,
 
 Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/status`. A plain HTTP(S) monitor suffices for up/down; adding a **keyword alert on `degraded`** is what catches a silently broken engine — veraPDF can die and leave every other signal reporting a healthy 200.
 
-**Caching.** Two TTLs, because the halves differ in cost by orders of magnitude: database aggregates refresh every **60s**, engine probes every **10 minutes**. Probes spawn processes including a veraPDF JVM, so a single short TTL would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on every check — roughly 288 JVM starts a day purely to answer monitoring. With the split, probe cost is bounded by the TTL rather than by poll frequency, and `engines.checked_at` shows how stale a passing result is.
+**Caching.** Two TTLs, because the halves differ in cost by orders of magnitude: database aggregates refresh every **5s** (pure SQL — the cache only coalesces bursts), engine probes every **10 minutes**. Probes spawn processes including a veraPDF JVM, so a single short TTL would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on every check — roughly 288 JVM starts a day purely to answer monitoring. With the split, probe cost is bounded by the TTL rather than by poll frequency, and `engines.checked_at` shows how stale a passing result is.
 
 **Privacy.** The endpoint is public and unauthenticated, so everything it reports is an aggregate `COUNT(*)` or a boolean about a local engine. No filename, email, IP, user-agent, or filesystem path is ever serialized — filenames are consumed by the by-format `CASE` expression *inside SQLite* and never cross the boundary, and probe failures collapse to a fixed reason enum (`not_configured` / `not_executable` / `timeout` / `error`) because subprocess stderr routinely embeds absolute paths. `statusPrivacy.test.ts` seeds identifying values and fails the build if any reaches the payload.
 
@@ -1080,6 +1080,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.39.3 — 2026-08-03 · `/status` aggregate cache 60s → 5s (not a security release)
+
+Auditing a document and then loading `/status` showed the count unchanged for up to a minute, which reads as the page being broken rather than cached. The 60s value had mistakenly applied the engine-probe cost reasoning to queries with no such cost — a `COUNT(*)` over a few thousand rows is sub-millisecond, and a flood is already bounded by the endpoint's own 120/min per-IP limiter. The **engine-probe cache stays at 10 minutes**: those spawn a veraPDF JVM, and their cost must remain decoupled from monitor poll frequency. No change to what is counted or published.
 
 ### v1.39.2 — 2026-08-03 · "What's New" in the header and footer (not a security release)
 

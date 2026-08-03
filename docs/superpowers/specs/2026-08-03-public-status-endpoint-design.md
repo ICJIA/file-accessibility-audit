@@ -187,7 +187,7 @@ figure and make the format split meaningless.
 | `verapdf` | `execFile(VERAPDF_PATH, ["--version"])` | An existence check cannot tell you the JVM is broken. Running it is the only real working/not-working signal. Same check `rebuild.sh:171` already performs. |
 | `chromium` | `puppeteer.executablePath()` + `fs.access(X_OK)` | Launching a real browser per status ping is disproportionate. |
 
-All probes take a short timeout and are covered by the 60s payload cache, so a monitor
+All probes take a short timeout and are covered by the 10-minute engine cache, so a monitor
 cannot spawn a JVM on every ping.
 
 veraPDF probing must **not** bypass the concurrency semaphore added in v1.38.0. `--version`
@@ -265,17 +265,25 @@ target and `/healthz` as the dependency-free liveness fallback.
 
 | Layer | TTL | Why |
 |---|---|---|
-| DB aggregates | 60s | SQL only. Cheap enough to keep near-live. |
+| DB aggregates | 5s | SQL only. Not a cost control — just burst coalescing. |
 | Engine probes | 10 min | Each miss spawns processes, including a **veraPDF JVM**. |
 
 Both use in-flight coalescing so concurrent requests share one computation — the
 `checkMailgun` pattern from `lib/status.js`.
 
-The split exists because `/status` is intended as the uptime-monitor target. A single 60s TTL
+The split exists because `/status` is intended as the uptime-monitor target. A single short TTL
 would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on **every
 check**, starting a JVM roughly 288 times a day purely to answer monitoring traffic. A 10-min
 engine TTL decouples probe cost from poll frequency entirely: probe cost is bounded by the
 TTL, not by how often anyone asks.
+
+The aggregate TTL was **60s in v1.39.0–1.39.2 and reduced to 5s in v1.39.3.** The original
+value mistakenly applied the probe-cost reasoning to queries that have no such cost: a
+`COUNT(*)` over a few thousand rows is sub-millisecond, and a flood is already bounded by this
+endpoint's own 120/min per-IP limiter. In practice the minute-long window meant auditing a
+document and then checking `/status` showed the count unchanged — which reads as the page
+being broken rather than merely cached. Freshness is worth far more here than the handful of
+scans the cache saved. **The engine TTL is the one that matters; do not conflate them.**
 
 `checked_at` reflects when the DB aggregates were computed. Each engine carries its own
 `checked_at` so a reader can tell how stale a `verapdf: ok` claim is — a 10-minute-old
@@ -350,7 +358,7 @@ rescue the metric even if reason 1 did not already sink it.)
 
 - `apps/api/src/index.ts` — mount the router ahead of `globalLimiter`
 - `apps/web/public/robots.txt` — `Disallow: /status`
-- `audit.config.ts` — `STATUS` block: both cache TTLs (aggregates 60s, engine probes 10 min),
+- `audit.config.ts` — `STATUS` block: both cache TTLs (aggregates 5s, engine probes 10 min),
   per-probe timeouts, and the event-type lists
 - `README.md` — `/status` becomes the documented monitor target; `/healthz` is re-described
   as the liveness fallback (see [Relationship to /healthz](#relationship-to-healthz))

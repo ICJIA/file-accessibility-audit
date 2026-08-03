@@ -68,6 +68,27 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.39.3 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.39.3</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: how often one number on the status page
+            refreshes — not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The counts on the public status page are now recalculated every few seconds rather than
+          once a minute, so a document that has just been audited appears in the totals almost
+          immediately. This changes only how current those totals are. It does not change what is
+          counted, and the page still publishes nothing beyond totals — no file names, no email
+          addresses, and nothing identifying anyone who has used the service.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.39.2 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
