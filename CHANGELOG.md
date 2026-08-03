@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.39.2] - 2026-08-03
+
+Makes the v1.39.1 announcement archive actually reachable: "What's New" now appears in the header and footer.
+
+### Added
+
+- **A "What's New" link in the site header and footer,** both pointing at the `/announcements` archive. v1.39.1 added the archive but linked it only from the announcement banner — which shows one entry and is *permanently dismissible*, so the archive disappeared at exactly the moment it became useful. Both new links render on every page regardless of banner state.
+
+### Fixed
+
+- **The header link is placed outside the signed-in-only navigation.** The header's main `<nav>` is `v-if="user"`, and `AUTH.REQUIRE_LOGIN` is `false`, so that block never renders for ordinary visitors — a link added inside it would have looked correct in review while being invisible to essentially everyone. A test asserts the link is not inside that gated block.
+
+### Notes
+
+Wording is "What's New" rather than "Updates" because the footer already carries a "Changelog" link to the technical `CHANGELOG.md` on GitHub; two adjacent links named "Updates" and "Changelog" would invite the question of which is which, whereas "What's New" reads as the plain-language counterpart.
+
+The banner entry was extended rather than replaced by a new one. v1.39.1's entry had not yet deployed, so prepending would have buried the status-page announcement a second time before any visitor had seen a working version of it.
+
+Tests 1,701 → 1,711 (Web 570 → 580); lint, typecheck, build green.
+
 ## [1.39.1] - 2026-08-03
 
 Hotfix for v1.39.0: the banner link to the new status page 404'd. Adds an archive of past announcements.

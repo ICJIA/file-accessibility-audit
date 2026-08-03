@@ -196,7 +196,7 @@ export const ANNOUNCEMENTS = [
      */
     id: "public-status-page-2026-08-03-r2",
     badge: "New",
-    text: "There is now a status page at /status showing whether the audit service is running, whether each of its checking engines is working, and how many documents have been audited — broken down by PDF, Word, PowerPoint and Excel. It is plain data, updated continuously, for anyone who wants to confirm the tool is healthy or see how much it is being used. It contains only totals: no file names, no email addresses, and nothing identifying anyone who has used the service.",
+    text: "There is now a status page at /status showing whether the audit service is running, whether each of its checking engines is working, and how many documents have been audited — broken down by PDF, Word, PowerPoint and Excel. It is plain data, updated continuously, for anyone who wants to confirm the tool is healthy or see how much it is being used. It contains only totals: no file names, no email addresses, and nothing identifying anyone who has used the service. Past updates like this one are now kept under “What’s New” in the header and footer, so dismissing this notice no longer loses them.",
     linkText: "View the status page",
     linkTo: "/status",
     /**

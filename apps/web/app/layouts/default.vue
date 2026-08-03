@@ -287,6 +287,22 @@
               <UButton size="xs" variant="ghost" color="neutral" @click="logout"> Logout </UButton>
             </template>
           </nav>
+          <!-- Always-visible updates link.
+               Deliberately OUTSIDE the <nav v-if="user"> above: that nav
+               renders only for signed-in users, and AUTH.REQUIRE_LOGIN is
+               false, so ordinary visitors never see it. Placing this link
+               there would hide it from exactly the audience it is for.
+               /announcements is a Vue page, so NuxtLink (SPA navigation) is
+               correct here — unlike /status, which is a server route and
+               needs a real document navigation. -->
+          <nav aria-label="Site updates" class="flex items-center">
+            <NuxtLink
+              to="/announcements"
+              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              What's New
+            </NuxtLink>
+          </nav>
           <!-- Color mode toggle -->
           <button
             class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
@@ -433,6 +449,33 @@
             Changelog
           </a>
           <span v-if="config.public.githubUrl" class="text-[var(--border)]">|</span>
+          <!-- Plain-language counterpart to the technical Changelog above.
+               This is the ONLY route to past announcements once the home-page
+               banner is dismissed — dismissal is permanent per id, and the
+               banner shows just the newest entry — so it must live somewhere
+               that renders on every page regardless of banner state. -->
+          <a
+            href="/announcements"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            <svg
+              class="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253 1.171.613 2.3 1.068 3.374 1.101 2.597 2.512 2.026 3.135-.71a48.5 48.5 0 0 0 .924-6.354m-5.127 3.69c1.68.145 3.313.435 4.885.855m0-9.31a48.5 48.5 0 0 1-4.885.856m4.885-.856c.377 1.984.643 4.006.79 6.062m0 0a3 3 0 0 1-.53 5.94"
+              />
+            </svg>
+            What's New
+          </a>
+          <span class="text-[var(--border)]">|</span>
           <a
             href="/data-retention"
             target="_blank"
