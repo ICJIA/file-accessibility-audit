@@ -77,6 +77,10 @@ export interface StatusPayload {
   };
   documents_audited: DocumentCounts;
   last_audit_at: string | null;
+  /** Same instant as last_audit_at, rendered in America/Chicago — the local
+   *  zone of the people who read this page. Null when there is no audit yet,
+   *  or when Node lacks full ICU (the UTC field is always present). */
+  last_audit_at_chicago: string | null;
   remediation: {
     enabled: boolean;
     jobs_24h: { complete: number; failed: number };
@@ -535,6 +539,10 @@ export function createStatusService(deps: StatusDeps) {
       engines: eng,
       documents_audited: agg.documents_audited,
       last_audit_at: agg.last_audit_at,
+      // Derived here rather than stored, so it can never disagree with the
+      // UTC value above. Date.parse of an ISO string with an explicit Z is
+      // zone-unambiguous, so this is a pure re-rendering of the same instant.
+      last_audit_at_chicago: agg.last_audit_at ? chicagoTime(Date.parse(agg.last_audit_at)) : null,
       remediation: {
         enabled: deps.remediationEnabled,
         jobs_24h: agg.remediation_jobs_24h,

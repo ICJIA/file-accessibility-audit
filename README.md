@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1082 passed (54 files)
+  ✔ API      1084 passed (54 files)
   ✔ Web      580 passed (46 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1711 tests passed across 106 files
+  ✔ 1713 tests passed across 106 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1082 tests)
+### API Tests (1084 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1023,6 +1023,7 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
     "by_format_total": { "pdf": 12010, "docx": 1600, "pptx": 380, "xlsx": 210, "other": 3 }
   },
   "last_audit_at": "2026-08-03T14:02:55Z",
+  "last_audit_at_chicago": "Aug 3, 2026, 9:02:55 AM CDT",
   "remediation": { "enabled": true, "jobs_24h": { "complete": 4, "failed": 0 } }
 }
 ```
@@ -1080,6 +1081,16 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.40.0 — 2026-08-03 · Dependency security release — every open advisory cleared
+
+Resolves all ~25 open Dependabot advisories, including high-severity issues in `postcss`, `tar`, `brace-expansion`, `shell-quote`, `ws`, `js-yaml`, `lodash`, `linkify-it`, `picomatch`, and `vite`. Every one was **transitive** — a dependency of build tooling (nuxt, nitropack, puppeteer, `@nuxt/ui`), not of application code.
+
+Dependabot's repeatedly-failing runs were the symptom, not a broken CI job: it reported `security_update_not_possible` (e.g. postcss `latest-resolvable-version: 8.5.8` vs `lowest-non-vulnerable-version: 8.5.18`) because it bumps a transitive package in isolation against the *locked* tree. The declared ranges already permitted the fixes; the lockfile had simply never been refreshed. Resolved with explicit `pnpm.overrides` pinning each package to its lowest non-vulnerable version, using version-scoped keys (`brace-expansion@2`/`@5`, `picomatch@2`/`@4`, `h3@1`, `vite@7`) where two major lines legitimately coexist. Direct bumps: `fast-xml-parser` 5.9.3 → 5.10.1, `sharp` 0.34.5 → 0.35.0, `svgo` 4.0.1 → 4.0.2.
+
+**Framework versions were deliberately held.** A blanket `pnpm update -r` clears the advisories but also performs in-range minor upgrades (`nuxt` 4.4.7 → 4.5.1, `@nuxt/ui` 4.5.1 → 4.10.0); Nuxt 4.5.1 pulls `unhead` 3, which drags in `h3@2.0.1-rc.26` — a release candidate — leaving two incompatible `H3Event` types and failing `pnpm typecheck` on every Nitro route including the pre-existing `/healthz`. A Nuxt upgrade belongs in its own release with its own testing.
+
+`fast-xml-parser` is the XML engine behind every DOCX/PPTX/XLSX check, where a behaviour change would move scores silently rather than throw. Verified by auditing the four OOXML controls on both versions — identical results (92/A, 80/B, 90/A, 90/A). Also adds `last_audit_at_chicago` to `/status`, derived from the UTC value so the two cannot disagree.
 
 ### v1.39.3 — 2026-08-03 · `/status` aggregate cache 60s → 5s (not a security release)
 

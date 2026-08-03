@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.40.0] - 2026-08-03
+
+Dependency security release: clears every open Dependabot advisory. Adds a local-time field to `/status`.
+
+### Security
+
+- **All ~25 open dependency advisories are resolved,** including high-severity ones in `postcss`, `tar`, `brace-expansion`, `shell-quote`, `ws`, `js-yaml`, `lodash`, `linkify-it`, `picomatch`, and `vite`. Every one was a *transitive* dependency of build tooling (nuxt, nitropack, puppeteer, `@nuxt/ui`) rather than of application code.
+
+- **Dependabot could not fix these itself, and its failing runs were the symptom rather than a broken CI job.** It reported `security_update_not_possible` — e.g. postcss `latest-resolvable-version: 8.5.8` against `lowest-non-vulnerable-version: 8.5.18` — because it attempts to bump a transitive package in isolation against the *locked* tree. The declared semver ranges already permitted the patched versions; nothing had refreshed the lockfile. Fixed with explicit `pnpm.overrides` pinning each affected package to its lowest non-vulnerable version, using version-scoped keys (`brace-expansion@2` / `@5`, `picomatch@2` / `@4`, `h3@1`, `vite@7`) where two major lines legitimately coexist.
+
+- **Direct dependency bumps** from the three open Dependabot PRs: `fast-xml-parser` 5.9.3 → 5.10.1, `sharp` 0.34.5 → 0.35.0, `svgo` 4.0.1 → 4.0.2.
+
+### Added
+
+- **`last_audit_at_chicago` on `/status`** — the same instant as `last_audit_at`, rendered in `America/Chicago`. Derived from the UTC value rather than stored separately, so the two can never disagree; `null` when there is no audit yet or when Node lacks full ICU.
+
+### Notes
+
+**Framework versions are deliberately unchanged.** A blanket `pnpm update -r` does resolve every advisory, but it also performs in-range minor upgrades — `nuxt` 4.4.7 → 4.5.1 and `@nuxt/ui` 4.5.1 → 4.10.0 — and Nuxt 4.5.1 pulls `unhead` 3, which drags in `h3@2.0.1-rc.26`, a **release candidate**. Two incompatible `H3Event` types then coexist and `pnpm typecheck` fails on every Nitro route, including the pre-existing `/healthz`. Targeted overrides give the security fixes without moving the framework; upgrading Nuxt should be its own release with its own testing.
+
+`fast-xml-parser` is the XML engine behind every DOCX/PPTX/XLSX check, so a behaviour change there would move scores silently rather than throw. Verified by auditing the four OOXML control documents on both 5.9.3 and 5.10.1: results are identical (92/A, 80/B, 90/A, 90/A).
+
+Tests 1,711 → 1,713 (API 1,082 → 1,084); lint, typecheck, build green.
+
 ## [1.39.3] - 2026-08-03
 
 The status page's document counts now refresh within seconds instead of up to a minute.
