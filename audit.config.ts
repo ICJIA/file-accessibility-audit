@@ -192,7 +192,7 @@ export const ANNOUNCEMENTS = [
     badge: "Improved",
     text: "The status page at /status is now readable without any browser add-on. It shows the same information as before, laid out as a colour-coded, collapsible outline instead of a single block of unformatted text, with a link to view the raw data if you prefer it. Nothing about what is published has changed — still only totals and yes/no answers, with no file names, no email addresses, and nothing identifying anyone who has used the service.",
     linkText: "View the status page",
-    linkTo: "/status",
+    linkTo: "/status?html",
     /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
     linkExternal: true,
     /** Shown under the text so visitors can see the tool is actively maintained. */
@@ -222,7 +222,7 @@ export const ANNOUNCEMENTS = [
     badge: "New",
     text: "There is now a status page at /status showing whether the audit service is running, whether each of its checking engines is working, and how many documents have been audited — broken down by PDF, Word, PowerPoint and Excel. It is plain data, updated continuously, for anyone who wants to confirm the tool is healthy or see how much it is being used. It contains only totals: no file names, no email addresses, and nothing identifying anyone who has used the service. Past updates like this one are now kept under “What’s New” in the header and footer, so dismissing this notice no longer loses them.",
     linkText: "View the status page",
-    linkTo: "/status",
+    linkTo: "/status?html",
     /**
      * REQUIRED here. /status is a Nitro SERVER route, not a Vue page, so the
      * Vue router has no match for it: a normal NuxtLink navigates client-side

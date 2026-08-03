@@ -142,10 +142,7 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  * statusPrivacy.test.ts enforces. The JSON response advertises the HTML view
  * in a `Link` header instead, where it costs the body nothing.
  */
-export function renderStatusHtml(
-  body: Record<string, unknown>,
-  jsonHref = "/status?format=json",
-): string {
+export function renderStatusHtml(body: Record<string, unknown>, jsonHref = "/status?json"): string {
   const entries = Object.entries(body);
   const children = entries.map(([k, v], i) => node(k, v, i === entries.length - 1)).join("");
 

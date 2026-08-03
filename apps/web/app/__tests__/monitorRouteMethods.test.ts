@@ -68,9 +68,24 @@ describe("uptime-monitor routes answer HEAD as well as GET", () => {
     // exact bug that shipped in v1.39.0. Typing the URL directly still
     // worked, which is what disguised a link bug as a deploy failure.
     const layout = readFileSync(resolve(__dirname, "..", "layouts", "default.vue"), "utf-8");
-    expect(layout).toMatch(/<a\s[^>]*href="\/status"/);
-    expect(layout).not.toMatch(/<NuxtLink[^>]*to="\/status"/);
-    expect(layout).not.toMatch(/:to="'\/status'"/);
+    expect(layout).toMatch(/<a\s[^>]*href="\/status(\?html)?"/);
+    expect(layout).not.toMatch(/<NuxtLink[^>]*to="\/status/);
+    expect(layout).not.toMatch(/:to="'\/status/);
+  });
+
+  it("in-site links request the HTML view explicitly", () => {
+    // Browsers already get HTML via Accept negotiation, so ?html is belt and
+    // braces — but it makes the intent readable in the markup and survives any
+    // future change to how negotiation works. It also mirrors ?json, which is
+    // the monitor URL, so both audiences have an explicit address.
+    const layout = readFileSync(resolve(__dirname, "..", "layouts", "default.vue"), "utf-8");
+    const config = readFileSync(
+      resolve(__dirname, "..", "..", "..", "..", "audit.config.ts"),
+      "utf-8",
+    );
+    expect(layout).toContain('href="/status?html"');
+    // Announcement entries linking to /status must do the same.
+    expect(config).not.toMatch(/linkTo: "\/status"/);
   });
 
   it("leaves other server routes untouched", () => {

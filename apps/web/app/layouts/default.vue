@@ -113,7 +113,7 @@
                  tab so clicking it mid-audit cannot discard an in-progress
                  report. -->
             <a
-              href="/status"
+              href="/status?html"
               target="_blank"
               rel="noopener"
               class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"

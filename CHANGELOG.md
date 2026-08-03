@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.42.1] - 2026-08-03
+
+In-site links to `/status` now request the HTML view explicitly.
+
+### Changed
+
+- **Every link to `/status` from the site — the header "Status" link and both announcement-banner entries — now points at `/status?html`.** Browsers already received HTML through `Accept` negotiation, so this changes nothing a visitor sees; it makes the intent legible in the markup, survives any future change to how negotiation works, and mirrors `?json`, the monitor URL. Both audiences now have an explicit address rather than relying on a header. Pinned by test, including that no announcement entry links to the bare `/status`.
+
+- **The in-page toggle and the `Link` header use the short form** (`/status?json`, `/status?html`) rather than `?format=`. `?format=json|html` still works and is unchanged.
+
+Tests 1,747 → 1,748 (Web 614 → 615); lint, typecheck, build green.
+
 ## [1.42.0] - 2026-08-03
 
 `/status` now renders as a readable JSON tree in a browser, while machines keep getting exactly the JSON they got before.

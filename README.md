@@ -825,10 +825,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
   ✔ API      1084 passed (54 files)
-  ✔ Web      614 passed (48 files)
+  ✔ Web      615 passed (48 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1747 tests passed across 108 files
+  ✔ 1748 tests passed across 108 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -889,7 +889,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (614 tests)
+### Web Tests (615 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1043,7 +1043,7 @@ Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/status`
 
 **Caching.** Two TTLs, because the halves differ in cost by orders of magnitude: database aggregates refresh every **5s** (pure SQL — the cache only coalesces bursts), engine probes every **10 minutes**. Probes spawn processes including a veraPDF JVM, so a single short TTL would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on every check — roughly 288 JVM starts a day purely to answer monitoring. With the split, probe cost is bounded by the TTL rather than by poll frequency, and `engines.checked_at` shows how stale a passing result is.
 
-**Two representations, one payload.** Browsers get a syntax-coloured, collapsible JSON tree; everything else gets the JSON. Only an explicit `text/html` in `Accept` selects HTML — a wildcard `Accept` (UptimeRobot, curl) still receives JSON, so a keyword alert on `degraded` keeps working. `/status?json` forces JSON regardless and is the recommended monitor URL, since it states its own contract; `?html` and `?format=json|html` are also accepted. The JSON body is unchanged — the HTML view is advertised via a `Link: </status?format=html>; rel="alternate"` header rather than a payload field, so the top-level key allow-list stays intact. The HTML page carries **no JavaScript**: collapsing is native `<details>`, the toggle is a link, and every key and value is escaped.
+**Two representations, one payload.** Browsers get a syntax-coloured, collapsible JSON tree; everything else gets the JSON. Only an explicit `text/html` in `Accept` selects HTML — a wildcard `Accept` (UptimeRobot, curl) still receives JSON, so a keyword alert on `degraded` keeps working. `/status?json` forces JSON regardless and is the recommended monitor URL, since it states its own contract; `?html` is its mirror and is what every in-site link uses, and `?format=json|html` is also accepted. The JSON body is unchanged — the HTML view is advertised via a `Link: </status?format=html>; rel="alternate"` header rather than a payload field, so the top-level key allow-list stays intact. The HTML page carries **no JavaScript**: collapsing is native `<details>`, the toggle is a link, and every key and value is escaped.
 
 **Privacy.** The endpoint is public and unauthenticated, so everything it reports is an aggregate `COUNT(*)` or a boolean about a local engine. No filename, email, IP, user-agent, or filesystem path is ever serialized — filenames are consumed by the by-format `CASE` expression *inside SQLite* and never cross the boundary, and probe failures collapse to a fixed reason enum (`not_configured` / `not_executable` / `timeout` / `error`) because subprocess stderr routinely embeds absolute paths. `statusPrivacy.test.ts` seeds identifying values and fails the build if any reaches the payload.
 

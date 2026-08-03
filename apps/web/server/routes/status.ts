@@ -66,6 +66,6 @@ export default defineEventHandler(async (event) => {
   // Advertise the human view without touching the payload. A field for it
   // would change the machine contract and break the top-level key allow-list
   // in statusPrivacy.test.ts; a header costs the body nothing.
-  setResponseHeader(event, "Link", '</status?format=html>; rel="alternate"; type="text/html"');
+  setResponseHeader(event, "Link", '</status?html>; rel="alternate"; type="text/html"');
   return result.body;
 });

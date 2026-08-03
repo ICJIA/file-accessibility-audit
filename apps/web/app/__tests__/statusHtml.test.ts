@@ -114,8 +114,8 @@ describe("renderStatusHtml", () => {
     expect(html).toContain('<span class="v null">null</span>');
   });
 
-  it("links back to the raw JSON", () => {
-    expect(html).toContain('href="/status?format=json"');
+  it("links back to the raw JSON using the short explicit form", () => {
+    expect(html).toContain('href="/status?json"');
     expect(html).toContain("View raw JSON");
   });
 
