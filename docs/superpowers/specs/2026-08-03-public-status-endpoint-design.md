@@ -16,8 +16,9 @@ The page must be excluded from search indexing and must never disclose anything 
 ## Non-goals
 
 - Not a dashboard. Raw JSON only; no HTML view, no charts.
-- Not a replacement for `/healthz`. That route stays exactly as it is — cheap, probe-free,
-  and still a valid uptime target.
+- Not a rewrite of `/healthz`. That route is untouched — see
+  [Relationship to /healthz](#relationship-to-healthz) for why it survives despite `/status`
+  becoming the monitor target.
 - Not authenticated. The payload is designed so that it does not need to be.
 
 ## Audience
@@ -88,6 +89,7 @@ process that performs audits. The Nuxt tier's own uptime is not reported.
   "database": "ok",
 
   "engines": {
+    "checked_at": "2026-08-03T14:19:44Z",
     "qpdf":     { "ok": true, "version": "12.3.2" },
     "verapdf":  { "ok": true, "version": "1.26.1" },
     "chromium": { "ok": true }
@@ -233,15 +235,56 @@ ordinary document auditing still works. Returning 503 for those would page an op
 something that is not an outage — the reason this design does not mirror `lib/status.js`,
 which has exactly one dependency where this one has four.
 
-`/healthz` is unchanged and remains a valid uptime target. `/status` is additionally
-suitable for a monitor, including keyword alerting on `"degraded"`.
+## Relationship to `/healthz`
+
+`/status` becomes the UptimeRobot target once shipped. `/healthz` is nevertheless **kept**,
+and this is a deliberate decision rather than an oversight.
+
+Nothing consumes `/healthz` at runtime today — no deploy script, no nginx config, no client
+code (the footer's `ServerStatusIndicator` polls `/api/health` directly). Its only references
+are documentation, `robots.txt`, and its own tests. Removing it would be safe.
+
+It is kept because **`/status` has strictly more ways to fail.** It spawns subprocesses,
+maintains two caches, and runs aggregate SQL; a hung probe, a cache defect, or a slow query
+can degrade it. `/healthz` does none of that — one loopback fetch and a branch. When
+`/status` misbehaves, `/healthz` is what still answers "the process is alive," which is
+exactly the question you need answered at that moment.
+
+The cost of keeping it is zero at runtime and 52 lines at rest. The cost of removing it is
+edits to four README sections, `robots.txt`, and the deletion of 8 passing tests — churn
+without benefit.
+
+**Documentation must change even though the code does not.** README currently calls
+`/healthz` "the single uptime-monitor URL" and instructs the reader to point UptimeRobot at
+it. That becomes wrong the moment this ships. README should present `/status` as the monitor
+target and `/healthz` as the dependency-free liveness fallback.
 
 ## Caching and rate limiting
 
-**Cache:** the whole payload, 60s TTL, with in-flight coalescing so concurrent requests
-share a single computation — the `checkMailgun` pattern from `lib/status.js`. This is what
-makes the full-scan format queries and the process-spawning probes affordable under monitor
-traffic. `checked_at` reflects when the cached snapshot was computed, not when it was served.
+**Two caches, deliberately, because the two halves of the payload have very different costs.**
+
+| Layer | TTL | Why |
+|---|---|---|
+| DB aggregates | 60s | SQL only. Cheap enough to keep near-live. |
+| Engine probes | 10 min | Each miss spawns processes, including a **veraPDF JVM**. |
+
+Both use in-flight coalescing so concurrent requests share one computation — the
+`checkMailgun` pattern from `lib/status.js`.
+
+The split exists because `/status` is intended as the uptime-monitor target. A single 60s TTL
+would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on **every
+check**, starting a JVM roughly 288 times a day purely to answer monitoring traffic. A 10-min
+engine TTL decouples probe cost from poll frequency entirely: probe cost is bounded by the
+TTL, not by how often anyone asks.
+
+`checked_at` reflects when the DB aggregates were computed. Each engine carries its own
+`checked_at` so a reader can tell how stale a `verapdf: ok` claim is — a 10-minute-old
+success is a meaningfully weaker statement than a fresh one, and the payload should not hide
+that.
+
+Probes are individually timeboxed and a probe failure is caught and converted to
+`{ ok: false, reason }`. A hung or missing engine must never delay or fail the response —
+`/status` reporting "veraPDF is broken" is the feature, not an error condition.
 
 **Rate limit:** `/api/status` gets its own limiter, mounted **before** `globalLimiter`.
 Nitro's loopback proxy shares the `127.0.0.1` rate bucket (the problem documented in the
@@ -307,7 +350,10 @@ rescue the metric even if reason 1 did not already sink it.)
 
 - `apps/api/src/index.ts` — mount the router ahead of `globalLimiter`
 - `apps/web/public/robots.txt` — `Disallow: /status`
-- `audit.config.ts` — `STATUS` block: cache TTL, probe timeouts, event-type lists
+- `audit.config.ts` — `STATUS` block: both cache TTLs (aggregates 60s, engine probes 10 min),
+  per-probe timeouts, and the event-type lists
+- `README.md` — `/status` becomes the documented monitor target; `/healthz` is re-described
+  as the liveness fallback (see [Relationship to /healthz](#relationship-to-healthz))
 
 ## Testing
 
@@ -322,8 +368,14 @@ rescue the metric even if reason 1 did not already sink it.)
   path-shaped substring. This is the test that guards constraint 1.
 - **API unreachable** — the Nitro route returns 503 and the minimal
   `{ status, web, api }` payload when the loopback probe throws, with no partial fields.
-- **Cache behaviour** — a second call inside the TTL does not re-invoke the probes;
-  concurrent calls coalesce to one computation.
+- **Independent cache TTLs** — with a clock stub: at 90s the DB aggregates have refreshed
+  while the engine probes have **not** re-run; past 10 min the probes run again. This is the
+  test that protects a monitor from spawning a JVM per poll, so it asserts probe *invocation
+  counts*, not elapsed time.
+- **Concurrent calls coalesce** to a single computation rather than N parallel probe runs.
+- **A hung probe cannot hang the response** — a probe that never resolves yields
+  `{ ok: false, reason: "timeout" }` within the timeout, and the rest of the payload is
+  still served.
 - **Absent-by-design** — `pages_audited` and `document_reports_shared` are not present.
 
 ## Release chores
@@ -338,7 +390,10 @@ that reports usage aggregates is exactly the kind of change that page exists to 
 
 ## Follow-up (does not block implementation)
 
-The outstanding UptimeRobot monitor task can target either `/healthz` or `/status`. Both are
-valid; `/status` additionally supports keyword alerting on `"degraded"`, which would catch a
-silently broken veraPDF that `/healthz` cannot see. This is an operational choice to make at
-deploy time — no code depends on it.
+Point the outstanding UptimeRobot monitor at `https://audit.icjia.app/status` after deploy.
+Beyond plain up/down it supports keyword alerting on `"degraded"`, which catches a silently
+broken veraPDF that `/healthz` cannot see — the engine could be dead for weeks while
+`/healthz` reports a perfectly healthy 200.
+
+The 10-minute engine-probe TTL is what makes this affordable at any poll interval; do not
+lower it to match a monitor's frequency.
