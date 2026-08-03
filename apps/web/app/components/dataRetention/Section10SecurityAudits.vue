@@ -68,6 +68,30 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.42.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.42.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: presentation of the public status page —
+            not a security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The public status page is now legible in an ordinary browser: the same information, laid
+          out as a colour-coded outline rather than one unbroken block of text. <strong>What it
+          publishes has not changed</strong> — still only totals and yes/no answers, with no file
+          names, no email addresses, and nothing identifying anyone who has used the service. The
+          checks that enforce that were left in place and still pass. Two details of note: the page
+          runs no scripts at all, so there is nothing on it that could execute in a visitor's
+          browser; and everything it displays is escaped before rendering, so no value drawn from
+          the system can be interpreted as page markup.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.41.2 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

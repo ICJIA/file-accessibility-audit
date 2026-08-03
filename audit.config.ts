@@ -188,6 +188,19 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "status-page-readable-2026-08-03",
+    badge: "Improved",
+    text: "The status page at /status is now readable without any browser add-on. It shows the same information as before, laid out as a colour-coded, collapsible outline instead of a single block of unformatted text, with a link to view the raw data if you prefer it. Nothing about what is published has changed — still only totals and yes/no answers, with no file names, no email addresses, and nothing identifying anyone who has used the service.",
+    linkText: "View the status page",
+    linkTo: "/status",
+    /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
+    linkExternal: true,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 3, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "navbar-status-and-reset-2026-08-03",
     badge: "Improved",
     text: "The top of the page is simpler. There is now a “Status” link showing whether the audit service and each of its checking engines are running, and the “Analyze” link has been removed — click the site title on the left to clear your results and start a new file. The title works with the keyboard as well as the mouse, which the old version did not.",

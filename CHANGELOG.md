@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.42.0] - 2026-08-03
+
+`/status` now renders as a readable JSON tree in a browser, while machines keep getting exactly the JSON they got before.
+
+### Added
+
+- **A human-readable HTML view of `/status`**, shown automatically to browsers. The payload is rendered as a syntax-coloured, collapsible JSON tree — the view a browser JSON formatter extension would give you — so someone curious about the service sees structure rather than a wall of text. No explanatory prose: the page is the JSON, formatted, plus a "View raw JSON" toggle.
+
+- **`/status?json` — an explicit JSON URL for uptime monitors.** Pointing a monitor at this makes its contract self-describing and immune to any future change in content negotiation: the URL states what it wants, so no `Accept`-header behaviour can hand it HTML and silently blind a keyword alert. `?html` is the mirror image, and `?format=json|html` also works (that is what the in-page toggle links to).
+
+### Notes
+
+**This is additive; the machine contract is unchanged.** JSON remains the default for everything that is not unambiguously a browser. Only an explicit `text/html` in `Accept` selects the HTML view — a wildcard `Accept`, which UptimeRobot and curl send, still receives JSON. The payload itself is byte-identical and the top-level key allow-list in `statusPrivacy.test.ts` is untouched: the HTML view is advertised to JSON clients through a `Link: </status?format=html>; rel="alternate"` **header**, because adding a field for it would have changed the payload every monitor reads.
+
+**The page contains no JavaScript.** Collapsing uses native `<details>`/`<summary>` and the toggle is an ordinary link. That keeps it clear of the app's nonce-based CSP (`script-src` has no `'unsafe-inline'`, so an inline script would need a nonce threaded through a non-Vue route), and it works with JS disabled — plausible for someone poking at an unfamiliar status URL. Every key and value is HTML-escaped, asserted by test, even though nothing in the payload is currently attacker-shaped.
+
+Tests 1,725 → 1,747 (Web 592 → 614); lint, typecheck, build green.
+
 ## [1.41.2] - 2026-08-03
 
 `rebuild.sh` now re-executes itself after `git pull`, so a deploy always runs the code it just fetched.

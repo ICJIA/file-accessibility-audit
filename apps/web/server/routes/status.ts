@@ -1,4 +1,5 @@
 import { resolveStatus, type ApiStatusPayload } from "../utils/status";
+import { renderStatusHtml, pickFormat } from "../utils/statusHtml";
 
 // Public service-status document, served at https://audit.icjia.app/status.
 //
@@ -49,5 +50,22 @@ export default defineEventHandler(async (event) => {
   );
 
   setResponseStatus(event, result.httpStatus);
+
+  // Representation is negotiated, NOT switched. JSON stays the default for
+  // everything that is not unambiguously a browser, because this endpoint is
+  // monitored: UptimeRobot and curl send `*/*`, which must keep receiving the
+  // JSON body a keyword alert on "degraded" depends on. Only an explicit
+  // text/html in Accept flips it, and ?format= overrides both.
+  const format = pickFormat(getRequestHeader(event, "accept"), getQuery(event));
+
+  if (format === "html") {
+    setResponseHeader(event, "Content-Type", "text/html; charset=utf-8");
+    return renderStatusHtml(result.body);
+  }
+
+  // Advertise the human view without touching the payload. A field for it
+  // would change the machine contract and break the top-level key allow-list
+  // in statusPrivacy.test.ts; a header costs the body nothing.
+  setResponseHeader(event, "Link", '</status?format=html>; rel="alternate"; type="text/html"');
   return result.body;
 });
