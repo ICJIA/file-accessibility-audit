@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.41.1] - 2026-08-03
+
+Fixes the post-deploy smoke checks added in v1.41.0, which reported false failures against a healthy deploy.
+
+### Fixed
+
+- **The smoke checks probed before the app was listening, reporting `502` on a perfectly healthy deploy.** `pm2 restart` returns as soon as the process is *spawned*, not when it is accepting connections, so the probes were measuring the script's own impatience. They now wait for `/healthz` to answer 200 (polling every 2s, up to 60s) before probing, and say explicitly when they gave up waiting so a slow start is not mistaken for a fault.
+
+- **`HEAD` probes reported a nonsense `502000` status.** The probe used `-X HEAD`, which leaves curl waiting for a response body that a HEAD response never sends; curl blocked until `--max-time` and exited non-zero, printing the real code *and* the `|| echo "000"` fallback. Now uses `--head`, and the fallback can no longer concatenate — an absent response reads as a clean `000`.
+
+Both bugs were in the deploy script's self-check only. **No application code was involved, and production was healthy throughout** — verified live during diagnosis: v1.41.0, `status: ok`, `GET` and `HEAD` both 200 on `/status` and `/healthz`.
+
+The `robots.txt` / `favicon.ico` 404s the checks reported are **real** and remain outstanding; they are an nginx configuration issue on the droplet, not a build problem. See the v1.41.0 notes below for the diagnosis and the exact fix.
+
 ## [1.41.0] - 2026-08-03
 
 Header cleanup: adds a Status link, removes the redundant Analyze link, and makes the site title keyboard-operable. Adds post-deploy smoke checks that catch the production `robots.txt` 404.

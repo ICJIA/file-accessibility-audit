@@ -273,12 +273,53 @@ pm2 status
 # ---------------------------------------------------------------------
 SMOKE_URL="${SMOKE_URL:-https://audit.icjia.app}"
 
+# One request. Prints the HTTP status, or 000 if there was no response.
+#
+# Uses --head for HEAD, NEVER `-X HEAD`. With -X HEAD curl still waits for a
+# response body, which a HEAD response never sends, so it blocks until
+# --max-time and exits non-zero — which on the first version of this script
+# printed the real code AND the fallback, producing a nonsense "502000".
+#
+# `|| true` keeps `set -e` from aborting the deploy on a failed probe: by this
+# point PM2 has already restarted successfully and a bad probe is information,
+# not a reason to abort.
+_http_code() {
+  _m=""
+  [ "${2:-GET}" = "HEAD" ] && _m="--head"
+  _c=$(curl -s $_m -o /dev/null -w '%{http_code}' --max-time 20 "${SMOKE_URL}$1" 2>/dev/null || true)
+  [ -n "$_c" ] || _c="000"
+  printf '%s' "$_c"
+}
+
+# Wait for the app to actually accept requests before probing.
+#
+# `pm2 restart` returns as soon as the process is SPAWNED, not when it is
+# listening. Probing immediately measures our own impatience: the first
+# version of this block reported 502s against a completely healthy deploy.
+echo ""
+printf "Waiting for the app to accept requests"
+_ready=0
+for _i in $(seq 1 30); do
+  if [ "$(_http_code /healthz GET)" = "200" ]; then
+    _ready=1
+    echo " ready."
+    break
+  fi
+  printf "."
+  sleep 2
+done
+if [ "$_ready" -eq 0 ]; then
+  echo ""
+  echo "  (still not answering after 60s — probing anyway; results below may"
+  echo "   reflect a slow start rather than a real fault)"
+fi
+
 echo ""
 echo "Post-deploy smoke checks against ${SMOKE_URL} ..."
 
 _probe() {
-  # $1 = path, $2 = expected status, $3 = HTTP method
-  _code=$(curl -s -o /dev/null -w '%{http_code}' -X "${3:-GET}" --max-time 20 "${SMOKE_URL}$1" 2>/dev/null || echo "000")
+  # $1 = path, $2 = expected status, $3 = method (GET | HEAD)
+  _code=$(_http_code "$1" "${3:-GET}")
   if [ "$_code" = "$2" ]; then
     echo "  ✓ ${3:-GET} $1 -> $_code"
     return 0
