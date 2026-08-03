@@ -157,6 +157,22 @@ describe("document counting", () => {
     expect(payload.last_audit_at).toBe("2026-08-03T09:22:10Z");
   });
 
+  it("renders last_audit_at_chicago for the same instant", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "a.pdf", agoMs: 5 * HOUR });
+
+    const payload = await makeService(db).getStatus();
+    // 09:22:10Z is 04:22:10 CDT — the local rendering must describe the same
+    // moment as the UTC field, not a re-read of the clock.
+    expect(payload.last_audit_at_chicago).toBe("Aug 3, 2026, 4:22:10 AM CDT");
+  });
+
+  it("leaves last_audit_at_chicago null when there is no audit", async () => {
+    const payload = await makeService(freshDb()).getStatus();
+    expect(payload.last_audit_at).toBeNull();
+    expect(payload.last_audit_at_chicago).toBeNull();
+  });
+
   it("returns nulls and zeros on an empty database rather than throwing", async () => {
     const payload = await makeService(freshDb()).getStatus();
     expect(payload.documents_audited.total).toBe(0);

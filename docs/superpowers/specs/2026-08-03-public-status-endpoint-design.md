@@ -103,6 +103,7 @@ process that performs audits. The Nuxt tier's own uptime is not reported.
     "by_format_total": { "pdf": 12010, "docx": 1600, "pptx": 380, "xlsx": 210, "other": 3 }
   },
   "last_audit_at": "2026-08-03T14:02:55Z",
+  "last_audit_at_chicago": "Aug 3, 2026, 9:02:55 AM CDT",
 
   "remediation": {
     "enabled": true,

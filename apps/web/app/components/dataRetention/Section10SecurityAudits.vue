@@ -68,6 +68,39 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.40.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.40.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: third-party software updates —
+            <strong>a security release</strong>.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          Like all modern software, this application is built on top of open-source components
+          maintained by others. When a flaw is found in one of those components, a security
+          advisory is published and the component's authors release a fix. This release applies
+          every outstanding fix — around 25 advisories in total, several rated high severity.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          Every one of these was in a supporting component used to build and package the
+          application rather than in the code that reads your documents, and we have no indication
+          any was ever exploited here. They are applied because keeping dependencies current is
+          basic maintenance, not because a problem was observed.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          One component that <em>is</em> used to read your documents was updated: the XML reader
+          behind Word, PowerPoint and Excel checks. Because a subtle change there could shift
+          scores without producing any visible error, four sample documents were audited on both
+          the old and new versions and the results compared — they were identical. The status page
+          also gained a Chicago-local timestamp alongside the existing UTC one.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.39.3 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
