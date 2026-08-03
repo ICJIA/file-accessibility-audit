@@ -1082,6 +1082,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
 
+### v1.40.1 — 2026-08-03 · Last fixable advisory cleared (`esbuild`)
+
+Pins `esbuild` to `^0.28.1` (was 0.27.3), closing a low-severity arbitrary-file-read advisory in esbuild's *development* server — not a surface this application exposes in production. The override costs nothing: Vite 7.3.6 already declares `^0.27.0 || ^0.28.0` and 0.28.1 was present via nitropack; only `@nuxt/fonts` still held 0.27.3. The tree now resolves to one esbuild version. One advisory remains open and is **not actionable** — a medium-severity `@nuxt/ui` issue (`UAuthForm`/`UForm` SSR markup omits `method`) with no patched version published. It does not apply here: this app uses `UFormField`, not `UForm`/`UAuthForm`, and only on the login page, which is inert while `AUTH.REQUIRE_LOGIN` is false.
+
 ### v1.40.0 — 2026-08-03 · Dependency security release — every open advisory cleared
 
 Resolves all ~25 open Dependabot advisories, including high-severity issues in `postcss`, `tar`, `brace-expansion`, `shell-quote`, `ws`, `js-yaml`, `lodash`, `linkify-it`, `picomatch`, and `vite`. Every one was **transitive** — a dependency of build tooling (nuxt, nitropack, puppeteer, `@nuxt/ui`), not of application code.

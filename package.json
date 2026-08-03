@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.40.0",
+  "version": "1.40.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -53,6 +53,7 @@
       "launch-editor": "^2.14.1",
       "body-parser": "^1.20.6",
       "@babel/core": "^7.29.6",
+      "esbuild": "^0.28.1",
       "h3@1": "^1.15.9",
       "unhead@2": "^2.1.13",
       "vite@7": "^7.3.5"

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.40.1] - 2026-08-03
+
+Clears the last fixable dependency advisory left after v1.40.0.
+
+### Security
+
+- **`esbuild` pinned to `^0.28.1`** (was 0.27.3), closing a low-severity advisory covering arbitrary file read via esbuild's *development* server — a surface this application does not expose in production, which is why it is low. The override is free: Vite 7.3.6 already declares `^0.27.0 || ^0.28.0`, and 0.28.1 was in the tree via nitropack; only `@nuxt/fonts` was still holding 0.27.3. The tree now resolves to a single esbuild version.
+
+### Notes
+
+One advisory remains open and is **not actionable**: a medium-severity `@nuxt/ui` issue where `UAuthForm` / `UForm` SSR markup omits `method`. No patched version exists yet. It also does not apply here — this application uses `UFormField` (a field wrapper), not `UForm` or `UAuthForm`, and only on the login page, which is inert while `AUTH.REQUIRE_LOGIN` is `false`. It will close when upstream ships a fix.
+
+Tests unchanged at 1,713; lint, typecheck, build green.
+
 ## [1.40.0] - 2026-08-03
 
 Dependency security release: clears every open Dependabot advisory. Adds a local-time field to `/status`.
