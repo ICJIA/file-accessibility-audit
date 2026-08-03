@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.40.2] - 2026-08-03
+
+Moves the Scoring Rubric from the top navigation to the footer.
+
+### Changed
+
+- **"Scoring" now lives in the footer link row** rather than the header nav, restyled to match the neighbouring Changelog / What's New / Data Retention links. The rubric dialog itself is unchanged — same content, same behaviour, just a different trigger location. This also moves it out of the auth-gated `<nav v-if="user">`, so its visibility no longer depends on login state.
+
+### Fixed
+
+- **Corrected a wrong comment and test rationale** introduced in v1.39.2. Both asserted that the header's `<nav v-if="user">` never renders for ordinary visitors. It does: `/api/auth/me` returns `{ "email": "anonymous" }` rather than `null` while `AUTH.REQUIRE_LOGIN` is `false`, so `user` is truthy. The "What's New" link's placement outside that nav is still correct — enabling login, or changing the anonymous sentinel to `null`, would silently hide anything inside it — but the stated reason was wrong and would have misled the next reader.
+
+Tests unchanged at 1,713; lint, typecheck, build green.
+
 ## [1.40.1] - 2026-08-03
 
 Clears the last fixable dependency advisory left after v1.40.0.

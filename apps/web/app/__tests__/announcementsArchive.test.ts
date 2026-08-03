@@ -41,12 +41,14 @@ describe("announcement archive: reachability", () => {
     expect(layout).toContain('to="/announcements"');
   });
 
-  it("puts the header link OUTSIDE the signed-in-only nav", () => {
-    // The header's main <nav> is `v-if="user"`, and AUTH.REQUIRE_LOGIN is
-    // false — so anonymous visitors never render it. A link placed inside
-    // would be invisible to essentially every real visitor, while still
-    // looking correct in source review. This asserts the link is not inside
-    // that gated block.
+  it("puts the header link OUTSIDE the auth-gated nav", () => {
+    // The header's main <nav> is `v-if="user"`. That nav DOES render for
+    // ordinary visitors today, because /api/auth/me returns
+    // { email: "anonymous" } rather than null while AUTH.REQUIRE_LOGIN is
+    // false — so `user` is truthy. But that is incidental: enabling login,
+    // or changing the anonymous sentinel to null, would silently hide
+    // anything placed inside it. The archive link must not depend on auth
+    // state, so it lives outside that block.
     const gatedNavStart = layout.indexOf('<nav v-if="user"');
     const gatedNavEnd = layout.indexOf("</nav>", gatedNavStart);
     const headerLink = layout.indexOf('to="/announcements"');

@@ -50,216 +50,6 @@
             >
               Analyze
             </a>
-            <UModal
-              title="Scoring Rubric"
-              description="How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel documents"
-            >
-              <button
-                class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors cursor-pointer"
-              >
-                Scoring
-              </button>
-              <template #content="{ close }">
-                <div class="max-w-2xl mx-auto">
-                  <div class="flex items-center justify-between px-3 sm:px-6 pt-5 pb-3">
-                    <div>
-                      <h2 class="text-lg font-semibold text-[var(--text-heading)]">
-                        Scoring Rubric
-                      </h2>
-                      <p class="text-sm text-[var(--text-muted)]">
-                        How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel
-                        documents
-                      </p>
-                    </div>
-                    <button
-                      class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors"
-                      @click="close"
-                    >
-                      <svg
-                        class="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
-                    <p class="text-[var(--text-muted)] leading-relaxed">
-                      Each PDF, Word, PowerPoint, or Excel document is scored across accessibility
-                      categories based on
-                      <a
-                        href="https://www.w3.org/WAI/WCAG22/quickref/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-[var(--link)] hover:text-[var(--link-hover)]"
-                        >WCAG 2.2</a
-                      >
-                      and
-                      <a
-                        href="https://www.ada.gov/resources/title-ii-rule/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-[var(--link)] hover:text-[var(--link-hover)]"
-                        >ADA Title II</a
-                      >
-                      and
-                      <a
-                        href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-[var(--link)] hover:text-[var(--link-hover)]"
-                        >IITAA 2.1</a
-                      >
-                      requirements. Categories that don't apply to a document (e.g., tables in a
-                      document with no tables) are excluded and the remaining weights are
-                      renormalized.
-                    </p>
-
-                    <div class="rounded-lg border border-[var(--border)] overflow-x-auto">
-                      <table class="w-full text-sm min-w-[480px]">
-                        <thead>
-                          <tr
-                            class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide"
-                          >
-                            <th class="text-left px-3 sm:px-4 py-2 font-medium">Category</th>
-                            <th class="text-center px-2 sm:px-3 py-2 font-medium">Weight</th>
-                            <th class="text-left px-3 sm:px-4 py-2 font-medium">Why It Matters</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr
-                            v-for="cat in rubricCategories"
-                            :key="cat.id"
-                            class="border-b border-[var(--border-subtle)] last:border-0"
-                          >
-                            <td
-                              class="px-3 sm:px-4 py-2.5 text-[var(--text-secondary)] font-medium whitespace-nowrap"
-                            >
-                              {{ cat.label }}
-                            </td>
-                            <td
-                              class="text-center px-2 sm:px-3 py-2.5 font-mono text-[var(--text-muted)]"
-                            >
-                              {{ cat.weight }}%
-                            </td>
-                            <td
-                              class="px-3 sm:px-4 py-2.5 text-[var(--text-muted)] leading-relaxed"
-                            >
-                              {{ cat.rationale }}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <p class="text-[var(--text-muted)] text-xs leading-relaxed">
-                      The weights above are the
-                      <strong class="text-[var(--text-secondary)]">PDF</strong> rubric.
-                      <strong class="text-[var(--text-secondary)]">Word (.docx)</strong> documents
-                      use the same categories with three differences: color contrast
-                      <em>is</em> checked (Word stores real text colors, unlike PDF), a
-                      <strong>List Structure</strong> category (real lists vs. typed bullets)
-                      applies in place of PDF-only Bookmarks, and Reading Order and Form
-                      Accessibility show as <strong>N/A</strong> (Word manages reading order in its
-                      linear document flow).
-                      <strong class="text-[var(--text-secondary)]">PowerPoint (.pptx)</strong>
-                      replaces heading structure with a <strong>Slide Titles</strong> category
-                      (every slide needs a unique title placeholder) and actively checks
-                      <strong>Reading Order</strong> (the slide title should be the first shape a
-                      screen reader encounters); bookmarks and forms don't apply.
-                      <strong class="text-[var(--text-secondary)]">Excel (.xlsx)</strong> replaces
-                      heading structure with a <strong>Sheet Names</strong> category (no default
-                      "Sheet1" tabs), weights <strong>Table Markup</strong> heaviest (real table
-                      objects with header rows; merged cells are advisories), scores Title &amp;
-                      Language on the title alone (Excel stores no document language), and omits
-                      reading order, lists, bookmarks, and forms. Weights are renormalized across
-                      whichever categories apply to the document.
-                    </p>
-
-                    <div>
-                      <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Grade Scale</h3>
-                      <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                        <div
-                          v-for="g in grades"
-                          :key="g.grade"
-                          class="text-center rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] py-2.5"
-                        >
-                          <span class="text-lg font-black block" :style="{ color: g.color }">{{
-                            g.grade
-                          }}</span>
-                          <span class="text-xs text-[var(--text-muted)]"
-                            >{{ g.min }}–{{ g.max }}</span
-                          >
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 class="font-semibold text-[var(--text-secondary)] mb-3">
-                        Severity Levels
-                      </h3>
-                      <div class="space-y-2">
-                        <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
-                          <span
-                            class="text-xs px-2 py-0.5 rounded-full w-20 text-center"
-                            :style="{ backgroundColor: s.color + '15', color: s.color }"
-                            >{{ s.label }}</span
-                          >
-                          <span class="text-[var(--text-muted)]">{{ s.description }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 class="font-semibold text-[var(--text-secondary)] mb-3">
-                        Reference Documents
-                      </h3>
-                      <div class="flex flex-wrap gap-2">
-                        <a
-                          v-for="link in referenceLinks"
-                          :key="link.url"
-                          :href="link.url"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
-                        >
-                          {{ link.label }}
-                          <svg
-                            class="w-3 h-3"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="2"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                            />
-                          </svg>
-                        </a>
-                      </div>
-                    </div>
-
-                    <p class="text-[var(--text-muted)] text-xs leading-relaxed">
-                      Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the
-                      WCAG 2.1 AA required by ADA Title II and the Illinois IITAA 2.1 standard (the
-                      legal minimum; WCAG 2.2 is stricter and optional/forward-looking). The
-                      highest-weighted categories reflect the most fundamental barriers to access —
-                      if a document has no extractable text, no other accessibility feature can
-                      compensate.
-                    </p>
-                  </div>
-                </div>
-              </template>
-            </UModal>
             <a
               v-if="config.public.faqsUrl"
               :href="config.public.faqsUrl"
@@ -288,10 +78,16 @@
             </template>
           </nav>
           <!-- Always-visible updates link.
-               Deliberately OUTSIDE the <nav v-if="user"> above: that nav
-               renders only for signed-in users, and AUTH.REQUIRE_LOGIN is
-               false, so ordinary visitors never see it. Placing this link
-               there would hide it from exactly the audience it is for.
+               Deliberately OUTSIDE the <nav v-if="user"> above so its
+               visibility never depends on auth state.
+
+               NOTE: that nav DOES currently render for ordinary visitors —
+               /api/auth/me returns { email: "anonymous" } rather than null
+               while AUTH.REQUIRE_LOGIN is false, so `user` is truthy. But
+               that is incidental, and turning login on (or changing the
+               anonymous sentinel to null) would silently hide anything
+               placed inside it. This link must survive that.
+
                /announcements is a Vue page, so NuxtLink (SPA navigation) is
                correct here — unlike /status, which is a server route and
                needs a real document navigation. -->
@@ -449,6 +245,223 @@
             Changelog
           </a>
           <span v-if="config.public.githubUrl" class="text-[var(--border)]">|</span>
+          <UModal
+            title="Scoring Rubric"
+            description="How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel documents"
+          >
+            <button
+              class="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
+            >
+              <svg
+                class="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+                />
+              </svg>
+              Scoring
+            </button>
+            <template #content="{ close }">
+              <div class="max-w-2xl mx-auto">
+                <div class="flex items-center justify-between px-3 sm:px-6 pt-5 pb-3">
+                  <div>
+                    <h2 class="text-lg font-semibold text-[var(--text-heading)]">Scoring Rubric</h2>
+                    <p class="text-sm text-[var(--text-muted)]">
+                      How accessibility scores are calculated for PDF, Word, PowerPoint, and Excel
+                      documents
+                    </p>
+                  </div>
+                  <button
+                    class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-icon)] transition-colors"
+                    @click="close"
+                  >
+                    <svg
+                      class="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
+                  <p class="text-[var(--text-muted)] leading-relaxed">
+                    Each PDF, Word, PowerPoint, or Excel document is scored across accessibility
+                    categories based on
+                    <a
+                      href="https://www.w3.org/WAI/WCAG22/quickref/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                      >WCAG 2.2</a
+                    >
+                    and
+                    <a
+                      href="https://www.ada.gov/resources/title-ii-rule/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                      >ADA Title II</a
+                    >
+                    and
+                    <a
+                      href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                      >IITAA 2.1</a
+                    >
+                    requirements. Categories that don't apply to a document (e.g., tables in a
+                    document with no tables) are excluded and the remaining weights are
+                    renormalized.
+                  </p>
+
+                  <div class="rounded-lg border border-[var(--border)] overflow-x-auto">
+                    <table class="w-full text-sm min-w-[480px]">
+                      <thead>
+                        <tr
+                          class="border-b border-[var(--border)] text-[var(--text-secondary)] text-xs uppercase tracking-wide"
+                        >
+                          <th class="text-left px-3 sm:px-4 py-2 font-medium">Category</th>
+                          <th class="text-center px-2 sm:px-3 py-2 font-medium">Weight</th>
+                          <th class="text-left px-3 sm:px-4 py-2 font-medium">Why It Matters</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="cat in rubricCategories"
+                          :key="cat.id"
+                          class="border-b border-[var(--border-subtle)] last:border-0"
+                        >
+                          <td
+                            class="px-3 sm:px-4 py-2.5 text-[var(--text-secondary)] font-medium whitespace-nowrap"
+                          >
+                            {{ cat.label }}
+                          </td>
+                          <td
+                            class="text-center px-2 sm:px-3 py-2.5 font-mono text-[var(--text-muted)]"
+                          >
+                            {{ cat.weight }}%
+                          </td>
+                          <td class="px-3 sm:px-4 py-2.5 text-[var(--text-muted)] leading-relaxed">
+                            {{ cat.rationale }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p class="text-[var(--text-muted)] text-xs leading-relaxed">
+                    The weights above are the
+                    <strong class="text-[var(--text-secondary)]">PDF</strong> rubric.
+                    <strong class="text-[var(--text-secondary)]">Word (.docx)</strong> documents use
+                    the same categories with three differences: color contrast <em>is</em> checked
+                    (Word stores real text colors, unlike PDF), a
+                    <strong>List Structure</strong> category (real lists vs. typed bullets) applies
+                    in place of PDF-only Bookmarks, and Reading Order and Form Accessibility show as
+                    <strong>N/A</strong> (Word manages reading order in its linear document flow).
+                    <strong class="text-[var(--text-secondary)]">PowerPoint (.pptx)</strong>
+                    replaces heading structure with a <strong>Slide Titles</strong> category (every
+                    slide needs a unique title placeholder) and actively checks
+                    <strong>Reading Order</strong> (the slide title should be the first shape a
+                    screen reader encounters); bookmarks and forms don't apply.
+                    <strong class="text-[var(--text-secondary)]">Excel (.xlsx)</strong> replaces
+                    heading structure with a <strong>Sheet Names</strong> category (no default
+                    "Sheet1" tabs), weights <strong>Table Markup</strong> heaviest (real table
+                    objects with header rows; merged cells are advisories), scores Title &amp;
+                    Language on the title alone (Excel stores no document language), and omits
+                    reading order, lists, bookmarks, and forms. Weights are renormalized across
+                    whichever categories apply to the document.
+                  </p>
+
+                  <div>
+                    <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Grade Scale</h3>
+                    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      <div
+                        v-for="g in grades"
+                        :key="g.grade"
+                        class="text-center rounded-lg border border-[var(--border)] bg-[var(--surface-deep)] py-2.5"
+                      >
+                        <span class="text-lg font-black block" :style="{ color: g.color }">{{
+                          g.grade
+                        }}</span>
+                        <span class="text-xs text-[var(--text-muted)]"
+                          >{{ g.min }}–{{ g.max }}</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 class="font-semibold text-[var(--text-secondary)] mb-3">Severity Levels</h3>
+                    <div class="space-y-2">
+                      <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
+                        <span
+                          class="text-xs px-2 py-0.5 rounded-full w-20 text-center"
+                          :style="{ backgroundColor: s.color + '15', color: s.color }"
+                          >{{ s.label }}</span
+                        >
+                        <span class="text-[var(--text-muted)]">{{ s.description }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 class="font-semibold text-[var(--text-secondary)] mb-3">
+                      Reference Documents
+                    </h3>
+                    <div class="flex flex-wrap gap-2">
+                      <a
+                        v-for="link in referenceLinks"
+                        :key="link.url"
+                        :href="link.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center gap-1 text-xs text-[var(--link)] hover:text-[var(--link-hover)] bg-blue-500/10 hover:bg-blue-500/15 rounded-md px-2.5 py-1.5 transition-colors"
+                      >
+                        {{ link.label }}
+                        <svg
+                          class="w-3 h-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                          />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+
+                  <p class="text-[var(--text-muted)] text-xs leading-relaxed">
+                    Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the WCAG
+                    2.1 AA required by ADA Title II and the Illinois IITAA 2.1 standard (the legal
+                    minimum; WCAG 2.2 is stricter and optional/forward-looking). The
+                    highest-weighted categories reflect the most fundamental barriers to access — if
+                    a document has no extractable text, no other accessibility feature can
+                    compensate.
+                  </p>
+                </div>
+              </div>
+            </template>
+          </UModal>
+          <span class="text-[var(--border)]">|</span>
           <!-- Plain-language counterpart to the technical Changelog above.
                This is the ONLY route to past announcements once the home-page
                banner is dismissed — dismissal is permanent per id, and the
