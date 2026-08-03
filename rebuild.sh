@@ -218,6 +218,36 @@ _pre_pull_sha=$(git rev-parse HEAD 2>/dev/null || true)
 git checkout -- .
 git pull origin main
 
+# ---------------------------------------------------------------------
+# Re-exec after the pull, because that pull may have replaced THIS FILE.
+#
+# bash reads a script lazily, by byte offset — it does not slurp the whole
+# file up front. So when `git pull` rewrites rebuild.sh mid-run, bash keeps
+# reading from its saved offset into the NEW contents. Best case it silently
+# runs the previous version of the later steps (which is exactly what
+# happened on the v1.41.1 deploy: the fixed smoke checks were pulled but the
+# OLD ones executed). Worst case the offset lands mid-line and bash executes
+# a fragment of a command.
+#
+# Re-executing once, only when the pull actually moved HEAD, means the rest
+# of the deploy always runs the code that was just fetched. The guard env var
+# stops this from recursing.
+# ---------------------------------------------------------------------
+if [ -z "${REBUILD_REEXECED:-}" ]; then
+  _post_pull_sha=$(git rev-parse HEAD 2>/dev/null || true)
+  if [ -n "$_pre_pull_sha" ] && [ "$_pre_pull_sha" != "$_post_pull_sha" ]; then
+    echo "Pull moved HEAD ${_pre_pull_sha:0:12} -> ${_post_pull_sha:0:12}; re-running the updated script..."
+    export REBUILD_REEXECED=1
+    export REBUILD_PRE_PULL_SHA="$_pre_pull_sha"
+    exec bash "$0" "$@"
+  fi
+fi
+# Preserve the original pre-pull SHA across the re-exec so the failure banner
+# still prints a rollback target that predates this deploy.
+if [ -n "${REBUILD_PRE_PULL_SHA:-}" ]; then
+  _pre_pull_sha="$REBUILD_PRE_PULL_SHA"
+fi
+
 echo "Installing dependencies..."
 _stage="pnpm-install"
 pnpm install --frozen-lockfile

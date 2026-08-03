@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.41.2] - 2026-08-03
+
+`rebuild.sh` now re-executes itself after `git pull`, so a deploy always runs the code it just fetched.
+
+### Fixed
+
+- **`rebuild.sh` pulled a new copy of *itself* and then kept executing the old one.** bash reads a script lazily, by byte offset — it does not read the whole file up front. When `git pull` (line 219) rewrites `rebuild.sh` mid-run, bash keeps reading from its saved offset into the **new** contents. The visible symptom: the v1.41.1 deploy fetched the fixed smoke checks but ran the v1.41.0 ones, so the same false `502` / `502000` output appeared even though the fix was already on disk. The worse, unobserved case is the offset landing mid-line and bash executing a fragment of a command.
+
+  The script now re-execs once, immediately after the pull and only when the pull actually moved `HEAD`, so every later step runs the freshly fetched code. A guard environment variable prevents recursion, and the pre-pull SHA is carried across the re-exec so the failure banner still prints a rollback target that predates the deploy. Verified by simulation: re-execs exactly once when `HEAD` moves, not at all when it does not, and the rollback SHA survives.
+
+### Notes
+
+**The `Sourcemap is likely to be incorrect` warnings during `pnpm build` are cosmetic and expected.** They come from `@tailwindcss/vite` (and Nuxt's module-preload polyfill) transforming files without emitting a sourcemap, so Vite warns that the *server* build's sourcemap may be imprecise for those chunks. They do not affect the shipped application. Client sourcemaps are already disabled — the built client bundle contains **zero** `.map` files, so no source is exposed to browsers. No action needed.
+
 ## [1.41.1] - 2026-08-03
 
 Fixes the post-deploy smoke checks added in v1.41.0, which reported false failures against a healthy deploy.

@@ -68,6 +68,27 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.41.2 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.41.2</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: an internal deployment script — not a
+            security release.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          The deployment script updates itself as part of each deployment, but continued running the
+          previous version of its own later steps — so a correction made to it did not take effect
+          until the following deployment. It now restarts itself after updating, ensuring each
+          deployment runs the code it just retrieved. This concerns only the deployment process; the
+          application and its data are unaffected.
+          <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>
+        </p>
+      </article>
+
       <!-- v1.41.1 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
