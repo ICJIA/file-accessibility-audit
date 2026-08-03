@@ -13,7 +13,9 @@ import auditUrlRoutes from "./routes/audit-url.js";
 import auditUrlPageRoutes from "./routes/audit-url-page.js";
 import tokensRoutes from "./routes/tokens.js";
 import remediateRoutes from "./routes/remediate.js";
+import statusRoutes from "./routes/status.js";
 import { runCleanup, startCleanupInterval } from "./services/remediationCleanup.js";
+import { formatUptime } from "./services/status.js";
 
 // Import db to trigger table creation on startup
 import "./db/sqlite.js";
@@ -57,6 +59,14 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.text({ limit: "5mb", type: "text/plain" }));
 app.use(cookieParser());
 
+// Public status document. Mounted BEFORE globalLimiter and carrying its own
+// limiter: the Nitro tier proxies /status over loopback, so every browser hit
+// arrives as 127.0.0.1 and shares one global bucket. Under globalLimiter,
+// ordinary site traffic could 429 the status page — making it unavailable
+// exactly when someone is checking whether the service is healthy.
+// (globalLimiter also skips this path, so the ordering is belt and braces.)
+app.use("/api", statusRoutes);
+
 // Global rate limit
 app.use(globalLimiter);
 
@@ -85,18 +95,9 @@ const startedAt = new Date();
 
 function healthPayload() {
   const uptimeSec = Math.floor((Date.now() - startedAt.getTime()) / 1000);
-  const days = Math.floor(uptimeSec / 86400);
-  const hours = Math.floor((uptimeSec % 86400) / 3600);
-  const minutes = Math.floor((uptimeSec % 3600) / 60);
-  const seconds = uptimeSec % 60;
-  const uptime =
-    days > 0
-      ? `${days}d ${hours}h ${minutes}m ${seconds}s`
-      : hours > 0
-        ? `${hours}h ${minutes}m ${seconds}s`
-        : `${minutes}m ${seconds}s`;
-
-  return { status: "ok", uptime };
+  // Shared with /api/status so the two endpoints cannot drift into reporting
+  // the same number two different ways.
+  return { status: "ok", uptime: formatUptime(uptimeSec) };
 }
 
 app.get("/", (_req, res) => res.json(healthPayload()));

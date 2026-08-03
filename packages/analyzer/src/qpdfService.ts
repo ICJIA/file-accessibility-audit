@@ -22,7 +22,11 @@ import {
 } from "./qpdfStructTree.js";
 export type { TableAnalysis };
 
-const QPDF_BIN =
+// Exported so the /status endpoint probes the SAME binary the analyzer will
+// actually use. Probing a bare "qpdf" instead would report a false outage
+// wherever PATH lacks the fallback directories — which is the normal case
+// under PM2 — while document auditing carried on working.
+export const QPDF_BIN =
   process.env.QPDF_PATH ||
   (() => {
     try {

@@ -75,6 +75,24 @@ export function isRemediationStatusRequest(req: any): boolean {
   );
 }
 
+// GET /api/status — the public service-status document. Exempt from
+// globalLimiter and governed by statusLimiter (below) instead.
+//
+// The Nitro tier proxies /status over loopback, so every browser hit lands
+// on the API as 127.0.0.1 and shares ONE global bucket. Under globalLimiter,
+// ordinary site traffic could therefore exhaust the budget and 429 the status
+// page — making it fail precisely when someone is checking whether the
+// service is healthy.
+export function isStatusRequest(req: any): boolean {
+  return req?.method === "GET" && req?.path === "/api/status";
+}
+
+// Single skip predicate for globalLimiter. Kept separate from the two
+// individual predicates so each stays independently testable.
+export function isGlobalLimitExempt(req: any): boolean {
+  return isRemediationStatusRequest(req) || isStatusRequest(req);
+}
+
 // ---------------------------------------------------------------------------
 // Two-tier limiter factory
 // ---------------------------------------------------------------------------
@@ -142,14 +160,15 @@ export const reportsLimiter = rateLimit({
 });
 
 // Two-tier catch-all burst guard, applied to every route in index.ts.
-// Remediation status polls are exempt (they have their own limiter below)
-// so a long-running job's progress page can't drain the shared budget.
+// Remediation status polls and the public /api/status document are exempt
+// (each has its own limiter below) so neither a long-running job's progress
+// page nor the status page can be starved by the shared budget.
 export const globalLimiter = tieredLimiter({
   windowMs: RATE_LIMITS.global.windowMs,
   anon: RATE_LIMITS.global.anon,
   privileged: RATE_LIMITS.global.privileged,
   message: { error: "Too many requests. Please slow down." },
-  skip: isRemediationStatusRequest,
+  skip: isGlobalLimitExempt,
 });
 
 // Flood guard for the (cheap, poll-heavy) remediation status endpoint —
@@ -159,6 +178,19 @@ export const remediationStatusLimiter = rateLimit({
   windowMs: RATE_LIMITS.remediationStatus.windowMs,
   max: RATE_LIMITS.remediationStatus.max,
   keyGenerator: userOrIpKey,
+  message: { error: "Too many status requests. Please slow down." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Flood guard for the public /api/status document — the only cap that
+// applies to it, since globalLimiter skips it. Keyed by IP rather than
+// userOrIpKey: the endpoint is unauthenticated by design, so there is no
+// user to key by.
+export const statusLimiter = rateLimit({
+  windowMs: RATE_LIMITS.status.windowMs,
+  max: RATE_LIMITS.status.max,
+  keyGenerator: (req) => req.ip || "unknown",
   message: { error: "Too many status requests. Please slow down." },
   standardHeaders: true,
   legacyHeaders: false,

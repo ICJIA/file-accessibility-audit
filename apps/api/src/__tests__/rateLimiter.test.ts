@@ -5,6 +5,8 @@ import {
   tierKey,
   tieredLimiter,
   isRemediationStatusRequest,
+  isStatusRequest,
+  isGlobalLimitExempt,
   globalLimiter,
   remediationStatusLimiter,
 } from "../middleware/rateLimiter.js";
@@ -223,6 +225,54 @@ describe("tieredLimiter (integration)", () => {
       ];
       for (const c of cases) {
         expect(isRemediationStatusRequest(makeReq(c))).toBe(false);
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Public /api/status exemption. The Nitro tier proxies /status over
+  // loopback, so every browser hit arrives as 127.0.0.1 and shares ONE global
+  // bucket. Under globalLimiter, ordinary site traffic could 429 the status
+  // page — making it unavailable exactly when someone is checking whether the
+  // service is healthy.
+  // -------------------------------------------------------------------------
+
+  describe("isStatusRequest", () => {
+    it("matches GET /api/status", () => {
+      expect(isStatusRequest(makeReq({ method: "GET", path: "/api/status" }))).toBe(true);
+    });
+
+    it("does not match other methods or lookalike paths", () => {
+      const cases = [
+        { method: "POST", path: "/api/status" },
+        { method: "GET", path: "/api/status/detail" },
+        { method: "GET", path: "/api/statuses" },
+        { method: "GET", path: "/status" },
+        { method: "GET", path: "/api/remediate/abc/status" },
+      ];
+      for (const c of cases) {
+        expect(isStatusRequest(makeReq(c))).toBe(false);
+      }
+    });
+  });
+
+  describe("isGlobalLimitExempt", () => {
+    it("exempts both the remediation poll and the public status document", () => {
+      expect(isGlobalLimitExempt(makeReq({ method: "GET", path: "/api/status" }))).toBe(true);
+      expect(
+        isGlobalLimitExempt(makeReq({ method: "GET", path: "/api/remediate/abc/status" })),
+      ).toBe(true);
+    });
+
+    it("exempts nothing else — the global cap still covers every real route", () => {
+      const cases = [
+        { method: "POST", path: "/api/analyze" },
+        { method: "GET", path: "/api/health" },
+        { method: "GET", path: "/api/reports/abc" },
+        { method: "POST", path: "/api/status" },
+      ];
+      for (const c of cases) {
+        expect(isGlobalLimitExempt(makeReq(c))).toBe(false);
       }
     });
   });

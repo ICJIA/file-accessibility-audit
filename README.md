@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1008 passed (50 files)
-  ✔ Web      515 passed (43 files)
+  ✔ API      1082 passed (54 files)
+  ✔ Web      567 passed (45 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1594 tests passed across 99 files
+  ✔ 1698 tests passed across 105 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1011 tests)
+### API Tests (1082 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -853,7 +853,9 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `tokens.test.ts` | 27 | Personal access tokens: token generation, name sanitization, the PAT branch of the auth middleware, and the create/list/revoke `/api/tokens` endpoints |
 | `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
 | `urlPolicy.test.ts` | 22 | The extracted URL/SSRF policy module: allowlist + subdomain matching, lookalike-suffix rejection, private/local-host blocking, `ANALYZE_URL_ALLOWED_HOSTS` env extension, the privileged public-URL validator, and `SafeFetchError`→HTTP status mapping |
-| `rateLimiter.test.ts` | 18 | The privileged bearer-token tier — constant-time `isPrivilegedRequest` (missing/wrong/empty/prefix/over-length tokens, feature-off when unset), tier selection (strict per-IP vs generous shared bucket), a live limiter test proving a token exceeds the anonymous cap on the same IP — plus the remediation-status carve-out: `isRemediationStatusRequest` route matching, `tieredLimiter`/`globalLimiter` skip semantics that exempt status polls without draining the shared bucket, and `remediationStatusLimiter`'s own generous per-IP cap |
+| `rateLimiter.test.ts` | 22 | The privileged bearer-token tier — constant-time `isPrivilegedRequest` (missing/wrong/empty/prefix/over-length tokens, feature-off when unset), tier selection (strict per-IP vs generous shared bucket), a live limiter test proving a token exceeds the anonymous cap on the same IP — plus both global-limiter carve-outs: `isRemediationStatusRequest` and `isStatusRequest` route matching (including lookalikes like `/api/statuses` and `POST /api/status`), `isGlobalLimitExempt` exempting exactly those two and nothing else, `tieredLimiter`/`globalLimiter` skip semantics that exempt them without draining the shared bucket, and `remediationStatusLimiter`'s own generous per-IP cap |
+| `status.test.ts` | 30 | The public `/api/status` payload, built against a real `:memory:` database provisioned by the actual migration runner (so the SQL meets production's real column types — `audit_log.created_at` is a UTC datetime *string* while `remediation_jobs.created_at` is an INTEGER ms epoch). Covers the document-event-type split (page audits and auth events excluded), extension-derived format buckets including `other` for extension-less URL filenames, the 24h/30d windows, `last_audit_at` emitted as zone-marked ISO so it can't be parsed as local time, tiered failure semantics (qpdf/database → outage; veraPDF/Chromium → degraded), a corrupt database degrading to `database:"down"` rather than throwing, probe failures becoming data (`{ok:false, reason}`) instead of exceptions, a hung probe timing out under fake timers, and the two independent cache TTLs asserted by **probe invocation count** — the property that stops an uptime monitor spawning a veraPDF JVM on every poll |
+| `statusPrivacy.test.ts` | 7 | Privacy guard for the public, unauthenticated status document. Seeds `audit_log` and `remediation_jobs` with a distinctive filename, email, IP, user-agent, and content hash, then asserts the counts prove the row was read while none of those values — nor any `@`, nor any `/opt`-`/usr`-`/home`-`/Users`-style path — appears anywhere in the serialized JSON. Also pins probe failures to the closed reason enum (a thrown error carrying `/opt/verapdf/verapdf` must not reach the payload), engine versions to bare numbers rather than raw tool output, and the top-level key set to an allow-list so a new field can't be added by accident |
 | `reportSanitize.test.ts` | 17 | `sanitizeStoredReport`, the store-boundary guard applied before every report insert: strips unsafe (`javascript:`/`data:`) help-link and conformance-finding URL schemes — including nested under `scoreProfiles.*.categories` — while preserving the finding text, rejects malformed (non-array `categories`, non-object) reports without mutating the caller's object, and tolerates malformed `conformance` shapes (string, null, missing `url`) without throwing |
 | `migrations.test.ts` | 15 | The numbered SQLite migration runner (`PRAGMA user_version`-keyed): a fresh database lands at the latest version with the full schema and re-opening is a no-op; the version-selection algorithm applies exactly the `N+1..latest` migrations to a snapshotted database and bumps `user_version` after each one individually (not just at the end, so a crash mid-migration can resume); and the legacy fast-forward path — the core correctness requirement — lands an already-provisioned pre-migration-runner database at the latest version without re-running any `ALTER`, preserves its data, still runs later migrations after the fast-forward, and targets a FIXED baseline constant rather than the migration list's current length |
 | `ooxmlWorker.test.ts` | 14 | The interruptible OOXML child-process worker (DOCX/PPTX/XLSX now analyze off the main event loop): results and `ParseError` codes survive the IPC round-trip, a timeout SIGKILLs the child rather than abandoning it and frees its concurrency slot, the promise only settles once the child's OS-confirmed `exit` fires (with a grace-timer fallback so it never hangs forever), and the spawn environment excludes API secrets while the child still boots and analyzes correctly |
@@ -887,7 +889,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (531 tests)
+### Web Tests (567 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -917,7 +919,8 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `usePaginatedReports.test.ts` | 7 | The `usePaginatedReports` composable shared by the history pages: fetches the given URL on mount at page 1 with credentials included, exposes the response under `data`, `goToPage(n)` refetches with the new page in the query (a no-op when the page is unchanged), and a fetch error sets `error` (cleared once a later page succeeds) |
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
 | `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
-| `healthz.test.ts` | 8 | `resolveHealthz`, the aggregation behind the `/healthz` uptime-probe URL served by the Nuxt tier: 200 with both tiers ok (and the API's uptime echoed) only when the loopback `/api/health` probe answers `status:"ok"`; 503 with `api:"down"` when the probe rejects (unreachable/timeout) or returns a non-ok, empty, or null body; a 429 from the API's own rate limiter counts as alive (flooding `/healthz` can't fabricate an outage) while any other HTTP error stays down; `apiUptime` omitted when down |
+| `status.test.ts` | 13 | `resolveStatus`, the Nuxt-tier aggregation behind the public `/status` URL. The monitoring-critical case: a core failure must reach the caller as **503 with the payload intact** — Express answers 503 when qpdf or the database is broken, and discarding that body in favour of a bare `api:"down"` would throw away the exact diagnosis the endpoint exists to deliver. Also covers optional-engine failures staying 200, an unreachable API returning a deliberately *minimal* rather than partial body (no fabricated zeros), a rate-limit body reported as reachable-but-unknown without leaking the limiter's message, `isOutage` treating absent engine data as "not evidence of failure", and the API payload never being able to override `web`/`api` |
+| `healthz.test.ts` | 8 | `resolveHealthz`, the aggregation behind the `/healthz` liveness-fallback URL served by the Nuxt tier (superseded as the monitoring target by `/status`, but retained because it runs no probes and so still answers when `/status` cannot): 200 with both tiers ok (and the API's uptime echoed) only when the loopback `/api/health` probe answers `status:"ok"`; 503 with `api:"down"` when the probe rejects (unreachable/timeout) or returns a non-ok, empty, or null body; a 429 from the API's own rate limiter counts as alive (flooding `/healthz` can't fabricate an outage) while any other HTTP error stays down; `apiUptime` omitted when down |
 | `csp.test.ts` | 5 | `buildCspHeader`: the per-request nonce lands in `script-src` with `'unsafe-inline'` dropped there (while `style-src` keeps it), the tight high-value directives are preserved, and no nonce value can cause `'unsafe-inline'` to leak into `script-src` |
 | `download.test.ts` | 5 | The native `downloadBlob` helper that replaced `file-saver`: creates an object URL from the blob, clicks a detached anchor with the given filename and href, sets the `download` attribute before clicking, revokes the object URL afterward, and never leaves the anchor attached to the document |
 | `escapeHtml.test.ts` | 5 | `escapeHtml`: escapes all five HTML-significant characters, neutralizes `<script>` and quote-breakout payloads, leaves benign text untouched, and escapes `&` first so entities aren't double-encoded |
@@ -990,14 +993,62 @@ For local production testing (without PM2):
 pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ```
 
-### Health checks & uptime monitoring
+### Status & uptime monitoring
 
-Two endpoints, one probe URL:
+**`GET /status`** (Nuxt) is the monitoring and service-visibility URL. It returns a JSON document covering both tiers, the audit engines, and usage:
+
+```json
+{
+  "status": "ok",
+  "version": "1.39.0",
+  "uptime_seconds": 431520,
+  "uptime": "4d 23h 52m 0s",
+  "checked_at": "2026-08-03T14:22:10Z",
+  "checked_at_chicago": "Aug 3, 2026, 9:22:10 AM CDT",
+  "web": "ok",
+  "api": "ok",
+  "database": "ok",
+  "engines": {
+    "checked_at": "2026-08-03T14:19:44Z",
+    "qpdf": { "ok": true, "version": "12.3.2" },
+    "verapdf": { "ok": true, "version": "1.26.1" },
+    "chromium": { "ok": true }
+  },
+  "documents_audited": {
+    "last_24h": 37,
+    "last_30d": 812,
+    "total": 14203,
+    "by_format_30d": { "pdf": 700, "docx": 84, "pptx": 18, "xlsx": 10, "other": 0 },
+    "by_format_total": { "pdf": 12010, "docx": 1600, "pptx": 380, "xlsx": 210, "other": 3 }
+  },
+  "last_audit_at": "2026-08-03T14:02:55Z",
+  "remediation": { "enabled": true, "jobs_24h": { "complete": 4, "failed": 0 } }
+}
+```
+
+**Tiered failure semantics.** Not every broken dependency is an outage:
+
+| Tier | Components | Response |
+| --- | --- | --- |
+| Core | `api`, `database`, `qpdf` | `503`, `"status":"down"` |
+| Optional | `verapdf`, `chromium` | `200`, `"status":"degraded"`, plus a `degraded: […]` array |
+
+veraPDF or Chromium being unavailable removes the PDF/UA verdict or page audits, but document auditing still works — returning 503 for either would page an operator over something that is not an outage. When the API is unreachable the response is deliberately minimal (`{"status":"down","web":"ok","api":"down"}`) rather than partial: without the API no count or engine result is knowable, and emitting zeros would be a false statement rather than a missing one.
+
+Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/status`. A plain HTTP(S) monitor suffices for up/down; adding a **keyword alert on `degraded`** is what catches a silently broken engine — veraPDF can die and leave every other signal reporting a healthy 200.
+
+**Caching.** Two TTLs, because the halves differ in cost by orders of magnitude: database aggregates refresh every **60s**, engine probes every **10 minutes**. Probes spawn processes including a veraPDF JVM, so a single short TTL would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on every check — roughly 288 JVM starts a day purely to answer monitoring. With the split, probe cost is bounded by the TTL rather than by poll frequency, and `engines.checked_at` shows how stale a passing result is.
+
+**Privacy.** The endpoint is public and unauthenticated, so everything it reports is an aggregate `COUNT(*)` or a boolean about a local engine. No filename, email, IP, user-agent, or filesystem path is ever serialized — filenames are consumed by the by-format `CASE` expression *inside SQLite* and never cross the boundary, and probe failures collapse to a fixed reason enum (`not_configured` / `not_executable` / `timeout` / `error`) because subprocess stderr routinely embeds absolute paths. `statusPrivacy.test.ts` seeds identifying values and fails the build if any reaches the payload.
+
+Excluded by design: **page-audit counts** (the document-vs-page distinction confuses the non-technical readers this page is for) and any **report-sharing figure** (a row records that a report was *generated*, never whether its link was copied or sent — so "shared" is unmeasurable, not merely unmeasured).
+
+Other endpoints:
 
 - **`GET /api/health`** (Express) — `{"status":"ok","uptime":"…"}`. The per-tier smoke-test URL used after deploys.
-- **`GET /healthz`** (Nuxt) — aggregate check for uptime monitors. Served by the web process, which probes the API over loopback (`NUXT_API_INTERNAL_URL`, default `http://127.0.0.1:5103`) and returns `200 {"status":"ok","web":"ok","api":"ok",…}` only when both tiers answer; any API failure — unreachable, timeout, non-ok body — yields `503` with `"api":"down"` (exception: a 429 from the API's own rate limiter counts as alive, so request floods aimed at `/healthz` can't fabricate an outage alert). Because production nginx sends `/api/*` straight to Express and everything else to Nuxt, this single URL fails if either PM2 process (or nginx itself) is down.
+- **`GET /healthz`** (Nuxt) — a dependency-free liveness fallback that probes the API over loopback and 503s if either tier is down. It runs no engine probes and touches no database, so it still answers when `/status` cannot.
 
-Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/healthz` — a plain HTTP(S) monitor suffices, since the route genuinely 503s when degraded. The probe is unauthenticated and far below the anonymous rate limit at any sane interval. `robots.txt` disallows `/healthz` for crawlers, which does not affect uptime monitors.
+`robots.txt` disallows `/status` and `/healthz`, and both send `X-Robots-Tag: noindex, nofollow` — robots.txt is advisory, the header is not. Neither affects uptime monitors.
 
 ## Security
 
@@ -1028,6 +1079,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.39.0 — 2026-08-03 · Public `/status` endpoint — reviewed for disclosure (not a security-fix release)
+
+v1.39.0 adds one unauthenticated, read-only endpoint: `GET /status` on the web tier, reporting per-tier health, live engine checks (qpdf, veraPDF, Chromium), API uptime, and aggregate document-audit counts split by format. Because it is public, the review focused on what it discloses. Every published figure is an aggregate `COUNT(*)` or a boolean about a local engine: no filename, email, IP, user-agent, content hash, score, or grade appears, and filenames are consumed by the by-format `CASE` expression inside SQLite so they never cross the module boundary. Probe failures collapse to a closed reason enum rather than echoing subprocess stderr, which routinely embeds absolute paths — the same leak class v1.38.0 fixed for veraPDF. Both properties are enforced by `statusPrivacy.test.ts`, which seeds identifying values and fails the build if any reaches the payload, plus an allow-list assertion on the top-level key set. Rate limiting: `/api/status` is exempt from the global limiter (whose single loopback bucket ordinary traffic could exhaust, 429-ing the status page exactly when someone is checking on the service) and carries its own 120/min per-IP cap. Indexing: excluded via `robots.txt` **and** `X-Robots-Tag`, since the former is advisory and the latter is not. Two fixes landed during the review — probing `QPDF_BIN` rather than a bare `qpdf`, which would have reported a false *outage* wherever PATH lacks the fallback directories (the normal case under PM2), and passing `ignoreResponseError` so a core-failure 503 reaches the caller with its diagnosis intact instead of being flattened to `"api":"down"`. No endpoint authentication, retention window, or data-handling path otherwise changed.
 
 ### v1.38.2 — 2026-07-26 · Second PDF/UA panel moved below the blocking issues (not a security release)
 

@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "public-status-page-2026-08-03",
+    badge: "New",
+    text: "There is now a status page at /status showing whether the audit service is running, whether each of its checking engines is working, and how many documents have been audited — broken down by PDF, Word, PowerPoint and Excel. It is plain data, updated continuously, for anyone who wants to confirm the tool is healthy or see how much it is being used. It contains only totals: no file names, no email addresses, and nothing identifying anyone who has used the service.",
+    linkText: "View the status page",
+    linkTo: "/status",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 3, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "pdfua-not-a-wcag-pass-2026-07-26",
     badge: "Improved",
     text: "Both PDF/UA panels now sit below the issues you need to fix, and neither can be mistaken for a clean bill of health. The \u201cPDF/UA-1 signals\u201d card used to appear at the very top of your report, right under the score \u2014 above the critical issues. PDF/UA-1 essentials are structural markers (is the file tagged? are the fonts embedded?); they cannot tell whether your alt text is meaningful or your reading order makes sense, which is what the accessibility grade measures. So a document can meet every PDF/UA-1 essential and still have critical issues that block publishing \u2014 and when that is the case, the card now says so directly.",
@@ -1033,6 +1044,25 @@ export const RATE_LIMITS = {
    * so a handful of parallel jobs can't reintroduce the v1.32.0 bug.
    */
   remediationStatus: { max: 600, windowMs: 60 * 1000 }, // 600 / min / IP
+
+  /**
+   * GET /api/status — the public service-status document, exempt from
+   * `global` (see above) and capped here per IP instead.
+   *
+   * Why it needs its own bucket: /status is served to the browser via the
+   * Nitro tier, whose loopback proxy shares the API's single 127.0.0.1
+   * rate bucket. Left under `global`, ordinary site traffic could exhaust
+   * that bucket and make the status page — the thing you consult when the
+   * site looks unwell — fail exactly when it matters.
+   *
+   * Sizing: responses are served from cache almost always (see STATUS
+   * below), so the cost per request is a JSON serialization. 120/min/IP
+   * leaves enormous headroom over any uptime monitor's poll rate while
+   * still stopping a flood.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  status: { max: 120, windowMs: 60 * 1000 }, // 120 / min / IP
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1083,6 +1113,88 @@ export const SHARED_REPORTS = {
    * Increase only if legitimate reports are being rejected (unlikely).
    */
   MAX_PAYLOAD_BYTES: 1 * 1024 * 1024, // 1MB
+} as const;
+
+// ---------------------------------------------------------------------------
+// PUBLIC STATUS ENDPOINT
+// ---------------------------------------------------------------------------
+// Backing config for the public status document at https://audit.icjia.app/status
+// (Nitro route -> GET /api/status on Express). Design:
+// docs/superpowers/specs/2026-08-03-public-status-endpoint-design.md
+//
+// The endpoint is PUBLIC and unauthenticated. Everything it reports is either
+// an aggregate COUNT(*) or a boolean about a local engine — never a filename,
+// email, IP address, or filesystem path. See statusPrivacy.test.ts, which
+// fails the build if identifying data reaches the payload.
+
+export const STATUS = {
+  /**
+   * How long the database aggregates (document counts, last-audit time,
+   * remediation job counts) stay cached, in ms.
+   *
+   * These are pure SQL, so they are cheap enough to keep near-live. Kept
+   * SEPARATE from ENGINE_PROBE_TTL_MS below because the two halves of the
+   * payload differ in cost by orders of magnitude.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  AGGREGATE_TTL_MS: 60 * 1000, // 1 minute
+
+  /**
+   * How long engine probe results (qpdf / veraPDF / Chromium) stay cached,
+   * in ms.
+   *
+   * DO NOT lower this to match an uptime monitor's poll interval. Each cache
+   * miss spawns processes — including a veraPDF JVM, which costs seconds of
+   * CPU and hundreds of MB of transient RSS. /status is the monitor target,
+   * and UptimeRobot's default poll is 5 minutes: with a 1-minute TTL, every
+   * single check would miss the cache and start a JVM, roughly 288 times a
+   * day, purely to answer monitoring traffic.
+   *
+   * At 10 minutes, probe cost is bounded by the TTL rather than by how often
+   * anyone asks — polling twice as fast costs nothing extra. The payload
+   * reports engines.checked_at so a reader can see how stale a passing result
+   * is.
+   *
+   * SAFE TO CHANGE: Yes, but raise rather than lower unless you have measured
+   * the JVM cost on the target droplet.
+   */
+  ENGINE_PROBE_TTL_MS: 10 * 60 * 1000, // 10 minutes
+
+  /**
+   * Per-probe timeout in ms. A probe that exceeds it is reported as
+   * { ok: false, reason: "timeout" } and never delays the response —
+   * reporting a broken engine is the feature, not an error condition.
+   *
+   * veraPDF is a JVM: cold start on a small droplet can exceed 5s, so this
+   * is deliberately more generous than a typical subprocess timeout.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  PROBE_TIMEOUT_MS: 10 * 1000,
+
+  /**
+   * audit_log.event_type values that count as "a document was audited".
+   *
+   * DO NOT add 'audit-url-page' here. That event is a *web page* audit and
+   * stores a URL in the filename column (audit-url-page.ts), so counting it
+   * would both inflate the figure and corrupt the by-format split. Auth
+   * events (login / logout / otp_request) are likewise excluded.
+   *
+   * SAFE TO CHANGE: Only when a genuinely new document-audit path is added.
+   */
+  DOCUMENT_EVENT_TYPES: ["analyze", "analyze-url", "audit-url", "bulk-from-inventory"],
+
+  /**
+   * audit_log.event_type values for web-page audits.
+   *
+   * Deliberately NOT surfaced in the payload: the document-versus-page
+   * distinction is inscrutable to the non-technical reader this endpoint is
+   * written for, and raises more questions than it answers. Defined here so
+   * the counting helper stays symmetric and exposing it later is a one-line
+   * change. statusPrivacy.test.ts asserts the key is currently absent.
+   */
+  PAGE_EVENT_TYPES: ["audit-url-page"],
 } as const;
 
 // ---------------------------------------------------------------------------
