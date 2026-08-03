@@ -30,7 +30,7 @@ Fixes the post-deploy smoke checks added in v1.41.0, which reported false failur
 
 Both bugs were in the deploy script's self-check only. **No application code was involved, and production was healthy throughout** — verified live during diagnosis: v1.41.0, `status: ok`, `GET` and `HEAD` both 200 on `/status` and `/healthz`.
 
-The `robots.txt` / `favicon.ico` 404s the checks reported are **real** and remain outstanding; they are an nginx configuration issue on the droplet, not a build problem. See the v1.41.0 notes below for the diagnosis and the exact fix.
+The `robots.txt` / `favicon.ico` 404s the checks reported were **real** — an nginx configuration issue on the droplet, not a build problem. See the v1.41.0 notes below for the diagnosis. **Resolved on the server 2026-08-03**; all five smoke-check probes now pass.
 
 ## [1.41.0] - 2026-08-03
 
@@ -60,6 +60,8 @@ location = /robots.txt  { access_log off; log_not_found off; }
 ```
 
 An exact-match `location =` block outranks the `proxy_pass` to Nuxt and resolves against the vhost `root` (Forge's default `/home/forge/<site>/public`), which holds neither file for a Nuxt app — so nginx answers 404 itself and never forwards the request. **Fix:** delete those two blocks from the site's nginx config, then `sudo nginx -t && sudo service nginx reload`. Until then the entire `robots.txt` is missing in production; `/status` and `/healthz` are still covered by their `X-Robots-Tag` headers, but `/login`, `/my-history`, `/history` and `/publist` have no backstop.
+
+> **RESOLVED 2026-08-03.** Both blocks were deleted from the production vhost and nginx reloaded. Verified live: `/robots.txt` returns `200 text/plain` with every `Disallow` intact, and `/favicon.ico` returns `200 image/vnd.microsoft.icon`. This also closes the unexplained `/favicon.ico` 404 that had been open since v1.28.0 — same root cause. The post-deploy smoke checks now pass all five probes.
 
 Tests 1,722 → 1,725 (Web 589 → 592); lint, typecheck, build green.
 
