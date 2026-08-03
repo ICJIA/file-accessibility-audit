@@ -68,6 +68,52 @@
         the findings discovered during that release's review and what was done about them.
       </p>
 
+      <!-- v1.39.0 audit entry -->
+      <article
+        class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+      >
+        <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.39.0</h3>
+          <span class="text-xs text-[var(--text-muted)]">
+            Reviewed <strong>2026-08-03</strong> · scope: a new public status page — reviewed
+            specifically for what it discloses.
+          </span>
+        </header>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          This release adds a status page at <code>/status</code> that anyone can visit without
+          logging in. Because it is public, the central question for this review was what it reveals.
+          It publishes only <strong>totals and yes/no answers</strong>: whether the service is
+          running, whether each checking engine is working, how long the server has been up, and how
+          many documents have been audited in the last day, the last month, and in total — split by
+          file type. It does <strong>not</strong> publish any file name, email address, IP address,
+          browser identifier, score, grade, or document fingerprint, and it contains nothing that
+          identifies who used the service or what they checked.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+          That guarantee is enforced by an automated test rather than by review alone. The test loads
+          the database with a deliberately distinctive file name, email address and IP address, builds
+          the real status page, and fails the build if any of them — or any server file path, or any
+          email address at all — appears anywhere in the output. The file-type breakdown is counted
+          inside the database itself, so file names are never handed to the code that builds the page.
+          A related check pins the list of published fields, so a future change cannot add a new one
+          without a deliberate decision.
+        </p>
+        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+          Two figures were considered and deliberately left out. <strong>Report-sharing counts</strong>
+          were rejected because sharing cannot actually be observed: the system records that a report
+          was created, never whether its link was sent to anyone, so any number published under the
+          word "shared" would claim more than the software can know. <strong>Web-page audit
+          counts</strong> were left out because the distinction between a document and a web page
+          raises more questions than it answers for a general reader. Two further points of note: the
+          page is excluded from search engines by two independent mechanisms, and when a checking
+          engine fails, the page reports a fixed short label rather than the underlying error message,
+          because those messages routinely contain server file paths.
+          <strong
+            >No change to what data is collected, how it is used, or how long it is kept.</strong
+          >
+        </p>
+      </article>
+
       <!-- v1.38.2 audit entry -->
       <article
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

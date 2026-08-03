@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.39.0] - 2026-08-03
+
+Adds a public service-status page at **`https://audit.icjia.app/status`** — health, engine checks, and how many documents the tool has audited, as JSON. No scoring change: every score, grade and verdict is byte-identical to v1.38.2.
+
+### Added
+
+- **`GET /status` — a public, unauthenticated service-status document.** Reports both tiers (`web`, `api`), the database, live checks of all three audit engines (qpdf, veraPDF, Chromium), the API process's uptime, and aggregate usage: documents audited in the last 24h / 30d / all time, split by format (PDF, DOCX, PPTX, XLSX). It answers two questions that previously had no answer without SSH access — "is the service healthy?" and "is anyone using it?" — and is intended for internal developers and interested managers. Served by the Nuxt tier so a single URL covers both processes, since production nginx sends `/api/*` straight to Express.
+
+- **Tiered failure semantics, so a monitor is not paged for a non-outage.** A core failure — API unreachable, database down, or qpdf missing — returns `503` with `"status":"down"`. An optional engine failing returns `200` with `"status":"degraded"` and a `degraded: […]` array naming it. veraPDF or Chromium being unavailable removes the PDF/UA verdict or page audits, but document auditing still works, so treating either as an outage would be wrong. Adding an uptime-monitor keyword alert on `degraded` is what catches a silently broken engine — veraPDF can die while every other signal reports a healthy 200.
+
+- **Two independent cache TTLs.** Database aggregates refresh every 60s; engine probes every 10 minutes. The probes spawn processes including a veraPDF JVM, so a single short TTL would mean a monitor polling at UptimeRobot's 5-minute default misses the cache on *every* check — roughly 288 JVM starts a day purely to answer monitoring traffic. With the split, probe cost is bounded by the TTL rather than by poll frequency. `engines.checked_at` reports how stale a passing result is.
+
+### Security
+
+- **The status document discloses no identifying data, by construction and by test.** The endpoint is public, so every figure it reports is an aggregate `COUNT(*)` or a boolean about a local engine. No filename, email address, IP, user-agent, or content hash is serialized — filenames are consumed by the by-format `CASE` expression *inside SQLite* and never cross the module boundary. Probe failures collapse to a closed reason enum (`not_configured` / `not_executable` / `timeout` / `error`) rather than echoing subprocess stderr, which routinely embeds absolute paths; the real error is logged server-side only. This is the same class of leak v1.38.0 fixed for veraPDF, so it is enforced by a test that seeds identifying values and fails the build if any reaches the payload, plus an allow-list assertion on the top-level key set so a field cannot be added by accident.
+
+- **`/api/status` is exempt from the global rate limiter and carries its own per-IP cap.** The Nuxt tier proxies `/status` over loopback, so every browser hit arrives at Express as `127.0.0.1` and shares one global bucket. Left under the global limiter, ordinary site traffic could exhaust that budget and 429 the status page — making it unavailable precisely when someone is checking whether the service is healthy.
+
+- **Both `/status` and `/healthz` are excluded from search indexing**, via `robots.txt` and an `X-Robots-Tag: noindex, nofollow` response header. Both, because robots.txt is advisory and only consulted by well-behaved crawlers, while the header is honoured even when the URL is reached directly.
+
+### Fixed
+
+- **The qpdf check probes the binary the analyzer actually uses.** `qpdfService` resolves qpdf through a fallback chain (`$QPDF_PATH`, then `PATH`, then `/opt/homebrew/bin`, then `/usr/local/bin`); probing a bare `qpdf` instead would have reported a false **outage** anywhere PATH lacks those directories — the normal case under PM2 — returning 503 and paging an operator about a service that was auditing documents perfectly well. `QPDF_BIN` is now exported and shared.
+
+- **A core failure reaches the caller with its diagnosis intact.** Express answers 503 *with* a full payload naming the broken component, but `$fetch` throws on any non-2xx, so the web tier would have discarded that body and reported a bare `"api":"down"` — throwing away the exact information the endpoint exists to deliver. When the API is genuinely unreachable the response is deliberately minimal (`{"status":"down","web":"ok","api":"down"}`) rather than partial, because without the API no count or engine result is knowable and emitting zeros would be a false statement rather than a missing one.
+
+### Notes
+
+Two metrics were considered and deliberately left out. **Page-audit counts** are available but excluded: the document-versus-web-page distinction is inscrutable to the non-technical readers this page is written for and raises more questions than it answers (the plumbing is generic over event types, so adding it later is a one-line change, and a test asserts the key is currently absent). **Report-sharing counts** are excluded because sharing is not observable — a row records that a report was *generated*, never whether its link was copied or sent to anyone — so any figure published under the word "shared" would be an assertion the application cannot support.
+
+`/healthz` is unchanged and retained as a dependency-free liveness fallback: it runs no engine probes and touches no database, so it still answers when `/status` cannot.
+
+Tests 1,644 → 1,698 (API 1,041 → 1,082 / Web 554 → 567 / CLI 49); lint, typecheck, build green.
+
 ## [1.38.2] - 2026-07-26
 
 Completes the v1.38.1 reordering: the **second** PDF/UA panel now sits below the blocking issues too. No scoring change.
