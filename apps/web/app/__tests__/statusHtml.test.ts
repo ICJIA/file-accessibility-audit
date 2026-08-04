@@ -119,6 +119,41 @@ describe("renderStatusHtml", () => {
     expect(html).toContain("View raw JSON");
   });
 
+  it("offers a way back to the audit tool", () => {
+    // Without this the page is a dead end: it is a bare Nitro route with no
+    // site chrome, so someone arriving from a monitor alert or a pasted link
+    // has no path into the app at all.
+    expect(html).toContain('href="/"');
+    expect(html).toContain("Accessibility Audit");
+  });
+
+  it("takes the app name from the caller so a rebrand carries through", () => {
+    const out = renderStatusHtml(PAYLOAD, { appName: "Some Other Name", appHref: "/app" });
+    expect(out).toContain('href="/app"');
+    expect(out).toContain("Some Other Name");
+  });
+
+  it("hides the back arrow from assistive tech but keeps the link named", () => {
+    // The arrow is decoration; "left arrow" announced before the link text
+    // is noise. The text after it is the accessible name.
+    expect(html).toContain('<span class="arrow" aria-hidden="true">&#8592;</span>');
+  });
+
+  it("escapes the app name and both hrefs", () => {
+    // These are our own config values today, which is exactly why they are
+    // easy to leave unescaped — and exactly why they must not be. The
+    // dangerous payload for an href is the quote that breaks out of the
+    // attribute, so assert that specifically.
+    const out = renderStatusHtml(PAYLOAD, {
+      appName: "<script>alert(1)</script>",
+      appHref: '"><script>alert(1)</script>',
+      jsonHref: '"><script>alert(1)</script>',
+    });
+    expect(out).not.toMatch(/<script/i);
+    expect(out).toContain("&lt;script&gt;");
+    expect(out).toContain("&quot;&gt;&lt;script&gt;");
+  });
+
   it("carries no explanatory prose — just the tree and the toggle", () => {
     // Requested explicitly: the page is the JSON, formatted. Nothing else.
     const text = html

@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.43.0] - 2026-08-04
+
+The status page is no longer a dead end, it no longer costs you a browser tab, and a stray click can no longer discard a running audit without warning.
+
+### Added
+
+- **A link back to the audit tool on the HTML status page.** `/status` is a bare Nitro route with none of the site's chrome, so anyone arriving from a monitor alert, a bookmark, or a pasted link had no way into the app at all — the browser Back button only worked for people who came from the site. The toolbar now carries the app name with a back arrow on the left, opposite the existing "View raw JSON" toggle on the right. The label comes from `BRANDING.APP_SHORT_NAME` through `runtimeConfig` rather than being hardcoded, so it follows a rebrand; the arrow is `aria-hidden` so it is not announced ahead of the link name.
+
+- **A warning before a click throws away a running audit.** An audit lives entirely in the page — a single file is an in-flight request, a batch is a client-side loop over the queue — so leaving discards it with no way back short of re-uploading and waiting again. Leaving now asks first.
+
+  **It is silent unless an audit is actually running.** No banner, no caution text, no interception on an ordinary click. A permanent warning would fire on nearly every visit and become the kind of notice people dismiss unread, which is worse than none.
+
+  Three separate exits needed covering, because the browser treats them as unrelated events: `beforeunload` catches real document navigations (the **Status** link — a plain `<a>` by design — plus FAQs, reload, and closing the tab, none of which the router ever sees); a router guard catches in-app links like **What's New**, which never unload the document; and `goAnalyze` asks for itself, since clicking the site title to reset navigates to the route it is already on and so trips neither hook, while mid-batch it abandons the queue. The prompt is the browser's native dialog rather than a bespoke modal — keyboard-operable, screen-reader announced and correctly modal for free, where a hand-rolled one would need a focus trap, `aria-modal`, Escape handling and focus restoration to match.
+
+### Changed
+
+- **The header "Status" link opens in the same tab.** It opened in a new one to protect an in-progress audit, but that left a stray tab behind on every visit — and the warning above now protects the audit directly, which the new tab only did by accident. Pinned by a test that fails if `target=` reappears on that anchor. The announcement-banner and "What's New" links to `/status` already navigated in-tab and are unchanged.
+
+### Notes
+
+**The machine contract is untouched.** `/status`, `/status?json`, and any wildcard-`Accept` request return exactly the JSON they returned before — same payload, same status codes, same `Link` header. Only the HTML representation changed. Verified against the built server with the API deliberately stopped, so the degraded path was exercised too: `/status?html` still renders the tree (`{"status":"down","web":"ok","api":"down"}`) with the back link intact, while `?json` and the bare URL both stayed `application/json`.
+
+Both new hrefs and the app name are HTML-escaped like every other value on the page, asserted by test — they are our own config today, which is exactly why they would be easy to leave unescaped.
+
+**Verified in a live browser** against the built server, every branch: idle, a synthetic `beforeunload` is not cancelled and an in-app navigation is never intercepted (0 prompts); with an audit running, `beforeunload` cancels, the router guard asks and answering "no" leaves the route unchanged while "yes" proceeds, and the site-title reset asks only while running. The flag clears on unmount, so a confirmed departure does not leave it stuck true and prompting on every later click.
+
+Tests 1,748 → 1,764 (Web 615 → 631); lint, typecheck, build green.
+
 ## [1.42.1] - 2026-08-03
 
 In-site links to `/status` now request the HTML view explicitly.

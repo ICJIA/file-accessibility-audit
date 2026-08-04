@@ -15,6 +15,8 @@ import {
   nextTick,
   onMounted,
   onUnmounted,
+  onBeforeUnmount,
+  type Ref,
 } from "vue";
 
 // Stub Nuxt auto-imported composables on globalThis so <script setup> code
@@ -30,9 +32,20 @@ _global.watchEffect = watchEffect;
 _global.nextTick = nextTick;
 _global.onMounted = onMounted;
 _global.onUnmounted = onUnmounted;
+_global.onBeforeUnmount = onBeforeUnmount;
 _global.definePageMeta = () => {};
 _global.navigateTo = () => {};
 _global.$fetch = async () => ({});
+
+// Nuxt's cross-component state. The real one keys into the payload; a plain
+// per-key ref cache is behaviourally identical for a single mounted tree,
+// which is all any test here has.
+const _states = new Map<string, Ref<unknown>>();
+_global.useState = <T>(key: string, init?: () => T): Ref<T> => {
+  if (!_states.has(key)) _states.set(key, ref(init ? init() : undefined) as Ref<unknown>);
+  return _states.get(key) as Ref<T>;
+};
+_global.useAuditInProgress = () => _global.useState("audit-in-progress", () => false);
 // Mirror the full runtimeConfig.public surface exposed in nuxt.config.ts so any
 // component mounted in tests gets defined values (not just the WCAG keys).
 _global.useRuntimeConfig = () => ({

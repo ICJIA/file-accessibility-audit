@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     return { error: "Method not allowed" };
   }
 
-  const { apiInternalUrl } = useRuntimeConfig(event);
+  const { apiInternalUrl, public: publicConfig } = useRuntimeConfig(event);
   setResponseHeader(event, "X-Robots-Tag", "noindex, nofollow");
   setResponseHeader(event, "Cache-Control", "no-store");
 
@@ -60,7 +60,10 @@ export default defineEventHandler(async (event) => {
 
   if (format === "html") {
     setResponseHeader(event, "Content-Type", "text/html; charset=utf-8");
-    return renderStatusHtml(result.body);
+    // appName comes from runtimeConfig (BRANDING.APP_SHORT_NAME) so the way
+    // back to the app is labelled correctly after a rebrand rather than
+    // hardcoded in the renderer.
+    return renderStatusHtml(result.body, { appName: publicConfig?.appName });
   }
 
   // Advertise the human view without touching the payload. A field for it

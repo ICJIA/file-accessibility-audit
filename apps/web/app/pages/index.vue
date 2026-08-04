@@ -869,6 +869,20 @@ const hasAnyResult = computed(() => {
   return !!singleResult.value;
 });
 
+// Publish "an audit is running" so the navigation guard and the site-title
+// reset can warn before discarding it. Both states count: a single file is an
+// in-flight fetch owned by this page, a batch is a client-side loop — neither
+// survives leaving. See composables/useAuditInProgress.ts.
+const auditInProgress = useAuditInProgress();
+watchEffect(() => {
+  auditInProgress.value = processing.value || batchProcessing.value;
+});
+// REQUIRED, not tidiness: after a confirmed departure this page unmounts while
+// the flag is still true, and a stuck flag would prompt on every later click.
+onBeforeUnmount(() => {
+  auditInProgress.value = false;
+});
+
 const showDropHint = ref(false);
 let dropHintTimer: ReturnType<typeof setTimeout> | null = null;
 

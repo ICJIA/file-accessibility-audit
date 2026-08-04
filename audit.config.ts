@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "leave-warning-and-status-backlink-2026-08-04",
+    badge: "Improved",
+    text: "If you click a link while a document is still being checked, the page now asks first — leaving cancels the check and discards the report. You will only see this while a check is actually running; ordinary clicks are unaffected. The status page also has a link back to the audit tool now, so it is no longer a dead end, and the “Status” link in the header opens in this tab instead of a new one.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 4, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "status-page-readable-2026-08-03",
     badge: "Improved",
     text: "The status page at /status is now readable without any browser add-on. It shows the same information as before, laid out as a colour-coded, collapsible outline instead of a single block of unformatted text, with a link to view the raw data if you prefer it. Nothing about what is published has changed — still only totals and yes/no answers, with no file names, no email addresses, and nothing identifying anyone who has used the service.",

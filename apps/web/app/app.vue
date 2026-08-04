@@ -41,7 +41,14 @@ async function logout() {
 // Provide a signal that child pages can watch to reset state
 const resetSignal = ref(0);
 
+// Clicking the site title clears results and starts a new file. It is the
+// only reset path, and mid-batch it abandons the queue — but it navigates to
+// the page it is already on, so neither the router guard nor beforeunload
+// sees it. It has to ask for itself. Silent when nothing is running.
+const auditInProgress = useAuditInProgress();
+
 function goAnalyze() {
+  if (!guardNavigation(auditInProgress.value, (message) => window.confirm(message))) return;
   resetSignal.value++;
   navigateTo("/");
 }

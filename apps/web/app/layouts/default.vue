@@ -109,13 +109,13 @@
             >
               What's New
             </NuxtLink>
-            <!-- Plain <a>, NOT NuxtLink — see the note above. Opens in a new
-                 tab so clicking it mid-audit cannot discard an in-progress
-                 report. -->
+            <!-- Plain <a>, NOT NuxtLink — see the note above.
+                 Same tab, deliberately: this opened in a new one originally,
+                 to protect an in-progress audit, but that left a stray tab
+                 behind on every visit. The status page now carries its own
+                 link back to the app, so the round trip is a normal one. -->
             <a
               href="/status?html"
-              target="_blank"
-              rel="noopener"
               class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               Status

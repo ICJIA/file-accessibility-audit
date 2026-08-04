@@ -73,6 +73,17 @@ describe("uptime-monitor routes answer HEAD as well as GET", () => {
     expect(layout).not.toMatch(/:to="'\/status/);
   });
 
+  it("opens /status in the SAME tab", () => {
+    // It opened in a new tab originally, on the theory that clicking it
+    // mid-audit shouldn't discard an in-progress report. In practice it just
+    // littered tabs. The status page now renders its own link back to the
+    // app, so the round trip works without target="_blank".
+    const layout = readFileSync(resolve(__dirname, "..", "layouts", "default.vue"), "utf-8");
+    const statusAnchor = layout.match(/<a[^>]*href="\/status\?html"[^>]*>/);
+    expect(statusAnchor).not.toBeNull();
+    expect(statusAnchor![0]).not.toContain("target=");
+  });
+
   it("in-site links request the HTML view explicitly", () => {
     // Browsers already get HTML via Accept negotiation, so ?html is belt and
     // braces — but it makes the intent readable in the markup and survives any

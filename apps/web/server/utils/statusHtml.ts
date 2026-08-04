@@ -98,11 +98,12 @@ const STYLE = `
 body{margin:0;background:#0b0f19;color:#e6edf3;
  font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
 .wrap{max-width:900px;margin:0 auto;padding:20px 16px 64px}
-.bar{display:flex;justify-content:flex-end;margin:0 0 14px}
+.bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 14px}
 a.toggle{display:inline-block;padding:5px 11px;border:1px solid #30363d;border-radius:7px;
  color:#8b949e;text-decoration:none;font-size:12px;letter-spacing:.02em}
 a.toggle:hover,a.toggle:focus-visible{color:#e6edf3;border-color:#8b949e;background:#161b22}
 a.toggle:focus-visible{outline:2px solid #58a6ff;outline-offset:2px}
+.arrow{padding-right:.45em}
 .tree{background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:14px 16px;overflow-x:auto}
 .row{white-space:pre}
 details{margin:0}
@@ -136,13 +137,24 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
 /**
  * Full HTML document for the status payload.
  *
- * `jsonHref` is where the toggle points. The reverse direction (JSON -> HTML)
- * is deliberately NOT a link in the payload: adding a field for it would
- * change the machine contract and break the top-level key allow-list that
- * statusPrivacy.test.ts enforces. The JSON response advertises the HTML view
- * in a `Link` header instead, where it costs the body nothing.
+ * `jsonHref` is where the format toggle points. The reverse direction
+ * (JSON -> HTML) is deliberately NOT a link in the payload: adding a field for
+ * it would change the machine contract and break the top-level key allow-list
+ * that statusPrivacy.test.ts enforces. The JSON response advertises the HTML
+ * view in a `Link` header instead, where it costs the body nothing.
+ *
+ * `appHref`/`appName` are the way back to the audit tool. This page is a
+ * dead end otherwise — it is a bare Nitro route with no site chrome, so a
+ * reader who lands here from a monitor alert, a bookmark, or a pasted link
+ * has no path into the app at all. The name is passed in rather than
+ * hardcoded so it follows BRANDING.APP_SHORT_NAME through a rebrand.
  */
-export function renderStatusHtml(body: Record<string, unknown>, jsonHref = "/status?json"): string {
+export function renderStatusHtml(
+  body: Record<string, unknown>,
+  opts: { jsonHref?: string; appHref?: string; appName?: string } = {},
+): string {
+  const { jsonHref = "/status?json", appHref = "/", appName = "Accessibility Audit" } = opts;
+
   const entries = Object.entries(body);
   const children = entries.map(([k, v], i) => node(k, v, i === entries.length - 1)).join("");
 
@@ -159,7 +171,7 @@ export function renderStatusHtml(body: Record<string, unknown>, jsonHref = "/sta
 </head>
 <body>
 <div class="wrap">
-<div class="bar"><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
+<div class="bar"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
 <div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>
 </div>
 </body>
