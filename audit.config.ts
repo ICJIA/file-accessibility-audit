@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "legacy-office-and-csv-guidance-2026-08-04",
+    badge: "Improved",
+    text: "Uploading an older Office file — .doc, .xls, .ppt or .rtf — now gets you a real answer instead of a list of what the tool accepts. These formats cannot store the headings, alt text and table information an accessibility check looks for, which is why Word and Excel disable their own accessibility checkers for them too. The tool now names the format, gives the Save As steps, and is clear that converting brings your content across but not accessibility structure — so expect to still add headings and alt text afterwards. It also recognizes an old file that has simply been renamed with a newer extension. Spreadsheet exports (.csv and .tsv) get a different explanation on purpose: there is nothing in a CSV for this tool to check, and that is not a fault. For raw data CSV is often the right format, and its accessibility depends on the page that links it rather than on the file itself.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 4, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "status-grade-distribution-2026-08-04",
     badge: "New",
     text: "The status page now shows how documents checked here have actually scored — how many earned an A, a B, and so on — over the last 24 hours, the last 30 days, and since the tool launched. It is a quick way to see how common serious accessibility problems really are. One caveat matters enough that it is printed on the page itself: these are files visitors chose to upload, often because they already suspected something was wrong, and the same file may be uploaded more than once. So the figures describe what people bring here to check, not the overall state of any organization’s documents.",

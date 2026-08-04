@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.45.0] - 2026-08-04
+
+Files the tool recognizes but cannot audit now get an answer instead of a list of what it accepts.
+
+### Added
+
+- **Specific guidance for legacy binary Office files (`.doc`, `.xls`, `.ppt`, and `.rtf`).** These are OLE2 compound binaries — a different container from the OOXML this tool audits, not an older version of the same one — and they cannot store the headings, alt text, table headers or document language an accessibility check looks for. Word and Excel disable their own Accessibility Checker for them for exactly that reason.
+
+  The message names the format, gives the Save As path to the modern equivalent, and states plainly that **converting carries content across but not accessibility structure**, so the user should expect to still add headings and alt text afterwards. That last sentence is pinned by test for all four formats: without it, people convert, re-upload, score badly, and feel misled by the tool that told them to convert.
+
+- **Content-based recognition, so a renamed file is caught.** A `.doc` saved as `.docx` passes every extension check and previously failed with *"check that you are not uploading a renamed file of another type (e.g., .zip, .jpg)"* — told to a user holding a genuine Word document. `detectLegacyFormat` now sniffs the OLE2 signature and scans a bounded 8 KB prefix for the UTF-16LE CFB stream names (`WordDocument`, `Workbook`, `Book`, `PowerPoint Document`), falling back to a generic legacy-binary message for the rest of the family (`.msg`, `.vsd`).
+
+  It deliberately does **not** parse the compound-file container. Doing that properly means reading the CFB header and walking the FAT — a new parser over untrusted input, to compose a sentence. We are not auditing these files, only explaining why we cannot.
+
+- **CSV and TSV get the opposite advice, on purpose.** A CSV has no accessibility structure either, but that is not a defect and telling someone to convert it would be wrong: for raw tabular data CSV is often the right format, and converting it to `.xlsx` to score better produces a worse artifact and a meaningless grade. The message says there is nothing to check, that this is not a fault, and points at the page linking the file — describe the data, state the format and size, identify the header row. A test pins that this copy can never contain "Save As".
+
+### Changed
+
+- **The copy moved to `@file-audit/shared`.** It previously existed only in the browser drop zone, so three server paths still emitted the generic accepted-formats list: a direct `POST /api/analyze` (what the CLI, curl, and the fleet-audit integration actually see), the analyze route's content-detection failure, and the URL / inventory pipeline — the last being where legacy formats show up in bulk, as an agency's back catalogue of `.doc` returning a wall of identical generic failures with no sign that one action fixes all of them. All four call sites now share one source. `legacyFormatMessage` became `unsupportedFormatHint`, since "legacy" stopped being accurate once CSV joined it.
+
+### Notes
+
+**No scored path, response shape, or status code changed.** Rejections still return 400 from the upload filter and analyze route and 422 from the URL pipeline; only the message body differs, so the fleet-audit integration is unaffected. Legacy extensions are still refused at the filter rather than accepted-then-detected, so no upload bandwidth is spent on a file certain to be rejected. `.csv` is deliberately absent from the file input's `accept` attribute — the browse dialog should not offer a format the tool rejects, while a drag-and-drop still produces the explanation.
+
+**Verified over real HTTP**, every path: an honest `.doc` at the extension filter, a `.doc` renamed to `.docx` through the content sniff, an unnamed OLE2 binary falling back correctly, `.rtf`, and `.csv`. Regression check on the controls corpus: `2022-DVFR-Annual-Report-A0.pdf` still scores 100 / A, unchanged.
+
+Tests 1,787 → 1,815 (API 1,091 → 1,112; Web 647 → 654); lint, typecheck, build green.
+
 ## [1.44.0] - 2026-08-04
 
 The status page now shows how the documents people check here have actually scored — with the sampling caveat printed beside the numbers rather than left for the reader to infer.

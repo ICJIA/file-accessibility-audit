@@ -230,7 +230,10 @@ describe("DropZone", () => {
       await wrapper.vm.$nextTick();
 
       expect(wrapper.emitted("file-selected")).toBeFalsy();
-      expect(wrapper.text()).toContain("isn't supported");
+      // Asserted by behaviour, not by exact phrasing: the user is told which
+      // modern format to produce and how to get there. The wording itself is
+      // owned by @file-audit/shared and pinned in uploadFormats.test.ts, so
+      // rewriting the copy should not break a component test.
       expect(wrapper.text()).toContain(modernExt);
       expect(wrapper.text()).toContain("Save As");
       expect(wrapper.text()).not.toContain(
@@ -238,6 +241,22 @@ describe("DropZone", () => {
       );
     },
   );
+
+  // CSV is recognized too, but gets the opposite advice — converting a CSV to
+  // .xlsx to score better produces a worse artifact and a meaningless grade.
+  it("shows CSV-specific copy that never tells the user to convert", async () => {
+    const wrapper = mount(DropZone);
+    const file = new File(["a,b\n1,2\n"], "data.csv", { type: "text/csv" });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, "files", { value: [file], writable: true });
+    await input.trigger("change");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted("file-selected")).toBeFalsy();
+    expect(wrapper.text()).toContain("CSV");
+    expect(wrapper.text()).toContain("no accessibility structure");
+    expect(wrapper.text()).not.toContain("Save As");
+  });
 
   it("still shows the generic message for an unrelated unsupported file (.jpg)", async () => {
     const wrapper = mount(DropZone);

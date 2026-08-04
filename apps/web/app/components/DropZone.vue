@@ -132,7 +132,7 @@ import {
   uploadExtensions,
   uploadNoun,
   uploadNounWithExts,
-  legacyFormatMessage,
+  unsupportedFormatHint,
 } from "~/utils/uploadFormats";
 
 const MAX_FILES = 3;
@@ -211,11 +211,13 @@ function processFiles(files: File[]) {
   const exts = uploadExtensions(uploadFlags.value);
   const accepted = files.filter((f) => exts.some((ext) => f.name.toLowerCase().endsWith(ext)));
   if (accepted.length === 0) {
-    // A legacy binary Office file (.xls/.doc/.ppt) gets a specific,
-    // actionable message instead of the generic unsupported-formats list.
-    const legacyMessage = files.map((f) => legacyFormatMessage(f.name)).find(Boolean);
+    // A legacy binary Office file (.doc/.xls/.ppt/.rtf) or a CSV gets
+    // specific, actionable copy instead of the generic unsupported-formats
+    // list — the two say different things, because converting a .doc is the
+    // right advice and converting a CSV is not.
+    const hint = files.map((f) => unsupportedFormatHint(f.name)).find(Boolean);
     validationError.value =
-      legacyMessage || `Please select ${uploadNounWithExts(uploadFlags.value)} files`;
+      hint || `Please select ${uploadNounWithExts(uploadFlags.value)} files`;
     return;
   }
 

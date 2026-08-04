@@ -3,7 +3,8 @@ import path from "node:path";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { analyzeLimiter } from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
-import { analyzeDocument, detectFileType } from "../services/analyzer.js";
+import { analyzeDocument, detectFileType, detectLegacyFormat } from "../services/analyzer.js";
+import { unsupportedFormatMessage } from "@file-audit/shared";
 import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
 import { gateIdentity, recordAudit, sha256Hex } from "../services/auditLog.js";
 import { FILENAME } from "#config";
@@ -86,6 +87,18 @@ router.post(
 
       // Unsupported file type (content matches no supported format)
       if (err.code === "UNSUPPORTED_FILE_TYPE") {
+        // The extension filter never saw this one — either the file was
+        // renamed (a .doc saved as .docx sails through multer and only fails
+        // here) or it arrived without a telling extension. Sniff the bytes so
+        // a genuine Word document is not told to check whether it is a .zip.
+        const legacy = req.file ? detectLegacyFormat(req.file.buffer) : null;
+        if (legacy) {
+          res.status(400).json({
+            error: "This file is a legacy format that cannot be audited.",
+            details: unsupportedFormatMessage(legacy),
+          });
+          return;
+        }
         res.status(400).json({
           error: "This file is not a supported document.",
           details:

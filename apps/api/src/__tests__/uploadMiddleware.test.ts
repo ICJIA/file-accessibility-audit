@@ -112,6 +112,66 @@ describe("uploadFileFilter: rejection", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Recognized-but-unauditable formats get specific copy at the API boundary too
+// ---------------------------------------------------------------------------
+// The browser drop zone has said something useful about a .doc for a while,
+// but the API said only "Only PDF, Word (.docx), … are accepted" — which is
+// what the CLI, curl, and the fleet-audit integration actually see.
+
+describe("uploadFileFilter: legacy Office and CSV rejection copy", () => {
+  it("tells a .doc uploader how to convert, not just what is accepted", () => {
+    const { error, accept } = runFilter({
+      mimetype: "application/msword",
+      originalname: "letter.doc",
+    });
+    expect(accept).toBeUndefined();
+    expect(error!.message).toContain(".docx");
+    expect(error!.message).toContain("Save As");
+    expect(error!.message).not.toContain("Only PDF");
+  });
+
+  it("does the same for .xls, .ppt and .rtf", () => {
+    for (const [name, modern] of [
+      ["book.xls", ".xlsx"],
+      ["deck.ppt", ".pptx"],
+      ["memo.rtf", ".docx"],
+    ] as const) {
+      const { error } = runFilter({ mimetype: "application/octet-stream", originalname: name });
+      expect(error!.message).toContain(modern);
+    }
+  });
+
+  it("never tells a CSV uploader to convert to .xlsx", () => {
+    const { error } = runFilter({ mimetype: "text/csv", originalname: "data.csv" });
+    expect(error!.message).toContain("CSV");
+    expect(error!.message).not.toMatch(/save as/i);
+  });
+
+  it("carries a 400 status like every other rejection from this filter", () => {
+    const { error } = runFilter({ mimetype: "text/csv", originalname: "data.csv" });
+    expect((error as { status?: number }).status).toBe(400);
+  });
+
+  it("still falls back to the accepted-formats list for an unrelated type", () => {
+    const { error } = runFilter({ mimetype: "image/jpeg", originalname: "photo.jpg" });
+    expect(error!.message).toContain("Only PDF");
+  });
+
+  it("does not hijack the modern formats it is meant to accept", () => {
+    for (const [name, mime] of [
+      ["report.pdf", "application/pdf"],
+      ["memo.docx", DOCX_MIME],
+      ["deck.pptx", PPTX_MIME],
+      ["sheet.xlsx", XLSX_MIME],
+    ] as const) {
+      const { error, accept } = runFilter({ mimetype: mime, originalname: name });
+      expect(error).toBeNull();
+      expect(accept).toBe(true);
+    }
+  });
+});
+
 describe("acceptedFormatsMessage: one/two/many label joins", () => {
   it("one label (DOCX and PPTX both off)", () => {
     expect(acceptedFormatsMessage(["PDF"])).toBe("Only PDF files are accepted");

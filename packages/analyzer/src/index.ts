@@ -15,8 +15,10 @@
 export {
   analyzeDocument,
   detectFileType,
+  detectLegacyFormat,
   FileTypeError,
   type DetectedFileType,
+  type LegacyDetected,
 } from "./analyzer.js";
 export {
   analyzePDF,

@@ -96,6 +96,68 @@ export async function detectFileType(buffer: Buffer): Promise<DetectedFileType |
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Legacy-format recognition (rejection copy only — never analysis)
+// ---------------------------------------------------------------------------
+
+/** OLE2 / Compound File Binary header. Identifies the whole 97–2003 Office
+ *  family (and .msg, .vsd, and others — hence the 'ole-unknown' fallback). */
+const OLE2_MAGIC = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+
+/** How far in to look for a CFB directory entry name. Bounded so a hostile
+ *  file cannot turn detection into a scan of the whole upload. */
+const OLE2_SCAN_BYTES = 8192;
+
+/** CFB directory entry names are stored UTF-16LE. */
+function utf16le(name: string): Buffer {
+  return Buffer.from(name, "utf16le");
+}
+
+const OLE2_STREAMS: Array<[Buffer, LegacyDetected]> = [
+  [utf16le("WordDocument"), "doc"],
+  // 'Workbook' (BIFF8) before 'Book' (BIFF5). They do not actually collide —
+  // 'Book' begins 0x42 (upper-case B) while the 'book' inside 'Workbook' is
+  // 0x62 — but the order makes the intent obvious to the next reader.
+  [utf16le("Workbook"), "xls"],
+  [utf16le("Book"), "xls"],
+  [utf16le("PowerPoint Document"), "ppt"],
+];
+
+/** The subset of UnsupportedFormat that is detectable from content. CSV has no
+ *  signature and is deliberately never guessed from bytes — it is gated on the
+ *  extension at the upload surfaces instead. */
+export type LegacyDetected = "doc" | "xls" | "ppt" | "rtf" | "ole-unknown";
+
+/**
+ * Best-effort identification of a legacy binary Office file, for rejection
+ * copy only.
+ *
+ * This deliberately does NOT parse the compound-file container. Doing that
+ * properly means reading the CFB header (sector shift at 0x1E, first directory
+ * sector at 0x30) and walking the FAT — a new parser over untrusted input, for
+ * the sole purpose of composing a sentence. Scanning a bounded prefix for the
+ * UTF-16LE directory entry names is enough to name the application, and when
+ * it is not, 'ole-unknown' is still a far better answer than the generic
+ * accepted-formats list. If you are tempted to "do this properly": we are not
+ * auditing the file, only explaining why we cannot.
+ *
+ * Called only on the failure path — after detectFileType has already returned
+ * null — so it costs nothing on a normal upload.
+ */
+export function detectLegacyFormat(buffer: Buffer): LegacyDetected | null {
+  // RTF is not OLE2 — it is text with markup — but it is the same user problem.
+  if (buffer.subarray(0, 5).toString("latin1") === "{\\rtf") return "rtf";
+
+  if (buffer.length < OLE2_MAGIC.length) return null;
+  if (!buffer.subarray(0, OLE2_MAGIC.length).equals(OLE2_MAGIC)) return null;
+
+  const head = buffer.subarray(0, Math.min(buffer.length, OLE2_SCAN_BYTES));
+  for (const [needle, format] of OLE2_STREAMS) {
+    if (head.includes(needle)) return format;
+  }
+  return "ole-unknown";
+}
+
 /** Error for unsupported file types or a disabled DOCX/PPTX/XLSX pipeline. */
 export class FileTypeError extends Error {
   code: "UNSUPPORTED_FILE_TYPE" | "DOCX_DISABLED" | "PPTX_DISABLED" | "XLSX_DISABLED";

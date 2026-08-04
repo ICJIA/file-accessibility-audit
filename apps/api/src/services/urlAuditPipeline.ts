@@ -26,7 +26,8 @@
  *   check.
  */
 import type { Response } from "express";
-import { detectFileType, type DetectedFileType } from "./analyzer.js";
+import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./analyzer.js";
+import { unsupportedFormatMessage } from "@file-audit/shared";
 import { sha256Hex } from "./auditLog.js";
 import { safeFetch, SafeFetchError } from "./safeFetch.js";
 import {
@@ -109,6 +110,18 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
   // Detect PDF vs DOCX vs PPTX vs XLSX from the fetched content (not the URL extension).
   const fileType = await detectFileType(buf);
   if (!fileType) {
+    // Inventory sweeps are where legacy formats show up in bulk — a whole
+    // agency's back catalogue of .doc can otherwise come back as a wall of
+    // identical generic failures with no indication that one action fixes
+    // all of them.
+    const legacy = detectLegacyFormat(buf);
+    if (legacy) {
+      res.status(422).json({
+        error: "The fetched file is a legacy format that cannot be audited.",
+        details: unsupportedFormatMessage(legacy),
+      });
+      return { ok: false };
+    }
     res.status(422).json({
       error: "Fetched content is not a supported document.",
       details:

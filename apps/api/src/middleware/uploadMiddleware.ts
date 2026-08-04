@@ -1,4 +1,5 @@
 import multer from "multer";
+import { unsupportedFormatHint } from "@file-audit/shared";
 import { ANALYSIS, DOCX, PPTX, XLSX } from "#config";
 
 const storage = multer.memoryStorage();
@@ -54,13 +55,26 @@ export function uploadFileFilter(
   const isXlsx = XLSX.ENABLED && (file.mimetype === XLSX.MIME_TYPE || name.endsWith(".xlsx"));
   if (isPdf || isDocx || isPptx || isXlsx) {
     cb(null, true);
-  } else {
-    const labels = ["PDF"];
-    if (DOCX.ENABLED) labels.push("Word (.docx)");
-    if (PPTX.ENABLED) labels.push("PowerPoint (.pptx)");
-    if (XLSX.ENABLED) labels.push("Excel (.xlsx)");
-    cb(new UnsupportedFileTypeError(acceptedFormatsMessage(labels)));
+    return;
   }
+
+  // A legacy Office binary or a CSV gets specific, actionable copy rather than
+  // the accepted-formats list, which tells someone holding a real Word
+  // document nothing they can act on. Rejected here on the extension rather
+  // than accepted-then-detected, so we do not spend the upload bandwidth on a
+  // file that is certain to be refused; the content-based path in
+  // routes/analyze.ts covers the renamed case the extension cannot see.
+  const hint = unsupportedFormatHint(file.originalname);
+  if (hint) {
+    cb(new UnsupportedFileTypeError(hint));
+    return;
+  }
+
+  const labels = ["PDF"];
+  if (DOCX.ENABLED) labels.push("Word (.docx)");
+  if (PPTX.ENABLED) labels.push("PowerPoint (.pptx)");
+  if (XLSX.ENABLED) labels.push("Excel (.xlsx)");
+  cb(new UnsupportedFileTypeError(acceptedFormatsMessage(labels)));
 }
 
 export const uploadMiddleware = multer({
