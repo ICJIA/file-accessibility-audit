@@ -6,7 +6,12 @@ import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { analyzeDocument, detectFileType, detectLegacyFormat } from "../services/analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
 import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
-import { gateIdentity, recordAudit, sha256Hex } from "../services/auditLog.js";
+import {
+  gateIdentity,
+  recordAudit,
+  recordRejectedUpload,
+  sha256Hex,
+} from "../services/auditLog.js";
 import { FILENAME } from "#config";
 
 const router: IRouter = Router();
@@ -91,6 +96,16 @@ router.post(
         // renamed (a .doc saved as .docx sails through multer and only fails
         // here) or it arrived without a telling extension. Sniff the bytes so
         // a genuine Word document is not told to check whether it is a .zip.
+        // Counted here rather than in the upload filter: this file passed the
+        // extension check, so the filter never saw it as a refusal.
+        if (req.file) {
+          recordRejectedUpload({
+            filename: sanitizeFilename(req.file.originalname),
+            email: gateIdentity(req.user?.email ?? null, req.ip),
+            ipAddress: req.ip ?? null,
+            userAgent: req.get("user-agent") ?? null,
+          });
+        }
         const legacy = req.file ? detectLegacyFormat(req.file.buffer) : null;
         if (legacy) {
           res.status(400).json({

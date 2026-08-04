@@ -71,6 +71,17 @@ function seedAudit(
   );
 }
 
+/** Inserts a refused-upload row the way recordRejectedUpload does: the
+ *  rejection event type, no score, no grade, and — load-bearing — no
+ *  content_hash. */
+function seedRejection(db: DB, filename: string, agoMs = 0): void {
+  const at = new Date(T0 - agoMs).toISOString().replace("T", " ").slice(0, 19);
+  db.prepare(
+    `INSERT INTO audit_log (event_type, email, filename, score, grade, content_hash, created_at)
+     VALUES (?, ?, ?, NULL, NULL, NULL, ?)`,
+  ).run(STATUS.REJECTION_EVENT_TYPES[0], "anonymous", filename, at);
+}
+
 function seedRemediation(db: DB, status: string, agoMs = 0): void {
   db.prepare(
     `INSERT INTO remediation_jobs (id, input_filename, status, created_at, expires_at)
@@ -237,6 +248,118 @@ describe("document counting", () => {
     expect(docs.by_grade_24h).toEqual({ A: 1, B: 0, C: 0, D: 0, F: 0, ungraded: 0 });
     expect(docs.by_grade_30d.F).toBe(1);
     expect(docs.by_grade_total.F).toBe(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // Refused uploads
+  // -------------------------------------------------------------------------
+  // These count attempts the tool would not audit. The whole value of the
+  // figure depends on it staying OUT of documents_audited: a refusal has no
+  // score and no grade, so counting it there would inflate the audit total and
+  // drop every refusal into the grade distribution's 'ungraded' bucket.
+
+  it("keeps the rejection event type disjoint from the audited and page types", () => {
+    // The isolation below is enforced by this disjointness, so assert it
+    // directly rather than only observing its effects.
+    const audited = new Set<string>(STATUS.DOCUMENT_EVENT_TYPES);
+    const pages = new Set<string>(STATUS.PAGE_EVENT_TYPES);
+    for (const t of STATUS.REJECTION_EVENT_TYPES) {
+      expect(audited.has(t)).toBe(false);
+      expect(pages.has(t)).toBe(false);
+    }
+  });
+
+  it("counts refusals without touching the audited totals or the grade split", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "real.pdf", grade: "B" });
+    seedRejection(db, "old.doc");
+    seedRejection(db, "data.csv");
+    seedRejection(db, "sheet.xls");
+
+    const docs = (await makeService(db).getStatus()).documents_audited;
+    const rej = (await makeService(db).getStatus()).documents_rejected;
+
+    expect(docs.total).toBe(1);
+    expect(docs.by_format_total.other).toBe(0);
+    expect(docs.by_grade_total).toEqual({ A: 0, B: 1, C: 0, D: 0, F: 0, ungraded: 0 });
+    expect(rej.total).toBe(3);
+  });
+
+  it("splits refusals by the extension they were offered under", async () => {
+    const db = freshDb();
+    for (const f of ["a.doc", "b.xls", "c.ppt", "d.rtf", "e.csv", "f.tsv", "g.jpg"]) {
+      seedRejection(db, f);
+    }
+
+    const rej = (await makeService(db).getStatus()).documents_rejected;
+    expect(rej.by_format_total).toEqual({
+      doc: 1,
+      xls: 1,
+      ppt: 1,
+      rtf: 1,
+      csv: 2, // .csv and .tsv share a bucket
+      other: 1, // the .jpg
+    });
+  });
+
+  it("does not let .docx/.xlsx/.pptx fall into the legacy buckets", async () => {
+    // The LIKE patterns are anchored to the end of the string; a regression to
+    // '%.doc%' would silently reclassify every modern file.
+    const db = freshDb();
+    for (const f of ["a.docx", "b.xlsx", "c.pptx"]) seedRejection(db, f);
+
+    const rej = (await makeService(db).getStatus()).documents_rejected;
+    expect(rej.by_format_total.doc).toBe(0);
+    expect(rej.by_format_total.xls).toBe(0);
+    expect(rej.by_format_total.ppt).toBe(0);
+    expect(rej.by_format_total.other).toBe(3);
+  });
+
+  it("sums the refusal buckets to the refusal total", async () => {
+    const db = freshDb();
+    for (const f of ["a.doc", "b.csv", "c.jpg", "no-extension"]) seedRejection(db, f);
+
+    const rej = (await makeService(db).getStatus()).documents_rejected;
+    const sum = Object.values(rej.by_format_total).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(rej.total);
+    expect(rej.total).toBe(4);
+  });
+
+  it("applies the 24h and 30d windows to refusals", async () => {
+    const db = freshDb();
+    seedRejection(db, "now.doc", HOUR);
+    seedRejection(db, "yesterday.csv", 2 * DAY);
+    seedRejection(db, "old.xls", 90 * DAY);
+
+    const rej = (await makeService(db).getStatus()).documents_rejected;
+    expect(rej.last_24h).toBe(1);
+    expect(rej.last_30d).toBe(2);
+    expect(rej.total).toBe(3);
+    expect(rej.by_format_30d).toEqual({ doc: 1, xls: 0, ppt: 0, rtf: 0, csv: 1, other: 0 });
+  });
+
+  it("cannot satisfy the remediation audit-gate, because the hash is NULL", async () => {
+    // The gate (hasRecentAudit) matches on content_hash + email with NO
+    // event_type filter, so the only thing keeping "this content was refused"
+    // from passing a check that means "this content was audited" is the NULL
+    // hash. This asserts the SQL semantics that guarantee it — a future
+    // COALESCE or IS NOT DISTINCT FROM in that query would fail here.
+    const db = freshDb();
+    seedRejection(db, "old.doc");
+
+    const gateSql = `SELECT 1 FROM audit_log
+                      WHERE content_hash = ? AND email = ?
+                      LIMIT 1`;
+    // Any hash at all, including the empty string, must miss a NULL column.
+    for (const probe of ["", "deadbeef", "0".repeat(64)]) {
+      expect(db.prepare(gateSql).get(probe, "anonymous")).toBeUndefined();
+    }
+    // Sanity: the row really is there, so the miss is about NULL, not an
+    // empty table.
+    const n = db
+      .prepare(`SELECT COUNT(*) AS n FROM audit_log WHERE event_type = ?`)
+      .get(STATUS.REJECTION_EVENT_TYPES[0]) as { n: number };
+    expect(n.n).toBe(1);
   });
 
   it("applies the 24h and 30d windows correctly", async () => {
@@ -625,6 +748,13 @@ describe("collectAggregates", () => {
     expect(result.documents_audited.by_grade_24h).toEqual(zero);
     expect(result.documents_audited.by_grade_30d).toEqual(zero);
     expect(result.documents_audited.by_grade_total).toEqual(zero);
+
+    // documents_rejected must be shape-complete too, or the renderer reads
+    // `undefined` for a window it expects.
+    const zeroFmt = { doc: 0, xls: 0, ppt: 0, rtf: 0, csv: 0, other: 0 };
+    expect(result.documents_rejected.total).toBe(0);
+    expect(result.documents_rejected.by_format_30d).toEqual(zeroFmt);
+    expect(result.documents_rejected.by_format_total).toEqual(zeroFmt);
     spy.mockRestore();
   });
 });

@@ -3,6 +3,7 @@ import { GRADE_THRESHOLDS } from "@file-audit/shared";
 import {
   renderStatusHtml,
   renderGradeDistribution,
+  renderRejectedUploads,
   pickFormat,
   escapeHtml,
 } from "../../server/utils/statusHtml";
@@ -347,6 +348,108 @@ describe("grade distribution", () => {
     const lastRow = out.indexOf('<span class="gl">F</span>');
     expect(firstRow).toBeGreaterThan(-1);
     expect(firstRow).toBeLessThan(lastRow);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Refused uploads
+// ---------------------------------------------------------------------------
+
+const REJECTED = {
+  documents_rejected: {
+    last_24h: 3,
+    last_30d: 61,
+    total: 288,
+    by_format_30d: { doc: 30, xls: 10, ppt: 2, rtf: 1, csv: 15, other: 3 },
+    by_format_total: { doc: 180, xls: 44, ppt: 9, rtf: 2, csv: 47, other: 6 },
+  },
+};
+
+describe("refused uploads", () => {
+  it("renders nothing when the payload predates the field", () => {
+    expect(renderRejectedUploads(PAYLOAD)).toBe("");
+  });
+
+  it("renders the 30-day and all-time windows", () => {
+    const out = renderRejectedUploads(REJECTED);
+    expect(out).toContain("Last 30 days");
+    expect(out).toContain("All time");
+    expect(out).toContain("288 files");
+  });
+
+  it("names the legacy formats in plain language rather than bucket keys", () => {
+    const out = renderRejectedUploads(REJECTED);
+    expect(out).toContain("Word 97–2003 (.doc)");
+    expect(out).toContain("CSV / TSV data");
+    expect(out).toContain("Other file types");
+    expect(out).not.toContain(">doc<");
+  });
+
+  it("computes each format's share of its own window", () => {
+    const out = renderRejectedUploads(REJECTED);
+    expect(out).toContain("180"); // .doc, all time
+    expect(out).toContain("63%"); // 180 of 288
+  });
+
+  it("omits format rows with no refusals", () => {
+    const out = renderRejectedUploads({
+      documents_rejected: {
+        total: 2,
+        by_format_total: { doc: 2, xls: 0, ppt: 0, rtf: 0, csv: 0, other: 0 },
+      },
+    });
+    expect(out).toContain("Word 97–2003");
+    expect(out).not.toContain("Rich Text");
+    expect(out).not.toContain("PowerPoint 97");
+  });
+
+  it("says so plainly when nothing was refused, without dividing by zero", () => {
+    const out = renderRejectedUploads({
+      documents_rejected: {
+        total: 0,
+        by_format_total: { doc: 0, xls: 0, ppt: 0, rtf: 0, csv: 0, other: 0 },
+      },
+    });
+    expect(out).toContain("Nothing refused in this window.");
+    expect(out).not.toContain("NaN");
+  });
+
+  it("tolerates a malformed bucket without emitting NaN", () => {
+    const out = renderRejectedUploads({
+      documents_rejected: { total: 3, by_format_total: { doc: "many", csv: null, xls: 3 } },
+    });
+    expect(out).not.toContain("NaN");
+    expect(out).toContain("All time");
+  });
+
+  it("states these are attempts rather than documents", () => {
+    // The count is inflated by retries in a way the audit counts are not, and
+    // saying so is what keeps it from being read as a document census.
+    const out = renderRejectedUploads(REJECTED);
+    expect(out).toContain("attempts, not documents");
+    expect(out).toContain("counted separately");
+  });
+
+  it("gives the section its own accessible name, distinct from the grade one", () => {
+    const out = renderRejectedUploads(REJECTED);
+    expect(out).toContain('aria-labelledby="rej-h"');
+    expect(out).toContain('<h2 id="rej-h">');
+    expect(out).not.toContain('id="dist-h"');
+  });
+
+  it("sits below the grade distribution on the assembled page", () => {
+    // Audited documents are the primary story; refusals are context for it.
+    const page = renderStatusHtml({ ...GRADED, ...REJECTED });
+    expect(page.indexOf('id="dist-h"')).toBeLessThan(page.indexOf('id="rej-h"'));
+    expect(page.indexOf('id="rej-h"')).toBeLessThan(page.indexOf('class="tree"'));
+  });
+
+  it("keeps refusals visually separate from the audited totals", () => {
+    // Same reason they are a sibling key in the payload: a refused file was
+    // never assessed, so it must not read as a document that scored badly.
+    const page = renderStatusHtml({ ...GRADED, ...REJECTED });
+    expect(page).toContain("Grade distribution");
+    expect(page).toContain("Files the tool could not check");
   });
 });
 

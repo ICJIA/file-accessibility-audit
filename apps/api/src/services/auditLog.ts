@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import db from "../db/sqlite.js";
+import { STATUS } from "#config";
 
 /**
  * Shared writer for the audit_log table.
@@ -79,6 +80,40 @@ export function recordAudit(input: RecordAuditInput): void {
     // can spot persistent issues.
     console.error("audit_log write failed:", err);
   }
+}
+
+/**
+ * Records an upload the tool REFUSED — a legacy Office binary, a CSV, or any
+ * other unauditable file. Separate from recordAudit's callers by event type
+ * (STATUS.REJECTION_EVENT_TYPES), so refusals never inflate documents_audited
+ * and never land in the grade distribution.
+ *
+ * Never writes a content_hash. The remediation audit-gate matches on
+ * content_hash + email with no event_type filter, so a hash here would let
+ * "this content was refused" satisfy a check that means "this content was
+ * audited". Passing nothing means the column is NULL, which cannot match.
+ * (The multer filter has no buffer to hash at that point anyway — the
+ * guarantee and the mechanics agree.)
+ *
+ * Best-effort like recordAudit: a logging failure must never turn a clean 400
+ * into a 500.
+ */
+export function recordRejectedUpload(input: {
+  filename: string;
+  email?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): void {
+  recordAudit({
+    eventType: STATUS.REJECTION_EVENT_TYPES[0],
+    email: input.email ?? null,
+    filename: input.filename,
+    score: null,
+    grade: null,
+    contentHash: null,
+    ipAddress: input.ipAddress ?? null,
+    userAgent: input.userAgent ?? null,
+  });
 }
 
 /**

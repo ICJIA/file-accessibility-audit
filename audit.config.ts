@@ -188,6 +188,19 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "status-refused-uploads-2026-08-04",
+    badge: "New",
+    text: "The status page now also shows what people bring that the tool cannot check at all — the older Office formats and CSV data files — over the last 30 days and since the tool launched. It sits below the grade distribution and is counted entirely separately from it, because a file that was refused was never assessed: it has no score, so including it among the graded documents would misrepresent both numbers. One thing to read carefully: these are attempts rather than documents, so the same file uploaded twice counts twice.",
+    linkText: "View the status page",
+    linkTo: "/status?html",
+    /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
+    linkExternal: true,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 4, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "legacy-office-and-csv-guidance-2026-08-04",
     badge: "Improved",
     text: "Uploading an older Office file — .doc, .xls, .ppt or .rtf — now gets you a real answer instead of a list of what the tool accepts. These formats cannot store the headings, alt text and table information an accessibility check looks for, which is why Word and Excel disable their own accessibility checkers for them too. The tool now names the format, gives the Save As steps, and is clear that converting brings your content across but not accessibility structure — so expect to still add headings and alt text afterwards. It also recognizes an old file that has simply been renamed with a newer extension. Spreadsheet exports (.csv and .tsv) get a different explanation on purpose: there is nothing in a CSV for this tool to check, and that is not a fault. For raw data CSV is often the right format, and its accessibility depends on the page that links it rather than on the file itself.",
@@ -1278,6 +1291,27 @@ export const STATUS = {
    * change. statusPrivacy.test.ts asserts the key is currently absent.
    */
   PAGE_EVENT_TYPES: ["audit-url-page"],
+
+  /**
+   * audit_log.event_type values for an upload that was REFUSED — a legacy
+   * Office binary, a CSV, or anything else the tool cannot audit.
+   *
+   * DO NOT add this to DOCUMENT_EVENT_TYPES. A refusal is not an audit: it has
+   * no score and no grade, so counting it would both inflate
+   * documents_audited and dump every refusal into the grade distribution's
+   * 'ungraded' bucket, making that number meaningless. The separation is what
+   * lets both figures stay honest.
+   *
+   * Rejection rows are written with content_hash NULL, deliberately. The
+   * remediation audit-gate (hasRecentAudit in services/auditLog.ts) matches on
+   * content_hash + email with NO event_type filter, so a hash on a refusal row
+   * would make "this content was refused" satisfy a check that means "this
+   * content was audited". NULL can never match, which closes that by
+   * construction rather than by remembering to filter.
+   *
+   * SAFE TO CHANGE: Only alongside the counting helpers in services/status.ts.
+   */
+  REJECTION_EVENT_TYPES: ["rejected-upload"],
 } as const;
 
 // ---------------------------------------------------------------------------

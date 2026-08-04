@@ -28,7 +28,7 @@
 import type { Response } from "express";
 import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
-import { sha256Hex } from "./auditLog.js";
+import { sha256Hex, recordRejectedUpload } from "./auditLog.js";
 import { safeFetch, SafeFetchError } from "./safeFetch.js";
 import {
   MAX_PDF_BYTES,
@@ -114,6 +114,12 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
     // agency's back catalogue of .doc can otherwise come back as a wall of
     // identical generic failures with no indication that one action fixes
     // all of them.
+    // Counted like an upload refusal so inventory sweeps show up in the
+    // rejection figures — that is where legacy formats arrive in bulk.
+    recordRejectedUpload({
+      filename: new URL(fetched.finalUrl).pathname.split("/").pop()?.slice(0, 200) || "remote",
+    });
+
     const legacy = detectLegacyFormat(buf);
     if (legacy) {
       res.status(422).json({

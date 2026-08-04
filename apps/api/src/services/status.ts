@@ -79,6 +79,30 @@ export interface DocumentCounts {
   by_grade_total: GradeCounts;
 }
 
+/** Refused uploads, split by what was offered.
+ *
+ *  `other` is the catch-all and is genuinely populated here (unlike
+ *  FormatCounts.other, which is near-always zero because only four formats
+ *  ever get audited): it covers unrelated types (.jpg, .zip) and files whose
+ *  extension lies — a .doc renamed to .docx is caught by content detection but
+ *  buckets by its stated extension, since that is all the SQL can see. */
+export interface RejectedFormatCounts {
+  doc: number;
+  xls: number;
+  ppt: number;
+  rtf: number;
+  csv: number;
+  other: number;
+}
+
+export interface RejectedCounts {
+  last_24h: number;
+  last_30d: number;
+  total: number;
+  by_format_30d: RejectedFormatCounts;
+  by_format_total: RejectedFormatCounts;
+}
+
 export interface StatusPayload {
   status: "ok" | "degraded";
   degraded?: string[];
@@ -95,6 +119,11 @@ export interface StatusPayload {
     chromium: EngineResult;
   };
   documents_audited: DocumentCounts;
+  /** Uploads the tool refused. Deliberately a sibling of documents_audited
+   *  rather than a bucket inside it — a refusal has no score and no grade, so
+   *  folding it in would inflate the audit count and dump every refusal into
+   *  the grade distribution's 'ungraded' bucket. */
+  documents_rejected: RejectedCounts;
   last_audit_at: string | null;
   /** Same instant as last_audit_at, rendered in America/Chicago — the local
    *  zone of the people who read this page. Null when there is no audit yet,
@@ -316,6 +345,68 @@ function countDocumentsByGrade(db: StatusDb, sinceMs: number | null): GradeCount
   return counts;
 }
 
+// -- refused uploads ---------------------------------------------------------
+
+const REJECTION_TYPES = STATUS.REJECTION_EVENT_TYPES as readonly string[];
+
+/** Buckets a refused upload by the extension it was offered under. Filenames
+ *  are consumed by the CASE inside SQLite and never cross the boundary, same
+ *  as FORMAT_CASE. `%.doc` cannot match `.docx` — the pattern is anchored to
+ *  the end of the string. */
+const REJECT_FORMAT_CASE = `
+  CASE
+    WHEN lower(filename) LIKE '%.doc' THEN 'doc'
+    WHEN lower(filename) LIKE '%.xls' THEN 'xls'
+    WHEN lower(filename) LIKE '%.ppt' THEN 'ppt'
+    WHEN lower(filename) LIKE '%.rtf' THEN 'rtf'
+    WHEN lower(filename) LIKE '%.csv' OR lower(filename) LIKE '%.tsv' THEN 'csv'
+    ELSE 'other'
+  END`;
+
+function emptyRejectedFormatCounts(): RejectedFormatCounts {
+  return { doc: 0, xls: 0, ppt: 0, rtf: 0, csv: 0, other: 0 };
+}
+
+function countRejected(db: StatusDb, sinceMs: number | null): number {
+  const inClause = placeholders(REJECTION_TYPES.length);
+  const sql =
+    sinceMs === null
+      ? `SELECT COUNT(*) AS n FROM audit_log WHERE event_type IN (${inClause})`
+      : `SELECT COUNT(*) AS n FROM audit_log
+           WHERE event_type IN (${inClause})
+             AND created_at > datetime(?, 'unixepoch')`;
+  const params =
+    sinceMs === null ? [...REJECTION_TYPES] : [...REJECTION_TYPES, Math.floor(sinceMs / 1000)];
+  const row = db.prepare(sql).get(...params) as { n?: number } | undefined;
+  return row?.n ?? 0;
+}
+
+function countRejectedByFormat(db: StatusDb, sinceMs: number | null): RejectedFormatCounts {
+  const inClause = placeholders(REJECTION_TYPES.length);
+  const sql =
+    sinceMs === null
+      ? `SELECT ${REJECT_FORMAT_CASE} AS fmt, COUNT(*) AS n
+           FROM audit_log
+          WHERE event_type IN (${inClause})
+          GROUP BY fmt`
+      : `SELECT ${REJECT_FORMAT_CASE} AS fmt, COUNT(*) AS n
+           FROM audit_log
+          WHERE event_type IN (${inClause})
+            AND created_at > datetime(?, 'unixepoch')
+          GROUP BY fmt`;
+  const params =
+    sinceMs === null ? [...REJECTION_TYPES] : [...REJECTION_TYPES, Math.floor(sinceMs / 1000)];
+
+  const counts = emptyRejectedFormatCounts();
+  for (const raw of db.prepare(sql).all(...params)) {
+    const row = raw as { fmt?: string; n?: number };
+    if (row.fmt && row.fmt in counts) {
+      counts[row.fmt as keyof RejectedFormatCounts] = row.n ?? 0;
+    }
+  }
+  return counts;
+}
+
 function lastAuditAt(db: StatusDb): string | null {
   const sql = `SELECT MAX(created_at) AS t FROM audit_log
                 WHERE event_type IN (${placeholders(DOCUMENT_TYPES.length)})`;
@@ -345,6 +436,7 @@ function remediationJobs24h(db: StatusDb, nowMs: number): { complete: number; fa
 export interface AggregateSnapshot {
   database: "ok" | "down";
   documents_audited: DocumentCounts;
+  documents_rejected: RejectedCounts;
   last_audit_at: string | null;
   remediation_jobs_24h: { complete: number; failed: number };
 }
@@ -366,6 +458,13 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         by_grade_30d: countDocumentsByGrade(db, nowMs - THIRTY_DAYS_MS),
         by_grade_total: countDocumentsByGrade(db, null),
       },
+      documents_rejected: {
+        last_24h: countRejected(db, nowMs - DAY_MS),
+        last_30d: countRejected(db, nowMs - THIRTY_DAYS_MS),
+        total: countRejected(db, null),
+        by_format_30d: countRejectedByFormat(db, nowMs - THIRTY_DAYS_MS),
+        by_format_total: countRejectedByFormat(db, null),
+      },
       last_audit_at: lastAuditAt(db),
       remediation_jobs_24h: remediationJobs24h(db, nowMs),
     };
@@ -382,6 +481,13 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         by_grade_24h: emptyGradeCounts(),
         by_grade_30d: emptyGradeCounts(),
         by_grade_total: emptyGradeCounts(),
+      },
+      documents_rejected: {
+        last_24h: 0,
+        last_30d: 0,
+        total: 0,
+        by_format_30d: emptyRejectedFormatCounts(),
+        by_format_total: emptyRejectedFormatCounts(),
       },
       last_audit_at: null,
       remediation_jobs_24h: { complete: 0, failed: 0 },
@@ -613,6 +719,7 @@ export function createStatusService(deps: StatusDeps) {
       database: agg.database,
       engines: eng,
       documents_audited: agg.documents_audited,
+      documents_rejected: agg.documents_rejected,
       last_audit_at: agg.last_audit_at,
       // Derived here rather than stored, so it can never disagree with the
       // UTC value above. Date.parse of an ISO string with an explicit Z is

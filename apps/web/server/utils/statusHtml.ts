@@ -239,6 +239,90 @@ export function renderGradeDistribution(body: Record<string, unknown>): string {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Refused uploads
+// ---------------------------------------------------------------------------
+// The counterpart to the grade distribution: what people bring that the tool
+// cannot check at all. Rendered separately from documents_audited because a
+// refusal has no score — folding the two together would imply a refused file
+// was assessed and found wanting, when it was never assessed.
+
+const REJECT_ROWS: Array<{ key: keyof RejectedShape; label: string }> = [
+  { key: "doc", label: "Word 97–2003 (.doc)" },
+  { key: "xls", label: "Excel 97–2003 (.xls)" },
+  { key: "ppt", label: "PowerPoint 97–2003 (.ppt)" },
+  { key: "rtf", label: "Rich Text (.rtf)" },
+  { key: "csv", label: "CSV / TSV data" },
+  { key: "other", label: "Other file types" },
+];
+
+interface RejectedShape {
+  doc: number;
+  xls: number;
+  ppt: number;
+  rtf: number;
+  csv: number;
+  other: number;
+}
+
+function renderRejectedWindow(title: string, total: number, raw: Record<string, unknown>): string {
+  const caption = `${escapeHtml(title)} <span class="wt">${total.toLocaleString("en-US")} file${total === 1 ? "" : "s"}</span>`;
+  if (total === 0) {
+    return (
+      `<div class="win"><h3>${caption}</h3>` +
+      `<p class="none">Nothing refused in this window.</p></div>`
+    );
+  }
+  const rows = REJECT_ROWS.map((r) => ({ ...r, n: asCount(raw[r.key]) })).filter((r) => r.n > 0);
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><th scope="row">${escapeHtml(r.label)}</th>` +
+        `<td class="n">${r.n.toLocaleString("en-US")}</td>` +
+        `<td class="pc">${Math.round(pct(r.n, total))}%</td></tr>`,
+    )
+    .join("");
+  return (
+    `<div class="win"><h3>${caption}</h3>` +
+    `<table><thead><tr>` +
+    `<th scope="col">Format</th><th scope="col">Files</th><th scope="col">Share</th>` +
+    `</tr></thead><tbody>${body}</tbody></table></div>`
+  );
+}
+
+/**
+ * The refused-uploads block, or "" when the payload has no rejection data
+ * (an older API build).
+ *
+ * Worth publishing because it answers a question the audit counts cannot:
+ * how much of what people try to check is in a format that can never be
+ * checked. The caveat differs from the grade distribution's — these are
+ * attempts, not documents, so one determined person retrying counts more than
+ * once.
+ */
+export function renderRejectedUploads(body: Record<string, unknown>): string {
+  const rej = asRecord(body.documents_rejected);
+  if (!rej) return "";
+
+  const windows: Array<[string, number, Record<string, unknown>]> = [];
+  const d30 = asRecord(rej.by_format_30d);
+  const dTotal = asRecord(rej.by_format_total);
+  if (d30) windows.push(["Last 30 days", asCount(rej.last_30d), d30]);
+  if (dTotal) windows.push(["All time", asCount(rej.total), dTotal]);
+  if (windows.length === 0) return "";
+
+  return (
+    `<section class="dist" aria-labelledby="rej-h">` +
+    `<h2 id="rej-h">Files the tool could not check</h2>` +
+    `<p class="caveat">Uploads refused because the format cannot carry accessibility information at all — ` +
+    `the legacy Office formats, and CSV data files. These are <strong>attempts, not documents</strong>: ` +
+    `one person retrying the same file counts each time, and they are counted separately from the audited ` +
+    `totals above because a refused file was never assessed.</p>` +
+    `<div class="windows">${windows.map(([t, n, r]) => renderRejectedWindow(t, n, r)).join("")}</div>` +
+    `</section>`
+  );
+}
+
 const STYLE = `
 :root{color-scheme:dark}
 *{box-sizing:border-box}
@@ -353,6 +437,7 @@ export function renderStatusHtml(
 <div class="bar"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
 <h1>Service status</h1>
 ${renderGradeDistribution(body)}
+${renderRejectedUploads(body)}
 <div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>
 </div>
 </body>

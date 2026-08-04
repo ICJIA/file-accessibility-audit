@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.46.0] - 2026-08-04
+
+`/status` now counts what people bring that the tool cannot check at all.
+
+### Added
+
+- **`documents_rejected` on `/status`,** counting refused uploads over 24h / 30d / all time, split by the extension they were offered under (`doc`, `xls`, `ppt`, `rtf`, `csv`, `other`). Rendered on the HTML view as a **Files the tool could not check** section below the grade distribution.
+
+  This answers a question the audit counts structurally cannot. A refused file never reaches the audit path, so it was never recorded anywhere — which is why `by_format_*.other` sat at zero and looked like dead weight. The information was not being bucketed wrongly; it was not being captured at all. Refusals are now recorded at all three rejection sites: the upload filter, the analyze route's content sniff, and the URL / inventory pipeline.
+
+### Notes
+
+**It is a sibling of `documents_audited`, never a bucket inside it.** A refusal has no score and no grade. Folding the two together would inflate the audit total *and* drop every refusal into the grade distribution's `ungraded` bucket, which would quietly destroy the figure v1.44.0 added. The separation is enforced by `STATUS.REJECTION_EVENT_TYPES` being disjoint from `DOCUMENT_EVENT_TYPES`, asserted directly by test rather than only observed through its effects.
+
+**Rejection rows carry a NULL `content_hash`, deliberately.** The remediation audit-gate (`hasRecentAudit`) matches on `content_hash + email` with **no `event_type` filter**, so a hash on a refusal row would let *"this content was refused"* satisfy a check that means *"this content was audited"*. NULL can never match, closing it by construction rather than by remembering to filter — and the multer filter has no buffer to hash at that point anyway, so the guarantee and the mechanics agree. A test probes the gate's own SQL with three different hashes to pin it.
+
+**`other` is genuinely populated in the new block**, unlike `FormatCounts.other`: it covers unrelated types (`.jpg`, `.zip`) and files whose extension lies — a `.doc` renamed to `.docx` is caught by content detection but buckets by its *stated* extension, since that is all the SQL can see.
+
+**`by_format_*.other` was deliberately left in place.** Removing it was considered and rejected: an extension-less filename from a URL audit legitimately lands there (pinned by an existing test), so dropping the bucket would silently break the property that the format split sums to the document total.
+
+**The caveat differs from the grade distribution's** — these are *attempts, not documents*, so one person retrying the same file counts each time, and the copy says so.
+
+**Verified end-to-end** against a running server: four refusals plus one real PDF moved `documents_audited.total` by exactly one, left `by_grade_total.ungraded` at zero, and moved `documents_rejected.total` by four, with the renamed `.docx` landing in `other` as designed.
+
+The JSON gains one top-level key, added to `statusPrivacy.test.ts`'s allow-list as a deliberate decision. Everything reported remains an aggregate `COUNT(*)`: filenames are consumed by the bucketing `CASE` inside SQLite and never cross the boundary.
+
+Tests 1,815 → 1,833 (API 1,112 → 1,119; Web 654 → 665); lint, typecheck, build green.
+
 ## [1.45.0] - 2026-08-04
 
 Files the tool recognizes but cannot audit now get an answer instead of a list of what it accepts.

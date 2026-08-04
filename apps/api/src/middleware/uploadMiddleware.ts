@@ -1,5 +1,6 @@
 import multer from "multer";
 import { unsupportedFormatHint } from "@file-audit/shared";
+import { recordRejectedUpload } from "../services/auditLog.js";
 import { ANALYSIS, DOCX, PPTX, XLSX } from "#config";
 
 const storage = multer.memoryStorage();
@@ -83,5 +84,26 @@ export const uploadMiddleware = multer({
     fileSize: ANALYSIS.MAX_FILE_SIZE_MB * 1024 * 1024,
     files: 1,
   },
-  fileFilter: uploadFileFilter,
+  // uploadFileFilter stays a PURE decision function — it is exported and
+  // unit-tested as one. The side effect lives here in the wrapper instead, so
+  // counting refusals cannot make the decision logic harder to test or reason
+  // about. A logging failure is swallowed inside recordRejectedUpload, so it
+  // can never turn a clean 400 into a 500.
+  fileFilter: (req, file, cb) => {
+    uploadFileFilter(req, file, (error, accept) => {
+      // multer's callback is overloaded — (error) or (null, accept) — so the
+      // branches cannot be collapsed into one cb(error, accept) call.
+      if (error) {
+        const r = req as { ip?: string; get?: (h: string) => string | undefined };
+        recordRejectedUpload({
+          filename: file.originalname,
+          ipAddress: r.ip ?? null,
+          userAgent: r.get?.("user-agent") ?? null,
+        });
+        cb(error);
+        return;
+      }
+      cb(null, accept ?? false);
+    });
+  },
 });

@@ -168,6 +168,7 @@ describe("/status never discloses identifying data", () => {
         "checked_at_chicago",
         "database",
         "documents_audited",
+        "documents_rejected",
         "engines",
         "last_audit_at",
         "last_audit_at_chicago",
