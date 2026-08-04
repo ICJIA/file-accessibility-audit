@@ -52,12 +52,31 @@ export interface FormatCounts {
   other: number;
 }
 
+/** Letter-grade distribution over a time window.
+ *
+ *  `ungraded` is NOT optional and must never be dropped: audit_log.grade is
+ *  nullable (failed audits, and rows predating the column), so silently
+ *  omitting those rows would make the distribution fail to sum to the
+ *  `last_24h` / `last_30d` / `total` figure printed beside it — two numbers on
+ *  one page that don't reconcile, which reads as a bug. Pinned by test. */
+export interface GradeCounts {
+  A: number;
+  B: number;
+  C: number;
+  D: number;
+  F: number;
+  ungraded: number;
+}
+
 export interface DocumentCounts {
   last_24h: number;
   last_30d: number;
   total: number;
   by_format_30d: FormatCounts;
   by_format_total: FormatCounts;
+  by_grade_24h: GradeCounts;
+  by_grade_30d: GradeCounts;
+  by_grade_total: GradeCounts;
 }
 
 export interface StatusPayload {
@@ -207,6 +226,27 @@ function emptyFormatCounts(): FormatCounts {
   return { pdf: 0, docx: 0, pptx: 0, xlsx: 0, other: 0 };
 }
 
+/** Buckets a document audit by its stored letter grade.
+ *
+ *  Every row lands in exactly one bucket. NULL grades (failed audits, rows
+ *  predating the column) and any unrecognized value fall through to
+ *  'ungraded' via the ELSE rather than being dropped, so the buckets always
+ *  sum to the window's document count — see GradeCounts.
+ *
+ *  upper() is defensive: the scorer only ever writes uppercase letters
+ *  (GRADE_THRESHOLDS in packages/shared/src/scoring.ts), but a lowercase value
+ *  from any future writer would otherwise land in 'ungraded' and silently
+ *  understate a real grade. */
+const GRADE_CASE = `
+  CASE
+    WHEN upper(grade) IN ('A', 'B', 'C', 'D', 'F') THEN upper(grade)
+    ELSE 'ungraded'
+  END`;
+
+function emptyGradeCounts(): GradeCounts {
+  return { A: 0, B: 0, C: 0, D: 0, F: 0, ungraded: 0 };
+}
+
 function countDocuments(db: StatusDb, sinceMs: number | null): number {
   const inClause = placeholders(DOCUMENT_TYPES.length);
   const sql =
@@ -242,6 +282,35 @@ function countDocumentsByFormat(db: StatusDb, sinceMs: number | null): FormatCou
     const row = raw as { fmt?: string; n?: number };
     if (row.fmt && row.fmt in counts) {
       counts[row.fmt as keyof FormatCounts] = row.n ?? 0;
+    }
+  }
+  return counts;
+}
+
+function countDocumentsByGrade(db: StatusDb, sinceMs: number | null): GradeCounts {
+  const inClause = placeholders(DOCUMENT_TYPES.length);
+  const sql =
+    sinceMs === null
+      ? `SELECT ${GRADE_CASE} AS g, COUNT(*) AS n
+           FROM audit_log
+          WHERE event_type IN (${inClause})
+          GROUP BY g`
+      : `SELECT ${GRADE_CASE} AS g, COUNT(*) AS n
+           FROM audit_log
+          WHERE event_type IN (${inClause})
+            AND created_at > datetime(?, 'unixepoch')
+          GROUP BY g`;
+  const params =
+    sinceMs === null ? [...DOCUMENT_TYPES] : [...DOCUMENT_TYPES, Math.floor(sinceMs / 1000)];
+
+  const counts = emptyGradeCounts();
+  for (const raw of db.prepare(sql).all(...params)) {
+    const row = raw as { g?: string; n?: number };
+    // Assign only onto keys the struct already has, so an unexpected value
+    // from the database can never inject a property. GRADE_CASE already
+    // funnels those into 'ungraded'; this is the second line of defence.
+    if (row.g && row.g in counts) {
+      counts[row.g as keyof GradeCounts] = row.n ?? 0;
     }
   }
   return counts;
@@ -293,6 +362,9 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         total: countDocuments(db, null),
         by_format_30d: countDocumentsByFormat(db, nowMs - THIRTY_DAYS_MS),
         by_format_total: countDocumentsByFormat(db, null),
+        by_grade_24h: countDocumentsByGrade(db, nowMs - DAY_MS),
+        by_grade_30d: countDocumentsByGrade(db, nowMs - THIRTY_DAYS_MS),
+        by_grade_total: countDocumentsByGrade(db, null),
       },
       last_audit_at: lastAuditAt(db),
       remediation_jobs_24h: remediationJobs24h(db, nowMs),
@@ -307,6 +379,9 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         total: 0,
         by_format_30d: emptyFormatCounts(),
         by_format_total: emptyFormatCounts(),
+        by_grade_24h: emptyGradeCounts(),
+        by_grade_30d: emptyGradeCounts(),
+        by_grade_total: emptyGradeCounts(),
       },
       last_audit_at: null,
       remediation_jobs_24h: { complete: 0, failed: 0 },

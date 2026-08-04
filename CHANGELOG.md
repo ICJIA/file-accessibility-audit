@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.44.0] - 2026-08-04
+
+The status page now shows how the documents people check here have actually scored — with the sampling caveat printed beside the numbers rather than left for the reader to infer.
+
+### Added
+
+- **A letter-grade distribution on `/status`, over three time windows.** `documents_audited` gains `by_grade_24h`, `by_grade_30d`, and `by_grade_total`, each an `{A, B, C, D, F, ungraded}` breakdown. The HTML view renders them as a proportional bar plus an exact table per window.
+
+  The counts were already derivable from the database but were not published, and as six bare numbers they say very little. Rendered as a proportion, the same data answers the question most people actually arrive with: are the documents we publish anywhere near accessible? For a manager who has never opened a screen reader, "2,560 of 4,122 scored F" carries a scale that a raw audit count does not.
+
+  Colours and labels come from `GRADE_THRESHOLDS` in `@file-audit/shared` — the same source the report UI scores against — so an `F` is the same red here as on a report, and a future change to the scale cannot leave this page behind.
+
+### Notes
+
+**The sampling caveat is part of the feature, not decoration.** The corpus is self-selected: people upload documents they already suspect have problems, alongside test files, and the same file may be uploaded repeatedly. A reader who takes "62% F" as a population statistic about their agency's document library has been misled by the page. The caveat therefore sits *above* the numbers, and a test asserts it appears both in the section and ahead of the JSON tree on the assembled page, so it cannot drift below the fold in a later edit.
+
+**The buckets reconcile, by construction.** `ungraded` is a real bucket rather than a dropped row: `audit_log.grade` is nullable (failed audits, and rows predating the column) and any unrecognized value funnels there too. Every window's buckets sum to the document total printed beside it, asserted per window by test — two figures on one page that disagree read as a broken page, and would undermine the caveat sitting directly above them. The row is rendered only when non-zero, so a normal day shows no permanent zero.
+
+**The chart is accessible.** The proportional bars are `aria-hidden`; the meaning lives in a real `<table>` with `scope`d headers, inside a labelled `<section>`. The page also gained an `<h1>` — it had none, which would have left the new `<h2>` orphaned. An accessibility tool shipping an inaccessible chart would be its own worst advertisement.
+
+**The machine contract is additive.** The new keys are nested inside `documents_audited`, so the top-level allow-list is untouched and every existing consumer — UptimeRobot's keyword alert on `degraded`, the fleet-audit project's `/api/audit-url` calls — reads exactly what it read before. A payload predating the fields renders no distribution rather than breaking, so shared reports and an older API build still work; pinned by test.
+
+Verified by rendering the built output at production-shaped figures and inspecting it in both colour schemes and at a 390px viewport, where the three windows stack without horizontal overflow.
+
+Tests 1,764 → 1,787 (API 1,084 → 1,091; Web 631 → 647); lint, typecheck, build green.
+
 ## [1.43.0] - 2026-08-04
 
 The status page is no longer a dead end, it no longer costs you a browser tab, and a stray click can no longer discard a running audit without warning.

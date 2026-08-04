@@ -27,6 +27,7 @@ import {
   sqliteUtcToIso,
   type EngineProbes,
   type EngineSnapshot,
+  type GradeCounts,
   type StatusDb,
 } from "../services/status.js";
 
@@ -46,13 +47,28 @@ function freshDb(): DB {
  *  SQLite's CURRENT_TIMESTAMP would: "YYYY-MM-DD HH:MM:SS", UTC, no zone. */
 function seedAudit(
   db: DB,
-  opts: { eventType: string; filename: string; agoMs?: number; email?: string },
+  opts: {
+    eventType: string;
+    filename: string;
+    agoMs?: number;
+    email?: string;
+    /** Defaults to "B". Pass null explicitly to write a NULL grade, which is
+     *  what a failed audit (and any row predating the column) looks like. */
+    grade?: string | null;
+  },
 ): void {
   const at = new Date(T0 - (opts.agoMs ?? 0)).toISOString().replace("T", " ").slice(0, 19);
   db.prepare(
     `INSERT INTO audit_log (event_type, email, filename, score, grade, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(opts.eventType, opts.email ?? "anonymous", opts.filename, 80, "B", at);
+  ).run(
+    opts.eventType,
+    opts.email ?? "anonymous",
+    opts.filename,
+    80,
+    opts.grade === undefined ? "B" : opts.grade,
+    at,
+  );
 }
 
 function seedRemediation(db: DB, status: string, agoMs = 0): void {
@@ -129,6 +145,98 @@ describe("document counting", () => {
     const payload = await makeService(db).getStatus();
     expect(payload.documents_audited.total).toBe(1);
     expect(payload.documents_audited.by_format_total.other).toBe(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // Grade distribution
+  // -------------------------------------------------------------------------
+  // The headline guarantee is RECONCILIATION: every bucket sums to the document
+  // total printed beside it. A row silently dropped for having an odd or NULL
+  // grade would put two numbers on one page that disagree.
+
+  it("distributes documents across the five letter grades", async () => {
+    const db = freshDb();
+    for (const g of ["A", "A", "B", "C", "C", "C", "D", "F", "F"]) {
+      seedAudit(db, { eventType: "analyze", filename: `${g}.pdf`, grade: g });
+    }
+
+    const payload = await makeService(db).getStatus();
+    expect(payload.documents_audited.by_grade_total).toEqual({
+      A: 2,
+      B: 1,
+      C: 3,
+      D: 1,
+      F: 2,
+      ungraded: 0,
+    });
+  });
+
+  it("counts a NULL grade as ungraded rather than dropping the row", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "ok.pdf", grade: "A" });
+    seedAudit(db, { eventType: "analyze", filename: "failed.pdf", grade: null });
+
+    const payload = await makeService(db).getStatus();
+    expect(payload.documents_audited.by_grade_total.ungraded).toBe(1);
+    expect(payload.documents_audited.by_grade_total.A).toBe(1);
+  });
+
+  it("buckets an unrecognized grade value as ungraded", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "weird.pdf", grade: "Z" });
+    seedAudit(db, { eventType: "analyze", filename: "empty.pdf", grade: "" });
+
+    const payload = await makeService(db).getStatus();
+    const counts = payload.documents_audited.by_grade_total;
+    expect(counts.ungraded).toBe(2);
+    // And it must not have injected a "Z" key onto the struct.
+    expect(Object.keys(counts).sort()).toEqual(["A", "B", "C", "D", "F", "ungraded"]);
+  });
+
+  it("normalizes a lower-case grade into its letter bucket", async () => {
+    // The scorer only ever writes upper case; upper() in the query keeps a
+    // future writer from silently understating a real grade as 'ungraded'.
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "shout.pdf", grade: "f" });
+
+    const payload = await makeService(db).getStatus();
+    expect(payload.documents_audited.by_grade_total.F).toBe(1);
+    expect(payload.documents_audited.by_grade_total.ungraded).toBe(0);
+  });
+
+  it("sums each window's grade buckets to that window's document total", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "a.pdf", grade: "A", agoMs: HOUR });
+    seedAudit(db, { eventType: "analyze", filename: "b.pdf", grade: null, agoMs: HOUR });
+    seedAudit(db, { eventType: "analyze", filename: "c.pdf", grade: "F", agoMs: 2 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "d.pdf", grade: "Z", agoMs: 10 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "e.pdf", grade: "C", agoMs: 90 * DAY });
+    // Excluded event types must not appear in either the total or the buckets.
+    seedAudit(db, { eventType: "audit-url-page", filename: "https://x.gov/p", grade: "F" });
+    seedAudit(db, { eventType: "login", filename: "", grade: null });
+
+    const docs = (await makeService(db).getStatus()).documents_audited;
+    const sum = (c: GradeCounts) => Object.values(c).reduce((a, b) => a + b, 0);
+
+    expect(sum(docs.by_grade_24h)).toBe(docs.last_24h);
+    expect(sum(docs.by_grade_30d)).toBe(docs.last_30d);
+    expect(sum(docs.by_grade_total)).toBe(docs.total);
+    // Guard against the assertion passing because everything is zero.
+    expect(docs.last_24h).toBe(2);
+    expect(docs.last_30d).toBe(4);
+    expect(docs.total).toBe(5);
+  });
+
+  it("applies the 24h and 30d windows to the grade split", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "now.pdf", grade: "A", agoMs: HOUR });
+    seedAudit(db, { eventType: "analyze", filename: "yest.pdf", grade: "F", agoMs: 2 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "old.pdf", grade: "F", agoMs: 90 * DAY });
+
+    const docs = (await makeService(db).getStatus()).documents_audited;
+    expect(docs.by_grade_24h).toEqual({ A: 1, B: 0, C: 0, D: 0, F: 0, ungraded: 0 });
+    expect(docs.by_grade_30d.F).toBe(1);
+    expect(docs.by_grade_total.F).toBe(2);
   });
 
   it("applies the 24h and 30d windows correctly", async () => {
@@ -498,6 +606,25 @@ describe("collectAggregates", () => {
     );
     expect(result.database).toBe("down");
     expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("zeroes the grade buckets on the database-down path", () => {
+    // The degraded payload must still be shape-complete: a missing by_grade_*
+    // would make the renderer read `undefined` for a window it expects.
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = collectAggregates(
+      {
+        prepare() {
+          throw new Error("disk I/O error");
+        },
+      },
+      T0,
+    );
+    const zero = { A: 0, B: 0, C: 0, D: 0, F: 0, ungraded: 0 };
+    expect(result.documents_audited.by_grade_24h).toEqual(zero);
+    expect(result.documents_audited.by_grade_30d).toEqual(zero);
+    expect(result.documents_audited.by_grade_total).toEqual(zero);
     spy.mockRestore();
   });
 });

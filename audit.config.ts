@@ -188,6 +188,19 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "status-grade-distribution-2026-08-04",
+    badge: "New",
+    text: "The status page now shows how documents checked here have actually scored — how many earned an A, a B, and so on — over the last 24 hours, the last 30 days, and since the tool launched. It is a quick way to see how common serious accessibility problems really are. One caveat matters enough that it is printed on the page itself: these are files visitors chose to upload, often because they already suspected something was wrong, and the same file may be uploaded more than once. So the figures describe what people bring here to check, not the overall state of any organization’s documents.",
+    linkText: "View the status page",
+    linkTo: "/status?html",
+    /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
+    linkExternal: true,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 4, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "leave-warning-and-status-backlink-2026-08-04",
     badge: "Improved",
     text: "If you click a link while a document is still being checked, the page now asks first — leaving cancels the check and discards the report. You will only see this while a check is actually running; ordinary clicks are unaffected. The status page also has a link back to the audit tool now, so it is no longer a dead end, and the “Status” link in the header opens in this tab instead of a new one.",

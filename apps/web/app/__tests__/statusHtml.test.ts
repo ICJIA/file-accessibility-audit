@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { renderStatusHtml, pickFormat, escapeHtml } from "../../server/utils/statusHtml";
+import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import {
+  renderStatusHtml,
+  renderGradeDistribution,
+  pickFormat,
+  escapeHtml,
+} from "../../server/utils/statusHtml";
 
 // /status gained a human-readable HTML view. The critical property is that it
 // is ADDITIVE: /status is a monitored machine endpoint, and UptimeRobot's
@@ -190,6 +196,157 @@ describe("renderStatusHtml", () => {
     // The keyword an alert would match must survive into the HTML too, so a
     // browser-shaped monitor is not silently blinded.
     expect(out).toContain("degraded");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Grade distribution
+// ---------------------------------------------------------------------------
+
+/** Every window's buckets sum to its total — the same reconciliation the API
+ *  guarantees, so the rendered percentages are meaningful. */
+const GRADED = {
+  ...PAYLOAD,
+  documents_audited: {
+    last_24h: 8,
+    last_30d: 100,
+    total: 1000,
+    by_format_total: { pdf: 1000, docx: 0, pptx: 0, xlsx: 0, other: 0 },
+    by_grade_24h: { A: 2, B: 0, C: 2, D: 0, F: 4, ungraded: 0 },
+    by_grade_30d: { A: 10, B: 10, C: 20, D: 10, F: 45, ungraded: 5 },
+    by_grade_total: { A: 100, B: 100, C: 200, D: 100, F: 500, ungraded: 0 },
+  },
+};
+
+describe("grade distribution", () => {
+  it("renders nothing when the payload predates the by_grade fields", () => {
+    // A shared report or an older API build must still render its status page.
+    expect(renderGradeDistribution(PAYLOAD)).toBe("");
+  });
+
+  it("renders nothing when documents_audited is absent entirely", () => {
+    expect(renderGradeDistribution({ status: "ok" })).toBe("");
+  });
+
+  it("renders all three windows", () => {
+    const out = renderGradeDistribution(GRADED);
+    expect(out).toContain("Last 24 hours");
+    expect(out).toContain("Last 30 days");
+    expect(out).toContain("All time");
+  });
+
+  it("prints counts with thousands separators", () => {
+    const out = renderGradeDistribution(GRADED);
+    expect(out).toContain("1,000 documents");
+    expect(out).toContain(">500<"); // F, all time
+  });
+
+  it("computes each grade's share of its own window", () => {
+    const out = renderGradeDistribution(GRADED);
+    // 24h: A is 2 of 8.
+    expect(out).toContain("25%");
+    // All time: F is 500 of 1000.
+    expect(out).toContain("50%");
+  });
+
+  it("singularizes a one-document window", () => {
+    const out = renderGradeDistribution({
+      documents_audited: {
+        last_24h: 1,
+        last_30d: 1,
+        total: 1,
+        by_grade_24h: { A: 1, B: 0, C: 0, D: 0, F: 0, ungraded: 0 },
+        by_grade_30d: { A: 1, B: 0, C: 0, D: 0, F: 0, ungraded: 0 },
+        by_grade_total: { A: 1, B: 0, C: 0, D: 0, F: 0, ungraded: 0 },
+      },
+    });
+    expect(out).toContain("1 document<");
+    expect(out).not.toContain("1 documents");
+  });
+
+  it("hides the ungraded row when nothing is ungraded, shows it when something is", () => {
+    // All time has ungraded:0 and 30d has ungraded:5, so exactly one
+    // "Not graded" row should exist across the three windows.
+    const out = renderGradeDistribution(GRADED);
+    expect(out.match(/Not graded/g)).toHaveLength(1);
+  });
+
+  it("says so plainly when a window has no documents, without dividing by zero", () => {
+    const out = renderGradeDistribution({
+      documents_audited: {
+        last_24h: 0,
+        last_30d: 0,
+        total: 0,
+        by_grade_24h: { A: 0, B: 0, C: 0, D: 0, F: 0, ungraded: 0 },
+        by_grade_30d: { A: 0, B: 0, C: 0, D: 0, F: 0, ungraded: 0 },
+        by_grade_total: { A: 0, B: 0, C: 0, D: 0, F: 0, ungraded: 0 },
+      },
+    });
+    expect(out).toContain("Nothing audited in this window.");
+    expect(out).not.toContain("NaN");
+    expect(out).not.toContain("Infinity");
+  });
+
+  it("tolerates a malformed bucket without emitting NaN", () => {
+    const out = renderGradeDistribution({
+      documents_audited: {
+        total: 3,
+        by_grade_total: { A: "lots", B: null, C: -5, F: 3 },
+      },
+    });
+    expect(out).not.toContain("NaN");
+    expect(out).toContain("All time");
+  });
+
+  // -- the caveat is the point, not decoration -------------------------------
+
+  it("states that the sample is uploads, not any organization's documents", () => {
+    const out = renderGradeDistribution(GRADED);
+    expect(out).toContain("files uploaded to this tool");
+    expect(out).toContain("not any organization's document library");
+    expect(out).toContain("self-selected");
+  });
+
+  it("keeps the caveat in the rendered page, above the raw JSON tree", () => {
+    const page = renderStatusHtml(GRADED);
+    expect(page).toContain("self-selected");
+    expect(page.indexOf("self-selected")).toBeLessThan(page.indexOf('class="tree"'));
+  });
+
+  // -- accessibility of the chart itself -------------------------------------
+
+  it("marks the proportional bars decorative and carries meaning in the table", () => {
+    const out = renderGradeDistribution(GRADED);
+    expect(out).toContain('<div class="stack" aria-hidden="true">');
+    expect(out).toContain('<th scope="col">Documents</th>');
+    expect(out).toContain('<th scope="row">');
+  });
+
+  it("gives the section an accessible name and a heading", () => {
+    const out = renderGradeDistribution(GRADED);
+    expect(out).toContain('aria-labelledby="dist-h"');
+    expect(out).toContain('<h2 id="dist-h">Grade distribution</h2>');
+  });
+
+  it("nests the h2 under a real h1 on the full page", () => {
+    const page = renderStatusHtml(GRADED);
+    expect(page).toContain("<h1>Service status</h1>");
+    expect(page.indexOf("<h1>")).toBeLessThan(page.indexOf("<h2"));
+  });
+
+  it("uses the same grade colors the report UI scores against", () => {
+    const out = renderGradeDistribution(GRADED);
+    for (const t of GRADE_THRESHOLDS) {
+      expect(out).toContain(t.color);
+    }
+  });
+
+  it("orders the grades best-first", () => {
+    const out = renderGradeDistribution(GRADED);
+    const firstRow = out.indexOf('<span class="gl">A</span>');
+    const lastRow = out.indexOf('<span class="gl">F</span>');
+    expect(firstRow).toBeGreaterThan(-1);
+    expect(firstRow).toBeLessThan(lastRow);
   });
 });
 
