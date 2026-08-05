@@ -693,12 +693,12 @@ const severities = [
   {
     label: "Pass",
     color: SEVERITY_COLORS.Pass!,
-    description: "Category score 90–100. Meets accessibility standards.",
+    description: "Category score of 100 — no machine-detectable issues found.",
   },
   {
     label: "Minor",
     color: SEVERITY_COLORS.Minor!,
-    description: "Category score 70–89. Small improvements recommended.",
+    description: "Category score 70–99. Small improvements recommended.",
   },
   {
     label: "Moderate",

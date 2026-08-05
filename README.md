@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.37.5-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1594%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.48.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1848%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -159,7 +159,7 @@ Every audit produces **two distinct things**, and the distinction is deliberate:
 
 > Cite the **score** for tracking remediation progress; cite the **conformance verdict** for the pass/fail compliance question. Neither replaces review by a human accessibility specialist — pair the audit with PAC 2024 and an Adobe Acrobat Accessibility Full Check for a definitive determination.
 
-> **Note —** prior to v1.21.0 the tool surfaced a second "Practical" (PDF/UA-flavoured) score profile alongside Strict. It was retired because auditors found two profiles confusing; PDF/UA-1 conformance is now verified authoritatively by the optional [veraPDF](https://verapdf.org/) check on the remediation result page. The score described here is the single canonical score.
+> **Note —** prior to v1.21.0 the tool surfaced a second "Practical" (PDF/UA-flavoured) score profile alongside Strict. It was retired because auditors found two profiles confusing; PDF/UA-1 conformance is now verified authoritatively by [veraPDF](https://verapdf.org/) on every PDF audit (the PDF/UA verdict panel, since v1.37.0) and again on the remediation result page. The score described here is the single canonical score.
 
 ### Categories & Weights
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,594 tests** across 99 test files (API 1011, Web 534, CLI 49). Run all three suites with one summary:
+**1,848 tests** across 111 test files (API 1126, Web 673, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1006,11 +1006,11 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ```json
 {
   "status": "ok",
-  "version": "1.39.0",
+  "version": "1.48.0",
   "uptime_seconds": 431520,
   "uptime": "4d 23h 52m 0s",
-  "checked_at": "2026-08-03T14:22:10Z",
-  "checked_at_chicago": "Aug 3, 2026, 9:22:10 AM CDT",
+  "checked_at": "2026-08-05T14:22:10Z",
+  "checked_at_chicago": "Aug 5, 2026, 9:22:10 AM CDT",
   "web": "ok",
   "api": "ok",
   "database": "ok",
@@ -1124,6 +1124,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.48.1 — 2026-08-05 · Documentation-accuracy release (not a security release)
+
+No input-handling code changed — the two code edits are a display legend and a config-driven label. The release is security-*relevant* anyway, because several corrected claims were privacy statements: the data-retention policy said IP addresses are never stored (every `audit_log` row records caller IP and user-agent, and always has), claimed indefinite audit-log retention (the sweep purges at 365 days, since v1.20.1), and its § 10 audit register was six releases behind. An auditor-facing policy that under-discloses is a finding in itself; correcting the record is the fix. The policy is now v1.2 with a dated changelog entry disclosing each correction, and every surface that still described veraPDF as remediation-only now reflects the v1.37.0 PDF/UA-on-audit verdict. Tests unchanged at 1,848.
 
 ### v1.48.0 — 2026-08-05 · Full red/blue audit (security release)
 

@@ -190,7 +190,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "security-audit-2026-08-05",
     badge: "Security",
-    text: "The whole tool has had a fresh independent security review — attack surface, sign-in, file handling, the checking engines, and what the service publishes about itself. Nothing critical or high-severity was found. Two low-severity issues were identified and fixed the same day, both about how an uploaded file's name is stored internally; neither exposed any document you have uploaded, and no report or stored data was affected. The full write-up, including what was checked and found sound, is in the project's public security log.",
+    text: "The whole tool has had a fresh independent security review — attack surface, sign-in, file handling, the checking engines, and what the service publishes about itself. Nothing critical or high-severity was found. Two low-severity issues were identified and fixed the same day, both about how an uploaded file's name is stored internally; neither exposed any document you have uploaded, and no report or stored data was affected. The full write-up, including what was checked and found sound, is in the project's public security log. The data-retention policy itself was reviewed end-to-end the same day and brought fully current (policy v1.2): it now states plainly what the usage log records and that entries are deleted after 365 days.",
     linkText: "Read the data-retention and security notes",
     linkTo: "/data-retention",
     /** Shown under the text so visitors can see the tool is actively maintained. */

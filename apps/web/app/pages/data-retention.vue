@@ -43,8 +43,8 @@ useHead({
   ],
 });
 
-const POLICY_VERSION = "1.1";
-const POLICY_EFFECTIVE = "2026-07-03";
+const POLICY_VERSION = "1.2";
+const POLICY_EFFECTIVE = "2026-08-05";
 const TOOL_VERSION = runtimeConfig.public.appVersion;
 
 // Mermaid diagram sources. Deliberately simple — flowchart TD only,
@@ -186,7 +186,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
             7 yr
           </div>
           <p class="text-[11px] text-[var(--text-muted)] leading-tight">
-            Audit-trail retention (configurable)
+            Remediation audit-trail retention (configurable)
           </p>
         </div>
         <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4">
@@ -197,10 +197,10 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
         </div>
         <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4">
           <div class="text-3xl sm:text-4xl font-black text-[var(--accent-green)] leading-none mb-2">
-            3
+            6
           </div>
           <p class="text-[11px] text-[var(--text-muted)] leading-tight">
-            Open-source tools (qpdf · ODL · veraPDF)
+            Open-source tools (qpdf · pdfjs · JSZip · fast-xml-parser · ODL · veraPDF)
           </p>
         </div>
       </div>

@@ -82,10 +82,15 @@
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
-            <td class="py-2.5 pr-4 font-medium">Audit log (plain audits, no file content)</td>
+            <td class="py-2.5 pr-4 font-medium">
+              Usage log — audits and refused-upload attempts (no file content)
+            </td>
             <td class="py-2.5 pr-4">SQLite, <code class="font-mono">audit_log</code> table</td>
-            <td class="py-2.5 pr-4">Indefinite (purgeable on request)</td>
-            <td class="py-2.5">By admin request</td>
+            <td class="py-2.5 pr-4">365 days (default)</td>
+            <td class="py-2.5">
+              Yes —
+              <code class="font-mono">SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS</code>
+            </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-medium">Shared reports (audit results only)</td>
@@ -93,7 +98,7 @@
               SQLite,
               <code class="font-mono">shared_reports</code> table
             </td>
-            <td class="py-2.5 pr-4">365 days from share creation</td>
+            <td class="py-2.5 pr-4">365 days from share creation (the link stops working)</td>
             <td class="py-2.5">
               Yes —
               <code class="font-mono">SHARED_REPORTS.EXPIRY_DAYS</code>
@@ -102,7 +107,7 @@
           <tr>
             <td class="py-2.5 pr-4 font-medium">OTP authentication codes</td>
             <td class="py-2.5 pr-4">SQLite, <code class="font-mono">otp_codes</code> table</td>
-            <td class="py-2.5 pr-4">10 minutes (single-use)</td>
+            <td class="py-2.5 pr-4">15 minutes (single-use)</td>
             <td class="py-2.5">
               Yes —
               <code class="font-mono">AUTH.OTP_EXPIRY_MINUTES</code>
@@ -119,10 +124,12 @@
     </p>
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
       A <strong>periodic cleanup sweep</strong> runs every 5 minutes within the API process and on
-      every API startup. It performs five tasks idempotently: expire outputs past
+      every API startup. It performs seven tasks idempotently: expire outputs past
       <code class="text-xs font-mono">expires_at</code>; mark stuck jobs as failed; remove orphan
       directories; purge old <code class="text-xs font-mono">remediation_jobs</code> rows; purge old
-      <code class="text-xs font-mono">remediation_events</code> rows. Source:
+      <code class="text-xs font-mono">remediation_events</code> rows; purge
+      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; and purge
+      expired revoked sign-in tokens. Source:
       <code class="text-xs font-mono">apps/api/src/services/remediationCleanup.ts</code>.
     </p>
   </section>

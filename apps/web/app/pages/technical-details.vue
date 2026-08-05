@@ -122,7 +122,9 @@ function goBack(): void {
         by two tools: pdfjs reads the in-memory buffer directly, while qpdf (a command-line tool
         that needs a file path) gets a short-lived temp copy under a random name, deleted in the
         same request — even when analysis fails. The two run in parallel and their combined output
-        feeds the scorer.
+        feeds the scorer. A third check runs concurrently for PDFs: veraPDF validates the file
+        against PDF/UA-1 (ISO 14289-1), and its verdict appears on the report as a separate panel
+        (since v1.37.0).
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
         <strong>Word (.docx), PowerPoint (.pptx), and Excel (.xlsx)</strong>
@@ -137,7 +139,7 @@ function goBack(): void {
       <DiagramFigure
         name="audit-flow"
         title="Audit pipeline — PDF, Word, PowerPoint, and Excel"
-        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings; the result returns to the browser and the memory buffer is discarded.`"
+        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, while veraPDF concurrently checks a PDF for PDF/UA-1 conformance; the result returns to the browser and the memory buffer is discarded.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
@@ -285,16 +287,18 @@ function goBack(): void {
       </p>
 
       <section class="mt-8">
-        <h3 class="text-lg font-bold text-[var(--text-heading)] mb-2">WCAG 2.2 alignment</h3>
+        <h3 class="text-lg font-bold text-[var(--text-heading)] mb-2">
+          WCAG {{ wcag.version }} alignment
+        </h3>
         <p class="text-[var(--text-muted)] leading-relaxed mb-3">
-          This tool reports against <strong>WCAG {{ wcag.version }} Level AA</strong>, a strict
-          superset of the WCAG 2.1 AA that IITAA 2.1 (§E205.4) and ADA Title II require. WCAG 2.2
-          adds nine success criteria (six at Level A/AA) and removes one (4.1.1 Parsing, obsolete).
-          The automated checks are unchanged — every machine-checkable criterion carried forward
-          from 2.1. The new 2.2 criteria are interactive/manual; we never report them as automated
-          failures. For documents with interactive form fields, the form-relevant new criteria
-          (Target Size 2.5.8, Redundant Entry 3.3.7, Accessible Authentication 3.3.8) are listed in
-          the verdict as <em>"not assessed — manual review"</em>.
+          This tool reports against <strong>WCAG {{ wcag.version }} Level AA</strong>. WCAG 2.2 AA
+          is a strict superset of the WCAG 2.1 AA that IITAA 2.1 (§E205.4) and ADA Title II require.
+          WCAG 2.2 adds nine success criteria (six at Level A/AA) and removes one (4.1.1 Parsing,
+          obsolete). The automated checks are unchanged — every machine-checkable criterion carried
+          forward from 2.1. The new 2.2 criteria are interactive/manual; we never report them as
+          automated failures. For documents with interactive form fields, the form-relevant new
+          criteria (Target Size 2.5.8, Redundant Entry 3.3.7, Accessible Authentication 3.3.8) are
+          listed in the verdict as <em>"not assessed — manual review"</em>.
         </p>
         <p class="text-[var(--text-muted)] leading-relaxed">
           For a plain-language manager summary, see
@@ -523,7 +527,7 @@ function goBack(): void {
               <td class="py-2.5 pr-4 font-mono">veraPDF</td>
               <td class="py-2.5 pr-4">PDF/UA-1 (ISO 14289-1) validation</td>
               <td class="py-2.5 pr-4">MPL 2.0</td>
-              <td class="py-2.5">Remediation (PDF)</td>
+              <td class="py-2.5">Audit + Remediation (PDF)</td>
             </tr>
           </tbody>
         </table>

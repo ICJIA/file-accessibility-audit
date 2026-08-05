@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.48.1] - 2026-08-05
+
+Documentation-accuracy release. Every explanatory surface — the data-retention policy, the technical/scoring pages, README, AGENTS.md — was audited against the code and brought current, and two user-visible corrections shipped alongside. No scored result, endpoint, or stored value changed.
+
+### Fixed
+
+- **The report legend contradicted the scorer.** The severity legend in the layout said Pass means "category score 90–100" and Minor "70–89" — but `SEVERITY_THRESHOLDS` reserves "No issues found" for exactly 100 and labels 70–99 Minor. A category scoring 95 was rendered as Minor by the report while the legend explaining it called the same score a pass. The legend now says 100 and 70–99.
+
+- **`MethodologyCard.vue` hardcoded "WCAG 2.2"** in all four format variants and pinned the quickref link to WCAG22, so under the documented `WCAG_VERSION=2.1` fallback it would contradict every other surface. It now reads `useWcag()` like `technical-details.vue` does.
+
+### Changed
+
+- **Data-retention policy → v1.2** (effective 2026-08-05, § 14 has the dated entry). The corrections it records:
+  - **§ 8 claimed IP addresses are never stored.** Every `audit_log` row records the caller's IP address and user-agent, and always has (`migrations.ts` columns, both write paths). Moved to the "stored" list; the policy now says so plainly.
+  - **§ 7 claimed the audit log is retained indefinitely.** The cleanup sweep purges it past `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` (365) and has since v1.20.1; the sweep description said five tasks where the code runs seven. Also: OTP lifetime corrected to 15 minutes (`AUTH.OTP_EXPIRY_MINUTES`), and the shared-reports row now states what expiry means (the link stops working).
+  - **Refused uploads (v1.46.0) are documented** in §§ 2, 7, and 8: a refusal stores the offered file name (sanitized) and a timestamp — no content, no content hash, no score.
+  - **§ 10 was six releases behind** (newest entry v1.42.0). Back-filled v1.43.0–v1.47.0 and added the full plain-language entry for the v1.48.0 red/blue audit; the v1.39.0 entry's "publishes no score or grade" claim is now scoped to as-shipped, since v1.44.0 publishes grade distributions.
+  - **§§ 12–15 headings were numbered one behind the table of contents** (two sections both rendered "11.") — renumbered, cross-references fixed.
+  - § 5 and the stat tiles: veraPDF runs in the audit **and** remediation pipelines; the toolchain tile counts all six tools, not three.
+
+- **v1.37.0's PDF/UA-on-audit change finally propagated.** Five surfaces still said veraPDF runs "only in the remediation pipeline": `technical-details.vue` (pipeline prose, diagram description, tool table), `TechnicalExplainer.vue` (How-It-Works prose, ASCII pipeline, PDF/UA paragraph, privacy bullet), `MethodologyCard.vue`, data-retention § 5, and the README scoring note. All now state that every PDF audit carries the veraPDF PDF/UA-1 verdict.
+
+- **`TechnicalExplainer.vue`** additionally gains a short paragraph on refused formats (legacy binary Office, CSV — v1.45.0 behavior) and a link to the public status page.
+
+- **README**: badges and test counts were ten releases stale (v1.37.5 / 1,594 → v1.48.0 / 1,848 across 111 files); sample `/status` payload refreshed.
+
+- **AGENTS.md** was the worst offender: still described a PDF-only tool scoring "9 categories under two profiles", claimed 876 API tests (1,126), pointed the release checklist at a § 10 location that moved in the section split, and presented the API surface "as of v1.19.0" with PDF-only endpoint descriptions. All corrected; the missing `/api/status`, `/api/health`, `/api/logs` and Nuxt `/status`/`/healthz` routes are now listed.
+
+### Notes
+
+Tests unchanged at 1,848 — no behavior changed; the existing suites (including the source-scan tests over these exact files) pass as-is. Lint, typecheck, and build green.
+
 ## [1.48.0] - 2026-08-05
 
 Full red/blue security audit of the whole application. Two findings, both fixed; no critical or high-severity issue found.

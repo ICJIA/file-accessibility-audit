@@ -205,16 +205,18 @@
 
         <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">How It Works</h3>
         <p class="text-[var(--text-muted)] mb-3">
-          When you upload a <strong>PDF</strong>, the server runs two independent, open-source
-          analysis tools <strong>in parallel</strong> — one reads the PDF's internal structure
-          (tags, bookmarks, form fields), the other extracts text and metadata from every page.
-          Their combined output feeds a scorer that evaluates nine accessibility categories and
-          produces a weighted overall score. <strong>Word, PowerPoint, and Excel</strong> files skip
-          that two-tool step entirely — they're already ZIP archives of XML, so the server unzips
-          them with JSZip and reads the relevant parts with fast-xml-parser, entirely in-process
-          with no external subprocess, then scores the result against a category set adapted for
-          that format (see "How Scores Are Calculated" below). No data is sent to third-party
-          services or AI models — all processing happens on the server (hosted on
+          When you upload a <strong>PDF</strong>, the server runs three independent, open-source
+          checks <strong>in parallel</strong> — one reads the PDF's internal structure (tags,
+          bookmarks, form fields), one extracts text and metadata from every page, and veraPDF
+          validates the file against the PDF/UA-1 standard (ISO 14289-1), reported on the audit as
+          its own verdict. The combined output of the first two feeds a scorer that evaluates nine
+          accessibility categories and produces a weighted overall score.
+          <strong>Word, PowerPoint, and Excel</strong> files skip that two-tool step entirely —
+          they're already ZIP archives of XML, so the server unzips them with JSZip and reads the
+          relevant parts with fast-xml-parser, entirely in-process with no external subprocess, then
+          scores the result against a category set adapted for that format (see "How Scores Are
+          Calculated" below). No data is sent to third-party services or AI models — all processing
+          happens on the server (hosted on
           <a
             href="https://www.digitalocean.com/"
             target="_blank"
@@ -229,17 +231,27 @@
           class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
           tabindex="0"
         >
-          PDF: File → [validate type &amp; size] → parallel { QPDF (structure), PDF.js (content) } →
-          Scorer (9 categories) → Weighted Score → Report Word / PowerPoint / Excel: File →
-          [validate type &amp; size] → JSZip + fast-xml-parser (in-process) → Scorer (adapted
-          categories) → Weighted Score → Report
+          PDF: File → [validate type &amp; size] → parallel { QPDF (structure), PDF.js (content),
+          veraPDF (PDF/UA-1) } → Scorer (9 categories) → Weighted Score → Report Word / PowerPoint /
+          Excel: File → [validate type &amp; size] → JSZip + fast-xml-parser (in-process) → Scorer
+          (adapted categories) → Weighted Score → Report
         </div>
+
+        <p class="text-[var(--text-muted)] mt-3">
+          Files the tool cannot audit — legacy binary Office formats (.doc, .xls, .ppt, .rtf), CSV
+          exports, images — are refused up front with a specific explanation instead of a generic
+          error, even when the file has been renamed (the format is detected from content, not the
+          name). Service health and anonymous usage totals are published on the public
+          <a href="/status?html" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >status page</a
+          >.
+        </p>
 
         <div class="mt-4">
           <DiagramFigure
             name="audit-flow"
             title="Audit pipeline — visual flow"
-            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
+            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel, and veraPDF checks PDF/UA-1 conformance. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
           />
         </div>
       </div>
@@ -728,16 +740,16 @@
             technology can actually use.
           </p>
           <p class="text-xs text-[var(--text-muted)]">
-            For a formal <strong>PDF/UA-1 (ISO 14289-1) conformance verdict</strong>, run the
-            optional remediation pipeline — it includes a
+            Every PDF audit also includes a formal
+            <strong>PDF/UA-1 (ISO 14289-1) conformance check</strong> by
             <a
               href="https://verapdf.org/"
               target="_blank"
               rel="noopener noreferrer"
               class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
               >veraPDF</a
-            >
-            check. PDF/UA is referenced by IITAA only in
+            >, shown as its own verdict panel on the report; the optional remediation pipeline runs
+            the same check on its output. PDF/UA is referenced by IITAA only in
             <a
               href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
               target="_blank"
@@ -1817,9 +1829,9 @@
           <li class="flex gap-2">
             <span class="text-[var(--text-secondary)] font-bold flex-shrink-0">1.</span
             ><span
-              >A PDF is written to a temporary directory on the server, analyzed by QPDF and PDF.js,
-              and <strong>immediately deleted</strong>. A Word, PowerPoint, or Excel file never
-              touches disk — it's held in server memory and parsed in-process (JSZip +
+              >A PDF is written to a temporary directory on the server, analyzed by QPDF, PDF.js,
+              and veraPDF, and <strong>immediately deleted</strong>. A Word, PowerPoint, or Excel
+              file never touches disk — it's held in server memory and parsed in-process (JSZip +
               fast-xml-parser). Either way, no file content is retained after analysis
               completes.</span
             >

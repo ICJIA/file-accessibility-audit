@@ -12,12 +12,14 @@ gotchas that tend to bite agents on their first contact.
 
 ## What this project is
 
-ICJIA File Accessibility Audit — a PDF accessibility scoring + auto-
-remediation tool. Auditors and content managers upload (or link) PDFs;
-the tool scores them on 9 WCAG-aligned categories under two profiles
-(strict + practical), produces shareable reports, and optionally
-auto-remediates PDFs through a qpdf → OpenDataLoader → veraPDF
-pipeline.
+ICJIA File Accessibility Audit — a document accessibility scoring +
+auto-remediation tool. Auditors and content managers upload (or link)
+PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) files; the
+tool scores them on WCAG-aligned categories (9 for PDF and PPTX, 8 for
+DOCX, 7 for XLSX) on the single canonical "strict" profile, produces
+shareable reports, and optionally auto-remediates PDFs through a
+qpdf → OpenDataLoader → veraPDF pipeline. PDF audits also carry a
+veraPDF PDF/UA-1 verdict (v1.37.0+).
 
 Production: <https://audit.icjia.app>
 Repo: <https://github.com/ICJIA/file-accessibility-audit>
@@ -88,7 +90,7 @@ re-learn them.
   will not catch `tsc --noEmit` errors. The build is split:
     `pnpm --filter api build`  → `tsc --noEmit` (typecheck only)
     `pnpm --filter web build`  → full `nuxt build`
-- A clean `pnpm --filter api test` is also helpful — currently 876
+- A clean `pnpm --filter api test` is also helpful — currently 1,126
   tests, all under `apps/api/src/__tests__`.
 - **New since the 2026-07 tooling pass:** `pnpm lint` (ESLint, whole
   repo) and `pnpm typecheck` (`apps/api` `tsc --noEmit` + `apps/web`
@@ -158,8 +160,9 @@ auto-reads from `apps/web/package.json` via
 1. `CHANGELOG.md` (root) — add entry under new version heading
 2. The three `package.json` files
 3. `README.md` § Security — technical-framed audit log entry
-4. `apps/web/app/pages/data-retention.vue` § 10 — plain-language
-   audit log entry for auditors
+4. `apps/web/app/components/dataRetention/Section10SecurityAudits.vue`
+   (§ 10 of the data-retention page) — plain-language audit log entry
+   for auditors
 5. Create an annotated git tag `vX.Y.Z`
 
 The Security / data-retention entries are the auditor-facing
@@ -192,7 +195,7 @@ releases (write a short "no new findings; release covered X" entry).
 │   │       │                 PRAGMA user_version — see below)
 │   │       ├── middleware/   auth, rate limiting, upload
 │   │       ├── jobs/         remediation worker (detached child process)
-│   │       └── __tests__/    vitest, 876 tests
+│   │       └── __tests__/    vitest, 1,126 tests
 │   │
 │   ├── web/                  Nuxt 4 frontend
 │   │   ├── nuxt.config.ts    runtimeConfig + global head config
@@ -223,19 +226,19 @@ releases (write a short "no new findings; release covered X" entry).
 │   └── (per-fix accuracy write-ups, e.g. table-and-heading-accuracy-fixes.md,
 │       live at the docs/ root — everything else historical is in archive/)
 │
-└── controls/                 fixture PDFs for scripts/verify-controls.ts
+└── controls/                 fixture documents (PDF + Office) for scripts/verify-controls.ts
 ```
 
 ---
 
-## API surface (current as of v1.19.0)
+## API surface (current as of v1.48.0)
 
 Public endpoints under `/api`:
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/analyze` | POST | Upload + audit a PDF |
-| `/api/analyze-url` | POST | Audit a PDF by URL — returns the full AnalysisResult, not persisted |
+| `/api/analyze` | POST | Upload + audit a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file |
+| `/api/analyze-url` | POST | Audit a document (PDF/DOCX/PPTX/XLSX) by URL — returns the full AnalysisResult, not persisted |
 | `/api/audit-url` | POST | Audit by URL **and** persist a shareable report — returns trimmed CSV-friendly shape with reportUrl. Hash-dedups by content per caller. For fleet inventory automation. |
 | `/api/bulk-from-inventory` | POST | Batch variant taking a filecap NDJSON inventory |
 | `/api/reports` | POST/GET | Save / retrieve shareable reports (UUID id) |
@@ -245,12 +248,20 @@ Public endpoints under `/api`:
 | `/api/remediate/:id/receipt` | GET | Lifecycle audit trail JSON |
 | `/api/auth/*` | various | OTP email + session |
 | `/api/tokens` | various | Personal access token management |
+| `/api/status` | GET | Service status JSON — engines, DB, usage aggregates (public, v1.39.0+) |
+| `/api/health` | GET | Static liveness (`{status:"ok"}`; no DB or engine probe) |
+| `/api/logs` | GET | Admin-only `audit_log` query |
 
 URL-fetching endpoints (`/analyze-url`, `/audit-url`, `/bulk-from-inventory`)
 share a host allowlist defined in
 `apps/api/src/routes/analyze-url.ts` `DEFAULT_ALLOWED_HOSTS`. The
 matcher accepts exact-host and any subdomain. Operators can extend
 per-deployment via `ANALYZE_URL_ALLOWED_HOSTS` env var.
+
+The Nuxt tier additionally serves `/status` (service status as
+human-readable HTML or JSON; GET/HEAD, public, keyword-monitored) and
+`/healthz` (liveness; GET/HEAD) — both are server routes, not Vue
+pages (link with a plain `<a href>`, never `<NuxtLink>`).
 
 ---
 

@@ -112,7 +112,8 @@
           <tr>
             <td class="py-3 pr-4 font-mono text-xs">veraPDF</td>
             <td class="py-3 pr-4 text-xs">
-              PDF/UA-1 (ISO 14289-1) conformance validation (remediation pipeline only; optional)
+              PDF/UA-1 (ISO 14289-1) conformance validation (every PDF audit since v1.37.0, plus the
+              remediation pipeline; optional)
             </td>
             <td class="py-3 pr-4 text-xs">MPL 2.0</td>
             <td class="py-3 text-xs">
