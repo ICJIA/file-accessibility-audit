@@ -213,8 +213,9 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
         A shared report is retrievable by its unguessable 128-bit random ID, its link stops working
-        365 days after creation (§ 7), and remediation job rows carrying the same report JSON are
-        purged after 30 days. If a document is sensitive enough that its alt text, link URLs, or
+        365 days after creation, the stored row itself is deleted by the cleanup sweep roughly 30
+        days after that (§ 7, tool v1.51.0+), and remediation job rows carrying the same report JSON
+        are purged after 30 days. If a document is sensitive enough that its alt text, link URLs, or
         bookmark titles are themselves confidential,
         <strong>audit it without sharing the report</strong> — the plain audit path stores none of
         this.

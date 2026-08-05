@@ -1,6 +1,9 @@
 /**
- * Cleanup sweep for the remediation feature. Runs on API startup and
- * on a configured interval. Does seven things, in order:
+ * The application's retention sweep. Runs on API startup and on an interval
+ * — ALWAYS, regardless of REMEDIATION.ENABLED (since v1.51.0; the interval
+ * previously early-returned when remediation was off, which silently
+ * disabled steps 6–8 too — retention must not hang off a feature flag).
+ * Does eight things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
  *      record verified_absent for the auditor).
@@ -9,15 +12,18 @@
  *   4. Purge job rows past JOB_ROW_RETENTION_DAYS (terminal states only).
  *   5. Purge event rows past EVENT_LOG_RETENTION_DAYS.
  *   6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS.
- *   7. Purge expired revoked_jtis rows (C4 JWT revocation denylist) — not
- *      remediation-specific, but this sweep already runs on every boot and
- *      (when REMEDIATION.ENABLED) on an interval, so it's a convenient
- *      shared home rather than a second timer. Also purged opportunistically
- *      on every logout (see auth.ts / jtiDenylist.ts), so this is a
- *      backstop for a server with few logouts.
+ *   7. Purge expired revoked_jtis rows (C4 JWT revocation denylist). Also
+ *      purged opportunistically on every logout (see auth.ts /
+ *      jtiDenylist.ts), so this is a backstop for a server with few logouts.
+ *   8. Purge shared_reports rows past EXPIRY_DAYS + PURGE_GRACE_DAYS
+ *      (v1.51.0). The grace window keeps the read gate's 410 "link has
+ *      expired" response alive for a while after expiry before the row —
+ *      and its up-to-1MB report_json — is deleted for good.
  *
- * Each step is idempotent. Failures in one step do not block later
- * steps. Returns a structured result so callers (and the CLI entry
+ * Steps 1–4 are no-ops on a deployment that has never run remediation
+ * (queries over empty tables; the orphan scan guards on the output dir
+ * existing). Each step is idempotent. Failures in one step do not block
+ * later steps. Returns a structured result so callers (and the CLI entry
  * point) can log what happened.
  */
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -63,6 +69,12 @@ const purgeOldEvents = db.prepare(`DELETE FROM remediation_events WHERE occurred
 // CURRENT_TIMESTAMP), so the cutoff is an ISO string.
 const purgeOldAuditLog = db.prepare(`DELETE FROM audit_log WHERE created_at < ?`);
 
+// v1.51.0: shared_reports physical retention. expires_at is an ISO-8601 TEXT
+// column (every writer stores `new Date(...).toISOString()`), so lexicographic
+// comparison against an ISO cutoff is chronological — the same convention the
+// read gate and the dedup lookups already rely on.
+const purgeExpiredSharedReports = db.prepare(`DELETE FROM shared_reports WHERE expires_at < ?`);
+
 export interface CleanupResult {
   expiredOutputs: number;
   stuckJobs: number;
@@ -73,6 +85,8 @@ export interface CleanupResult {
   purgedAuditLog: number;
   /** C4: revoked_jtis rows purged past their own expiry. */
   purgedJtis: number;
+  /** v1.51.0: shared_reports rows purged past EXPIRY_DAYS + PURGE_GRACE_DAYS. */
+  purgedSharedReports: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -86,6 +100,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     purgedEvents: 0,
     purgedAuditLog: 0,
     purgedJtis: 0,
+    purgedSharedReports: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -228,20 +243,39 @@ export async function runCleanup(): Promise<CleanupResult> {
     });
   }
 
+  /* 8. Purge shared_reports past expiry + grace (v1.51.0). Rows inside the
+   *    grace window survive so GET /api/reports/:id can keep answering the
+   *    informative 410 before the id finally goes 404. */
+  try {
+    const cutoffMs = now - SHARED_REPORTS.PURGE_GRACE_DAYS * 86_400_000;
+    const info = purgeExpiredSharedReports.run(new Date(cutoffMs).toISOString());
+    result.purgedSharedReports = info.changes;
+  } catch (e) {
+    result.errors.push({
+      step: "purge_shared_reports",
+      message: (e as Error).message,
+    });
+  }
+
   return result;
 }
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
 /**
- * Schedule periodic cleanup. Safe to call repeatedly; a second call is
- * a no-op (existing interval stays in place). Only schedules when
- * REMEDIATION.ENABLED is true — when disabled, there's nothing to
- * clean up via the regular pipeline.
+ * Schedule the periodic sweep. Safe to call repeatedly; a second call is
+ * a no-op (existing interval stays in place).
+ *
+ * Deliberately NOT gated on REMEDIATION.ENABLED (v1.51.0). It used to be,
+ * on the reasoning "when disabled, there's nothing to clean up" — true in
+ * v1.18, false ever since the audit_log purge (v1.20.1), the JTI backstop,
+ * and the shared_reports purge moved in: turning the remediation flag off
+ * (or restarting PM2 from a shell without /etc/environment, which defaults
+ * it off) would silently stop ALL retention until the next process restart.
+ * The remediation-specific steps are cheap no-ops when the feature is off.
  */
 export function startCleanupInterval(): void {
   if (intervalHandle) return;
-  if (!REMEDIATION.ENABLED) return;
   intervalHandle = setInterval(() => {
     runCleanup().catch((e) => {
       console.error("Remediation cleanup sweep failed:", e);

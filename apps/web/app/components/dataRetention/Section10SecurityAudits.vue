@@ -64,6 +64,41 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.51.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.51.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-05</strong> · scope: shared reports are now deleted after their
+          link expires — a data-retention improvement.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+        A shared report's link has always stopped working 365 days after it was created — but the
+        stored report itself was kept indefinitely, which this policy disclosed (§ 7). The cleanup
+        sweep now
+        <strong>permanently deletes the stored report roughly 30 days after its link expires</strong
+        >, so nothing shared outlives its usefulness by more than a month. The 30-day gap is
+        deliberate: while the record still exists, a visitor clicking an expired link is told
+        plainly that it expired; after deletion, the address behaves as if it never existed. Since a
+        saved report is the one place that can quote short strings from inside a document (§ 8a),
+        this is a privacy improvement, not only housekeeping.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        The same release fixes a latent coupling: the sweep that enforces every retention period on
+        this page used to pause entirely if the optional remediation feature was switched off — a
+        configuration that never occurred in production, but under which deletion schedules would
+        have silently stopped. The sweep now runs unconditionally, and an automated test holds it to
+        that with the feature disabled.
+        <strong
+          >This release only deletes data sooner — nothing new is collected, and every other
+          retention period is unchanged.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.50.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

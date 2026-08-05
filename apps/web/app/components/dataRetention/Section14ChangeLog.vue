@@ -6,6 +6,15 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.4 · 2026-08-05</strong> — Documents that shared-report rows are now physically
+        deleted by the cleanup sweep roughly 30 days after their link expires (tool v1.51.0) — a
+        total stored lifetime of about 395 days (§ 7, § 8a). Previously the link stopped working at
+        365 days but the stored row was retained indefinitely, which § 7 disclosed. Also documents
+        that the retention sweep now runs regardless of the optional remediation feature's on/off
+        switch (§ 7); previously, disabling that feature would have silently paused the periodic
+        purges.
+      </li>
+      <li>
         <strong>v1.3 · 2026-08-05</strong> — Adds § 8a, a dated storage-verification annex proving §
         8 against the source code, and qualifies § 8 where verification showed the wording
         overclaimed: a <em>saved or shared</em> report quotes short strings from the document

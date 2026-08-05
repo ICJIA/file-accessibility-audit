@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.50.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1874%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.51.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1877%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,874 tests** across 113 test files (API 1146, Web 679, CLI 49). Run all three suites with one summary:
+**1,877 tests** across 114 test files (API 1149, Web 679, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1146 passed (58 files)
+  ✔ API      1149 passed (59 files)
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1874 tests passed across 113 files
+  ✔ 1877 tests passed across 114 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1146 tests)
+### API Tests (1149 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1124,6 +1124,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.51.0 — 2026-08-05 · shared_reports purge + retention decoupled from the remediation flag
+
+Closes two findings from the 2026-08-05 assessment. **Step 8 of the cleanup sweep now deletes `shared_reports` rows past `EXPIRY_DAYS + PURGE_GRACE_DAYS`** (365 + 30 days) — before this, no `DELETE FROM shared_reports` existed anywhere and rows carrying up to 1 MB of `report_json` each (including the document-derived strings § 8a documents) accumulated indefinitely. The grace window is a UX/lifecycle decision, not slack: the read gate answers an informative `410` ("link has expired") only while the row exists, so purging at expiry would collapse every expired link straight to `404`; thirty days preserves the distinction for the realistic re-click window, then the id becomes indistinguishable from one that never existed. The cutoff compares ISO-8601 TEXT lexicographically — the same convention the read gate and dedup lookups already use — and dedup is unaffected by construction (it already filters to unexpired rows).
+
+**`startCleanupInterval()` no longer early-returns when `REMEDIATION.ENABLED` is false.** The gate's comment ("nothing to clean up") was true in v1.18 and false since v1.20.1: with remediation off, the audit_log purge, JTI backstop, and now the shared_reports purge would silently stop between process restarts — and `ecosystem.config.cjs` defaults the flag off when the shell lacks `/etc/environment`, so a bare `pm2 restart` could disable all retention as a side effect. The remediation-specific steps are no-ops when the feature is off (empty-table queries; the orphan scan guards on the output dir existing). Tests pin grace-window survival, idempotency, and the interval firing with the flag disabled. Tests 1,874 → 1,877.
 
 ### v1.50.0 — 2026-08-05 · Last-backup row on /status (not a security release)
 

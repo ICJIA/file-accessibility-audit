@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.51.0] - 2026-08-05
+
+Shared reports are now actually deleted, and retention no longer hangs off a feature flag. Closes findings #2 and part of #5 from the 2026-08-05 operational assessment.
+
+### Added
+
+- **Cleanup sweep step 8: physical deletion of expired `shared_reports` rows.** `SHARED_REPORTS.EXPIRY_DAYS` (365) has always disabled the link; nothing ever deleted the row, so the table — up to 1 MB of `report_json` per row, written per-file by four paths — grew without bound, and the config comment's "eligible for cleanup" described a cleanup that did not exist. Rows are now deleted once `PURGE_GRACE_DAYS` (30, new config) past expiry.
+
+  **The grace window is the design decision worth recording.** The read gate deliberately answers `410 — This report link has expired` while the row exists: a visitor with a year-old link learns their link was real and aged out, rather than getting a bare `404`. Purging at the moment of expiry would erase that distinction for everyone; a 30-day grace preserves it for the realistic window in which an expired link still gets clicked, then lets the row — and the document-derived strings § 8a documents inside `report_json` — disappear for good. Total stored lifetime: ≈395 days, now stated exactly in the policy (§ 7, policy v1.4). Dedup lookups are unaffected by construction: they already filter to unexpired rows.
+
+### Fixed
+
+- **The retention sweep no longer stops when the remediation feature is off.** `startCleanupInterval()` early-returned when `REMEDIATION.ENABLED` was false — reasoning that predates v1.20.1, when the sweep was purely remediation housekeeping. Ever since, the audit_log purge, the revoked-token backstop, and (as of this release) the shared_reports purge all lived behind that gate: turning the feature off — or restarting PM2 from a shell that never sourced `/etc/environment`, which defaults the flag off — would silently reduce every periodic purge to "once per process restart." Never active in production (the flag is on), but latent, and exactly the kind of coupling that fails years later. The sweep now schedules unconditionally; the remediation-specific steps are cheap no-ops when the feature is off, and a test runs the interval with the flag disabled to hold the line.
+
+### Notes
+
+The sweep does not `VACUUM`: deleted pages are reused by SQLite for future inserts, so the purge bounds *growth*, which is the actual problem — shrinking the file would take a lock better scheduled by an operator than a 5-minute timer. Revisit only if disk pressure ever appears. Tests 1,874 → 1,877 (API 1,146 → 1,149); lint, typecheck, build green.
+
 ## [1.50.0] - 2026-08-05
 
 The status page now answers "did last night's backup run?" — remotely, without SSH.

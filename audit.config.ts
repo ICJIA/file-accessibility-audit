@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "shared-report-deletion-2026-08-05",
+    badge: "Privacy",
+    text: "Shared report links have always stopped working after one year. Starting today, the stored report itself is also deleted: the service's cleanup sweep now permanently removes a shared report's data about 30 days after its link expires, so nothing you shared outlives its usefulness by more than a month. The data-retention policy (v1.4) states the exact lifecycle, and its § 8a explains precisely what a shared report contains.",
+    linkText: "Read the data-retention policy",
+    linkTo: "/data-retention",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 5, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "storage-verification-and-backups-2026-08-05",
     badge: "Transparency",
     text: "The data-retention policy now includes a dated, line-by-line verification of what is and isn't stored — every database table and every write path checked against the public source code, with the evidence published as its own section (§ 8a). The verification also tightened one statement rather than quietly rewording it: a report you choose to share can quote short strings from your document (such as image alt text and link labels) inside its findings; a plain audit stores none of that. Separately, the service's usage records are now backed up nightly on the server, integrity-checked, keeping only the five newest snapshots — and the status page now shows when the last backup completed.",
@@ -1193,18 +1204,41 @@ export const RATE_LIMITS = {
 export const SHARED_REPORTS = {
   /**
    * Number of days before a shared report link expires.
-   * After this, GET /api/reports/:id returns 404 and the row is eligible
-   * for cleanup.
+   * After this, GET /api/reports/:id returns 410 ("link has expired") while
+   * the row still exists, and 404 once the cleanup sweep has physically
+   * deleted it (see PURGE_GRACE_DAYS below — v1.51.0; before that, expired
+   * rows were never deleted and the table grew without bound).
    *
    * SAFE TO CHANGE: Yes. Longer = more useful for recipients but more
    * database storage. 365 days is sized for the auditor / fleet-inventory
    * use case: ICJIA's fleet audit lists every PDF across all sites, runs
    * on a multi-month cadence, and the resulting CSV / HTML report needs
    * to stay valid for at least a year so reviewers can click through to
-   * the full audit details for any flagged file. The database growth cost
-   * is real but accepted — see the v1.19.0 release notes.
+   * the full audit details for any flagged file.
    */
   EXPIRY_DAYS: 365,
+
+  /**
+   * Days AFTER expiry before a shared report row is physically deleted by
+   * the cleanup sweep (total lifetime = EXPIRY_DAYS + PURGE_GRACE_DAYS,
+   * ~395 days by default).
+   *
+   * The grace window exists for the read gate's UX: while the row exists,
+   * an expired link answers 410 "This report link has expired" — telling
+   * the visitor their link was once real. Purging at the moment of expiry
+   * would collapse every expired link straight to a bare 404. Thirty days
+   * covers the realistic window in which someone clicks a just-expired
+   * link; after that the distinction stops earning its storage.
+   *
+   * Rows can carry up to MAX_PAYLOAD_BYTES of report_json each (including
+   * document-derived strings — see data-retention § 8a), so this purge is
+   * both the growth bound and a privacy property; the public policy states
+   * the two-stage lifecycle in § 7.
+   *
+   * SAFE TO CHANGE: Yes. 0 = delete at expiry (every expired link becomes
+   * 404 immediately). Coordinate with the data-retention page § 7 row.
+   */
+  PURGE_GRACE_DAYS: 30,
 
   /**
    * Number of days before audit_log rows are eligible for cleanup.

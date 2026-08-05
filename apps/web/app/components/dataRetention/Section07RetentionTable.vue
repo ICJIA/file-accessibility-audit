@@ -115,7 +115,10 @@
               SQLite,
               <code class="font-mono">shared_reports</code> table
             </td>
-            <td class="py-2.5 pr-4">365 days from share creation (the link stops working)</td>
+            <td class="py-2.5 pr-4">
+              Link stops working 365 days from share creation; the stored row is deleted by the
+              cleanup sweep roughly 30 days after that (≈395 days total)
+            </td>
             <td class="py-2.5">
               Yes —
               <code class="font-mono">SHARED_REPORTS.EXPIRY_DAYS</code>
@@ -141,12 +144,15 @@
     </p>
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
       A <strong>periodic cleanup sweep</strong> runs every 5 minutes within the API process and on
-      every API startup. It performs seven tasks idempotently: expire outputs past
+      every API startup — regardless of whether the optional remediation feature is enabled (tool
+      v1.51.0+). It performs eight tasks idempotently: expire outputs past
       <code class="text-xs font-mono">expires_at</code>; mark stuck jobs as failed; remove orphan
       directories; purge old <code class="text-xs font-mono">remediation_jobs</code> rows; purge old
       <code class="text-xs font-mono">remediation_events</code> rows; purge
-      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; and purge
-      expired revoked sign-in tokens. Source:
+      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; purge
+      expired revoked sign-in tokens; and delete
+      <code class="text-xs font-mono">shared_reports</code> rows roughly 30 days after their link
+      expires. Source:
       <code class="text-xs font-mono">apps/api/src/services/remediationCleanup.ts</code>.
     </p>
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
