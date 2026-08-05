@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.53.0] - 2026-08-05
+
+Every technical code block on the explanatory pages is readable again — and the technical-details page got the full treatment.
+
+### Fixed
+
+- **Twelve mangled "code blocks" converted to real `<pre>` elements.** The schemas, ASCII pipeline flows, auditor SQL queries, sample JSON, the regression-guard snippet, and the deploy commands were rendered inside `whitespace-pre` styled divs. Prettier preserves genuine `<pre>` content but reflows div text, so every format pass re-wrapped these blocks into single horizontally-scrolling lines — worst in the deploy snippet, where shell comments merged into commands. Real `<pre>` elements are whitespace-safe by construction; all blocks were hand-restored to their intended multi-line form, color-coded (sky = structure/SQL keywords, emerald = tools and success events, amber = deletions/guards, purple = types and event names, muted = comments), and given `tabindex="0"` so keyboard users can scroll them.
+
+- **The § 6 schema display had drifted from the real database.** Restored from `migrations.ts` verbatim: the displayed `remediation_jobs` gained the `original_filename` column (added v1.48.0) and shows the real `CHECK` status constraint instead of a comment.
+
+### Added
+
+- **Four new detailed blocks on `technical-details.vue`**: the full audit pipeline (memory-only buffer → per-format dispatch with all three PDF engines → scorer), a worked scoring example showing exactly how weights renormalize when categories don't apply (6525 ÷ 80 = 81.6 → 82, grade B), the structure-tree DOM of a tagged PDF, and the four-stage remediation flow with every delete-and-verify checkpoint marked.
+
+### Notes
+
+Zero-dependency by choice: coloring is inline spans with theme tokens, not a highlighter library — the CSP carries no third-party script and the build gains no weight. The one remaining `whitespace-pre-wrap` (dynamic failure text on the job page) is correct as-is. Tests unchanged at 1,879; lint, typecheck, build green.
+
 ## [1.52.0] - 2026-08-05
 
 A silently dead backup job now pages someone.

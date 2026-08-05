@@ -142,6 +142,38 @@ function goBack(): void {
         :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, while veraPDF concurrently checks a PDF for PDF/UA-1 conformance; the result returns to the browser and the memory buffer is discarded.`"
       />
 
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4 mb-2">
+        The same pipeline, in full detail:
+      </p>
+      <pre
+        class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+        tabindex="0"
+      >
+Client → HTTPS upload (multipart/form-data)
+  │
+  ▼
+<span class="text-sky-300">[multer.memoryStorage()]</span> — buffer in API process memory, never on disk
+  │
+  ▼
+<span class="text-sky-300">[validate]</span> content-based type check ('%PDF-' signature, or an OOXML ZIP
+           confirmed as Word / PowerPoint / Excel) + 15 MB size cap
+  │
+  ▼
+<span class="text-sky-300">[analyzeDocument]</span> — detects format, dispatches:
+  ├── PDF ──┬── <span class="text-emerald-300">qpdf</span>     subprocess; random-name temp copy, <span class="text-amber-300">deleted same request</span>
+  │         ├── <span class="text-emerald-300">pdfjs</span>    in-process; reads the memory buffer directly
+  │         └── <span class="text-emerald-300">veraPDF</span>  concurrent PDF/UA-1 conformance check → verdict panel
+  │
+  └── Word / PowerPoint / Excel
+            └── short-lived child process: <span class="text-emerald-300">JSZip</span> + <span class="text-emerald-300">fast-xml-parser</span>
+                (buffer handed over in-memory IPC; <span class="text-amber-300">SIGKILLed on timeout</span>)
+  │
+  ▼
+<span class="text-sky-300">[scorer]</span> — weighted WCAG-aligned categories (per-format rubric, below)
+  │
+  ▼
+HTTP response → browser · buffer garbage-collected · <span class="text-emerald-300">nothing retained</span></pre>
+
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
         Why two tools for PDF? Each is excellent at a different job. qpdf parses the PDF's internal
         object graph and structure tree — the parts a screen reader cares about. pdfjs (Mozilla's
@@ -258,6 +290,30 @@ function goBack(): void {
         tables, no forms, no links). In both cases the category's weight is redistributed across the
         categories that were actually scored.
       </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 mb-2">
+        A worked example makes the redistribution concrete:
+      </p>
+      <pre
+        class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+        tabindex="0"
+      >
+<span class="text-sky-300">Example: a 12-page PDF report — no tables, no links, no form fields</span>
+
+  Category               Weight   Score
+  ─────────────────────────────────────
+  Text Extractability      20%     100
+  Title &amp; Language         15%      75
+  Heading Structure        15%      55
+  Alt Text                 15%     100
+  Reading Order            10%      85
+  Bookmarks                 5%      45
+  Table Markup             10%     <span class="text-amber-300">n/a</span> ┐
+  Link Quality              5%     <span class="text-amber-300">n/a</span> ├─ weight redistributed across
+  Form Accessibility        5%     <span class="text-amber-300">n/a</span> ┘  the scored categories
+
+  Weighted sum = (100×20 + 75×15 + 55×15 + 100×15 + 85×10 + 45×5) ÷ 80
+               = 6525 ÷ 80
+               = 81.6  →  <span class="text-emerald-300">reported as 82 · grade B ("Good", 80–89)</span></pre>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
         <strong>Word (.docx) differs in three ways.</strong> Color contrast <em>is</em> scored —
         Word stores explicit and theme colors in the file, so 1.4.3 is machine-checkable (unlike
@@ -348,11 +404,28 @@ function goBack(): void {
         2001) is optional. It only gets created if the export tool explicitly emits it (Word's
         "Document structure tags for accessibility," InDesign's "Create Tagged PDF," etc.).
       </p>
-      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
         Without tags, a PDF reads like raw glyph positions to a screen reader — incoherent. With
         tags, it reads like a navigable document with headings, paragraphs, lists, tables, and image
-        descriptions.
+        descriptions. Concretely, the structure tree of a small tagged report is a DOM, exactly like
+        a web page's:
       </p>
+      <pre
+        class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+        tabindex="0"
+      >
+<span class="text-sky-300">StructTreeRoot</span>
+└── <span class="text-sky-300">Document</span>
+    ├── <span class="text-sky-300">H1</span> "Annual Report 2024"
+    ├── <span class="text-sky-300">P</span>  "In fiscal year 2024, the agency processed…"
+    ├── <span class="text-sky-300">Figure</span> (<span class="text-emerald-300">/Alt</span> "Bar chart showing arrests by month")
+    ├── <span class="text-sky-300">H2</span> "Methodology"
+    └── <span class="text-sky-300">Table</span>
+        ├── <span class="text-sky-300">TR</span> ── <span class="text-sky-300">TH</span> (<span class="text-emerald-300">Scope=Col</span>) "County" · <span class="text-sky-300">TH</span> (<span class="text-emerald-300">Scope=Col</span>) "Arrests"
+        └── <span class="text-sky-300">TR</span> ── <span class="text-sky-300">TD</span> "Cook" · <span class="text-sky-300">TD</span> "12,345"
+
+<span class="text-[var(--text-muted)]">The audit walks exactly this tree (via qpdf) and scores what it finds —
+or reports the document untagged when the tree is absent entirely.</span></pre>
 
       <h3 class="text-lg font-semibold text-[var(--text-heading)] mt-6 mb-2">
         And the Office formats (.docx, .pptx, .xlsx)?
@@ -440,6 +513,37 @@ function goBack(): void {
         title="Remediation pipeline"
         desc="The user re-uploads the PDF. qpdf normalizes it; original deleted with verification. OpenDataLoader adds structure tags; normalized intermediate deleted with verification. qpdf check + veraPDF validate the output. A re-audit confirms no score profile regressed. If all clear, output is held for 30 minutes; user downloads via single-use token; output deleted with verification."
       />
+
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4 mb-2">
+        Stage by stage, with every deletion verified before the next stage begins:
+      </p>
+      <pre
+        class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+        tabindex="0"
+      >
+<span class="text-sky-300">[create job row]</span>  status 'pending' · SHA-256 content hash · download token (stored hashed)
+  │
+  ▼
+<span class="text-sky-300">[Stage 1: preparing]</span>   <span class="text-emerald-300">qpdf</span> --object-streams=disable input.pdf → normalized.pdf
+                       <span class="text-amber-300">DELETE input.pdf</span> → fs.stat must return ENOENT → <span class="text-emerald-300">'verified_absent'</span>
+  │
+  ▼
+<span class="text-sky-300">[Stage 2: tagging]</span>     <span class="text-emerald-300">OpenDataLoader</span> convert(normalized.pdf) → tagged.pdf
+                       <span class="text-amber-300">DELETE normalized.pdf</span> → verify ENOENT → <span class="text-emerald-300">'verified_absent'</span>
+  │
+  ▼
+<span class="text-sky-300">[Stage 3: validating]</span>  <span class="text-emerald-300">qpdf</span> --check tagged.pdf (must be clean)
+                       <span class="text-emerald-300">veraPDF</span> --flavour ua1 → conformance verdict
+  │
+  ▼
+<span class="text-sky-300">[Stage 4: comparing]</span>   re-audit tagged.pdf — <span class="text-amber-300">REJECT if any score profile regresses</span>
+  │
+  ▼
+<span class="text-sky-300">[output ready]</span>  expires in 30 minutes · single-use download token
+  ├── downloaded → stream to client → <span class="text-amber-300">DELETE on stream close</span> → verify → <span class="text-emerald-300">'verified_absent'</span>
+  └── not downloaded → cleanup sweep <span class="text-amber-300">deletes at the 30-min TTL</span> → verify → <span class="text-emerald-300">'verified_absent'</span>
+
+Either way, the end state is the same: <span class="text-emerald-300">zero PDF artifacts on disk</span>.</pre>
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4">
         <strong>Why qpdf normalize first?</strong> OpenDataLoader's PDF writer corrupts the output

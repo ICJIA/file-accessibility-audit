@@ -9,23 +9,43 @@
       entirely in volatile server memory. No copy is written to disk at any point during the audit
       pipeline, regardless of format.
     </p>
-    <div
-      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+    <pre
+      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] overflow-x-auto"
       tabindex="0"
     >
-      Client → HTTPS upload (multipart/form-data) │ ▼ [multer.memoryStorage()] — buffer in API
-      process memory │ ▼ [validate file] - Content-based type check: PDF ('%PDF-' signature) or a
-      ZIP package confirmed as Word / PowerPoint / Excel (OOXML) — never the filename or declared
-      MIME type - File size limit: 15 MB (configurable; rejected if exceeded) │ ▼
-      [analyzeDocument(buffer, filename)] — detects format, dispatches: ├── PDF → analyzePDF(), on
-      the main API process │ • qpdf subprocess: structure tree, language, outlines, tables │ • pdfjs
-      (Node.js library): text, metadata, page order │ └── Word / PowerPoint / Excel → a dedicated,
-      short-lived child Node.js process (buffer handed over a local, in-memory channel; killed if
-      analysis runs past its timeout) • JSZip: unzips the OOXML container • fast-xml-parser: parses
-      the XML parts │ ▼ [scorer] — WCAG-aligned categories, weighted overall score │ ▼ HTTP response
-      → client (typically &lt; 10 seconds total) │ ▼ Node.js garbage collector reclaims the buffer
-      (file no longer exists in any form, anywhere)
-    </div>
+Client → HTTPS upload (multipart/form-data)
+  │
+  ▼
+[multer.memoryStorage()] — buffer in API process memory
+  │
+  ▼
+[validate file]
+  - Content-based type check: PDF ('%PDF-' signature) or a ZIP package
+    confirmed as Word / PowerPoint / Excel (OOXML) — never the filename
+    or declared MIME type
+  - File size limit: 15 MB (configurable; rejected if exceeded)
+  │
+  ▼
+[analyzeDocument(buffer, filename)] — detects format, dispatches:
+  ├── PDF → analyzePDF(), on the main API process
+  │     • qpdf subprocess: structure tree, language, outlines, tables
+  │     • pdfjs (Node.js library): text, metadata, page order
+  │
+  └── Word / PowerPoint / Excel → a dedicated, short-lived child
+        Node.js process (buffer handed over a local, in-memory channel;
+        killed if analysis runs past its timeout)
+        • JSZip: unzips the OOXML container
+        • fast-xml-parser: parses the XML parts
+  │
+  ▼
+[scorer] — WCAG-aligned categories, weighted overall score
+  │
+  ▼
+HTTP response → client (typically &lt; 10 seconds total)
+  │
+  ▼
+Node.js garbage collector reclaims the buffer
+(file no longer exists in any form, anywhere)</pre>
 
     <div class="mt-4">
       <DiagramFigure

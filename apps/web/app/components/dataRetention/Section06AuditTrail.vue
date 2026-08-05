@@ -9,26 +9,47 @@
       lighter-weight audit log (<code class="text-xs font-mono">audit_log</code> table) for plain
       audit requests. Schemas:
     </p>
-    <div
-      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+    <pre
+      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] overflow-x-auto"
       tabindex="0"
     >
-      CREATE TABLE remediation_events ( id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT NOT NULL,
-      event TEXT NOT NULL, occurred_at INTEGER NOT NULL, -- milliseconds since Unix epoch details
-      TEXT, -- JSON, content-free metadata only FOREIGN KEY (job_id) REFERENCES remediation_jobs(id)
-      ); CREATE INDEX idx_remediation_events_job ON remediation_events(job_id, occurred_at); CREATE
-      INDEX idx_remediation_events_event ON remediation_events(event); CREATE TABLE remediation_jobs
-      ( id TEXT PRIMARY KEY, -- UUIDv4 email TEXT, -- null when anonymous input_filename TEXT NOT
-      NULL, content_hash TEXT, -- SHA-256 of input bytes page_count INTEGER, status TEXT NOT NULL,
-      -- pending/running/complete/failed/expired step TEXT, progress_pct INTEGER DEFAULT 0,
-      input_score REAL, -- pre-flight audit score output_score REAL, -- post-remediation audit score
-      output_valid INTEGER, -- 1 = qpdf --check passed output_path TEXT, -- absolute path on disk,
-      only when complete download_token_hash TEXT, -- SHA-256 of raw token failure_reason TEXT,
-      verapdf_available INTEGER, verapdf_passed INTEGER, verapdf_summary_json TEXT, input_audit_json
-      TEXT, -- full pre-flight ScoringResult output_audit_json TEXT, -- full post-remediation
-      ScoringResult created_at INTEGER NOT NULL, completed_at INTEGER, expires_at INTEGER NOT NULL
-      );
-    </div>
+<span class="text-sky-300">CREATE TABLE</span> remediation_events (
+  id          <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">PRIMARY KEY AUTOINCREMENT</span>,
+  job_id      <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>,
+  event       <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>,
+  occurred_at <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>,   <span class="text-[var(--text-muted)]">-- milliseconds since Unix epoch</span>
+  details     <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- JSON, content-free metadata only</span>
+  <span class="text-sky-300">FOREIGN KEY</span> (job_id) <span class="text-sky-300">REFERENCES</span> remediation_jobs(id)
+);
+<span class="text-sky-300">CREATE INDEX</span> idx_remediation_events_job   <span class="text-sky-300">ON</span> remediation_events(job_id, occurred_at);
+<span class="text-sky-300">CREATE INDEX</span> idx_remediation_events_event <span class="text-sky-300">ON</span> remediation_events(event);
+
+<span class="text-sky-300">CREATE TABLE</span> remediation_jobs (
+  id                   <span class="text-purple-300">TEXT</span> <span class="text-sky-300">PRIMARY KEY</span>,   <span class="text-[var(--text-muted)]">-- UUIDv4</span>
+  email                <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- null when anonymous</span>
+  input_filename       <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>,      <span class="text-[var(--text-muted)]">-- sanitized</span>
+  original_filename    <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- as offered, length-clamped only</span>
+  content_hash         <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- SHA-256 of input bytes</span>
+  page_count           <span class="text-purple-300">INTEGER</span>,
+  status               <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>
+    <span class="text-sky-300">CHECK</span> (status <span class="text-sky-300">IN</span> ('pending','running','complete','failed','expired')),
+  step                 <span class="text-purple-300">TEXT</span>,
+  progress_pct         <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">DEFAULT</span> 0,
+  input_score          <span class="text-purple-300">REAL</span>,               <span class="text-[var(--text-muted)]">-- pre-flight audit score</span>
+  output_score         <span class="text-purple-300">REAL</span>,               <span class="text-[var(--text-muted)]">-- post-remediation audit score</span>
+  output_valid         <span class="text-purple-300">INTEGER</span>,            <span class="text-[var(--text-muted)]">-- 1 = qpdf --check passed</span>
+  output_path          <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- absolute path, only while complete</span>
+  download_token_hash  <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- SHA-256 of raw token</span>
+  failure_reason       <span class="text-purple-300">TEXT</span>,
+  input_audit_json     <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- full pre-flight report</span>
+  output_audit_json    <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- full post-remediation report</span>
+  verapdf_available    <span class="text-purple-300">INTEGER</span>,
+  verapdf_passed       <span class="text-purple-300">INTEGER</span>,
+  verapdf_summary_json <span class="text-purple-300">TEXT</span>,
+  created_at           <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>,
+  completed_at         <span class="text-purple-300">INTEGER</span>,
+  expires_at           <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>
+);</pre>
     <p class="text-sm text-[var(--text-secondary)] mt-4 mb-3 leading-relaxed">
       <strong>The closed set of event types</strong> emitted per job is:
     </p>
@@ -81,12 +102,13 @@
       <code class="text-xs font-mono">details</code> JSON for a
       <code class="text-xs font-mono">verified_absent</code> event):
     </p>
-    <div
-      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+    <pre
+      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] overflow-x-auto"
       tabindex="0"
     >
-      { "path_hash": "a3f5e7d2c4b6a8e9f1c3d5b7a9e1c3d5b7a9e1c3d5b7a9e1c3d5b7a9e1c3d5b7" }
-    </div>
+{
+  "path_hash": "a3f5e7d2c4b6a8e9f1c3d5b7a9e1c3d5b7a9e1c3d5b7a9e1c3d5b7a9e1c3d5b7"
+}</pre>
     <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed">
       The audit trail is intentionally <strong>append-only</strong>: no application code path
       overwrites or deletes individual event rows. Rows are purged only by the periodic cleanup

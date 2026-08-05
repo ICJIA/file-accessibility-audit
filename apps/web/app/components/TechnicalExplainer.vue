@@ -79,17 +79,23 @@
             >The difference between Word and PDF is about <em>what each format stores</em>:</strong
           >
         </p>
-        <div
-          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
         >
-          Word (.docx) says: &lt;h1&gt;Annual Report 2024&lt;/h1&gt; &lt;p&gt;In fiscal year
-          2024…&lt;/p&gt; &lt;img alt="Bar chart showing arrests by month" src="…" /&gt; PDF says:
-          Page 1, x=72, y=720, font=Arial-Bold, size=24pt: glyph 'A' Page 1, x=85, y=720,
-          font=Arial-Bold, size=24pt: glyph 'n' Page 1, x=98, y=720, font=Arial-Bold, size=24pt:
-          glyph 'n' Page 1, x=72, y=680, font=Arial, size=11pt: glyph 'I' Page 1, x=78, y=680,
-          font=Arial, size=11pt: glyph 'n' Page 1, x=72, y=200, image XObject ref=42 (768 x 432
-          pixels) …
-        </div>
+<span class="text-emerald-300">Word (.docx) says:</span>
+  &lt;h1&gt;Annual Report 2024&lt;/h1&gt;
+  &lt;p&gt;In fiscal year 2024…&lt;/p&gt;
+  &lt;img alt="Bar chart showing arrests by month" src="…" /&gt;
+
+<span class="text-amber-300">PDF says:</span>
+  Page 1, x=72, y=720, font=Arial-Bold, size=24pt: glyph 'A'
+  Page 1, x=85, y=720, font=Arial-Bold, size=24pt: glyph 'n'
+  Page 1, x=98, y=720, font=Arial-Bold, size=24pt: glyph 'n'
+  Page 1, x=72, y=680, font=Arial,      size=11pt: glyph 'I'
+  Page 1, x=78, y=680, font=Arial,      size=11pt: glyph 'n'
+  Page 1, x=72, y=200, image XObject ref=42 (768 x 432 pixels)
+  …</pre>
         <p class="text-[var(--text-muted)] mt-3 mb-3">
           Word stores the <em>meaning</em> of your content. The
           <code class="text-xs font-mono">&lt;h1&gt;</code> tag tells <em>any</em> program reading
@@ -141,15 +147,26 @@
           <strong>The structure tree itself looks like a webpage's DOM tree,</strong>
           because it borrows the same ideas:
         </p>
-        <div
-          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
         >
-          StructTreeRoot └── Document ├── H1 "Annual Report 2024" ├── P "In fiscal year 2024, the
-          agency processed…" ├── Figure (/Alt "Bar chart showing arrests by month") ├── H2
-          "Methodology" ├── P "Data was collected from…" └── Table ├── TR │ ├── TH (Scope=Col)
-          "County" │ ├── TH (Scope=Col) "Arrests" │ └── TH (Scope=Col) "Year" └── TR ├── TD "Cook"
-          ├── TD "12,345" └── TD "2024"
-        </div>
+<span class="text-sky-300">StructTreeRoot</span>
+└── <span class="text-sky-300">Document</span>
+    ├── <span class="text-sky-300">H1</span> "Annual Report 2024"
+    ├── <span class="text-sky-300">P</span>  "In fiscal year 2024, the agency processed…"
+    ├── <span class="text-sky-300">Figure</span> (<span class="text-emerald-300">/Alt</span> "Bar chart showing arrests by month")
+    ├── <span class="text-sky-300">H2</span> "Methodology"
+    ├── <span class="text-sky-300">P</span>  "Data was collected from…"
+    └── <span class="text-sky-300">Table</span>
+        ├── <span class="text-sky-300">TR</span>
+        │   ├── <span class="text-sky-300">TH</span> (<span class="text-emerald-300">Scope=Col</span>) "County"
+        │   ├── <span class="text-sky-300">TH</span> (<span class="text-emerald-300">Scope=Col</span>) "Arrests"
+        │   └── <span class="text-sky-300">TH</span> (<span class="text-emerald-300">Scope=Col</span>) "Year"
+        └── <span class="text-sky-300">TR</span>
+            ├── <span class="text-sky-300">TD</span> "Cook"
+            ├── <span class="text-sky-300">TD</span> "12,345"
+            └── <span class="text-sky-300">TD</span> "2024"</pre>
         <p class="text-[var(--text-muted)] mt-3 mb-3">
           Standard tag types include
           <code class="text-xs font-mono">Document</code>,
@@ -227,15 +244,19 @@
           cloud infrastructure). The uploaded file is deleted (or discarded from memory) immediately
           after analysis — no file content is retained on the server.
         </p>
-        <div
-          class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
           tabindex="0"
         >
-          PDF: File → [validate type &amp; size] → parallel { QPDF (structure), PDF.js (content),
-          veraPDF (PDF/UA-1) } → Scorer (9 categories) → Weighted Score → Report Word / PowerPoint /
-          Excel: File → [validate type &amp; size] → JSZip + fast-xml-parser (in-process) → Scorer
-          (adapted categories) → Weighted Score → Report
-        </div>
+<span class="text-sky-300">PDF:</span>
+  File → [validate type &amp; size]
+       → parallel { <span class="text-emerald-300">QPDF</span> (structure), <span class="text-emerald-300">PDF.js</span> (content), <span class="text-emerald-300">veraPDF</span> (PDF/UA-1) }
+       → Scorer (9 categories) → Weighted Score → Report
+
+<span class="text-sky-300">Word / PowerPoint / Excel:</span>
+  File → [validate type &amp; size]
+       → <span class="text-emerald-300">JSZip</span> + <span class="text-emerald-300">fast-xml-parser</span> (in-process)
+       → Scorer (adapted categories) → Weighted Score → Report</pre>
 
         <p class="text-[var(--text-muted)] mt-3">
           Files the tool cannot audit — legacy binary Office formats (.doc, .xls, .ppt, .rtf), CSV
@@ -1147,19 +1168,25 @@
           download, deleted on stream close) or rejects it and surfaces a fallback message. The user
           re-uploads to remediate; no PDF is cached between the audit and remediation stages.
         </p>
-        <div
-          class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
         >
-          POST /api/remediate (multipart PDF) → [magic-byte check] → [page count cap (500)] →
-          [pre-flight audit] → [job row created, sha256 content_hash recorded] → [spawn detached
-          child: tsx src/jobs/remediate.ts &lt;jobId&gt;] → ◄ { jobId, downloadToken } (HTTP 202)
-          Worker pipeline: [Stage 1: preparing] qpdf --object-streams=disable input → normalized
-          [Stage 2: tagging] OpenDataLoader convert(normalized) → tagged-pdf [Stage 3: validating]
-          qpdf --check tagged → validity verdict verapdf --flavour ua1 --format json tagged →
-          conformance verdict [Stage 4: comparing] re-audit tagged → output_audit guard: reject if
-          Overall|Strict regresses Output finalized OR job marked failed. Scratch dir wiped in
-          `finally`.
-        </div>
+POST /api/remediate (multipart PDF)
+  → [magic-byte check] → [page count cap (500)] → [pre-flight audit]
+  → [job row created, sha256 content_hash recorded]
+  → [spawn detached child: tsx src/jobs/remediate.ts &lt;jobId&gt;]
+  ◄ { jobId, downloadToken }   (HTTP 202)
+
+<span class="text-sky-300">Worker pipeline:</span>
+  <span class="text-sky-300">[Stage 1: preparing]</span>   <span class="text-emerald-300">qpdf</span> --object-streams=disable input → normalized
+  <span class="text-sky-300">[Stage 2: tagging]</span>     <span class="text-emerald-300">OpenDataLoader</span> convert(normalized) → tagged-pdf
+  <span class="text-sky-300">[Stage 3: validating]</span>  <span class="text-emerald-300">qpdf</span> --check tagged → validity verdict
+                         <span class="text-emerald-300">verapdf</span> --flavour ua1 --format json tagged → conformance verdict
+  <span class="text-sky-300">[Stage 4: comparing]</span>   re-audit tagged → output_audit
+                         <span class="text-amber-300">guard: reject if Overall|Strict regresses</span>
+
+Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
 
         <div class="mt-4">
           <DiagramFigure
@@ -1552,16 +1579,18 @@
           against the pre-flight audit stored at job creation time. Three independent comparisons
           run:
         </p>
-        <div
-          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
         >
-          if (output.overallScore &lt; input.overallScore ||
-          output.scoreProfiles.strict.overallScore &lt; input.scoreProfiles.strict.overallScore ||
-          output.scoreProfiles.remediation.overallScore &lt;
-          input.scoreProfiles.remediation.overallScore) { recordEvent(jobId, 'validation_failed', {
-          regressed_profiles: [...] }) await deleteAndVerify(jobId, taggedPath, 'cleanup')
-          setFailed(jobId, `auto-remediation regressed: ${regressed.join(', ')}`) return }
-        </div>
+<span class="text-sky-300">if</span> (output.overallScore &lt; input.overallScore ||
+    output.scoreProfiles.strict.overallScore &lt; input.scoreProfiles.strict.overallScore ||
+    output.scoreProfiles.remediation.overallScore &lt; input.scoreProfiles.remediation.overallScore) {
+  <span class="text-emerald-300">recordEvent</span>(jobId, <span class="text-purple-300">'validation_failed'</span>, { regressed_profiles: [...] })
+  <span class="text-sky-300">await</span> <span class="text-amber-300">deleteAndVerify</span>(jobId, taggedPath, 'cleanup')
+  <span class="text-amber-300">setFailed</span>(jobId, `auto-remediation regressed: ${regressed.join(', ')}`)
+  <span class="text-sky-300">return</span>
+}</pre>
         <p class="text-[var(--text-muted)] mt-3">
           <strong>Why all three:</strong> the headline overall score uses whichever profile is the
           active scoring mode, which can mask a regression on the other profile. Checking both
@@ -1585,13 +1614,18 @@
           auditor evidence trail, and any future compliance reporting. PDF content is never stored —
           only structural metadata.
         </p>
-        <div
-          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
         >
-          CREATE TABLE remediation_events ( id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT NOT
-          NULL, event TEXT NOT NULL, occurred_at INTEGER NOT NULL, details TEXT, -- JSON,
-          content-free metadata only FOREIGN KEY (job_id) REFERENCES remediation_jobs(id) );
-        </div>
+<span class="text-sky-300">CREATE TABLE</span> remediation_events (
+  id          <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">PRIMARY KEY AUTOINCREMENT</span>,
+  job_id      <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>,
+  event       <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>,
+  occurred_at <span class="text-purple-300">INTEGER</span> <span class="text-sky-300">NOT NULL</span>,
+  details     <span class="text-purple-300">TEXT</span>,   <span class="text-[var(--text-muted)]">-- JSON, content-free metadata only</span>
+  <span class="text-sky-300">FOREIGN KEY</span> (job_id) <span class="text-sky-300">REFERENCES</span> remediation_jobs(id)
+);</pre>
         <p class="text-[var(--text-muted)] mt-3 mb-2">
           <strong>Event vocabulary (closed set, typed at compile time):</strong>
         </p>
@@ -1717,14 +1751,18 @@
           through <code class="font-mono">ecosystem.config.cjs</code>'s env block, so the deploy
           idiom is:
         </p>
-        <div
-          class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+        <pre
+          class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
         >
-          sudo apt install -y openjdk-17-jre-headless # one-time echo 'REMEDIATION_ENABLED=true' |
-          sudo tee -a /etc/environment source /etc/environment ./rebuild.sh # pulls, builds, pm2
-          restart # Rollback to audit-only without redeploying: sudo sed -i
-          '/^REMEDIATION_ENABLED=/d' /etc/environment pm2 restart ecosystem.config.cjs
-        </div>
+sudo apt install -y openjdk-17-jre-headless   <span class="text-[var(--text-muted)]"># one-time</span>
+echo 'REMEDIATION_ENABLED=true' | sudo tee -a /etc/environment
+source /etc/environment
+./rebuild.sh                                  <span class="text-[var(--text-muted)]"># pulls, builds, pm2 restart</span>
+
+<span class="text-[var(--text-muted)]"># Rollback to audit-only without redeploying:</span>
+sudo sed -i '/^REMEDIATION_ENABLED=/d' /etc/environment
+pm2 restart ecosystem.config.cjs</pre>
       </div>
 
       <!-- Limitations -->

@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.52.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1879%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.53.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1879%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -1125,6 +1125,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.53.0 — 2026-08-05 · Code blocks un-mangled sitewide; technical-details enriched (not a security release)
+
+Presentation + one accuracy fix, no behavior change. Root cause worth recording: twelve "code blocks" across the data-retention sections, the homepage technical explainer, and the remediation-deploy snippet were built as `whitespace-pre` styled **divs**, and Prettier — which preserves real `<pre>` elements but knows nothing of a whitespace-sensitive class — had been reflowing their text on every format pass, collapsing SQL schemas, ASCII pipeline flows, auditor queries, and shell commands into single scrolling lines (the shell block was the worst case: comments merged into commands, hazardous to copy-paste). All twelve are now genuine `<pre>` elements (format-proof by construction), multi-line, color-coded with a consistent legend, and `tabindex="0"` keyboard-scrollable. The § 6 schema was re-derived from `migrations.ts` while restoring it, fixing drift (missing `original_filename`, comment-style status enum vs the real `CHECK` constraint). `technical-details.vue` gained four new detailed blocks: the full audit pipeline, a worked weight-renormalization scoring example, the structure-tree DOM, and the four-stage remediation flow with delete-and-verify markers. Tests unchanged at 1,879.
 
 ### v1.52.0 — 2026-08-05 · Stale backup promoted into `degraded` (monitoring, not a security release)
 

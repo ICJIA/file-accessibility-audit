@@ -64,6 +64,35 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.53.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.53.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-05</strong> · scope: readability of the technical material on
+          this page and the technical-details page — not a security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        Several technical blocks on this page — the database schemas in § 6, the pipeline flows in
+        §§ 2–3, the auditor queries in § 11, and their counterparts on the technical pages — had
+        been reduced to single horizontally-scrolling lines by an interaction between the project's
+        code formatter and the markup that displayed them. All now render as proper multi-line,
+        color-coded code blocks, keyboard-scrollable for assistive-technology users. While restoring
+        the § 6 schema it was also re-checked against the actual database definition and brought
+        back in sync (the displayed copy had drifted: it omitted the
+        <code class="text-xs font-mono">original_filename</code> column added in v1.48.0). The
+        technical-details page additionally gained four new detailed blocks, including a worked
+        example of how category weights are redistributed when a category doesn't apply. Display
+        only — no query, retention period, or behavior changed.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.52.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

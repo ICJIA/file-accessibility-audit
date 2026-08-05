@@ -11,35 +11,78 @@
       <em>Attempt remediation</em> action appears on the audit results page. Clicking it triggers
       the following lifecycle:
     </p>
-    <div
-      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+    <pre
+      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] overflow-x-auto"
       tabindex="0"
     >
-      Client → HTTPS multipart upload (re-upload required by design) │ ▼ [validate] magic bytes,
-      size cap, page count cap (500 pages) │ ▼ [create remediation_jobs row] • status: 'pending' •
-      email (if logged in) • content_hash: SHA-256 of input bytes • download_token: 32-byte random,
-      sha256-hashed at rest │ ▼ [write input → data/remediation/&lt;jobId&gt;/work/input.pdf] (mode
-      0600) │ ▼ [spawn detached worker: tsx src/jobs/remediate.ts &lt;jobId&gt;] │ ▼ (API responds
-      202 to client; worker runs independently) │ [Stage 1: preparing] • qpdf
-      --object-streams=disable input.pdf → normalized.pdf • DELETE input.pdf + fs.stat verify ENOENT
-      • Emit lifecycle event: 'normalize_complete', 'input_deleted', 'verified_absent' │ ▼ [Stage 2:
-      tagging] • OpenDataLoader convert(normalized.pdf) → tagged.pdf • DELETE normalized.pdf +
-      fs.stat verify ENOENT • Emit events: 'tagging_complete', 'intermediate_deleted',
-      'verified_absent' │ ▼ [Stage 3: validating] • qpdf --check tagged.pdf → must not report
-      warnings • veraPDF --flavour ua1 tagged.pdf → conformance verdict (informational) • Emit:
-      'validation_passed' OR 'validation_failed' +
-      'verapdf_passed'/'verapdf_failed'/'verapdf_unavailable' │ ▼ [Stage 4: comparing] • Re-audit
-      tagged.pdf → output score • If Overall OR Strict score regresses: REJECT │ ▼ (success branch)
-      [Move tagged.pdf → data/remediation/&lt;jobId&gt;.pdf (final, mode 0600)] [update job:
-      status='complete', expires_at = NOW + 30 min] [Emit: 'output_ready'] │ ▼ Client polls
-      /api/remediate/&lt;jobId&gt;/status; sees 'complete' │ ▼ Client downloads via single-use
-      token: [stream output via createReadStream + pipe(res)] → on response 'close': DELETE
-      output.pdf + fs.stat verify ENOENT → Emit: 'downloaded', 'output_deleted', 'verified_absent' →
-      job status → 'expired' (token invalidated; concurrent requests get 410) │ ▼ (or, if no
-      download in 30 minutes) [Cleanup sweep deletes output.pdf + fs.stat verify ENOENT] [Emit:
-      'expired', 'output_deleted', 'verified_absent'] ALL OUTCOMES → final state: zero PDF artifacts
-      on disk.
-    </div>
+Client → HTTPS multipart upload (re-upload required by design)
+  │
+  ▼
+[validate] magic bytes, size cap, page count cap (500 pages)
+  │
+  ▼
+[create remediation_jobs row]
+  • status: 'pending'
+  • email (if logged in)
+  • content_hash: SHA-256 of input bytes
+  • download_token: 32-byte random, sha256-hashed at rest
+  │
+  ▼
+[write input → data/remediation/&lt;jobId&gt;/work/input.pdf] (mode 0600)
+  │
+  ▼
+[spawn detached worker: tsx src/jobs/remediate.ts &lt;jobId&gt;]
+  │
+  ▼
+(API responds 202 to client; worker runs independently)
+  │
+[Stage 1: preparing]
+  • qpdf --object-streams=disable input.pdf → normalized.pdf
+  • DELETE input.pdf + fs.stat verify ENOENT
+  • Emit lifecycle events: 'normalize_complete', 'input_deleted',
+    'verified_absent'
+  │
+  ▼
+[Stage 2: tagging]
+  • OpenDataLoader convert(normalized.pdf) → tagged.pdf
+  • DELETE normalized.pdf + fs.stat verify ENOENT
+  • Emit events: 'tagging_complete', 'intermediate_deleted',
+    'verified_absent'
+  │
+  ▼
+[Stage 3: validating]
+  • qpdf --check tagged.pdf → must not report warnings
+  • veraPDF --flavour ua1 tagged.pdf → conformance verdict (informational)
+  • Emit: 'validation_passed' OR 'validation_failed'
+    + 'verapdf_passed' / 'verapdf_failed' / 'verapdf_unavailable'
+  │
+  ▼
+[Stage 4: comparing]
+  • Re-audit tagged.pdf → output score
+  • If Overall OR Strict score regresses: REJECT
+  │
+  ▼
+(success branch)
+[Move tagged.pdf → data/remediation/&lt;jobId&gt;.pdf (final, mode 0600)]
+[update job: status='complete', expires_at = NOW + 30 min]
+[Emit: 'output_ready']
+  │
+  ▼
+Client polls /api/remediate/&lt;jobId&gt;/status; sees 'complete'
+  │
+  ▼
+Client downloads via single-use token:
+  [stream output via createReadStream + pipe(res)]
+  → on response 'close': DELETE output.pdf + fs.stat verify ENOENT
+  → Emit: 'downloaded', 'output_deleted', 'verified_absent'
+  → job status → 'expired' (token invalidated; concurrent requests get 410)
+  │
+  ▼
+(or, if no download in 30 minutes)
+[Cleanup sweep deletes output.pdf + fs.stat verify ENOENT]
+[Emit: 'expired', 'output_deleted', 'verified_absent']
+
+ALL OUTCOMES → final state: zero PDF artifacts on disk.</pre>
 
     <div class="mt-4">
       <DiagramFigure

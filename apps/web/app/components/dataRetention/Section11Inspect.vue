@@ -9,27 +9,49 @@
       auditors — can inspect the lifecycle of any specific remediation job by querying the SQLite
       database directly. Sample queries for common compliance questions:
     </p>
-    <div
-      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] whitespace-pre overflow-x-auto"
+    <pre
+      class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
       tabindex="0"
     >
-      -- All remediations a specific user performed in a date range SELECT id, input_filename,
-      status, input_score, output_score, datetime(created_at/1000, 'unixepoch', 'localtime') AS
-      started, datetime(completed_at/1000, 'unixepoch', 'localtime') AS finished FROM
-      remediation_jobs WHERE email = ? AND created_at BETWEEN ? AND ? ORDER BY created_at DESC; --
-      Full lifecycle of a specific job SELECT event, datetime(occurred_at/1000, 'unixepoch',
-      'localtime') AS at, details FROM remediation_events WHERE job_id = ? ORDER BY occurred_at; --
-      Sentinel: any job whose output was retained past the 30-minute TTL SELECT j.id,
-      j.input_filename, (e.max_at - j.completed_at) / 60000 AS extra_minutes_on_disk FROM
-      remediation_jobs j JOIN ( SELECT job_id, MAX(occurred_at) AS max_at FROM remediation_events
-      WHERE event IN ('output_deleted', 'verified_absent') GROUP BY job_id ) e ON e.job_id = j.id
-      WHERE j.status IN ('expired', 'complete') AND (e.max_at - j.completed_at) > 30 * 60 * 1000; --
-      This query should return ZERO ROWS for a properly-functioning system. -- Sentinel: any
-      deletion that wasn't verified absent SELECT job_id, occurred_at FROM remediation_events WHERE
-      event = 'output_deleted' AND NOT EXISTS ( SELECT 1 FROM remediation_events e2 WHERE e2.job_id
-      = remediation_events.job_id AND e2.event = 'verified_absent' AND e2.occurred_at &gt;=
-      remediation_events.occurred_at ); -- This query should ALSO return ZERO ROWS.
-    </div>
+<span class="text-[var(--text-muted)]">-- All remediations a specific user performed in a date range</span>
+<span class="text-sky-300">SELECT</span> id, input_filename, status, input_score, output_score,
+       datetime(created_at/1000,   'unixepoch', 'localtime') <span class="text-sky-300">AS</span> started,
+       datetime(completed_at/1000, 'unixepoch', 'localtime') <span class="text-sky-300">AS</span> finished
+<span class="text-sky-300">FROM</span> remediation_jobs
+<span class="text-sky-300">WHERE</span> email = ? <span class="text-sky-300">AND</span> created_at <span class="text-sky-300">BETWEEN</span> ? <span class="text-sky-300">AND</span> ?
+<span class="text-sky-300">ORDER BY</span> created_at <span class="text-sky-300">DESC</span>;
+
+<span class="text-[var(--text-muted)]">-- Full lifecycle of a specific job</span>
+<span class="text-sky-300">SELECT</span> event, datetime(occurred_at/1000, 'unixepoch', 'localtime') <span class="text-sky-300">AS</span> at, details
+<span class="text-sky-300">FROM</span> remediation_events
+<span class="text-sky-300">WHERE</span> job_id = ?
+<span class="text-sky-300">ORDER BY</span> occurred_at;
+
+<span class="text-[var(--text-muted)]">-- Sentinel: any job whose output was retained past the 30-minute TTL</span>
+<span class="text-sky-300">SELECT</span> j.id, j.input_filename,
+       (e.max_at - j.completed_at) / 60000 <span class="text-sky-300">AS</span> extra_minutes_on_disk
+<span class="text-sky-300">FROM</span> remediation_jobs j
+<span class="text-sky-300">JOIN</span> (
+  <span class="text-sky-300">SELECT</span> job_id, <span class="text-sky-300">MAX</span>(occurred_at) <span class="text-sky-300">AS</span> max_at
+  <span class="text-sky-300">FROM</span> remediation_events
+  <span class="text-sky-300">WHERE</span> event <span class="text-sky-300">IN</span> (<span class="text-purple-300">'output_deleted'</span>, <span class="text-purple-300">'verified_absent'</span>)
+  <span class="text-sky-300">GROUP BY</span> job_id
+) e <span class="text-sky-300">ON</span> e.job_id = j.id
+<span class="text-sky-300">WHERE</span> j.status <span class="text-sky-300">IN</span> ('expired', 'complete')
+  <span class="text-sky-300">AND</span> (e.max_at - j.completed_at) &gt; 30 * 60 * 1000;
+<span class="text-emerald-300">-- This query should return ZERO ROWS for a properly-functioning system.</span>
+
+<span class="text-[var(--text-muted)]">-- Sentinel: any deletion that wasn't verified absent</span>
+<span class="text-sky-300">SELECT</span> job_id, occurred_at
+<span class="text-sky-300">FROM</span> remediation_events
+<span class="text-sky-300">WHERE</span> event = <span class="text-purple-300">'output_deleted'</span>
+  <span class="text-sky-300">AND NOT EXISTS</span> (
+    <span class="text-sky-300">SELECT</span> 1 <span class="text-sky-300">FROM</span> remediation_events e2
+    <span class="text-sky-300">WHERE</span> e2.job_id = remediation_events.job_id
+      <span class="text-sky-300">AND</span> e2.event = <span class="text-purple-300">'verified_absent'</span>
+      <span class="text-sky-300">AND</span> e2.occurred_at &gt;= remediation_events.occurred_at
+  );
+<span class="text-emerald-300">-- This query should ALSO return ZERO ROWS.</span></pre>
     <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed">
       A Phase 3 roadmap item adds a
       <strong>manager-facing verification endpoint</strong> that accepts a filename or a file's
