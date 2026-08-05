@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.49.0] - 2026-08-05
+
+Nightly database backups — the top finding of the 2026-08-05 operational review — plus a dated, code-quoting verification of the data-retention policy's storage claims, published on the policy page as a new § 8a.
+
+### Added
+
+- **Nightly SQLite backups.** `apps/api/scripts/backup-db.mjs` snapshots the database with SQLite's online-backup API (better-sqlite3 `db.backup()`) — WAL-safe by construction, where the previously-suggested `cp` cron would miss every committed row still sitting in `audit.db-wal`. Safety properties, each pinned by one of 9 new tests: refuses a missing source (`fileMustExist` — a mispointed job cannot manufacture an empty database and "succeed"), refuses a database without `audit_log` (wrong file = loud error), runs `integrity_check` on the snapshot before keeping it, rotates **count-based** (the newest 5 kept, `BACKUP_KEEP_COUNT` to change; deliberately count- not age-based so disk use stays bounded regardless of manual runs), touches only its own `audit-*.db.gz` files, and writes `last-backup.json` atomically so a silently-stopped backup is observable. Plain JS on purpose — under cron's minimal PATH, `node <file>` is the whole toolchain.
+
+- **Cron wrapper + scripted restore.** `scripts/backup-db.sh` (Forge Scheduler entry point; resolves the repo from its own location, probes for node, pins cwd to `apps/api`) and `scripts/restore-db.sh` (verifies the snapshot first; sets the current DB aside together with its `-wal`/`-shm` — a stale WAL beside a restored main file corrupts it — and deletes nothing). Backups live in `~/backups/audit-db`, outside the working tree, where a `git clean -xdf` cannot reach them. **Restore drill performed the same day**: 68 rows → snapshot → verified restore with a planted stale-WAL case. Setup + drill instructions: `docs/database-backups.md`.
+
+- **§ 8a "Storage verification" on the data-retention page** — a dated evidence annex proving § 8 against the source: the complete seven-table inventory (no BLOB column exists — the DB is structurally incapable of holding file bytes; there is also no user-accounts table), the memory-only upload configuration, the random-name temp-file lifecycles with their `finally` deletes, the exhaustive filesystem-write audit (8 sites, all accounted for), what the process log and the single outbound email can contain, and a verdict table giving each § 8 claim a dated Verified / Qualified / Corrected ruling with the decisive evidence.
+
+### Changed
+
+- **Data-retention policy → v1.3.** The verification found one over-broad claim and the policy now says so instead of quietly narrowing: a **saved or shared** report quotes short strings from inside the document in its findings — metadata fields (title, author, subject, keywords), image alt-text values, link text and destinations, bookmark titles, form-field names — because naming a problem requires showing it. A plain unshared audit stores none of those strings, and page/paragraph text, images, form-field values, and file bytes are never stored anywhere. § 7 gains the backup-snapshot retention row and an honest note that a purged row persists in snapshots roughly 5 further days; § 8's backups bullet now describes the on-server snapshots instead of denying backups exist.
+
+### Notes
+
+The remediation-jobs table carries the same before/after report JSON for its 30-day row life; the `shared_reports` no-physical-delete finding from the 2026-08-05 assessment stands and is stated honestly on the page (the link stops working at 365 days). Tests 1,848 → 1,857 (API 1,126 → 1,135); lint, typecheck, build green.
+
 ## [1.48.1] - 2026-08-05
 
 Documentation-accuracy release. Every explanatory surface — the data-retention policy, the technical/scoring pages, README, AGENTS.md — was audited against the code and brought current, and two user-visible corrections shipped alongside. No scored result, endpoint, or stored value changed.

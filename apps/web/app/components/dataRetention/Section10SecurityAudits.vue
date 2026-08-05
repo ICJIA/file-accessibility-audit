@@ -64,6 +64,49 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.49.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.49.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Audited <strong>2026-08-05</strong> · scope: nightly database backups, plus an independent
+          line-by-line verification of § 8's storage claims, published as § 8a.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+        <strong>The database is now backed up nightly.</strong> The backup uses SQLite's own
+        online-backup mechanism — safe to run while the service is writing, where a naive file copy
+        could produce a silently incomplete snapshot. Every snapshot is integrity-checked before it
+        is kept, refused outright if the source is missing or is not this application's database,
+        and stored in a directory outside the application on the same server. Only the
+        <strong>five newest snapshots are retained</strong>; older ones are deleted automatically.
+        The restore procedure is scripted, verifies the snapshot before touching anything, sets the
+        current database aside rather than deleting it — and was rehearsed end-to-end the day it was
+        written. The hosting provider's own whole-server backups run separately, covering loss of
+        the server itself.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+        <strong>Section 8's claims were verified line by line</strong> against the source code:
+        every database table, every statement that writes to one, every file the server can create,
+        and everything its logs and email can contain. The evidence — with the code quoted — is
+        published as § 8a, so the claims no longer rest on trust. The verification found one
+        statement that claimed too much, and it has been corrected rather than quietly reworded: a
+        report you choose to <em>share</em> quotes short strings from inside your document (image
+        alt text, link labels and destinations, bookmark titles, the document's own metadata fields)
+        in its findings, because naming a problem requires showing it. A plain audit — upload, read,
+        close — stores none of those strings, and page text, images, form values, and file bytes are
+        never stored anywhere.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        <strong
+          >The backup adds no new kind of data — it is a copy of exactly the database documented in
+          §§ 7–8a, kept on the same server, with a shorter life than anything inside it.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.48.1 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

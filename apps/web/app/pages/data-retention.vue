@@ -254,6 +254,11 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           >
         </li>
         <li>
+          <a href="#storage-verification" class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >8a. Storage verification — the evidence for § 8 (audited 2026-08-05)</a
+          >
+        </li>
+        <li>
           <a href="#safeguards" class="text-[var(--link)] hover:text-[var(--link-hover)]"
             >9. Security &amp; technical safeguards</a
           >
@@ -306,6 +311,8 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
     <DataRetentionSection07RetentionTable />
 
     <DataRetentionSection08Stored />
+
+    <DataRetentionSection08aStorageVerification />
 
     <DataRetentionSection09Safeguards />
 

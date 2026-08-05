@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "storage-verification-and-backups-2026-08-05",
+    badge: "Transparency",
+    text: "The data-retention policy now includes a dated, line-by-line verification of what is and isn't stored — every database table and every write path checked against the public source code, with the evidence published as its own section (§ 8a). The verification also tightened one statement rather than quietly rewording it: a report you choose to share can quote short strings from your document (such as image alt text and link labels) inside its findings; a plain audit stores none of that. Separately, the service's usage records are now backed up nightly on the server, integrity-checked, keeping only the five newest snapshots.",
+    linkText: "Read the storage verification (§ 8a)",
+    linkTo: "/data-retention",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 5, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "security-audit-2026-08-05",
     badge: "Security",
     text: "The whole tool has had a fresh independent security review — attack surface, sign-in, file handling, the checking engines, and what the service publishes about itself. Nothing critical or high-severity was found. Two low-severity issues were identified and fixed the same day, both about how an uploaded file's name is stored internally; neither exposed any document you have uploaded, and no report or stored data was affected. The full write-up, including what was checked and found sound, is in the project's public security log. The data-retention policy itself was reviewed end-to-end the same day and brought fully current (policy v1.2): it now states plainly what the usage log records and that entries are deleted after 365 days.",

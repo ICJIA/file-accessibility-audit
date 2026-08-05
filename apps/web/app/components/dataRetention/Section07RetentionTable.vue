@@ -93,6 +93,22 @@
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
+            <td class="py-2.5 pr-4 font-medium">
+              Nightly database backup snapshots (same metadata as the tables above — never any file
+              content, because none is stored to begin with)
+            </td>
+            <td class="py-2.5 pr-4">
+              Server filesystem, in a directory outside the application (<code class="font-mono"
+                >~/backups/audit-db</code
+              >)
+            </td>
+            <td class="py-2.5 pr-4">The 5 newest snapshots; older ones deleted by rotation</td>
+            <td class="py-2.5">
+              Yes —
+              <code class="font-mono">BACKUP_KEEP_COUNT</code>
+            </td>
+          </tr>
+          <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-medium">Shared reports (audit results only)</td>
             <td class="py-2.5 pr-4">
               SQLite,
@@ -131,6 +147,13 @@
       <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; and purge
       expired revoked sign-in tokens. Source:
       <code class="text-xs font-mono">apps/api/src/services/remediationCleanup.ts</code>.
+    </p>
+    <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
+      <strong>Backups interact with retention honestly:</strong> only the 5 newest nightly snapshots
+      are kept (tool v1.49.0 and newer), so with one snapshot per night a row deleted by any purge
+      above persists inside a snapshot for roughly 5 further days before it is gone everywhere.
+      Snapshots contain exactly the database tables listed in this section — no file content,
+      because none is ever stored in the database.
     </p>
   </section>
 </template>

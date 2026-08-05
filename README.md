@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.48.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1848%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.49.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1857%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,848 tests** across 111 test files (API 1126, Web 673, CLI 49). Run all three suites with one summary:
+**1,857 tests** across 112 test files (API 1135, Web 673, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1126 passed (56 files)
+  ✔ API      1135 passed (57 files)
   ✔ Web      673 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1848 tests passed across 111 files
+  ✔ 1857 tests passed across 112 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1126 tests)
+### API Tests (1135 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1124,6 +1124,12 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.49.0 — 2026-08-05 · Nightly DB backups + § 8a storage-verification annex
+
+**Backups.** `apps/api/scripts/backup-db.mjs` takes a nightly snapshot via better-sqlite3's `db.backup()` (SQLite online backup — WAL-safe by construction; a `cp` cron would tear or stale-copy a WAL database, which is why the archived deploy guide's suggestion was never followed). Guards, each pinned by test: `fileMustExist` (a mispointed job can't manufacture an empty DB and back that up), an `audit_log`-presence check (backing up the wrong database fails loudly), `integrity_check` on the snapshot before it's kept, count-based rotation (newest 5, `BACKUP_KEEP_COUNT`) that touches only its own `audit-*.db.gz` files, and an atomically-written `last-backup.json` so staleness is observable. `scripts/restore-db.sh` verifies before touching anything and sets aside the current DB **with its `-wal`/`-shm`** (a stale WAL beside a restored main file corrupts it). Restore drill performed same day: 68 rows → snapshot → verified restore, planted stale-WAL case exercised. Runs via Forge Scheduler as `forge`; DO droplet backups (daily) cover machine loss separately.
+
+**Storage verification (§ 8a).** An evidence-pack sweep of every storage claim: full schema read (7 tables, no BLOB columns anywhere), every `INSERT`/`UPDATE` enumerated and traced, every filesystem write accounted for (8 sites; no `createWriteStream` in the API), dependency check confirming **no request logger exists**, all 41 `console.*` sites reviewed (production logs carry no filenames, emails, or IPs; the dev-only OTP echo is inert under `NODE_ENV=production`), and the single outbound email path confirmed to carry only a login code. **One qualification published rather than papered over:** `shared_reports.report_json` (and remediation jobs' before/after report JSON) persists document-derived strings — metadata fields, image alt-text values, link text and URLs, bookmark titles, form-field names — so the blanket "no document content" claim was narrowed to what the code actually guarantees: no file bytes, no page/paragraph text, no images, no form values, and nothing document-derived at all on the unshared-audit path. Data-retention policy bumped to v1.3. Tests 1,848 → 1,857.
 
 ### v1.48.1 — 2026-08-05 · Documentation-accuracy release (not a security release)
 

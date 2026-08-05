@@ -6,6 +6,17 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.3 · 2026-08-05</strong> — Adds § 8a, a dated storage-verification annex proving §
+        8 against the source code, and qualifies § 8 where verification showed the wording
+        overclaimed: a <em>saved or shared</em> report quotes short strings from the document
+        (metadata fields, image alt-text values, link text and destinations, bookmark titles,
+        form-field names) inside its findings; page and paragraph text, images, form-field values,
+        and file bytes remain never-stored, and a plain unshared audit stores none of the quoted
+        strings either. Documents the nightly database backups added in tool v1.49.0 (§ 7, § 8):
+        on-server snapshots kept outside the application directory, integrity-checked, with only the
+        5 newest retained — so a purged row persists in snapshots for roughly 5 further days.
+      </li>
+      <li>
         <strong>v1.2 · 2026-08-05</strong> — Documents that refused uploads are recorded in the
         usage log (tool v1.46.0 and newer): a refusal stores the file name the upload was offered
         under (sanitized) and a timestamp — never any file content, and deliberately no content
