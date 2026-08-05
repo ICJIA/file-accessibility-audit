@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.47.0] - 2026-08-05
+
+Two catch-all buckets on one page were both called `other` and meant opposite things.
+
+### Changed
+
+- **`documents_audited.by_format_*.other` is now `unknown_extension`.** It means *the document was audited normally, we just could not classify its filename* — in practice a URL audit whose path ends in something like `download?id=123`. It is near-always zero and exists so the format split always sums to the document total.
+
+  `documents_rejected.by_format_*.other` keeps its name and now has the page to itself. It means the opposite: *refused, and not one of the named unauditable formats* — `.jpg`, `.zip`, and files whose extension lies.
+
+  Sharing one name made the page actively misleading: a zero sitting beside a non-zero, apparently contradicting each other, with nothing on the page to say they were answering different questions. This is a **breaking change to the JSON**, made deliberately after confirming nothing external reads that key.
+
+### Added
+
+- **A "What was audited" section** between the grade distribution and the refusals, so the catch-all's meaning is visible without reading the raw JSON tree. The label there is **Unrecognized extension**, never "Other", and the caveat explains the term even in a window where the row itself is hidden for being zero — otherwise a reader meeting it for the first time in the tree has nothing to go on. It also states plainly that an unclassified filename **is not a refusal**.
+
+  The page now reads as three distinct questions: how did audited documents score, what kinds of document were they, and what could not be checked at all.
+
+### Notes
+
+**One test's stated rationale was corrected rather than its assertion.** `statusHtml.test.ts` carried a test named *"carries no explanatory prose — just the tree and the toggle"*, commented *"the page is the JSON, formatted. Nothing else."* That stopped being true in v1.44.0 when the grade-distribution caveat was added deliberately; it only kept passing because its fixture lacked the fields that trigger the newer sections. It now guards what still matters — that the page does not become an essay with a tree at the bottom — and keeps the same length bound. A test whose stated reason contradicts the design is a trap for whoever reads it next.
+
+Tests 1,833 → 1,841 (Web 665 → 673); lint, typecheck, build green.
+
 ## [1.46.0] - 2026-08-04
 
 `/status` now counts what people bring that the tool cannot check at all.

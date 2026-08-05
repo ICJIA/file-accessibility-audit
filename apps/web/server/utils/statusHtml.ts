@@ -240,6 +240,74 @@ export function renderGradeDistribution(body: Record<string, unknown>): string {
 }
 
 // ---------------------------------------------------------------------------
+// Audited documents by format
+// ---------------------------------------------------------------------------
+// Rendered as a labelled section for the same reason the grade split is: as
+// bare keys in the JSON tree, `unknown_extension` sitting at 0 next to a
+// `documents_rejected.other` that is not zero reads as a contradiction. Spelled
+// out in words, the two are obviously different questions.
+
+const FORMAT_ROWS: Array<{ key: string; label: string }> = [
+  { key: "pdf", label: "PDF" },
+  { key: "docx", label: "Word (.docx)" },
+  { key: "pptx", label: "PowerPoint (.pptx)" },
+  { key: "xlsx", label: "Excel (.xlsx)" },
+  // Deliberately NOT "Other". This is an audited document whose filename could
+  // not be classified — almost always a URL audit whose path carries no
+  // extension. It is a labelling problem, not a rejection.
+  { key: "unknown_extension", label: "Unrecognized extension" },
+];
+
+function renderFormatWindow(title: string, total: number, raw: Record<string, unknown>): string {
+  const caption = `${escapeHtml(title)} <span class="wt">${total.toLocaleString("en-US")} document${total === 1 ? "" : "s"}</span>`;
+  if (total === 0) {
+    return (
+      `<div class="win"><h3>${caption}</h3>` +
+      `<p class="none">Nothing audited in this window.</p></div>`
+    );
+  }
+  const rows = FORMAT_ROWS.map((r) => ({ ...r, n: asCount(raw[r.key]) })).filter((r) => r.n > 0);
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><th scope="row">${escapeHtml(r.label)}</th>` +
+        `<td class="n">${r.n.toLocaleString("en-US")}</td>` +
+        `<td class="pc">${Math.round(pct(r.n, total))}%</td></tr>`,
+    )
+    .join("");
+  return (
+    `<div class="win"><h3>${caption}</h3>` +
+    `<table><thead><tr>` +
+    `<th scope="col">Format</th><th scope="col">Documents</th><th scope="col">Share</th>` +
+    `</tr></thead><tbody>${body}</tbody></table></div>`
+  );
+}
+
+/** What kinds of document were audited, or "" for a payload without the field. */
+export function renderFormatSplit(body: Record<string, unknown>): string {
+  const docs = asRecord(body.documents_audited);
+  if (!docs) return "";
+
+  const windows: Array<[string, number, Record<string, unknown>]> = [];
+  const d30 = asRecord(docs.by_format_30d);
+  const dTotal = asRecord(docs.by_format_total);
+  if (d30) windows.push(["Last 30 days", asCount(docs.last_30d), d30]);
+  if (dTotal) windows.push(["All time", asCount(docs.total), dTotal]);
+  if (windows.length === 0) return "";
+
+  return (
+    `<section class="dist" aria-labelledby="fmt-h">` +
+    `<h2 id="fmt-h">What was audited</h2>` +
+    `<p class="caveat">The same documents as the grades above, split by file type. ` +
+    `<strong>Unrecognized extension</strong> means the document was audited normally but its filename ` +
+    `carried no extension we could classify — typically a web address ending in something like ` +
+    `<code>download?id=123</code>. It is not a refusal; refusals are counted separately below.</p>` +
+    `<div class="windows">${windows.map(([t, n, r]) => renderFormatWindow(t, n, r)).join("")}</div>` +
+    `</section>`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Refused uploads
 // ---------------------------------------------------------------------------
 // The counterpart to the grade distribution: what people bring that the tool
@@ -357,6 +425,7 @@ h1{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 14px;color:#e6
 .gl{font-weight:600}
 .gd{color:#8b949e}
 .none{margin:0;font-size:12px;color:#6e7681}
+.caveat code{font-size:.95em;padding:1px 4px;border-radius:4px;background:#21262d;color:#e6edf3}
 .tree{background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:14px 16px;overflow-x:auto}
 .row{white-space:pre}
 details{margin:0}
@@ -392,6 +461,7 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  .dist td.n{color:#1f2328}
  .dist td.pc,.gd{color:#57606a}
  .none{color:#6e7781}
+ .caveat code{background:#eaeef2;color:#1f2328}
  .k{color:#0550ae}.p{color:#6e7781}
  .v.str{color:#0a7b28}.v.num{color:#953800}.v.bool{color:#6639ba}.v.null{color:#6e7781}
 }
@@ -437,6 +507,7 @@ export function renderStatusHtml(
 <div class="bar"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
 <h1>Service status</h1>
 ${renderGradeDistribution(body)}
+${renderFormatSplit(body)}
 ${renderRejectedUploads(body)}
 <div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>
 </div>

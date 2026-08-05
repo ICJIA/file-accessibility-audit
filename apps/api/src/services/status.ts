@@ -44,12 +44,21 @@ export interface EngineResult {
   reason?: ProbeFailureReason;
 }
 
+/** Audited documents by format.
+ *
+ *  `unknown_extension` was called `other` until v1.47.0. It is a DIFFERENT
+ *  thing from RejectedFormatCounts.other and the shared name made the status
+ *  page genuinely confusing: this one means "we audited the file, but its
+ *  filename carried no extension we recognize" — a URL audit whose path is
+ *  `download?id=123` sniffs as a real PDF and is audited normally, it just
+ *  cannot be classified by name. It is near-always zero and exists so the
+ *  format split always sums to the document total. */
 export interface FormatCounts {
   pdf: number;
   docx: number;
   pptx: number;
   xlsx: number;
-  other: number;
+  unknown_extension: number;
 }
 
 /** Letter-grade distribution over a time window.
@@ -81,11 +90,15 @@ export interface DocumentCounts {
 
 /** Refused uploads, split by what was offered.
  *
- *  `other` is the catch-all and is genuinely populated here (unlike
- *  FormatCounts.other, which is near-always zero because only four formats
- *  ever get audited): it covers unrelated types (.jpg, .zip) and files whose
+ *  `other` is the catch-all and, unlike FormatCounts.unknown_extension, it is
+ *  genuinely populated: it covers unrelated types (.jpg, .zip) and files whose
  *  extension lies — a .doc renamed to .docx is caught by content detection but
- *  buckets by its stated extension, since that is all the SQL can see. */
+ *  buckets by its stated extension, since that is all the SQL can see.
+ *
+ *  The two are distinct on purpose. This one means "refused, and not one of
+ *  the named unauditable formats"; FormatCounts.unknown_extension means
+ *  "audited fine, but unclassifiable by filename". Sharing the name `other`
+ *  is what made the status page confusing before v1.47.0. */
 export interface RejectedFormatCounts {
   doc: number;
   xls: number;
@@ -248,11 +261,11 @@ const FORMAT_CASE = `
     WHEN lower(filename) LIKE '%.docx' THEN 'docx'
     WHEN lower(filename) LIKE '%.pptx' THEN 'pptx'
     WHEN lower(filename) LIKE '%.xlsx' THEN 'xlsx'
-    ELSE 'other'
+    ELSE 'unknown_extension'
   END`;
 
 function emptyFormatCounts(): FormatCounts {
-  return { pdf: 0, docx: 0, pptx: 0, xlsx: 0, other: 0 };
+  return { pdf: 0, docx: 0, pptx: 0, xlsx: 0, unknown_extension: 0 };
 }
 
 /** Buckets a document audit by its stored letter grade.

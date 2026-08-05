@@ -188,6 +188,19 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "status-format-split-and-clearer-labels-2026-08-05",
+    badge: "Improved",
+    text: "The status page now shows what kinds of file were audited — PDF, Word, PowerPoint and Excel — alongside the scores. It also clears up a genuinely confusing label: two different columns were both called “other” and meant opposite things. One now reads “Unrecognized extension”, meaning the document was checked normally and we simply could not tell its file type from its web address, and the other reads “Other file types”, meaning the upload was refused and could not be checked at all.",
+    linkText: "View the status page",
+    linkTo: "/status?html",
+    /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
+    linkExternal: true,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 5, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "status-refused-uploads-2026-08-04",
     badge: "New",
     text: "The status page now also shows what people bring that the tool cannot check at all — the older Office formats and CSV data files — over the last 30 days and since the tool launched. It sits below the grade distribution and is counted entirely separately from it, because a file that was refused was never assessed: it has no score, so including it among the graded documents would misrepresent both numbers. One thing to read carefully: these are attempts rather than documents, so the same file uploaded twice counts twice.",

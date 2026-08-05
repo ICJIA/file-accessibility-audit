@@ -3,6 +3,7 @@ import { GRADE_THRESHOLDS } from "@file-audit/shared";
 import {
   renderStatusHtml,
   renderGradeDistribution,
+  renderFormatSplit,
   renderRejectedUploads,
   pickFormat,
   escapeHtml,
@@ -26,7 +27,7 @@ const PAYLOAD = {
   },
   documents_audited: {
     total: 4121,
-    by_format_total: { pdf: 4074, docx: 39, pptx: 2, xlsx: 5, other: 0 },
+    by_format_total: { pdf: 4074, docx: 39, pptx: 2, xlsx: 5, unknown_extension: 0 },
   },
   last_audit_at: "2026-08-03T15:06:51Z",
   last_audit_at_chicago: null,
@@ -161,8 +162,12 @@ describe("renderStatusHtml", () => {
     expect(out).toContain("&quot;&gt;&lt;script&gt;");
   });
 
-  it("carries no explanatory prose — just the tree and the toggle", () => {
-    // Requested explicitly: the page is the JSON, formatted. Nothing else.
+  it("keeps the prose bounded — the tree stays the substance of the page", () => {
+    // Originally "no explanatory prose at all". The page has since gained
+    // three deliberate explanatory sections (grades, formats, refusals), each
+    // earning its place by making a number un-misreadable. What still must not
+    // happen is the page becoming an essay with a tree at the bottom, so the
+    // bound is what this now guards.
     const text = html
       .replace(/<style>[\s\S]*?<\/style>/g, "")
       .replace(/<[^>]+>/g, " ")
@@ -212,7 +217,7 @@ const GRADED = {
     last_24h: 8,
     last_30d: 100,
     total: 1000,
-    by_format_total: { pdf: 1000, docx: 0, pptx: 0, xlsx: 0, other: 0 },
+    by_format_total: { pdf: 1000, docx: 0, pptx: 0, xlsx: 0, unknown_extension: 0 },
     by_grade_24h: { A: 2, B: 0, C: 2, D: 0, F: 4, ungraded: 0 },
     by_grade_30d: { A: 10, B: 10, C: 20, D: 10, F: 45, ungraded: 5 },
     by_grade_total: { A: 100, B: 100, C: 200, D: 100, F: 500, ungraded: 0 },
@@ -348,6 +353,82 @@ describe("grade distribution", () => {
     const lastRow = out.indexOf('<span class="gl">F</span>');
     expect(firstRow).toBeGreaterThan(-1);
     expect(firstRow).toBeLessThan(lastRow);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Audited documents by format
+// ---------------------------------------------------------------------------
+// The point of this section is disambiguation. Two catch-all buckets on one
+// page, both once called "other", meant different things — this one is "we
+// audited it, we just could not classify the filename", the rejection one is
+// "we refused it". Spelled out in words, they stop reading as a contradiction.
+
+const FORMATS = {
+  documents_audited: {
+    last_30d: 811,
+    total: 4143,
+    by_format_30d: { pdf: 770, docx: 34, pptx: 2, xlsx: 5, unknown_extension: 0 },
+    by_format_total: { pdf: 4088, docx: 48, pptx: 2, xlsx: 4, unknown_extension: 1 },
+  },
+};
+
+describe("audited formats", () => {
+  it("renders nothing when the payload has no documents_audited", () => {
+    expect(renderFormatSplit({ status: "ok" })).toBe("");
+  });
+
+  it("labels the catch-all 'Unrecognized extension', never 'Other'", () => {
+    // "Other" next to documents_rejected's own "Other file types" is exactly
+    // the collision this section exists to remove.
+    const out = renderFormatSplit(FORMATS);
+    expect(out).toContain("Unrecognized extension");
+    expect(out).not.toContain(">Other<");
+    expect(out).not.toContain("Other file types");
+  });
+
+  it("explains the catch-all even in a window where it is zero", () => {
+    // The row is hidden at zero, but the term still appears in the caveat —
+    // otherwise a reader meeting it for the first time in the JSON tree has
+    // nothing to go on.
+    const out = renderFormatSplit(FORMATS);
+    expect(out).toContain("<strong>Unrecognized extension</strong>");
+    expect(out).toContain("download?id=123");
+  });
+
+  it("says plainly that an unclassified filename is not a refusal", () => {
+    expect(renderFormatSplit(FORMATS)).toContain("not a refusal");
+  });
+
+  it("shows the catch-all row only when it is non-zero", () => {
+    const row = /<th scope="row">Unrecognized extension<\/th>/;
+    const zero = renderFormatSplit({
+      documents_audited: {
+        total: 10,
+        by_format_total: { pdf: 10, docx: 0, pptx: 0, xlsx: 0, unknown_extension: 0 },
+      },
+    });
+    expect(row.test(zero)).toBe(false);
+    expect(row.test(renderFormatSplit(FORMATS))).toBe(true);
+  });
+
+  it("computes each format's share of its own window", () => {
+    const out = renderFormatSplit(FORMATS);
+    expect(out).toContain("4,088"); // thousands separator
+    expect(out).toContain("99%"); // 4088 of 4143
+  });
+
+  it("sits between the grades and the refusals on the assembled page", () => {
+    const page = renderStatusHtml({ ...GRADED, ...FORMATS, ...REJECTED });
+    expect(page.indexOf('id="dist-h"')).toBeLessThan(page.indexOf('id="fmt-h"'));
+    expect(page.indexOf('id="fmt-h"')).toBeLessThan(page.indexOf('id="rej-h"'));
+  });
+
+  it("keeps the two catch-alls distinguishable on the same page", () => {
+    // The whole point: a reader seeing both must be able to tell them apart.
+    const page = renderStatusHtml({ ...GRADED, ...FORMATS, ...REJECTED });
+    expect(page).toContain("Unrecognized extension");
+    expect(page).toContain("Other file types");
   });
 });
 

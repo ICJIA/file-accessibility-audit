@@ -126,7 +126,7 @@ describe("document counting", () => {
     expect(payload.documents_audited.total).toBe(4);
     expect(payload.documents_audited.by_format_total.pdf).toBe(4);
     // The page audit's URL must not have landed in any bucket.
-    expect(payload.documents_audited.by_format_total.other).toBe(0);
+    expect(payload.documents_audited.by_format_total.unknown_extension).toBe(0);
   });
 
   it("splits by filename extension, case-insensitively", async () => {
@@ -143,11 +143,11 @@ describe("document counting", () => {
       docx: 1,
       pptx: 1,
       xlsx: 1,
-      other: 0,
+      unknown_extension: 0,
     });
   });
 
-  it("buckets an extension-less filename as 'other' rather than dropping it", async () => {
+  it("buckets an extension-less filename as unknown_extension rather than dropping it", async () => {
     // URL-derived filenames can arrive without an extension. Silently
     // dropping them would make the format split disagree with the total.
     const db = freshDb();
@@ -155,7 +155,7 @@ describe("document counting", () => {
 
     const payload = await makeService(db).getStatus();
     expect(payload.documents_audited.total).toBe(1);
-    expect(payload.documents_audited.by_format_total.other).toBe(1);
+    expect(payload.documents_audited.by_format_total.unknown_extension).toBe(1);
   });
 
   // -------------------------------------------------------------------------
@@ -280,7 +280,7 @@ describe("document counting", () => {
     const rej = (await makeService(db).getStatus()).documents_rejected;
 
     expect(docs.total).toBe(1);
-    expect(docs.by_format_total.other).toBe(0);
+    expect(docs.by_format_total.unknown_extension).toBe(0);
     expect(docs.by_grade_total).toEqual({ A: 0, B: 1, C: 0, D: 0, F: 0, ungraded: 0 });
     expect(rej.total).toBe(3);
   });
