@@ -1144,6 +1144,18 @@ A standalone audit of the whole application, not a per-release review. **Two fin
 
 **The new /status render path is clean.** Every interpolation in the three sections added since v1.44.0 is either `escapeHtml`-wrapped or a number validated through `asCount`; the one unescaped value is a hex colour from the compile-time `GRADE_THRESHOLDS` constant. `detectLegacyFormat` compares eight signature bytes and runs one bounded `Buffer.includes` over at most 8 KB. Tests 1,841 → 1,848.
 
+**Live probe of production + adversarial suite.** A read-only probe of the deployed service and a full adversarial suite — run against an isolated local instance so production traffic and statistics stayed untouched — extended the audit past the code. The application tier defended every attack: 10 SSRF vectors (loopback, `[::1]`, decimal/hex/octal IP encodings, `169.254.169.254`, IPv4-mapped IPv6, `file://`, `gopher://`) all blocked with per-hop redirect re-validation; a 200 MB zip bomb rejected in 0.2 s; billion-laughs entity expansion and XXE (both file-read and external-DTD SSRF callback) inert because `fast-xml-parser` ignores DOCTYPEs; 12 concurrent analyses drained cleanly; the remediation audit-gate, admin authorization, pagination clamp, and 1 MB body cap all held; a forced 500 leaked no stack or path.
+
+Three findings, all in the Forge-managed nginx vhost, all **fixed and verified live** — no application change:
+
+| # | Finding | Severity | Fix |
+| --- | --- | --- | --- |
+| L1 | HSTS absent on the Nuxt frontend (helmet set it only on the Express API) | Low | `add_header Strict-Transport-Security … always` at the edge, covering both tiers |
+| L2 | Conflicting `X-Frame-Options` on the frontend — `DENY` (app) vs `SAMEORIGIN` (nginx), which some browsers treat as invalid | Informational | removed the nginx line; the app's own value stands, CSP `frame-ancestors 'none'` is the authoritative control |
+| L3 | Security headers missing on nginx error pages (`add_header` without `always` skips 4xx/5xx) | Low | added `always` |
+
+The deprecated `X-XSS-Protection` line was dropped in the same edit. **The header changes are CORS- and API-neutral** — they are browser response directives that a server-to-server caller (e.g. the icjia-fleet-audit integration hitting `/api/audit-url`) ignores; the `/api/` proxy, the 110 MB body cap, and the app-level CORS were untouched, confirmed by an unchanged `204` preflight and a still-processing `POST` after the reload. Confirmed sound at the edge besides: TLS 1.3 / AES-256-GCM, API port not externally reachable, `.git`/`.env` denied, no source maps shipped, `http→https` redirect in place.
+
 ### v1.47.0 — 2026-08-05 · Status-page label disambiguation (not a security release)
 
 Presentation and naming only. No new input, no new write path, no query or scoring change — the renamed bucket is the same `COUNT(*)` under a clearer key, and the new section renders figures the payload already carried.

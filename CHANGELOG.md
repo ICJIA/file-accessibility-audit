@@ -30,6 +30,18 @@ Full red/blue security audit of the whole application. Two findings, both fixed;
 
 Tests 1,841 → 1,848 (API 1,119 → 1,126); lint, typecheck, build green.
 
+### Deployment-layer findings (live probe of production; fixed in nginx, no code change)
+
+A read-only probe of the deployed service — headers, TLS, exposed artefacts, direct-port reachability — plus a full adversarial suite (SSRF, zip bomb, XML entity-expansion, XXE, concurrency, remediation gate, admin authz, body caps) run against an isolated local instance so production traffic and statistics were untouched. The application tier defended every attack. Three findings, all in the Forge-managed nginx vhost, all **fixed and verified live**:
+
+- **L1 — HSTS was missing on the frontend (Low, fixed).** Helmet sent `Strict-Transport-Security` on the Express API (`/api/*`), but the Nuxt tier — the HTML a browser actually navigates to and latches onto — did not, so the header was absent on every page. `http://` already 301s to `https://`, but without HSTS that first request is downgrade-interceptable. Fixed with `add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;` at the nginx edge, which is where transport security belongs and which blankets both tiers and error pages at once. `preload` deliberately omitted (a one-way commitment needing apex-domain control); `includeSubDomains` scopes to `*.audit.icjia.app` only.
+
+- **L2 — Conflicting `X-Frame-Options` on the frontend (Informational, fixed).** The Nuxt tier sent `DENY` and the nginx vhost added `SAMEORIGIN`; a repeated XFO with differing values is treated as invalid by some browsers. The app already sets its own on every proxied response, so the nginx line only ever produced a duplicate — removed it, leaving each tier one clean value (`DENY` frontend, `SAMEORIGIN` API). `frame-ancestors 'none'` in the CSP was the authoritative control throughout. The deprecated `X-XSS-Protection` line was dropped in the same edit.
+
+- **L3 — Security headers absent on nginx-generated error responses (Low, fixed).** `add_header` without the `always` flag skips 4xx/5xx, so the `/.env` 403 (and other error pages) carried no security headers. Adding `always` restored them; verified against the live 403.
+
+Everything else was confirmed sound at the edge: TLS 1.3 / AES-256-GCM, the API port not reachable externally, `.git`/`.env` denied, no source maps shipped, `http→https` redirect in place. The one residual is accepted: nginx's own 403 deny-page no longer carries `X-Frame-Options` (it has no framable content and never carried a CSP), which is the reason the "remove the duplicate" fix is clean rather than perfect.
+
 ## [1.47.0] - 2026-08-05
 
 Two catch-all buckets on one page were both called `other` and meant opposite things.
