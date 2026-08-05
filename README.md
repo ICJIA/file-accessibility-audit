@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.51.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1877%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.52.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1879%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,877 tests** across 114 test files (API 1149, Web 679, CLI 49). Run all three suites with one summary:
+**1,879 tests** across 114 test files (API 1151, Web 679, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1149 passed (59 files)
+  ✔ API      1151 passed (59 files)
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1877 tests passed across 114 files
+  ✔ 1879 tests passed across 114 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1149 tests)
+### API Tests (1151 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1125,6 +1125,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.52.0 — 2026-08-05 · Stale backup promoted into `degraded` (monitoring, not a security release)
+
+The follow-up the v1.50.0 entry promised, now that the nightly cadence is live. `degradedList` takes the backup status: `"stale"` (a backup that succeeded before, now older than `STATUS.BACKUP_STALE_AFTER_HOURS`) appends `"backup"` to `degraded`, flipping the payload to `status: "degraded"` — which the existing UptimeRobot keyword alert matches with **zero monitor-side changes**. The two boundaries from v1.50.0 hold, both pinned by test: `"unavailable"` still does not degrade (a fresh deployment before its first scheduled run must not page), and `isCoreFailure` never considers the backup, so a stale backup cannot produce a 503 (asserted via `payloadIsCoreFailure` under a stale fixture). Residual, documented in the code: deleting `last-backup.json` demotes stale to unavailable and silences the signal — a live nightly job rewrites the file within 24 h, so only the compound failure (file gone *and* job dead) stays quiet. Tests 1,877 → 1,879.
 
 ### v1.51.1 — 2026-08-05 · Backup documentation made standing and general (not a security release)
 

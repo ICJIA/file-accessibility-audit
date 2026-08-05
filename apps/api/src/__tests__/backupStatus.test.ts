@@ -23,6 +23,7 @@ import { runMigrations } from "../db/migrations.js";
 import {
   createStatusService,
   defaultBackupStatusFile,
+  payloadIsCoreFailure,
   readBackupStatus,
   type EngineProbes,
   type StatusDb,
@@ -152,13 +153,13 @@ describe("status payload backup section", () => {
     chromium: async () => ({ ok: true }),
   };
 
-  function build(backupStatusFile: string) {
+  function build(backupStatusFile: string, probes: EngineProbes = OK_ENGINES) {
     const db = new Database(":memory:");
     runMigrations(db);
     return createStatusService({
       now: () => NOW,
       db: db as unknown as StatusDb,
-      probes: OK_ENGINES,
+      probes,
       version: "test",
       startedAtMs: NOW - 60_000,
       remediationEnabled: false,
@@ -166,14 +167,49 @@ describe("status payload backup section", () => {
     }).getStatus();
   }
 
-  it("carries the backup section in the payload", async () => {
+  it("carries the backup section in the payload, with no degraded entry when fresh", async () => {
     writeStatusFile();
     const payload = await build(statusFile);
     expect(payload.backup.status).toBe("ok");
     expect(payload.backup.rows).toBe(4143);
+    expect(payload.status).toBe("ok");
+    expect(payload.degraded).toBeUndefined();
   });
 
-  it("stays 'ok' overall when backups are unavailable — rollout must not page", async () => {
+  it("promotes a STALE backup into the degraded list — a dead backup cron now pages", async () => {
+    // v1.52.0: with a nightly cadence on record, an overdue backup is a real
+    // operational failure. "backup" in `degraded` flips status to "degraded",
+    // which the uptime monitor's existing keyword alert matches with no
+    // monitor-side change.
+    const staleMs = (STATUS.BACKUP_STALE_AFTER_HOURS + 5) * 3_600_000;
+    writeStatusFile({ finishedAt: new Date(NOW - staleMs).toISOString() });
+    const payload = await build(statusFile);
+
+    expect(payload.backup.status).toBe("stale");
+    expect(payload.status).toBe("degraded");
+    expect(payload.degraded).toContain("backup");
+    // Degraded, never an outage: a stale backup must not turn /status into a
+    // 503 — the service can still audit.
+    expect(payloadIsCoreFailure(payload)).toBe(false);
+  });
+
+  it("lists a stale backup alongside other degraded components", async () => {
+    const staleMs = (STATUS.BACKUP_STALE_AFTER_HOURS + 5) * 3_600_000;
+    writeStatusFile({ finishedAt: new Date(NOW - staleMs).toISOString() });
+    const payload = await build(statusFile, {
+      ...OK_ENGINES,
+      verapdf: async () => ({ ok: false, reason: "timeout" }),
+    });
+
+    expect(payload.degraded).toEqual(expect.arrayContaining(["verapdf", "backup"]));
+    expect(payloadIsCoreFailure(payload)).toBe(false);
+  });
+
+  it("stays 'ok' overall when backups are unavailable — a fresh install must not page", async () => {
+    // Unchanged by v1.52.0, deliberately: "unavailable" means no backup has
+    // ever completed (or the status file is unreadable) — the expected state
+    // of a new deployment before its first scheduled run. Only staleness,
+    // which requires a backup to have succeeded before, raises the flag.
     const payload = await build(join(workDir, "missing.json"));
     expect(payload.backup.status).toBe("unavailable");
     expect(payload.status).toBe("ok");

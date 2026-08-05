@@ -1388,10 +1388,12 @@ export const STATUS = {
    * under 24; 30 gives a missed run several hours to be unambiguous (and
    * absorbs DST shifts) before the page says "older than expected".
    *
-   * A server where backups have NEVER run reports "unavailable" instead —
-   * deliberately not "stale" and deliberately outside the degraded list, so
-   * enabling the feature cannot trip the uptime monitor's keyword alert
-   * before the first scheduled run has happened.
+   * A stale backup joins the /status `degraded` list (v1.52.0), so the
+   * uptime monitor's existing keyword alert fires when the nightly job
+   * dies. A server where backups have NEVER run reports "unavailable"
+   * instead — deliberately not "stale" and deliberately outside the
+   * degraded list, so a fresh deployment cannot page anyone before its
+   * first scheduled run has happened.
    *
    * SAFE TO CHANGE: Yes. Match it to the backup cadence: roughly
    * (interval between runs) + a few hours of slack.

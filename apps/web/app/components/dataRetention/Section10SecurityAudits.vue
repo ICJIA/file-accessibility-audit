@@ -64,6 +64,34 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.52.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.52.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-05</strong> · scope: the service now flags an overdue nightly
+          backup — a monitoring improvement.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        The status page has shown the last successful backup since v1.50.0; as of this release the
+        service also
+        <strong>raises its own attention flag when that backup becomes overdue</strong> for a
+        nightly schedule (about thirty hours old) — the same "degraded" marker used when an optional
+        checking engine is down, which the external uptime monitoring already watches. In plain
+        terms: if the nightly backup silently stops, a person now gets told, instead of discovering
+        it on the day a restore is needed. Two boundaries were kept deliberately: a server where
+        backups have <em>never</em> run still does not raise the flag (a brand-new deployment must
+        not alarm before its first scheduled run), and an overdue backup can never make the service
+        report itself as fully down — audits continue working regardless.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.51.1 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

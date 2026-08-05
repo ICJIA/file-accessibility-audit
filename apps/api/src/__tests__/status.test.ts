@@ -712,7 +712,7 @@ describe("helpers", () => {
       verapdf: { ok: false, reason: "timeout" },
       chromium: { ok: true },
     };
-    expect(degradedList(engines, "ok")).toEqual(["verapdf"]);
+    expect(degradedList(engines, "ok", "ok")).toEqual(["verapdf"]);
     expect(isCoreFailure(engines, "ok")).toBe(false);
     expect(isCoreFailure(engines, "down")).toBe(true);
   });

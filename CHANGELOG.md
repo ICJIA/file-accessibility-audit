@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.52.0] - 2026-08-05
+
+A silently dead backup job now pages someone.
+
+### Changed
+
+- **A stale backup joins the `/status` `degraded` list.** Since v1.50.0 the page *showed* the last successful backup; now a backup older than `STATUS.BACKUP_STALE_AFTER_HOURS` (30 — nightly cadence plus slack) also appends `"backup"` to `degraded` and flips the payload to `status: "degraded"`, which the uptime monitor's existing keyword alert matches with no monitor-side change. Deliberately unchanged, both pinned by test: `"unavailable"` (no backup has ever completed — the expected state of a fresh deployment) still does not degrade, and the backup can never contribute to `isCoreFailure`, so an overdue backup cannot turn `/status` into a 503 — the service keeps auditing either way.
+
+### Notes
+
+Residual, accepted and documented in the code: deleting `last-backup.json` demotes "stale" to "unavailable" and silences the signal; a live nightly job rewrites the file within 24 hours, so only the compound failure — file gone *and* job dead — stays quiet. The announcement banner is deliberately untouched (monitoring internals, not visitor-facing). Tests 1,877 → 1,879 (API 1,149 → 1,151); lint, typecheck, build green.
+
 ## [1.51.1] - 2026-08-05
 
 Documentation release: the backup arrangement is now stated in the standing docs, in general terms.

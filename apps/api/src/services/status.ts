@@ -147,10 +147,10 @@ export interface StatusPayload {
     jobs_24h: { complete: number; failed: number };
   };
   /** Last successful database backup, read from the status file the backup
-   *  job writes only after a snapshot passes its integrity check. Deliberately
-   *  NOT wired into `degraded`: a server where backups have never run shows
-   *  "unavailable" without tripping the keyword monitor, so rolling the
-   *  feature out cannot page anyone. */
+   *  job writes only after a snapshot passes its integrity check. Since
+   *  v1.52.0, "stale" joins the `degraded` list (a dead nightly job should
+   *  page); "unavailable" still does not — a deployment before its first
+   *  scheduled run must not alarm. Never part of isCoreFailure/503. */
   backup: BackupStatus;
 }
 
@@ -663,14 +663,29 @@ export async function collectEngines(probes: EngineProbes, nowMs: number): Promi
   return { checked_at: isoSeconds(nowMs), qpdf, verapdf, chromium };
 }
 
-/** Names of everything currently unhealthy, core first. Drives both the
- *  `degraded` array and the HTTP status the Nitro tier selects. */
-export function degradedList(engines: EngineSnapshot, database: "ok" | "down"): string[] {
+/** Names of everything currently unhealthy, core first. Drives the
+ *  `degraded` array (and, for core entries only, the 503 the Nitro tier
+ *  selects via isCoreFailure — which never considers the backup).
+ *
+ *  Backup semantics (v1.52.0): "stale" degrades — a backup that succeeded
+ *  before and is now overdue means the nightly job died, and the uptime
+ *  monitor's keyword alert on "degraded" should fire. "unavailable" does
+ *  NOT — that is the expected state of a deployment before its first
+ *  scheduled run, and a fresh install must not page anyone. Residual,
+ *  accepted: deleting the status file demotes stale to unavailable and
+ *  silences the signal; a live nightly job rewrites the file within 24h,
+ *  so only the compound failure (file gone AND job dead) stays quiet. */
+export function degradedList(
+  engines: EngineSnapshot,
+  database: "ok" | "down",
+  backupStatus: BackupStatus["status"],
+): string[] {
   const out: string[] = [];
   if (database === "down") out.push("database");
   for (const name of [...CORE_ENGINES, ...OPTIONAL_ENGINES]) {
     if (!engines[name].ok) out.push(name);
   }
+  if (backupStatus === "stale") out.push("backup");
   return out;
 }
 
@@ -740,8 +755,9 @@ export function createStatusService(deps: StatusDeps) {
   async function getStatus(): Promise<StatusPayload> {
     const nowMs = deps.now();
     const [agg, eng] = [getAggregates(nowMs), await getEngines(nowMs)];
+    const backup = readBackupStatus(deps.backupStatusFile, nowMs);
 
-    const degraded = degradedList(eng, agg.database);
+    const degraded = degradedList(eng, agg.database, backup.status);
     const uptimeSeconds = Math.max(0, Math.floor((nowMs - deps.startedAtMs) / 1000));
 
     const payload: StatusPayload = {
@@ -764,7 +780,7 @@ export function createStatusService(deps: StatusDeps) {
         enabled: deps.remediationEnabled,
         jobs_24h: agg.remediation_jobs_24h,
       },
-      backup: readBackupStatus(deps.backupStatusFile, nowMs),
+      backup,
     };
     // Omitted rather than empty on the happy path, so a reader scanning the
     // JSON sees no failure vocabulary at all when nothing is wrong.
