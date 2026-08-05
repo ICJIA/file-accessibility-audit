@@ -103,6 +103,7 @@ function makeService(db: DB, probes: EngineProbes = OK_ENGINES, clock = { now: T
     version: "1.38.2",
     startedAtMs: T0 - (2 * DAY + 3 * HOUR),
     remediationEnabled: true,
+    backupStatusFile: "/nonexistent/backups/last-backup.json",
   });
 }
 
@@ -488,6 +489,7 @@ describe("tiered failure semantics", () => {
       version: "1.38.2",
       startedAtMs: T0 - DAY,
       remediationEnabled: false,
+      backupStatusFile: "/nonexistent/backups/last-backup.json",
     });
 
     // Reporting breakage is the endpoint's job; it must not itself break.

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.50.0] - 2026-08-05
+
+The status page now answers "did last night's backup run?" — remotely, without SSH.
+
+### Added
+
+- **A `backup` section on `/status`,** read from the `last-backup.json` that the backup job writes only after a snapshot passes its integrity check: completion time (UTC + Chicago), age in hours, snapshot size, and the usage-log row count it contains. Rendered on the HTML view as a **Last successful backup** row; `"unavailable"` (with plain-words copy, not an alarm) until the first scheduled run completes; `"stale"` once older than `STATUS.BACKUP_STALE_AFTER_HOURS` (30 — nightly cadence plus slack).
+
+  Privacy posture: the source file carries two absolute server paths; neither crosses into the payload, asserted by a unit test and by the page-wide privacy suite, whose top-level allow-list gains the one key deliberately. Deliberately **not** in the `degraded` list, so enabling the feature cannot trip the uptime monitor's keyword alert before the first backup has ever run; promoting `stale` into `degraded` is the intended follow-up once the cadence has history.
+
+### Changed
+
+- **Default backup location is now beside the repository checkout** — `~/audit.icjia.app/backups` on the production server — instead of `~/backups/audit-db`. Beside, never inside: backups inside the working tree would be deleted by the same `git clean -xdf` that would delete the database, which is the exact disaster they exist to survive. The shell wrapper and the API derive the identical default independently from their own file locations (no shared config to drift), pinned by test. `BACKUP_DIR` still overrides both.
+
+- **The recommended Forge Scheduler command is now just the script path** — no log redirect. Forge captures each run's output itself, and the earlier redirect form could fail on the very first run: the shell opens `>> logfile` before the script executes, so a not-yet-existing log directory kills the job before the script (which creates directories itself) ever starts.
+
+### Notes
+
+Verified against the real pipeline: the local drill's `last-backup.json` renders the row end-to-end. Tests 1,857 → 1,874 (API 1,135 → 1,146; Web 673 → 679); lint, typecheck, build green.
+
 ## [1.49.0] - 2026-08-05
 
 Nightly database backups — the top finding of the 2026-08-05 operational review — plus a dated, code-quoting verification of the data-retention policy's storage claims, published on the policy page as a new § 8a.

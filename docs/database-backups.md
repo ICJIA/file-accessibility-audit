@@ -37,24 +37,39 @@ deploy-guide suggestion of a `cp` cron was never safe to follow.)
 
 ## Production setup (Laravel Forge)
 
-Backups land in `$HOME/backups/audit-db` (`/home/forge/backups/audit-db`) —
-deliberately **outside** the git working tree.
+The repo checkout on the server is nested inside the Forge site directory:
+`/home/forge/audit.icjia.app/file-accessibility-audit`. Backups land in
+**`/home/forge/audit.icjia.app/backups`** — beside the checkout in the same
+site folder (easy to find), but deliberately **outside** the git working tree
+(a `git clean -xdf` in the repo cannot delete the backups together with the
+database) and outside any web root. `BACKUP_DIR` overrides.
 
 Forge → your server → **Scheduler** → New Scheduled Job:
 
 | Field | Value |
 | --- | --- |
-| Command | `/home/forge/audit.icjia.app/scripts/backup-db.sh >> /home/forge/backups/audit-db/backup.log 2>&1` |
+| Command | `/home/forge/audit.icjia.app/file-accessibility-audit/scripts/backup-db.sh` |
 | User | `forge` |
 | Frequency | Custom: `0 8 * * *` (08:00 UTC ≈ 2–3am America/Chicago) — or Forge's "Nightly" preset |
 
-The script must be on the server first (deploy `main` once v1.49.0 is out).
-First-run check, from an SSH session:
+No output redirect: Forge captures each run's output in the job's Output
+panel, and `last-backup.json` plus the `/status` backup row are the durable
+record. (An earlier suggested command redirected to a log file — that form
+fails on first run if the log's directory doesn't exist yet, because the
+shell opens the redirect before the script can create anything.)
+
+The script must be on the server first (deploy `main`). First-run check,
+from an SSH session:
 
 ```bash
-/home/forge/audit.icjia.app/scripts/backup-db.sh
-cat /home/forge/backups/audit-db/last-backup.json
+/home/forge/audit.icjia.app/file-accessibility-audit/scripts/backup-db.sh
+cat /home/forge/audit.icjia.app/backups/last-backup.json
 ```
+
+Since v1.50.0 the public `/status` page also shows the last successful
+backup (completion time, age, size, record count) — "unavailable" until the
+first run completes, "stale" once it is older than
+`STATUS.BACKUP_STALE_AFTER_HOURS` (30).
 
 Environment knobs (all optional): `BACKUP_DIR` (destination),
 `BACKUP_KEEP_COUNT` (how many snapshots to retain — the newest N are kept,
@@ -66,7 +81,8 @@ bounded no matter how many manual runs happen between nightly ones.
 
 ```bash
 pm2 stop file-audit-api
-/home/forge/audit.icjia.app/scripts/restore-db.sh /home/forge/backups/audit-db/audit-<date>.db.gz
+/home/forge/audit.icjia.app/file-accessibility-audit/scripts/restore-db.sh \
+  /home/forge/audit.icjia.app/backups/audit-<date>.db.gz
 pm2 start file-audit-api
 # then: check /status, spot-check a known report
 ```

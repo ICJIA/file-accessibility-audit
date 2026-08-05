@@ -71,6 +71,10 @@ function build(probes: EngineProbes = OK_ENGINES, db: DB = seededDb()) {
     version: "1.38.2",
     startedAtMs: T0 - 86_400_000,
     remediationEnabled: true,
+    // Nonexistent on purpose: the privacy suite must hold with the backup
+    // section in its "unavailable" shape, and the path itself (a server
+    // path) must never appear in the payload.
+    backupStatusFile: "/nonexistent/backups/last-backup.json",
   }).getStatus();
 }
 
@@ -164,6 +168,7 @@ describe("/status never discloses identifying data", () => {
     const payload = await build();
     expect(Object.keys(payload).sort()).toEqual(
       [
+        "backup",
         "checked_at",
         "checked_at_chicago",
         "database",

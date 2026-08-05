@@ -138,6 +138,15 @@ function asCount(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+/** Human-readable byte size for the backup row. One decimal, binary units —
+ *  a status page, not a disk-usage report. */
+function formatBytes(value: unknown): string {
+  const n = asCount(value);
+  if (n >= 1_048_576) return `${(n / 1_048_576).toFixed(1)} MB`;
+  if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${n} B`;
+}
+
 /** Pulls one window out of the payload, or null if the payload predates the
  *  field. A shared /report page or an older API build must still render. */
 function readWindow(
@@ -425,6 +434,7 @@ h1{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 14px;color:#e6
 .gl{font-weight:600}
 .gd{color:#8b949e}
 .none{margin:0;font-size:12px;color:#6e7681}
+.bak{margin:0 0 8px;font-size:12px;line-height:1.7}
 .caveat code{font-size:.95em;padding:1px 4px;border-radius:4px;background:#21262d;color:#e6edf3}
 .tree{background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:14px 16px;overflow-x:auto}
 .row{white-space:pre}
@@ -468,6 +478,57 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
 `.trim();
 
 /**
+ * Last-successful-backup row. Additive like every curated section: a payload
+ * predating the field (older API build, shared report) renders nothing.
+ *
+ * "unavailable" is explained, not alarmed about — it is the expected state
+ * between deploying the feature and the first scheduled run, and the reader
+ * meeting it then must not conclude something is broken.
+ */
+export function renderBackup(body: Record<string, unknown>): string {
+  const raw = body.backup;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return "";
+  const b = raw as Record<string, unknown>;
+  const status = b.status === "ok" || b.status === "stale" ? b.status : "unavailable";
+
+  let line: string;
+  if (status === "unavailable") {
+    line =
+      `<p class="none">No completed backup is visible on this server yet — ` +
+      `expected until the first scheduled nightly run finishes.</p>`;
+  } else {
+    const when =
+      typeof b.finished_at_chicago === "string" && b.finished_at_chicago !== ""
+        ? b.finished_at_chicago
+        : typeof b.finished_at === "string"
+          ? b.finished_at
+          : "unknown time";
+    const age =
+      typeof b.age_hours === "number" && Number.isFinite(b.age_hours) && b.age_hours >= 0
+        ? b.age_hours
+        : 0;
+    // Compile-time constants, same convention as the grade colours.
+    const dot = status === "ok" ? "#3fb950" : "#d29922";
+    const staleNote =
+      status === "stale" ? ` — <strong>older than expected</strong> for a nightly schedule` : "";
+    line =
+      `<p class="bak"><span class="dot" style="background:${dot}"></span>` +
+      `Completed <strong>${escapeHtml(when)}</strong> · ${age} h ago · ` +
+      `${formatBytes(b.size_bytes)} · ${asCount(b.rows).toLocaleString("en-US")} usage-log records` +
+      `${staleNote}</p>`;
+  }
+
+  return (
+    `<section class="dist" aria-labelledby="bak-h">` +
+    `<h2 id="bak-h">Last successful backup</h2>` +
+    line +
+    `<p class="caveat">Recorded only after a snapshot passes its integrity check — this row is ` +
+    `the proof the nightly backup ran. Snapshots never leave the server.</p>` +
+    `</section>`
+  );
+}
+
+/**
  * Full HTML document for the status payload.
  *
  * `jsonHref` is where the format toggle points. The reverse direction
@@ -509,6 +570,7 @@ export function renderStatusHtml(
 ${renderGradeDistribution(body)}
 ${renderFormatSplit(body)}
 ${renderRejectedUploads(body)}
+${renderBackup(body)}
 <div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>
 </div>
 </body>

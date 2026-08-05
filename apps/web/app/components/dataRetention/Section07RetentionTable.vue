@@ -98,8 +98,9 @@
               content, because none is stored to begin with)
             </td>
             <td class="py-2.5 pr-4">
-              Server filesystem, in a directory outside the application (<code class="font-mono"
-                >~/backups/audit-db</code
+              Server filesystem, beside the application checkout but outside it (<code
+                class="font-mono"
+                >~/audit.icjia.app/backups</code
               >)
             </td>
             <td class="py-2.5 pr-4">The 5 newest snapshots; older ones deleted by rotation</td>

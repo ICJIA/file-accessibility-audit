@@ -90,7 +90,7 @@ re-learn them.
   will not catch `tsc --noEmit` errors. The build is split:
     `pnpm --filter api build`  → `tsc --noEmit` (typecheck only)
     `pnpm --filter web build`  → full `nuxt build`
-- A clean `pnpm --filter api test` is also helpful — currently 1,135
+- A clean `pnpm --filter api test` is also helpful — currently 1,146
   tests, all under `apps/api/src/__tests__`.
 - **New since the 2026-07 tooling pass:** `pnpm lint` (ESLint, whole
   repo) and `pnpm typecheck` (`apps/api` `tsc --noEmit` + `apps/web`
@@ -195,7 +195,7 @@ releases (write a short "no new findings; release covered X" entry).
 │   │       │                 PRAGMA user_version — see below)
 │   │       ├── middleware/   auth, rate limiting, upload
 │   │       ├── jobs/         remediation worker (detached child process)
-│   │       └── __tests__/    vitest, 1,135 tests
+│   │       └── __tests__/    vitest, 1,146 tests
 │   │
 │   ├── web/                  Nuxt 4 frontend
 │   │   ├── nuxt.config.ts    runtimeConfig + global head config

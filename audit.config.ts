@@ -190,7 +190,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "storage-verification-and-backups-2026-08-05",
     badge: "Transparency",
-    text: "The data-retention policy now includes a dated, line-by-line verification of what is and isn't stored — every database table and every write path checked against the public source code, with the evidence published as its own section (§ 8a). The verification also tightened one statement rather than quietly rewording it: a report you choose to share can quote short strings from your document (such as image alt text and link labels) inside its findings; a plain audit stores none of that. Separately, the service's usage records are now backed up nightly on the server, integrity-checked, keeping only the five newest snapshots.",
+    text: "The data-retention policy now includes a dated, line-by-line verification of what is and isn't stored — every database table and every write path checked against the public source code, with the evidence published as its own section (§ 8a). The verification also tightened one statement rather than quietly rewording it: a report you choose to share can quote short strings from your document (such as image alt text and link labels) inside its findings; a plain audit stores none of that. Separately, the service's usage records are now backed up nightly on the server, integrity-checked, keeping only the five newest snapshots — and the status page now shows when the last backup completed.",
     linkText: "Read the storage verification (§ 8a)",
     linkTo: "/data-retention",
     /** Shown under the text so visitors can see the tool is actively maintained. */
@@ -1347,6 +1347,22 @@ export const STATUS = {
    * SAFE TO CHANGE: Only alongside the counting helpers in services/status.ts.
    */
   REJECTION_EVENT_TYPES: ["rejected-upload"],
+
+  /**
+   * Hours after which the last successful backup is reported as "stale" on
+   * /status. The backup job runs nightly, so a healthy reading is always
+   * under 24; 30 gives a missed run several hours to be unambiguous (and
+   * absorbs DST shifts) before the page says "older than expected".
+   *
+   * A server where backups have NEVER run reports "unavailable" instead —
+   * deliberately not "stale" and deliberately outside the degraded list, so
+   * enabling the feature cannot trip the uptime monitor's keyword alert
+   * before the first scheduled run has happened.
+   *
+   * SAFE TO CHANGE: Yes. Match it to the backup cadence: roughly
+   * (interval between runs) + a few hours of slack.
+   */
+  BACKUP_STALE_AFTER_HOURS: 30,
 } as const;
 
 // ---------------------------------------------------------------------------

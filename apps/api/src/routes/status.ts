@@ -10,6 +10,7 @@ import db from "../db/sqlite.js";
 import { REMEDIATION } from "#config";
 import {
   createStatusService,
+  defaultBackupStatusFile,
   defaultProbes,
   payloadIsCoreFailure,
   readApiVersion,
@@ -29,6 +30,7 @@ const service = createStatusService({
   version: readApiVersion(),
   startedAtMs: STARTED_AT_MS,
   remediationEnabled: REMEDIATION.ENABLED,
+  backupStatusFile: defaultBackupStatusFile(),
 });
 
 router.get("/status", statusLimiter, async (_req, res) => {

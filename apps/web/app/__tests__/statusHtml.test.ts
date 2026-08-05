@@ -5,6 +5,7 @@ import {
   renderGradeDistribution,
   renderFormatSplit,
   renderRejectedUploads,
+  renderBackup,
   pickFormat,
   escapeHtml,
 } from "../../server/utils/statusHtml";
@@ -34,6 +35,69 @@ const PAYLOAD = {
   web: "ok",
   api: "ok",
 };
+
+describe("renderBackup — last successful backup row", () => {
+  const BACKUP_OK = {
+    status: "ok",
+    finished_at: "2026-08-05T08:00:12Z",
+    finished_at_chicago: "Aug 5, 2026, 3:00:12 AM CDT",
+    age_hours: 6.2,
+    size_bytes: 574850,
+    rows: 4143,
+  };
+
+  it("renders completion time, age, size, and row count when a backup exists", () => {
+    const html = renderBackup({ ...PAYLOAD, backup: BACKUP_OK });
+    expect(html).toContain("Last successful backup");
+    expect(html).toContain("Aug 5, 2026, 3:00:12 AM CDT");
+    expect(html).toContain("6.2");
+    expect(html).toContain("561.4 KB");
+    expect(html).toContain("4,143");
+  });
+
+  it("labels a stale backup as older than expected", () => {
+    const html = renderBackup({
+      ...PAYLOAD,
+      backup: { ...BACKUP_OK, status: "stale", age_hours: 40 },
+    });
+    expect(html).toContain("older than expected");
+  });
+
+  it("explains the never-run state instead of alarming", () => {
+    const html = renderBackup({
+      ...PAYLOAD,
+      backup: {
+        status: "unavailable",
+        finished_at: null,
+        finished_at_chicago: null,
+        age_hours: null,
+        size_bytes: null,
+        rows: null,
+      },
+    });
+    expect(html).toContain("No completed backup");
+    expect(html).not.toContain("Aug 5");
+  });
+
+  it("renders nothing for a payload that predates the field (older API build)", () => {
+    expect(renderBackup(PAYLOAD)).toBe("");
+    expect(renderStatusHtml(PAYLOAD)).not.toContain("Last successful backup");
+  });
+
+  it("appears on the assembled page when the payload carries it", () => {
+    const html = renderStatusHtml({ ...PAYLOAD, backup: BACKUP_OK });
+    expect(html).toContain("Last successful backup");
+  });
+
+  it("escapes whatever arrives in the timestamp field — defense in depth", () => {
+    const html = renderBackup({
+      ...PAYLOAD,
+      backup: { ...BACKUP_OK, finished_at_chicago: '<img src=x onerror="x">' },
+    });
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+  });
+});
 
 describe("pickFormat — monitors must keep getting JSON", () => {
   it("serves JSON to a client sending */* (curl, UptimeRobot)", () => {

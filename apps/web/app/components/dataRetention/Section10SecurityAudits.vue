@@ -64,6 +64,33 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.50.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.50.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-05</strong> · scope: the public status page now shows the last
+          successful backup — reviewed for what it discloses.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        The status page gains one row: when the nightly database backup last completed, how old that
+        is, its size, and how many usage-log records it contains. The row appears only for a backup
+        that passed its integrity check, and it discloses nothing else — in particular, never a
+        server file location, which the same automated privacy checks that guard the rest of the
+        page now also enforce for this row. A server where backups have not yet run says so in plain
+        words rather than raising the service's alarm state, so turning the feature on cannot cause
+        a false outage alert. The backups themselves now live beside the application's code folder
+        on the server — easier to find, still outside the code checkout and unreachable from the
+        web.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.49.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

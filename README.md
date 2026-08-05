@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.49.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1857%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.50.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1874%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -808,7 +808,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,857 tests** across 112 test files (API 1135, Web 673, CLI 49). Run all three suites with one summary:
+**1,874 tests** across 113 test files (API 1146, Web 679, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1135 passed (57 files)
-  ✔ Web      673 passed (49 files)
+  ✔ API      1146 passed (58 files)
+  ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1857 tests passed across 112 files
+  ✔ 1874 tests passed across 113 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1135 tests)
+### API Tests (1146 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1124,6 +1124,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.50.0 — 2026-08-05 · Last-backup row on /status (not a security release)
+
+One read-only addition to an already-public endpoint. The payload gains a top-level `backup` key — added to `statusPrivacy.test.ts`'s allow-list deliberately — read from the `last-backup.json` the backup job writes only after a snapshot passes `integrity_check`. `readBackupStatus` collapses a missing, unreadable, malformed, or failed-integrity file to `"unavailable"`, never a crash and never a fake success; the file's two absolute server paths (`sourcePath`, `snapshotPath`) are deliberately not copied, and a unit test asserts the section can never contain a path. Deliberately **not** wired into `degraded`: a server where backups have never run must not trip the UptimeRobot keyword alert the day the feature deploys — wiring `stale` into `degraded` is a sensible follow-up once the nightly cadence has a track record. The HTML row follows the additive contract (a payload predating the field renders nothing, pinned by test) and escapes every value. Default backup location moved beside the repo checkout (`~/audit.icjia.app/backups`) — findable in the site folder, outside the git tree and any web root; the API and the shell wrapper derive the same path independently from their own locations, pinned by test on the API side. Tests 1,857 → 1,874.
 
 ### v1.49.0 — 2026-08-05 · Nightly DB backups + § 8a storage-verification annex
 

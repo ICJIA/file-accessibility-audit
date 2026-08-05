@@ -146,6 +146,24 @@ export interface StatusPayload {
     enabled: boolean;
     jobs_24h: { complete: number; failed: number };
   };
+  /** Last successful database backup, read from the status file the backup
+   *  job writes only after a snapshot passes its integrity check. Deliberately
+   *  NOT wired into `degraded`: a server where backups have never run shows
+   *  "unavailable" without tripping the keyword monitor, so rolling the
+   *  feature out cannot page anyone. */
+  backup: BackupStatus;
+}
+
+export interface BackupStatus {
+  /** "unavailable" covers both never-ran and unreadable/failed status files —
+   *  the reader cannot tell those apart, and must never mistake either for a
+   *  success. */
+  status: "ok" | "stale" | "unavailable";
+  finished_at: string | null;
+  finished_at_chicago: string | null;
+  age_hours: number | null;
+  size_bytes: number | null;
+  rows: number | null;
 }
 
 /** Minimal structural shape of the better-sqlite3 handle this service uses.
@@ -174,6 +192,10 @@ export interface StatusDeps {
   /** ms epoch at which the API process started. */
   startedAtMs: number;
   remediationEnabled: boolean;
+  /** Path of the backup job's last-backup.json. Injected (like the clock and
+   *  DB) so tests point it at fixtures; production uses
+   *  defaultBackupStatusFile(). */
+  backupStatusFile: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -742,6 +764,7 @@ export function createStatusService(deps: StatusDeps) {
         enabled: deps.remediationEnabled,
         jobs_24h: agg.remediation_jobs_24h,
       },
+      backup: readBackupStatus(deps.backupStatusFile, nowMs),
     };
     // Omitted rather than empty on the happy path, so a reader scanning the
     // JSON sees no failure vocabulary at all when nothing is wrong.
@@ -758,6 +781,70 @@ export function createStatusService(deps: StatusDeps) {
  *  cache, so the answer always describes the response actually being sent. */
 export function payloadIsCoreFailure(payload: StatusPayload): boolean {
   return isCoreFailure(payload.engines, payload.database);
+}
+
+// ---------------------------------------------------------------------------
+// Backup status
+// ---------------------------------------------------------------------------
+
+/** Where the backup job's status file lives: $BACKUP_DIR/last-backup.json,
+ *  defaulting to a `backups/` directory BESIDE the repository checkout
+ *  (on the production server: /home/forge/audit.icjia.app/backups — inside
+ *  the Forge site folder for findability, outside the git working tree so a
+ *  `git clean -xdf` cannot delete the backups along with the database, and
+ *  outside any web root). Must match scripts/backup-db.sh's default, which
+ *  derives the same path from its own location. */
+export function defaultBackupStatusFile(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(here, "../../../..");
+  const dir = process.env.BACKUP_DIR || path.join(path.dirname(repoRoot), "backups");
+  return path.join(dir, "last-backup.json");
+}
+
+/** Reads last-backup.json into the public payload shape.
+ *
+ *  The source file carries two absolute server paths (sourcePath,
+ *  snapshotPath); neither is copied — rule 2 in this module's header applies.
+ *  `integrity !== "ok"`, a missing file, unreadable JSON, or an unparseable
+ *  timestamp all collapse to "unavailable": the section only ever describes a
+ *  backup that provably succeeded. */
+export function readBackupStatus(filePath: string, nowMs: number): BackupStatus {
+  const unavailable: BackupStatus = {
+    status: "unavailable",
+    finished_at: null,
+    finished_at_chicago: null,
+    age_hours: null,
+    size_bytes: null,
+    rows: null,
+  };
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(filePath, "utf8"));
+  } catch {
+    return unavailable;
+  }
+  if (typeof raw !== "object" || raw === null) return unavailable;
+  const rec = raw as Record<string, unknown>;
+  if (rec.integrity !== "ok") return unavailable;
+  const finishedMs = typeof rec.finishedAt === "string" ? Date.parse(rec.finishedAt) : NaN;
+  if (!Number.isFinite(finishedMs)) return unavailable;
+
+  // Clamped at zero: a finishedAt slightly in the future is clock skew, not
+  // a time traveller, and a negative age would read as data corruption.
+  const ageHours = Math.max(0, Math.round(((nowMs - finishedMs) / 3_600_000) * 10) / 10);
+
+  return {
+    status: ageHours > STATUS.BACKUP_STALE_AFTER_HOURS ? "stale" : "ok",
+    finished_at: new Date(finishedMs).toISOString(),
+    finished_at_chicago: chicagoTime(finishedMs),
+    age_hours: ageHours,
+    size_bytes: typeof rec.bytes === "number" && Number.isFinite(rec.bytes) ? rec.bytes : null,
+    rows:
+      typeof rec.auditLogRows === "number" && Number.isFinite(rec.auditLogRows)
+        ? rec.auditLogRows
+        : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
