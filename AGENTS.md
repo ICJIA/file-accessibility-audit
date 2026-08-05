@@ -179,6 +179,11 @@ releases (write a short "no new findings; release covered X" entry).
 ├── start-dev-server.sh       only way to start dev locally
 ├── rebuild.sh                deploy script (Ubuntu droplet)
 ├── ecosystem.config.cjs      PM2 process definitions
+├── scripts/
+│   ├── backup-db.sh          nightly DB backup wrapper (Forge Scheduler;
+│   │                         keeps the 5 newest snapshots, on-server —
+│   │                         see docs/database-backups.md)
+│   └── restore-db.sh         verify-first restore for those snapshots
 ├── CHANGELOG.md
 ├── README.md
 ├── AGENTS.md                 you are here

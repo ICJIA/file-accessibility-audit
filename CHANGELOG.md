@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.51.1] - 2026-08-05
+
+Documentation release: the backup arrangement is now stated in the standing docs, in general terms.
+
+### Changed
+
+- **README § Security gains a standing "Nightly database backups" posture bullet** — nightly cadence, integrity checks, the five-newest rotation, general location (on-server, beside but outside the application, unreachable from the web), `/status` visibility, and the drill-tested restore path — so the guarantee no longer lives only in per-release history entries. AGENTS.md's repo map now lists `scripts/backup-db.sh` / `restore-db.sh`.
+
+- **Public surfaces no longer print the literal backup directory.** The data-retention § 7 row and the README v1.50.0 entry described the exact location; both now say what a reader actually needs — that snapshots are on the same server, in a dedicated directory beside but outside the application, unreachable from the web. The operator runbook (`docs/database-backups.md`) deliberately keeps exact paths (its commands must be copy-pasteable), and CHANGELOG history is left as written.
+
+### Notes
+
+No code, test, or behavior change; tests unchanged at 1,877. The announcement banner is deliberately untouched — the standing Privacy banner from v1.51.0 already covers backups and shared-report deletion.
+
 ## [1.51.0] - 2026-08-05
 
 Shared reports are now actually deleted, and retention no longer hangs off a feature flag. Closes findings #2 and part of #5 from the 2026-08-05 operational assessment.

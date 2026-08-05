@@ -64,6 +64,32 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.51.1 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.51.1</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-05</strong> · scope: documentation wording about backups — not a
+          security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        The standing documentation — the project README and this page — now states the backup
+        arrangement plainly and in general terms: the database is backed up nightly, only the five
+        newest snapshots are kept, and they live on this server in a dedicated directory beside —
+        but outside — the application, unreachable from the web. The one place that previously
+        printed the exact directory location on this page now describes it generally instead; the
+        precise paths remain in the operator runbook in the repository, where the person restoring a
+        backup needs them. No behavior changed: the backups themselves, their schedule, their
+        rotation, and everything § 7 and § 8a state about them are exactly as in v1.49.0–v1.51.0.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.51.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
