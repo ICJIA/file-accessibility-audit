@@ -1006,18 +1006,18 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ```json
 {
   "status": "ok",
-  "version": "1.48.0",
+  "version": "1.53.0",
   "uptime_seconds": 431520,
   "uptime": "4d 23h 52m 0s",
-  "checked_at": "2026-08-05T14:22:10Z",
-  "checked_at_chicago": "Aug 5, 2026, 9:22:10 AM CDT",
+  "checked_at": "2026-08-05T16:47:03Z",
+  "checked_at_chicago": "Aug 5, 2026, 11:47:03 AM CDT",
   "web": "ok",
   "api": "ok",
   "database": "ok",
   "engines": {
-    "checked_at": "2026-08-03T14:19:44Z",
-    "qpdf": { "ok": true, "version": "12.3.2" },
-    "verapdf": { "ok": true, "version": "1.26.1" },
+    "checked_at": "2026-08-05T16:46:14Z",
+    "qpdf": { "ok": true, "version": "11.9.0" },
+    "verapdf": { "ok": true, "version": "1.30.1" },
     "chromium": { "ok": true }
   },
   "documents_audited": {
@@ -1037,9 +1037,17 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
     "by_format_30d": { "doc": 30, "xls": 10, "ppt": 2, "rtf": 1, "csv": 15, "other": 3 },
     "by_format_total": { "doc": 180, "xls": 44, "ppt": 9, "rtf": 2, "csv": 47, "other": 6 }
   },
-  "last_audit_at": "2026-08-03T14:02:55Z",
-  "last_audit_at_chicago": "Aug 3, 2026, 9:02:55 AM CDT",
-  "remediation": { "enabled": true, "jobs_24h": { "complete": 4, "failed": 0 } }
+  "last_audit_at": "2026-08-05T14:02:55Z",
+  "last_audit_at_chicago": "Aug 5, 2026, 9:02:55 AM CDT",
+  "remediation": { "enabled": true, "jobs_24h": { "complete": 4, "failed": 0 } },
+  "backup": {
+    "status": "ok",
+    "finished_at": "2026-08-05T15:31:29.308Z",
+    "finished_at_chicago": "Aug 5, 2026, 10:31:29 AM CDT",
+    "age_hours": 1.3,
+    "size_bytes": 29341552,
+    "rows": 8052
+  }
 }
 ```
 
@@ -1049,8 +1057,9 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 | --- | --- | --- |
 | Core | `api`, `database`, `qpdf` | `503`, `"status":"down"` |
 | Optional | `verapdf`, `chromium` | `200`, `"status":"degraded"`, plus a `degraded: […]` array |
+| Backup | nightly DB snapshot | `stale` → `200` + `"backup"` in `degraded`; `unavailable` → stays `ok` |
 
-veraPDF or Chromium being unavailable removes the PDF/UA verdict or page audits, but document auditing still works — returning 503 for either would page an operator over something that is not an outage. When the API is unreachable the response is deliberately minimal (`{"status":"down","web":"ok","api":"down"}`) rather than partial: without the API no count or engine result is knowable, and emitting zeros would be a false statement rather than a missing one.
+veraPDF or Chromium being unavailable removes the PDF/UA verdict or page audits, but document auditing still works — returning 503 for either would page an operator over something that is not an outage. The backup row (since v1.52.0) follows the same logic one notch further: a **stale** backup — one that succeeded before but is now older than `STATUS.BACKUP_STALE_AFTER_HOURS` (30, nightly cadence plus slack) — joins `degraded`, so a silently dead backup cron pages through the same keyword alert; **unavailable** (no backup has ever completed — the expected state of a fresh deployment before its first scheduled run) deliberately does not, and the backup can never contribute to a 503. When the API is unreachable the response is deliberately minimal (`{"status":"down","web":"ok","api":"down"}`) rather than partial: without the API no count or engine result is knowable, and emitting zeros would be a false statement rather than a missing one.
 
 Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/status`. A plain HTTP(S) monitor suffices for up/down; adding a **keyword alert on `degraded`** is what catches a silently broken engine — veraPDF can die and leave every other signal reporting a healthy 200.
 
@@ -1059,6 +1068,12 @@ Point an external monitor (e.g. UptimeRobot) at `https://audit.icjia.app/status`
 **Two representations, one payload.** Browsers get a syntax-coloured, collapsible JSON tree; everything else gets the JSON. Only an explicit `text/html` in `Accept` selects HTML — a wildcard `Accept` (UptimeRobot, curl) still receives JSON, so a keyword alert on `degraded` keeps working. `/status?json` forces JSON regardless and is the recommended monitor URL, since it states its own contract; `?html` is its mirror and is what every in-site link uses, and `?format=json|html` is also accepted. The JSON body is unchanged — the HTML view is advertised via a `Link: </status?html>; rel="alternate"` header rather than a payload field, so the top-level key allow-list stays intact. The HTML page carries **no JavaScript**: collapsing is native `<details>`, the toggle is a link, and every key and value is escaped.
 
 The HTML view's toolbar carries the JSON toggle on the right and a link **back to the audit tool** on the left. `/status` has none of the site's chrome, so without it anyone arriving from a monitor alert, a bookmark or a pasted link has no path into the app at all. The label comes from `BRANDING.APP_SHORT_NAME` through `runtimeConfig` rather than being hardcoded, so it survives a rebrand.
+
+The live production page (v1.53.0):
+
+![The /status HTML view: a toolbar with a link back to the audit tool and a "View raw JSON" toggle, then the grade-distribution section — a sampling caveat above three time windows (last 24 hours, last 30 days, all time), each with a proportional grade bar and an exact table — followed by "What was audited" split by file format, and the top of the "Files the tool could not check" section.](docs/images/status-html-1.png)
+
+![Further down the same page: the "Last successful backup" row — a green status dot, the completion time in Chicago time, age in hours, snapshot size, and usage-log record count, with the integrity-check caveat beneath — followed by the collapsible, syntax-coloured JSON tree showing status, version, engine versions, and document counts.](docs/images/status-html-2.png)
 
 **Grade distribution.** The HTML view renders `by_grade_*` as a proportional bar plus an exact table per window (24h / 30d / all time). As six bare numbers the counts say nothing to a non-technical reader; as a proportion the same data answers the question people actually arrive with — *are the documents we audit anywhere near accessible?* Colours and labels come from `GRADE_THRESHOLDS` in `@file-audit/shared`, the same source the report UI scores against, so an `F` is the same red here as on a report.
 
@@ -1083,6 +1098,8 @@ Two details worth knowing:
 - **`other` is genuinely populated here**, unlike `documents_audited`'s `unknown_extension`. It covers unrelated types (`.jpg`, `.zip`) and files whose extension lies — a `.doc` renamed to `.docx` is caught by content detection but buckets by its *stated* extension, since that is all the SQL can see. The two catch-alls are different questions and are named differently for that reason: this one means *refused, and not one of the named unauditable formats*; `unknown_extension` means *audited fine, but unclassifiable by filename*.
 
 The caveat differs from the grade distribution's: these are **attempts, not documents**, so one person retrying the same file counts each time.
+
+**Last successful backup.** The `backup` key (since v1.50.0) surfaces the nightly database backup remotely: completion time (UTC + Chicago), age in hours, snapshot size, and the usage-log row count it contains. It is read from the `last-backup.json` the backup job writes **only after a snapshot passes `integrity_check`** — so the row is proof a real, verified backup ran, not merely that cron fired. A missing, unreadable, malformed, or failed-integrity status file collapses to `"unavailable"` (never a crash, never a fake success). The row count is labeled *usage-log records* rather than *documents* deliberately: `audit_log` also holds page audits, auth events, and refusals, so it is always larger than `documents_audited.total`, and the two figures must not read as contradicting each other. The source file carries two absolute server paths (`sourcePath`, `snapshotPath`); neither is copied into the payload, asserted by a dedicated unit test.
 
 **Privacy.** The endpoint is public and unauthenticated, so everything it reports is an aggregate `COUNT(*)` or a boolean about a local engine. No filename, email, IP, user-agent, or filesystem path is ever serialized — filenames are consumed by the by-format `CASE` expression *inside SQLite* and never cross the boundary, and probe failures collapse to a fixed reason enum (`not_configured` / `not_executable` / `timeout` / `error`) because subprocess stderr routinely embeds absolute paths. `statusPrivacy.test.ts` seeds identifying values and fails the build if any reaches the payload.
 
