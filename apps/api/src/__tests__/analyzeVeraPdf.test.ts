@@ -18,7 +18,13 @@ function extractHandler(router: any, p: string) {
 
 vi.mock("../db/sqlite.js", () => ({ default: { prepare: vi.fn(() => ({ get: vi.fn(), run: vi.fn() })) } }));
 vi.mock("../services/auditLog.js", () => ({
-  gateIdentity: vi.fn(() => "t@illinois.gov"), recordAudit: vi.fn(), sha256Hex: vi.fn(() => "hash"),
+  gateIdentity: vi.fn(() => "t@illinois.gov"),
+  recordAudit: vi.fn(),
+  recordRejectedUpload: vi.fn(),
+  // Real behaviour, not a stub: analyze.ts derives the stored filename with
+  // this, and a mock returning undefined would hide a break in that path.
+  sanitizeStoredFilename: (s: string) => s,
+  sha256Hex: vi.fn(() => "hash"),
 }));
 
 // vi.mock(...) factories are hoisted above plain top-level `const`s, so any

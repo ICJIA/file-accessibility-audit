@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "security-audit-2026-08-05",
+    badge: "Security",
+    text: "The whole tool has had a fresh independent security review — attack surface, sign-in, file handling, the checking engines, and what the service publishes about itself. Nothing critical or high-severity was found. Two low-severity issues were identified and fixed the same day, both about how an uploaded file's name is stored internally; neither exposed any document you have uploaded, and no report or stored data was affected. The full write-up, including what was checked and found sound, is in the project's public security log.",
+    linkText: "Read the data-retention and security notes",
+    linkTo: "/data-retention",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 5, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "status-format-split-and-clearer-labels-2026-08-05",
     badge: "Improved",
     text: "The status page now shows what kinds of file were audited — PDF, Word, PowerPoint and Excel — alongside the scores. It also clears up a genuinely confusing label: two different columns were both called “other” and meant opposite things. One now reads “Unrecognized extension”, meaning the document was checked normally and we simply could not tell its file type from its web address, and the other reads “Other file types”, meaning the upload was refused and could not be checked at all.",

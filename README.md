@@ -824,15 +824,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1084 passed (54 files)
+  ✔ API      1126 passed (56 files)
   ✔ Web      673 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1841 tests passed across 110 files
+  ✔ 1848 tests passed across 111 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1119 tests)
+### API Tests (1126 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -860,6 +860,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `migrations.test.ts` | 15 | The numbered SQLite migration runner (`PRAGMA user_version`-keyed): a fresh database lands at the latest version with the full schema and re-opening is a no-op; the version-selection algorithm applies exactly the `N+1..latest` migrations to a snapshotted database and bumps `user_version` after each one individually (not just at the end, so a crash mid-migration can resume); and the legacy fast-forward path — the core correctness requirement — lands an already-provisioned pre-migration-runner database at the latest version without re-running any `ALTER`, preserves its data, still runs later migrations after the fast-forward, and targets a FIXED baseline constant rather than the migration list's current length |
 | `ooxmlWorker.test.ts` | 14 | The interruptible OOXML child-process worker (DOCX/PPTX/XLSX now analyze off the main event loop): results and `ParseError` codes survive the IPC round-trip, a timeout SIGKILLs the child rather than abandoning it and frees its concurrency slot, the promise only settles once the child's OS-confirmed `exit` fires (with a grace-timer fallback so it never hangs forever), and the spawn environment excludes API secrets while the child still boots and analyzes correctly |
 | `uploadMiddleware.test.ts` | 20 | The multer upload filter: accepts PDF/Word/PowerPoint/Excel by MIME type or extension (case-insensitive, extension wins over a wrong mimetype), rejects unsupported files with a 400 (not the framework's default 500) whose message lists every currently-accepted format, and `acceptedFormatsMessage`'s one/two/many-way label joins (Oxford comma when all four formats are enabled) as formats are flag-disabled. Plus the recognized-but-unauditable formats: a `.doc`/`.xls`/`.ppt`/`.rtf` upload is told which modern format to produce and how, a `.csv` gets copy that never says "Save As" (converting a CSV to `.xlsx` to score better is bad advice), both still carry the 400, an unrelated type still falls back to the accepted-formats list, and none of the four modern formats is hijacked |
+| `auditLogSanitize.test.ts` | 7 | The storage-hygiene guard for `audit_log`'s attacker-controlled text columns, added as the regression test for red/blue finding **R1**: markup stripped from a stored filename, an over-long name capped at `FILENAME.MAX_LENGTH` (the empirical repro was 4,040 characters), newlines removed so a filename cannot forge a second log line (**R2**, which this test is what found), a traversal attempt reduced to its basename, never an empty string, an ordinary filename left byte-identical, and idempotence — `routes/analyze.ts` sanitises before calling `recordRejectedUpload`, which sanitises again, and that must be a no-op rather than progressive mangling |
 | `detectLegacyFormat.test.ts` | 15 | Content-based recognition of the file types the tool can name but not audit, so a **renamed** file (a `.doc` saved as `.docx` sails past the extension filter) is not told to check whether it is a `.zip`. Covers each OLE2 directory stream — `WordDocument`, `Workbook` (BIFF8), `Book` (BIFF5), `PowerPoint Document` — the `ole-unknown` fallback for the rest of the family (`.msg`, `.vsd`), and RTF, which is text rather than an OLE2 binary. Also the bounds that keep it cheap and safe: the scan stops after 8 KB (a name past the bound degrades to `ole-unknown`, the intended trade) while one just inside is still found, the signature must sit at offset 0 so a PDF embedding those bytes stays a PDF, and empty/truncated buffers return null rather than throwing. Fixtures are synthesized in-test — the detector reads only the 8-byte signature and a UTF-16LE name, so committing real Office binaries would assert nothing extra |
 | `remediateAuthz.test.ts` | 12 | Remediation job status/receipt authorization in anonymous mode (C5): a request without the job's download token gets a 404 (not a leak-revealing 401/403), the correct token gets 200, the wrong token gets the same 404 shape as missing, an unknown job id 404s regardless of token, and the pre-existing logged-in-owner path is unchanged (an owner match succeeds with no token at all; a different logged-in user still gets 403, not 404) |
 | `analyzer.test.ts` | 11 | The top-level `detectFileType`/`analyzeDocument` dispatcher: content-based format detection (PDF header, real Word/PowerPoint/Excel ZIP parts — never confused with each other or rejected as null for a non-document buffer) and routing to the correct pipeline, including that a `.docx` result omits PDF-only signals, an unsupported type is rejected cleanly, and a zip exceeding the aggregate `OOXML.MAX_ZIP_ENTRIES` cap is treated as unsupported/undetectable rather than crashing the dispatcher |
@@ -1123,6 +1124,25 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.48.0 — 2026-08-05 · Full red/blue audit (security release)
+
+A standalone audit of the whole application, not a per-release review. **Two findings, both fixed. No critical or high-severity issue.**
+
+**Scope.** Endpoint inventory, authn/authz, injection (SQL and template), SSRF, subprocess execution, DoS and resource limits, secret handling, transport and CSP headers, and the client render path — with a focused pass on v1.44.0–v1.47.0, the least-audited code in the tree.
+
+| # | Finding | Severity | Status |
+| --- | --- | --- | --- |
+| R1 | Multer file filter persisted `file.originalname` verbatim — 4,040 chars with raw markup reached `audit_log.filename`, and those rows surface through admin-only `/api/logs` | Low/Medium | **Fixed** |
+| R2 | `FILENAME.ALLOWED_CHARS` permits `\s`, which matches `\n`/`\r`/`\t`, so newlines survived sanitisation (pre-existing, affected the success path too) | Low | **Fixed** |
+
+**R1** was not exploitable as stored XSS — no `v-html` renders log data, so Vue's default escaping stood in the way — but it placed untrusted, unbounded text into an authenticated UI with one control between it and execution, via the cheapest request an attacker can make (refused at the filter, so the body is never uploaded). Fixed at the **writer**: `recordRejectedUpload` sanitises internally so no future caller can reintroduce it, `recordAudit` clamps `filename`/`user_agent` to 512 chars as a backstop (length only — `audit-url-page` legitimately stores a URL there), and `routes/analyze.ts` now shares the same exported sanitiser. Confirmed by replaying the original attack against the fixed build: 4,040 → 255 characters, markup stripped, ordinary names untouched.
+
+**R2** was found by the regression test written for R1, not by the audit sweep — a reminder that the test for one finding is a reasonable place to look for the next. Fixed by collapsing whitespace before the allow-list runs, inside the sanitiser rather than by narrowing the shared config regex that `routes/remediate.ts` also uses for on-disk names.
+
+**Verified sound, no change needed.** Auth is fail-closed — `authMiddleware` returns the anonymous sentinel *before* JWT verification when `REQUIRE_LOGIN` is off (so the in-repo dev secret is unreachable as deployed), `adminMiddleware` rejects that sentinel explicitly, and `checkAuthConfig` refuses to boot on a missing or default `JWT_SECRET` when login is on. OTPs use `crypto.randomInt` + bcrypt; JWT verify pins `algorithms: ["HS256"]`. Share IDs are 128-bit random, access tokens 256-bit and SHA-256 hashed at rest. SSRF is defended by manual redirect walking with a private/loopback/link-local check per hop. Every subprocess uses `execFile`, never a shell. All SQL is parameterised; the only interpolations are compile-time constants. CORS is pinned to one origin; CSP carries a per-request nonce with no `script-src 'unsafe-inline'`, and `object-src`/`base-uri`/`frame-ancestors` are `'none'`. 365-day `audit_log` retention bounds the new rejection rows. Only `.env.example` files are tracked, with placeholders.
+
+**The new /status render path is clean.** Every interpolation in the three sections added since v1.44.0 is either `escapeHtml`-wrapped or a number validated through `asCount`; the one unescaped value is a hex colour from the compile-time `GRADE_THRESHOLDS` constant. `detectLegacyFormat` compares eight signature bytes and runs one bounded `Buffer.includes` over at most 8 KB. Tests 1,841 → 1,848.
 
 ### v1.47.0 — 2026-08-05 · Status-page label disambiguation (not a security release)
 

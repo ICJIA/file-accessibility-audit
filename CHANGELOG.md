@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.48.0] - 2026-08-05
+
+Full red/blue security audit of the whole application. Two findings, both fixed; no critical or high-severity issue found.
+
+### Security
+
+- **R1 — Unsanitised filename persisted from the upload filter (Low/Medium, fixed).** The multer file filter passed `file.originalname` straight to `recordRejectedUpload`, so a refused upload stored its filename verbatim. Confirmed empirically: a 4,040-character name carrying raw `<img src=x onerror=alert(1)>` was written to `audit_log.filename` unchanged, while the success path in `routes/analyze.ts` sanitised the same value correctly.
+
+  It was not exploitable as stored XSS — those rows surface only through the admin-only `/api/logs` (`SELECT *`), and no `v-html` renders log data, so Vue's default escaping stood between it and execution. But it put untrusted, unbounded text into an authenticated UI with a single control in the way, and the rejection path is the *cheapest* request an attacker can make: refused at the filter, so the file body is never even uploaded.
+
+  Fixed at the **writer** rather than the call sites — `recordRejectedUpload` now sanitises internally, so no future caller can reintroduce the gap by forgetting. `recordAudit` additionally clamps `filename` and `user_agent` to 512 characters as a backstop (length only, no character filtering, because `audit-url-page` deliberately stores a URL in that column). `routes/analyze.ts` now calls the same exported sanitiser, so the two paths cannot drift.
+
+- **R2 — Newlines survived filename sanitisation (Low, fixed, pre-existing).** Found by the regression test written for R1. `FILENAME.ALLOWED_CHARS` is `/[a-zA-Z0-9._\-\s]/`, and `\s` matches `\n`, `\r` and `\t` as well as the ordinary space — so line breaks passed the allow-list and were stored. This predates R1 and affected the success path too. A filename is a single line by definition, and anything downstream rendering these rows line-by-line or exporting them as delimited text would inherit it.
+
+  Fixed by collapsing all whitespace to a plain space *before* the allow-list runs, inside `sanitizeStoredFilename` rather than by narrowing the shared config regex — `routes/remediate.ts` uses the same constant to build on-disk names, and changing it there was out of scope for this fix.
+
+### Notes
+
+**Scope.** Endpoint inventory, authentication and authorisation, injection (SQL and template), SSRF, subprocess execution, denial of service and resource limits, secret handling, transport and CSP headers, and the client render path — plus a focused pass on everything added in v1.44.0–v1.47.0, which was the least-audited code in the tree.
+
+**Verified sound, no change needed.** Auth is fail-closed: `authMiddleware` returns the anonymous sentinel *before* reaching JWT verification when `REQUIRE_LOGIN` is off, so the in-repo dev secret is unreachable in the deployed configuration, `adminMiddleware` rejects that sentinel explicitly, and `checkAuthConfig` refuses to boot on a missing or default `JWT_SECRET` when login is enabled. OTPs use `crypto.randomInt` and are bcrypt-hashed; JWT verification pins `algorithms: ["HS256"]`. Share IDs and access tokens are 128-bit and 256-bit random respectively, tokens SHA-256 hashed at rest. SSRF is defended by manual redirect walking with a private/loopback/link-local IP check at every hop. Every subprocess uses `execFile` (never a shell). All SQL is parameterised; the only interpolations are compile-time constants. CORS is pinned to one origin, CSP carries a per-request nonce with no `script-src 'unsafe-inline'`, and `object-src`/`base-uri`/`frame-ancestors` are all `'none'`. `audit_log` retention (365 days) bounds the new rejection rows. Only `.env.example` files are tracked, with placeholder values.
+
+**The v1.44.0–v1.47.0 render path is clean.** Every interpolation in the three new `/status` sections is either wrapped in `escapeHtml` or a number validated through `asCount`; the sole unescaped value is a hex colour read from the compile-time `GRADE_THRESHOLDS` constant. `detectLegacyFormat` compares eight signature bytes and runs one bounded `Buffer.includes` over at most 8 KB, with no allocation proportional to input.
+
+Tests 1,841 → 1,848 (API 1,119 → 1,126); lint, typecheck, build green.
+
 ## [1.47.0] - 2026-08-05
 
 Two catch-all buckets on one page were both called `other` and meant opposite things.

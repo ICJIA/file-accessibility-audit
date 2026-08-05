@@ -1,5 +1,4 @@
 import { Router, Response, type IRouter } from "express";
-import path from "node:path";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { analyzeLimiter } from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
@@ -10,18 +9,15 @@ import {
   gateIdentity,
   recordAudit,
   recordRejectedUpload,
+  sanitizeStoredFilename,
   sha256Hex,
 } from "../services/auditLog.js";
-import { FILENAME } from "#config";
 
 const router: IRouter = Router();
 
-function sanitizeFilename(raw: string): string {
-  let name = path.basename(raw);
-  name = name.slice(0, FILENAME.MAX_LENGTH);
-  name = name.replace(new RegExp(`[^${FILENAME.ALLOWED_CHARS.source.slice(1, -1)}]`, "g"), "_");
-  return name || "unnamed_file";
-}
+// Re-exported from services/auditLog so the success path and the rejection
+// path cannot drift apart on what counts as a safe stored filename.
+const sanitizeFilename = sanitizeStoredFilename;
 
 // POST /api/analyze
 router.post(
