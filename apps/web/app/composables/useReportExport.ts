@@ -94,8 +94,17 @@ export function useReportExport() {
     if (!el) return false;
 
     // Expand every collapsed section (IssuesSummary rows + the Basic/Advanced
-    // signal toggles both expose state via aria-expanded="false").
-    const toggles = Array.from(el.querySelectorAll<HTMLElement>('[aria-expanded="false"]'));
+    // signal toggles both expose state via aria-expanded="false") EXCEPT the
+    // action plan's steps: that accordion is exclusive-open (opening one step
+    // closes whichever was open), so clicking through the list would leave
+    // every step collapsed except the last one clicked — and a static export
+    // (no JS) could never re-expand the rest. Those bodies are instead forced
+    // visible by the `.plan-step-body` CSS rule below, and the live page's
+    // accordion state is left untouched (they're excluded from `toggles`, so
+    // the restore loop at the end never scrambles them either).
+    const toggles = Array.from(el.querySelectorAll<HTMLElement>('[aria-expanded="false"]')).filter(
+      (t) => !(t.getAttribute("aria-controls") ?? "").startsWith("plan-step-"),
+    );
     toggles.forEach((t) => t.click());
     // Let Vue flush the resulting v-if renders before we clone.
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
@@ -103,6 +112,13 @@ export function useReportExport() {
     const clone = el.cloneNode(true) as HTMLElement;
     clone.querySelectorAll("[data-export-exclude]").forEach((n) => n.remove());
     clone.querySelectorAll("details").forEach((d) => (d.open = true));
+    // Every toggle still collapsed in the clone at this point is a plan step
+    // deliberately skipped above — its body is forced visible by the CSS rule
+    // below, so normalize its ARIA state to match rather than shipping a
+    // static document that claims to be collapsed while showing its content.
+    clone
+      .querySelectorAll('[aria-expanded="false"]')
+      .forEach((n) => n.setAttribute("aria-expanded", "true"));
 
     const css = collectAppCss();
     const doc = `<!DOCTYPE html>
@@ -117,6 +133,12 @@ export function useReportExport() {
   body { margin: 0; padding: 32px 16px; background: var(--surface-body, #0a0a0a); color: var(--text-secondary, #e5e7eb); }
   .report-export { max-width: 900px; margin: 0 auto; }
   [data-export-exclude] { display: none !important; }
+  /* Exclusive-open action-plan accordion + the technical-report expander:
+     the export is one static snapshot, so every plan step and the full
+     technical report must always render regardless of whatever v-show
+     inline style each carried at the moment of export (only the currently
+     open step, or nothing, would otherwise show). */
+  .plan-step-body, .tech-report-body { display: block !important; }
   /* The export is static (no JS): neutralize the now-inert click affordances
      while leaving pure-CSS hover tooltips (NaCell) and native <details> working. */
   .report-export button { cursor: default; }
