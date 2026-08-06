@@ -1,0 +1,92 @@
+import "./test-helpers";
+import { describe, it, expect } from "vitest";
+import { mount } from "@vue/test-utils";
+import ReportGradeHero from "../components/ReportGradeHero.vue";
+import SeverityTiles from "../components/SeverityTiles.vue";
+import VerdictStrip from "../components/VerdictStrip.vue";
+
+const sev = (severity: string | null) => ({ severity });
+
+describe("ReportGradeHero", () => {
+  it("shows the big grade, the score, and the plain-language verdict", () => {
+    const w = mount(ReportGradeHero, {
+      props: { grade: "D", overallScore: 62, categories: [sev("Critical"), sev("Minor")] },
+    });
+    expect(w.text()).toContain("D");
+    expect(w.text()).toContain("62");
+    expect(w.text()).toContain("/100");
+    expect(w.text()).toContain("Poor — not ready to publish");
+  });
+
+  it("clean report reads 'ready to publish'", () => {
+    const w = mount(ReportGradeHero, {
+      props: { grade: "A", overallScore: 98, categories: [sev("Pass")] },
+    });
+    expect(w.text()).toContain("Excellent — ready to publish");
+  });
+
+  it("NO publication clause when categories are absent (URL page-audit reports)", () => {
+    const w = mount(ReportGradeHero, { props: { grade: "B", overallScore: 88, categories: [] } });
+    expect(w.text()).toContain("Good");
+    expect(w.text()).not.toContain("—");
+    expect(w.text()).not.toContain("publish");
+  });
+});
+
+describe("SeverityTiles", () => {
+  it("counts each severity and always pairs icon + label + number", () => {
+    const w = mount(SeverityTiles, {
+      props: {
+        categories: [sev("Critical"), sev("Critical"), sev("Moderate"), sev("Minor"), sev("Pass")],
+      },
+    });
+    const tiles = w.findAll("[data-testid^='severity-tile-']");
+    expect(tiles.length).toBe(3);
+    expect(w.find("[data-testid='severity-tile-critical']").text()).toContain("2");
+    expect(w.find("[data-testid='severity-tile-critical']").text()).toContain("Critical");
+    expect(w.find("[data-testid='severity-tile-moderate']").text()).toContain("1");
+    expect(w.find("[data-testid='severity-tile-minor']").text()).toContain("1");
+  });
+
+  it("renders zero counts muted, not alarming", () => {
+    const w = mount(SeverityTiles, { props: { categories: [sev("Pass")] } });
+    expect(w.find("[data-testid='severity-tile-critical']").classes()).toContain("tile-zero");
+  });
+});
+
+describe("VerdictStrip", () => {
+  it("fail → ✗ heading, failing count, and a link to the technical report", () => {
+    const w = mount(VerdictStrip, {
+      props: {
+        wcagVersion: "2.2",
+        conformance: {
+          status: "fail",
+          headline: "h",
+          failures: [
+            { sc: "1.1.1", name: "Non-text Content", level: "A", category: "alt_text", issue: "x", url: "https://w3.org" },
+            { sc: "2.4.2", name: "Page Titled", level: "A", category: "title_language", issue: "y", url: "https://w3.org" },
+          ],
+          notAssessed: [],
+        },
+      },
+    });
+    expect(w.text()).toContain("Does not meet WCAG 2.2 Level AA");
+    expect(w.text()).toContain("2 criteria failing");
+    expect(w.find("a").attributes("href")).toBe("#technical-report");
+  });
+
+  it("no-automated-failures → green ✓ wording", () => {
+    const w = mount(VerdictStrip, {
+      props: {
+        wcagVersion: "2.2",
+        conformance: { status: "no-automated-failures", headline: "h", failures: [], notAssessed: [] },
+      },
+    });
+    expect(w.text()).toContain("No automated WCAG failures detected");
+  });
+
+  it("renders nothing without a conformance verdict (old stored reports)", () => {
+    const w = mount(VerdictStrip, { props: { wcagVersion: "2.2", conformance: null } });
+    expect(w.text()).toBe("");
+  });
+});
