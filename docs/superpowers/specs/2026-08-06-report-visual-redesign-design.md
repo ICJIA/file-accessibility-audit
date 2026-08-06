@@ -225,6 +225,15 @@ buildActionPlan(categories, fileType): PlanStep[]
 - **Forged stored reports:** all new code array-guards its inputs (non-array
   `categories`/`findings` render as empty, not 500) — same standard as
   `partitionCardFindings`.
+- **URL page-audit reports (`/api/audit-url-page`, fleet pipeline):** stored in
+  the same `shared_reports` table but carry axe results and **no
+  `categories[]`**. The Visual view must not read "no categories" as "passes":
+  when `categories` is missing/empty, render the grade hero WITHOUT the
+  publication clause and hide SeverityTiles, ActionPlan (including the green
+  pass card), CategoryBars, and TechnicalReport — mirroring how the Detailed
+  view's conditional components already self-hide for these reports. The green
+  pass card requires a non-empty categories array that simply contains no
+  Critical/Moderate/Minor entries.
 
 ## Testing
 
