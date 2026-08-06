@@ -30,7 +30,7 @@ redesign fixes all three surfaces.
 | "Where do I start" model | Numbered Action Plan, ordered by severity. |
 | Duplication | One home per fact. Everything technical collapses behind a single "Full technical report" expander. |
 | Header treatment | Big centered grade circle (current style, unchanged) **first**, severity stat tiles beneath it as the explanation row. Category score table replaced by labeled horizontal bars. |
-| Action Plan layout | Vertical timeline rail; step 1 auto-expanded, others behind "Show how". Exclusive-open accordion: opening a step collapses the previously open one; clicking the open step closes it (user decision 2026-08-06, to reduce clutter). |
+| Action Plan layout | Vertical timeline rail; step 1 auto-expanded, others behind "Show how". Exclusive-open accordion: opening a step collapses the previously open one; clicking the open step closes it (user decision 2026-08-06, to reduce clutter). Step numbers are large solid severity-colored circles (infographic emphasis; large-text AA: white on red/blue, dark on yellow). |
 | Progress checkboxes | None. Re-uploading the fixed file is the progress check. |
 | Content source | Web-side mapper (`utils/actionPlan.ts`), dictionary keyed by category id. No analyzer/API/DB changes. Old stored shared reports get the new UI for free. |
 | Escape hatch (added mid-plan by user) | A **Visual / Detailed view toggle** in the upper right of the report on BOTH surfaces (live result and shared report). Visual = the new design and the default; Detailed = today's report, kept intact. Preference persists per device (localStorage); shared-report recipients are mostly non-technical, so Visual-by-default is right there too. |
@@ -87,7 +87,7 @@ soft, always-available one.
 6. **Action Plan (the hero)** — timeline rail:
    - Steps ordered Critical → Moderate → Minor (stable sort; ties keep category
      order as emitted by the analyzer).
-   - Step 1 auto-expanded; the rest show title + severity chip + "Show how ▾". Exclusive-open accordion: opening a step collapses the previously open one; clicking the open step closes it (user decision 2026-08-06, to reduce clutter).
+   - Step 1 auto-expanded; the rest show title + severity chip + "Show how ▾". Exclusive-open accordion: opening a step collapses the previously open one; clicking the open step closes it (user decision 2026-08-06, to reduce clutter). Step numbers are large solid severity-colored circles (infographic emphasis; large-text AA: white on red/blue, dark on yellow).
    - Each expanded step: plain-language imperative title, one-line "why it
      matters", WCAG criterion chip(s), and a fix-routes box:
      - **PDF:** route A "📝 Easiest — in Word/PowerPoint (source)", route B

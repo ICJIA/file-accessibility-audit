@@ -10,15 +10,15 @@
     <template v-if="steps.length">
       <p class="text-xs text-[var(--text-muted)] mt-0.5 mb-5">{{ subtitle }}</p>
 
-      <ol class="relative pl-9 space-y-3 list-none m-0 p-0">
+      <ol class="relative pl-14 sm:pl-16 space-y-3 list-none m-0 p-0">
         <!-- the rail -->
         <span
-          class="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[var(--border)]"
+          class="absolute left-[19px] sm:left-[23px] top-2 bottom-2 w-0.5 bg-[var(--border)]"
           aria-hidden="true"
         />
         <li v-for="step in steps" :key="step.categoryId" class="relative">
           <span
-            class="absolute -left-9 top-1.5 w-6 h-6 rounded-full text-xs font-extrabold inline-flex items-center justify-center"
+            class="absolute -left-14 sm:-left-16 top-0.5 w-10 h-10 sm:w-12 sm:h-12 rounded-full text-lg sm:text-xl font-extrabold inline-flex items-center justify-center"
             :style="numStyle(step.severity)"
             aria-hidden="true"
             >{{ step.rank }}</span
@@ -164,8 +164,11 @@ function sevChipStyle(s: PlanSeverity): Record<string, string> {
 
 function numStyle(s: PlanSeverity): Record<string, string> {
   const c = severityColor(s);
-  // Outlined for every severity: white-on-red fails AA at this size, and the
-  // chip beside the title already carries the severity as icon + word.
-  return { backgroundColor: "var(--surface-deep)", border: `2px solid ${c}`, color: c };
+  // Big solid infographic badges. At this size the number is WCAG "large
+  // text" (3:1): white passes on red 3.76:1 and blue 3.68:1 in BOTH color
+  // modes; yellow needs a dark number (#111 ≈ 8:1). These two literals are
+  // fixed on-badge text colors (mode-independent), same exemption class as
+  // the token rule's own white — chosen purely for contrast.
+  return { backgroundColor: c, color: s === "Moderate" ? "#111" : "#fff" };
 }
 </script>
