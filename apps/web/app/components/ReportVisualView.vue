@@ -2,7 +2,7 @@
   <div>
     <ReportGradeHero
       :grade="result.grade"
-      :overall-score="result.overallScore"
+      :overall-score="result.overallScore ?? result.score"
       :categories="result.categories || []"
       class="mb-5"
     />

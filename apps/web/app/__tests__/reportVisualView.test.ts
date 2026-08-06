@@ -97,6 +97,7 @@ describe("ReportVisualView", () => {
     };
     const w = mount(ReportVisualView, { props: { result: pageAudit } });
     expect(w.text()).toContain("Good");
+    expect(w.text()).toContain("74");
     expect(w.find("[data-testid='plan-pass-card']").exists()).toBe(false);
     expect(w.find("[data-testid^='severity-tile-']").exists()).toBe(false);
     expect(w.find("[data-testid='bar-row']").exists()).toBe(false);
