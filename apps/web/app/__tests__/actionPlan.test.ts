@@ -34,6 +34,7 @@ describe("PLAN_COPY dictionary", () => {
     expect(entry!.why.length).toBeGreaterThan(20);
     // Plain language: titles are imperative sentences, not jargon labels.
     expect(entry!.title).not.toMatch(/WCAG|ISO|14289/);
+    expect(entry!.why).not.toMatch(/WCAG|ISO|14289/);
   });
 });
 

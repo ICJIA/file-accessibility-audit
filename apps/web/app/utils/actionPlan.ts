@@ -121,7 +121,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
   },
   color_contrast: {
     title: "Increase the contrast between text and background",
-    why: "Low-contrast text is unreadable for low-vision readers — WCAG requires at least 4.5:1 for body text.",
+    why: "Low-contrast text is unreadable for low-vision readers.",
     source: {
       pdf: [
         "In the original document, darken the text color or lighten the background",
