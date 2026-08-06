@@ -2,6 +2,7 @@ import "./test-helpers";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import ReportVisualView from "../components/ReportVisualView.vue";
+import ReportGradeHero from "../components/ReportGradeHero.vue";
 
 const result = {
   filename: "report.pdf",
@@ -29,13 +30,27 @@ const result = {
       severity: "Moderate",
       findings: ["No title set"],
     },
-    { id: "reading_order", label: "Reading Order", score: null, grade: null, severity: null, notAssessed: true },
+    {
+      id: "reading_order",
+      label: "Reading Order",
+      score: null,
+      grade: null,
+      severity: null,
+      notAssessed: true,
+    },
   ],
   conformance: {
     status: "fail",
     headline: "h",
     failures: [
-      { sc: "1.3.1", name: "Info and Relationships", level: "A", category: "text_extractability", issue: "x", url: "https://w3.org" },
+      {
+        sc: "1.3.1",
+        name: "Info and Relationships",
+        level: "A",
+        category: "text_extractability",
+        issue: "x",
+        url: "https://w3.org",
+      },
     ],
     notAssessed: [],
   },
@@ -84,6 +99,25 @@ describe("ReportVisualView", () => {
     expect(w.find(".tech-report-body").attributes("style") ?? "").toContain("display: none");
     await w.find("[data-testid='evidence-link']").trigger("click");
     expect(w.find(".tech-report-body").attributes("style") ?? "").not.toContain("display: none");
+  });
+
+  it("legacy report: hero grade/score come from scoreProfiles.strict, not a divergent top-level grade/score (Fix 4)", () => {
+    // Pre-v1.21 stored reports can carry a top-level grade/score that
+    // disagrees with scoreProfiles.strict — the Detailed view's ScoreCard has
+    // always preferred strict; the Visual view must derive the hero the same
+    // way so the two views can't disagree for the same shared report.
+    const legacy = {
+      ...result,
+      grade: "C",
+      overallScore: 77,
+      scoreProfiles: {
+        strict: { label: "Strict", overallScore: 95, grade: "A", executiveSummary: "strict sum" },
+      },
+    };
+    const w = mount(ReportVisualView, { props: { result: legacy } });
+    const hero = w.findComponent(ReportGradeHero);
+    expect(hero.props("grade")).toBe("A");
+    expect(hero.props("overallScore")).toBe(95);
   });
 
   it("page-audit-shaped report (no categories) → hero only, NEVER the pass card", () => {

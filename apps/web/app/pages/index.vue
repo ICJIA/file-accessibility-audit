@@ -232,7 +232,7 @@
             class="mb-6"
           />
 
-          <div class="flex justify-end mb-4">
+          <div class="flex justify-end mb-4" data-export-exclude>
             <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
           </div>
 
@@ -244,6 +244,19 @@
           >
             <template #notice>
               <SourceDocumentNotice variant="audit" :file-type="result?.fileType" class="mb-4" />
+            </template>
+            <template #cta>
+              <!-- Auto-Remediate (component self-hides on score ≥ 90 or when
+               REMEDIATION feature is off). Identical element/props/wrapper to
+               the Detailed view's instance below, so the default (Visual)
+               view keeps the remediation CTA. -->
+              <div
+                v-if="result?.fileType === 'pdf'"
+                class="mb-6 flex justify-center"
+                data-export-exclude
+              >
+                <RemediateButton :file="activeFile" :input-score="result?.overallScore ?? null" />
+              </div>
             </template>
           </ReportVisualView>
 
