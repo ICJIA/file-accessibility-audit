@@ -5,6 +5,7 @@ import TechnicalReport from "../components/TechnicalReport.vue";
 import ReportContent from "../components/ReportContent.vue";
 
 const result = {
+  executiveSummary: "sum text",
   categories: [
     {
       id: "alt_text",
@@ -32,7 +33,13 @@ const result = {
       },
     ],
     notAssessed: [
-      { sc: "1.4.3", name: "Contrast (Minimum)", level: "AA", reason: "needs eyes", url: "https://w3.org" },
+      {
+        sc: "1.4.3",
+        name: "Contrast (Minimum)",
+        level: "AA",
+        reason: "needs eyes",
+        url: "https://w3.org",
+      },
     ],
   },
   grade: "F",
@@ -73,6 +80,15 @@ describe("TechnicalReport", () => {
     // embedded ReportContent without its score table
     expect(w.text()).toContain("Detailed Findings");
     expect(w.text()).not.toContain("Category Scores");
+  });
+
+  it("shows the executive summary and the audit-scope caveat — parity with ScoreCard (Fix 3)", async () => {
+    const w = mount(TechnicalReport, { props: { result, wcagVersion: "2.2" } });
+    await w.find("button[aria-expanded]").trigger("click");
+    expect(w.find("[data-testid='tech-executive-summary']").text()).toContain("sum text");
+    // Distinctive phrase shared verbatim by both caveat variants (Office vs.
+    // PDF/Acrobat) in ScoreCard.vue's copy — present regardless of fileType.
+    expect(w.text()).toContain("cannot catch every issue");
   });
 
   it("opens via v-model:open (evidence links)", async () => {
