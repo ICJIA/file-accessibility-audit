@@ -41,7 +41,7 @@
         >
         <span
           v-if="cat.severity"
-          class="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
+          class="inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
           :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
           aria-hidden="true"
           >{{ cat.severity }}</span
@@ -89,7 +89,7 @@ const scored = computed(() => safe.value.filter((c) => c.score !== null));
 const na = computed(() => safe.value.filter((c) => c.score === null));
 
 function barColor(cat: BarCategory): string {
-  return cat.grade ? gradeColor(cat.grade) : "#555";
+  return gradeColor(cat.grade);
 }
 function sevColor(severity: string): string {
   return severityColor(severity);
