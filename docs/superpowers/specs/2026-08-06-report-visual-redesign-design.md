@@ -33,8 +33,38 @@ redesign fixes all three surfaces.
 | Action Plan layout | Vertical timeline rail; step 1 auto-expanded, others behind "Show how". |
 | Progress checkboxes | None. Re-uploading the fixed file is the progress check. |
 | Content source | Web-side mapper (`utils/actionPlan.ts`), dictionary keyed by category id. No analyzer/API/DB changes. Old stored shared reports get the new UI for free. |
+| Escape hatch (added mid-plan by user) | A **Visual / Detailed view toggle** in the upper right of the report on BOTH surfaces (live result and shared report). Visual = the new design and the default; Detailed = today's report, kept intact. Preference persists per device (localStorage); shared-report recipients are mostly non-technical, so Visual-by-default is right there too. |
 
-## Page composition (both report surfaces, top to bottom)
+## View toggle and data parity (governing rule)
+
+Both surfaces render one of two views, switched by a small segmented control in
+the upper right of the report (next to the shared page's color-mode toggle;
+top-right of the results block on the live page):
+
+- **Visual view (default)** — the new layout below. Aimed at non-technical
+  readers; less intimidating, infographic-style.
+- **Detailed view** — today's report, byte-for-byte the same component stack as
+  currently shipped (`ScoreCard`, `ReportActionBanner`, `IssuesSummary`,
+  PDF/UA panels, `MethodologyCard`, `ReportContent`). Nothing about it changes.
+
+**Data parity is a hard requirement: every fact visible in Detailed view is
+visible (possibly behind the technical expander) in Visual view, and vice
+versa.** The two differ only in layout and emphasis. Concretely this means the
+category bars carry score AND grade AND severity per row (full score-table
+parity, including the N/A explanations), the conformance block inside the
+technical expander keeps the failing-criteria links, the not-assessed list, and
+the standards-basis text, and `SourceDocumentNotice` (live page) renders in both
+views.
+
+Preference persists in `localStorage` (`far:report-view`); default is `visual`
+on both surfaces (shared-report recipients are mostly non-technical). SSR
+renders the default; the stored preference applies on mount (brief flicker for
+detailed-preference users is accepted). The toggle carries
+`data-export-exclude`; the HTML export snapshots whichever view is active.
+The `pre-report-redesign` git tag remains the hard rollback; the toggle is the
+soft, always-available one.
+
+## Page composition — Visual view (top to bottom)
 
 1. **File banner** — `ReportFileBanner`, unchanged.
 2. **Grade hero** — the current big centered grade circle + `score/100` +
@@ -70,15 +100,23 @@ redesign fixes all three surfaces.
    - Clean pass: the rail is replaced by a green "Nothing to fix — this document
      passes" card, which keeps the "not evaluated automatically" manual-review
      reminder.
-7. **Category bars** — "Where the score comes from": one labeled horizontal bar per
-   scored category (grade-colored fill, numeric value right-aligned, `aria-label`
-   with full text). N/A categories listed beneath in muted text with their reason
-   (reusing `naReason`). Replaces the Category Scores table.
-8. **Full technical report** — ONE expander (aria-expanded button, closed by
-   default) containing, in order: Detailed Findings cards (evidence, technical
-   signals toggle, per-category Acrobat guide, WCAG references, help links —
-   i.e. today's `ReportContent` minus the score table), failing WCAG criteria list,
-   PDF/UA signals card + veraPDF verdict, `MethodologyCard`, Document Metadata.
+7. **Category bars** — "Where the score comes from": one row per scored category
+   with label, grade-colored horizontal bar, numeric score, grade letter badge,
+   and severity chip (`aria-label` carries the full sentence). Full data parity
+   with the Detailed view's Category Scores table. N/A categories listed beneath
+   in muted text with their reason (reusing `naReason`). Replaces the table in
+   the Visual view only.
+8. **Full technical report** — ONE expander (real `<button aria-expanded>`,
+   closed by default, body `v-show` + `.tech-report-body` class so print CSS can
+   force it visible) containing, in order:
+   - the full WCAG conformance block (failing criteria with W3C links,
+     not-assessed list, standards-basis text — parity with today's ScoreCard
+     panel),
+   - `ReportContent` with a new `showScoreTable: false` prop (Document Metadata
+     panel + Detailed Findings cards with evidence, technical-signals toggle,
+     per-category Acrobat guide, WCAG references, help links — all unchanged),
+   - PDF/UA signals card + veraPDF verdict,
+   - `MethodologyCard`.
    Content unchanged — relocated, not rewritten.
 9. **Downloads + CTA + footer** — unchanged.
 
@@ -89,33 +127,43 @@ order.
 ## Components
 
 **New**
+- `composables/useReportView.ts` — `{ mode: Ref<"visual"|"detailed">, setMode }`,
+  localStorage-backed, SSR-safe (default `visual` server-side).
+- `ReportViewToggle.vue` — segmented Visual/Detailed control, upper right,
+  `data-export-exclude`.
 - `ReportGradeHero.vue` — grade circle + score + verdict label (zone 2).
 - `SeverityTiles.vue` — zone 3.
 - `VerdictStrip.vue` — zone 4 (props: conformance verdict, wcag version).
-- `ActionPlan.vue` — zone 6 (rail, expand state, `data-export-exclude` on toggles,
-  `aria-expanded` so the export snapshot auto-expands).
-- `CategoryBars.vue` — zone 7.
-- `TechnicalReport.vue` — zone 8 wrapper (expander + existing content components).
-- `utils/actionPlan.ts` — pure mapper + dictionary (below).
+- `ActionPlan.vue` — zone 6 (rail, expand state, `aria-expanded` toggles so the
+  export snapshot auto-expands; step bodies `v-show` + `.plan-step-body` for
+  print).
+- `CategoryBars.vue` — zone 7 (score + grade + severity per row).
+- `TechnicalReport.vue` — zone 8 wrapper (expander + conformance block +
+  embedded ReportContent + PDF/UA components + methodology).
+- `ReportVisualView.vue` — assembles zones 2–8 so both pages stay thin.
+- `utils/actionPlan.ts` — pure mapper + dictionary (below) + `verdictPhrase`.
 
 **Changed**
-- `pages/report/[id].vue` and `pages/index.vue` (results block): swap to the new
-  stack. `data-report-content` wrapper stays.
-- `ReportContent.vue` — score table + metadata panel move out (bars replace the
-  table; metadata renders inside TechnicalReport); detailed-findings rendering is
-  otherwise kept as the body of TechnicalReport.
-- `utils/exportFormats/html.ts` (`buildHtml`) — rebuilt to mirror the new order
-  with everything expanded (static file). Content set unchanged.
-- Print CSS — expand the technical section, preserve tile/bar colors
-  (`print-color-adjust`), sensible page breaks around plan steps.
+- `pages/report/[id].vue` and `pages/index.vue` (results block): add the toggle
+  and render `ReportVisualView` when mode is `visual`, today's exact stack when
+  `detailed`. Template blocks delimited by `<!-- VISUAL VIEW -->` /
+  `<!-- DETAILED VIEW -->` comment markers (the section-order test slices on
+  them). `data-report-content` wrapper stays around both.
+- `ReportContent.vue` — gains one additive prop `showScoreTable` (default
+  `true`; Detailed view unchanged). `false` hides only the score-table block for
+  the Visual view's embedding (bars carry that data there).
+- `utils/exportFormats/html.ts` (`buildHtml`) — rebuilt to mirror the Visual
+  view's order with everything expanded (static file). Content set unchanged
+  (keeps executive summary, score profiles, full findings).
+- Print CSS — force `.tech-report-body` and `.plan-step-body` visible, preserve
+  tile/bar colors (`print-color-adjust: exact`), avoid page breaks inside plan
+  steps.
 
-**Removed from report pages (superseded)**
-- `IssuesSummary.vue` and `ReportActionBanner.vue` — replaced by ActionPlan + the
-  hero verdict. Delete if no other usages remain (verify at implementation).
+**Kept (Detailed view, unchanged)**
+- `ScoreCard.vue` (also still used by remediation before/after cards),
+  `ReportActionBanner.vue`, `IssuesSummary.vue` — no changes, no deletions.
 
 **Untouched**
-- `ScoreCard.vue` — still used by remediation before/after cards. Report pages just
-  stop importing it.
 - Analyzer, API, DB, markdown/text/JSON/AI exports.
 
 ## Data flow: `utils/actionPlan.ts`
@@ -186,13 +234,23 @@ buildActionPlan(categories, fileType): PlanStep[]
 - Component tests: rail expand/collapse + `aria-expanded`; step-1 auto-open;
   `data-export-exclude` on interactive controls; technical expander contains
   findings/PDF-UA/methodology/metadata; tiles render zeros muted.
-- `reportSectionOrder.test.ts`: new pinned order (verdict + plan above PDF/UA).
+- `reportSectionOrder.test.ts`: slices each page's source on the
+  `<!-- VISUAL VIEW -->` / `<!-- DETAILED VIEW -->` markers; asserts the existing
+  blocking-before-informational invariants inside the Detailed slice (unchanged
+  components) and the new ones inside the Visual slice (hero < plan <
+  TechnicalReport; verdict strip < plan).
+- `useReportView` + `ReportViewToggle` tests: default visual, persistence write,
+  stored `detailed` applied on mount, `data-export-exclude` present.
+- `CategoryBars` parity: every scored row renders score, grade letter, and
+  severity chip; N/A rows render their reason.
 - Export: buildHtml contains plan + full detail expanded; snapshot path still
   expands `aria-expanded="false"` nodes.
 - Existing suites must stay green (`pnpm build` before push, per project rule).
 
 ## Rollback
 
+- **Soft (runtime):** the Detailed view IS the old UI, one toggle click away, on
+  every report, for every user. Nothing is deleted.
 - Tag `pre-report-redesign` (origin) marks the pre-redesign state (v1.53.0 + README
   docs commit).
 - The change is web-only: `git revert` of the redesign commits fully restores the
