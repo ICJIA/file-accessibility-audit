@@ -110,8 +110,12 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "In Word: right-click each image → View Alt Text → write a short description (or mark it decorative)",
         "Re-export the PDF",
       ],
-      docx: ["Right-click each image → View Alt Text → write a short description (or mark it decorative)"],
-      pptx: ["Right-click each picture → View Alt Text → write a short description (or mark it decorative)"],
+      docx: [
+        "Right-click each image → View Alt Text → write a short description (or mark it decorative)",
+      ],
+      pptx: [
+        "Right-click each picture → View Alt Text → write a short description (or mark it decorative)",
+      ],
       xlsx: ["Right-click each chart/image → View Alt Text → write a short description"],
     },
     acrobat: [
@@ -128,9 +132,18 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Check each color pair with the WebAIM Contrast Checker (webaim.org/resources/contrastchecker)",
         "Re-export the PDF",
       ],
-      docx: ["Darken the text color or lighten the background", "Check pairs with the WebAIM Contrast Checker"],
-      pptx: ["Darken the text color or lighten the background on each slide", "Check pairs with the WebAIM Contrast Checker"],
-      xlsx: ["Darken cell text or lighten cell fills", "Check pairs with the WebAIM Contrast Checker"],
+      docx: [
+        "Darken the text color or lighten the background",
+        "Check pairs with the WebAIM Contrast Checker",
+      ],
+      pptx: [
+        "Darken the text color or lighten the background on each slide",
+        "Check pairs with the WebAIM Contrast Checker",
+      ],
+      xlsx: [
+        "Darken cell text or lighten cell fills",
+        "Check pairs with the WebAIM Contrast Checker",
+      ],
     },
     acrobat: [
       "Contrast is a design property — fix the colors in the source document and re-export; Acrobat cannot restyle text reliably",
@@ -141,7 +154,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     why: "Bookmarks are the table of contents that keyboard and screen-reader users navigate long PDFs with.",
     source: {
       pdf: [
-        "Use Heading styles in Word, then File → Save As → PDF → Options → check \"Create bookmarks using: Headings\"",
+        'Use Heading styles in Word, then File → Save As → PDF → Options → check "Create bookmarks using: Headings"',
       ],
     },
     acrobat: [
@@ -163,7 +176,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Select the header row → Table Design → check Header Row, and Layout → Repeat Header Rows",
       ],
       pptx: ["Use Insert → Table on the slide", "Table Design → check Header Row"],
-      xlsx: ["Select the data → Insert → Table → check \"My table has headers\""],
+      xlsx: ['Select the data → Insert → Table → check "My table has headers"'],
     },
     acrobat: [
       "Open the Tags panel and confirm each table uses <Table>/<TR>/<TH>/<TD>",
@@ -178,7 +191,9 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         'In the original document, rewrite each link\'s visible text to describe the destination (e.g., "2024 crime statistics report")',
         "Re-export the PDF",
       ],
-      docx: ['Rewrite each link\'s visible text to describe the destination (e.g., "2024 crime statistics report")'],
+      docx: [
+        'Rewrite each link\'s visible text to describe the destination (e.g., "2024 crime statistics report")',
+      ],
       pptx: ["Rewrite each link's visible text to describe the destination"],
       xlsx: ["Rewrite each link's cell text to describe the destination"],
     },
@@ -210,8 +225,12 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "In Word, avoid floating text boxes; use a simple top-to-bottom flow or real columns (Layout → Columns)",
         "Re-export the PDF with structure tags",
       ],
-      docx: ["Avoid floating text boxes; use a simple top-to-bottom flow or real columns (Layout → Columns)"],
-      pptx: ["On each slide: Home → Arrange → Selection Pane, and order objects bottom-to-top in reading order"],
+      docx: [
+        "Avoid floating text boxes; use a simple top-to-bottom flow or real columns (Layout → Columns)",
+      ],
+      pptx: [
+        "On each slide: Home → Arrange → Selection Pane, and order objects bottom-to-top in reading order",
+      ],
     },
     acrobat: [
       "All tools → Prepare for accessibility → Fix reading order",
@@ -226,7 +245,9 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "In Word: select the items → Home → Bullets or Numbering (delete any hand-typed dashes/numbers first)",
         "Re-export the PDF",
       ],
-      docx: ["Select the items → Home → Bullets or Numbering (delete any hand-typed dashes/numbers first)"],
+      docx: [
+        "Select the items → Home → Bullets or Numbering (delete any hand-typed dashes/numbers first)",
+      ],
       pptx: ["Use the layout's content placeholder bullets instead of typing dashes"],
     },
     acrobat: [
@@ -307,17 +328,22 @@ export function buildActionPlan(categories: unknown, fileType?: string | null): 
     const routes: FixRoute[] = [];
     if (ft === "pdf") {
       const sourceSteps = entry?.source.pdf ?? [];
-      if (sourceSteps.length) routes.push({ tool: "source", label: SOURCE_LABEL.pdf, steps: sourceSteps });
-      if (acrobatSteps.length) routes.push({ tool: "acrobat", label: ACROBAT_LABEL, steps: acrobatSteps });
+      if (sourceSteps.length)
+        routes.push({ tool: "source", label: SOURCE_LABEL.pdf, steps: sourceSteps });
+      if (acrobatSteps.length)
+        routes.push({ tool: "acrobat", label: ACROBAT_LABEL, steps: acrobatSteps });
     } else {
       const sourceSteps = entry?.source[ft] ?? [];
-      if (sourceSteps.length) routes.push({ tool: "source", label: SOURCE_LABEL[ft], steps: sourceSteps });
+      if (sourceSteps.length)
+        routes.push({ tool: "source", label: SOURCE_LABEL[ft], steps: sourceSteps });
     }
     // Never leave a step with no route at all (unknown id, or an OOXML
     // category the dictionary has no steps for): fall back to whatever the
     // report itself said, then to the category's own findings text.
     if (!routes.length) {
-      const fallback = acrobatSteps.length ? acrobatSteps : [firstActionableFinding(findings) || label];
+      const fallback = acrobatSteps.length
+        ? acrobatSteps
+        : [firstActionableFinding(findings) || label];
       routes.push({
         tool: ft === "pdf" ? "acrobat" : "source",
         label: ft === "pdf" ? ACROBAT_LABEL : SOURCE_LABEL[ft],
