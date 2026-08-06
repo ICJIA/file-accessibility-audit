@@ -204,4 +204,20 @@ body {
     font-size: 0.85em;
     color: #555555;
   }
+  /* Visual report view: a printed/PDF'd report must show everything. */
+  .tech-report-body,
+  .plan-step-body {
+    display: block !important;
+  }
+  .action-plan li,
+  .category-bars li {
+    break-inside: avoid;
+  }
+  /* Tiles and bars communicate with background color — keep it on paper. */
+  .action-plan,
+  .category-bars,
+  [data-testid^="severity-tile-"] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }
