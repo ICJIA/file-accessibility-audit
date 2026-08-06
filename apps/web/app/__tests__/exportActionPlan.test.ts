@@ -33,7 +33,34 @@ function result(): ReportResult {
         score: 0,
         grade: "F",
         severity: "Critical",
-        findings: ["No text layer <script>alert(1)</script>"],
+        // The "--- Adobe Acrobat: How to Fix ---" marker is what
+        // partitionCardFindings() looks for to split off a per-document
+        // Acrobat block; everything after it becomes `acrobat` steps that
+        // buildActionPlan splices into a rendered route — unlike the rest of
+        // this category's plan output (title/why/source steps), which come
+        // straight from the PLAN_COPY dictionary and never touch this array.
+        // Putting the payload here is the only way it flows through the
+        // plan block's dynamic (non-dictionary) rendering path.
+        findings: [
+          "No text layer",
+          "--- Adobe Acrobat: How to Fix ---",
+          "Step with <script>alert(1)</script> payload",
+        ],
+      },
+      // Unknown id: PLAN_COPY has no entry for it, so buildActionPlan falls
+      // back to dynamic fields for EVERYTHING — title becomes `Fix: ${label}`
+      // and why becomes firstActionableFinding(findings) — both interpolate
+      // attacker-controlled text directly, with no dictionary string as a
+      // decoy. Severity "Critical" is deliberate (matches the reviewer's
+      // request); see the stable-sort note on the ordering test below for why
+      // this doesn't disturb it.
+      {
+        id: "future_check",
+        label: "Future <script>alert(2)</script> Check",
+        score: 20,
+        grade: "F",
+        severity: "Critical",
+        findings: ["3 widgets <script>alert(3)</script> broken"],
       },
     ],
   };
@@ -41,6 +68,12 @@ function result(): ReportResult {
 
 describe("buildHtml — action plan section", () => {
   it("renders the plan between the hero and the category table, ordered Critical first", () => {
+    // Both text_extractability and future_check are Critical; Array.sort is
+    // stable and text_extractability is listed first in the fixture, so it
+    // still ranks before future_check, which still ranks before the Moderate
+    // title_language — the "first < second" comparison below (text
+    // extractability vs. title_language) holds regardless of where
+    // future_check's own title lands between them.
     const html = buildHtml(result(), branding);
     const plan = html.indexOf("Your Action Plan");
     expect(plan).toBeGreaterThan(-1);
@@ -65,9 +98,22 @@ describe("buildHtml — action plan section", () => {
     }
   });
 
-  it("escapes finding-derived text in plan output", () => {
+  it("escapes finding-derived text that reaches the plan block's own dynamic paths", () => {
+    // Each payload is placed so it can ONLY reach the output through code
+    // this task added — not merely through the pre-existing (already-tested)
+    // Detailed Findings section — so removing any of the plan block's three
+    // escapeHtml() calls would make this test fail:
+    //   alert(1): text_extractability's Acrobat-marker line -> becomes a
+    //     `routes[].steps` entry via partitionCardFindings().acrobat.
+    //   alert(2): future_check has no PLAN_COPY entry, so its `title` is the
+    //     dynamic `Fix: ${label}` fallback, not a dictionary string.
+    //   alert(3): future_check's `why` (and its fallback route step) come
+    //     from firstActionableFinding(findings), also dynamic.
     const html = buildHtml(result(), branding);
-    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).not.toContain("<script>alert(");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain("&lt;script&gt;alert(2)&lt;/script&gt;");
+    expect(html).toContain("&lt;script&gt;alert(3)&lt;/script&gt;");
   });
 
   it("page-audit-shaped result (no categories): no plan, no pass card, no crash", () => {
