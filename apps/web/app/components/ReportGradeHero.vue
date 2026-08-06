@@ -2,16 +2,20 @@
   <div class="text-center">
     <div class="flex justify-center">
       <div
-        class="w-28 h-28 sm:w-40 sm:h-40 rounded-full flex items-center justify-center border-4"
-        :style="{ borderColor: color, backgroundColor: color + '15' }"
+        class="w-44 h-44 sm:w-56 sm:h-56 rounded-full flex items-center justify-center border-[6px]"
+        :style="{
+          borderColor: color,
+          backgroundColor: color + '15',
+          boxShadow: `0 0 80px ${color}40, 0 0 24px ${color}25`,
+        }"
       >
-        <span class="text-5xl sm:text-7xl font-black" :style="{ color }">{{ grade }}</span>
+        <span class="text-8xl sm:text-9xl font-black" :style="{ color }">{{ grade }}</span>
       </div>
     </div>
-    <p class="text-3xl font-bold mt-4">
-      {{ overallScore }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
+    <p class="text-4xl sm:text-5xl font-bold mt-5">
+      {{ overallScore }}<span class="text-xl sm:text-2xl text-[var(--text-secondary)]">/100</span>
     </p>
-    <p class="text-sm font-medium mt-1" :style="{ color }">{{ label }}</p>
+    <p class="text-base sm:text-lg font-semibold mt-2" :style="{ color }">{{ label }}</p>
   </div>
 </template>
 

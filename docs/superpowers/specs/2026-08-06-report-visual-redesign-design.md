@@ -29,7 +29,7 @@ redesign fixes all three surfaces.
 | Audience | Non-technical document authors (state/local gov staff). Plain language first; source-document fixes before Acrobat surgery. |
 | "Where do I start" model | Numbered Action Plan, ordered by severity. |
 | Duplication | One home per fact. Everything technical collapses behind a single "Full technical report" expander. |
-| Header treatment | Big centered grade circle (current style, unchanged) **first**, severity stat tiles beneath it as the explanation row. Category score table replaced by labeled horizontal bars. |
+| Header treatment | Oversized centered grade circle — the dominant element on the page (user decision 2026-08-06: the grade is what everybody sees immediately and feels viscerally) — **first**, severity stat tiles beneath it as the explanation row. Category score table replaced by labeled horizontal bars. |
 | Action Plan layout | Vertical timeline rail; step 1 auto-expanded, others behind "Show how". Exclusive-open accordion: opening a step collapses the previously open one; clicking the open step closes it (user decision 2026-08-06, to reduce clutter). Step numbers are large solid severity-colored circles (infographic emphasis; large-text AA: white on red/blue, dark on yellow). |
 | Progress checkboxes | None. Re-uploading the fixed file is the progress check. |
 | Content source | Web-side mapper (`utils/actionPlan.ts`), dictionary keyed by category id. No analyzer/API/DB changes. Old stored shared reports get the new UI for free. |
@@ -69,7 +69,8 @@ soft, always-available one.
 1. **File banner** — `ReportFileBanner`, unchanged.
 2. **Grade hero** — the current big centered grade circle + `score/100` +
    plain-English grade label extended with a verdict ("Poor — not ready to
-   publish"). Visually identical scale to today's circle. Verdict phrase =
+   publish"). Oversized relative to today's circle — deliberately the page's
+   dominant element (user decision 2026-08-06). Verdict phrase =
    `gradeLabel(grade)` + a publication clause derived from the severity tally
    (absorbing today's `ReportActionBanner` copy logic): critical > 0 → "not ready
    to publish"; moderate only → "fix recommended before publishing"; minor only /
