@@ -2,6 +2,7 @@
   <div>
     <!-- Score Table -->
     <div
+      v-if="showScoreTable"
       class="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] overflow-x-auto"
     >
       <div class="px-3 sm:px-5 py-3 border-b border-[var(--border)]">
@@ -554,7 +555,9 @@ interface ReportLike {
   fileType?: string;
 }
 
-const props = defineProps<{ result: ReportLike }>();
+const props = withDefaults(defineProps<{ result: ReportLike; showScoreTable?: boolean }>(), {
+  showScoreTable: true,
+});
 
 const wcag = useWcag();
 
