@@ -9,11 +9,13 @@ const result = {
     {
       id: "alt_text",
       label: "Alt Text on Images",
+      weight: 20,
       score: 40,
       grade: "F",
       severity: "Critical",
       findings: ["5 images with no alt text"],
       explanation: "Images need descriptions.",
+      helpLinks: [],
     },
   ],
   conformance: {

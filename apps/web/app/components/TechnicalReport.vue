@@ -70,14 +70,14 @@
           class="text-xs text-[var(--text-muted)] leading-relaxed mt-3"
         >
           Not evaluated automatically:
-          <template v-for="(n, i) in result.conformance.notAssessed" :key="n.sc"
+          <template v-for="(n, i) in notAssessedList" :key="n.sc"
             ><a
               :href="safeHttpUrl(n.url)"
               target="_blank"
               rel="noopener noreferrer"
               class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
               >{{ n.sc }} {{ n.name }}</a
-            ><template v-if="i < result.conformance.notAssessed.length - 1">, </template></template
+            ><template v-if="i < notAssessedList.length - 1">, </template></template
           >. These still require manual review.
         </p>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed mt-3 pt-3 border-t border-[var(--border-subtle)]">
@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { safeHttpUrl } from "@file-audit/shared";
 import ReportContent from "~/components/ReportContent.vue";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
@@ -115,13 +116,28 @@ import PdfUaVerdict from "~/components/PdfUaVerdict.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import { conformanceHeading, standardsBasis } from "~/utils/exportFormats/shared";
 
-defineProps<{
-  // Deliberately loose: the shared-report page feeds raw stored JSON.
+const props = defineProps<{
+  // Deliberately loose (plain `any`, not `Record<string, any>`): the
+  // shared-report page feeds raw stored JSON, and ReportContent's stricter
+  // ReportLike shape would otherwise reject it at the call below.
   // (@typescript-eslint/no-explicit-any is off repo-wide — see eslint.config.mjs.)
-  result: Record<string, any>;
+  result: any;
   verapdfUrl?: string;
   wcagVersion: string;
 }>();
 
 const open = defineModel<boolean>("open", { default: false });
+
+// `result` is deliberately `any`, so vue-tsc can't narrow the notAssessed
+// array inside a template v-for — its loop index unifies to `string |
+// number`, which breaks the `i < length - 1` comparison used for the comma
+// separator. Give the template an explicitly typed list instead.
+const notAssessedList = computed(
+  () =>
+    (props.result?.conformance?.notAssessed ?? []) as {
+      sc: string;
+      name: string;
+      url: string;
+    }[],
+);
 </script>
