@@ -30,7 +30,7 @@
             <button
               type="button"
               class="w-full flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
-              :aria-expanded="isVisible(step.categoryId)"
+              :aria-expanded="!!expanded[step.categoryId]"
               :aria-controls="`plan-step-${step.categoryId}`"
               @click="toggle(step.categoryId)"
             >
@@ -44,14 +44,13 @@
                 {{ step.severity }}</span
               >
               <span class="text-xs text-[var(--link)] whitespace-nowrap" data-export-exclude>{{
-                isVisible(step.categoryId) ? "Hide" : "Show how"
+                expanded[step.categoryId] ? "Hide" : "Show how"
               }}</span>
             </button>
 
             <div
-              v-show="isVisible(step.categoryId)"
+              v-show="expanded[step.categoryId]"
               :id="`plan-step-${step.categoryId}`"
-              :style="getBodyStyle(step.categoryId)"
               class="plan-step-body px-3 pb-3"
             >
               <p class="text-xs text-[var(--text-muted)] mb-2">{{ step.why }}</p>
@@ -138,23 +137,12 @@ defineEmits<{ (e: "show-evidence", categoryId: string): void }>();
 // Step 1 open by default — the one thing to do next is zero clicks away.
 // Steps are per-report and never change identity after mount, so seeding
 // from props at setup is safe.
-const expanded = ref<Record<string, any>>(
-  props.steps.length > 0 ? { [props.steps[0]!.categoryId]: true } : {},
+const expanded = ref<Record<string, boolean>>(
+  props.steps.length ? { [props.steps[0]!.categoryId]: true } : {},
 );
 
 function toggle(id: string): void {
   expanded.value = { ...expanded.value, [id]: !expanded.value[id] };
-}
-
-function isVisible(categoryId: string): boolean {
-  return expanded.value[categoryId] === true;
-}
-
-function getBodyStyle(categoryId: string): Record<string, any> {
-  if (!isVisible(categoryId)) {
-    return { display: "none !important", visibility: "hidden" };
-  }
-  return {};
 }
 
 const subtitle = computed(() => {
