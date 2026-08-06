@@ -8,6 +8,8 @@
 import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
 import { BANNER_EYEBROW, bannerMetaLine, fileTypeLabel } from "~/utils/reportBanner";
+import { buildActionPlan, verdictPhrase } from "~/utils/actionPlan";
+import { tallySeverity } from "~/utils/severityTally";
 import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
 import {
   type ReportResult,
@@ -57,11 +59,14 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   const gc = (grade: string) => gradeColor(grade);
   const sc = (sev: string | null) => severityColor(sev);
 
+  // Guard: URL page-audit rows in shared_reports have no categories[].
+  const planCats = Array.isArray(result.categories) ? result.categories : [];
+
   // Mirror the live/shared Score Table exactly: scored categories in the main
   // body, then a "Not Included in Scoring" section listing the N/A ones and
   // distinguishing "Not assessed" from "Not applicable" (as the NaCell does).
-  const scoredCats = result.categories.filter((c) => c.score !== null);
-  const naCats = result.categories.filter((c) => c.score === null);
+  const scoredCats = planCats.filter((c) => c.score !== null);
+  const naCats = planCats.filter((c) => c.score === null);
 
   const catRows = scoredCats
     .map((cat) => {
@@ -195,6 +200,48 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
     ? conformanceHtmlBlock(result.conformance, branding.wcagVersion)
     : "";
 
+  const tally = tallySeverity(planCats);
+  const tile = (count: number, label: string, icon: string, color: string) =>
+    `<div style="flex:1;border:1px solid ${count ? color + "40" : "#333"};background:${count ? color + "12" : "transparent"};border-radius:12px;padding:10px 12px;text-align:center">
+      <div style="font-size:24px;font-weight:800;color:${count ? color : "#888"};line-height:1.2">${count}</div>
+      <div style="font-size:10px;font-weight:600;color:${count ? color : "#888"}">${icon} ${label}</div>
+    </div>`;
+  const tilesHtml = `<div style="display:flex;gap:8px;max-width:520px;margin:0 auto 24px">
+    ${tile(tally.critical, "CRITICAL", "⛔", "#ef4444")}
+    ${tile(tally.moderate, "MODERATE", "⚠", "#eab308")}
+    ${tile(tally.minor, "MINOR", "ⓘ", "#3b82f6")}
+  </div>`;
+
+  const tilesOrEmpty = planCats.length ? tilesHtml : "";
+
+  const plan = buildActionPlan(planCats, result.fileType);
+  const planHtml = !planCats.length
+    ? "" // page-audit shape: no plan section at all, never a false pass card
+    : plan.length
+      ? `<h2 style="font-size:18px;margin-bottom:4px">Your Action Plan</h2>
+       <p style="font-size:12px;color:#888;margin:0 0 12px">Fix these in order, then re-upload to verify.</p>
+       <ol style="list-style:none;margin:0 0 30px;padding:0">
+       ${plan
+         .map((s) => {
+           const routes = s.routes
+             .map(
+               (r) =>
+                 `<p style="font-size:13px;color:#ccc;margin:6px 0 0"><strong style="color:${r.tool === "source" ? "#86efac" : "#fbbf24"}">${escapeHtml(r.label)}:</strong> ${r.steps.map(escapeHtml).join(" → ")}</p>`,
+             )
+             .join("");
+           return `<li style="background:#111;border:1px solid ${s.severity === "Critical" ? "#ef444435" : "#222"};border-radius:10px;padding:12px 16px;margin-bottom:10px">
+             <p style="margin:0;font-size:14px"><strong style="color:${sc(s.severity)}">${s.rank}.</strong> <strong style="color:#fff">${escapeHtml(s.title)}</strong>
+             <span style="color:${sc(s.severity)};background:${sc(s.severity)}15;padding:1px 8px;border-radius:12px;font-size:11px;margin-left:6px">${escapeHtml(s.severity)}</span></p>
+             <p style="font-size:12px;color:#999;margin:6px 0 0">${escapeHtml(s.why)}</p>
+             ${routes}
+           </li>`;
+         })
+         .join("\n")}
+       </ol>`
+      : `<div style="background:#22c55e10;border:1px solid #22c55e30;border-radius:12px;padding:14px;margin-bottom:30px">
+        <p style="color:#86efac;font-size:14px;font-weight:600;margin:0">✓ Nothing to fix — this document passes all automated checks.</p>
+      </div>`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -234,12 +281,14 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
       <span style="font-size:56px;font-weight:900;color:${gc(result.grade)}">${escapeHtml(result.grade)}</span>
     </div>
     <p style="font-size:24px;font-weight:bold;margin:12px 0 4px">${escapeHtml(String(result.overallScore))}<span style="font-size:16px;color:#888">/100</span></p>
-    <p style="font-size:14px;color:${gc(result.grade)};font-weight:500;margin:0">${escapeHtml(gradeLabel(result.grade))}</p>
+    <p style="font-size:14px;color:${gc(result.grade)};font-weight:500;margin:0">${escapeHtml(planCats.length ? `${gradeLabel(result.grade)} — ${verdictPhrase(planCats)}` : gradeLabel(result.grade))}</p>
   </div>
+  ${tilesOrEmpty}
 
   ${conformanceHtml}
   ${scannedHtml}
   ${warningsHtml}
+  ${planHtml}
   ${scoreProfilesHtml}
 
   <div style="background:#111;border:1px solid #222;border-radius:12px;padding:16px 20px;margin-bottom:24px">
