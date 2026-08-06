@@ -37,6 +37,7 @@
           <!-- Header -->
           <div class="text-center mb-8">
             <div class="flex justify-end items-center gap-2 mb-4">
+              <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
               <button
                 class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                 :aria-label="
@@ -96,14 +97,27 @@
             </p>
           </div>
 
-          <!-- Score Hero -->
-          <div
-            class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
-          >
-            <ScoreCard :result="data.report" :show-filename="false" :show-pdf-ua-signals="false" />
-          </div>
+          <!-- VISUAL VIEW -->
+          <ReportVisualView
+            v-if="viewMode === 'visual'"
+            :result="data.report"
+            :verapdf-url="String(config.public.verapdfUrl ?? '')"
+          />
 
-          <!-- BLOCKING information first. The PDF/UA panel below can show a
+          <!-- DETAILED VIEW -->
+          <template v-else>
+            <!-- Score Hero -->
+            <div
+              class="text-center mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
+            >
+              <ScoreCard
+                :result="data.report"
+                :show-filename="false"
+                :show-pdf-ua-signals="false"
+              />
+            </div>
+
+            <!-- BLOCKING information first. The PDF/UA panel below can show a
              green "Pass" on a document that still has Critical WCAG failures
              — they answer different questions, and only these decide whether
              the document is publishable. Ordered above the informational
@@ -111,74 +125,75 @@
              machine-check pass as "done" before ever seeing what blocks
              publication. Do not move these below PdfUaVerdict; the ordering
              is pinned by app/__tests__/reportSectionOrder.test.ts. -->
-          <ReportActionBanner
-            v-if="data?.report?.categories"
-            :categories="data.report.categories"
-            :file-type="data.report.fileType"
-            class="mb-4"
-          />
+            <ReportActionBanner
+              v-if="data?.report?.categories"
+              :categories="data.report.categories"
+              :file-type="data.report.fileType"
+              class="mb-4"
+            />
 
-          <IssuesSummary
-            v-if="data?.report?.categories"
-            :categories="data.report.categories"
-            class="mb-8"
-          />
+            <IssuesSummary
+              v-if="data?.report?.categories"
+              :categories="data.report.categories"
+              class="mb-8"
+            />
 
-          <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
+            <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
              ScoreCard (which rendered it at the very top of the report, above
              the blocking issues) so conformance-flavoured markers can no longer
              be mistaken for a clean bill of health. Grouped here with the
              veraPDF verdict: both are PDF/UA, both are secondary to the WCAG
              issues above. -->
-          <PdfUaSignalsCard
-            v-if="data.report?.pdfUa"
-            :signals="data.report.pdfUa"
-            :categories="data.report?.categories"
-            class="max-w-2xl mx-auto mb-6"
-          />
+            <PdfUaSignalsCard
+              v-if="data.report?.pdfUa"
+              :signals="data.report.pdfUa"
+              :categories="data.report?.categories"
+              class="max-w-2xl mx-auto mb-6"
+            />
 
-          <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
+            <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
              deliberately below the blocking issues above: a "Pass" here does
              not mean the document is publishable, only that the formal
              machine-checkable PDF/UA-1 rules were met. Self-hides when the
              verdict is absent (non-PDF, or veraPDF unavailable). -->
-          <PdfUaVerdict
-            v-if="data.report?.pdfUaVerdict"
-            :verdict="data.report.pdfUaVerdict"
-            :grade="data.report?.grade"
-            :categories="data.report?.categories"
-            :verapdf-url="String(config.public.verapdfUrl ?? '')"
-            class="mb-6"
-          />
+            <PdfUaVerdict
+              v-if="data.report?.pdfUaVerdict"
+              :verdict="data.report.pdfUaVerdict"
+              :grade="data.report?.grade"
+              :categories="data.report?.categories"
+              :verapdf-url="String(config.public.verapdfUrl ?? '')"
+              class="mb-6"
+            />
 
-          <!-- Scanned warning -->
-          <div
-            v-if="data.report.isScanned"
-            class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
-          >
-            <p class="text-[var(--status-warning-orange)] font-medium text-sm">
-              This PDF appears to be a scanned image. Screen readers cannot access its content. OCR
-              and full remediation are required.
-            </p>
-          </div>
-
-          <!-- Warnings -->
-          <div
-            v-if="data.report.warnings?.length"
-            class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4"
-          >
-            <p
-              v-for="w in data.report.warnings"
-              :key="w"
-              class="text-[var(--status-warning-yellow)] text-sm"
+            <!-- Scanned warning -->
+            <div
+              v-if="data.report.isScanned"
+              class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
             >
-              {{ w }}
-            </p>
-          </div>
+              <p class="text-[var(--status-warning-orange)] font-medium text-sm">
+                This PDF appears to be a scanned image. Screen readers cannot access its content.
+                OCR and full remediation are required.
+              </p>
+            </div>
 
-          <MethodologyCard :file-type="data.report.fileType" />
+            <!-- Warnings -->
+            <div
+              v-if="data.report.warnings?.length"
+              class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4"
+            >
+              <p
+                v-for="w in data.report.warnings"
+                :key="w"
+                class="text-[var(--status-warning-yellow)] text-sm"
+              >
+                {{ w }}
+              </p>
+            </div>
 
-          <ReportContent :result="data.report" />
+            <MethodologyCard :file-type="data.report.fileType" />
+
+            <ReportContent :result="data.report" />
+          </template>
         </div>
         <!-- /report content -->
 
@@ -245,6 +260,8 @@ import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
+import ReportVisualView from "~/components/ReportVisualView.vue";
+import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import type { AnalysisResult } from "@file-audit/shared";
 
 definePageMeta({ layout: false });
@@ -255,6 +272,7 @@ const config = useRuntimeConfig();
 const auditUrl = config.public.siteUrl as string;
 const appName = config.public.appName as string;
 const colorMode = useColorMode();
+const { mode: viewMode, setMode: setViewMode } = useReportView();
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";

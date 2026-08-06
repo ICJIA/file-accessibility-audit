@@ -231,39 +231,57 @@
             :file-type="result.fileType"
             class="mb-6"
           />
-          <!-- Scanned warning banner -->
-          <div
-            v-if="result.isScanned"
-            class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
-          >
-            <p class="text-[var(--status-warning-orange)] font-medium text-sm">
-              This PDF appears to be a scanned image. Screen readers cannot access its content. OCR
-              and full remediation are required.
-            </p>
+
+          <div class="flex justify-end mb-4">
+            <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
           </div>
 
-          <!-- Warnings -->
-          <div
-            v-if="result.warnings?.length"
-            class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4"
+          <!-- VISUAL VIEW -->
+          <ReportVisualView
+            v-if="viewMode === 'visual'"
+            :result="result"
+            :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
           >
-            <p
-              v-for="w in result.warnings"
-              :key="w"
-              class="text-[var(--status-warning-yellow)] text-sm"
+            <template #notice>
+              <SourceDocumentNotice variant="audit" :file-type="result?.fileType" class="mb-4" />
+            </template>
+          </ReportVisualView>
+
+          <!-- DETAILED VIEW -->
+          <template v-else>
+            <!-- Scanned warning banner -->
+            <div
+              v-if="result.isScanned"
+              class="mb-6 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
             >
-              {{ w }}
-            </p>
-          </div>
+              <p class="text-[var(--status-warning-orange)] font-medium text-sm">
+                This PDF appears to be a scanned image. Screen readers cannot access its content.
+                OCR and full remediation are required.
+              </p>
+            </div>
 
-          <!-- Score Hero -->
-          <div
-            class="text-center mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
-          >
-            <ScoreCard :result="result" :show-filename="false" :show-pdf-ua-signals="false" />
-          </div>
+            <!-- Warnings -->
+            <div
+              v-if="result.warnings?.length"
+              class="mb-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4"
+            >
+              <p
+                v-for="w in result.warnings"
+                :key="w"
+                class="text-[var(--status-warning-yellow)] text-sm"
+              >
+                {{ w }}
+              </p>
+            </div>
 
-          <!-- BLOCKING information first. The PDF/UA panel below can show a
+            <!-- Score Hero -->
+            <div
+              class="text-center mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-8"
+            >
+              <ScoreCard :result="result" :show-filename="false" :show-pdf-ua-signals="false" />
+            </div>
+
+            <!-- BLOCKING information first. The PDF/UA panel below can show a
              green "Pass" on a document that still has Critical WCAG failures
              — they answer different questions, and only these decide whether
              the document is publishable. Ordered above the informational
@@ -271,65 +289,66 @@
              a machine-check pass as "done" before ever seeing what blocks
              publication. Do not move these below PdfUaVerdict; the ordering
              is pinned by app/__tests__/reportSectionOrder.test.ts. -->
-          <ReportActionBanner
-            v-if="result?.categories"
-            :categories="result.categories"
-            :file-type="result?.fileType"
-            class="mb-4"
-          />
+            <ReportActionBanner
+              v-if="result?.categories"
+              :categories="result.categories"
+              :file-type="result?.fileType"
+              class="mb-4"
+            />
 
-          <IssuesSummary v-if="result?.categories" :categories="result.categories" class="mb-8" />
+            <IssuesSummary v-if="result?.categories" :categories="result.categories" class="mb-8" />
 
-          <!-- Auto-Remediate (component
+            <!-- Auto-Remediate (component
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each
              tab can be remediated independently. PDF-only: the remediation
              pipeline does not apply to Word, PowerPoint, or Excel documents,
              so gate on the positive fileType === 'pdf' (a negative !== check
              regresses every time a new format ships). -->
-          <div
-            v-if="result?.fileType === 'pdf'"
-            class="mb-6 flex justify-center"
-            data-export-exclude
-          >
-            <RemediateButton :file="activeFile" :input-score="result?.overallScore ?? null" />
-          </div>
+            <div
+              v-if="result?.fileType === 'pdf'"
+              class="mb-6 flex justify-center"
+              data-export-exclude
+            >
+              <RemediateButton :file="activeFile" :input-score="result?.overallScore ?? null" />
+            </div>
 
-          <!-- Best path to a11y starts at the source document -->
-          <div class="mb-8">
-            <SourceDocumentNotice variant="audit" :file-type="result?.fileType" />
-          </div>
+            <!-- Best path to a11y starts at the source document -->
+            <div class="mb-8">
+              <SourceDocumentNotice variant="audit" :file-type="result?.fileType" />
+            </div>
 
-          <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
+            <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
              ScoreCard (which rendered it at the very top of the report, above
              the blocking issues) so conformance-flavoured markers can no longer
              be mistaken for a clean bill of health. Grouped here with the
              veraPDF verdict: both are PDF/UA, both are secondary to the WCAG
              issues above. -->
-          <PdfUaSignalsCard
-            v-if="result?.pdfUa"
-            :signals="result.pdfUa"
-            :categories="result?.categories"
-            class="max-w-2xl mx-auto mb-6"
-          />
+            <PdfUaSignalsCard
+              v-if="result?.pdfUa"
+              :signals="result.pdfUa"
+              :categories="result?.categories"
+              class="max-w-2xl mx-auto mb-6"
+            />
 
-          <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
+            <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
              deliberately below the blocking issues above: a "Pass" here does
              not mean the document is publishable, only that the formal
              machine-checkable PDF/UA-1 rules were met. Self-hides when the
              verdict is absent (non-PDF, or veraPDF unavailable). -->
-          <PdfUaVerdict
-            v-if="result?.pdfUaVerdict"
-            :verdict="result.pdfUaVerdict"
-            :grade="result?.grade"
-            :categories="result?.categories"
-            :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
-            class="mb-6"
-          />
+            <PdfUaVerdict
+              v-if="result?.pdfUaVerdict"
+              :verdict="result.pdfUaVerdict"
+              :grade="result?.grade"
+              :categories="result?.categories"
+              :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
+              class="mb-6"
+            />
 
-          <MethodologyCard :file-type="result?.fileType" />
+            <MethodologyCard :file-type="result?.fileType" />
 
-          <ReportContent :result="result" />
+            <ReportContent :result="result" />
+          </template>
         </div>
         <!-- /report content -->
 
@@ -750,6 +769,8 @@ import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ScrollToTop from "~/components/ScrollToTop.vue";
 import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
+import ReportVisualView from "~/components/ReportVisualView.vue";
+import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
 import { gradeColor, type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
@@ -801,6 +822,8 @@ const {
   aiCopied,
   buildAiAnalysisText,
 } = useReportExport();
+
+const { mode: viewMode, setMode: setViewMode } = useReportView();
 
 const aiCopyError = ref(false);
 async function handleCopyAiAnalysis() {

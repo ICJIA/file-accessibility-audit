@@ -4,17 +4,19 @@ import { ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { usePrefill } from "../composables/usePrefill";
 import { useReportExport } from "../composables/useReportExport";
+import { useReportView } from "../composables/useReportView";
 import IndexPage from "../pages/index.vue";
 import DropZone from "../components/DropZone.vue";
 
-// index.vue calls usePrefill()/useReportExport() as bare identifiers,
-// relying on Nuxt's build-time auto-import (composables/ files need no
-// explicit import in the real app). test-helpers.ts stubs the handful of
-// Nuxt globals every test needs; these two are real, working composables
-// this specific test additionally needs resolvable on `globalThis` to
-// mount the page at all.
+// index.vue calls usePrefill()/useReportExport()/useReportView() as bare
+// identifiers, relying on Nuxt's build-time auto-import (composables/ files
+// need no explicit import in the real app). test-helpers.ts stubs the
+// handful of Nuxt globals every test needs; these three are real, working
+// composables this specific test additionally needs resolvable on
+// `globalThis` to mount the page at all.
 (globalThis as any).usePrefill = usePrefill;
 (globalThis as any).useReportExport = useReportExport;
+(globalThis as any).useReportView = useReportView;
 
 // ---------------------------------------------------------------------------
 // pages/index.vue a11y (Task F6): the single-file error banner gets
