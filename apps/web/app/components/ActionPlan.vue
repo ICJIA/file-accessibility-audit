@@ -165,7 +165,8 @@ function sevChipStyle(s: PlanSeverity): Record<string, string> {
 
 function numStyle(s: PlanSeverity): Record<string, string> {
   const c = severityColor(s);
-  if (s === "Critical") return { backgroundColor: c, color: "#fff" };
+  // Outlined for every severity: white-on-red fails AA at this size, and the
+  // chip beside the title already carries the severity as icon + word.
   return { backgroundColor: "var(--surface-deep)", border: `2px solid ${c}`, color: c };
 }
 </script>
