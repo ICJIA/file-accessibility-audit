@@ -47,6 +47,6 @@ const stripClass = computed(() => {
   if (s === "fail") return "border-red-500/35 bg-red-500/10 text-[var(--status-error)]";
   if (s === "incomplete")
     return "border-yellow-500/35 bg-yellow-500/10 text-[var(--status-warning-yellow)]";
-  return "border-green-500/35 bg-green-500/10 text-green-500";
+  return "border-green-500/35 bg-green-500/10 text-[var(--status-success)]";
 });
 </script>
