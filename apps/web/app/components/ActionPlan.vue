@@ -25,7 +25,9 @@
           >
           <div
             class="rounded-lg border bg-[var(--surface-deep)]"
-            :class="step.severity === 'Critical' ? 'border-red-500/35' : 'border-[var(--border-subtle)]'"
+            :class="
+              step.severity === 'Critical' ? 'border-red-500/35' : 'border-[var(--border-subtle)]'
+            "
           >
             <button
               type="button"
@@ -122,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { severityColor } from "@file-audit/shared";
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
@@ -135,14 +137,25 @@ const props = defineProps<{
 defineEmits<{ (e: "show-evidence", categoryId: string): void }>();
 
 // Step 1 open by default — the one thing to do next is zero clicks away.
-// Steps are per-report and never change identity after mount, so seeding
-// from props at setup is safe. Exclusive-open accordion: only one step can be
-// open at a time; clicking the open step closes it.
+// Steps are NOT guaranteed to keep their identity for the life of this
+// component: on index.vue, switching the active batch tab swaps `result`
+// (and therefore `steps`) without remounting ActionPlan, so seeding openId
+// only at setup would leave a stale/arbitrary step open after the switch.
+// The watch below re-seeds it to the new first step whenever the array
+// itself changes. Exclusive-open accordion: only one step can be open at a
+// time; clicking the open step closes it.
 const openId = ref<string | null>(props.steps.length ? props.steps[0]!.categoryId : null);
 
 function toggle(id: string): void {
   openId.value = openId.value === id ? null : id;
 }
+
+watch(
+  () => props.steps,
+  (s) => {
+    openId.value = s.length ? s[0]!.categoryId : null;
+  },
+);
 
 const subtitle = computed(() => {
   const n = props.steps.length;

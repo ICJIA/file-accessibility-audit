@@ -12,7 +12,11 @@ const step = (rank: number, categoryId: string, severity: PlanStep["severity"]):
   severity,
   wcagRefs: [{ sc: "1.1.1", name: "Non-text Content" }],
   routes: [
-    { tool: "source", label: "Easiest — fix the source document, then re-export", steps: ["Open Word", "Re-export"] },
+    {
+      tool: "source",
+      label: "Easiest — fix the source document, then re-export",
+      steps: ["Open Word", "Re-export"],
+    },
     { tool: "acrobat", label: "No source file? Fix the PDF in Acrobat", steps: ["Autotag"] },
   ],
   detailAnchor: `#cat-${categoryId}`,
@@ -21,7 +25,9 @@ const step = (rank: number, categoryId: string, severity: PlanStep["severity"]):
 describe("ActionPlan", () => {
   it("renders numbered steps in order with the first expanded, rest collapsed", () => {
     const w = mount(ActionPlan, {
-      props: { steps: [step(1, "text_extractability", "Critical"), step(2, "alt_text", "Moderate")] },
+      props: {
+        steps: [step(1, "text_extractability", "Critical"), step(2, "alt_text", "Moderate")],
+      },
     });
     const toggles = w.findAll("button[aria-expanded]");
     expect(toggles[0]!.attributes("aria-expanded")).toBe("true");
@@ -50,7 +56,9 @@ describe("ActionPlan", () => {
     // Step 1 is open initially, step 2 is closed.
     // Click step 2 to open it — step 1 should close (exclusive accordion).
     await w.findAll("button[aria-expanded]")[1]!.trigger("click");
-    expect(w.findAll(".plan-step-body")[1]!.attributes("style") ?? "").not.toContain("display: none");
+    expect(w.findAll(".plan-step-body")[1]!.attributes("style") ?? "").not.toContain(
+      "display: none",
+    );
     // Step 1 is now closed, step 2 is open.
     expect(w.findAll(".plan-step-body")[0]!.attributes("style") ?? "").toContain("display: none");
     // Verify aria-expanded reflects exclusive state.
@@ -63,7 +71,9 @@ describe("ActionPlan", () => {
       props: { steps: [step(1, "a", "Critical"), step(2, "b", "Minor")] },
     });
     // Step 1 is open initially.
-    expect(w.findAll(".plan-step-body")[0]!.attributes("style") ?? "").not.toContain("display: none");
+    expect(w.findAll(".plan-step-body")[0]!.attributes("style") ?? "").not.toContain(
+      "display: none",
+    );
     // Click step 1 again to close it.
     await w.findAll("button[aria-expanded]")[0]!.trigger("click");
     // Both steps are now closed.
@@ -72,6 +82,28 @@ describe("ActionPlan", () => {
     // aria-expanded is false for both.
     expect(w.findAll("button[aria-expanded]")[0]!.attributes("aria-expanded")).toBe("false");
     expect(w.findAll("button[aria-expanded]")[1]!.attributes("aria-expanded")).toBe("false");
+  });
+
+  it("re-seeds the open step when the steps prop changes identity (e.g., switching batch tabs)", async () => {
+    // index.vue swaps `result` (and therefore `steps`) per active batch tab
+    // WITHOUT remounting ActionPlan — openId must re-seed to the new list's
+    // first step rather than staying stuck on a stale/arbitrary category id.
+    const w = mount(ActionPlan, {
+      props: { steps: [step(1, "a", "Critical"), step(2, "b", "Minor")] },
+    });
+    // Open step B (closing step A, exclusive accordion).
+    await w.findAll("button[aria-expanded]")[1]!.trigger("click");
+    expect(w.findAll("button[aria-expanded]")[1]!.attributes("aria-expanded")).toBe("true");
+
+    // Swap in an entirely new steps array — a different batch tab's plan.
+    await w.setProps({ steps: [step(1, "c", "Critical"), step(2, "d", "Moderate")] });
+
+    const toggles = w.findAll("button[aria-expanded]");
+    expect(toggles[0]!.attributes("aria-expanded")).toBe("true");
+    expect(toggles[1]!.attributes("aria-expanded")).toBe("false");
+    const bodies = w.findAll(".plan-step-body");
+    expect(bodies[0]!.attributes("style") ?? "").not.toContain("display: none");
+    expect(bodies[1]!.attributes("style") ?? "").toContain("display: none");
   });
 
   it("emits show-evidence with the category id", async () => {
@@ -99,7 +131,13 @@ describe("ActionPlan", () => {
           headline: "h",
           failures: [],
           notAssessed: [
-            { sc: "1.4.3", name: "Contrast (Minimum)", level: "AA", reason: "r", url: "https://w3.org" },
+            {
+              sc: "1.4.3",
+              name: "Contrast (Minimum)",
+              level: "AA",
+              reason: "r",
+              url: "https://w3.org",
+            },
           ],
         },
       },
