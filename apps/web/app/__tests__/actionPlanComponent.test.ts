@@ -29,8 +29,10 @@ describe("ActionPlan", () => {
     // Both bodies exist in the DOM (v-show, for print/export) — the second is hidden.
     const bodies = w.findAll(".plan-step-body");
     expect(bodies.length).toBe(2);
-    expect(bodies[0]!.isVisible()).toBe(true);
-    expect(bodies[1]!.isVisible()).toBe(false);
+    // happy-dom + vue-test-utils isVisible() can't see v-show's inline display,
+    // so assert the mechanism v-show actually uses: the style attribute.
+    expect(bodies[0]!.attributes("style") ?? "").not.toContain("display: none");
+    expect(bodies[1]!.attributes("style") ?? "").toContain("display: none");
   });
 
   it("shows both routes and the why-line in an expanded step", () => {
@@ -46,7 +48,7 @@ describe("ActionPlan", () => {
       props: { steps: [step(1, "a", "Critical"), step(2, "b", "Minor")] },
     });
     await w.findAll("button[aria-expanded]")[1]!.trigger("click");
-    expect(w.findAll(".plan-step-body")[1]!.isVisible()).toBe(true);
+    expect(w.findAll(".plan-step-body")[1]!.attributes("style") ?? "").not.toContain("display: none");
   });
 
   it("emits show-evidence with the category id", async () => {
