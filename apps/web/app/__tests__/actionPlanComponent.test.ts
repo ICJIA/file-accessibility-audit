@@ -47,8 +47,31 @@ describe("ActionPlan", () => {
     const w = mount(ActionPlan, {
       props: { steps: [step(1, "a", "Critical"), step(2, "b", "Minor")] },
     });
+    // Step 1 is open initially, step 2 is closed.
+    // Click step 2 to open it — step 1 should close (exclusive accordion).
     await w.findAll("button[aria-expanded]")[1]!.trigger("click");
     expect(w.findAll(".plan-step-body")[1]!.attributes("style") ?? "").not.toContain("display: none");
+    // Step 1 is now closed, step 2 is open.
+    expect(w.findAll(".plan-step-body")[0]!.attributes("style") ?? "").toContain("display: none");
+    // Verify aria-expanded reflects exclusive state.
+    expect(w.findAll("button[aria-expanded]")[0]!.attributes("aria-expanded")).toBe("false");
+    expect(w.findAll("button[aria-expanded]")[1]!.attributes("aria-expanded")).toBe("true");
+  });
+
+  it("closes the open step when clicked again", async () => {
+    const w = mount(ActionPlan, {
+      props: { steps: [step(1, "a", "Critical"), step(2, "b", "Minor")] },
+    });
+    // Step 1 is open initially.
+    expect(w.findAll(".plan-step-body")[0]!.attributes("style") ?? "").not.toContain("display: none");
+    // Click step 1 again to close it.
+    await w.findAll("button[aria-expanded]")[0]!.trigger("click");
+    // Both steps are now closed.
+    expect(w.findAll(".plan-step-body")[0]!.attributes("style") ?? "").toContain("display: none");
+    expect(w.findAll(".plan-step-body")[1]!.attributes("style") ?? "").toContain("display: none");
+    // aria-expanded is false for both.
+    expect(w.findAll("button[aria-expanded]")[0]!.attributes("aria-expanded")).toBe("false");
+    expect(w.findAll("button[aria-expanded]")[1]!.attributes("aria-expanded")).toBe("false");
   });
 
   it("emits show-evidence with the category id", async () => {

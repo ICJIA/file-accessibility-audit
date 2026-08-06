@@ -30,7 +30,7 @@
             <button
               type="button"
               class="w-full flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
-              :aria-expanded="!!expanded[step.categoryId]"
+              :aria-expanded="openId === step.categoryId"
               :aria-controls="`plan-step-${step.categoryId}`"
               @click="toggle(step.categoryId)"
             >
@@ -44,12 +44,12 @@
                 {{ step.severity }}</span
               >
               <span class="text-xs text-[var(--link)] whitespace-nowrap" data-export-exclude>{{
-                expanded[step.categoryId] ? "Hide" : "Show how"
+                openId === step.categoryId ? "Hide" : "Show how"
               }}</span>
             </button>
 
             <div
-              v-show="expanded[step.categoryId]"
+              v-show="openId === step.categoryId"
               :id="`plan-step-${step.categoryId}`"
               class="plan-step-body px-3 pb-3"
             >
@@ -136,13 +136,12 @@ defineEmits<{ (e: "show-evidence", categoryId: string): void }>();
 
 // Step 1 open by default — the one thing to do next is zero clicks away.
 // Steps are per-report and never change identity after mount, so seeding
-// from props at setup is safe.
-const expanded = ref<Record<string, boolean>>(
-  props.steps.length ? { [props.steps[0]!.categoryId]: true } : {},
-);
+// from props at setup is safe. Exclusive-open accordion: only one step can be
+// open at a time; clicking the open step closes it.
+const openId = ref<string | null>(props.steps.length ? props.steps[0]!.categoryId : null);
 
 function toggle(id: string): void {
-  expanded.value = { ...expanded.value, [id]: !expanded.value[id] };
+  openId.value = openId.value === id ? null : id;
 }
 
 const subtitle = computed(() => {
