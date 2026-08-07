@@ -671,6 +671,15 @@ describe("renderStatusStrip — the always-visible answer", () => {
   });
 });
 
+/** The `<section>` wrapping one card, so open/closed can be asserted per card
+ *  rather than by searching the whole document. */
+function cardFor(page: string, headingId: string): string {
+  const anchor = page.indexOf(`aria-labelledby="${headingId}"`);
+  expect(anchor, `card ${headingId} not found`).toBeGreaterThan(-1);
+  const start = page.lastIndexOf("<section", anchor);
+  return page.slice(start, page.indexOf("</section>", anchor));
+}
+
 describe("collapsible cards", () => {
   const FULL = {
     ...PAYLOAD,
@@ -700,10 +709,14 @@ describe("collapsible cards", () => {
     },
   };
 
-  it("collapses every card by default — summaries only, no open attribute", () => {
+  it("collapses the interpretive cards but leaves the raw payload open", () => {
     const page = renderStatusHtml(FULL);
-    expect(page).toContain('<details class="card">');
-    expect(page).not.toContain('<details class="card" open>');
+    // The four curated cards fold away…
+    for (const id of ["dist-h", "fmt-h", "rej-h", "bak-h"]) {
+      expect(cardFor(page, id)).toContain('<details class="card">');
+    }
+    // …while the JSON this endpoint exists to serve is visible on arrival.
+    expect(cardFor(page, "raw-h")).toContain('<details class="card" open>');
   });
 
   it("each summary carries the card's headline fact as a peek", () => {
@@ -725,17 +738,18 @@ describe("collapsible cards", () => {
       ...FULL,
       backup: { ...FULL.backup, status: "stale", age_hours: 47.3 },
     });
-    expect(stale).toContain('<details class="card" open>');
+    expect(cardFor(stale, "bak-h")).toContain('<details class="card" open>');
     expect(stale).toContain("⚠ 47.3 h ago — older than expected");
   });
 
   it("says so in the peek when no backup has ever completed", () => {
     const never = renderStatusHtml({ ...FULL, backup: { status: "unavailable" } });
     expect(never).toContain("none yet — expected before the first scheduled run");
-    expect(never).not.toContain('<details class="card" open>');
+    // Never-run is quiet: the card stays folded (only "stale" forces it open).
+    expect(cardFor(never, "bak-h")).toContain('<details class="card">');
   });
 
-  it("wraps the raw JSON tree in its own collapsed card", () => {
+  it("wraps the raw JSON tree in its own card, open on arrival", () => {
     const page = renderStatusHtml(FULL);
     expect(page).toContain("Raw status payload");
     expect(page).toContain("top-level keys — the exact JSON monitors read");

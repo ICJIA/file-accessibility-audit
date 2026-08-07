@@ -150,11 +150,12 @@ function formatBytes(value: unknown): string {
 /** Collapsible card shell around a section. Native <details> — same
  *  no-JavaScript rule as the JSON tree, keyboard-accessible for free.
  *
- *  Cards are COLLAPSED by default: a first-time reader meets a stack of
- *  one-line summaries instead of a wall of tables. Each summary carries a
- *  `peek` — the card's single headline fact — so a collapsed card still
- *  answers its question, and `open` forces a card open when it carries
- *  something the reader must not miss (a stale backup). The exact
+ *  The interpretive cards are COLLAPSED by default: a first-time reader meets
+ *  a stack of one-line summaries instead of a wall of tables. Each summary
+ *  carries a `peek` — the card's single headline fact — so a collapsed card
+ *  still answers its question, and `open` forces a card open when it carries
+ *  something the reader must not miss (a stale backup) or came for in the
+ *  first place (the raw payload, this endpoint's primary product). The exact
  *  `<h2 id=…>` markup is preserved inside the summary so heading structure,
  *  aria-labelledby wiring, and the tests pinning both stay intact. */
 function fold(o: {
@@ -699,6 +700,11 @@ ${fold({
   id: "raw-h",
   title: "Raw status payload",
   peek: `${entries.length} top-level keys — the exact JSON monitors read`,
+  // Open by default, unlike the curated cards above it. This endpoint's
+  // primary readers are operators and monitors: the raw payload is the thing
+  // they came for, so it should never take a click. The interpretive cards
+  // stay folded — they are the optional context.
+  open: true,
   body: `<div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>`,
 })}
 </div>
