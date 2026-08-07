@@ -147,7 +147,7 @@ Host and port are set automatically per provider.
 
 ## Scoring Rubric
 
-Each document is assessed across named accessibility categories based on [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. Categories that don't apply to a document (e.g., tables in a document with no tables) are excluded and the remaining weights are renormalized.
+Each document is assessed across named accessibility categories based on [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/) (a strict superset of [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)) and [ADA Title II](https://www.ada.gov/resources/title-ii-rule/) requirements. A category that doesn't apply (tables in a document with no tables) counts as **passing**; one the tool could not evaluate is excluded from the denominator. See [How a category that doesn't apply is counted](#how-a-category-that-doesnt-apply-is-counted).
 
 ### One score, and a separate conformance verdict
 
@@ -177,6 +177,19 @@ Renormalizing away N/A categories has two consequences that made the tool contra
 
 An averaged score cannot express "one thing here is disqualifying", but accessibility conformance is pass/fail per criterion, not a mean. The cap restores that, and gives the letters a rule that fits in one sentence for the agency staff deciding whether to publish: **A = nothing found · B = only minor items · C = a real problem to fix · D/F = do not publish.** It also makes the grade and the publication verdict structurally incapable of disagreeing, which was the reported symptom — a reader ranking documents by letter got the opposite of the truth.
 
+#### How a category that doesn't apply is counted
+
+A category that **doesn't apply** counts as **passing** and stays in the denominator. A document with no tables does not have a table-markup problem — it has no tables. A category the tool **could not evaluate** (`notAssessed`, e.g. "contrast could not be resolved in this version") is excluded from the denominator instead: scoring it as a pass would be an unverified claim.
+
+Through v1.58.2 both were dropped and the remaining weights renormalized, which **penalized simple documents**. Reported on two Word files, both missing a document title and nothing else in common: a one-page public notice scored **71** and a longer meeting agenda **79** — the notice *worse*, despite having strictly **fewer** findings. Only 3 of the notice's 10 categories could be checked at all, so its single fault was **58% of its whole score**, while the agenda's were spread across 7 checks and diluted to 20%. Both now score **79 / C**.
+
+Two cases must not be flattered by this, and both are pinned by test:
+
+- **Scanned documents still score 0.** Their categories come back null because there is no extractable content to check — the opposite of "nothing wrong". Without the `isScanned` guard in `aggregateScore` the scanned fixture scored **55**.
+- **Unevaluable categories stay out.** See above.
+
+Corpus impact: 2 of 31 grades moved (both F → D, on documents where fewer than half the checks applied). Both still carry Critical findings and stay capped at 69.
+
 **Why the score and not the letter.** v1.58.0 capped the *letter* instead. That fixed both problems above and broke something more basic: it severed the letter from the number, so a report headline read `D` above `80/100`. Reported twice, in those words — *"80 and above is a B. Not a C, and certainly not a D."* On the published scale the report was simply wrong on its face, and no amount of relabelling the number fixed it (v1.58.1 tried, and a reader immediately read "81 of 100" as a percentage grade too). Any figure out of 100 beside a letter grade is read **as** the grade. Capping the score instead keeps one consistent scale and one derivation. `scorer.test.ts`'s **THE INVARIANT** test walks real scoring paths asserting `grade === gradeForScore(overallScore)` for the document *and* both score profiles — it fails on a re-introduction of the v1.58.0 bug (verified by sabotage: "score 92: expected 'C' to be 'A'"), which nothing in the suite caught the first time.
 
 The cap **only ever lowers** a score, never raises one, so a poor average keeps its own worse number. Rule and helpers live in `packages/shared/src/scoring.ts` (`SEVERITY_GRADE_CAPS`, `maxScoreForGrade`, `capScoreBySeverity`, `scoreCapReason`) so the analyzer, web, API, and CLI share one definition.
@@ -191,7 +204,7 @@ The cap **only ever lowers** a score, never raises one, so a poor average keeps 
 
 ### Categories & Weights
 
-Nine categories, weighted by WCAG conformance level and user impact. Categories that don't apply to a document (no tables, no forms, etc.) are excluded and the remaining weights renormalized. Each category is mapped to the exact WCAG success criteria it evaluates — all carried forward unchanged from WCAG 2.1 into 2.2.
+Nine categories, weighted by WCAG conformance level and user impact. A category that doesn't apply (no tables, no forms) counts as passing; one that could not be evaluated is excluded. Each category is mapped to the exact WCAG success criteria it evaluates — all carried forward unchanged from WCAG 2.1 into 2.2.
 
 | Category | Weight | WCAG 2.1/2.2 SC | Why it matters |
 | --- | :--: | --- | --- |
@@ -848,7 +861,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,074 tests** across 130 test files (API 1176, Web 849, CLI 49). Run all three suites with one summary:
+**2,075 tests** across 130 test files (API 1176, Web 850, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -868,7 +881,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2074 tests passed across 130 files
+  ✔ 2075 tests passed across 130 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -932,12 +945,12 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (849 tests)
+### Web Tests (850 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
-| `gradeCapNote.test.ts` | 9 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
+| `gradeCapNote.test.ts` | 10 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
 | `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**: both surfaces must fail on "no personal data" / "no PII" / "anonymized", and must name the sign-in email, the IP/user-agent log, and the file name as uploaded — reassurance by omission is the regression, and sabotage confirmed each guard bites |
 | `actionPlan.test.ts` | 25 | The Visual view's action-plan mapper: a plain-language dictionary entry (jargon-free title AND why) for all 13 category ids, Critical→Moderate→Minor ordering with stable ties, PDF two-route vs OOXML one-route fix instructions, preference for the report's own Acrobat steps over dictionary defaults, unknown-id and missing-fileType fallbacks, forged-report input guards, and the `verdictPhrase` publication clause |
 | `reportSectionOrder.test.ts` | 16 | Report layout invariants per view, source-inspected: both pages carry the exact `VISUAL VIEW`/`DETAILED VIEW` markers (visual first), the Detailed slice preserves every pre-redesign blocking-before-informational ordering unchanged, ReportVisualView's own source pins hero → tiles → verdict → plan → bars → technical report, and TechnicalReport keeps findings above the PDF/UA panels above methodology |

@@ -195,25 +195,71 @@ export function aggregateScore(
 } {
   const applicable = categories.filter((c) => c.score !== null);
 
-  // Straightforward weighted average across all applicable categories.
-  const weightedAverage = (cats: CategoryResult[]): number => {
-    const totalWeight = cats.reduce((sum, c) => sum + c.weight, 0);
-    if (totalWeight === 0) return 0;
-    return Math.round(cats.reduce((sum, c) => sum + c.score! * (c.weight / totalWeight), 0));
-  };
+  // A category that could not be assessed counts as PASSING, and stays in the
+  // denominator. A document with no tables does not have a table-markup
+  // problem — it has no tables.
+  //
+  // Dropping those categories and renormalizing (the behaviour through
+  // v1.58.2) shrank the denominator, so a simple document's single fault
+  // dominated its score. Reported from the field: a one-page notice and a
+  // longer agenda with the IDENTICAL missing-title fault scored 71 and 79 —
+  // the notice worse despite having strictly FEWER findings, purely because
+  // only 3 of its 10 categories could be checked at all while the agenda had
+  // 7. Both now score 79. The effect was the original renormalization bug,
+  // which capping first the letter and then the score had only half-fixed:
+  // the ordering of the LETTERS came right while the numbers still inverted.
+  //
+  // Two things this must NOT do, both found by test rather than by argument:
+  //
+  //   - `notAssessed` categories are still EXCLUDED from the denominator.
+  //     Null means two different things, and the reports already distinguish
+  //     them: "no tables were found" (not applicable — nothing to fail, count
+  //     it as passing) versus "contrast could not be resolved in this version"
+  //     (not assessed — we do not know, and scoring it as a pass would be an
+  //     unverified claim on a page whose whole value is not making those).
+  //
+  //   - A SCANNED document scores 0, not a share of the checklist it dodged.
+  //     Its categories come back null because there is no extractable content
+  //     to check, which is the opposite of "nothing wrong": a screen reader
+  //     gets nothing at all. Without this guard the scanned fixture scored 55.
+  if (isScanned) {
+    const grade = getGrade(0);
+    const executiveSummary = generateSummary(0, grade, isScanned, categories, conformance, noun);
+    return {
+      overallScore: 0,
+      grade,
+      executiveSummary,
+      profile: {
+        mode,
+        label: SCORING_PROFILES[mode].label,
+        description: SCORING_PROFILES[mode].description,
+        overallScore: 0,
+        grade,
+        executiveSummary,
+        categoryScores: Object.fromEntries(categories.map((c) => [c.id, c.score])),
+        categories,
+      },
+    };
+  }
 
-  // The SCORE is capped by the worst unresolved finding, and the grade is
-  // then derived from it exactly as it always was. Without the cap, four
-  // perfect categories outvote one catastrophic one — two PDFs missing both
-  // title and language (Critical) graded B, above a Word file with strictly
-  // the milder defect. Capping the LETTER instead (v1.58.0) fixed that but
-  // severed the number from the grade, so a report read "D" above "80/100";
-  // capping the score keeps GRADE_THRESHOLDS the one consistent scale. See
+  const counted = categories.filter((c) => c.score !== null || c.notAssessed !== true);
+  const fullWeight = counted.reduce((sum, c) => sum + c.weight, 0);
+  const rawScore =
+    fullWeight === 0
+      ? 0
+      : Math.round(counted.reduce((sum, c) => sum + (c.score ?? 100) * (c.weight / fullWeight), 0));
+
+  // The SCORE is then capped by the worst unresolved finding, and the grade
+  // derived from it exactly as it always was. Without the cap, four perfect
+  // categories outvote one catastrophic one — two PDFs missing both title and
+  // language (Critical) graded B, above a Word file with strictly the milder
+  // defect. Capping the LETTER instead (v1.58.0) fixed that but severed the
+  // number from the grade, so a report read "D" above "80/100"; capping the
+  // score keeps GRADE_THRESHOLDS the one consistent scale. See
   // SEVERITY_GRADE_CAPS in packages/shared for the full case.
   //
   // `applicable` rather than `categories`: an unassessed category has no
   // severity to cap with.
-  const rawScore = weightedAverage(applicable);
   const overallScore = capScoreBySeverity(rawScore, applicable) ?? rawScore;
 
   const grade = getGrade(overallScore);

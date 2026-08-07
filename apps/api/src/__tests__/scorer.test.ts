@@ -268,8 +268,15 @@ describe("scoreDocument — scanned PDF", () => {
     expect(result.isScanned).toBe(true);
   });
 
-  it("overall score is 0", () => {
+  it("overall score is 0 — 'nothing could be checked' is not 'nothing wrong'", () => {
+    // Load-bearing since v1.58.3, when unassessable categories started
+    // counting as PASSING so a simple document is not punished for what it
+    // does not contain. A scan is the case where that reasoning inverts: its
+    // categories come back null because there is no extractable content at
+    // all, and a screen reader gets nothing. Without the isScanned guard in
+    // aggregateScore this fixture scored 55.
     expect(result.overallScore).toBe(0);
+    expect(result.grade).toBe("F");
   });
 
   it("grade is F", () => {

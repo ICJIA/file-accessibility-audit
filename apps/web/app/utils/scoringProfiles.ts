@@ -20,6 +20,12 @@ export interface ScoredCategoryLike {
   score: number | null;
   grade: string | null;
   severity: string | null;
+  /** True when the tool could not evaluate this category, as opposed to the
+   *  category not applying. A null score means both things and the reports
+   *  distinguish them: "no tables were found" (nothing to fail) versus
+   *  "contrast could not be resolved" (we do not know). Scoring treats the
+   *  first as a pass and excludes the second — see aggregateScore. */
+  notAssessed?: boolean;
 }
 
 export interface ScoreProfile {

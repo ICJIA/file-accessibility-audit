@@ -89,8 +89,12 @@ describe("ReportGradeHero — the Visual view", () => {
     expect(text).toContain("1 of 1 checks passed");
   });
 
-  it("ignores unassessed categories in the count", () => {
-    // "No images were found" is not a check that failed.
+  it("counts a not-APPLICABLE check as passed", () => {
+    // "No tables were found" is not a check that failed — the document has no
+    // table problem. Counting it against the document is what punished a
+    // one-page notice for being simple: same missing-title fault as a longer
+    // agenda, worse score, because only 3 of its 10 categories could be
+    // checked at all.
     const w = mount(ReportGradeHero, {
       props: {
         grade: "A",
@@ -98,6 +102,30 @@ describe("ReportGradeHero — the Visual view", () => {
         categories: [
           ...CLEAN,
           { id: "table_markup", label: "Tables", score: null, grade: null, severity: null },
+        ],
+      },
+    });
+    expect(w.text()).toContain("2 of 2 checks passed");
+  });
+
+  it("excludes a NOT-ASSESSED check entirely rather than assuming it passed", () => {
+    // The other meaning of null: "contrast could not be resolved in this
+    // version". Scoring that as a pass would be an unverified claim, on a
+    // report whose whole value is not making those.
+    const w = mount(ReportGradeHero, {
+      props: {
+        grade: "A",
+        overallScore: 100,
+        categories: [
+          ...CLEAN,
+          {
+            id: "color_contrast",
+            label: "Contrast",
+            score: null,
+            grade: null,
+            severity: null,
+            notAssessed: true,
+          },
         ],
       },
     });

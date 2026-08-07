@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.58.3] - 2026-08-07
+
+### Fixed
+
+- **A document is no longer penalized for being simple.** Checks that don't apply now count as **passing** and stay in the denominator, instead of being dropped from it. A document with no tables does not have a table-markup problem — it has no tables.
+
+  Reported from the field, on two Word files: a one-page public notice and a longer meeting agenda, both missing a document title and nothing else in common. The notice scored **71** and the agenda **79** — the notice *worse*, despite having strictly **fewer** findings (the agenda also had a minor heading issue). The cause was the original renormalization behaviour: only 3 of the notice's 10 categories could be checked at all, so its single fault was **58%** of its whole score, while the agenda's faults were spread across 7 checks and diluted to 20%. Capping first the letter (v1.58.0) and then the score (v1.58.2) had corrected the ordering of the *letters* while leaving the *numbers* inverted. **Both files now score 79 / C** — same worst finding, same result.
+
+  Two guards, both found by test rather than by argument:
+  - **`notAssessed` categories are still excluded** from the denominator. A null score means two different things and the reports already distinguish them: *"no tables were found"* (not applicable — nothing to fail) versus *"contrast could not be resolved in this version"* (not assessed — we don't know). Scoring the second as a pass would be an unverified claim.
+  - **A scanned document still scores 0.** Its categories come back null because there is no extractable content to check, which is the opposite of "nothing wrong" — a screen reader gets nothing at all. Without the guard the scanned fixture scored **55**; the existing "overall score is 0" test caught it and now carries a note saying why it is load-bearing.
+
+  Corpus impact: 2 of 31 grades change, both **F → D** on documents where fewer than half the checks applied. Both still carry Critical findings, are still capped at 69, and still read "do not publish". Nothing moves up into A or B.
+
+### Notes
+
+Tests 2,074 → 2,075. Distribution across the 31 controls: A:6 B:3 C:8 D:9 F:5.
+
 ## [1.58.2] - 2026-08-07
 
 ### Fixed

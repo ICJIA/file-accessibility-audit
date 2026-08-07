@@ -221,6 +221,9 @@ interface Category {
   grade: string | null;
   severity: string | null;
   findings?: string[];
+  /** Could not be evaluated, as opposed to not applying — see
+   *  ScoredCategoryLike. Scoring credits the second and excludes the first. */
+  notAssessed?: boolean;
 }
 
 interface ConformanceFinding {
@@ -349,11 +352,14 @@ const gradeLabel = computed(() => gradeMap[displayedProfile.value.grade]?.label 
 // Computed against the STRICT profile's own categories, the same ones
 // displayedProfile's score came from, so it can never describe a document
 // other than the one on screen.
-const scored = computed(() =>
-  (displayedCategories.value ?? []).filter((c) => c && c.score !== null && c.score !== undefined),
+// Counted over the same set the SCORE is computed over — see ReportGradeHero.
+const counted = computed(() =>
+  (displayedCategories.value ?? []).filter((c) => c && (c.score !== null || !c.notAssessed)),
 );
-const checksTotal = computed(() => scored.value.length);
-const checksPassed = computed(() => scored.value.filter((c) => c.score === 100).length);
+const checksTotal = computed(() => counted.value.length);
+const checksPassed = computed(
+  () => counted.value.filter((c) => c.score === 100 || c.score === null).length,
+);
 const barWidth = computed(() =>
   checksTotal.value === 0 ? 0 : Math.round((checksPassed.value / checksTotal.value) * 100),
 );

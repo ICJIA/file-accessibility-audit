@@ -76,6 +76,17 @@
         </span>
       </header>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        <strong>Documents are no longer penalized for being simple.</strong> A check that does not
+        apply to a document — table markup in a document with no tables, alt text in one with no
+        images — now counts as passing, rather than being removed from the calculation. Removing
+        them meant a short, simple document had almost nothing to average against, so a single
+        problem counted for far more: a one-page public notice and a longer meeting agenda with the
+        identical missing-title problem scored 71 and 79, the notice worse even though it had fewer
+        problems. Both now score 79. Two things deliberately did not change: a check the tool could
+        not evaluate is still left out rather than assumed to have passed, and a scanned document
+        still scores zero, because a screen reader can read nothing from it at all.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
         <strong>Scores are now capped by the worst problem found in a document.</strong> A reader
         noticed that two reports with the same missing-title problem carried different grades, and
         they were right. The score had been an average across the checks that applied, so the same

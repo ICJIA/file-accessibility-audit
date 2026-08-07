@@ -59,7 +59,7 @@ import { publicationVerdict } from "~/utils/actionPlan";
 const props = defineProps<{
   grade: string;
   overallScore: number;
-  categories: Array<{ severity?: string | null; score?: number | null }>;
+  categories: Array<{ severity?: string | null; score?: number | null; notAssessed?: boolean }>;
 }>();
 
 const color = computed(() => gradeColor(props.grade));
@@ -93,13 +93,20 @@ const labelColor = computed(() =>
 
 // Plain counts, not a percentage — a second figure out of 100 next to the
 // score would be one more thing to mistake for the grade.
-const scored = computed(() =>
+//
+// Counted over the same set the SCORE is computed over, so the two can never
+// be arithmetic-checked against each other and disagree: a check that does
+// not apply counts as passed (no tables means no table problem), while one
+// that could not be assessed is excluded entirely rather than assumed good.
+const counted = computed(() =>
   (Array.isArray(props.categories) ? props.categories : []).filter(
-    (c) => c && c.score !== null && c.score !== undefined,
+    (c) => c && (c.score !== null || c.notAssessed !== true),
   ),
 );
-const checksTotal = computed(() => scored.value.length);
-const checksPassed = computed(() => scored.value.filter((c) => c.score === 100).length);
+const checksTotal = computed(() => counted.value.length);
+const checksPassed = computed(
+  () => counted.value.filter((c) => c.score === 100 || c.score === null).length,
+);
 const barWidth = computed(() =>
   checksTotal.value === 0 ? 0 : Math.round((checksPassed.value / checksTotal.value) * 100),
 );

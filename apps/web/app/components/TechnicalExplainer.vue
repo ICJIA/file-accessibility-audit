@@ -680,10 +680,14 @@
           <strong>WCAG 2.2 AA</strong> and <strong>IITAA 2.1 §E205.4</strong> — the rules that
           govern non-web document accessibility in Illinois. Each category receives a score from 0
           to 100 (or N/A if the category doesn't apply to the document). The overall score is a
-          <strong>weighted average</strong> of applicable categories, with weights renormalized to
-          exclude N/A categories. Word, PowerPoint, and Excel files are graded on the same
-          WCAG-anchored, weighted-average model, renormalized the same way when a category is N/A —
-          just with a category set adapted to each format (see below).
+          <strong>weighted average</strong> across the categories. A category that
+          <em>doesn't apply</em> — table markup in a document with no tables — counts as
+          <strong>passing</strong>, because such a document has no table problem; one the tool
+          <em>could not evaluate</em> is left out of the calculation entirely, because scoring it as
+          a pass would be a claim we cannot back. Word, PowerPoint, and Excel files are graded on
+          the same model, just with a category set adapted to each format (see below). A scanned
+          document is the exception in the other direction: it scores zero, because nothing in it
+          can be read by a screen reader at all.
         </p>
         <div
           class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)] p-4 mb-4"
