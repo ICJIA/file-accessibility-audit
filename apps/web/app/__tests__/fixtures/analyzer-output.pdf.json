@@ -1,0 +1,1932 @@
+{
+  "filename": "COVID arrests PDF to post on web-210305T17262965.pdf",
+  "pageCount": 18,
+  "fileType": "pdf",
+  "pdfMetadata": {
+    "creator": "Adobe Acrobat Pro 11.0.23",
+    "producer": "Adobe Acrobat Pro 11.0.23",
+    "creationDate": "2021-03-03T14:11:04.000Z",
+    "modDate": "2021-03-03T14:11:04.000Z",
+    "pdfVersion": "1.6",
+    "isEncrypted": false,
+    "keywords": null,
+    "author": "Jessica",
+    "subject": null,
+    "pageCount": 18
+  },
+  "overallScore": 62,
+  "grade": "D",
+  "isScanned": false,
+  "executiveSummary": "This PDF scored 62/100 (grade D) for overall readiness, but automated checks confirmed 3 WCAG 2.2 failures — so it does not yet meet WCAG 2.2 Level AA. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.",
+  "categories": [
+    {
+      "id": "text_extractability",
+      "label": "Text Extractability",
+      "weight": 0.2,
+      "score": 85,
+      "grade": "B",
+      "severity": "Minor",
+      "findings": [
+        "PDF contains extractable text",
+        "Document is tagged (StructTreeRoot present)",
+        "Extracted 32,498 characters of text content",
+        "--- Font Embedding ---",
+        "  9 font(s) found: 5 embedded, 4 not embedded",
+        "  YDPSVW+SymbolMT — embedded",
+        "  ArialMT — NOT embedded",
+        "  TimesNewRomanPSMT — NOT embedded",
+        "  TimesNewRomanPS-ItalicMT — NOT embedded",
+        "  TimesNewRomanPS-BoldMT — NOT embedded",
+        "  BodoniFLF-Roman — embedded",
+        "  TeXGyreTermes-Regular — embedded",
+        "  TeXGyreTermes-Italic — embedded",
+        "  TeXGyreTermes-Bold — embedded",
+        "4 non-embedded font(s) may cause garbled text on systems without these fonts: ArialMT, TimesNewRomanPSMT, TimesNewRomanPS-ItalicMT, TimesNewRomanPS-BoldMT",
+        "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: File → Properties → Fonts tab shows embedding status.",
+        "--- Document Structure Signals ---",
+        "  Document is marked as \"Marked Content\" (/MarkInfo /Marked true) — content is properly distinguished from artifacts",
+        "  652 paragraph tag(s) (/P) found — text is structurally organized",
+        "--- PDF/UA Compliance ---",
+        "  No PDF/UA identifier found — the document does not claim PDF/UA (ISO 14289) conformance",
+        "  Note: PDF/UA conformance is not required for WCAG compliance, but indicates the PDF was created with accessibility in mind",
+        "--- Artifact Tagging ---",
+        "  21 element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content",
+        "--- Adobe Acrobat: How to Fix ---",
+        "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Tagged PDF\"",
+        "If Tagged PDF fails: File → Properties → Description shows \"Tagged PDF: Yes/No\" (status only) — to add tags, run All tools → Prepare for accessibility → Automatically tag PDF",
+        "If text is unreadable (scanned): Recognize Text → In This File (runs OCR)",
+        "Then: Accessibility → Reading Order tool → verify content tags are correct",
+        "Check font embedding: File → Properties → Fonts tab — all fonts should say \"(Embedded)\" or \"(Embedded Subset)\"",
+        "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight → Fix → Embed missing fonts",
+        "Menu path: Acrobat Pro → All tools → Prepare for accessibility"
+      ],
+      "explanation": "Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Add Tags to a PDF",
+          "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+        },
+        {
+          "label": "Adobe: OCR a Scanned Document",
+          "url": "https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html"
+        },
+        {
+          "label": "WebAIM: PDF Accessibility",
+          "url": "https://webaim.org/techniques/acrobat/"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.1.1",
+          "name": "Non-text Content",
+          "level": "A"
+        },
+        {
+          "sc": "1.3.1",
+          "name": "Info and Relationships",
+          "level": "A"
+        }
+      ]
+    },
+    {
+      "id": "title_language",
+      "label": "Document Title & Language",
+      "weight": 0.15,
+      "score": 0,
+      "grade": "F",
+      "severity": "Critical",
+      "findings": [
+        "No document title found in metadata",
+        "How to fix: In Adobe Acrobat, go to File → Properties → Description tab → enter a descriptive Title.",
+        "The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., \"report_v3_final.pdf\").",
+        "No language declaration found",
+        "How to fix: In Adobe Acrobat, go to File → Properties → Advanced tab → set the Language dropdown.",
+        "The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.",
+        "Author: Jessica",
+        "--- Adobe Acrobat: How to Fix ---",
+        "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Title\" and \"Primary Language\"",
+        "Set title: File → Properties → Description tab → Title field (enter a meaningful document title)",
+        "Set title display: File → Properties → Initial View tab → Window Options → Show → \"Document Title\"",
+        "Set language: File → Properties → Advanced tab → Reading Options → Language dropdown",
+        "Common languages: English = \"English\", Spanish = \"Spanish\", French = \"French\""
+      ],
+      "explanation": "This category checks two metadata fields: the document title and the language declaration. The title appears in the browser tab and is the first thing a screen reader announces. The language tag tells assistive technology how to pronounce the text correctly.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Set Document Title",
+          "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+        },
+        {
+          "label": "WCAG 3.1.1: Language of Page",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html"
+        },
+        {
+          "label": "WebAIM: Document Properties",
+          "url": "https://webaim.org/techniques/acrobat/other"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "2.4.2",
+          "name": "Page Titled",
+          "level": "A"
+        },
+        {
+          "sc": "3.1.1",
+          "name": "Language of Page",
+          "level": "A"
+        }
+      ]
+    },
+    {
+      "id": "heading_structure",
+      "label": "Heading Structure",
+      "weight": 0.15,
+      "score": 100,
+      "grade": "A",
+      "severity": "No issues found",
+      "findings": ["--- Heading Tree ---", "  H1", "Found 1 heading tags with logical hierarchy"],
+      "explanation": "Headings (H1–H6) create a navigable outline of the document. Screen reader users rely on headings to skim and jump between sections — similar to how sighted users scan bold section titles. Headings must follow a logical hierarchy: H1 for the main title, H2 for major sections, H3 for subsections, and so on. Skipping levels (e.g., H1 → H3) confuses assistive technology.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Add Headings to a PDF",
+          "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html"
+        },
+        {
+          "label": "WCAG 1.3.1: Info and Relationships",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+        },
+        {
+          "label": "WebAIM: Headings in PDFs",
+          "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.3.1",
+          "name": "Info and Relationships",
+          "level": "A"
+        },
+        {
+          "sc": "2.4.6",
+          "name": "Headings and Labels",
+          "level": "AA"
+        }
+      ]
+    },
+    {
+      "id": "alt_text",
+      "label": "Alt Text on Images",
+      "weight": 0.15,
+      "score": 0,
+      "grade": "F",
+      "severity": "Critical",
+      "findings": [
+        "0 of 32 image(s) have alternative text",
+        "--- Images Missing Alt Text ---",
+        "  Image 1: <Figure> tag — no /Alt attribute",
+        "  Image 2: <Figure> tag — no /Alt attribute",
+        "  Image 3: <Figure> tag — no /Alt attribute",
+        "  Image 4: <Figure> tag — no /Alt attribute",
+        "  Image 5: <Figure> tag — no /Alt attribute",
+        "  Image 6: <Figure> tag — no /Alt attribute",
+        "  Image 7: <Figure> tag — no /Alt attribute",
+        "  Image 8: <Figure> tag — no /Alt attribute",
+        "  Image 9: <Figure> tag — no /Alt attribute",
+        "  Image 10: <Figure> tag — no /Alt attribute",
+        "  Image 11: <Figure> tag — no /Alt attribute",
+        "  Image 12: <Figure> tag — no /Alt attribute",
+        "  Image 13: <Figure> tag — no /Alt attribute",
+        "  Image 14: <Figure> tag — no /Alt attribute",
+        "  Image 15: <Figure> tag — no /Alt attribute",
+        "  ... and 17 more image(s) without alt text",
+        "How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the \"Alternate Text\" field.",
+        "Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, \"Bar chart showing 2024 crime rates by county\" rather than \"chart\".",
+        "--- Adobe Acrobat: How to Fix ---",
+        "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Alternate Text\" → \"Figures alternate text\"",
+        "To add alt text: open Tags panel → find the <Figure> tag → right-click → Properties → Alternate Text field",
+        "Or: All tools → Prepare for accessibility → Fix reading order → select the image → right-click → Edit Alternate Text",
+        "Good alt text: describes the purpose/content (\"Bar chart showing 2024 crime rates\"), not appearance (\"colorful chart\")",
+        "Decorative images: select with the Reading Order tool → click \"Background/Artifact\", or in the Accessibility tags panel right-click the tag → Change Tag to Artifact (removes it from the reading order)"
+      ],
+      "explanation": "Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Add Alt Text to Images",
+          "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html#add_alternate_text_to_links_and_figures"
+        },
+        {
+          "label": "WCAG 1.1.1: Non-text Content",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"
+        },
+        {
+          "label": "WebAIM: Alt Text in PDFs",
+          "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.1.1",
+          "name": "Non-text Content",
+          "level": "A"
+        }
+      ]
+    },
+    {
+      "id": "bookmarks",
+      "label": "Bookmarks / Navigation",
+      "weight": 0.05,
+      "score": 100,
+      "grade": "A",
+      "severity": "No issues found",
+      "findings": [
+        "3 bookmark(s) found",
+        "--- Bookmark Outline ---",
+        "  COVID arrests PDF cover",
+        "  Arrest Trends During COVID 3-2-21 for web",
+        "    Introduction"
+      ],
+      "explanation": "Bookmarks (also called outlines) create a clickable table of contents in the PDF sidebar. They let all users — including those using screen readers — jump directly to any section. For documents longer than a few pages, bookmarks are essential for navigation. In Adobe Acrobat, bookmarks can be generated automatically from heading tags.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Create Bookmarks",
+          "url": "https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html#create_a_bookmark"
+        },
+        {
+          "label": "Adobe: Auto-generate Bookmarks from Headings",
+          "url": "https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html"
+        },
+        {
+          "label": "WebAIM: PDF Navigation",
+          "url": "https://webaim.org/techniques/acrobat/other#bookmarks"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "2.4.5",
+          "name": "Multiple Ways",
+          "level": "AA"
+        }
+      ]
+    },
+    {
+      "id": "table_markup",
+      "label": "Table Markup",
+      "weight": 0.1,
+      "score": 85,
+      "grade": "B",
+      "severity": "Minor",
+      "findings": [
+        "--- Table Structure Overview ---",
+        "  Table: 26 rows × 3 cols | 28 <TH>, 50 <TD> | scope: missing on 28 header(s)",
+        "All 1 table(s) have header cells (TH) — 28 header cell(s) total",
+        "All 1 table(s) have proper row structure — 26 <TR> row(s) total",
+        "28 <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data",
+        "  Table 1: 28 of 28 <TH> missing /Scope",
+        "Fix: In Adobe Acrobat, open the Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to \"Column\" or \"Row\"",
+        "No nested tables detected",
+        "No tables have a <Caption> element. A caption is optional (not required by WCAG 2.1/2.2), but adding one as the first child of each <Table> helps screen readers announce the table's purpose.",
+        "All tables have consistent column counts across rows",
+        "--- Adobe Acrobat: How to Fix ---",
+        "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Tables\" → \"Rows\", \"TH and TD\", \"Headers\"",
+        "Open Tags panel and expand the <Table> tag to see structure",
+        "To add header cells: right-click a <TD> tag → Properties → Type → change to \"Table Header Cell (TH)\"",
+        "To set scope: Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type \"Header Cell\" + Scope \"Column\" or \"Row\"",
+        "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
+        "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)"
+      ],
+      "explanation": "Table markup tells screen readers how to navigate data tables. This checks seven aspects of table accessibility, weighted by importance: header cells (TH tags, 40 pts), row structure (TR tags, 20 pts), scope attributes linking headers to columns/rows (10 pts), nested table detection (10 pts), consistent column counts (10 pts), caption elements (5 pts), and header-cell associations (5 pts). Headers and row structure are the foundation; scope and captions are enhancements.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Make Tables Accessible",
+          "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html"
+        },
+        {
+          "label": "WCAG 1.3.1: Info and Relationships",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+        },
+        {
+          "label": "WebAIM: Table Accessibility in PDFs",
+          "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+        },
+        {
+          "label": "PAC 2024: Table Structure",
+          "url": "https://pac.pdf-accessibility.org/"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.3.1",
+          "name": "Info and Relationships",
+          "level": "A"
+        }
+      ]
+    },
+    {
+      "id": "color_contrast",
+      "label": "Color Contrast",
+      "weight": 0,
+      "score": null,
+      "grade": null,
+      "severity": null,
+      "notAssessed": true,
+      "findings": [
+        "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
+        "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
+        "The category is shown so the external practical scoring schema is explicit, but it does not affect the score today."
+      ],
+      "explanation": "Color contrast checks whether text stands out strongly enough from its background for low-vision users. Unlike web pages, PDFs often require rendered page analysis to determine foreground/background pairs accurately. This analyzer does not yet perform that rendered contrast audit.",
+      "helpLinks": [
+        {
+          "label": "WCAG 1.4.3: Contrast (Minimum)",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+        },
+        {
+          "label": "Adobe: Check accessibility (Full Check)",
+          "url": "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.4.3",
+          "name": "Contrast (Minimum)",
+          "level": "AA"
+        }
+      ]
+    },
+    {
+      "id": "link_quality",
+      "label": "Link & URL Quality",
+      "weight": 0.05,
+      "score": 100,
+      "grade": "A",
+      "severity": "No issues found",
+      "findings": [
+        "--- Raw URL Link Text (advisory — not penalized) ---",
+        "9 link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.",
+        "  \"https://doi.org/10.1016/j.jcrimjus.2020.101692 ; Weichselbaum, S., &\" → https://doi.org/10.1016/j.jcrimjus.2020.101692",
+        "  \"https://doi.org/10.31219/osf.io/gcpq8 ; Lofstrom, M., & Martin, B. (2020).\" → https://doi.org/10.31219/osf.io/gcpq8",
+        "  \"https://doi.org/10.1007/s12103-\" → https://doi.org/10.1007/s12103-020-09531-7",
+        "  \"https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+        "  \"https://doi.org/10.1007/s12103-020-09531-7\" → https://doi.org/10.1007/s12103-020-09531-7",
+        "  \"https://doi.org/10.1186/s40163-020-00117-6\" → https://doi.org/10.1186/s40163-020-00117-6",
+        "  \"https://doi.org/10.1007/s10940-011-9145-7\" → https://doi.org/10.1007/s10940-011-9145-7",
+        "  \"https://www.themarshallproject.org/2020/04/22/is-\" → https://www.themarshallproject.org/2020/04/22/is-domestic-violence-rising-during-the-coronavirus-shutdown-here-s-what-the-data-shows",
+        "  \"https://cdn.ymaws.com/counciloncj.org/resource/resmgr/covid_commission/Crime_in_US_Cities_- _October.pdf\" → https://cdn.ymaws.com/counciloncj.org/resource/resmgr/covid_commission/Crime_in_US_Cities_-_October.pdf",
+        "--- Links With Descriptive Text ---",
+        "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Mohler, G., Bertozzi, A. L.,\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+        "  \"Weihua, L. (2020). As coronavirus surges, crime declines in some cities . The Marshall Project. https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+        "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Campedelli G.M., Aziani A.,\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+        "  \"violence. Psychological Trauma: Theory, Research, Practice, and Policy http://dx.doi.org/10.1037/tra0000646 ; Piquero, A.R., Riddell, J.R., Bishopp, S. A. Narvey, C., Reid, J. A.,\" → http://dx.doi.org/10.1037/tra0000646",
+        "  \"domestic violence. 020-09531-7 ; Weichselbaum, S., & Weihua, L. (2020).\" → https://doi.org/10.1007/s12103-020-09531-7",
+        "  \"As coronavirus surges, crime declines in some https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+        "  \"cities . The Marshall Project. https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges- crime-declines-in-some-cities\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+        "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Center for Criminal Justice\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+        "  \"Covid-19’s effect on Chicago crime trends https://www.covidcrime-chicago.com/ ; Jennings, W. G., & Perez, N. M. (2020). The immediate\" → https://www.covidcrime-chicago.com/",
+        "  \"American Journal of Criminal https://doi.org/10.1007/s12103-020-09536-2 ; Vera Institute of Justice.\" → https://doi.org/10.1007/s12103-020-09536-2",
+        "  ... and 20 more descriptive link(s)"
+      ],
+      "explanation": "Screen reader users often navigate by tabbing through links or pulling up a list of all links on the page. If a link says \"https://www.example.com/reports/2024/q3/data.pdf\", that's not useful. A descriptive label like \"Q3 2024 Data Report\" tells the user where the link goes without needing to see the URL.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Create and Edit Links",
+          "url": "https://helpx.adobe.com/acrobat/using/accessibility-features-pdfs.html"
+        },
+        {
+          "label": "WCAG 2.4.4: Link Purpose",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html"
+        },
+        {
+          "label": "WebAIM: Links and Hypertext",
+          "url": "https://webaim.org/techniques/hypertext/"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "2.4.4",
+          "name": "Link Purpose (In Context)",
+          "level": "A"
+        }
+      ]
+    },
+    {
+      "id": "reading_order",
+      "label": "Reading Order",
+      "weight": 0.1,
+      "score": 85,
+      "grade": "B",
+      "severity": "Minor",
+      "findings": [
+        "Structure tree depth: 16 level(s)",
+        "Content items (MCIDs): 852",
+        "Pages: 18 | Paragraphs: 652 | Headings: 1",
+        "Reading-order fidelity: 87% (18 of 18 page(s) compared)",
+        "Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong.",
+        "5 page(s) had noticeable drift (< 80% match). Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.",
+        "Reading order scored 85/100 — the tagged order agreed with the content stream's draw order on 87% of comparable content (a perfect 100 requires ≥ 97%). Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.",
+        "--- List Structure Analysis ---",
+        "5 list(s) detected with 19 total item(s)",
+        "  List 1: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+        "  List 2: 3 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+        "  List 3: 2 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+        "  List 4: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+        "  List 5: 6 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+        "All lists are well-formed (each <LI> has an <LBody>)",
+        "5 list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker",
+        "--- Additional Structure Signals ---",
+        "  Role mapping present — 18 custom tag(s) mapped to standard PDF roles",
+        "  Annotation → Span",
+        "  Artifact → P",
+        "  Bibliography → BibEntry",
+        "  Chart → Figure",
+        "  Diagram → Figure",
+        "  DropCap → Figure",
+        "  Endnote → Note",
+        "  Footnote → Note",
+        "  ... and 10 more",
+        "  Tab order set on 17 of 18 page(s) — some pages may have inconsistent keyboard navigation",
+        "  Fix: In Adobe Acrobat, go to each page's properties and set Tab Order to \"Use Document Structure\"",
+        "--- Adobe Acrobat: How to Fix ---",
+        "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Tab order\" and \"Logical Reading Order\"",
+        "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Accessibility → Reading Order)",
+        "The Reading Order tool shows numbered regions — verify the sequence matches how a human would read the page",
+        "To reorder: drag items in the Tags panel, or use the Order panel (View → Show/Hide → Navigation Panes → Order)",
+        "Set tab order on all pages: open the Page Thumbnails panel → select all pages → right-click → Page Properties → Tab Order → \"Use Document Structure\""
+      ],
+      "explanation": "Reading order determines the sequence in which a screen reader announces content. In a visual layout, humans naturally read left-to-right, top-to-bottom. But PDFs store content in drawing order, which may not match the visual order — for example, a sidebar might be read before the main content. The tag structure tree overrides the drawing order, ensuring assistive technology reads content in the correct logical sequence.",
+      "helpLinks": [
+        {
+          "label": "Adobe: Fix Reading Order",
+          "url": "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+        },
+        {
+          "label": "WCAG 1.3.2: Meaningful Sequence",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/meaningful-sequence.html"
+        },
+        {
+          "label": "WebAIM: Reading Order",
+          "url": "https://webaim.org/techniques/acrobat/reviewing#order"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.3.2",
+          "name": "Meaningful Sequence",
+          "level": "A"
+        }
+      ]
+    },
+    {
+      "id": "form_accessibility",
+      "label": "Form Accessibility",
+      "weight": 0.05,
+      "score": null,
+      "grade": null,
+      "severity": null,
+      "findings": [
+        "No form fields found in this document — this category does not affect the score"
+      ],
+      "explanation": "Form fields (text boxes, checkboxes, dropdowns) need a \"tooltip\" label (called TU in the PDF spec) so screen readers can announce what each field is for. Without a tooltip, a screen reader user encounters a text box with no indication of what to type — they hear \"text field\" instead of \"First Name\".",
+      "helpLinks": [
+        {
+          "label": "Adobe: Create Accessible Forms",
+          "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+        },
+        {
+          "label": "WCAG 1.3.1: Labels for Form Fields",
+          "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+        },
+        {
+          "label": "WebAIM: Accessible PDF Forms",
+          "url": "https://webaim.org/techniques/acrobat/forms"
+        }
+      ],
+      "wcagCriteria": [
+        {
+          "sc": "1.3.1",
+          "name": "Info and Relationships",
+          "level": "A"
+        },
+        {
+          "sc": "3.3.2",
+          "name": "Labels or Instructions",
+          "level": "A"
+        },
+        {
+          "sc": "4.1.2",
+          "name": "Name, Role, Value",
+          "level": "A"
+        }
+      ]
+    }
+  ],
+  "warnings": [],
+  "scoringMode": "strict",
+  "scoreProfiles": {
+    "strict": {
+      "mode": "strict",
+      "label": "Strict semantic score (WCAG + IITAA §E205.4)",
+      "description": "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA category. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
+      "overallScore": 62,
+      "grade": "D",
+      "executiveSummary": "This PDF scored 62/100 (grade D) for overall readiness, but automated checks confirmed 3 WCAG 2.2 failures — so it does not yet meet WCAG 2.2 Level AA. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.",
+      "categoryScores": {
+        "text_extractability": 85,
+        "title_language": 0,
+        "heading_structure": 100,
+        "alt_text": 0,
+        "bookmarks": 100,
+        "table_markup": 85,
+        "color_contrast": null,
+        "link_quality": 100,
+        "reading_order": 85,
+        "form_accessibility": null
+      },
+      "categories": [
+        {
+          "id": "text_extractability",
+          "label": "Text Extractability",
+          "weight": 0.2,
+          "score": 85,
+          "grade": "B",
+          "severity": "Minor",
+          "findings": [
+            "PDF contains extractable text",
+            "Document is tagged (StructTreeRoot present)",
+            "Extracted 32,498 characters of text content",
+            "--- Font Embedding ---",
+            "  9 font(s) found: 5 embedded, 4 not embedded",
+            "  YDPSVW+SymbolMT — embedded",
+            "  ArialMT — NOT embedded",
+            "  TimesNewRomanPSMT — NOT embedded",
+            "  TimesNewRomanPS-ItalicMT — NOT embedded",
+            "  TimesNewRomanPS-BoldMT — NOT embedded",
+            "  BodoniFLF-Roman — embedded",
+            "  TeXGyreTermes-Regular — embedded",
+            "  TeXGyreTermes-Italic — embedded",
+            "  TeXGyreTermes-Bold — embedded",
+            "4 non-embedded font(s) may cause garbled text on systems without these fonts: ArialMT, TimesNewRomanPSMT, TimesNewRomanPS-ItalicMT, TimesNewRomanPS-BoldMT",
+            "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: File → Properties → Fonts tab shows embedding status.",
+            "--- Document Structure Signals ---",
+            "  Document is marked as \"Marked Content\" (/MarkInfo /Marked true) — content is properly distinguished from artifacts",
+            "  652 paragraph tag(s) (/P) found — text is structurally organized",
+            "--- PDF/UA Compliance ---",
+            "  No PDF/UA identifier found — the document does not claim PDF/UA (ISO 14289) conformance",
+            "  Note: PDF/UA conformance is not required for WCAG compliance, but indicates the PDF was created with accessibility in mind",
+            "--- Artifact Tagging ---",
+            "  21 element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Tagged PDF\"",
+            "If Tagged PDF fails: File → Properties → Description shows \"Tagged PDF: Yes/No\" (status only) — to add tags, run All tools → Prepare for accessibility → Automatically tag PDF",
+            "If text is unreadable (scanned): Recognize Text → In This File (runs OCR)",
+            "Then: Accessibility → Reading Order tool → verify content tags are correct",
+            "Check font embedding: File → Properties → Fonts tab — all fonts should say \"(Embedded)\" or \"(Embedded Subset)\"",
+            "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight → Fix → Embed missing fonts",
+            "Menu path: Acrobat Pro → All tools → Prepare for accessibility"
+          ],
+          "explanation": "Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Add Tags to a PDF",
+              "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+            },
+            {
+              "label": "Adobe: OCR a Scanned Document",
+              "url": "https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html"
+            },
+            {
+              "label": "WebAIM: PDF Accessibility",
+              "url": "https://webaim.org/techniques/acrobat/"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.1.1",
+              "name": "Non-text Content",
+              "level": "A"
+            },
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "title_language",
+          "label": "Document Title & Language",
+          "weight": 0.15,
+          "score": 0,
+          "grade": "F",
+          "severity": "Critical",
+          "findings": [
+            "No document title found in metadata",
+            "How to fix: In Adobe Acrobat, go to File → Properties → Description tab → enter a descriptive Title.",
+            "The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., \"report_v3_final.pdf\").",
+            "No language declaration found",
+            "How to fix: In Adobe Acrobat, go to File → Properties → Advanced tab → set the Language dropdown.",
+            "The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.",
+            "Author: Jessica",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Title\" and \"Primary Language\"",
+            "Set title: File → Properties → Description tab → Title field (enter a meaningful document title)",
+            "Set title display: File → Properties → Initial View tab → Window Options → Show → \"Document Title\"",
+            "Set language: File → Properties → Advanced tab → Reading Options → Language dropdown",
+            "Common languages: English = \"English\", Spanish = \"Spanish\", French = \"French\""
+          ],
+          "explanation": "This category checks two metadata fields: the document title and the language declaration. The title appears in the browser tab and is the first thing a screen reader announces. The language tag tells assistive technology how to pronounce the text correctly.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Set Document Title",
+              "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+            },
+            {
+              "label": "WCAG 3.1.1: Language of Page",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html"
+            },
+            {
+              "label": "WebAIM: Document Properties",
+              "url": "https://webaim.org/techniques/acrobat/other"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "2.4.2",
+              "name": "Page Titled",
+              "level": "A"
+            },
+            {
+              "sc": "3.1.1",
+              "name": "Language of Page",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "heading_structure",
+          "label": "Heading Structure",
+          "weight": 0.15,
+          "score": 100,
+          "grade": "A",
+          "severity": "No issues found",
+          "findings": [
+            "--- Heading Tree ---",
+            "  H1",
+            "Found 1 heading tags with logical hierarchy"
+          ],
+          "explanation": "Headings (H1–H6) create a navigable outline of the document. Screen reader users rely on headings to skim and jump between sections — similar to how sighted users scan bold section titles. Headings must follow a logical hierarchy: H1 for the main title, H2 for major sections, H3 for subsections, and so on. Skipping levels (e.g., H1 → H3) confuses assistive technology.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Add Headings to a PDF",
+              "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html"
+            },
+            {
+              "label": "WCAG 1.3.1: Info and Relationships",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+            },
+            {
+              "label": "WebAIM: Headings in PDFs",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            },
+            {
+              "sc": "2.4.6",
+              "name": "Headings and Labels",
+              "level": "AA"
+            }
+          ]
+        },
+        {
+          "id": "alt_text",
+          "label": "Alt Text on Images",
+          "weight": 0.15,
+          "score": 0,
+          "grade": "F",
+          "severity": "Critical",
+          "findings": [
+            "0 of 32 image(s) have alternative text",
+            "--- Images Missing Alt Text ---",
+            "  Image 1: <Figure> tag — no /Alt attribute",
+            "  Image 2: <Figure> tag — no /Alt attribute",
+            "  Image 3: <Figure> tag — no /Alt attribute",
+            "  Image 4: <Figure> tag — no /Alt attribute",
+            "  Image 5: <Figure> tag — no /Alt attribute",
+            "  Image 6: <Figure> tag — no /Alt attribute",
+            "  Image 7: <Figure> tag — no /Alt attribute",
+            "  Image 8: <Figure> tag — no /Alt attribute",
+            "  Image 9: <Figure> tag — no /Alt attribute",
+            "  Image 10: <Figure> tag — no /Alt attribute",
+            "  Image 11: <Figure> tag — no /Alt attribute",
+            "  Image 12: <Figure> tag — no /Alt attribute",
+            "  Image 13: <Figure> tag — no /Alt attribute",
+            "  Image 14: <Figure> tag — no /Alt attribute",
+            "  Image 15: <Figure> tag — no /Alt attribute",
+            "  ... and 17 more image(s) without alt text",
+            "How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the \"Alternate Text\" field.",
+            "Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, \"Bar chart showing 2024 crime rates by county\" rather than \"chart\".",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Alternate Text\" → \"Figures alternate text\"",
+            "To add alt text: open Tags panel → find the <Figure> tag → right-click → Properties → Alternate Text field",
+            "Or: All tools → Prepare for accessibility → Fix reading order → select the image → right-click → Edit Alternate Text",
+            "Good alt text: describes the purpose/content (\"Bar chart showing 2024 crime rates\"), not appearance (\"colorful chart\")",
+            "Decorative images: select with the Reading Order tool → click \"Background/Artifact\", or in the Accessibility tags panel right-click the tag → Change Tag to Artifact (removes it from the reading order)"
+          ],
+          "explanation": "Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Add Alt Text to Images",
+              "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html#add_alternate_text_to_links_and_figures"
+            },
+            {
+              "label": "WCAG 1.1.1: Non-text Content",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"
+            },
+            {
+              "label": "WebAIM: Alt Text in PDFs",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.1.1",
+              "name": "Non-text Content",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "bookmarks",
+          "label": "Bookmarks / Navigation",
+          "weight": 0.05,
+          "score": 100,
+          "grade": "A",
+          "severity": "No issues found",
+          "findings": [
+            "3 bookmark(s) found",
+            "--- Bookmark Outline ---",
+            "  COVID arrests PDF cover",
+            "  Arrest Trends During COVID 3-2-21 for web",
+            "    Introduction"
+          ],
+          "explanation": "Bookmarks (also called outlines) create a clickable table of contents in the PDF sidebar. They let all users — including those using screen readers — jump directly to any section. For documents longer than a few pages, bookmarks are essential for navigation. In Adobe Acrobat, bookmarks can be generated automatically from heading tags.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Create Bookmarks",
+              "url": "https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html#create_a_bookmark"
+            },
+            {
+              "label": "Adobe: Auto-generate Bookmarks from Headings",
+              "url": "https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html"
+            },
+            {
+              "label": "WebAIM: PDF Navigation",
+              "url": "https://webaim.org/techniques/acrobat/other#bookmarks"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "2.4.5",
+              "name": "Multiple Ways",
+              "level": "AA"
+            }
+          ]
+        },
+        {
+          "id": "table_markup",
+          "label": "Table Markup",
+          "weight": 0.1,
+          "score": 85,
+          "grade": "B",
+          "severity": "Minor",
+          "findings": [
+            "--- Table Structure Overview ---",
+            "  Table: 26 rows × 3 cols | 28 <TH>, 50 <TD> | scope: missing on 28 header(s)",
+            "All 1 table(s) have header cells (TH) — 28 header cell(s) total",
+            "All 1 table(s) have proper row structure — 26 <TR> row(s) total",
+            "28 <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data",
+            "  Table 1: 28 of 28 <TH> missing /Scope",
+            "Fix: In Adobe Acrobat, open the Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to \"Column\" or \"Row\"",
+            "No nested tables detected",
+            "No tables have a <Caption> element. A caption is optional (not required by WCAG 2.1/2.2), but adding one as the first child of each <Table> helps screen readers announce the table's purpose.",
+            "All tables have consistent column counts across rows",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Tables\" → \"Rows\", \"TH and TD\", \"Headers\"",
+            "Open Tags panel and expand the <Table> tag to see structure",
+            "To add header cells: right-click a <TD> tag → Properties → Type → change to \"Table Header Cell (TH)\"",
+            "To set scope: Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type \"Header Cell\" + Scope \"Column\" or \"Row\"",
+            "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
+            "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)"
+          ],
+          "explanation": "Table markup tells screen readers how to navigate data tables. This checks seven aspects of table accessibility, weighted by importance: header cells (TH tags, 40 pts), row structure (TR tags, 20 pts), scope attributes linking headers to columns/rows (10 pts), nested table detection (10 pts), consistent column counts (10 pts), caption elements (5 pts), and header-cell associations (5 pts). Headers and row structure are the foundation; scope and captions are enhancements.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Make Tables Accessible",
+              "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html"
+            },
+            {
+              "label": "WCAG 1.3.1: Info and Relationships",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+            },
+            {
+              "label": "WebAIM: Table Accessibility in PDFs",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+            },
+            {
+              "label": "PAC 2024: Table Structure",
+              "url": "https://pac.pdf-accessibility.org/"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "color_contrast",
+          "label": "Color Contrast",
+          "weight": 0,
+          "score": null,
+          "grade": null,
+          "severity": null,
+          "notAssessed": true,
+          "findings": [
+            "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
+            "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
+            "The category is shown so the external practical scoring schema is explicit, but it does not affect the score today."
+          ],
+          "explanation": "Color contrast checks whether text stands out strongly enough from its background for low-vision users. Unlike web pages, PDFs often require rendered page analysis to determine foreground/background pairs accurately. This analyzer does not yet perform that rendered contrast audit.",
+          "helpLinks": [
+            {
+              "label": "WCAG 1.4.3: Contrast (Minimum)",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+            },
+            {
+              "label": "Adobe: Check accessibility (Full Check)",
+              "url": "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.4.3",
+              "name": "Contrast (Minimum)",
+              "level": "AA"
+            }
+          ]
+        },
+        {
+          "id": "link_quality",
+          "label": "Link & URL Quality",
+          "weight": 0.05,
+          "score": 100,
+          "grade": "A",
+          "severity": "No issues found",
+          "findings": [
+            "--- Raw URL Link Text (advisory — not penalized) ---",
+            "9 link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.",
+            "  \"https://doi.org/10.1016/j.jcrimjus.2020.101692 ; Weichselbaum, S., &\" → https://doi.org/10.1016/j.jcrimjus.2020.101692",
+            "  \"https://doi.org/10.31219/osf.io/gcpq8 ; Lofstrom, M., & Martin, B. (2020).\" → https://doi.org/10.31219/osf.io/gcpq8",
+            "  \"https://doi.org/10.1007/s12103-\" → https://doi.org/10.1007/s12103-020-09531-7",
+            "  \"https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"https://doi.org/10.1007/s12103-020-09531-7\" → https://doi.org/10.1007/s12103-020-09531-7",
+            "  \"https://doi.org/10.1186/s40163-020-00117-6\" → https://doi.org/10.1186/s40163-020-00117-6",
+            "  \"https://doi.org/10.1007/s10940-011-9145-7\" → https://doi.org/10.1007/s10940-011-9145-7",
+            "  \"https://www.themarshallproject.org/2020/04/22/is-\" → https://www.themarshallproject.org/2020/04/22/is-domestic-violence-rising-during-the-coronavirus-shutdown-here-s-what-the-data-shows",
+            "  \"https://cdn.ymaws.com/counciloncj.org/resource/resmgr/covid_commission/Crime_in_US_Cities_- _October.pdf\" → https://cdn.ymaws.com/counciloncj.org/resource/resmgr/covid_commission/Crime_in_US_Cities_-_October.pdf",
+            "--- Links With Descriptive Text ---",
+            "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Mohler, G., Bertozzi, A. L.,\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+            "  \"Weihua, L. (2020). As coronavirus surges, crime declines in some cities . The Marshall Project. https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Campedelli G.M., Aziani A.,\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+            "  \"violence. Psychological Trauma: Theory, Research, Practice, and Policy http://dx.doi.org/10.1037/tra0000646 ; Piquero, A.R., Riddell, J.R., Bishopp, S. A. Narvey, C., Reid, J. A.,\" → http://dx.doi.org/10.1037/tra0000646",
+            "  \"domestic violence. 020-09531-7 ; Weichselbaum, S., & Weihua, L. (2020).\" → https://doi.org/10.1007/s12103-020-09531-7",
+            "  \"As coronavirus surges, crime declines in some https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"cities . The Marshall Project. https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges- crime-declines-in-some-cities\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Center for Criminal Justice\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+            "  \"Covid-19’s effect on Chicago crime trends https://www.covidcrime-chicago.com/ ; Jennings, W. G., & Perez, N. M. (2020). The immediate\" → https://www.covidcrime-chicago.com/",
+            "  \"American Journal of Criminal https://doi.org/10.1007/s12103-020-09536-2 ; Vera Institute of Justice.\" → https://doi.org/10.1007/s12103-020-09536-2",
+            "  ... and 20 more descriptive link(s)"
+          ],
+          "explanation": "Screen reader users often navigate by tabbing through links or pulling up a list of all links on the page. If a link says \"https://www.example.com/reports/2024/q3/data.pdf\", that's not useful. A descriptive label like \"Q3 2024 Data Report\" tells the user where the link goes without needing to see the URL.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Create and Edit Links",
+              "url": "https://helpx.adobe.com/acrobat/using/accessibility-features-pdfs.html"
+            },
+            {
+              "label": "WCAG 2.4.4: Link Purpose",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html"
+            },
+            {
+              "label": "WebAIM: Links and Hypertext",
+              "url": "https://webaim.org/techniques/hypertext/"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "2.4.4",
+              "name": "Link Purpose (In Context)",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "reading_order",
+          "label": "Reading Order",
+          "weight": 0.1,
+          "score": 85,
+          "grade": "B",
+          "severity": "Minor",
+          "findings": [
+            "Structure tree depth: 16 level(s)",
+            "Content items (MCIDs): 852",
+            "Pages: 18 | Paragraphs: 652 | Headings: 1",
+            "Reading-order fidelity: 87% (18 of 18 page(s) compared)",
+            "Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong.",
+            "5 page(s) had noticeable drift (< 80% match). Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.",
+            "Reading order scored 85/100 — the tagged order agreed with the content stream's draw order on 87% of comparable content (a perfect 100 requires ≥ 97%). Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.",
+            "--- List Structure Analysis ---",
+            "5 list(s) detected with 19 total item(s)",
+            "  List 1: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 2: 3 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 3: 2 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 4: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 5: 6 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "All lists are well-formed (each <LI> has an <LBody>)",
+            "5 list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker",
+            "--- Additional Structure Signals ---",
+            "  Role mapping present — 18 custom tag(s) mapped to standard PDF roles",
+            "  Annotation → Span",
+            "  Artifact → P",
+            "  Bibliography → BibEntry",
+            "  Chart → Figure",
+            "  Diagram → Figure",
+            "  DropCap → Figure",
+            "  Endnote → Note",
+            "  Footnote → Note",
+            "  ... and 10 more",
+            "  Tab order set on 17 of 18 page(s) — some pages may have inconsistent keyboard navigation",
+            "  Fix: In Adobe Acrobat, go to each page's properties and set Tab Order to \"Use Document Structure\"",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Tab order\" and \"Logical Reading Order\"",
+            "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Accessibility → Reading Order)",
+            "The Reading Order tool shows numbered regions — verify the sequence matches how a human would read the page",
+            "To reorder: drag items in the Tags panel, or use the Order panel (View → Show/Hide → Navigation Panes → Order)",
+            "Set tab order on all pages: open the Page Thumbnails panel → select all pages → right-click → Page Properties → Tab Order → \"Use Document Structure\""
+          ],
+          "explanation": "Reading order determines the sequence in which a screen reader announces content. In a visual layout, humans naturally read left-to-right, top-to-bottom. But PDFs store content in drawing order, which may not match the visual order — for example, a sidebar might be read before the main content. The tag structure tree overrides the drawing order, ensuring assistive technology reads content in the correct logical sequence.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Fix Reading Order",
+              "url": "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+            },
+            {
+              "label": "WCAG 1.3.2: Meaningful Sequence",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/meaningful-sequence.html"
+            },
+            {
+              "label": "WebAIM: Reading Order",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#order"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.2",
+              "name": "Meaningful Sequence",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "form_accessibility",
+          "label": "Form Accessibility",
+          "weight": 0.05,
+          "score": null,
+          "grade": null,
+          "severity": null,
+          "findings": [
+            "No form fields found in this document — this category does not affect the score"
+          ],
+          "explanation": "Form fields (text boxes, checkboxes, dropdowns) need a \"tooltip\" label (called TU in the PDF spec) so screen readers can announce what each field is for. Without a tooltip, a screen reader user encounters a text box with no indication of what to type — they hear \"text field\" instead of \"First Name\".",
+          "helpLinks": [
+            {
+              "label": "Adobe: Create Accessible Forms",
+              "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+            },
+            {
+              "label": "WCAG 1.3.1: Labels for Form Fields",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+            },
+            {
+              "label": "WebAIM: Accessible PDF Forms",
+              "url": "https://webaim.org/techniques/acrobat/forms"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            },
+            {
+              "sc": "3.3.2",
+              "name": "Labels or Instructions",
+              "level": "A"
+            },
+            {
+              "sc": "4.1.2",
+              "name": "Name, Role, Value",
+              "level": "A"
+            }
+          ]
+        }
+      ]
+    },
+    "remediation": {
+      "mode": "strict",
+      "label": "Strict semantic score (WCAG + IITAA §E205.4)",
+      "description": "WCAG-based scoring methodology. Anchored to WCAG 2.1 Level AA and Illinois IITAA §E205.4 for non-web documents. Nine categories, no PDF/UA category. Requires explicit heading and table semantics rather than visual or bookmark-only cues.",
+      "overallScore": 62,
+      "grade": "D",
+      "executiveSummary": "This PDF scored 62/100 (grade D) for overall readiness, but automated checks confirmed 3 WCAG 2.2 failures — so it does not yet meet WCAG 2.2 Level AA. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.",
+      "categoryScores": {
+        "text_extractability": 85,
+        "title_language": 0,
+        "heading_structure": 100,
+        "alt_text": 0,
+        "bookmarks": 100,
+        "table_markup": 85,
+        "color_contrast": null,
+        "link_quality": 100,
+        "reading_order": 85,
+        "form_accessibility": null
+      },
+      "categories": [
+        {
+          "id": "text_extractability",
+          "label": "Text Extractability",
+          "weight": 0.2,
+          "score": 85,
+          "grade": "B",
+          "severity": "Minor",
+          "findings": [
+            "PDF contains extractable text",
+            "Document is tagged (StructTreeRoot present)",
+            "Extracted 32,498 characters of text content",
+            "--- Font Embedding ---",
+            "  9 font(s) found: 5 embedded, 4 not embedded",
+            "  YDPSVW+SymbolMT — embedded",
+            "  ArialMT — NOT embedded",
+            "  TimesNewRomanPSMT — NOT embedded",
+            "  TimesNewRomanPS-ItalicMT — NOT embedded",
+            "  TimesNewRomanPS-BoldMT — NOT embedded",
+            "  BodoniFLF-Roman — embedded",
+            "  TeXGyreTermes-Regular — embedded",
+            "  TeXGyreTermes-Italic — embedded",
+            "  TeXGyreTermes-Bold — embedded",
+            "4 non-embedded font(s) may cause garbled text on systems without these fonts: ArialMT, TimesNewRomanPSMT, TimesNewRomanPS-ItalicMT, TimesNewRomanPS-BoldMT",
+            "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: File → Properties → Fonts tab shows embedding status.",
+            "--- Document Structure Signals ---",
+            "  Document is marked as \"Marked Content\" (/MarkInfo /Marked true) — content is properly distinguished from artifacts",
+            "  652 paragraph tag(s) (/P) found — text is structurally organized",
+            "--- PDF/UA Compliance ---",
+            "  No PDF/UA identifier found — the document does not claim PDF/UA (ISO 14289) conformance",
+            "  Note: PDF/UA conformance is not required for WCAG compliance, but indicates the PDF was created with accessibility in mind",
+            "--- Artifact Tagging ---",
+            "  21 element(s) tagged as artifacts — decorative content (headers, footers, watermarks) is distinguished from real content",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Tagged PDF\"",
+            "If Tagged PDF fails: File → Properties → Description shows \"Tagged PDF: Yes/No\" (status only) — to add tags, run All tools → Prepare for accessibility → Automatically tag PDF",
+            "If text is unreadable (scanned): Recognize Text → In This File (runs OCR)",
+            "Then: Accessibility → Reading Order tool → verify content tags are correct",
+            "Check font embedding: File → Properties → Fonts tab — all fonts should say \"(Embedded)\" or \"(Embedded Subset)\"",
+            "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight → Fix → Embed missing fonts",
+            "Menu path: Acrobat Pro → All tools → Prepare for accessibility"
+          ],
+          "explanation": "Text extractability checks whether the PDF contains real, selectable text (not just images of text) and whether it has a tag structure. Tags are a hidden layer that tells assistive technology — like screen readers — what each piece of content is and in what order to read it. Without extractable text, a screen reader has nothing to work with. Non-embedded fonts can also cause screen readers to extract garbled or incorrect text.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Add Tags to a PDF",
+              "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+            },
+            {
+              "label": "Adobe: OCR a Scanned Document",
+              "url": "https://helpx.adobe.com/acrobat/using/edit-scanned-pdfs.html"
+            },
+            {
+              "label": "WebAIM: PDF Accessibility",
+              "url": "https://webaim.org/techniques/acrobat/"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.1.1",
+              "name": "Non-text Content",
+              "level": "A"
+            },
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "title_language",
+          "label": "Document Title & Language",
+          "weight": 0.15,
+          "score": 0,
+          "grade": "F",
+          "severity": "Critical",
+          "findings": [
+            "No document title found in metadata",
+            "How to fix: In Adobe Acrobat, go to File → Properties → Description tab → enter a descriptive Title.",
+            "The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., \"report_v3_final.pdf\").",
+            "No language declaration found",
+            "How to fix: In Adobe Acrobat, go to File → Properties → Advanced tab → set the Language dropdown.",
+            "The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.",
+            "Author: Jessica",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Title\" and \"Primary Language\"",
+            "Set title: File → Properties → Description tab → Title field (enter a meaningful document title)",
+            "Set title display: File → Properties → Initial View tab → Window Options → Show → \"Document Title\"",
+            "Set language: File → Properties → Advanced tab → Reading Options → Language dropdown",
+            "Common languages: English = \"English\", Spanish = \"Spanish\", French = \"French\""
+          ],
+          "explanation": "This category checks two metadata fields: the document title and the language declaration. The title appears in the browser tab and is the first thing a screen reader announces. The language tag tells assistive technology how to pronounce the text correctly.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Set Document Title",
+              "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+            },
+            {
+              "label": "WCAG 3.1.1: Language of Page",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html"
+            },
+            {
+              "label": "WebAIM: Document Properties",
+              "url": "https://webaim.org/techniques/acrobat/other"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "2.4.2",
+              "name": "Page Titled",
+              "level": "A"
+            },
+            {
+              "sc": "3.1.1",
+              "name": "Language of Page",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "heading_structure",
+          "label": "Heading Structure",
+          "weight": 0.15,
+          "score": 100,
+          "grade": "A",
+          "severity": "No issues found",
+          "findings": [
+            "--- Heading Tree ---",
+            "  H1",
+            "Found 1 heading tags with logical hierarchy"
+          ],
+          "explanation": "Headings (H1–H6) create a navigable outline of the document. Screen reader users rely on headings to skim and jump between sections — similar to how sighted users scan bold section titles. Headings must follow a logical hierarchy: H1 for the main title, H2 for major sections, H3 for subsections, and so on. Skipping levels (e.g., H1 → H3) confuses assistive technology.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Add Headings to a PDF",
+              "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html"
+            },
+            {
+              "label": "WCAG 1.3.1: Info and Relationships",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+            },
+            {
+              "label": "WebAIM: Headings in PDFs",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            },
+            {
+              "sc": "2.4.6",
+              "name": "Headings and Labels",
+              "level": "AA"
+            }
+          ]
+        },
+        {
+          "id": "alt_text",
+          "label": "Alt Text on Images",
+          "weight": 0.15,
+          "score": 0,
+          "grade": "F",
+          "severity": "Critical",
+          "findings": [
+            "0 of 32 image(s) have alternative text",
+            "--- Images Missing Alt Text ---",
+            "  Image 1: <Figure> tag — no /Alt attribute",
+            "  Image 2: <Figure> tag — no /Alt attribute",
+            "  Image 3: <Figure> tag — no /Alt attribute",
+            "  Image 4: <Figure> tag — no /Alt attribute",
+            "  Image 5: <Figure> tag — no /Alt attribute",
+            "  Image 6: <Figure> tag — no /Alt attribute",
+            "  Image 7: <Figure> tag — no /Alt attribute",
+            "  Image 8: <Figure> tag — no /Alt attribute",
+            "  Image 9: <Figure> tag — no /Alt attribute",
+            "  Image 10: <Figure> tag — no /Alt attribute",
+            "  Image 11: <Figure> tag — no /Alt attribute",
+            "  Image 12: <Figure> tag — no /Alt attribute",
+            "  Image 13: <Figure> tag — no /Alt attribute",
+            "  Image 14: <Figure> tag — no /Alt attribute",
+            "  Image 15: <Figure> tag — no /Alt attribute",
+            "  ... and 17 more image(s) without alt text",
+            "How to fix: In Adobe Acrobat, open the Tags panel → find the <Figure> tag for each image → right-click → Properties → enter a description in the \"Alternate Text\" field.",
+            "Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, \"Bar chart showing 2024 crime rates by county\" rather than \"chart\".",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Alternate Text\" → \"Figures alternate text\"",
+            "To add alt text: open Tags panel → find the <Figure> tag → right-click → Properties → Alternate Text field",
+            "Or: All tools → Prepare for accessibility → Fix reading order → select the image → right-click → Edit Alternate Text",
+            "Good alt text: describes the purpose/content (\"Bar chart showing 2024 crime rates\"), not appearance (\"colorful chart\")",
+            "Decorative images: select with the Reading Order tool → click \"Background/Artifact\", or in the Accessibility tags panel right-click the tag → Change Tag to Artifact (removes it from the reading order)"
+          ],
+          "explanation": "Alternative text (alt text) is a short text description attached to each image in the document. Screen readers read this description aloud so that blind and low-vision users can understand visual content. Every informative image needs alt text. Decorative images (borders, spacers) should be marked as artifacts instead.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Add Alt Text to Images",
+              "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html#add_alternate_text_to_links_and_figures"
+            },
+            {
+              "label": "WCAG 1.1.1: Non-text Content",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"
+            },
+            {
+              "label": "WebAIM: Alt Text in PDFs",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.1.1",
+              "name": "Non-text Content",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "bookmarks",
+          "label": "Bookmarks / Navigation",
+          "weight": 0.05,
+          "score": 100,
+          "grade": "A",
+          "severity": "No issues found",
+          "findings": [
+            "3 bookmark(s) found",
+            "--- Bookmark Outline ---",
+            "  COVID arrests PDF cover",
+            "  Arrest Trends During COVID 3-2-21 for web",
+            "    Introduction"
+          ],
+          "explanation": "Bookmarks (also called outlines) create a clickable table of contents in the PDF sidebar. They let all users — including those using screen readers — jump directly to any section. For documents longer than a few pages, bookmarks are essential for navigation. In Adobe Acrobat, bookmarks can be generated automatically from heading tags.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Create Bookmarks",
+              "url": "https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html#create_a_bookmark"
+            },
+            {
+              "label": "Adobe: Auto-generate Bookmarks from Headings",
+              "url": "https://helpx.adobe.com/acrobat/using/page-thumbnails-bookmarks-pdfs.html"
+            },
+            {
+              "label": "WebAIM: PDF Navigation",
+              "url": "https://webaim.org/techniques/acrobat/other#bookmarks"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "2.4.5",
+              "name": "Multiple Ways",
+              "level": "AA"
+            }
+          ]
+        },
+        {
+          "id": "table_markup",
+          "label": "Table Markup",
+          "weight": 0.1,
+          "score": 85,
+          "grade": "B",
+          "severity": "Minor",
+          "findings": [
+            "--- Table Structure Overview ---",
+            "  Table: 26 rows × 3 cols | 28 <TH>, 50 <TD> | scope: missing on 28 header(s)",
+            "All 1 table(s) have header cells (TH) — 28 header cell(s) total",
+            "All 1 table(s) have proper row structure — 26 <TR> row(s) total",
+            "28 <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data",
+            "  Table 1: 28 of 28 <TH> missing /Scope",
+            "Fix: In Adobe Acrobat, open the Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to \"Column\" or \"Row\"",
+            "No nested tables detected",
+            "No tables have a <Caption> element. A caption is optional (not required by WCAG 2.1/2.2), but adding one as the first child of each <Table> helps screen readers announce the table's purpose.",
+            "All tables have consistent column counts across rows",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Tables\" → \"Rows\", \"TH and TD\", \"Headers\"",
+            "Open Tags panel and expand the <Table> tag to see structure",
+            "To add header cells: right-click a <TD> tag → Properties → Type → change to \"Table Header Cell (TH)\"",
+            "To set scope: Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type \"Header Cell\" + Scope \"Column\" or \"Row\"",
+            "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
+            "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)"
+          ],
+          "explanation": "Table markup tells screen readers how to navigate data tables. This checks seven aspects of table accessibility, weighted by importance: header cells (TH tags, 40 pts), row structure (TR tags, 20 pts), scope attributes linking headers to columns/rows (10 pts), nested table detection (10 pts), consistent column counts (10 pts), caption elements (5 pts), and header-cell associations (5 pts). Headers and row structure are the foundation; scope and captions are enhancements.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Make Tables Accessible",
+              "url": "https://helpx.adobe.com/acrobat/using/editing-document-structure-content-tags.html"
+            },
+            {
+              "label": "WCAG 1.3.1: Info and Relationships",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+            },
+            {
+              "label": "WebAIM: Table Accessibility in PDFs",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#repairs"
+            },
+            {
+              "label": "PAC 2024: Table Structure",
+              "url": "https://pac.pdf-accessibility.org/"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "color_contrast",
+          "label": "Color Contrast",
+          "weight": 0,
+          "score": null,
+          "grade": null,
+          "severity": null,
+          "notAssessed": true,
+          "findings": [
+            "This analyzer does not yet compute rendered text/background contrast inside PDF page content.",
+            "Color contrast remains N/A in both Strict and Practical modes until PDF contrast analysis is implemented.",
+            "The category is shown so the external practical scoring schema is explicit, but it does not affect the score today."
+          ],
+          "explanation": "Color contrast checks whether text stands out strongly enough from its background for low-vision users. Unlike web pages, PDFs often require rendered page analysis to determine foreground/background pairs accurately. This analyzer does not yet perform that rendered contrast audit.",
+          "helpLinks": [
+            {
+              "label": "WCAG 1.4.3: Contrast (Minimum)",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+            },
+            {
+              "label": "Adobe: Check accessibility (Full Check)",
+              "url": "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.4.3",
+              "name": "Contrast (Minimum)",
+              "level": "AA"
+            }
+          ]
+        },
+        {
+          "id": "link_quality",
+          "label": "Link & URL Quality",
+          "weight": 0.05,
+          "score": 100,
+          "grade": "A",
+          "severity": "No issues found",
+          "findings": [
+            "--- Raw URL Link Text (advisory — not penalized) ---",
+            "9 link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.",
+            "  \"https://doi.org/10.1016/j.jcrimjus.2020.101692 ; Weichselbaum, S., &\" → https://doi.org/10.1016/j.jcrimjus.2020.101692",
+            "  \"https://doi.org/10.31219/osf.io/gcpq8 ; Lofstrom, M., & Martin, B. (2020).\" → https://doi.org/10.31219/osf.io/gcpq8",
+            "  \"https://doi.org/10.1007/s12103-\" → https://doi.org/10.1007/s12103-020-09531-7",
+            "  \"https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"https://doi.org/10.1007/s12103-020-09531-7\" → https://doi.org/10.1007/s12103-020-09531-7",
+            "  \"https://doi.org/10.1186/s40163-020-00117-6\" → https://doi.org/10.1186/s40163-020-00117-6",
+            "  \"https://doi.org/10.1007/s10940-011-9145-7\" → https://doi.org/10.1007/s10940-011-9145-7",
+            "  \"https://www.themarshallproject.org/2020/04/22/is-\" → https://www.themarshallproject.org/2020/04/22/is-domestic-violence-rising-during-the-coronavirus-shutdown-here-s-what-the-data-shows",
+            "  \"https://cdn.ymaws.com/counciloncj.org/resource/resmgr/covid_commission/Crime_in_US_Cities_- _October.pdf\" → https://cdn.ymaws.com/counciloncj.org/resource/resmgr/covid_commission/Crime_in_US_Cities_-_October.pdf",
+            "--- Links With Descriptive Text ---",
+            "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Mohler, G., Bertozzi, A. L.,\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+            "  \"Weihua, L. (2020). As coronavirus surges, crime declines in some cities . The Marshall Project. https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Campedelli G.M., Aziani A.,\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+            "  \"violence. Psychological Trauma: Theory, Research, Practice, and Policy http://dx.doi.org/10.1037/tra0000646 ; Piquero, A.R., Riddell, J.R., Bishopp, S. A. Narvey, C., Reid, J. A.,\" → http://dx.doi.org/10.1037/tra0000646",
+            "  \"domestic violence. 020-09531-7 ; Weichselbaum, S., & Weihua, L. (2020).\" → https://doi.org/10.1007/s12103-020-09531-7",
+            "  \"As coronavirus surges, crime declines in some https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"cities . The Marshall Project. https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges- crime-declines-in-some-cities\" → https://www.themarshallproject.org/2020/03/27/as-coronavirus-surges-crime-declines-in-some-cities",
+            "  \"Abrams, D. S. (2020). COVID and crime: Key findings . University of Pennsylvania. https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf ; Center for Criminal Justice\" → https://citycrimestats.com/static/files/COVIDCrimeHighlights081420.pdf",
+            "  \"Covid-19’s effect on Chicago crime trends https://www.covidcrime-chicago.com/ ; Jennings, W. G., & Perez, N. M. (2020). The immediate\" → https://www.covidcrime-chicago.com/",
+            "  \"American Journal of Criminal https://doi.org/10.1007/s12103-020-09536-2 ; Vera Institute of Justice.\" → https://doi.org/10.1007/s12103-020-09536-2",
+            "  ... and 20 more descriptive link(s)"
+          ],
+          "explanation": "Screen reader users often navigate by tabbing through links or pulling up a list of all links on the page. If a link says \"https://www.example.com/reports/2024/q3/data.pdf\", that's not useful. A descriptive label like \"Q3 2024 Data Report\" tells the user where the link goes without needing to see the URL.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Create and Edit Links",
+              "url": "https://helpx.adobe.com/acrobat/using/accessibility-features-pdfs.html"
+            },
+            {
+              "label": "WCAG 2.4.4: Link Purpose",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html"
+            },
+            {
+              "label": "WebAIM: Links and Hypertext",
+              "url": "https://webaim.org/techniques/hypertext/"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "2.4.4",
+              "name": "Link Purpose (In Context)",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "reading_order",
+          "label": "Reading Order",
+          "weight": 0.1,
+          "score": 85,
+          "grade": "B",
+          "severity": "Minor",
+          "findings": [
+            "Structure tree depth: 16 level(s)",
+            "Content items (MCIDs): 852",
+            "Pages: 18 | Paragraphs: 652 | Headings: 1",
+            "Reading-order fidelity: 87% (18 of 18 page(s) compared)",
+            "Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong.",
+            "5 page(s) had noticeable drift (< 80% match). Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.",
+            "Reading order scored 85/100 — the tagged order agreed with the content stream's draw order on 87% of comparable content (a perfect 100 requires ≥ 97%). Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.",
+            "--- List Structure Analysis ---",
+            "5 list(s) detected with 19 total item(s)",
+            "  List 1: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 2: 3 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 3: 2 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 4: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "  List 5: 6 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+            "All lists are well-formed (each <LI> has an <LBody>)",
+            "5 list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker",
+            "--- Additional Structure Signals ---",
+            "  Role mapping present — 18 custom tag(s) mapped to standard PDF roles",
+            "  Annotation → Span",
+            "  Artifact → P",
+            "  Bibliography → BibEntry",
+            "  Chart → Figure",
+            "  Diagram → Figure",
+            "  DropCap → Figure",
+            "  Endnote → Note",
+            "  Footnote → Note",
+            "  ... and 10 more",
+            "  Tab order set on 17 of 18 page(s) — some pages may have inconsistent keyboard navigation",
+            "  Fix: In Adobe Acrobat, go to each page's properties and set Tab Order to \"Use Document Structure\"",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under \"Document\" → \"Tab order\" and \"Logical Reading Order\"",
+            "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Accessibility → Reading Order)",
+            "The Reading Order tool shows numbered regions — verify the sequence matches how a human would read the page",
+            "To reorder: drag items in the Tags panel, or use the Order panel (View → Show/Hide → Navigation Panes → Order)",
+            "Set tab order on all pages: open the Page Thumbnails panel → select all pages → right-click → Page Properties → Tab Order → \"Use Document Structure\""
+          ],
+          "explanation": "Reading order determines the sequence in which a screen reader announces content. In a visual layout, humans naturally read left-to-right, top-to-bottom. But PDFs store content in drawing order, which may not match the visual order — for example, a sidebar might be read before the main content. The tag structure tree overrides the drawing order, ensuring assistive technology reads content in the correct logical sequence.",
+          "helpLinks": [
+            {
+              "label": "Adobe: Fix Reading Order",
+              "url": "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html"
+            },
+            {
+              "label": "WCAG 1.3.2: Meaningful Sequence",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/meaningful-sequence.html"
+            },
+            {
+              "label": "WebAIM: Reading Order",
+              "url": "https://webaim.org/techniques/acrobat/reviewing#order"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.2",
+              "name": "Meaningful Sequence",
+              "level": "A"
+            }
+          ]
+        },
+        {
+          "id": "form_accessibility",
+          "label": "Form Accessibility",
+          "weight": 0.05,
+          "score": null,
+          "grade": null,
+          "severity": null,
+          "findings": [
+            "No form fields found in this document — this category does not affect the score"
+          ],
+          "explanation": "Form fields (text boxes, checkboxes, dropdowns) need a \"tooltip\" label (called TU in the PDF spec) so screen readers can announce what each field is for. Without a tooltip, a screen reader user encounters a text box with no indication of what to type — they hear \"text field\" instead of \"First Name\".",
+          "helpLinks": [
+            {
+              "label": "Adobe: Create Accessible Forms",
+              "url": "https://helpx.adobe.com/acrobat/using/creating-accessible-pdfs.html"
+            },
+            {
+              "label": "WCAG 1.3.1: Labels for Form Fields",
+              "url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+            },
+            {
+              "label": "WebAIM: Accessible PDF Forms",
+              "url": "https://webaim.org/techniques/acrobat/forms"
+            }
+          ],
+          "wcagCriteria": [
+            {
+              "sc": "1.3.1",
+              "name": "Info and Relationships",
+              "level": "A"
+            },
+            {
+              "sc": "3.3.2",
+              "name": "Labels or Instructions",
+              "level": "A"
+            },
+            {
+              "sc": "4.1.2",
+              "name": "Name, Role, Value",
+              "level": "A"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "adobeParity": {
+    "summary": {
+      "passed": 17,
+      "failed": 4,
+      "manual": 2,
+      "skipped": 1,
+      "notComputed": 8,
+      "vacuousPasses": 7,
+      "total": 32
+    },
+    "rules": [
+      {
+        "id": "accessibility_permission_flag",
+        "category": "Document",
+        "name": "Accessibility permission flag",
+        "description": "Accessibility permission flag must be set",
+        "status": "passed",
+        "vacuous": false,
+        "note": "Document is not encrypted; assistive tech can read content."
+      },
+      {
+        "id": "image_only_pdf",
+        "category": "Document",
+        "name": "Image-only PDF",
+        "description": "Document is not image-only PDF",
+        "status": "passed",
+        "vacuous": false,
+        "note": "Document has 32,498 characters of extractable text."
+      },
+      {
+        "id": "tagged_pdf",
+        "category": "Document",
+        "name": "Tagged PDF",
+        "description": "Document is tagged PDF",
+        "status": "passed",
+        "vacuous": false,
+        "note": "StructTreeRoot present, depth=16, 652 <P> tag(s), 1 heading(s)."
+      },
+      {
+        "id": "logical_reading_order",
+        "category": "Document",
+        "name": "Logical Reading Order",
+        "description": "Document structure provides a logical reading order",
+        "status": "manual",
+        "vacuous": false,
+        "note": "Acrobat always marks this as manual. This tool computed reading-order fidelity separately; see the Reading Order category."
+      },
+      {
+        "id": "primary_language",
+        "category": "Document",
+        "name": "Primary language",
+        "description": "Text language is specified",
+        "status": "failed",
+        "vacuous": false,
+        "note": "No /Lang entry in the document catalog."
+      },
+      {
+        "id": "title",
+        "category": "Document",
+        "name": "Title",
+        "description": "Document title is showing in title bar",
+        "status": "failed",
+        "vacuous": false,
+        "note": "No /Info/Title string found — screen readers announce the filename instead."
+      },
+      {
+        "id": "bookmarks",
+        "category": "Document",
+        "name": "Bookmarks",
+        "description": "Bookmarks are present in large documents",
+        "status": "passed",
+        "vacuous": true,
+        "note": "Document has 18 page(s) — Acrobat only requires bookmarks on documents of 21+ pages."
+      },
+      {
+        "id": "color_contrast",
+        "category": "Document",
+        "name": "Color contrast",
+        "description": "Document has appropriate color contrast",
+        "status": "manual",
+        "vacuous": false,
+        "note": "Acrobat always marks this as manual. No checker (including this one) performs rendered-contrast analysis on PDF content today."
+      },
+      {
+        "id": "tagged_content",
+        "category": "Page Content",
+        "name": "Tagged content",
+        "description": "All page content is tagged",
+        "status": "passed",
+        "vacuous": false,
+        "note": "MarkInfo/Marked=true. 652 <P> tag(s) found."
+      },
+      {
+        "id": "tagged_annotations",
+        "category": "Page Content",
+        "name": "Tagged annotations",
+        "description": "All annotations are tagged",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "This tool does not currently verify that every annotation (link, comment, form field) is wrapped in a structural tag. Compare with Acrobat's Accessibility Checker for this rule specifically."
+      },
+      {
+        "id": "tab_order",
+        "category": "Page Content",
+        "name": "Tab order",
+        "description": "Tab order is consistent with structure order",
+        "status": "failed",
+        "vacuous": false,
+        "note": "Tab order set on only 17 of 18 page(s)."
+      },
+      {
+        "id": "character_encoding",
+        "category": "Page Content",
+        "name": "Character encoding",
+        "description": "Reliable character encoding is provided",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "4 of 9 font(s) are not embedded. Acrobat may still pass this rule — it checks ToUnicode/CMap presence directly, which this tool approximates via embedding."
+      },
+      {
+        "id": "tagged_multimedia",
+        "category": "Page Content",
+        "name": "Tagged multimedia",
+        "description": "All multimedia objects are tagged",
+        "status": "passed",
+        "vacuous": true,
+        "note": "Acrobat's rule passes vacuously on PDFs without multimedia objects. This tool does not currently detect multimedia; if present, review manually."
+      },
+      {
+        "id": "screen_flicker",
+        "category": "Page Content",
+        "name": "Screen flicker",
+        "description": "Page will not cause screen flicker",
+        "status": "passed",
+        "vacuous": true,
+        "note": "Acrobat's rule flags animations and flashing content. This tool does not detect these; vacuous pass assumed."
+      },
+      {
+        "id": "scripts",
+        "category": "Page Content",
+        "name": "Scripts",
+        "description": "No inaccessible scripts",
+        "status": "passed",
+        "vacuous": true,
+        "note": "Acrobat's rule checks for inaccessible JavaScript. This tool does not detect PDF JavaScript; vacuous pass assumed."
+      },
+      {
+        "id": "timed_responses",
+        "category": "Page Content",
+        "name": "Timed responses",
+        "description": "Page does not require timed responses",
+        "status": "passed",
+        "vacuous": true,
+        "note": "Acrobat's rule checks for auto-timeout behavior. This tool does not detect these; vacuous pass assumed."
+      },
+      {
+        "id": "navigation_links",
+        "category": "Page Content",
+        "name": "Navigation links",
+        "description": "Navigation links are not repetitive",
+        "status": "passed",
+        "vacuous": false,
+        "note": "39 link(s) detected, no repetitive navigation patterns."
+      },
+      {
+        "id": "tagged_form_fields",
+        "category": "Forms",
+        "name": "Tagged form fields",
+        "description": "All form fields are tagged",
+        "status": "passed",
+        "vacuous": true,
+        "note": "No form fields found — rule passes vacuously."
+      },
+      {
+        "id": "field_descriptions",
+        "category": "Forms",
+        "name": "Field descriptions",
+        "description": "All form fields have description",
+        "status": "passed",
+        "vacuous": true,
+        "note": "No form fields found — rule passes vacuously."
+      },
+      {
+        "id": "figures_alternate_text",
+        "category": "Alternate Text",
+        "name": "Figures alternate text",
+        "description": "Figures require alternate text",
+        "status": "failed",
+        "vacuous": false,
+        "note": "32 of 32 <Figure> tag(s) are missing /Alt text."
+      },
+      {
+        "id": "nested_alternate_text",
+        "category": "Alternate Text",
+        "name": "Nested alternate text",
+        "description": "Alternate text that will never be read",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "32 <Figure> tag(s) present. This tool does not currently detect nested /Alt text shadowed by parent containers."
+      },
+      {
+        "id": "associated_with_content",
+        "category": "Alternate Text",
+        "name": "Associated with content",
+        "description": "Alternate text must be associated with some content",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "32 <Figure> tag(s) present. This tool does not currently verify whether each /Alt attaches to tagged content."
+      },
+      {
+        "id": "hides_annotation",
+        "category": "Alternate Text",
+        "name": "Hides annotation",
+        "description": "Alternate text should not hide annotation",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "32 <Figure> tag(s) present. This tool does not currently verify annotation visibility under /Alt."
+      },
+      {
+        "id": "other_elements_alternate_text",
+        "category": "Alternate Text",
+        "name": "Other elements alternate text",
+        "description": "Other elements that require alternate text",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "Acrobat's rule covers formulas, note links, and other elements requiring /Alt. This tool does not currently enumerate these."
+      },
+      {
+        "id": "rows",
+        "category": "Tables",
+        "name": "Rows",
+        "description": "TR must be a child of Table, THead, TBody, or TFoot",
+        "status": "passed",
+        "vacuous": false,
+        "note": "All 1 table(s) have proper <TR> row structure."
+      },
+      {
+        "id": "th_and_td",
+        "category": "Tables",
+        "name": "TH and TD",
+        "description": "TH and TD must be children of TR",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "1 table(s) present. This tool verifies TH/TD presence (see Table Markup category) but does not specifically validate their placement inside <TR>."
+      },
+      {
+        "id": "headers",
+        "category": "Tables",
+        "name": "Headers",
+        "description": "Tables should have headers",
+        "status": "passed",
+        "vacuous": false,
+        "note": "All 1 table(s) contain <TH> header cells."
+      },
+      {
+        "id": "regularity",
+        "category": "Tables",
+        "name": "Regularity",
+        "description": "Tables must contain the same number of columns in each row and rows in each column",
+        "status": "passed",
+        "vacuous": false,
+        "note": "All 1 table(s) have consistent column counts across rows."
+      },
+      {
+        "id": "summary",
+        "category": "Tables",
+        "name": "Summary",
+        "description": "Tables must have a summary",
+        "status": "skipped",
+        "vacuous": false,
+        "note": "Acrobat skips this rule by default (table summaries were deprecated in HTML5 and are rarely required)."
+      },
+      {
+        "id": "list_items",
+        "category": "Lists",
+        "name": "List items",
+        "description": "LI must be a child of L",
+        "status": "not_computed",
+        "vacuous": false,
+        "note": "5 list(s) detected. This tool walks lists from their <L> roots and does not verify the placement of every <LI>; Acrobat checks placement directly."
+      },
+      {
+        "id": "lbl_and_lbody",
+        "category": "Lists",
+        "name": "Lbl and LBody",
+        "description": "Lbl and LBody must be children of LI",
+        "status": "passed",
+        "vacuous": false,
+        "note": "All 5 list(s) have well-formed <LBody> children (Acrobat's rule checks placement, not <Lbl> presence)."
+      },
+      {
+        "id": "appropriate_nesting",
+        "category": "Headings",
+        "name": "Appropriate nesting",
+        "description": "Appropriate nesting",
+        "status": "passed",
+        "vacuous": false,
+        "note": "1 heading tag(s) found with no skipped levels. Acrobat flags nesting violations only; it does not penalize multiple <H1> tags."
+      }
+    ]
+  },
+  "conformance": {
+    "status": "fail",
+    "failures": [
+      {
+        "sc": "1.1.1",
+        "name": "Non-text Content",
+        "level": "A",
+        "category": "alt_text",
+        "issue": "32 image(s) tagged as <Figure> have no alternative text (/Alt).",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"
+      },
+      {
+        "sc": "3.1.1",
+        "name": "Language of Page",
+        "level": "A",
+        "category": "title_language",
+        "issue": "No default language is declared, so assistive technology cannot determine which pronunciation rules to apply.",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html"
+      },
+      {
+        "sc": "2.4.2",
+        "name": "Page Titled",
+        "level": "A",
+        "category": "title_language",
+        "issue": "The document has no title in its metadata; a screen reader will announce the filename instead.",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/page-titled.html"
+      }
+    ],
+    "notAssessed": [
+      {
+        "sc": "1.4.3",
+        "name": "Contrast (Minimum)",
+        "level": "AA",
+        "reason": "This tool does not yet measure rendered text/background color contrast.",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+      }
+    ],
+    "headline": "This document does not meet WCAG 2.2 Level AA — 3 Level A failures confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass."
+  },
+  "pdfUa": {
+    "hasIdentifier": false,
+    "part": null,
+    "isTagged": true,
+    "isMarkedContent": true,
+    "artifactRunCount": 21,
+    "structTreeDepth": 16,
+    "fontCount": 9,
+    "embeddedFontCount": 5,
+    "allFontsEmbedded": false,
+    "hasLanguage": false,
+    "hasTitle": false
+  }
+}
