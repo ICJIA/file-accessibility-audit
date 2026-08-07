@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.58.1] - 2026-08-07
+
+### Fixed
+
+- **The score is no longer presented as a peer of the letter grade.** v1.58.0 capped the letter at the document's worst finding but left the raw score rendering in bold directly beneath the grade circle, so a report headline read `D` above `80/100` — reported immediately, and verbatim: *"a 'D' is not 80."* That was more confusing than the contradiction the cap had just removed.
+
+  The two now answer different questions and are shown as different things. The letter is the verdict. The number moves into a labelled **Fix progress** panel — `80 of 100`, a bar, and one sentence — sized as supporting detail, because progress across re-audits is the job the weighted average was always good at. Where the grade is capped, that sentence reconciles the two in the place the number actually appears ("How much of the automated checking already passes — but a critical issue is still open, and the grade follows the worst issue rather than the average. On the score alone this would be a B."); where it isn't, there is nothing to reconcile and the panel just says what it measures. Both report views changed identically, or switching views would have become its own contradiction.
+
+### Notes
+
+Tests 2,068 → 2,069. Three tests asserting the literal `/100` suffix — two of them predating this work — correctly went red and now pin the new form; `reportVisualView`'s DOM-order test had anchored the hero on `"/100"`, which after the change first matched inside the technical report far below, so the marker was pointing at the wrong element.
+
 ## [1.58.0] - 2026-08-07
 
 Two contradictions the tool was showing to the people it exists to help: a grade that could rank a worse document higher, and a backup that looked like it contradicted "your file is never stored".

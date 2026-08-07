@@ -8,13 +8,15 @@ import ScoreCard from "../components/ScoreCard.vue";
 // the letter can sit below what the average alone would give — a 87 with a
 // moderate finding is a C.
 //
-// Unexplained, that pairing reads as a bug to exactly the audience this tool
-// is written for. The whole change exists to stop the tool contradicting
-// itself in front of non-technical staff, so shipping a C beside an 87 with
-// no explanation would trade one contradiction for another.
+// The first attempt explained that in a sentence and left the raw score
+// rendering at text-4xl directly beneath the grade circle. That was reported
+// as MORE confusing than the problem the cap fixed: "a 'D' is not 80." The
+// score is no longer presented as a peer of the letter — it sits in a
+// labelled "Fix progress" panel, because progress across re-audits is the job
+// it was always good at, and the letter answers a different question.
 //
-// Both report views must carry the note, or switching views becomes its own
-// inconsistency — hence one file covering both surfaces rather than two.
+// Both report views must do this identically, or switching views becomes its
+// own inconsistency — hence one file covering both surfaces rather than two.
 
 // Shaped to ScoreCard's `Category` (id/label/score/grade/severity) rather than
 // trimmed to what the assertions read — `tsc` rejects the loose version even
@@ -41,36 +43,49 @@ const CLEAN = [
 ];
 
 describe("ReportGradeHero — the Visual view's grade note", () => {
-  it("explains the gap when the letter sits below the score's own band", () => {
+  it("labels the score as progress rather than as the grade", () => {
     const w = mount(ReportGradeHero, {
       props: { grade: "C", overallScore: 87, categories: CAPPED },
     });
     const text = w.text();
-    expect(text).toContain("Held at C by a moderate issue");
-    // Both numbers a confused reader needs: what the average alone would give,
-    // and the rule that overrode it.
-    expect(text).toContain("would be a B");
-    expect(text).toContain("worst unresolved issue sets the grade");
+    expect(text).toContain("Fix progress");
+    expect(text).toContain("87 of 100");
+    // The bare "87/100" beside the letter is exactly what read as a typo.
+    expect(text).not.toContain("87/100");
   });
 
-  it("says nothing when the score and the letter already agree", () => {
-    // 71 is a C on its own; there is no gap to explain, and a note here would
-    // be noise on the report's most prominent element.
+  it("reconciles the number with the letter where the number appears", () => {
+    const w = mount(ReportGradeHero, {
+      props: { grade: "C", overallScore: 87, categories: CAPPED },
+    });
+    const text = w.text();
+    expect(text).toContain("a moderate issue is still open");
+    expect(text).toContain("grade follows the worst issue rather than the average");
+    // What the average alone would have given — the number's own context.
+    expect(text).toContain("would be a B");
+  });
+
+  it("drops the reconciliation when the score and the letter already agree", () => {
+    // 71 is a C on its own; there is nothing to reconcile, and the panel
+    // should just say what it measures.
     const w = mount(ReportGradeHero, {
       props: { grade: "C", overallScore: 71, categories: CAPPED },
     });
-    expect(w.text()).not.toContain("Held at");
+    const text = w.text();
+    expect(text).toContain("Fix progress");
+    expect(text).not.toContain("is still open");
+    expect(text).toContain("re-upload to watch it rise");
   });
 
-  it("says nothing for a clean document", () => {
+  it("says nothing about a cap for a clean document", () => {
     const w = mount(ReportGradeHero, {
       props: { grade: "A", overallScore: 100, categories: CLEAN },
     });
-    expect(w.text()).not.toContain("Held at");
+    expect(w.text()).not.toContain("is still open");
   });
 
-  it("still shows the grade and score themselves", () => {
-    // Guard the premise: the note is additive, not a replacement for the hero.
+  it("still shows the grade and the score themselves", () => {
+    // Guard the premise: demoting the score is not the same as hiding it.
     const w = mount(ReportGradeHero, {
       props: { grade: "C", overallScore: 87, categories: CAPPED },
     });
@@ -90,18 +105,21 @@ describe("ScoreCard — the Detailed view carries the same note", () => {
     categories: CAPPED,
   };
 
-  it("explains the gap in the Detailed view too", () => {
+  it("demotes and reconciles the score in the Detailed view too", () => {
     const w = mount(ScoreCard, { props: { result } });
     const text = w.text();
-    expect(text).toContain("Held at C by a moderate issue");
+    expect(text).toContain("Fix progress");
+    expect(text).toContain("87 of 100");
+    expect(text).not.toContain("87/100");
+    expect(text).toContain("a moderate issue is still open");
     expect(text).toContain("would be a B");
   });
 
-  it("stays silent when there is no gap", () => {
+  it("stays silent about a cap when there is no gap", () => {
     const w = mount(ScoreCard, {
       props: { result: { ...result, overallScore: 71 } },
     });
-    expect(w.text()).not.toContain("Held at");
+    expect(w.text()).not.toContain("is still open");
   });
 
   it("reads the strict profile's own categories, not the top-level ones", () => {
@@ -126,7 +144,8 @@ describe("ScoreCard — the Detailed view carries the same note", () => {
         },
       },
     });
-    expect(w.text()).toContain("Held at C by a moderate issue");
+    expect(w.text()).toContain("87 of 100");
+    expect(w.text()).toContain("a moderate issue is still open");
     expect(w.text()).toContain("would be a B");
   });
 });

@@ -61,7 +61,13 @@ describe("ReportVisualView", () => {
     const w = mount(ReportVisualView, { props: { result } });
     const html = w.html();
     const order = [
-      html.indexOf("/100"), // hero score
+      // Was html.indexOf("/100") — the hero's bare "80/100" line. v1.58.0
+      // demoted that into a labelled "Fix progress ... 80 of 100" panel
+      // (showing a raw score beside a severity-capped letter read as "D =
+      // 80"), so "/100" now first matches inside the technical report far
+      // below and the marker pointed at the wrong element. The hero's own
+      // panel label is the stable anchor.
+      html.indexOf("Fix progress"), // hero
       html.indexOf("severity-tile-critical"),
       html.indexOf("verdict-strip"),
       html.indexOf("Your action plan"),

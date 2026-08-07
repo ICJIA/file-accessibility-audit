@@ -16,24 +16,37 @@
       </div>
     </div>
 
-    <!-- Score -->
-    <p class="text-3xl font-bold">
-      {{ displayedProfile.overallScore
-      }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
-    </p>
-
     <!-- Label -->
     <p class="text-sm font-medium" :style="{ color: gradeColor }">
       {{ gradeLabel }}
     </p>
 
-    <!-- Same note as the Visual view's hero, for the same reason: the letter
-         can sit below the average, and an unexplained mismatch reads as a bug.
-         Both views must say it, or switching views becomes its own
-         contradiction. -->
-    <p v-if="capNote" class="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
-      {{ capNote }}
-    </p>
+    <!-- Score, demoted and labelled — same treatment as the Visual view's
+         hero, for the same reason. It rendered at text-3xl directly under the
+         grade circle, which read as "D = 80" once the letter stopped being
+         derived from the average. Both views must handle it the same way, or
+         switching views becomes its own contradiction. -->
+    <div
+      class="mx-auto max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-5 py-4 text-left"
+    >
+      <div class="flex items-baseline justify-between gap-3">
+        <span class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          Fix progress
+        </span>
+        <span class="text-sm font-semibold text-[var(--text-heading)]">
+          {{ displayedProfile.overallScore }} of 100
+        </span>
+      </div>
+      <div
+        class="mt-2 h-2 rounded-full bg-[var(--surface-deep)] overflow-hidden"
+        aria-hidden="true"
+      >
+        <div class="h-full rounded-full bg-sky-500/70" :style="{ width: `${barWidth}%` }" />
+      </div>
+      <p class="mt-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
+        {{ progressNote }}
+      </p>
+    </div>
 
     <!-- WCAG conformance verdict — deliberately independent of the score
          above. Colour follows the grade (green for A/B, red for C/D/F) so a
@@ -327,16 +340,21 @@ const displayedCategories = computed(() =>
 const gradeColor = computed(() => gradeMap[displayedProfile.value.grade]?.color || "#666");
 const gradeLabel = computed(() => gradeMap[displayedProfile.value.grade]?.label || "");
 
-// Why the letter can be lower than the score implies — see ReportGradeHero for
-// the full reasoning. Computed against the STRICT profile's own categories,
-// the same ones displayedProfile's grade came from.
-const capNote = computed(() => {
+const barWidth = computed(() => Math.max(0, Math.min(100, displayedProfile.value.overallScore)));
+
+// Reconciles the number with the letter, in the place the number appears —
+// see ReportGradeHero for the full reasoning. Computed against the STRICT
+// profile's own categories, the same ones displayedProfile's grade came from,
+// so it can never explain a gap the displayed numbers do not have.
+const progressNote = computed(() => {
   const reason = gradeCapReason(displayedProfile.value.overallScore, displayedCategories.value);
-  if (!reason) return null;
+  if (!reason) {
+    return "How much of the automated checking already passes. Fix the findings below and re-upload to watch it rise.";
+  }
   return (
-    `Held at ${reason.cappedGrade} by a ${reason.severity.toLowerCase()} issue — ` +
-    `the ${displayedProfile.value.overallScore} average alone would be a ${reason.uncappedGrade}. ` +
-    `The worst unresolved issue sets the grade.`
+    `How much of the automated checking already passes — but a ${reason.severity.toLowerCase()} ` +
+    `issue is still open, and the grade follows the worst issue rather than the average. ` +
+    `On the score alone this would be a ${reason.uncappedGrade}.`
   );
 });
 
