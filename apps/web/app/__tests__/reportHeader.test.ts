@@ -8,14 +8,43 @@ import VerdictStrip from "../components/VerdictStrip.vue";
 const sev = (severity: string | null) => ({ severity });
 
 describe("ReportGradeHero", () => {
-  it("shows the big grade, the score, and the plain-language verdict", () => {
+  it("shows the big grade, the score, and the blocker when one exists", () => {
     const w = mount(ReportGradeHero, {
       props: { grade: "D", overallScore: 62, categories: [sev("Critical"), sev("Minor")] },
     });
     expect(w.text()).toContain("D");
     expect(w.text()).toContain("62");
     expect(w.text()).toContain("/100");
-    expect(w.text()).toContain("Poor — not ready to publish");
+    // The blocker leads and counts itself; the grade adjective is dropped so
+    // the sentence can never contradict the tally that produced it.
+    expect(w.text()).toContain("Not ready to publish — 1 critical issue");
+    expect(w.text()).not.toContain("Poor —");
+  });
+
+  it("pluralizes the critical count", () => {
+    const w = mount(ReportGradeHero, {
+      props: { grade: "F", overallScore: 30, categories: [sev("Critical"), sev("Critical")] },
+    });
+    expect(w.text()).toContain("Not ready to publish — 2 critical issues");
+  });
+
+  // The whole point of the change: with the strict weights, one Critical in a
+  // 0.05-weight category still averages to an A. The letter stays honest in
+  // the circle; the sentence must not say "Excellent" about a blocked file.
+  it("a high-scoring file with a Critical never reads as Excellent", () => {
+    const w = mount(ReportGradeHero, {
+      props: { grade: "A", overallScore: 97, categories: [sev("Critical"), sev("Pass")] },
+    });
+    expect(w.text()).toContain("A");
+    expect(w.text()).toContain("Not ready to publish — 1 critical issue");
+    expect(w.text()).not.toContain("Excellent —");
+  });
+
+  it("moderate-only keeps the grade adjective", () => {
+    const w = mount(ReportGradeHero, {
+      props: { grade: "B", overallScore: 85, categories: [sev("Moderate")] },
+    });
+    expect(w.text()).toContain("Good — fix recommended before publishing");
   });
 
   it("clean report reads 'ready to publish'", () => {

@@ -302,17 +302,36 @@ function normalizeFileType(fileType?: string | null): PlanFileType {
   return fileType === "docx" || fileType === "pptx" || fileType === "xlsx" ? fileType : "pdf";
 }
 
+export type VerdictTone = "critical" | "moderate" | "ok";
+
 /**
- * Publication clause for the grade hero, absorbing ReportActionBanner's copy
- * logic: Critical blocks, Moderate recommends, Minor/clean passes.
+ * The hero's publication verdict — text AND the tone that must colour it.
+ *
+ * The grade is a WEIGHTED AVERAGE; this verdict is a SEVERITY TALLY, and the
+ * two genuinely disagree on real inputs: with the strict weights, a single
+ * Critical in a 0.05-weight category (bookmarks at 39, everything else 100)
+ * still averages 96.95 — an "A". Pairing them blindly produced
+ * "Excellent — not ready to publish", rendered in grade-green, which teaches
+ * a reader to distrust the headline.
+ *
+ * So when something blocks publication, the blocker leads and the flattering
+ * adjective is dropped entirely; the grade letter still tells the truth in the
+ * circle above. Moderate and clean states keep the familiar
+ * "<adjective> — <clause>" shape.
  */
-export function verdictPhrase(
+export function publicationVerdict(
   categories: Array<{ severity?: string | null }> | null | undefined,
-): string {
+): { text: string; tone: VerdictTone } {
   const t = tallySeverity(Array.isArray(categories) ? categories : []);
-  if (t.critical > 0) return "not ready to publish";
-  if (t.moderate > 0) return "fix recommended before publishing";
-  return "ready to publish";
+  if (t.critical > 0) {
+    const n = t.critical;
+    return {
+      text: `Not ready to publish — ${n} critical issue${n === 1 ? "" : "s"}`,
+      tone: "critical",
+    };
+  }
+  if (t.moderate > 0) return { text: "fix recommended before publishing", tone: "moderate" };
+  return { text: "ready to publish", tone: "ok" };
 }
 
 export function buildActionPlan(categories: unknown, fileType?: string | null): PlanStep[] {

@@ -8,7 +8,7 @@
 import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
 import { BANNER_EYEBROW, bannerMetaLine, fileTypeLabel } from "~/utils/reportBanner";
-import { buildActionPlan, verdictPhrase } from "~/utils/actionPlan";
+import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { tallySeverity } from "~/utils/severityTally";
 import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
 import {
@@ -200,6 +200,20 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
     ? conformanceHtmlBlock(result.conformance, branding.wcagVersion)
     : "";
 
+  // Hero verdict, mirroring ReportGradeHero exactly: when something blocks
+  // publication the blocker leads on its own and is coloured by severity, so a
+  // downloaded report can never read "Excellent — not ready to publish" in
+  // grade-green while the on-screen report says otherwise.
+  const heroVerdict = (() => {
+    if (!planCats.length) {
+      return { label: gradeLabel(result.grade), color: gc(result.grade) };
+    }
+    const v = publicationVerdict(planCats);
+    return v.tone === "critical"
+      ? { label: v.text, color: sc("Critical") }
+      : { label: `${gradeLabel(result.grade)} — ${v.text}`, color: gc(result.grade) };
+  })();
+
   const tally = tallySeverity(planCats);
   const tile = (count: number, label: string, icon: string, color: string) =>
     `<div style="flex:1;border:1px solid ${count ? color + "40" : "#333"};background:${count ? color + "12" : "transparent"};border-radius:12px;padding:10px 12px;text-align:center">
@@ -281,7 +295,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
       <span style="font-size:56px;font-weight:900;color:${gc(result.grade)}">${escapeHtml(result.grade)}</span>
     </div>
     <p style="font-size:24px;font-weight:bold;margin:12px 0 4px">${escapeHtml(String(result.overallScore))}<span style="font-size:16px;color:#888">/100</span></p>
-    <p style="font-size:14px;color:${gc(result.grade)};font-weight:500;margin:0">${escapeHtml(planCats.length ? `${gradeLabel(result.grade)} — ${verdictPhrase(planCats)}` : gradeLabel(result.grade))}</p>
+    <p style="font-size:14px;color:${heroVerdict.color};font-weight:500;margin:0">${escapeHtml(heroVerdict.label)}</p>
   </div>
   ${tilesOrEmpty}
 

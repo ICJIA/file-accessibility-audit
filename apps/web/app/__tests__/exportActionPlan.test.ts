@@ -86,7 +86,10 @@ describe("buildHtml — action plan section", () => {
 
   it("shows severity tiles with counts and the verdict phrase in the hero", () => {
     const html = buildHtml(result(), branding);
-    expect(html).toContain("not ready to publish");
+    // The export mirrors the hero: the blocker leads, counted, so a
+    // downloaded report can never contradict the screen.
+    expect(html).toContain("Not ready to publish — 2 critical issues");
+    expect(html).not.toContain("Poor — not ready");
     expect(html).toMatch(/1[\s\S]{0,120}CRITICAL/);
     expect(html).toMatch(/1[\s\S]{0,120}MODERATE/);
   });

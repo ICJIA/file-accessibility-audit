@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildActionPlan, verdictPhrase, PLAN_COPY } from "../utils/actionPlan";
+import { buildActionPlan, publicationVerdict, PLAN_COPY } from "../utils/actionPlan";
 
 const cat = (id: string, label: string, severity: string | null, findings: string[] = []) => ({
   id,
@@ -136,19 +136,33 @@ describe("buildActionPlan", () => {
   });
 });
 
-describe("verdictPhrase", () => {
-  it("critical present → not ready to publish", () => {
-    expect(verdictPhrase([cat("a", "A", "Critical"), cat("b", "B", "Minor")])).toBe(
-      "not ready to publish",
+describe("publicationVerdict", () => {
+  it("leads with the blocker, counted, and carries the critical tone", () => {
+    expect(publicationVerdict([cat("a", "A", "Critical"), cat("b", "B", "Minor")])).toEqual({
+      text: "Not ready to publish — 1 critical issue",
+      tone: "critical",
+    });
+    expect(publicationVerdict([cat("a", "A", "Critical"), cat("b", "B", "Critical")]).text).toBe(
+      "Not ready to publish — 2 critical issues",
     );
   });
-  it("moderate only → fix recommended before publishing", () => {
-    expect(verdictPhrase([cat("a", "A", "Moderate")])).toBe("fix recommended before publishing");
+
+  it("moderate only keeps the clause that pairs with a grade adjective", () => {
+    expect(publicationVerdict([cat("a", "A", "Moderate")])).toEqual({
+      text: "fix recommended before publishing",
+      tone: "moderate",
+    });
   });
-  it("minor only / clean → ready to publish", () => {
-    expect(verdictPhrase([cat("a", "A", "Minor")])).toBe("ready to publish");
-    expect(verdictPhrase([cat("a", "A", "Pass")])).toBe("ready to publish");
-    expect(verdictPhrase([])).toBe("ready to publish");
-    expect(verdictPhrase(null)).toBe("ready to publish");
+
+  it("minor only / clean / malformed → ready to publish", () => {
+    for (const input of [
+      [cat("a", "A", "Minor")],
+      [cat("a", "A", "Pass")],
+      [],
+      null,
+      "junk" as unknown as null,
+    ]) {
+      expect(publicationVerdict(input)).toEqual({ text: "ready to publish", tone: "ok" });
+    }
   });
 });
