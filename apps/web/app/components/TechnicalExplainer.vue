@@ -685,6 +685,41 @@
           WCAG-anchored, weighted-average model, renormalized the same way when a category is N/A —
           just with a category set adapted to each format (see below).
         </p>
+        <div
+          class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)] p-4 mb-4"
+        >
+          <p class="text-[var(--text-heading)] font-semibold mb-2">
+            The letter grade is capped by the worst finding
+          </p>
+          <p class="text-[var(--text-muted)] mb-3">
+            The average above decides where a document sits <em>within</em> a band; its worst
+            unresolved finding decides which band it can be in. A weighted average cannot express
+            "one thing here is disqualifying" — but accessibility conformance is pass/fail per
+            criterion, not a mean, so the average alone let four perfect categories outvote one
+            catastrophic one.
+          </p>
+          <ul class="space-y-1.5 text-[var(--text-muted)] mb-3">
+            <li><strong class="text-[var(--text-heading)]">A</strong> — nothing found</li>
+            <li><strong class="text-[var(--text-heading)]">B</strong> — only minor items remain</li>
+            <li>
+              <strong class="text-[var(--text-heading)]">C</strong> — at least one moderate issue
+            </li>
+            <li>
+              <strong class="text-[var(--text-heading)]">D</strong> — at least one critical issue
+              (<strong class="text-[var(--text-heading)]">F</strong> if the average is also failing)
+            </li>
+          </ul>
+          <p class="text-[var(--text-muted)]">
+            The cap only ever lowers a grade, never raises one, so a poor average keeps its worse
+            letter. This is why a report can read
+            <strong class="text-[var(--text-heading)]">C</strong> beside a score in the eighties —
+            the report says so explicitly wherever that happens. It also means two documents with
+            the same defect get the same letter regardless of how much else was checkable in each,
+            which was not true before tool v1.58.0: a one-page notice and a longer agenda missing
+            the identical document title graded C and B, because the notice had only three
+            applicable categories to average against and the agenda had seven.
+          </p>
+        </div>
         <div class="overflow-x-auto mb-4">
           <table class="w-full text-xs border border-[var(--border-subtle)] rounded-lg">
             <caption class="sr-only">

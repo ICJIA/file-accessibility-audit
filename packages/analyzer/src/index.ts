@@ -39,3 +39,4 @@ export {
   type PdfUaSignals,
   type ScoringResult,
 } from "./scorer.js";
+export { regradeStoredReport } from "./scoring/regrade.js";

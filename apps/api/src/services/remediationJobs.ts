@@ -1,4 +1,5 @@
 import { createHash, randomUUID, randomBytes } from "node:crypto";
+import { regradeStoredReport } from "@file-audit/analyzer";
 import db from "../db/sqlite.js";
 import { REMEDIATION } from "#config";
 
@@ -230,9 +231,18 @@ const selectAuditPairStmt = db.prepare(
 export function getJobAuditPair(id: string): JobAuditPair {
   const row = selectAuditPairStmt.get(id) as
     { input_audit_json: string | null; output_audit_json: string | null } | undefined;
+  // Regraded on read, like shared reports: a job audited before the severity
+  // grade cap would otherwise show the before/after pair on the old scale,
+  // and — worse for this surface specifically — the After card's publish gate
+  // reads the output grade. An uncapped "A" there would tell someone a file
+  // with an open Critical finding is ready to publish.
   return {
-    inputAudit: row?.input_audit_json ? JSON.parse(row.input_audit_json) : null,
-    outputAudit: row?.output_audit_json ? JSON.parse(row.output_audit_json) : null,
+    inputAudit: row?.input_audit_json
+      ? regradeStoredReport(JSON.parse(row.input_audit_json))
+      : null,
+    outputAudit: row?.output_audit_json
+      ? regradeStoredReport(JSON.parse(row.output_audit_json))
+      : null,
   };
 }
 

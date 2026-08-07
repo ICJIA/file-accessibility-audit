@@ -338,6 +338,17 @@ export function renderGradeDistribution(body: Record<string, unknown>): string {
       `Submissions are self-selected — people bring documents they already suspect have problems, alongside test files, ` +
       `and the same file may be uploaded more than once. Read this as a picture of what visitors check here, ` +
       `not as a measure of how accessible any agency's documents are overall.</p>` +
+      // Each row records the grade as computed on the day of that audit, and
+      // v1.58.0 capped the letter at the document's worst finding. Rows either
+      // side of that release are therefore on different scales, and the shift
+      // toward lower grades in these totals is partly the rule change rather
+      // than a change in what people upload. Saying so is cheaper than a
+      // back-fill and more honest than letting the trend be misread.
+      `<p class="caveat"><strong>Grades from before tool v1.58.0 are on the older scale.</strong> ` +
+      `Each row stores the grade computed at audit time, and v1.58.0 began capping the letter at a ` +
+      `document's worst unresolved finding — so a document graded B in July could be graded D today ` +
+      `on the same findings. Historic rows are left as they were recorded; expect the all-time ` +
+      `distribution to sit higher than the recent windows for that reason alone.</p>` +
       `<div class="windows">${windows.map(renderWindow).join("")}</div>`,
   });
 }

@@ -27,6 +27,14 @@
       {{ gradeLabel }}
     </p>
 
+    <!-- Same note as the Visual view's hero, for the same reason: the letter
+         can sit below the average, and an unexplained mismatch reads as a bug.
+         Both views must say it, or switching views becomes its own
+         contradiction. -->
+    <p v-if="capNote" class="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
+      {{ capNote }}
+    </p>
+
     <!-- WCAG conformance verdict — deliberately independent of the score
          above. Colour follows the grade (green for A/B, red for C/D/F) so a
          strong file is not alarmed by a single flagged criterion, while the
@@ -182,7 +190,7 @@ import {
   type ScoringMode,
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
-import { GRADE_THRESHOLDS, safeHttpUrl } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, safeHttpUrl, gradeCapReason } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
@@ -318,6 +326,19 @@ const displayedCategories = computed(() =>
 
 const gradeColor = computed(() => gradeMap[displayedProfile.value.grade]?.color || "#666");
 const gradeLabel = computed(() => gradeMap[displayedProfile.value.grade]?.label || "");
+
+// Why the letter can be lower than the score implies — see ReportGradeHero for
+// the full reasoning. Computed against the STRICT profile's own categories,
+// the same ones displayedProfile's grade came from.
+const capNote = computed(() => {
+  const reason = gradeCapReason(displayedProfile.value.overallScore, displayedCategories.value);
+  if (!reason) return null;
+  return (
+    `Held at ${reason.cappedGrade} by a ${reason.severity.toLowerCase()} issue — ` +
+    `the ${displayedProfile.value.overallScore} average alone would be a ${reason.uncappedGrade}. ` +
+    `The worst unresolved issue sets the grade.`
+  );
+});
 
 // WCAG conformance verdict — independent of the numeric score. The score is a
 // prioritised-readiness metric with partial credit; this is the pass/fail

@@ -12,6 +12,7 @@ import {
   SCORING_PROFILES,
   WCAG_CATEGORY_MAP,
 } from "#config";
+import { capGradeBySeverity } from "@file-audit/shared";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 import type { AdobeParityResult } from "./adobeParity.js";
 import type { ConformanceVerdict } from "./conformance.js";
@@ -203,7 +204,17 @@ export function aggregateScore(
 
   const overallScore = weightedAverage(applicable);
 
-  const grade = getGrade(overallScore);
+  // The average positions the document within a band; its worst unresolved
+  // finding decides which band it may be in. Without this, four perfect
+  // categories outvote one catastrophic one — two PDFs missing both title and
+  // language (Critical) graded B, above a Word file with strictly the milder
+  // defect. See SEVERITY_GRADE_CAPS in packages/shared for the full case.
+  //
+  // Capped BEFORE generateSummary so the prose quotes the grade the reader is
+  // actually shown; the two disagreeing was the original complaint in another
+  // form. `applicable` rather than `categories`: an unassessed category has no
+  // severity to cap with.
+  const grade = capGradeBySeverity(getGrade(overallScore), applicable) ?? getGrade(overallScore);
   const executiveSummary = generateSummary(
     overallScore,
     grade,

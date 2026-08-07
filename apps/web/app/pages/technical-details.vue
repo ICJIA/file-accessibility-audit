@@ -205,10 +205,13 @@ HTTP response → browser · buffer garbage-collected · <span class="text-emera
           <strong>The WCAG {{ wcag.version }} conformance verdict</strong> is a separate, binary
           pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without
           alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit
-          <em>cannot</em> be a conformance claim. A document can score 90+ ("A") and still fail
-          WCAG. The verdict reports confirmed, machine-checkable failures; when it finds none it
-          says exactly that — <em>not</em> "conformant", because color contrast, reading-order
-          nuance, and the correctness of alt text and tags still require a human reviewer.
+          <em>cannot</em> be a conformance claim. A document can score 90+ and still fail WCAG.
+          (Since tool v1.58.0 it can no longer be <em>graded</em> "A" while carrying an open finding
+          — the letter is capped by the worst one — but a high score and a conformance failure still
+          coexist, because the two answer different questions.) The verdict reports confirmed,
+          machine-checkable failures; when it finds none it says exactly that —
+          <em>not</em> "conformant", because color contrast, reading-order nuance, and the
+          correctness of alt text and tags still require a human reviewer.
         </li>
       </ul>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">

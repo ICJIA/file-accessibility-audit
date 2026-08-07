@@ -1,5 +1,6 @@
 import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
+import { regradeStoredReport } from "@file-audit/analyzer";
 import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { reportsLimiter } from "../middleware/rateLimiter.js";
 import { SHARED_REPORTS } from "#config";
@@ -82,7 +83,14 @@ router.get("/reports/:id", (req: Request, res: Response) => {
       return;
     }
 
-    const report = JSON.parse(row.report_json);
+    // Regraded on read, not migrated on disk. The severity grade cap is a
+    // pure function of the report's own category severities, so a link shared
+    // before the cap existed self-corrects here — otherwise a report shared
+    // last week would read B while the same document re-audited today reads D,
+    // which is the contradiction the cap was added to remove. The stored row
+    // is left byte-identical: it is an agency's evidence of what was computed
+    // on the day, and deriving the display value beats rewriting the record.
+    const report = regradeStoredReport(JSON.parse(row.report_json));
 
     // Note: the sharer's email is intentionally NOT returned. This endpoint
     // is public (share links are bearer-style), and the creator's identity

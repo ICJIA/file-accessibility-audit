@@ -729,6 +729,15 @@ describe("weight renormalization", () => {
 describe("grade thresholds", () => {
   // We test indirectly via scoreDocument by controlling the inputs
   // to produce known overall scores.
+  //
+  // Two of these tests used to assert the grade purely from the score band,
+  // and both went red when the severity grade cap shipped — correctly. They
+  // had encoded the behaviour the cap exists to remove: a high average
+  // outranking a real finding. Their scenarios (1 of 2 images missing alt;
+  // no title plus a skipped heading level) each leave a MODERATE category
+  // behind, which now holds the letter at C no matter how high the average
+  // climbs. They are rewritten below to assert both halves — the score still
+  // lands in its old band, and the letter is now set by the worst finding.
 
   it("score 100 → grade A", () => {
     const { qpdf, pdfjs } = fullyAccessible();
@@ -736,45 +745,65 @@ describe("grade thresholds", () => {
     expect(result.grade).toBe("A");
   });
 
-  it("score 90 → grade A (boundary)", () => {
-    // Create a scenario that produces exactly 90
+  it("an A requires a clean sweep — one moderate finding holds a 90+ average at C", () => {
     const { qpdf, pdfjs } = fullyAccessible();
-    // Reduce one category slightly — 1 of 2 images missing alt → alt_text = 50
+    // 1 of 2 images missing alt → alt_text = 50 → Moderate.
     qpdf.images = [
       { ref: "10 0 R", hasAlt: true },
       { ref: "11 0 R", hasAlt: false },
     ];
     const result = scoreDocument(qpdf, pdfjs);
-    // Verify grade based on the score produced
-    if (result.overallScore >= 90) expect(result.grade).toBe("A");
-    else if (result.overallScore >= 80) expect(result.grade).toBe("B");
-    else expect.fail(`Unexpected score: ${result.overallScore}`);
+
+    // The average is untouched by the cap — it still lands where it always did.
+    expect(result.overallScore).toBeGreaterThanOrEqual(90);
+    expect(findCategory(result, "alt_text").severity).toBe("Moderate");
+    // ...but the letter follows the worst finding, not the average.
+    expect(result.grade).toBe("C");
   });
 
-  it("score in 80-89 → grade B", () => {
+  it("two moderate findings in the 80s also land at C — the cap, not the band", () => {
     const { qpdf, pdfjs } = fullyAccessible();
-    // Remove title → title_language drops to 50
-    pdfjs.title = null;
-    // title_language goes to 50 (only lang). weight 0.15.
-    // All others are 100. Overall = 100 - (50 * 0.15) = 92.5 → still A
-    // Need more degradation. Also break heading hierarchy.
+    pdfjs.title = null; // title_language → 50 (language only) → Moderate
     qpdf.headings = [
       { level: "H1", tag: "/H1" },
-      { level: "H3", tag: "/H3" }, // skips H2
+      { level: "H3", tag: "/H3" }, // skips H2 → heading_structure → 60 → Moderate
     ];
     const result2 = scoreDocument(qpdf, pdfjs);
-    // heading_structure = 60, title_language = 50
-    // With these two lowered, overall should be in the 80s range
+
     expect(result2.overallScore).toBeGreaterThanOrEqual(80);
     expect(result2.overallScore).toBeLessThan(100);
-    if (result2.overallScore >= 90) expect(result2.grade).toBe("A");
-    else expect(result2.grade).toBe("B");
+    expect(result2.grade).toBe("C");
   });
 
-  it("grade F for a 0 score", () => {
+  it("a minor-only finding caps at B rather than dropping further", () => {
+    // The ladder is graduated, not a single cliff: Minor → B, Moderate → C,
+    // Critical → D. Without a case at each rung, a change that collapsed them
+    // into one cap would pass.
+    const { qpdf, pdfjs } = fullyAccessible();
+    // Multiple H1s with an otherwise sound hierarchy → heading_structure 75,
+    // which is the Minor band (70–99). A skipped level scores 60 and would be
+    // Moderate — the premise guard below caught exactly that substitution
+    // while this test was being written.
+    qpdf.headings = [
+      { level: "H1", tag: "/H1" },
+      { level: "H2", tag: "/H2" },
+      { level: "H2", tag: "/H2" },
+      { level: "H1", tag: "/H1" },
+    ];
+    const result = scoreDocument(qpdf, pdfjs);
+    const sev = findCategory(result, "heading_structure").severity;
+    // Guard the premise: if scoring shifts this category out of Minor, the
+    // assertion below would be testing a different rung than it claims to.
+    expect(sev).toBe("Minor");
+    expect(result.grade).toBe("B");
+  });
+
+  it("the cap only ever lowers a grade — a bad average keeps its worse letter", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
+    // Critical findings cap at D, but this document's average is F. The cap
+    // must not promote it to D.
     expect(result.grade).toBe("F");
   });
 });

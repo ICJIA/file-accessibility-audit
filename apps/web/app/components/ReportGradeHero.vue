@@ -18,19 +18,27 @@
     <p class="text-base sm:text-lg font-semibold mt-2" :style="{ color: labelColor }">
       {{ label }}
     </p>
+    <!-- Without this line, "C" sitting above "87/100" reads as a bug. It only
+         renders when the average and the letter actually disagree. -->
+    <p
+      v-if="capNote"
+      class="text-xs sm:text-sm text-[var(--text-muted)] mt-3 max-w-md mx-auto leading-relaxed"
+    >
+      {{ capNote }}
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { gradeColor, severityColor } from "@file-audit/shared";
+import { gradeColor, severityColor, gradeCapReason } from "@file-audit/shared";
 import { gradeLabel } from "~/utils/exportFormats/shared";
 import { publicationVerdict } from "~/utils/actionPlan";
 
 const props = defineProps<{
   grade: string;
   overallScore: number;
-  categories: Array<{ severity?: string | null }>;
+  categories: Array<{ severity?: string | null; score?: number | null }>;
 }>();
 
 const color = computed(() => gradeColor(props.grade));
@@ -61,4 +69,19 @@ const labelColor = computed(() =>
     ? severityColor("Critical")
     : color.value,
 );
+
+// The grade is capped by the worst finding, so the letter can sit below what
+// the average alone would give (a 87 with a moderate issue is a C, not a B).
+// Stating the rule here is the whole point of the cap: two documents with the
+// same defect now show the same letter, and a reader who only ever sees this
+// hero should understand why the number and the letter differ.
+const capNote = computed(() => {
+  const reason = gradeCapReason(props.overallScore, props.categories);
+  if (!reason) return null;
+  return (
+    `Held at ${reason.cappedGrade} by a ${reason.severity.toLowerCase()} issue. ` +
+    `The ${props.overallScore} average on its own would be a ${reason.uncappedGrade} — ` +
+    `but the worst unresolved issue sets the grade.`
+  );
+});
 </script>

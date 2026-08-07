@@ -251,3 +251,126 @@ export function gradeColor(grade: string | null | undefined): string {
 export function severityColor(severity: string | null | undefined): string {
   return (severity && SEVERITY_COLORS[severity]) || "#999";
 }
+
+// ---------------------------------------------------------------------------
+// SEVERITY GRADE CAP
+// ---------------------------------------------------------------------------
+// The letter grade may never outrank the document's worst unresolved finding.
+//
+// WHY THIS EXISTS. The overall score is a weighted average over only the
+// categories that produced a score; anything unassessable is dropped and the
+// remaining weights renormalized (aggregateScore, packages/analyzer). Two
+// consequences made the tool contradict itself in the field, both confirmed
+// against a 31-document corpus on 2026-08-07:
+//
+//   1. A single failure DOMINATES a sparse document and is DILUTED in a rich
+//      one. Two Word files with the identical defect — no document title,
+//      language present, so "Title & Language" scored 50/Moderate in both —
+//      graded B (87) and C (71), because the first had 7 of 10 categories to
+//      average against and the second only 3. Same fault, different letter.
+//
+//   2. Four perfect categories could outvote one catastrophic one. Two PDFs
+//      missing BOTH title and language (0/Critical, two WCAG failures each)
+//      graded B — better than the Word file above, which had strictly the
+//      milder defect. Corpus-wide, 4 documents held an A while carrying an
+//      unresolved Moderate finding, and 2 held a B while carrying a Critical.
+//
+// An averaged score cannot express "one thing here is disqualifying", but
+// accessibility conformance is pass/fail per criterion, not a mean. The cap
+// restores that: the average still positions a document WITHIN a band, but
+// the worst finding decides which band it can be in.
+//
+// The resulting letters carry a rule that fits in one sentence, which is the
+// point — the audience is agency staff deciding whether to publish:
+//
+//   A  nothing found          B  only minor items
+//   C  a real problem to fix  D  do not publish (F if the average is bad too)
+//
+// It also makes the grade and the publication verdict structurally incapable
+// of disagreeing, which was the reported symptom: a reader ranking documents
+// by letter got the opposite of the truth.
+//
+// This is a PURE function of the stored category severities, which is what
+// lets already-shared reports self-correct at render time rather than needing
+// a database migration — see capGradeBySeverity's callers.
+//
+// SAFE TO CHANGE: Carefully. Raising a cap re-grades every document in the
+// corpus and every historical shared report at once (the strict ladder below
+// moved 11 of 31 controls, all downward). Keep it sorted worst-first.
+// ---------------------------------------------------------------------------
+
+export const SEVERITY_GRADE_CAPS = [
+  { severity: "Critical", maxGrade: "D" as const },
+  { severity: "Moderate", maxGrade: "C" as const },
+  { severity: "Minor", maxGrade: "B" as const },
+] as const;
+
+/** Best (lowest index) to worst, matching GRADE_THRESHOLDS' own order. */
+const GRADE_RANK: readonly string[] = GRADE_THRESHOLDS.map((t) => t.grade);
+
+interface SeverityBearing {
+  score?: number | null;
+  severity?: string | null;
+}
+
+/** The worst severity among categories that were actually scored, or null.
+ *
+ *  Unassessed categories (`score === null`) are skipped: "no images were
+ *  found" is not a finding, and letting it cap a grade would punish a
+ *  document for what it does not contain. */
+export function worstSeverity(
+  categories: ReadonlyArray<SeverityBearing> | null | undefined,
+): string | null {
+  if (!Array.isArray(categories)) return null;
+  for (const { severity } of SEVERITY_GRADE_CAPS) {
+    if (categories.some((c) => c && c.score !== null && c.severity === severity)) return severity;
+  }
+  return null;
+}
+
+/**
+ * The letter grade, lowered to the worst finding's ceiling if the average
+ * scored above it. Never RAISES a grade — a document whose average already
+ * lands below the cap keeps its worse letter (an F stays an F).
+ *
+ * Idempotent by construction, so it is safe to apply at the source AND again
+ * at render on a stored report that was already capped.
+ */
+export function capGradeBySeverity(
+  grade: string | null | undefined,
+  categories: ReadonlyArray<SeverityBearing> | null | undefined,
+): string | null {
+  if (typeof grade !== "string" || grade === "") return grade ?? null;
+  const worst = worstSeverity(categories);
+  if (worst === null) return grade;
+  const cap = SEVERITY_GRADE_CAPS.find((c) => c.severity === worst)?.maxGrade;
+  if (!cap) return grade;
+
+  const have = GRADE_RANK.indexOf(grade);
+  const most = GRADE_RANK.indexOf(cap);
+  // An unrecognized letter is left alone rather than silently rewritten.
+  if (have === -1 || most === -1) return grade;
+  return have < most ? cap : grade;
+}
+
+/**
+ * Why the displayed grade is below what the score alone would give — or null
+ * when the score was not capped.
+ *
+ * The UI must say this out loud. "C" beside "87 / 100" reads as a bug to
+ * someone who does not know the rule, and this whole change exists to stop
+ * the tool contradicting itself in front of non-technical staff.
+ */
+export function gradeCapReason(
+  score: number | null | undefined,
+  categories: ReadonlyArray<SeverityBearing> | null | undefined,
+): { uncappedGrade: string; cappedGrade: string; severity: string } | null {
+  if (typeof score !== "number" || !Number.isFinite(score)) return null;
+  const uncapped = gradeForScore(score);
+  if (uncapped === null) return null;
+  const worst = worstSeverity(categories);
+  if (worst === null) return null;
+  const capped = capGradeBySeverity(uncapped, categories);
+  if (capped === null || capped === uncapped) return null;
+  return { uncappedGrade: uncapped, cappedGrade: capped, severity: worst };
+}
