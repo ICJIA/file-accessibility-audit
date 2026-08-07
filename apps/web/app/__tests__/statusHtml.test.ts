@@ -6,6 +6,7 @@ import {
   renderFormatSplit,
   renderRejectedUploads,
   renderBackup,
+  renderEngines,
   renderStatusStrip,
   pickFormat,
   escapeHtml,
@@ -229,10 +230,15 @@ describe("renderStatusHtml", () => {
 
   it("keeps the prose bounded — the tree stays the substance of the page", () => {
     // Originally "no explanatory prose at all". The page has since gained
-    // three deliberate explanatory sections (grades, formats, refusals), each
-    // earning its place by making a number un-misreadable. What still must not
+    // four deliberate explanatory sections (grades, formats, refusals,
+    // engines), each earning its place by making a number — or, for engines,
+    // a CORE/OPTIONAL distinction — un-misreadable. What still must not
     // happen is the page becoming an essay with a tree at the bottom, so the
-    // bound is what this now guards.
+    // bound is what this now guards. The engines card raised the ceiling
+    // from 1200 to 1250: with PAYLOAD's three engines all present, its three
+    // rows (a label plus a version or "ok" each) cost ~65 characters even at
+    // their most terse — more than the ~36 of headroom the bound had left —
+    // so the three-engine minimum could not fit unless the bound moved.
     const text = html
       .replace(/<style>[\s\S]*?<\/style>/g, "")
       .replace(/<[^>]+>/g, " ")
@@ -240,7 +246,7 @@ describe("renderStatusHtml", () => {
       .trim();
     // Only the title, the toggle label, and the payload's own content.
     expect(text).not.toMatch(/this page|explains|means that|in order to/i);
-    expect(text.length).toBeLessThan(1200);
+    expect(text.length).toBeLessThan(1250);
   });
 
   it("does not render an expanded container as an empty '{}' pair", () => {
@@ -759,5 +765,147 @@ describe("collapsible cards", () => {
 
   it("still ships zero JavaScript", () => {
     expect(renderStatusHtml(FULL)).not.toContain("<script");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Engines — CORE (qpdf) vs OPTIONAL (verapdf, chromium)
+// ---------------------------------------------------------------------------
+// apps/api/src/services/status.ts's CORE_ENGINES = ["qpdf"] (its failure is
+// the one thing that turns the endpoint's own HTTP status into a 503) versus
+// OPTIONAL_ENGINES = ["verapdf", "chromium"] (either can fail and the API
+// stays at 200). Before this feature, the HTML view printed all three
+// uniformly, so a reader could not tell "the service cannot audit anything"
+// from "one optional feature is off" without already knowing which engine is
+// which. These tests pin that the card and the always-visible strip now say
+// so plainly, in each of the three shapes a real payload can take.
+
+const ENGINES_HEALTHY = {
+  checked_at: "2026-08-06T12:00:00Z",
+  qpdf: { ok: true, version: "11.9.0" },
+  verapdf: { ok: true, version: "1.30.1" },
+  chromium: { ok: true },
+};
+
+describe("renderEngines — per-engine health card", () => {
+  it("renders nothing, and the assembled page carries no card, for a payload that predates engines", () => {
+    const { engines: _engines, ...payloadWithoutEngines } = PAYLOAD;
+    expect(renderEngines(payloadWithoutEngines)).toBe("");
+    const page = renderStatusHtml(payloadWithoutEngines);
+    expect(page).not.toContain("Checking engines");
+    // And it still renders a complete, uncrashed document.
+    expect(page.startsWith("<!doctype html>")).toBe(true);
+    expect(page).toContain("</html>");
+  });
+
+  it("does not crash and adds no card when engines carries none of the known keys", () => {
+    expect(renderEngines({ engines: {} })).toBe("");
+    expect(renderEngines({ engines: { unknownEngine: { ok: true } } })).toBe("");
+  });
+
+  it("all-healthy: card is present, collapsed, and the peek says everything is running", () => {
+    const page = renderStatusHtml({ ...PAYLOAD, engines: ENGINES_HEALTHY });
+    expect(page).toContain("Checking engines");
+    expect(page).toContain("all 3 ok");
+    expect(cardFor(page, "eng-h")).toContain('<details class="card">');
+  });
+
+  it("lists each healthy engine by name with its version when present", () => {
+    const html = renderEngines({ engines: ENGINES_HEALTHY });
+    expect(html).toContain("<strong>qpdf</strong> 11.9.0");
+    expect(html).toContain("<strong>veraPDF</strong> 1.30.1");
+    // chromium's probe never returns a version (status.ts's defaultProbes) —
+    // its row must not fabricate one.
+    expect(html).toContain("<strong>Chromium</strong> ok</p>");
+  });
+
+  it("optional engine down: card auto-opens and names it; the strip does not claim audits are down", () => {
+    const payload = {
+      ...PAYLOAD,
+      status: "degraded",
+      degraded: ["chromium"],
+      engines: { ...ENGINES_HEALTHY, chromium: { ok: false, reason: "not_configured" } },
+    };
+    const page = renderStatusHtml(payload);
+    expect(cardFor(page, "eng-h")).toContain('<details class="card" open>');
+    expect(page).toContain("Chromium");
+    expect(page).toContain("not configured");
+    expect(page).toContain("page (URL) audits are unavailable");
+
+    const strip = renderStatusStrip(payload);
+    expect(strip).toContain('class="pill warn"');
+    expect(strip).not.toContain('class="pill down"');
+    expect(strip).not.toContain("audit");
+  });
+
+  it("core engine down: card auto-opens; the strip states plainly that auditing is unavailable", () => {
+    const payload = {
+      ...PAYLOAD,
+      status: "degraded",
+      degraded: ["qpdf"],
+      engines: { ...ENGINES_HEALTHY, qpdf: { ok: false, reason: "not_executable" } },
+    };
+    const page = renderStatusHtml(payload);
+    expect(cardFor(page, "eng-h")).toContain('<details class="card" open>');
+    expect(page).toContain("qpdf unavailable — audits cannot run");
+    expect(page).toContain("no document or URL can be audited");
+
+    const strip = renderStatusStrip(payload);
+    expect(strip).toContain('class="pill down"');
+    expect(strip).toContain("document auditing unavailable");
+    expect(strip).not.toContain('class="pill warn"');
+  });
+
+  it("shows a down engine's impact note only on that engine's own row", () => {
+    const html = renderEngines({
+      engines: { ...ENGINES_HEALTHY, verapdf: { ok: false, reason: "timeout" } },
+    });
+    expect(html).toContain("timed out");
+    expect(html).toContain("PDF/UA-1 verdict is unavailable");
+    // qpdf and chromium are still healthy — their notes must not appear.
+    expect(html).not.toContain("no document or URL can be audited");
+    expect(html).not.toContain("page (URL) audits are unavailable");
+  });
+
+  it("falls back to the raw reason string when it does not match a known enum value", () => {
+    const html = renderEngines({
+      engines: { ...ENGINES_HEALTHY, qpdf: { ok: false, reason: "a_future_reason" } },
+    });
+    expect(html).toContain("a_future_reason");
+  });
+
+  it("escapes a hostile failure reason", () => {
+    const html = renderEngines({
+      engines: {
+        ...ENGINES_HEALTHY,
+        qpdf: { ok: false, reason: '<img src=x onerror="alert(1)">' },
+      },
+    });
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+    expect(html).toContain("&quot;alert(1)&quot;");
+  });
+
+  it("gives the card an accessible name and heading, distinct from the other cards", () => {
+    const html = renderEngines({ engines: ENGINES_HEALTHY });
+    expect(html).toContain('aria-labelledby="eng-h"');
+    expect(html).toContain('<h2 id="eng-h">Checking engines</h2>');
+  });
+
+  it("sits right after the always-visible strip, before the grade distribution", () => {
+    const page = renderStatusHtml({ ...GRADED, engines: ENGINES_HEALTHY });
+    const strip = page.indexOf('class="strip"');
+    expect(strip).toBeLessThan(page.indexOf('id="eng-h"'));
+    expect(page.indexOf('id="eng-h"')).toBeLessThan(page.indexOf('id="dist-h"'));
+  });
+
+  it("ships zero JavaScript in every engine state", () => {
+    const down = renderStatusHtml({
+      ...PAYLOAD,
+      status: "degraded",
+      degraded: ["qpdf"],
+      engines: { ...ENGINES_HEALTHY, qpdf: { ok: false, reason: "error" } },
+    });
+    expect(down).not.toContain("<script");
   });
 });

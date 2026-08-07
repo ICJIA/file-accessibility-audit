@@ -16,6 +16,7 @@
 // Inline <style> is fine: the CSP keeps style-src 'unsafe-inline'.
 
 import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import { CORE_ENGINE_NAMES } from "./status";
 
 /** HTML-escape. Applied to every key and value without exception.
  *
@@ -193,9 +194,29 @@ function humanUptime(value: unknown): string {
  *  presentation, not new surface. */
 export function renderStatusStrip(body: Record<string, unknown>): string {
   const status = typeof body.status === "string" ? body.status : "unknown";
-  const pillClass = status === "ok" ? "ok" : status === "degraded" ? "warn" : "down";
+
+  const degradedNames = Array.isArray(body.degraded) ? body.degraded.map((d) => String(d)) : [];
+  // A CORE name in `degraded` (database, or a CORE_ENGINES entry — see
+  // CORE_DEGRADED_NAMES in the Engines section below) means this response is
+  // the outage case in apps/api/src/services/status.ts's isCoreFailure:
+  // document auditing itself is unavailable, not just one feature. The JSON
+  // `status` field cannot say so on its own — it is always exactly "ok" or
+  // "degraded", the same string for a dead qpdf as for a dead veraPDF — so
+  // without this check a total outage and a minor degradation would print
+  // identically here. This strip is the one thing no fold can hide, so it
+  // gets the distinction first.
+  const coreDown = degradedNames.some((name) => CORE_DEGRADED_NAMES.has(name));
+
+  const pillClass =
+    status === "ok" ? "ok" : coreDown ? "down" : status === "degraded" ? "warn" : "down";
   const pillText =
-    status === "ok" ? "All systems normal" : status === "degraded" ? "Degraded" : status;
+    status === "ok"
+      ? "All systems normal"
+      : coreDown
+        ? "Outage — document auditing unavailable"
+        : status === "degraded"
+          ? "Degraded"
+          : status;
 
   const bits: string[] = [];
   if (typeof body.version === "string" && body.version !== "")
@@ -203,8 +224,8 @@ export function renderStatusStrip(body: Record<string, unknown>): string {
   if (typeof body.uptime_seconds === "number") bits.push(`up ${humanUptime(body.uptime_seconds)}`);
 
   const degraded =
-    Array.isArray(body.degraded) && body.degraded.length > 0
-      ? `<span class="deg">degraded: ${body.degraded.map((d) => escapeHtml(String(d))).join(", ")}</span>`
+    degradedNames.length > 0
+      ? `<span class="deg">degraded: ${degradedNames.map((d) => escapeHtml(d)).join(", ")}</span>`
       : "";
 
   return (
@@ -488,6 +509,151 @@ export function renderRejectedUploads(body: Record<string, unknown>): string {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Engines
+// ---------------------------------------------------------------------------
+// apps/api/src/services/status.ts probes three engines and splits them:
+// CORE_ENGINES = ["qpdf"] — without it nothing can be audited, and its
+// failure is the one engine failure that turns this endpoint's own HTTP
+// status into a 503 — versus OPTIONAL_ENGINES = ["verapdf", "chromium"],
+// each of which only powers one feature (the PDF/UA verdict, and page
+// audits, respectively) and can fail while the API stays at 200. The JSON
+// payload does not carry that split: engines.qpdf, engines.verapdf, and
+// engines.chromium are three identically-shaped {ok, version?, reason?}
+// records, so a reader comparing them side by side cannot tell "the service
+// cannot audit anything" from "one optional feature is off" without already
+// knowing which engine is which.
+//
+// The split is re-derived from CORE_ENGINE_NAMES — imported from the
+// sibling ./status.ts rather than re-declared here, since
+// apps/web/app/__tests__/status.test.ts already pins that list against the
+// API's own CORE_ENGINES and a third copy would only be one more place for
+// the two to quietly drift apart.
+
+/** Display copy for each probed engine. Core-vs-optional membership is NOT
+ *  re-declared here — see CORE_DEGRADED_NAMES below — this table only owns
+ *  the label and the plain-English consequence of that one engine failing,
+ *  paraphrased from CORE_ENGINES/OPTIONAL_ENGINES' own comments in
+ *  apps/api/src/services/status.ts. impactHtml is a fixed literal, like
+ *  renderBackup's staleNote further down — not payload-derived, so unlike
+ *  every other value in this file it is intentionally not run through
+ *  escapeHtml. */
+const ENGINE_INFO: Record<string, { label: string; impactHtml: string }> = {
+  qpdf: {
+    label: "qpdf",
+    impactHtml: "<strong>no document or URL can be audited</strong>",
+  },
+  verapdf: {
+    label: "veraPDF",
+    impactHtml: "<strong>the PDF/UA-1 verdict is unavailable</strong> — other checks continue",
+  },
+  chromium: {
+    label: "Chromium",
+    impactHtml: "<strong>page (URL) audits are unavailable</strong> — file uploads continue",
+  },
+};
+
+/** Rendering order — core engine first. */
+const ENGINE_ORDER = ["qpdf", "verapdf", "chromium"] as const;
+
+/** Names that make a response the OUTAGE case rather than a mere
+ *  degradation — mirrors isCoreFailure in apps/api/src/services/status.ts,
+ *  which is true when the database is down OR a CORE_ENGINES probe failed.
+ *  Both can appear as bare strings inside the payload's `degraded` array;
+ *  "backup" and either OPTIONAL engine can also appear there but never
+ *  belong in this set — degradedList's own comment notes a stale backup is
+ *  "Never part of isCoreFailure/503". */
+const CORE_DEGRADED_NAMES = new Set<string>(["database", ...CORE_ENGINE_NAMES]);
+
+const REASON_LABELS: Record<string, string> = {
+  not_configured: "not configured on this server",
+  not_executable: "found, but not executable",
+  timeout: "timed out",
+  error: "failed its check",
+};
+
+/** A probe's ProbeFailureReason (status.ts), in plain English. An
+ *  unrecognized value — a future API build, or a malformed payload — falls
+ *  back to the raw string rather than disappearing; the caller escapes it
+ *  like every other payload-sourced field, so the fallback is exactly as
+ *  safe as the known labels. */
+function reasonPhrase(reason: unknown): string | null {
+  if (typeof reason !== "string" || reason === "") return null;
+  return REASON_LABELS[reason] ?? reason;
+}
+
+function renderEngineRow(name: string, raw: unknown): string {
+  const info = ENGINE_INFO[name];
+  const label = info ? info.label : name;
+  const r = asRecord(raw);
+  const ok = r?.ok === true;
+  // Reuses the strip's own pill palette: green for running, red for a down
+  // CORE engine (an outage), amber for a down OPTIONAL one (a degradation)
+  // — so this row and the always-visible strip agree without a new palette.
+  const dot = ok ? "#3fb950" : CORE_DEGRADED_NAMES.has(name) ? "#f85149" : "#d29922";
+
+  if (ok) {
+    // A bare version number already signals "healthy" on its own — the "ok"
+    // word is reserved for chromium, whose probe never returns one (see
+    // defaultProbes.chromium in status.ts). Terse on purpose: this row
+    // renders even while collapsed, and keeps the assembled page's prose
+    // within the budget "keeps the prose bounded" pins.
+    const rawVersion = r?.version;
+    const version =
+      typeof rawVersion === "string" && rawVersion !== "" ? escapeHtml(rawVersion) : "";
+    return (
+      `<p class="bak"><span class="dot" style="background:${dot}"></span>` +
+      `<strong>${escapeHtml(label)}</strong> ${version || "ok"}</p>`
+    );
+  }
+
+  const reason = reasonPhrase(r?.reason);
+  const reasonBit = reason ? ` (${escapeHtml(reason)})` : "";
+  const impactBit = info ? ` — ${info.impactHtml}` : "";
+  return (
+    `<p class="bak"><span class="dot" style="background:${dot}"></span>` +
+    `<strong>${escapeHtml(label)}</strong> down${reasonBit}${impactBit}</p>`
+  );
+}
+
+/**
+ * The per-engine health card, or "" for a payload that predates `engines`
+ * (an older API build) — additive like every curated card on this page.
+ *
+ * Auto-opens when any engine is down, the same rule renderBackup uses for a
+ * stale backup: a reader must not have to click to discover that auditing
+ * itself is broken.
+ */
+export function renderEngines(body: Record<string, unknown>): string {
+  const engines = asRecord(body.engines);
+  if (!engines) return "";
+
+  const names = ENGINE_ORDER.filter((name) => name in engines);
+  if (names.length === 0) return "";
+
+  const down = names.filter((name) => asRecord(engines[name])?.ok !== true);
+  const coreDown = down.filter((name) => CORE_DEGRADED_NAMES.has(name));
+
+  let peek: string;
+  if (down.length === 0) {
+    peek = `all ${names.length} ok`;
+  } else if (coreDown.length > 0) {
+    const label = coreDown.map((name) => ENGINE_INFO[name]?.label ?? name).join(", ");
+    peek = `${label} unavailable — audits cannot run`;
+  } else {
+    const label = down.map((name) => ENGINE_INFO[name]?.label ?? name).join(", ");
+    peek = `${label} unavailable`;
+  }
+
+  return fold({
+    id: "eng-h",
+    title: "Checking engines",
+    peek,
+    open: down.length > 0,
+    body: names.map((name) => renderEngineRow(name, engines[name])).join(""),
+  });
+}
+
 const STYLE = `
 :root{color-scheme:dark}
 *{box-sizing:border-box}
@@ -692,6 +858,7 @@ export function renderStatusHtml(
 <div class="bar"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
 <h1>Service status</h1>
 ${renderStatusStrip(body)}
+${renderEngines(body)}
 ${renderGradeDistribution(body)}
 ${renderFormatSplit(body)}
 ${renderRejectedUploads(body)}
