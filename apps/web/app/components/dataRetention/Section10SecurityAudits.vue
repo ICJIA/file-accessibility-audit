@@ -64,6 +64,31 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.54.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.54.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-07</strong> · scope: the redesigned report presentation — not a
+          security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        Audit reports now open in a visual, plain-language layout, with the complete technical
+        report available through a Visual/Detailed toggle on every report. This is a presentation
+        change only: the audit itself, what it examines, and what the service stores are all
+        unchanged, and previously shared reports simply display in the new layout. The view
+        preference is kept on your own device (in your browser's local storage), never sent to the
+        server. Every fact shown in the classic report remains visible in the new one, and the
+        redesigned interface itself was contrast-checked against WCAG AA during development.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.53.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

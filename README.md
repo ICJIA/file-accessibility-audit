@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.53.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1879%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.54.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1956%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -481,6 +481,19 @@ curl -X DELETE \
 | Per-user limit   | 10 active tokens maximum                                        |
 | Audit trail      | `last_used_at` updated on each authenticated request           |
 
+## Report Views
+
+Since v1.54.0 every report — the live result and shared report pages alike — renders in one of two views, switched by a **Visual / Detailed** toggle in the report's upper right. The preference persists per device (localStorage; never sent to the server).
+
+- **Visual view (default)** — an infographic-style layout written for non-technical document authors: an oversized grade circle with the score and a plain-English verdict ("Poor — not ready to publish"), color-coded severity count tiles, a one-line WCAG 2.2 AA verdict strip, and a numbered **action plan** ordered by severity. One step is open at a time; each carries big severity-colored step numbers, a plain-language "why it matters," fix routes for the source document (Word / PowerPoint / Excel) and — for PDFs — an Acrobat route that prefers the report's own document-specific steps, and WCAG criterion chips linking into the evidence. "Where the score comes from" bars carry the score table's full data (score, grade, severity per category, not-scored reasons), and a single **Full technical report** expander holds the WCAG criteria detail, executive summary, audit-scope caveat, detailed findings with evidence, PDF/UA checks, methodology, and document metadata.
+- **Detailed view** — the classic report, byte-identical to v1.53.0: score card with the conformance panel, issues summary, PDF/UA panels, methodology, and the full category detail.
+
+Data parity between the views is a tested invariant: every fact visible in one view is visible in the other (possibly behind the technical expander). URL page audits stored in the same table render the grade hero only — the guards that prevent a category-less report from showing a false "nothing to fix" card are pinned by tests on all three surfaces (view, hero, HTML export).
+
+![The Visual report view for an 18-page PDF that scored 62/100, grade D. A large glowing orange circle dominates the page with the letter D inside it, above the score "62/100" and the verdict "Poor — not ready to publish". Below are three severity tiles — 2 Critical in red, 0 Moderate muted, 3 Minor in blue — then a red strip reading "Does not meet WCAG 2.2 Level AA · 3 criteria failing — details below". The action plan begins beneath: "5 fixes, in order. № 1–2 block publication — start there, then re-upload to verify", with step 1 "Give the document a title and set its language" open, showing a green "Easiest — fix the source document" route and the start of an Acrobat route.](docs/images/report-visual-view-1.png)
+
+![Continuation of the same Visual report: collapsed action-plan steps 2 through 5, each with a large solid severity-colored numbered circle — red for the Critical "Describe images with alt text", blue for the Minor steps — and a severity chip plus "Show how" affordance. Below, the "Where the score comes from" section lists every scored category with a grade-colored horizontal bar, numeric score, grade letter badge, and severity chip, followed by "Not scored" explanations for Color Contrast and Form Accessibility and the collapsed "Full technical report" expander.](docs/images/report-visual-view-2.png)
+
 ## Report Exports
 
 Reports can be downloaded in four formats, all with links back to [audit.icjia.app](https://audit.icjia.app):
@@ -488,7 +501,7 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 | Format             | Contents                                                                                       |
 | ------------------ | ---------------------------------------------------------------------------------------------- |
 | **Text (.txt)**    | Plain-text report with score, conformance verdict, category scores, and detailed findings — opens in any editor, no dependencies |
-| **HTML (.html)**   | Standalone dark-themed page with full report — works offline, printable                        |
+| **HTML (.html)**   | Standalone dark-themed page mirroring the Visual view — severity tiles, verdict phrase, and the ordered action plan up top, every classic section retained, all accordion content forced visible — works offline, printable |
 | **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform         |
 | **JSON (.json)**   | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
@@ -808,7 +821,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,879 tests** across 114 test files (API 1151, Web 679, CLI 49). Run all three suites with one summary:
+**1,956 tests** across 123 test files (API 1151, Web 756, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -828,7 +841,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1879 tests passed across 114 files
+  ✔ 1956 tests passed across 123 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -891,11 +904,13 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (673 tests)
+### Web Tests (756 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
+| `actionPlan.test.ts` | 25 | The Visual view's action-plan mapper: a plain-language dictionary entry (jargon-free title AND why) for all 13 category ids, Critical→Moderate→Minor ordering with stable ties, PDF two-route vs OOXML one-route fix instructions, preference for the report's own Acrobat steps over dictionary defaults, unknown-id and missing-fileType fallbacks, forged-report input guards, and the `verdictPhrase` publication clause |
+| `reportSectionOrder.test.ts` | 16 | Report layout invariants per view, source-inspected: both pages carry the exact `VISUAL VIEW`/`DETAILED VIEW` markers (visual first), the Detailed slice preserves every pre-redesign blocking-before-informational ordering unchanged, ReportVisualView's own source pins hero → tiles → verdict → plan → bars → technical report, and TechnicalReport keeps findings above the PDF/UA panels above methodology |
 | `components.test.ts` | 45 | DropZone (drag/drop, all four format validations — PDF/docx/pptx/xlsx MIME + extension, size cap, per-format enable/disable flags dropping both the accept attr and the copy), ScoreCard (grade display, recommendation copy, all five grade colors, source-app-aware conformance-fix wording, and href-stripping for `javascript:` conformance-finding URLs while keeping the finding text), ProcessingOverlay (stage messaging), and the unsupported-format copy reaching the banner — legacy Office by behaviour rather than exact phrasing (the wording is owned by `@file-audit/shared`), and CSV asserted to never say "Save As" |
 | `responsive.test.ts` | 44 | Responsive layout across mobile navigation, layout padding, ScoreCard, ReportContent, the index/report/history pages, CSS transitions, and the scoring modal |
 | `accessibility.test.ts` | 35 | WCAG 2.1 color-contrast verification for dark and light modes (4.5:1 minimum across all text/background combinations), regression guards against low-contrast classes, semantic HTML landmarks, link accessibility, and component-level a11y |
@@ -910,6 +925,14 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `ReportActionBanner.test.ts` | 13 | The ReportActionBanner component — the report-page severity-count banner (singular/plural critical/moderate/minor combinations, the all-pass state) and format-neutral wording that never says "PDF" for a docx/pptx/xlsx result |
 | `uploadFormats.test.ts` | 19 | The `uploadFormats` composable: builds the file-input `accept` attribute and format-list copy from the PDF/docx/pptx/xlsx enable flags (Oxford comma at four, comma-free "and" at two, exactly the disabled format dropped), and `unsupportedFormatHint` — pointing a user who picks a legacy `.doc`/`.xls`/`.ppt`/`.rtf` file at the modern format and the Save As fix, case-insensitively, while returning null for modern OOXML and unrelated file types. Each legacy message must also set the expectation that converting carries content but **not** accessibility structure. CSV is asserted as the deliberate opposite: it says there is nothing to audit, that this is not a defect, and points at the page linking the file — and is pinned never to contain "Save As", because telling a CSV author to convert produces a worse artifact and a meaningless grade. `.tsv` resolves to the same message |
 | `useReportExport.test.ts` | 13 | `useReportExport`'s format-neutral fixes: `baseFilename` strips the source extension for every audited format (previously left `.docx` dangling), `buildJSON`'s `llmContext.standards` includes PDF/UA only for actual PDFs (not PowerPoint/Excel, and still included for legacy fileType-less PDF reports), the LLM prompt and remediation-plan fallback no longer hardcode Adobe Acrobat, and the scanned-document wording in `buildHtml` says "document" rather than "PDF" |
+| `actionPlanComponent.test.ts` | 8 | The ActionPlan timeline rail: numbered steps with step 1 auto-open, exclusive-open accordion (opening a step closes the previous; clicking the open step closes all), both fix routes and WCAG chips in an expanded step, the `show-evidence` emit, blocking-steps subtitle math, the green pass card with the manual-review reminder, and re-seeding to the new first step when the steps prop changes (batch tabs). Visibility asserted via the style attribute — vue-test-utils `isVisible()` is structurally blind under happy-dom |
+| `reportHeader.test.ts` | 8 | The Visual view's header trio: ReportGradeHero (grade + score + plain-language verdict, "ready/not ready to publish" clauses, and NO publication clause for category-less page-audit reports), SeverityTiles (per-severity counts, icon + label + number pairing, muted zero tiles), and VerdictStrip (failing-criteria count with a technical-report link, green no-failures variant, rendering nothing without a conformance verdict) |
+| `exportActionPlan.test.ts` | 6 | `buildHtml`'s Visual-view mirror: the action plan renders between hero and category table ordered Critical-first, severity tiles and the verdict phrase appear, every legacy section is retained, page-audit-shaped results get no plan/pass-card/verdict and no crash, clean reports get the pass card — and the XSS case pushes `<script>` payloads through the plan block's real dynamic paths (Acrobat-marker steps and unknown-id fallbacks), asserting the escaped forms appear |
+| `reportViewToggle.test.ts` | 6 | `useReportView` (visual default, stored preference applied on mount, garbage values ignored, persistence to `far:report-view`) and the ReportViewToggle control (`aria-pressed` states, `update:modelValue` emit, plain-word labels, `data-export-exclude`) |
+| `reportVisualView.test.ts` | 6 | The assembled Visual view: zone DOM order (hero → tiles → verdict → plan → bars → technical report), plan steps built from the result, warnings + notice slot, evidence clicks opening the technical expander, the page-audit guard (hero only — never tiles/plan/bars/expander/pass-card), and legacy strict-profile derivation matching the Detailed view |
+| `technicalReport.test.ts` | 6 | The Full-technical-report expander: collapsed by default behind a real `aria-expanded` button, expanding to reveal the conformance detail (failing criteria, not-assessed list, standards basis), executive summary + audit-scope caveat, embedded ReportContent without its score table, and `v-model:open` for evidence links — plus ReportContent's `showScoreTable` prop defaulting to today's behavior |
+| `categoryBars.test.ts` | 4 | CategoryBars score-table parity: one row per scored category with label, grade-colored bar, numeric score, grade letter, and severity chip; full-sentence `aria-label` per row; N/A rows distinguishing not-assessed from not-applicable with their `naReason`; malformed categories rendering empty rather than throwing |
+| `exportSnapshotAccordion.test.ts` | 2 | The snapshot HTML export vs the exclusive accordion: plan-step toggles are never clicked during export (live accordion state untouched) and the exported document force-shows every `.plan-step-body` and the technical-report body regardless of captured inline styles |
 | `wcag.test.ts` | 12 | `WCAG_MAP`'s remediation guidance: every fix-it category gained a Word/PowerPoint/Excel equivalent alongside its existing Acrobat steps (Styles gallery for headings, the Alt Text pane, Repeat Header Rows / Header Row, the Selection Pane and linear-flow guidance for reading order), `link_quality` no longer frames every fix as a pre-PDF-export step, `bookmarks` is clarified as PDF-specific, `color_contrast` states Office contrast is machine-checked (not a PDF-only manual step), and `pdf_ua_compliance` is confirmed untouched (it has no Office equivalent) |
 | `useRemediationJob.test.ts` | 11 | `useRemediationJob`'s polling behavior: a 1-second base cadence, 429 responses treated as silent back-off feedback (not a job error) with exponential backoff capped at 8 seconds and reset on success, a previously shown error clearing once a later poll succeeds, polling stopping cleanly on a 404, a terminal status, or component unmount, and job-token passthrough (C5 anonymous-mode authorization) — `?token=` is appended (URL-encoded) to both the status and receipt requests when a token is provided, and omitted entirely when it isn't, matching the pre-C5 URL exactly |
 | `ReportFileBanner.test.ts` | 9 | The ReportFileBanner component — the prominent filename banner (eyebrow label, bold filename, page/type line, scanned chip, long-name wrapping) with slide counts for PowerPoint and sheet counts for Excel |
@@ -1142,6 +1165,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.54.0 — 2026-08-07 · Visual report view + Visual/Detailed toggle (not a security release)
+
+Presentation-layer release, reviewed for new surface before shipping. The redesign is web-only — no analyzer, API, or database change — so the attack surface gained no new inputs, storage, or endpoints. The new components render stored (attacker-controllable) report JSON exclusively through Vue's escaped interpolation; the mapper and every new component array-guard their inputs (non-array `categories`/`findings` render empty rather than 500 — the established forged-report standard), and the reworked HTML-export test now proves escaping on the plan block's real dynamic paths by pushing `<script>` payloads through the Acrobat-steps and unknown-category fallbacks (sabotage-verified: removing any of the three `escapeHtml` calls fails it). URL page audits stored in the same table are structurally excluded from the document-report components, so a category-less report can never render a false "passes" card. The view preference is client-side localStorage only, never serialized to the server. The new UI itself was contrast-audited live during development (105 AA checks passing in dark mode; two step-badge failures found by measurement and fixed before merge). Detailed view remains byte-identical to v1.53.0 as a standing soft rollback, with the `pre-report-redesign` tag as the hard rollback. Tests 1,879 → 1,956.
 
 ### v1.53.0 — 2026-08-05 · Code blocks un-mangled sitewide; technical-details enriched (not a security release)
 

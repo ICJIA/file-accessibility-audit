@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "visual-report-view-2026-08-07",
+    badge: "New",
+    text: "Audit reports now open in a visual, plain-language view: your grade front and center, a color-coded severity summary, and a numbered action plan that walks through fixes one step at a time — written for document authors, not developers, with instructions for Word, PowerPoint, Excel, and Acrobat. Nothing was removed: the Visual/Detailed toggle at the top right of any report switches to the complete technical report, and your choice sticks on your device. Downloaded HTML reports and printouts carry the same new layout with every detail expanded.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 7, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "shared-report-deletion-2026-08-05",
     badge: "Privacy",
     text: "Shared report links have always stopped working after one year. Starting today, the stored report itself is also deleted: the service's cleanup sweep now permanently removes a shared report's data about 30 days after its link expires, so nothing you shared outlives its usefulness by more than a month. The data-retention policy (v1.4) states the exact lifecycle, and its § 8a explains precisely what a shared report contains.",

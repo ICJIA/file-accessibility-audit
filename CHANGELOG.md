@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.54.0] - 2026-08-07
+
+The audit report now leads with a visual, plain-language view built for non-technical document authors — with the complete technical report one toggle away.
+
+### Added
+
+- **Visual report view (new default).** Both the live result and the shared report page open in an infographic-style layout: an oversized grade circle with the score and a plain-English verdict ("Poor — not ready to publish"), color-coded severity count tiles, a one-line WCAG 2.2 AA verdict strip, and a numbered **action plan** that orders fixes by severity — one step open at a time, each with big visual step numbers and plain-language instructions for the source document (Word / PowerPoint / Excel) plus, for PDFs, an Acrobat route drawn from the report's own findings where available. The remediation button stays available in the new view for eligible PDFs.
+- **Visual / Detailed toggle.** The upper right of every report switches between the new view and the exact report layout that shipped before this release — nothing was removed, and the preference persists per device. The Detailed view is byte-identical to v1.53.0.
+- **"Where the score comes from" bars** carry the score table's full data in the Visual view — score, grade, and severity per category, with the not-scored explanations beneath.
+- **Full technical report expander** collects the WCAG criteria detail (with W3C links), executive summary, audit-scope caveat, detailed findings and evidence, PDF/UA checks, methodology, and document metadata behind a single control — full data parity with the Detailed view.
+- **The downloaded HTML report mirrors the Visual view**: severity tiles, the verdict phrase, and the ordered action plan now open the file, every legacy section retained; the snapshot exporter forces all accordion steps visible so the download never hides content. Print styles expand everything and keep the tile/bar colors on paper.
+
+### Fixed
+
+- URL page audits (stored in the same shared-report table) can no longer render a false "nothing to fix" card or a blank score in the new view — category-less reports show the grade hero only, and the hero falls back to the page-audit score field.
+- The action-plan rail and step badges meet WCAG AA contrast in dark mode, verified with a live contrast audit during development (105 checks passing).
+- Legacy shared reports from before v1.21 now derive the same strict-profile grade, score, and categories in both views — the toggle can no longer show two different scores for the same report.
+
+### Notes
+
+Web-only change: no analyzer, API, or database modifications, so previously shared reports get the new view with no migration in either direction. Rollback is layered: the Detailed view itself (one click, always available) and the `pre-report-redesign` git tag. Tests grew **1,879 → 1,956** (web 679 → 756, 9 new test files); lint, typecheck, build green.
+
 ## [1.53.0] - 2026-08-05
 
 Every technical code block on the explanatory pages is readable again — and the technical-details page got the full treatment.
