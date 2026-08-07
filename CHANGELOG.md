@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.58.0] - 2026-08-07
+
+Two contradictions the tool was showing to the people it exists to help: a grade that could rank a worse document higher, and a backup that looked like it contradicted "your file is never stored".
+
+### Changed
+
+- **The letter grade is now capped by the document's worst unresolved finding** — Minor caps at B, Moderate at C, Critical at D (F if the average is also failing). The weighted average still decides where a document sits *within* a band; the worst finding decides which band it can be in.
+
+  Reported from the field: two shared reports "both have document title issues but look to be graded differently". They did. Renormalizing away inapplicable categories has two consequences, both confirmed against a 31-document corpus:
+
+  1. **A single failure dominates a sparse document and is diluted in a rich one.** Two Word files with the *identical* defect — no document title, language present, Title & Language scoring 50/Moderate in both — graded **B (87)** and **C (71)**, because one had 7 of 10 applicable categories to average against and the other only 3. Same fault, different letter.
+  2. **Four perfect categories outvoted one catastrophic one.** Two PDFs missing *both* title and language (0/Critical, two WCAG failures each) graded **B** — above the Word file with strictly the milder defect. Corpus-wide, 4 documents held an **A** while carrying an unresolved Moderate and 2 held a **B** while carrying a Critical.
+
+  An averaged score cannot express "one thing here is disqualifying", but accessibility conformance is pass/fail per criterion, not a mean. The letters now carry a rule that fits in one sentence for staff deciding whether to publish: **A = nothing found · B = only minor items · C = a real problem to fix · D/F = do not publish.** Grade and publication verdict are now structurally incapable of disagreeing — the reported symptom was that ranking documents by letter gave the opposite of the truth. 11 of the 31 corpus documents change grade, all downward. The cap only ever lowers, never raises, so a poor average keeps its worse letter.
+
+- **Already-shared report links self-correct.** The cap is a pure function of a report's own stored category severities, so the API applies it when *serving* a stored audit (shared reports and both remediation audits) rather than migrating the database. Stored rows stay byte-identical — they are an agency's evidence of what was computed on the day — while a link shared last week no longer disagrees with the same document re-audited today. The stored executive summary is regenerated rather than string-patched, because it *branches* on the grade: swapping the letter inside stale prose would leave the sentence arguing against its own grade.
+
+- **Both report views explain a capped grade in place.** "Held at C by a moderate issue. The 87 average on its own would be a B — but the worst unresolved issue sets the grade." Shipping a C beside an 87 with no explanation would have traded one contradiction for another.
+
+### Added
+
+- **The `/status` backup card answers "why back up anything if nothing is stored?"** — asked by a real reader, and a fair question when the tool promises your file is never saved and then announces a nightly backup. The card now carries a ✓/✗ split of what a snapshot contains (one line per audit; sign-in emails; saved and shared reports; the routine connection log) against what it cannot (the document itself, its pages, anything a readable copy could be rebuilt from), then the resolution: the *document* is never saved, the *record* that it was checked is, and that is what the backup copies. The collapsed peek reads "of records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files.
+- **Data-retention § 7a, "Why anything is backed up when documents aren't stored"** — the same answer drawn as two side-by-side lanes, one ending in *discarded*, one in *backed up*, listed in the table of contents and linked from the status card.
+
+  Both surfaces deliberately state what the records **do** carry — a sign-in email, the IP/user-agent connection log, and the file name as uploaded (a file named after a person stores that name). "Contains no personal data" would be false, and being caught on it once would discredit the rest of the policy.
+
+### Fixed
+
+- **The landing page advertised a severity level that does not exist** ("Critical / Serious / Moderate"). The scorer emits Critical / Moderate / Minor and always has — an invented fourth level on the page whose job is explaining what the grades mean.
+- **Reading-order and contrast "not assessed" notes called every document a PDF.** Both render on Word, PowerPoint, and Excel reports too, where "this PDF" is simply wrong to the person reading it. Observed on a `.docx` report while verifying the grade cap.
+- **`TechnicalExplainer` said the database "is not replicated to external storage or backup services"** — true as written, but it reads as *no backups at all*, which stopped being the case in v1.49.0.
+
+### Notes
+
+Tests 2,027 → 2,068. The two scorer tests that went red on the cap had encoded the behaviour it removes (a high average outranking a real finding) and were rewritten to assert both halves. The cap, the render-time regrade, and both explanation notes were each sabotage-verified; a premise guard in the new ladder tests caught a fixture that scored Moderate while claiming to test the Minor rung. The four documents that triggered the change are pinned by name, so a future change that re-inverts them fails with the original complaint spelled out.
+
 ## [1.57.0] - 2026-08-07
 
 Follow-through on the adversarial review: the gaps it found in the safety net, and a status page that tells an operator how bad it is.

@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "grade-capped-by-worst-issue-2026-08-07",
+    badge: "Important",
+    text: "Letter grades are now capped by the worst problem in a document, and many documents will grade lower than before. A reader spotted that two reports with the same missing-title problem carried different grades — and they were right. The grade averaged the checks that applied, so one fault counted for more in a short document with little to check, and a few perfect checks could outweigh one serious failure; two files missing both a title and a language declaration were scoring better than a file missing only the title. From now on a grade can never sit above a document's worst unresolved problem: no findings is an A, minor items only is a B, a moderate problem is at best a C, and a critical problem is at best a D. Grades only move down under this rule, never up. Where the letter is being held below the numeric score, the report says so on the page — and a report you shared before today will show the corrected letter when it is reopened, so an old link and a fresh audit of the same file agree.",
+    linkText: "How grades are calculated",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 7, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "clearer-report-headline-2026-08-07",
     badge: "Improved",
     text: 'The report headline is clearer. Because the letter grade is a weighted average while the publish-or-not verdict counts blocking issues, a document could previously be described as "Excellent" and "not ready to publish" in the same sentence. Now, when something blocks publication, that leads: "Not ready to publish — 2 critical issues." The fix steps also read more plainly — jargon like "structure tags" and "OCR" is explained where it appears, and the Acrobat instructions now say plainly that they need Acrobat Pro, not the free Reader. Two categories that genuinely cannot be fixed inside a PDF now say so instead of pointing you back to a source file you may not have.',

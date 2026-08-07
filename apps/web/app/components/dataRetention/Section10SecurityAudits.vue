@@ -64,6 +64,48 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.58.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.58.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-07</strong> · scope: two places where the tool contradicted
+          itself in front of the people it is written for — not a security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        <strong>Letter grades are now capped by the worst problem found in a document.</strong> A
+        reader noticed that two reports with the same missing-title problem carried different
+        grades, and they were right. The grade had been an average across the checks that applied,
+        so the same single fault counted for more in a short document with little to check and less
+        in a longer one with more — and a few perfect checks could outweigh one serious failure. Two
+        files missing both a title and a language declaration were graded better than a file missing
+        only the title. A grade can no longer sit above a document's worst unresolved problem: no
+        findings is an A, minor items only is a B, a moderate problem is at best a C, and a critical
+        problem is at best a D. Grades can only move down under this rule, never up, and a document
+        with a critical problem can no longer read as close to publishable. Reports say plainly when
+        the letter is being held below the numeric score, and reports shared before this change show
+        the corrected letter when reopened, so an older link and a fresh audit of the same file no
+        longer disagree.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
+        <strong>The status page now explains why anything is backed up</strong> when the tool
+        promises your file is never stored — a fair question someone asked out loud. Your document
+        is never saved; the service's own record that a document was checked is, and that record is
+        what the nightly backup copies. Section 7a of this policy draws the same distinction, and
+        both places state plainly what personal detail those records do contain — a sign-in email
+        address, the routine connection log every web server keeps, and the file name as uploaded —
+        rather than claiming there is none. Three pieces of stale or wrong wording were also
+        corrected, including a severity level advertised on the home page that this tool has never
+        actually used.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.57.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
