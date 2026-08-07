@@ -53,6 +53,43 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * corrected grade is recoverable, a thrown exception on a public share link is
  * not.
  */
+interface StoredCategory {
+  score?: number | null;
+  weight?: number | null;
+  notAssessed?: boolean;
+  severity?: string | null;
+}
+
+/**
+ * Re-derive the raw score from stored categories under the CURRENT rules —
+ * inapplicable checks counting as passing, unevaluable ones excluded — or
+ * null when the row cannot support it (a category without a usable weight, or
+ * nothing left to weigh).
+ *
+ * A pure recompute rather than a nudge to the stored number: the stored score
+ * was produced by whatever rule was current on the day, and the whole point of
+ * regrading on read is that an old link and a fresh audit of the same file
+ * agree. Note this can RAISE a stored score — v1.58.3 stopped penalizing
+ * simple documents, so a shared one-page notice moves 71 -> 79 exactly as
+ * re-uploading it would. The severity cap applied afterwards is still a
+ * one-way ceiling.
+ */
+function rawScoreFrom(categories: StoredCategory[]): number | null {
+  const counted = categories.filter((c) => c && (c.score !== null || c.notAssessed !== true));
+  let total = 0;
+  for (const c of counted) {
+    if (typeof c.weight !== "number" || !Number.isFinite(c.weight) || c.weight < 0) return null;
+    total += c.weight;
+  }
+  if (total <= 0) return null;
+  return Math.round(
+    counted.reduce((sum, c) => {
+      const score = typeof c.score === "number" && Number.isFinite(c.score) ? c.score : 100;
+      return sum + score * (c.weight! / total);
+    }, 0),
+  );
+}
+
 function regradeInPlace(target: Record<string, unknown>, fileType: unknown): boolean {
   const categories = Array.isArray(target.categories) ? target.categories : null;
   if (!categories) return false;
@@ -60,8 +97,19 @@ function regradeInPlace(target: Record<string, unknown>, fileType: unknown): boo
   const before = target.overallScore;
   if (typeof before !== "number" || !Number.isFinite(before)) return false;
 
-  const after = capScoreBySeverity(before, categories as Array<{ score?: number | null }>);
-  if (after === null || after >= before) return false;
+  // A scanned document scores 0 regardless of what its categories look like —
+  // its nulls mean "there was nothing to read", not "nothing was wrong".
+  let after: number | null;
+  if (target.isScanned === true) {
+    after = 0;
+  } else {
+    // Recompute from the categories where the row supports it; fall back to
+    // capping the stored number where it does not, so an old or hand-edited
+    // row still gets the ceiling rather than nothing.
+    const raw = rawScoreFrom(categories as StoredCategory[]) ?? before;
+    after = capScoreBySeverity(raw, categories as Array<{ score?: number | null }>);
+  }
+  if (after === null || after === before) return false;
 
   // Score first, then the grade FROM the score — never independently, or the
   // published scale stops holding on exactly the reports served from storage.

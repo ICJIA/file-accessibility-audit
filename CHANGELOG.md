@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.58.4] - 2026-08-07
+
+### Fixed
+
+- **Already-shared report links now recompute under the current scoring rule, not just the severity ceiling.** Found by verifying v1.58.3 on production: a shared link to `Public Notice of Meeting.docx` served **71 / C** while re-uploading the identical file gave **79 / C** — precisely the "an old link and a fresh audit disagree" problem that regrading on read exists to prevent.
+
+  The cause was that `regradeStoredReport` only applied `capScoreBySeverity`, which is a one-way ceiling. It could pick up v1.58.0 and v1.58.2 (which only ever *lowered* a score) but was structurally incapable of picking up v1.58.3, which *raised* simple documents by counting inapplicable checks as passing.
+
+  Stored reports carry every input the calculation needs — per-category `score`, `weight` and `notAssessed`, plus `isScanned` — so the raw score is now re-derived from them under current rules and the ceiling applied afterwards. Both guards travel with it: `notAssessed` categories stay excluded, and a stored scanned report scores 0 regardless of how its categories look. Where a row cannot support a recompute (a missing or malformed weight, a much older build), it falls back to capping the stored number so it still gets the ceiling rather than nothing.
+
+  **Note this can now raise a stored score** — that is the point, and it is what makes an old link agree with a fresh audit. The severity cap applied afterwards remains one-way.
+
+### Notes
+
+Tests 2,075 → 2,078. The regrade fixture was replaced with the **real** production payload of the report that exposed this; the previous two-category stub recomputed to a different number and would not have caught it. Added cases pinning the `notAssessed` exclusion and the scanned guard on the stored path specifically, since it is a separate code path from a fresh audit.
+
 ## [1.58.3] - 2026-08-07
 
 ### Fixed

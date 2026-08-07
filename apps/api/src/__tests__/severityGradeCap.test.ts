@@ -139,6 +139,44 @@ describe("regradeStoredReport — already-shared links self-correct", () => {
   // The alternative was leaving old links on the old scale, which reintroduces
   // the contradiction across TIME instead of across documents: a report shared
   // last week reading B while the same document re-audited today reads D.
+  // The REAL stored payload of "Public Notice of Meeting.docx" as served from
+  // production on 2026-08-07 — the report that exposed this. A shared link
+  // showed 71/C while re-uploading the same file gave 79/C, because the
+  // regrade only applied the ceiling and never recomputed under the current
+  // rule. A stub fixture would not have caught it; this one is the case.
+  const storedNotice = () => ({
+    fileType: "docx",
+    overallScore: 71,
+    grade: "C",
+    isScanned: false,
+    executiveSummary: "This Word document scored 71/100 (grade C) for overall readiness.",
+    conformance: { status: "fail", failures: [{ sc: "2.4.2" }] },
+    categories: [
+      {
+        id: "text_extractability",
+        score: 100,
+        weight: 0.05,
+        notAssessed: false,
+        severity: "No issues found",
+      },
+      { id: "title_language", score: 50, weight: 0.18, notAssessed: false, severity: "Moderate" },
+      { id: "heading_structure", score: null, weight: 0.18, notAssessed: false, severity: null },
+      { id: "alt_text", score: null, weight: 0.18, notAssessed: false, severity: null },
+      { id: "table_markup", score: null, weight: 0.12, notAssessed: false, severity: null },
+      { id: "color_contrast", score: null, weight: 0.12, notAssessed: true, severity: null },
+      { id: "list_structure", score: null, weight: 0.09, notAssessed: false, severity: null },
+      {
+        id: "link_quality",
+        score: 100,
+        weight: 0.08,
+        notAssessed: false,
+        severity: "No issues found",
+      },
+      { id: "reading_order", score: null, weight: 0, notAssessed: true, severity: null },
+      { id: "form_accessibility", score: null, weight: 0, notAssessed: true, severity: null },
+    ],
+  });
+
   const stored = () => ({
     fileType: "pdf",
     overallScore: 80,
@@ -147,17 +185,103 @@ describe("regradeStoredReport — already-shared links self-correct", () => {
     executiveSummary: "This PDF scored 80/100 (grade B) for overall readiness.",
     conformance: { status: "fail", failures: [{ sc: "2.4.2" }] },
     categories: [
-      { id: "title_language", score: 0, severity: "Critical", weight: 0.15 },
-      { id: "alt_text", score: 100, severity: "No issues found", weight: 0.15 },
+      {
+        id: "text_extractability",
+        score: 100,
+        weight: 0.2,
+        notAssessed: false,
+        severity: "No issues found",
+      },
+      { id: "title_language", score: 0, weight: 0.15, notAssessed: false, severity: "Critical" },
+      {
+        id: "heading_structure",
+        score: 100,
+        weight: 0.15,
+        notAssessed: false,
+        severity: "No issues found",
+      },
+      { id: "alt_text", score: 100, weight: 0.15, notAssessed: false, severity: "No issues found" },
+      {
+        id: "reading_order",
+        score: 100,
+        weight: 0.1,
+        notAssessed: false,
+        severity: "No issues found",
+      },
     ],
     scoreProfiles: {
       strict: {
         overallScore: 80,
         grade: "B",
         executiveSummary: "This PDF scored 80/100 (grade B) for overall readiness.",
-        categories: [{ id: "title_language", score: 0, severity: "Critical", weight: 0.15 }],
+        categories: [
+          {
+            id: "text_extractability",
+            score: 100,
+            weight: 0.2,
+            notAssessed: false,
+            severity: "No issues found",
+          },
+          {
+            id: "title_language",
+            score: 0,
+            weight: 0.15,
+            notAssessed: false,
+            severity: "Critical",
+          },
+          {
+            id: "heading_structure",
+            score: 100,
+            weight: 0.15,
+            notAssessed: false,
+            severity: "No issues found",
+          },
+          {
+            id: "alt_text",
+            score: 100,
+            weight: 0.15,
+            notAssessed: false,
+            severity: "No issues found",
+          },
+          {
+            id: "reading_order",
+            score: 100,
+            weight: 0.1,
+            notAssessed: false,
+            severity: "No issues found",
+          },
+        ],
       },
     },
+  });
+
+  it("recomputes a stored report under the CURRENT rule, not just the ceiling", () => {
+    // The live failure: this link served 71/C while a fresh audit of the same
+    // file gave 79/C. Capping alone can only lower, so it could never pick up
+    // v1.58.3's change (inapplicable checks now count as passing).
+    const out = regradeStoredReport(storedNotice());
+    expect(out.overallScore).toBe(79);
+    expect(out.grade).toBe("C");
+  });
+
+  it("honours notAssessed when recomputing a stored report", () => {
+    // color_contrast is stored notAssessed:true at weight 0.12. Counting it
+    // as a pass would give 91 -> still capped to 79, hiding the bug; this
+    // asserts it is EXCLUDED, which is what makes 79 the right 79.
+    const withoutContrast = storedNotice();
+    withoutContrast.categories = withoutContrast.categories.filter(
+      (c) => c.id !== "color_contrast",
+    );
+    expect(regradeStoredReport(withoutContrast).overallScore).toBe(
+      regradeStoredReport(storedNotice()).overallScore,
+    );
+  });
+
+  it("scores a stored SCANNED report 0 however its categories look", () => {
+    const scanned = { ...storedNotice(), isScanned: true };
+    const out = regradeStoredReport(scanned);
+    expect(out.overallScore).toBe(0);
+    expect(out.grade).toBe("F");
   });
 
   it("lowers the stored score to the cap and re-derives the letter from it", () => {
