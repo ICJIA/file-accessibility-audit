@@ -690,6 +690,22 @@ h1{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 14px;color:#e6
 .none{margin:0;font-size:12px;color:#6e7681}
 .bak{margin:0 0 8px;font-size:12px;line-height:1.7}
 .caveat code{font-size:.95em;padding:1px 4px;border-radius:4px;background:#21262d;color:#e6edf3}
+.caveat a{color:#58a6ff}
+.caveat a:focus-visible{outline:2px solid #58a6ff;outline-offset:2px;border-radius:3px}
+.split{display:grid;gap:14px 22px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin:12px 0 0}
+.split h3{font-size:12px;font-weight:600;margin:0 0 7px;letter-spacing:.02em}
+.split ul{margin:0;padding:0;list-style:none;font-size:12px;line-height:1.55}
+.split li{margin:0 0 6px;padding-left:1.4em;text-indent:-1.4em;color:#8b949e}
+.split li::before{padding-right:.55em;font-weight:700}
+.split .yes h3{color:#3fb950}
+.split .yes li::before{content:"\\2713";color:#3fb950}
+.split .no h3{color:#f85149}
+.split .no li::before{content:"\\2717";color:#f85149}
+.why{margin:16px 0 0;font-size:12px;line-height:1.65;color:#8b949e;max-width:78ch}
+.why strong{color:#e6edf3;font-weight:600}
+.why em{color:#e6edf3;font-style:normal;font-weight:600}
+.blmark{margin:12px 0 0;padding:9px 12px;border-radius:8px;font-size:12px;line-height:1.6;
+ border:1px solid rgba(63,185,80,.35);background:rgba(63,185,80,.08);color:#e6edf3;max-width:78ch}
 .strip{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 14px;margin:0 0 18px}
 .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em}
 .pill.ok{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid rgba(63,185,80,.4)}
@@ -745,12 +761,64 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  .pill.warn{background:rgba(154,103,0,.1);color:#9a6700;border-color:rgba(154,103,0,.45)}
  .pill.down{background:rgba(209,36,47,.1);color:#d1242f;border-color:rgba(209,36,47,.45)}
  .strip .deg{color:#9a6700}
+ .caveat a{color:#0969da}
+ .caveat a:focus-visible{outline-color:#0969da}
+ .split li,.why{color:#57606a}
+ .split .yes h3,.split .yes li::before{color:#1a7f37}
+ .split .no h3,.split .no li::before{color:#d1242f}
+ .why strong,.why em{color:#1f2328}
+ .blmark{border-color:rgba(26,127,55,.4);background:rgba(26,127,55,.08);color:#1f2328}
  details.card>summary:hover h2,details.card>summary:focus-visible h2{color:#0969da}
  details.card>summary:focus-visible{outline-color:#0969da}
  .k{color:#0550ae}.p{color:#6e7781}
  .v.str{color:#0a7b28}.v.num{color:#953800}.v.bool{color:#6639ba}.v.null{color:#6e7781}
 }
 `.trim();
+
+/**
+ * What a backup actually contains, as a two-column ✓/✗ split.
+ *
+ * This card is where the tool's central privacy promise and its operational
+ * reality collide in public: the app says "your file is never stored", and
+ * then this page announces a nightly backup. A reader who notices both
+ * concludes one of them is a lie. The real answer — the DOCUMENT is never
+ * saved, the service's own RECORD of the audit is — is not deducible from a
+ * completion timestamp, so it is stated here rather than left to inference.
+ *
+ * Deliberately not "no personal data": the database does hold sign-in email
+ * addresses and the routine IP/user-agent connection log, and a file NAME can
+ * itself name a person. Overclaiming here would be the one thing that makes a
+ * records officer distrust everything else on the page, so the ✓ column lists
+ * those plainly and the ✗ column claims only what the code actually
+ * guarantees — no document content, and nothing a document could be rebuilt
+ * from. The full accounting lives in the data-retention policy, linked below.
+ */
+function backupExplainer(): string {
+  return (
+    `<div class="split">` +
+    `<div class="yes"><h3>In a backup — the service's own records</h3><ul>` +
+    `<li>One line per audit: date, file name, score, grade</li>` +
+    `<li>Sign-in email addresses, for people who signed in</li>` +
+    `<li>Reports someone chose to save or share — whose findings can quote short labels ` +
+    `from the document, such as image alt text or link wording</li>` +
+    `<li>The routine connection log every web server keeps (IP address, browser), ` +
+    `deleted after 365 days</li>` +
+    `</ul></div>` +
+    `<div class="no"><h3>Not in a backup — never stored at all</h3><ul>` +
+    `<li>The PDF, Word, PowerPoint or Excel file itself</li>` +
+    `<li>The pages, paragraphs, images or tables inside it</li>` +
+    `<li>Anything a readable copy of a document could be rebuilt from</li>` +
+    `</ul></div></div>` +
+    `<p class="why"><strong>Why back up anything if documents aren&#39;t stored?</strong> ` +
+    `Because two different things are involved. Your <em>document</em> is never saved — it is ` +
+    `read in memory, scored, and gone within seconds. The service&#39;s <em>record</em> that a ` +
+    `file was checked is kept, so an agency can show what it reviewed and when. The nightly ` +
+    `backup protects that record. A document cannot be inside a backup, because no document is ` +
+    `ever written to disk in the first place.</p>` +
+    `<p class="blmark">Bottom line: a backup could not reproduce one page of anyone&#39;s ` +
+    `document. It is a copy of the logbook, not of the files that passed through it.</p>`
+  );
+}
 
 /**
  * Last-successful-backup row. Additive like every curated section: a payload
@@ -797,9 +865,13 @@ export function renderBackup(body: Record<string, unknown>): string {
     typeof b.age_hours === "number" && Number.isFinite(b.age_hours) && b.age_hours >= 0
       ? b.age_hours
       : 0;
+  // The peek names WHAT is backed up, not just when. "28.0 MB" beside a
+  // service that promises never to keep your file reads as 28 MB of files;
+  // "records, not documents" answers that in the four words a collapsed card
+  // gets, and the card body proves it.
   const peek =
     status === "ok"
-      ? `✓ ${age} h ago · ${formatBytes(b.size_bytes)}`
+      ? `✓ ${age} h ago · ${formatBytes(b.size_bytes)} of records, not documents`
       : status === "stale"
         ? `⚠ ${age} h ago — older than expected`
         : "none yet — expected before the first scheduled run";
@@ -813,8 +885,11 @@ export function renderBackup(body: Record<string, unknown>): string {
     open: status === "stale",
     body:
       line +
+      backupExplainer() +
       `<p class="caveat">Recorded only after a snapshot passes its integrity check — this row is ` +
-      `the proof the nightly backup ran. Snapshots never leave the server.</p>`,
+      `the proof the nightly backup ran, not merely that the scheduler fired. Snapshots stay on ` +
+      `this server and are never copied off it. Every field kept, how long, and where: ` +
+      `<a href="/data-retention#backups-explained">data retention policy, &sect; 7a</a>.</p>`,
   });
 }
 

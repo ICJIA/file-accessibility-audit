@@ -160,6 +160,138 @@
       Snapshots contain exactly the database tables listed in this section — no file content,
       because none is ever stored in the database.
     </p>
+
+    <!-- 7a. The question this page has to answer out loud.
+         A reader who has just been told "your file is never stored" and then
+         meets a row about nightly backups concludes one of the two is untrue.
+         The resolution is that they describe different things — the document
+         versus the service's record of having checked it — which is not
+         deducible from the retention table above, so it is drawn rather than
+         implied. Two lanes: one ends in "discarded", one ends in "backed up". -->
+    <div id="backups-explained" class="scroll-mt-8 mt-10">
+      <h3 class="text-lg font-bold text-[var(--text-heading)] mb-2">
+        7a. Why anything is backed up when documents aren't stored
+      </h3>
+      <p class="text-sm text-[var(--text-secondary)] mb-5 leading-relaxed max-w-3xl">
+        Because two different things are involved, and only one of them is kept. Your
+        <strong>document</strong> is never saved. The service's <strong>record</strong> that a
+        document was checked is — that record is what an agency shows when it has to prove what it
+        reviewed and when. The nightly backup protects the record.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Lane A: the document. Red matches § 8's "Never stored" card, so a
+             reader who has seen that section already knows what red means. -->
+        <div class="rounded-xl border border-red-700/40 bg-red-950/15 p-5 flex flex-col">
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-red-300 mb-1">
+            Your document
+          </h4>
+          <p class="text-xs text-[var(--text-muted)] mb-4">
+            the PDF, Word, PowerPoint or Excel file
+          </p>
+          <ol class="space-y-3 text-xs text-[var(--text-secondary)] flex-1">
+            <li class="flex gap-3">
+              <span
+                class="shrink-0 w-6 h-6 rounded-full bg-red-900/50 text-red-200 font-bold flex items-center justify-center"
+                aria-hidden="true"
+                >1</span
+              >
+              <span>You upload it. It is held in the server's memory only.</span>
+            </li>
+            <li class="flex gap-3">
+              <span
+                class="shrink-0 w-6 h-6 rounded-full bg-red-900/50 text-red-200 font-bold flex items-center justify-center"
+                aria-hidden="true"
+                >2</span
+              >
+              <span>It is read and scored against the accessibility rules.</span>
+            </li>
+            <li class="flex gap-3">
+              <span
+                class="shrink-0 w-6 h-6 rounded-full bg-red-900/50 text-red-200 font-bold flex items-center justify-center"
+                aria-hidden="true"
+                >3</span
+              >
+              <span>It is discarded when the response is sent — seconds later.</span>
+            </li>
+          </ol>
+          <p
+            class="mt-4 pt-3 border-t border-red-700/30 text-xs font-semibold text-red-200 leading-relaxed"
+          >
+            <span aria-hidden="true">✕</span> Never written to disk, so it cannot be in a backup —
+            there is nothing to copy.
+          </p>
+        </div>
+
+        <!-- Lane B: the record. Emerald matches § 8's "Stored" card. -->
+        <div class="rounded-xl border border-emerald-700/40 bg-emerald-950/15 p-5 flex flex-col">
+          <h4 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-1">
+            The record of the audit
+          </h4>
+          <p class="text-xs text-[var(--text-muted)] mb-4">one line in the service's own logbook</p>
+          <ol class="space-y-3 text-xs text-[var(--text-secondary)] flex-1">
+            <li class="flex gap-3">
+              <span
+                class="shrink-0 w-6 h-6 rounded-full bg-emerald-900/50 text-emerald-200 font-bold flex items-center justify-center"
+                aria-hidden="true"
+                >1</span
+              >
+              <span>One row is written: date, file name, score, grade.</span>
+            </li>
+            <li class="flex gap-3">
+              <span
+                class="shrink-0 w-6 h-6 rounded-full bg-emerald-900/50 text-emerald-200 font-bold flex items-center justify-center"
+                aria-hidden="true"
+                >2</span
+              >
+              <span>It stays so an agency can show what it checked and when.</span>
+            </li>
+            <li class="flex gap-3">
+              <span
+                class="shrink-0 w-6 h-6 rounded-full bg-emerald-900/50 text-emerald-200 font-bold flex items-center justify-center"
+                aria-hidden="true"
+                >3</span
+              >
+              <span>It is deleted on the schedule in the table above (365 days).</span>
+            </li>
+          </ol>
+          <p
+            class="mt-4 pt-3 border-t border-emerald-700/30 text-xs font-semibold text-emerald-200 leading-relaxed"
+          >
+            <span aria-hidden="true">✓</span> This — and only this — is what the nightly backup
+            copies.
+          </p>
+        </div>
+      </div>
+
+      <p
+        class="mt-4 rounded-xl border border-emerald-700/40 bg-emerald-950/15 px-5 py-4 text-sm text-[var(--text-secondary)] leading-relaxed"
+      >
+        <strong class="text-[var(--text-heading)]">Bottom line:</strong> a backup could not
+        reproduce one page of anyone's document. It is a copy of the logbook, not of the files that
+        passed through it. If every snapshot were handed to a stranger, they would learn which file
+        names were checked, when, and what they scored — not what any document said.
+      </p>
+
+      <!-- The honest counterweight. A page that claimed "no personal data" here
+           would be wrong in three specific ways, and being caught on any one of
+           them would discredit everything else on this page. -->
+      <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed max-w-3xl">
+        <strong class="text-[var(--text-heading)]"
+          >What personal details the record does contain:</strong
+        >
+        a sign-in email address for anyone who signed in; the routine connection log every web
+        server keeps (IP address and browser name, deleted after 365 days); and the
+        <em>file name</em> as uploaded — so a file named after a person stores that person's name. A
+        report someone chose to <em>save or share</em> also quotes short labels from inside the
+        document — image alt text, link wording, bookmark titles, the document's own title and
+        author fields — because the findings have to point at what to fix (§ 8a). Never the pages
+        themselves. The complete accounting is in
+        <a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]"
+          >§ 8, What is and isn't stored</a
+        >.
+      </p>
+    </div>
   </section>
 </template>
 

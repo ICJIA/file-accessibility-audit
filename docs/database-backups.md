@@ -16,6 +16,29 @@ tree, where a `git clean -xdf` would delete it.
 | Restore | `scripts/restore-db.sh` | Verifies the snapshot **before** touching anything, sets the current DB aside (including `-wal`/`-shm` — a stale WAL next to a restored main file corrupts it), then swaps the snapshot in. Nothing is deleted. |
 | Tests | `apps/api/src/__tests__/backup.test.ts` | 8 tests pinning the safety properties below. |
 
+## What a snapshot contains (and why anyone asks)
+
+A snapshot is a copy of `audit.db` and nothing else. Concretely: one `audit_log`
+row per audit and per refused upload (timestamp, sanitized file name, score,
+grade, sign-in email, IP, user-agent), `shared_reports` rows for reports someone
+chose to share, `remediation_jobs`/`remediation_events`, `access_tokens` and
+`otp_codes` hashes. **No audited document is in it**, because no audited
+document is ever written to disk in the first place — the audit path holds the
+buffer in memory (a PDF's qpdf temp copy is deleted in the same request).
+
+This gets asked because the tool's headline promise is *your file is never
+stored*, and a nightly backup reads as a contradiction until someone separates
+the document from the record of having checked it. Since v1.58.0 the product
+says so itself rather than leaving it to this runbook: the `/status` backup
+card carries a ✓/✗ split and the plain-language answer, and § 7a of the
+data-retention policy draws the same two lanes. Both deliberately state what
+the records **do** carry — sign-in email, the IP/user-agent connection log, and
+the file name as uploaded (a file named after a person stores that name) —
+because "contains no personal data" would be false and, once caught, would
+discredit the rest of the policy. Pinned by
+`apps/web/app/__tests__/backupsExplained.test.ts`, which fails on that
+overclaim specifically.
+
 **Why not `cp` + cron:** the database runs in WAL mode. Copying the main file
 misses every committed row still sitting in `audit.db-wal` — a stale or torn
 snapshot that looks fine until the day it's restored. The online backup API

@@ -249,6 +249,11 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
           >
         </li>
         <li>
+          <a href="#backups-explained" class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >7a. Why anything is backed up when documents aren't stored</a
+          >
+        </li>
+        <li>
           <a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]"
             >8. What is and isn't stored</a
           >

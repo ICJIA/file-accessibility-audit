@@ -1939,8 +1939,17 @@ pm2 restart ecosystem.config.cjs</pre>
           <li class="flex gap-2">
             <span class="text-[var(--text-muted)]">•</span
             ><span
-              >The database is stored locally on the server filesystem — it is not replicated to
-              external storage or backup services.</span
+              >The database is stored locally on the server filesystem — it is not replicated to any
+              external storage or cloud backup service. It <em>is</em> snapshotted nightly
+              <strong>on that same machine</strong> (v1.49.0+), keeping the 5 newest snapshots, so a
+              disk failure does not erase the audit record. A snapshot copies this database and
+              nothing else: audit records, not audited files. Because no uploaded document is ever
+              written to disk, no backup can contain one —
+              <NuxtLink
+                to="/data-retention#backups-explained"
+                class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                >why that isn't a contradiction</NuxtLink
+              >.</span
             >
           </li>
         </ul>

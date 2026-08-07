@@ -72,6 +72,11 @@
             on the same server, in a directory outside the application, and only the 5 newest are
             kept (see § 7); nothing is copied off the machine by the application
           </li>
+          <li>
+            Any document content inside those snapshots — a snapshot copies this database, and this
+            database holds only the "stored" column opposite, so the backups contain records of
+            audits, never the audited files (§ 7a)
+          </li>
         </ul>
       </div>
     </div>
