@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.57.0] - 2026-08-07
+
+Follow-through on the adversarial review: the gaps it found in the safety net, and a status page that tells an operator how bad it is.
+
+### Added
+
+- **The `/status` HTML view gained a "Checking engines" card** listing each engine's state, version, failure reason, and — in plain words — what stops working without it. It opens itself whenever an engine is down. Previously a broken qpdf (nothing can be audited at all; the endpoint returns 503) rendered exactly like a broken Chromium (page audits only), so a reader could not tell an outage from a minor degradation without expanding the raw JSON and knowing which engine was which. The status strip now says **"Outage — document auditing unavailable"** for a core failure instead of the same amber "Degraded" it shows for everything else.
+- **A contract test against real analyzer output.** `apps/web` imports nothing from the analyzer and every web test ran on hand-typed fixtures, so a renamed field or a changed severity string would have been caught by the API suite while the web suite stayed green and the UI broke. One real pipeline result is now captured as a fixture, the invariants the UI actually switches on are pinned (each cited to the component that consumes it, with the severity set checked against the live thresholds), and `ReportVisualView` is mounted against it so a field rename breaks a render rather than a schema assertion.
+- **Prop-wiring tests for both report pages.** Changing `:result="data.report"` to `:result="data"` would have shown every visitor a blank hero while all 1,998 tests passed — no test referenced those bindings at all. They are now pinned at the source and by mounting the real page (inside a `Suspense` host, since its top-level `await useFetch` compiles to an async setup); both were verified by sabotage before being trusted.
+
+### Changed
+
+- **The raw status payload is now open by default** in the HTML view, while the interpretive cards stay folded. Operators and monitors come to this endpoint for the JSON; it should not cost a click.
+
+### Fixed
+
+- **"Evidence & technical detail" now moves focus, not just the scrollbar.** It scrolled the matching category card into view but left focus on the button, announced nothing, and sent the next Tab press back to the old position — on the exact path built for non-technical readers, in an accessibility tool. The cards are now focusable targets and receive focus without fighting the smooth scroll.
+
+### Notes
+
+Tests 1,998 → 2,027. Two of the new tests were confirmed to fail when the fix they cover is reverted, because a test that cannot fail is worse than no test — one of them caught that happy-dom does not gate `focus()` on `tabindex`, which would have left half the focus fix unverified.
+
 ## [1.56.0] - 2026-08-07
 
 A whole-app adversarial review — six reviewers over UX, security, docs, ops, code health and test architecture — and the fixes it produced.

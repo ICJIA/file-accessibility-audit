@@ -64,6 +64,30 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.57.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.57.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-07</strong> · scope: follow-through on the same day's
+          whole-application review — not a security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        Three gaps in the project's own safety net were closed: automated checks now verify that the
+        report pages are wired to their data correctly, that the display code still matches what the
+        audit engine actually produces, and that the "Evidence &amp; technical detail" link moves
+        keyboard focus to the section it scrolls to — a real accessibility fix in the report itself.
+        The public status page also now states plainly when the tool cannot audit at all, rather
+        than showing the same wording it uses when one optional feature is unavailable.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.56.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
