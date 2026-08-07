@@ -222,6 +222,17 @@ export function renderStatusStrip(body: Record<string, unknown>): string {
   if (typeof body.version === "string" && body.version !== "")
     bits.push(`v${escapeHtml(body.version)}`);
   if (typeof body.uptime_seconds === "number") bits.push(`up ${humanUptime(body.uptime_seconds)}`);
+  // Generated per request — the response carries Cache-Control: no-store on
+  // both tiers, and the counts behind it have a 5-second TTL. Printing the
+  // moment makes that visible instead of asking the reader to trust it, and
+  // makes a genuinely stale page (a proxy ignoring no-store) self-evident.
+  const checkedAt =
+    typeof body.checked_at_chicago === "string" && body.checked_at_chicago !== ""
+      ? body.checked_at_chicago
+      : typeof body.checked_at === "string"
+        ? body.checked_at
+        : "";
+  if (checkedAt) bits.push(`as of ${escapeHtml(checkedAt)}`);
 
   const degraded =
     degradedNames.length > 0
@@ -549,17 +560,36 @@ export function renderRejectedUploads(body: Record<string, unknown>): string {
  *  renderBackup's staleNote further down — not payload-derived, so unlike
  *  every other value in this file it is intentionally not run through
  *  escapeHtml. */
-const ENGINE_INFO: Record<string, { label: string; impactHtml: string }> = {
+// The `whatHtml` text is written for the audience this page actually gets:
+// not developers, who need none of it, but managers arriving sceptical —
+// "what is this thing, and is it really doing what you say?" So each entry
+// says what the program is, who maintains it, what it does HERE specifically,
+// and what having it running does and does not prove. Deliberately long: the
+// cost of the words is a fold nobody has to open, and the cost of omitting
+// them is a reader who cannot tell an audit from a claim.
+const ENGINE_INFO: Record<
+  string,
+  { label: string; role: string; whatHtml: string; impactHtml: string }
+> = {
   qpdf: {
     label: "qpdf",
+    role: "Required — reads the structure of every PDF",
+    whatHtml:
+      "A long-established open-source PDF tool, maintained publicly since 2008, that opens a PDF and reports what is actually inside it: whether the file carries a tag tree, how its headings, tables, lists and images are marked up, whether a title and language are declared, and whether it is encrypted. Those tags are the structure a screen reader follows, and reading them is what makes this an audit rather than a guess — every finding about headings, tables, alt text or reading order in a PDF report traces back to something qpdf reported. It runs on this server, on a copy of the uploaded file that is deleted in the same request. If qpdf is not running, this service does not quietly fall back to guessing: it refuses the audit and reports itself down.",
     impactHtml: "<strong>no document or URL can be audited</strong>",
   },
   verapdf: {
     label: "veraPDF",
+    role: "Optional — the formal PDF/UA-1 conformance verdict",
+    whatHtml:
+      "The reference implementation of the PDF/UA accessibility standard (ISO 14289-1), built by the veraPDF consortium with backing from the PDF Association and the Open Preservation Foundation, and the same validator national libraries and archives use for exactly this purpose. It answers a narrower, stricter question than the rest of this tool: does the file formally satisfy the machine-checkable clauses of PDF/UA-1? That is reported as its own separate verdict rather than folded into the grade, because the two genuinely can disagree — a document can pass PDF/UA-1 and still be hard to use, and a useful document can fail it on a technicality. Consulting an independent, externally-maintained validator is part of the point: it is not this tool marking its own homework.",
     impactHtml: "<strong>the PDF/UA-1 verdict is unavailable</strong> — other checks continue",
   },
   chromium: {
     label: "Chromium",
+    role: "Optional — used only when auditing a web page by its address",
+    whatHtml:
+      "The open-source browser engine behind Google Chrome and Microsoft Edge, running here with no visible window. It has one job: when a web page is audited by URL, the page must genuinely load and run its scripts before it can be checked, because a modern page's real content often does not exist until the browser builds it. Chromium loads the page exactly as a visitor's browser would, and the accessibility rules are then checked against what a real user would actually receive rather than against the raw source. It is never involved in auditing an uploaded document — a PDF, Word, PowerPoint or Excel file is read directly and never opened in a browser.",
     impactHtml: "<strong>page (URL) audits are unavailable</strong> — file uploads continue",
   },
 };
@@ -593,11 +623,18 @@ function reasonPhrase(reason: unknown): string | null {
   return REASON_LABELS[reason] ?? reason;
 }
 
+/** The status line for one engine, followed by its plain-language
+ *  explanation. The line answers "is it running"; the paragraph answers "what
+ *  is it, and why should I believe this audit means anything" — which is the
+ *  question the people who open this page actually arrive with. */
 function renderEngineRow(name: string, raw: unknown): string {
   const info = ENGINE_INFO[name];
   const label = info ? info.label : name;
   const r = asRecord(raw);
   const ok = r?.ok === true;
+  const about = info
+    ? `<p class="engrole">${info.role}</p><p class="engwhat">${info.whatHtml}</p>`
+    : "";
   // Reuses the strip's own pill palette: green for running, red for a down
   // CORE engine (an outage), amber for a down OPTIONAL one (a degradation)
   // — so this row and the always-visible strip agree without a new palette.
@@ -613,8 +650,8 @@ function renderEngineRow(name: string, raw: unknown): string {
     const version =
       typeof rawVersion === "string" && rawVersion !== "" ? escapeHtml(rawVersion) : "";
     return (
-      `<p class="bak"><span class="dot" style="background:${dot}"></span>` +
-      `<strong>${escapeHtml(label)}</strong> ${version || "ok"}</p>`
+      `<div class="eng"><p class="bak"><span class="dot" style="background:${dot}"></span>` +
+      `<strong>${escapeHtml(label)}</strong> ${version || "ok"}</p>${about}</div>`
     );
   }
 
@@ -622,8 +659,8 @@ function renderEngineRow(name: string, raw: unknown): string {
   const reasonBit = reason ? ` (${escapeHtml(reason)})` : "";
   const impactBit = info ? ` — ${info.impactHtml}` : "";
   return (
-    `<p class="bak"><span class="dot" style="background:${dot}"></span>` +
-    `<strong>${escapeHtml(label)}</strong> down${reasonBit}${impactBit}</p>`
+    `<div class="eng"><p class="bak"><span class="dot" style="background:${dot}"></span>` +
+    `<strong>${escapeHtml(label)}</strong> down${reasonBit}${impactBit}</p>${about}</div>`
   );
 }
 
@@ -656,12 +693,27 @@ export function renderEngines(body: Record<string, unknown>): string {
     peek = `${label} unavailable`;
   }
 
+  // Everything else on this page is generated per request (5-second TTL on
+  // the counts). These probes are the one exception: each spawns a process —
+  // veraPDF starts a JVM — so a probe per page load would make the status
+  // page the most expensive endpoint on the service. They are cached for
+  // STATUS.ENGINE_PROBE_TTL_MS instead, which means this card can be minutes
+  // older than the rest of the page. Saying so is the honest version of "the
+  // page is live": the reader gets the age rather than an implied freshness
+  // the value does not have.
+  const probedAt =
+    typeof engines.checked_at === "string" && engines.checked_at !== ""
+      ? `<p class="caveat">Engine checks are re-run at most every few minutes, because each one ` +
+        `starts an external program — the rest of this page is generated fresh on every load. ` +
+        `This reading was taken at <strong>${escapeHtml(engines.checked_at)}</strong>.</p>`
+      : "";
+
   return fold({
     id: "eng-h",
-    title: "Checking engines",
+    title: "Audit engines",
     peek,
     open: down.length > 0,
-    body: names.map((name) => renderEngineRow(name, engines[name])).join(""),
+    body: names.map((name) => renderEngineRow(name, engines[name])).join("") + probedAt,
   });
 }
 
@@ -701,6 +753,10 @@ h1{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 14px;color:#e6
 .none{margin:0;font-size:12px;color:#6e7681}
 .bak{margin:0 0 8px;font-size:12px;line-height:1.7}
 .caveat code{font-size:.95em;padding:1px 4px;border-radius:4px;background:#21262d;color:#e6edf3}
+.eng{margin:0 0 16px}
+.eng:last-of-type{margin-bottom:4px}
+.engrole{margin:1px 0 0 1.3em;font-size:12px;color:#8b949e}
+.engwhat{margin:6px 0 0 1.3em;font-size:12px;line-height:1.65;color:#8b949e;max-width:78ch}
 .caveat a{color:#58a6ff}
 .caveat a:focus-visible{outline:2px solid #58a6ff;outline-offset:2px;border-radius:3px}
 .split{display:grid;gap:14px 22px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin:12px 0 0}
@@ -774,7 +830,7 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  .strip .deg{color:#9a6700}
  .caveat a{color:#0969da}
  .caveat a:focus-visible{outline-color:#0969da}
- .split li,.why{color:#57606a}
+ .split li,.why,.engrole,.engwhat{color:#57606a}
  .split .yes h3,.split .yes li::before{color:#1a7f37}
  .split .no h3,.split .no li::before{color:#d1242f}
  .why strong,.why em{color:#1f2328}

@@ -228,25 +228,36 @@ describe("renderStatusHtml", () => {
     expect(out).toContain("&quot;&gt;&lt;script&gt;");
   });
 
-  it("keeps the prose bounded — the tree stays the substance of the page", () => {
-    // Originally "no explanatory prose at all". The page has since gained
-    // four deliberate explanatory sections (grades, formats, refusals,
-    // engines), each earning its place by making a number — or, for engines,
-    // a CORE/OPTIONAL distinction — un-misreadable. What still must not
-    // happen is the page becoming an essay with a tree at the bottom, so the
-    // bound is what this now guards. The engines card raised the ceiling
-    // from 1200 to 1250: with PAYLOAD's three engines all present, its three
-    // rows (a label plus a version or "ok" each) cost ~65 characters even at
-    // their most terse — more than the ~36 of headroom the bound had left —
-    // so the three-engine minimum could not fit unless the bound moved.
-    const text = html
+  it("keeps the ARRIVING page terse — explanation lives behind the folds", () => {
+    // Originally "no explanatory prose at all", then a character bound on the
+    // whole document. That bound measured hidden text too, and it broke the
+    // moment the engines card gained the plain-language description of each
+    // engine that this page's actual audience asks for ("what is this thing,
+    // and is it really doing what you say?"). Deleting the explanation to
+    // satisfy the bound would have been the tail wagging the dog.
+    //
+    // The intent was never "few characters" — it was "a reader must not meet
+    // an essay". Since v1.55.0 every interpretive card is a COLLAPSED
+    // <details>, so that intent is now measured where it lives: the text
+    // outside every card body, which is all a reader sees on arrival. The
+    // explanations are then free to be as long as they need to be, because
+    // nobody encounters them without asking.
+    const visible = html
       .replace(/<style>[\s\S]*?<\/style>/g, "")
+      // Everything inside a collapsed card — the reader has to click for it.
+      .replace(/<div class="card-body">[\s\S]*?<\/details>/g, " ")
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    // Only the title, the toggle label, and the payload's own content.
-    expect(text).not.toMatch(/this page|explains|means that|in order to/i);
-    expect(text.length).toBeLessThan(1250);
+    // Title, toolbar, status strip, and each card's one-line summary.
+    expect(visible).not.toMatch(/this page|explains|means that|in order to/i);
+    expect(visible.length).toBeLessThan(700);
+
+    // And the explanation really is present — otherwise this test would pass
+    // just as happily on a page that had thrown the descriptions away.
+    expect(html).toContain("maintained publicly since 2008");
+    expect(html).toContain("reference implementation of the PDF/UA");
+    expect(html).toContain("behind Google Chrome and Microsoft Edge");
   });
 
   it("does not render an expanded container as an empty '{}' pair", () => {
@@ -792,7 +803,7 @@ describe("renderEngines — per-engine health card", () => {
     const { engines: _engines, ...payloadWithoutEngines } = PAYLOAD;
     expect(renderEngines(payloadWithoutEngines)).toBe("");
     const page = renderStatusHtml(payloadWithoutEngines);
-    expect(page).not.toContain("Checking engines");
+    expect(page).not.toContain("Audit engines");
     // And it still renders a complete, uncrashed document.
     expect(page.startsWith("<!doctype html>")).toBe(true);
     expect(page).toContain("</html>");
@@ -805,7 +816,7 @@ describe("renderEngines — per-engine health card", () => {
 
   it("all-healthy: card is present, collapsed, and the peek says everything is running", () => {
     const page = renderStatusHtml({ ...PAYLOAD, engines: ENGINES_HEALTHY });
-    expect(page).toContain("Checking engines");
+    expect(page).toContain("Audit engines");
     expect(page).toContain("all 3 ok");
     expect(cardFor(page, "eng-h")).toContain('<details class="card">');
   });
@@ -889,7 +900,7 @@ describe("renderEngines — per-engine health card", () => {
   it("gives the card an accessible name and heading, distinct from the other cards", () => {
     const html = renderEngines({ engines: ENGINES_HEALTHY });
     expect(html).toContain('aria-labelledby="eng-h"');
-    expect(html).toContain('<h2 id="eng-h">Checking engines</h2>');
+    expect(html).toContain('<h2 id="eng-h">Audit engines</h2>');
   });
 
   it("sits right after the always-visible strip, before the grade distribution", () => {

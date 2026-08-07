@@ -1,6 +1,6 @@
 <template>
   <section
-    v-if="checks.length || criteria.length"
+    v-if="categories.length"
     data-testid="manual-review"
     class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6"
     aria-labelledby="manual-review-h"
@@ -8,8 +8,24 @@
     <h2 id="manual-review-h" class="text-lg font-bold text-[var(--text-heading)]">
       Still worth checking by hand
     </h2>
-    <p class="text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed max-w-3xl">
+    <p
+      class="text-sm text-[var(--text-heading)] font-medium mt-1.5 leading-relaxed max-w-3xl border-l-2 border-emerald-500/50 pl-3"
+    >
+      No automated audit — this one included — can tell you a document is accessible. It can only
+      tell you where it definitely is not. Whatever the score, a person has to look at the document
+      before it is published.
+    </p>
+    <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed max-w-3xl">
       {{ intro }}
+    </p>
+
+    <p
+      v-if="hasFindings"
+      class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed max-w-3xl"
+    >
+      Fixing everything in the action plan will clear the automated findings. It will not, on its
+      own, make the document accessible — the checks below still need a person, and so does
+      re-reading the document once the fixes are in.
     </p>
 
     <!-- Passed checks, and the judgment each one could not make. -->
@@ -88,6 +104,9 @@ const wcagVersion = useWcag().version;
 
 const checks = computed(() => manualChecks(props.categories));
 const criteria = computed(() => props.conformance?.notAssessed ?? []);
+const hasFindings = computed(() =>
+  props.categories.some((c) => c && typeof c.score === "number" && c.score < 100),
+);
 
 // The framing changes with the document: on a clean report this list IS the
 // report's remaining content, so it says so rather than reading as an
@@ -95,7 +114,7 @@ const criteria = computed(() => props.conformance?.notAssessed ?? []);
 const intro = computed(() => {
   const clean = props.categories.every((c) => c && (c.score === 100 || c.score == null));
   return clean
-    ? "Every automated check passed — but automated checks can only confirm that accessibility structure is present, not that it is right. Nothing below is a failure. These are the judgments a person still has to make before publishing."
-    : "Separate from the fixes above: these checks passed, but passing only means the structure is there. A person still has to confirm it is correct.";
+    ? "Every automated check passed — but these checks can only confirm that accessibility structure is present, not that it is right. Nothing below is a failure. These are the judgments a person still has to make before publishing."
+    : "Separate from the fixes above: the checks listed here passed, and passing only means the structure is there. A person still has to confirm it is correct.";
 });
 </script>

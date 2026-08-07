@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.59.2] - 2026-08-07
+
+### Changed
+
+- **The human-in-the-loop statement is now unconditional.** The manual-review card previously rendered only when it had passing checks or unassessed criteria to list — so a badly-failing document, the case that most needs a person, could get no such statement at all. Every report with categories now opens that card with a standing line, independent of the score: *"No automated audit — this one included — can tell you a document is accessible. It can only tell you where it definitely is not. Whatever the score, a person has to look at the document before it is published."* A document that still has findings additionally gets told that clearing the action plan is not the finish line, since a fixed plan is a stronger pull toward "done" than a 100 ever is.
+
+- **`/status`: "Checking engines" → "Audit engines"**, and each engine now carries a plain-language description written for the page's actual audience. The people who open a status page are rarely developers; they are managers arriving sceptical — *what is this thing, and is it really doing what you say?* So each entry says what the program is, who maintains it, what it does here specifically, and what its running does and does not prove: qpdf reading the tag tree every PDF finding traces back to, veraPDF as the externally-maintained ISO 14289-1 validator that stops this being the tool marking its own homework, Chromium loading a page the way a visitor's browser would and never touching an uploaded file.
+
+- **`/status` states its own freshness.** The always-visible strip now carries the moment the page was generated ("as of Aug 7, 2026, 4:30:00 PM CDT"). Both tiers already send `Cache-Control: no-store` and the counts behind the page have a 5-second TTL, so it was live — but a reader had to take that on trust, and a proxy quietly ignoring `no-store` would have been invisible. The one genuine exception is now stated where it applies rather than hidden: the engine probes are cached for `STATUS.ENGINE_PROBE_TTL_MS` because each spawns a process (veraPDF starts a JVM), so the engines card reports when its reading was actually taken.
+
+### Notes
+
+Tests 2,095 → 2,099. The whole-document "prose bounded" assertion was refocused rather than raised: it measured hidden text, so it failed the moment the engine descriptions landed, and deleting them to satisfy it would have been the tail wagging the dog. Its real intent — *a reader must not meet an essay* — is now measured outside the collapsed card bodies, which is all anyone sees on arrival, with a companion assertion that the explanations are genuinely present so the test cannot pass on a page that threw them away.
+
 ## [1.59.1] - 2026-08-07
 
 ### Fixed

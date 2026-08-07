@@ -154,11 +154,54 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
     expect(w.text()).toContain("Separate from the fixes above");
   });
 
-  it("renders nothing when there is genuinely nothing to say", () => {
+  it("renders nothing when there is no document to talk about", () => {
+    // URL page-audit rows share the shared_reports table and carry no
+    // categories; there is no per-check judgment to offer for those.
     const w = mount(ManualReviewCard, {
       props: { categories: [], conformance: null },
     });
     expect(w.find('[data-testid="manual-review"]').exists()).toBe(false);
+  });
+});
+
+describe("the human stays in the loop on EVERY audit", () => {
+  // The card originally rendered only when it had passing checks or unassessed
+  // criteria to list — so a badly-failing document, the case that most needs a
+  // person, could get no human-review statement at all. The warning is not a
+  // consolation prize for a good score.
+  const ALL_FAILING = [
+    cat("text_extractability", 0, "Text Extractability"),
+    cat("title_language", 50, "Document Title & Language"),
+  ];
+
+  it("warns on a document where NOTHING passed", () => {
+    const w = mount(ManualReviewCard, { props: { categories: ALL_FAILING, conformance: null } });
+    expect(w.find('[data-testid="manual-review"]').exists()).toBe(true);
+    expect(w.text()).toContain("No automated audit — this one included — can tell you a document");
+  });
+
+  it("states the limit of automation regardless of score", () => {
+    const cases: Array<[string, ReturnType<typeof cat>[]]> = [
+      ["perfect", PERFECT],
+      ["failing", ALL_FAILING],
+      ["mixed", [cat("alt_text", 50), cat("heading_structure", 100)]],
+    ];
+    for (const [label, categories] of cases) {
+      const w = mount(ManualReviewCard, { props: { categories, conformance: null } });
+      expect(w.text(), label).toContain("a person has to look at the document");
+      expect(w.text(), label).toContain("It can only tell you where it definitely is not");
+    }
+  });
+
+  it("tells a failing document that clearing the plan is not the finish line", () => {
+    // The strongest pull toward "done" is a fixed action plan, not a 100.
+    const w = mount(ManualReviewCard, { props: { categories: ALL_FAILING, conformance: null } });
+    expect(w.text()).toContain("will not, on its own, make the document accessible");
+  });
+
+  it("does not show that line on a document with nothing to fix", () => {
+    const w = mount(ManualReviewCard, { props: { categories: PERFECT, conformance: CONFORMANCE } });
+    expect(w.text()).not.toContain("will not, on its own, make the document accessible");
   });
 });
 
