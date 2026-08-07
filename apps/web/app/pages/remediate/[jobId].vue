@@ -344,6 +344,17 @@ const downloadHref = computed(() =>
     : null,
 );
 
+// Publish-readiness for the After card's download block. Derived the same
+// way ScoreCard picks its displayed grade (strict profile when present) so
+// the warning can never contradict the big grade rendered directly above it.
+const afterGrade = computed<string | null>(() => {
+  const out = receipt.value?.outputAudit as
+    { grade?: string | null; scoreProfiles?: { strict?: { grade?: string | null } } } | undefined;
+  if (!out) return null;
+  return out.scoreProfiles?.strict?.grade ?? out.grade ?? null;
+});
+const isPublishReady = computed(() => afterGrade.value === "A");
+
 // ------------------------------------------------------------------
 // Result-section gating
 // ------------------------------------------------------------------
@@ -858,6 +869,158 @@ function labelForEvent(name: string): string {
               </div>
             </details>
           </div>
+
+          <!-- Download the remediated file — lives inside the After card so the
+               reader sees grade, explanation, then the download, in that order.
+               The readiness banner is grade-driven: anything below an A keeps a
+               fix-before-publishing warning attached to the file itself. -->
+          <div data-testid="after-card-download" class="mt-6 pt-6 border-t border-emerald-700/30">
+            <div
+              v-if="isPublishReady"
+              data-testid="publish-ready"
+              class="mb-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200 leading-relaxed"
+            >
+              <strong class="text-emerald-100">✓ Grade A — ready to publish.</strong>
+              This file now passes every automated check. One human minute well spent before it goes
+              out: skim the alt text for accuracy — automated checks verify that descriptions exist,
+              not that they say the right thing.
+            </div>
+            <div
+              v-else
+              data-testid="publish-warning"
+              class="mb-4 rounded-lg border border-amber-600/50 bg-amber-950/30 p-4 text-sm text-amber-200 leading-relaxed"
+            >
+              <strong class="text-amber-100"
+                >⚠ Not ready to publish yet{{ afterGrade ? ` — grade ${afterGrade}` : "" }}.</strong
+              >
+              Auto-remediation improved this file, but issues remain: the categories above still
+              list problems that should be fixed — ideally in the source document — before this PDF
+              is published. Automated fixes handle structure and metadata; they can't write
+              meaningful alt text for charts or verify complex reading order.
+            </div>
+
+            <h3 class="text-base font-semibold text-emerald-100 text-center mb-4">
+              Download remediated PDF
+            </h3>
+            <div v-if="downloadHref" class="space-y-4">
+              <!-- Why-keep-the-name explainer (always visible). -->
+              <p class="text-xs text-emerald-200/85 leading-relaxed">
+                <strong class="text-emerald-100">Recommended:</strong> download under the exact same
+                filename as the original and replace the PDF in your CMS in place. This way every
+                existing link to the PDF — on your website, in shared documents, in old emails —
+                keeps working without redirects or fix-up. The "Keep original filename" option below
+                is selected by default for this reason.
+              </p>
+
+              <div class="rounded-lg border border-emerald-700/30 bg-emerald-950/30 p-4 space-y-3">
+                <!-- Option 1: Keep original filename (DEFAULT, RECOMMENDED) -->
+                <label class="flex items-start gap-3 cursor-pointer">
+                  <input
+                    v-model="filenameChoice"
+                    type="radio"
+                    value="keep"
+                    class="mt-1 accent-emerald-500"
+                  />
+                  <span class="flex-1">
+                    <span class="block text-sm font-medium text-emerald-100">
+                      Keep original filename
+                      <span
+                        class="ml-1 inline-block rounded bg-emerald-700/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-100"
+                      >
+                        Recommended
+                      </span>
+                    </span>
+                    <span class="block mt-1 font-mono text-xs text-[var(--text-muted)] break-all">
+                      {{ originalFilenameDisplay || "—" }}
+                    </span>
+                  </span>
+                </label>
+
+                <!-- Option 2: Add _remediated suffix (opt-in) -->
+                <label class="flex items-start gap-3 cursor-pointer">
+                  <input
+                    v-model="filenameChoice"
+                    type="radio"
+                    value="suffix"
+                    class="mt-1 accent-emerald-500"
+                  />
+                  <span class="flex-1">
+                    <span class="block text-sm font-medium text-emerald-100">
+                      Add a "_remediated" suffix
+                      <span class="text-xs text-emerald-300/70 font-normal">
+                        (keeps the original alongside)
+                      </span>
+                    </span>
+                    <span class="block mt-1 font-mono text-xs text-[var(--text-muted)] break-all">
+                      {{ suffixFilenamePreview }}
+                    </span>
+                  </span>
+                </label>
+
+                <!-- Option 3: Use a different filename (warning + confirm gate) -->
+                <label class="flex items-start gap-3 cursor-pointer">
+                  <input
+                    v-model="filenameChoice"
+                    type="radio"
+                    value="rename"
+                    class="mt-1 accent-emerald-500"
+                  />
+                  <span class="flex-1">
+                    <span class="block text-sm font-medium text-emerald-100">
+                      Use a different filename
+                    </span>
+                    <div class="mt-1 flex items-center gap-1">
+                      <input
+                        v-model.trim="customFilename"
+                        type="text"
+                        class="flex-1 rounded border border-[var(--border)] bg-[var(--surface-deep)] px-2 py-1 text-sm font-mono text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                        placeholder="my-renamed-report"
+                        :disabled="filenameChoice !== 'rename'"
+                        @click="filenameChoice = 'rename'"
+                      />
+                      <span class="text-xs font-mono text-[var(--text-muted)]">.pdf</span>
+                    </div>
+                  </span>
+                </label>
+              </div>
+
+              <!-- "Are you sure?" warning + confirm gate for the rename path -->
+              <div
+                v-if="filenameChoice === 'rename'"
+                class="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3 text-xs text-amber-200 leading-relaxed"
+              >
+                <strong class="text-amber-100">⚠ Are you sure?</strong>
+                A different filename means existing links to this PDF — anywhere it's referenced on
+                your site, in emails, or in partner documents — will start returning 404s once the
+                original file is removed. The recommended path is "Keep original filename" so a CMS
+                overwrite preserves every existing link. Only use a custom name if you're keeping
+                the original PDF in place and treating this as a separate new file.
+                <span v-if="renameConfirming" class="block mt-2 text-amber-100">
+                  Click <strong>Confirm download</strong> again to proceed.
+                </span>
+              </div>
+
+              <div class="text-center">
+                <UButton
+                  :to="resolvedDownloadHref ?? undefined"
+                  external
+                  size="lg"
+                  color="primary"
+                  :disabled="filenameChoice === 'rename' && !customFilename"
+                  @click="handleDownloadClick"
+                >
+                  <template v-if="filenameChoice === 'rename' && renameConfirming">
+                    ⬇ Confirm download with new name
+                  </template>
+                  <template v-else> ⬇ Download </template>
+                </UButton>
+              </div>
+            </div>
+
+            <p v-else class="text-sm text-amber-400 text-center">
+              Download token missing — return to the audit page and click Remediate again.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1148,140 +1311,6 @@ function labelForEvent(name: string): string {
           <ScoreCard :result="receipt.inputAudit" />
         </div>
       </div>
-    </section>
-
-    <!-- Download + manual-review notice -->
-    <section
-      v-if="isVisuallyComplete"
-      class="rounded-xl border border-emerald-700/40 bg-emerald-950/20 p-6 mb-6"
-    >
-      <div v-if="downloadHref" class="space-y-4">
-        <h2 class="text-base font-semibold text-emerald-100 text-center">
-          Download remediated PDF
-        </h2>
-
-        <!-- Why-keep-the-name explainer (always visible). -->
-        <p class="text-xs text-emerald-200/85 leading-relaxed">
-          <strong class="text-emerald-100">Recommended:</strong> download under the exact same
-          filename as the original and replace the PDF in your CMS in place. This way every existing
-          link to the PDF — on your website, in shared documents, in old emails — keeps working
-          without redirects or fix-up. The "Keep original filename" option below is selected by
-          default for this reason.
-        </p>
-
-        <div class="rounded-lg border border-emerald-700/30 bg-emerald-950/30 p-4 space-y-3">
-          <!-- Option 1: Keep original filename (DEFAULT, RECOMMENDED) -->
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              v-model="filenameChoice"
-              type="radio"
-              value="keep"
-              class="mt-1 accent-emerald-500"
-            />
-            <span class="flex-1">
-              <span class="block text-sm font-medium text-emerald-100">
-                Keep original filename
-                <span
-                  class="ml-1 inline-block rounded bg-emerald-700/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-100"
-                >
-                  Recommended
-                </span>
-              </span>
-              <span class="block mt-1 font-mono text-xs text-[var(--text-muted)] break-all">
-                {{ originalFilenameDisplay || "—" }}
-              </span>
-            </span>
-          </label>
-
-          <!-- Option 2: Add _remediated suffix (opt-in) -->
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              v-model="filenameChoice"
-              type="radio"
-              value="suffix"
-              class="mt-1 accent-emerald-500"
-            />
-            <span class="flex-1">
-              <span class="block text-sm font-medium text-emerald-100">
-                Add a "_remediated" suffix
-                <span class="text-xs text-emerald-300/70 font-normal">
-                  (keeps the original alongside)
-                </span>
-              </span>
-              <span class="block mt-1 font-mono text-xs text-[var(--text-muted)] break-all">
-                {{ suffixFilenamePreview }}
-              </span>
-            </span>
-          </label>
-
-          <!-- Option 3: Use a different filename (warning + confirm gate) -->
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              v-model="filenameChoice"
-              type="radio"
-              value="rename"
-              class="mt-1 accent-emerald-500"
-            />
-            <span class="flex-1">
-              <span class="block text-sm font-medium text-emerald-100">
-                Use a different filename
-              </span>
-              <div class="mt-1 flex items-center gap-1">
-                <input
-                  v-model.trim="customFilename"
-                  type="text"
-                  class="flex-1 rounded border border-[var(--border)] bg-[var(--surface-deep)] px-2 py-1 text-sm font-mono text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  placeholder="my-renamed-report"
-                  :disabled="filenameChoice !== 'rename'"
-                  @click="filenameChoice = 'rename'"
-                />
-                <span class="text-xs font-mono text-[var(--text-muted)]">.pdf</span>
-              </div>
-            </span>
-          </label>
-        </div>
-
-        <!-- "Are you sure?" warning + confirm gate for the rename path -->
-        <div
-          v-if="filenameChoice === 'rename'"
-          class="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3 text-xs text-amber-200 leading-relaxed"
-        >
-          <strong class="text-amber-100">⚠ Are you sure?</strong>
-          A different filename means existing links to this PDF — anywhere it's referenced on your
-          site, in emails, or in partner documents — will start returning 404s once the original
-          file is removed. The recommended path is "Keep original filename" so a CMS overwrite
-          preserves every existing link. Only use a custom name if you're keeping the original PDF
-          in place and treating this as a separate new file.
-          <span v-if="renameConfirming" class="block mt-2 text-amber-100">
-            Click <strong>Confirm download</strong> again to proceed.
-          </span>
-        </div>
-
-        <div class="text-center">
-          <UButton
-            :to="resolvedDownloadHref ?? undefined"
-            external
-            size="lg"
-            color="primary"
-            :disabled="filenameChoice === 'rename' && !customFilename"
-            @click="handleDownloadClick"
-          >
-            <template v-if="filenameChoice === 'rename' && renameConfirming">
-              ⬇ Confirm download with new name
-            </template>
-            <template v-else> ⬇ Download </template>
-          </UButton>
-        </div>
-      </div>
-
-      <p v-else class="text-sm text-amber-400 text-center">
-        Download token missing — return to the audit page and click Remediate again.
-      </p>
-
-      <p class="text-sm mt-4 text-amber-400 text-center">
-        ⚠ Manual review still recommended. Auto-remediation handles structure and metadata; it can't
-        write meaningful alt text for charts or verify complex reading order.
-      </p>
     </section>
 
     <!-- PDF/UA-1 conformance (veraPDF verdict + IITAA + manual review) -->
