@@ -90,6 +90,38 @@ describe("scoringProfiles", () => {
     expect(categoriesForScoringMode(categories, undefined, "strict")).toEqual(categories);
   });
 
+  it("ignores a forged array-like categories override ({ length }) and falls back to the real top-level categories", () => {
+    const categories = [
+      {
+        id: "heading_structure",
+        label: "Heading Structure",
+        score: 50,
+        grade: "D",
+        severity: "Moderate",
+      },
+    ];
+
+    const displayed = categoriesForScoringMode(
+      categories,
+      {
+        strict: {
+          label: "Strict score",
+          overallScore: 50,
+          grade: "D",
+          executiveSummary: "summary",
+          // Forged/corrupted stored report: array-like, not a real array.
+          // Array.isArray must reject this so tallySeverity's `for...of`
+          // never sees a non-iterable "categories" value.
+          categories: { length: 1 } as unknown as typeof categories,
+        },
+      },
+      "strict",
+    );
+
+    expect(Array.isArray(displayed)).toBe(true);
+    expect(displayed).toEqual(categories);
+  });
+
   it.each([
     [95, "A", "Minor"],
     [82, "B", "Minor"],

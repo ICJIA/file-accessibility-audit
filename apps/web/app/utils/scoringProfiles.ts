@@ -46,8 +46,14 @@ export function categoriesForScoringMode<T extends ScoredCategoryLike>(
 
   const profile = scoreProfiles?.[mode];
 
-  if (profile?.categories?.length) {
-    return profile.categories as unknown as T[];
+  // Array.isArray guards against a forged/corrupted stored report whose
+  // `scoreProfiles.<mode>.categories` is an array-like object (e.g.
+  // `{ length: 1 }`) — a bare `.length` truthy check would let it through,
+  // and it would later crash tallySeverity's `for...of` with "categories is
+  // not iterable".
+  const profileCategories = profile?.categories;
+  if (Array.isArray(profileCategories) && profileCategories.length) {
+    return profileCategories as unknown as T[];
   }
 
   const categoryScores = profile?.categoryScores;

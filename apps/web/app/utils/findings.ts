@@ -11,11 +11,15 @@ export function isGuidanceFinding(finding: string): boolean {
 }
 
 export function firstActionableFinding(findings: string[] | undefined | null): string {
-  if (!findings || findings.length === 0) return "";
-  const found = findings.find(
+  if (!Array.isArray(findings) || findings.length === 0) return "";
+  // Narrow to strings: a forged/corrupted stored report can smuggle
+  // non-string entries (number/object/null) into `findings`, which would
+  // throw on `.startsWith` below and 500 the shared-report page during SSR.
+  const strs = findings.filter((f): f is string => typeof f === "string");
+  const found = strs.find(
     (f) => f && !f.startsWith("---") && !f.startsWith("  ") && !isGuidanceFinding(f),
   );
-  return found || findings[0] || "";
+  return found || strs[0] || "";
 }
 
 export interface TechnicalGroup {
@@ -38,11 +42,16 @@ export function partitionCardFindings(findings: string[] | undefined | null): Ca
     return { main: [], signals: [], signalCount: 0, acrobat: [] };
   }
 
-  const acrobatIdx = findings.findIndex(
+  // Narrow to strings: a forged/corrupted stored report can smuggle
+  // non-string entries (number/object/null) into `findings`, which would
+  // throw on `.startsWith` below and 500 the shared-report page during SSR.
+  const strs = findings.filter((f): f is string => typeof f === "string");
+
+  const acrobatIdx = strs.findIndex(
     (f) => f && f.startsWith("---") && f.toLowerCase().includes("adobe acrobat"),
   );
-  const pre = acrobatIdx === -1 ? findings : findings.slice(0, acrobatIdx);
-  const acrobat = acrobatIdx === -1 ? [] : findings.slice(acrobatIdx + 1);
+  const pre = acrobatIdx === -1 ? strs : strs.slice(0, acrobatIdx);
+  const acrobat = acrobatIdx === -1 ? [] : strs.slice(acrobatIdx + 1);
 
   const main: string[] = [];
   const signals: TechnicalGroup[] = [];

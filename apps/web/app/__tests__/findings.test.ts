@@ -53,6 +53,12 @@ describe("firstActionableFinding", () => {
     expect(firstActionableFinding(["", "real finding"])).toBe("real finding");
     expect(firstActionableFinding(["", "", ""])).toBe("");
   });
+
+  it("does not throw on non-string entries (forged/corrupted stored report) and finds the real string", () => {
+    const findings = [123, null, {}, "real finding"] as unknown as string[];
+    expect(() => firstActionableFinding(findings)).not.toThrow();
+    expect(firstActionableFinding(findings)).toBe("real finding");
+  });
 });
 
 describe("partitionCardFindings", () => {
@@ -156,6 +162,22 @@ describe("partitionCardFindings", () => {
     expect(out.signals).toEqual([{ heading: "Font Embedding", items: ["detail"] }]);
     expect(out.signalCount).toBe(1);
     expect(out.acrobat).toEqual(["step 1"]);
+  });
+
+  it("does not throw on non-string entries (forged/corrupted stored report) and still partitions the real strings", () => {
+    const input = [
+      "Plain finding",
+      123,
+      null,
+      {},
+      "--- Adobe Acrobat ---",
+      "Open Tools → Accessibility",
+    ] as unknown as string[];
+    expect(() => partitionCardFindings(input)).not.toThrow();
+    const out = partitionCardFindings(input);
+    expect(out.main).toEqual(["Plain finding"]);
+    expect(out.signals).toEqual([]);
+    expect(out.acrobat).toEqual(["Open Tools → Accessibility"]);
   });
 
   it("preserves order of plain findings when interleaved with technical sections", () => {

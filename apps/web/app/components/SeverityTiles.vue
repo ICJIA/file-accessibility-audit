@@ -37,7 +37,9 @@ import { tallySeverity } from "~/utils/severityTally";
 
 const props = defineProps<{ categories: Array<{ severity?: string | null }> }>();
 
-const tally = computed(() => tallySeverity(props.categories));
+const tally = computed(() =>
+  tallySeverity(Array.isArray(props.categories) ? props.categories : []),
+);
 
 // Icon + label + count, always — severity is never color-alone.
 const tiles = computed(() => [

@@ -52,6 +52,13 @@ describe("SeverityTiles", () => {
     const w = mount(SeverityTiles, { props: { categories: [sev("Pass")] } });
     expect(w.find("[data-testid='severity-tile-critical']").classes()).toContain("tile-zero");
   });
+
+  it("renders zeros instead of throwing when categories is a non-array (forged stored report)", () => {
+    const w = mount(SeverityTiles, { props: { categories: { length: 1 } as any } });
+    expect(w.find("[data-testid='severity-tile-critical']").text()).toContain("0");
+    expect(w.find("[data-testid='severity-tile-moderate']").text()).toContain("0");
+    expect(w.find("[data-testid='severity-tile-minor']").text()).toContain("0");
+  });
 });
 
 describe("VerdictStrip", () => {
@@ -63,8 +70,22 @@ describe("VerdictStrip", () => {
           status: "fail",
           headline: "h",
           failures: [
-            { sc: "1.1.1", name: "Non-text Content", level: "A", category: "alt_text", issue: "x", url: "https://w3.org" },
-            { sc: "2.4.2", name: "Page Titled", level: "A", category: "title_language", issue: "y", url: "https://w3.org" },
+            {
+              sc: "1.1.1",
+              name: "Non-text Content",
+              level: "A",
+              category: "alt_text",
+              issue: "x",
+              url: "https://w3.org",
+            },
+            {
+              sc: "2.4.2",
+              name: "Page Titled",
+              level: "A",
+              category: "title_language",
+              issue: "y",
+              url: "https://w3.org",
+            },
           ],
           notAssessed: [],
         },
@@ -79,7 +100,12 @@ describe("VerdictStrip", () => {
     const w = mount(VerdictStrip, {
       props: {
         wcagVersion: "2.2",
-        conformance: { status: "no-automated-failures", headline: "h", failures: [], notAssessed: [] },
+        conformance: {
+          status: "no-automated-failures",
+          headline: "h",
+          failures: [],
+          notAssessed: [],
+        },
       },
     });
     expect(w.text()).toContain("No automated WCAG failures detected");
