@@ -130,9 +130,19 @@ const planSteps = computed(() => buildActionPlan(displayedCategories.value, prop
 function revealEvidence(categoryId: string): void {
   techOpen.value = true;
   nextTick(() => {
-    document
-      .getElementById(`cat-${categoryId}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // May legitimately be absent (malformed/legacy reports) — every access
+    // below is optional-chained so a missing target is a silent no-op, not
+    // a throw.
+    const target = document.getElementById(`cat-${categoryId}`);
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Move DOM focus too, not just the viewport: without this, a keyboard/
+    // screen-reader user's focus stays on the button they just left, and
+    // their next Tab continues from there instead of from the card the
+    // scroll just sent them to (the card is tabindex="-1" in
+    // ReportContent.vue for exactly this purpose). preventScroll avoids
+    // fighting the smooth scrollIntoView above with the browser's own
+    // default (instant) focus-scroll.
+    target?.focus({ preventScroll: true });
   });
 }
 </script>

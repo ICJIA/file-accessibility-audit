@@ -157,6 +157,7 @@
         v-for="cat in scoredCategories"
         :id="`cat-${cat.id}`"
         :key="cat.id"
+        tabindex="-1"
         class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-3 sm:p-5"
       >
         <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
@@ -423,6 +424,7 @@
           v-for="cat in naCategories"
           :id="`cat-${cat.id}`"
           :key="cat.id"
+          tabindex="-1"
           class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-3 sm:p-5"
         >
           <div class="flex items-center gap-2 sm:gap-3 mb-3">

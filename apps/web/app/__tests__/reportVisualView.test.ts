@@ -1,6 +1,6 @@
 import "./test-helpers";
 import { describe, it, expect } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import ReportVisualView from "../components/ReportVisualView.vue";
 import ReportGradeHero from "../components/ReportGradeHero.vue";
 
@@ -91,14 +91,36 @@ describe("ReportVisualView", () => {
     expect(w.find("[data-testid='notice-slot']").exists()).toBe(true);
   });
 
-  it("evidence click opens the technical report", async () => {
-    const w = mount(ReportVisualView, { props: { result } });
+  it("evidence click opens the technical report and moves focus to the target category card", async () => {
+    // attachTo: document.body (not a detached mount()) because happy-dom's
+    // HTMLElement.focus() is a documented no-op for nodes that aren't
+    // connected to `document` (see HTMLElementUtility.focus, which gates on
+    // isConnected) — a detached tree could never show a focus change either
+    // way, fix or no fix, so it wouldn't actually verify this behavior.
+    const w = mount(ReportVisualView, { props: { result }, attachTo: document.body });
     // happy-dom + vue-test-utils isVisible() can't see v-show's inline display,
     // so assert the mechanism v-show actually uses: the style attribute
     // (pattern from actionPlanComponent.test.ts / technicalReport.test.ts).
     expect(w.find(".tech-report-body").attributes("style") ?? "").toContain("display: none");
     await w.find("[data-testid='evidence-link']").trigger("click");
+    await flushPromises(); // flush revealEvidence's nextTick-scheduled scroll+focus
     expect(w.find(".tech-report-body").attributes("style") ?? "").not.toContain("display: none");
+
+    // Keyboard/screen-reader users must land on the card the scroll sent
+    // them to, not stay on the button they just left (revealEvidence in
+    // ReportVisualView.vue; tabindex="-1" on ReportContent.vue's cat-<id>
+    // cards is what makes them programmatically focusable at all).
+    const target = document.getElementById("cat-text_extractability");
+    expect(target).not.toBeNull();
+    // Pinned explicitly (not just implied by the focus succeeding): happy-dom's
+    // focus() only gates on isConnected/disabled/inert, not tabindex, so it
+    // would silently move focus even onto a non-focusable div — a real
+    // browser would not. This assertion is what actually pins the
+    // tabindex="-1" markup in ReportContent.vue.
+    expect(target?.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement).toBe(target);
+
+    w.unmount();
   });
 
   it("legacy report: hero grade/score come from scoreProfiles.strict, not a divergent top-level grade/score (Fix 4)", () => {
