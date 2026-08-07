@@ -16,7 +16,7 @@ describe("NaCell — accessible Not-applicable / Not-assessed cell", () => {
 
     const tip = wrapper.get('[role="tooltip"]');
     expect(tip.attributes("id")).toBe("na-tooltip-reading_order");
-    expect(tip.text()).toContain("per-page MCID fidelity check");
+    expect(tip.text()).toContain("Reading order wasn't checked for this PDF");
   });
 
   it("returns the color-contrast 'not assessed' explanation", () => {
@@ -25,7 +25,7 @@ describe("NaCell — accessible Not-applicable / Not-assessed cell", () => {
     });
 
     const tip = wrapper.get('[role="tooltip"]');
-    expect(tip.text()).toContain("rendered-PDF contrast analysis is not yet implemented");
+    expect(tip.text()).toContain("Color contrast wasn't checked for this PDF");
   });
 
   it("renders 'Not applicable' (not 'Not assessed') when a category genuinely does not apply", () => {

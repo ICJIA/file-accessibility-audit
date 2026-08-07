@@ -6,10 +6,10 @@
 // genuinely not applicable to this document.
 export function naReason(categoryId: string, notAssessed?: boolean): string {
   if (categoryId === "reading_order") {
-    return "Reading order was not assessed. For PDFs, the audit performs a per-page MCID fidelity check (logical tag order vs. visual draw order) but could not extract enough shared MCIDs from this document to produce a verdict — the structure tree and content stream didn't overlap sufficiently; verify the tag order in Acrobat's Order panel or PAC before publishing. For Word documents, reading order is not automatically verified for floating objects, text boxes, or wrapped images — review those manually in the source file.";
+    return "Reading order wasn't checked for this PDF — check it yourself before publishing, using Acrobat's Order panel (or the free PAC tool) to confirm the page reads in the same order a sighted reader would follow it. (This document didn't have enough shared structure information for the automated logical-vs-visual order check to reach a verdict.) For Word documents, reading order is not automatically verified for floating objects, text boxes, or wrapped images — review those manually in the source file.";
   }
   if (categoryId === "color_contrast") {
-    return "For PDFs, color contrast was not assessed — rendered-PDF contrast analysis is not yet implemented. Check contrast manually in Acrobat's Accessibility Checker or WebAIM's Contrast Checker before publishing. For Word, PowerPoint, and Excel files, contrast is checked automatically from the document's explicitly-set colors; this category is blank here because no explicitly-colored text was found, or because inherited theme/style colors could not be resolved automatically — review those manually.";
+    return "Color contrast wasn't checked for this PDF — check it yourself before publishing, using Acrobat's Accessibility Checker or WebAIM's Contrast Checker (webaim.org/resources/contrastchecker). (Rendered-PDF contrast analysis isn't implemented yet, so this category is always blank for PDF files.) For Word, PowerPoint, and Excel files, contrast is checked automatically from the document's explicitly-set colors; this category is blank here because no explicitly-colored text was found, or because inherited theme/style colors could not be resolved automatically — review those manually.";
   }
   if (categoryId === "alt_text") {
     if (notAssessed) {

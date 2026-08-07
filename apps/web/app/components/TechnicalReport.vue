@@ -1,36 +1,38 @@
 <template>
   <section id="technical-report" class="scroll-mt-4">
-    <button
-      type="button"
-      class="w-full flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-deep)] px-4 py-3 text-left cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
-      :aria-expanded="open"
-      aria-controls="technical-report-body"
-      @click="open = !open"
-    >
-      <svg
-        class="w-3.5 h-3.5 text-[var(--text-muted)] transition-transform flex-shrink-0"
-        :class="{ 'rotate-90': open }"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        aria-hidden="true"
+    <h2 class="contents">
+      <button
+        type="button"
+        class="w-full flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-deep)] px-4 py-3 text-left cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
+        :aria-expanded="open"
+        aria-controls="technical-report-body"
+        @click="open = !open"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
-      <span class="flex-1 min-w-0">
-        <span class="block text-sm font-bold text-[var(--text-secondary)]"
-          >Full technical report</span
+        <svg
+          class="w-3.5 h-3.5 text-[var(--text-muted)] transition-transform flex-shrink-0"
+          :class="{ 'rotate-90': open }"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
         >
-        <span class="block text-xs text-[var(--text-muted)]">
-          WCAG criteria detail · findings &amp; evidence · technical signals · PDF/UA checks ·
-          methodology · document metadata
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        <span class="flex-1 min-w-0">
+          <span class="block text-sm font-bold text-[var(--text-secondary)]"
+            >Full technical report</span
+          >
+          <span class="block text-xs text-[var(--text-muted)]">
+            WCAG criteria detail · findings &amp; evidence · technical signals · PDF/UA checks ·
+            methodology · document metadata
+          </span>
         </span>
-      </span>
-      <span class="text-xs text-[var(--link)] flex-shrink-0" data-export-exclude>{{
-        open ? "Collapse" : "Expand"
-      }}</span>
-    </button>
+        <span class="text-xs text-[var(--link)] flex-shrink-0" data-export-exclude>{{
+          open ? "Collapse" : "Expand"
+        }}</span>
+      </button>
+    </h2>
 
     <div v-show="open" id="technical-report-body" class="tech-report-body mt-4">
       <!-- Executive summary — parity with the Detailed view's ScoreCard,
@@ -105,7 +107,11 @@
         <p class="text-xs text-[var(--text-secondary)] leading-relaxed mt-2">
           {{ result.conformance.headline }}
         </p>
-        <ul v-if="result.conformance.failures?.length" class="mt-3 space-y-1.5 list-none pl-0">
+        <ul
+          v-if="result.conformance.failures?.length"
+          class="mt-3 space-y-1.5 list-none pl-0"
+          role="list"
+        >
           <li
             v-for="(f, i) in result.conformance.failures"
             :key="i"

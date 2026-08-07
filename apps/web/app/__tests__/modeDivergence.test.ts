@@ -15,15 +15,18 @@ import { naReason } from "../utils/modeDivergence";
 //     claim like "pptx scores bookmarks by slide count" would be false.
 // ---------------------------------------------------------------------------
 
-describe("naReason: color_contrast — scoped to PDF (was shown as universal)", () => {
+describe("naReason: color_contrast — scoped to PDF, plain-language lead for a novice", () => {
   const reason = naReason("color_contrast", true);
 
-  it("still describes the PDF case (kept verbatim for existing consumers)", () => {
-    expect(reason).toContain("rendered-PDF contrast analysis is not yet implemented");
+  it("leads with a plain, actionable sentence scoped to this PDF (not jargon)", () => {
+    // The FIRST sentence must stand alone for a non-technical reader — no
+    // "rendered-PDF contrast analysis" mechanism talk up front.
+    expect(reason.startsWith("Color contrast wasn't checked for this PDF")).toBe(true);
   });
 
-  it("explicitly scopes the 'not implemented' claim to PDFs", () => {
-    expect(reason).toMatch(/For PDFs?,/);
+  it("keeps the genuinely useful manual-check pointers (Acrobat / WebAIM)", () => {
+    expect(reason).toContain("Acrobat's Accessibility Checker");
+    expect(reason).toContain("WebAIM's Contrast Checker");
   });
 
   it("does not claim Office formats need manual Acrobat contrast review — they're machine-checked", () => {
@@ -32,14 +35,22 @@ describe("naReason: color_contrast — scoped to PDF (was shown as universal)", 
   });
 });
 
-describe("naReason: reading_order — PDF MCID explanation scoped, Word equivalent added", () => {
+describe("naReason: reading_order — plain-language PDF lead (no undefined MCID jargon), Word equivalent kept", () => {
   const reason = naReason("reading_order", true);
 
-  it("keeps the PDF-specific MCID explanation (kept verbatim for existing consumers)", () => {
-    expect(reason).toContain("per-page MCID fidelity check");
+  it("leads with a plain, actionable sentence scoped to this PDF — no undefined jargon up front", () => {
+    expect(reason.startsWith("Reading order wasn't checked for this PDF")).toBe(true);
+    // MCID is defined nowhere else in the app — it must not appear at all,
+    // reader-facing copy should describe the check in plain terms instead.
+    expect(reason).not.toContain("MCID");
   });
 
-  it("adds a Word-specific explanation instead of only Acrobat/PAC", () => {
+  it("keeps a genuinely useful manual-check pointer (Acrobat's Order panel / PAC)", () => {
+    expect(reason).toContain("Order panel");
+    expect(reason).toContain("PAC");
+  });
+
+  it("keeps the Word-specific explanation instead of only Acrobat/PAC", () => {
     expect(reason).toContain("Word");
   });
 });

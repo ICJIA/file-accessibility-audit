@@ -10,7 +10,7 @@
       Where the score comes from
     </h2>
 
-    <ul class="mt-3 space-y-2.5 list-none m-0 p-0">
+    <ul class="mt-3 space-y-2.5 list-none m-0 p-0" role="list">
       <li
         v-for="cat in scored"
         :key="cat.id"

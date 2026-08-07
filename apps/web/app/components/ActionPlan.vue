@@ -10,7 +10,7 @@
     <template v-if="steps.length">
       <p class="text-xs text-[var(--text-muted)] mt-0.5 mb-5">{{ subtitle }}</p>
 
-      <ol class="relative pl-14 sm:pl-16 space-y-3 list-none m-0 p-0">
+      <ol class="relative pl-14 sm:pl-16 space-y-3 list-none m-0 p-0" role="list">
         <!-- the rail -->
         <span
           class="absolute left-[19px] sm:left-[23px] top-2 bottom-2 w-0.5 bg-[var(--border)]"
@@ -36,6 +36,7 @@
               :aria-controls="`plan-step-${step.categoryId}`"
               @click="toggle(step.categoryId)"
             >
+              <span class="sr-only">Step {{ step.rank }} of {{ steps.length }}: </span>
               <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
                 step.title
               }}</span>

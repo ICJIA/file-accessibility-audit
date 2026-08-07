@@ -4,10 +4,23 @@ import { mount } from "@vue/test-utils";
 import CategoryBars from "../components/CategoryBars.vue";
 
 const cats = [
-  { id: "text_extractability", label: "Text Extractability", score: 0, grade: "F", severity: "Critical" },
+  {
+    id: "text_extractability",
+    label: "Text Extractability",
+    score: 0,
+    grade: "F",
+    severity: "Critical",
+  },
   { id: "alt_text", label: "Alt Text on Images", score: 70, grade: "C", severity: "Moderate" },
   { id: "bookmarks", label: "Bookmarks / Navigation", score: 100, grade: "A", severity: "Pass" },
-  { id: "reading_order", label: "Reading Order", score: null, grade: null, severity: null, notAssessed: true },
+  {
+    id: "reading_order",
+    label: "Reading Order",
+    score: null,
+    grade: null,
+    severity: null,
+    notAssessed: true,
+  },
   { id: "color_contrast", label: "Color Contrast", score: null, grade: null, severity: null },
 ];
 
