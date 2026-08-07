@@ -673,9 +673,14 @@
           WCAG categories audited
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          <!-- "Serious" was named here for a long time and the scorer has never
+               emitted it: the severities are Critical / Moderate / Minor. On a
+               page whose job is telling staff what the grades mean, inventing a
+               fourth level is the same class of error as the grade cap fixed. -->
           Each document scored across up to 9 categories aligned with
-          <strong>WCAG 2.2 Level AA</strong> and ADA Title II. A–F letter grade plus Critical /
-          Serious / Moderate severity per category so you know what to fix first.
+          <strong>WCAG 2.2 Level AA</strong> and ADA Title II. Critical / Moderate / Minor severity
+          per category so you know what to fix first, and an A–F letter grade capped by the worst
+          issue found — so a document is never graded above its most serious problem.
         </p>
       </div>
 

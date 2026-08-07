@@ -16,7 +16,7 @@ describe("NaCell — accessible Not-applicable / Not-assessed cell", () => {
 
     const tip = wrapper.get('[role="tooltip"]');
     expect(tip.attributes("id")).toBe("na-tooltip-reading_order");
-    expect(tip.text()).toContain("Reading order wasn't checked for this PDF");
+    expect(tip.text()).toContain("Reading order wasn't checked for this document");
   });
 
   it("returns the color-contrast 'not assessed' explanation", () => {
@@ -25,7 +25,7 @@ describe("NaCell — accessible Not-applicable / Not-assessed cell", () => {
     });
 
     const tip = wrapper.get('[role="tooltip"]');
-    expect(tip.text()).toContain("Color contrast wasn't checked for this PDF");
+    expect(tip.text()).toContain("Color contrast wasn't checked for this document");
   });
 
   it("renders 'Not applicable' (not 'Not assessed') when a category genuinely does not apply", () => {

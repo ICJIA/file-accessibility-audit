@@ -21,7 +21,7 @@ describe("naReason: color_contrast — scoped to PDF, plain-language lead for a 
   it("leads with a plain, actionable sentence scoped to this PDF (not jargon)", () => {
     // The FIRST sentence must stand alone for a non-technical reader — no
     // "rendered-PDF contrast analysis" mechanism talk up front.
-    expect(reason.startsWith("Color contrast wasn't checked for this PDF")).toBe(true);
+    expect(reason.startsWith("Color contrast wasn't checked for this document")).toBe(true);
   });
 
   it("keeps the genuinely useful manual-check pointers (Acrobat / WebAIM)", () => {
@@ -39,7 +39,7 @@ describe("naReason: reading_order — plain-language PDF lead (no undefined MCID
   const reason = naReason("reading_order", true);
 
   it("leads with a plain, actionable sentence scoped to this PDF — no undefined jargon up front", () => {
-    expect(reason.startsWith("Reading order wasn't checked for this PDF")).toBe(true);
+    expect(reason.startsWith("Reading order wasn't checked for this document")).toBe(true);
     // MCID is defined nowhere else in the app — it must not appear at all,
     // reader-facing copy should describe the check in plain terms instead.
     expect(reason).not.toContain("MCID");
