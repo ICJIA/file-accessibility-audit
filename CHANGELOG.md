@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.56.0] - 2026-08-07
+
+A whole-app adversarial review — six reviewers over UX, security, docs, ops, code health and test architecture — and the fixes it produced.
+
+### Fixed
+
+- **The grade and its publication verdict could contradict each other.** The grade is a weighted average; the verdict beside it was a raw severity tally, so a single Critical in a low-weight category (bookmarks at 39, everything else perfect) still averaged to an "A" and the report read **"Excellent — not ready to publish" in reassuring green**. Now the blocker leads on its own and counts itself — "Not ready to publish — 2 critical issues", coloured by severity — while moderate and clean results keep the familiar "Good — fix recommended before publishing" shape. The grade letter is unchanged and still tells the truth. The downloaded HTML report composes its hero identically, so an export can never contradict the screen.
+- **A forged shared report could permanently break its own page.** Two long-standing gaps — a non-string entry inside a category's `findings[]`, and an array-like object forged into `scoreProfiles.strict.categories` — threw during render, returning HTTP 500 on every visit to that report's link. Both are fixed in the shared utilities, so the classic Detailed layout (which crashed identically) is protected too. No other report was ever affected.
+- **The remediation page never listed Minor findings.** It filtered for a severity value, "Serious", that has never existed in the taxonomy, leaving that section permanently dead. Outstanding issues are now listed Critical → Moderate → Minor.
+- **Two "No source file? Fix the PDF in Acrobat" routes told readers to go fix the source file** — the one thing that reader just said they don't have. Colour contrast and link quality now carry an honest "Only fixable in the source document" label and a straight answer.
+
+### Changed
+
+- **Acrobat steps now say Acrobat *Pro***, because every one of them routes through Pro-only menus that free Reader does not have.
+- **Plain-language glosses at first use** for "structure tags", "OCR", and the raw tag names in the table and list steps — each fix step can be the only one a reader sees, so each explains its own jargon.
+- **The "not scored" explanations no longer leak implementation detail** into the default view ("MCID fidelity check", "not yet implemented"); they lead with what the reader should do instead.
+- Accessibility of the new report UI: `role="list"` on the three list-style-none containers (Safari/VoiceOver drops list semantics otherwise), "Step N of M" announced on action-plan steps whose numbers are decorative, and a real heading on the "Full technical report" trigger so heading navigation no longer skips the section.
+- **The publish-readiness gate is now executable code with tests.** It previously existed only as page markup whose sole coverage was a source-text grep — a change could have inverted the ready/warning banner while every test stayed green.
+- **CI gates formatting**, `rebuild.sh` preflights the Node version, and `apps/cli`, `packages/analyzer` and `packages/shared` rejoin the version line (the CLI's `--version` had reported 1.34.0 for 21 releases).
+
+### Notes
+
+Documentation corrections: a README bullet still advertised a "Recommendation card" removed in v1.21.0; the shared-report list described Detailed-view content as if it were the default; the backup runbook documented an 08:00 UTC cron for a job that runs at 00:00 UTC. Tests 1,973 → 1,998.
+
 ## [1.55.0] - 2026-08-07
 
 The status page now opens as five one-line cards instead of a wall of tables.

@@ -64,6 +64,34 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.56.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.56.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-07</strong> · scope: whole-application adversarial review — UX,
+          security, documentation, operations, code health, and test coverage.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        Six independent reviews examined the whole tool with deliberately hostile eyes. Two
+        robustness defects were found and fixed: a deliberately malformed shared report could make
+        its own report page fail to load (only that one link was ever affected — no other report,
+        and no stored data, could be reached or altered this way), and a section of the remediation
+        results page filtered for an issue level that does not exist, so lower-priority findings
+        were never listed. The report's headline was also corrected: because the letter grade is a
+        weighted average while the publish-or-not verdict counts blocking issues, a document could
+        be described as "Excellent" and "not ready to publish" in the same sentence; the blocking
+        issue now leads. Wording throughout the fix steps was made plainer, and the guidance no
+        longer implies the free Adobe Reader can perform fixes that require Acrobat Pro.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.55.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

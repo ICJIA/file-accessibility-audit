@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.55.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1973%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.56.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1998%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,973 tests** across 124 test files (API 1151, Web 773, CLI 49). Run all three suites with one summary:
+**1,998 tests** across 126 test files (API 1151, Web 798, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -840,7 +840,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1973 tests passed across 124 files
+  ✔ 1998 tests passed across 126 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -903,7 +903,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (773 tests)
+### Web Tests (798 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1167,6 +1167,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.56.0 — 2026-08-07 · Whole-app adversarial review; two render-crash guards, verdict coherence (not a security release)
+
+Six independent adversarial reviews (UX, new-surface security, documentation currency, operations, code health, test architecture) and the fixes they produced. Two robustness defects were confirmed by end-to-end reproduction against a running server, both **pre-existing** — the pre-redesign Detailed layout crashed on the same payloads: a non-string element inside a category's `findings[]` threw in `partitionCardFindings`, and an array-like object forged into `scoreProfiles.strict.categories` passed a truthy-`.length` check and threw in `tallySeverity`. Each made a single forged report's own page return 500 permanently; blast radius is one link (the row is read by id, no listing parses stored bodies), no cross-user reach, no data exposure, and the analyzer never emits either shape. Fixed in the shared utilities so old and new components are covered at once. Also closed: the publish-readiness gate on the remediation page was asserted only as source text, so inverting its branches would have kept every test green while telling a user a bad PDF was safe to publish — it is now a pure module with executable tests. The report headline's grade/verdict contradiction (a weighted-average "A" pairing with "not ready to publish", in grade-green) was corrected by letting the blocker lead. CI now gates formatting, and `rebuild.sh` preflights the Node major version. Tests 1,973 → 1,998.
 
 ### v1.55.0 — 2026-08-07 · /status HTML cards collapse; always-visible status strip (not a security release)
 

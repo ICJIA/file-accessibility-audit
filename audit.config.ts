@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "clearer-report-headline-2026-08-07",
+    badge: "Improved",
+    text: 'The report headline is clearer. Because the letter grade is a weighted average while the publish-or-not verdict counts blocking issues, a document could previously be described as "Excellent" and "not ready to publish" in the same sentence. Now, when something blocks publication, that leads: "Not ready to publish — 2 critical issues." The fix steps also read more plainly — jargon like "structure tags" and "OCR" is explained where it appears, and the Acrobat instructions now say plainly that they need Acrobat Pro, not the free Reader. Two categories that genuinely cannot be fixed inside a PDF now say so instead of pointing you back to a source file you may not have.',
+    linkText: "See what the audit checks",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 7, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "visual-report-view-2026-08-07",
     badge: "New",
     text: "Audit reports now open in a visual, plain-language view: your grade front and center, a color-coded severity summary, and a numbered action plan that walks through fixes one step at a time — written for document authors, not developers, with instructions for Word, PowerPoint, Excel, and Acrobat. Nothing was removed: the Visual/Detailed toggle at the top right of any report switches to the complete technical report, and your choice sticks on your device. Downloaded HTML reports and printouts carry the same new layout with every detail expanded.",
