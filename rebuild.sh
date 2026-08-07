@@ -105,6 +105,25 @@ echo ""
 # Check for required system dependencies
 echo "Checking system dependencies..."
 
+# Node runtime. PM2 execs whatever `node` (and `pnpm`, which itself needs
+# node) resolve on PATH at restart — package.json's "engines": { "node":
+# ">=22" } is advisory only and nothing else on this box enforces it, so a
+# droplet with a drifted Node install would otherwise deploy silently onto
+# an unsupported runtime. Hard-fail like the pnpm check below, unlike the
+# qpdf/java checks (which degrade gracefully instead of hard-requiring).
+if ! command -v node &> /dev/null; then
+  echo "ERROR: node is not installed. Install Node.js 22 or newer."
+  exit 1
+fi
+NODE_VERSION_LINE=$(node --version)
+NODE_MAJOR=$(echo "$NODE_VERSION_LINE" | grep -oE '[0-9]+' | head -1)
+if [ -z "$NODE_MAJOR" ] || [ "$NODE_MAJOR" -lt 22 ]; then
+  echo "ERROR: node ${NODE_VERSION_LINE:-?} found; this app requires Node 22 or"
+  echo "  newer (see package.json \"engines\"). Upgrade Node before deploying —"
+  echo "  PM2 would otherwise restart the app on an unsupported runtime."
+  exit 1
+fi
+
 if ! command -v qpdf &> /dev/null; then
   echo "WARNING: qpdf is not installed. Image detection and PDF structure analysis will be limited."
   echo "  Install with: sudo apt-get install qpdf  (Debian/Ubuntu)"

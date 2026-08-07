@@ -19,7 +19,8 @@
     "rebrand": "tsx scripts/rebrand.ts",
     "a11y-audit": "cd apps/cli && tsx src/index.ts publist",
     "lint": "eslint .",
-    "format": "prettier --write \"**/*.{ts,mts,cts,js,mjs,cjs,vue,css,json}\""
+    "format": "prettier --write \"**/*.{ts,mts,cts,js,mjs,cjs,vue,css,json}\"",
+    "format:check": "prettier --check ."
   },
   "engines": {
     "node": ">=22"
