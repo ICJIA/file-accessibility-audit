@@ -1,6 +1,6 @@
 /**
- * Re-derive the letter grade (and the prose that quotes it) on a report that
- * was scored and STORED before the severity grade cap existed.
+ * Re-derive the score (and the grade and prose that follow from it) on a
+ * report that was scored and STORED before the severity score cap existed.
  *
  * Why this rather than a database migration. The cap is a pure function of a
  * report's own category severities, and every stored report already carries
@@ -20,7 +20,7 @@
  * the separate fleet-audit project that calls the same endpoints — sees one
  * consistent grade.
  */
-import { capGradeBySeverity } from "@file-audit/shared";
+import { capScoreBySeverity, gradeForScore } from "@file-audit/shared";
 import { generateSummary } from "./summary.js";
 import type { CategoryResult } from "../scorer.js";
 import type { ConformanceVerdict } from "./conformance.js";
@@ -57,25 +57,25 @@ function regradeInPlace(target: Record<string, unknown>, fileType: unknown): boo
   const categories = Array.isArray(target.categories) ? target.categories : null;
   if (!categories) return false;
 
-  const before = typeof target.grade === "string" ? target.grade : null;
-  if (before === null) return false;
+  const before = target.overallScore;
+  if (typeof before !== "number" || !Number.isFinite(before)) return false;
 
-  const after = capGradeBySeverity(before, categories as Array<{ score?: number | null }>);
-  if (after === null || after === before) return false;
+  const after = capScoreBySeverity(before, categories as Array<{ score?: number | null }>);
+  if (after === null || after >= before) return false;
 
-  target.grade = after;
+  // Score first, then the grade FROM the score — never independently, or the
+  // published scale stops holding on exactly the reports served from storage.
+  target.overallScore = after;
+  const grade = gradeForScore(after);
+  if (grade !== null) target.grade = grade;
 
-  const score = target.overallScore;
-  if (
-    typeof score === "number" &&
-    Number.isFinite(score) &&
-    typeof target.executiveSummary === "string"
-  ) {
+  const score = after;
+  if (typeof target.executiveSummary === "string") {
     try {
       const noun = NOUN_BY_TYPE[typeof fileType === "string" ? fileType : ""] ?? "PDF";
       target.executiveSummary = generateSummary(
         score,
-        after,
+        grade ?? String(target.grade),
         target.isScanned === true,
         categories as CategoryResult[],
         target.conformance as ConformanceVerdict,
@@ -90,7 +90,7 @@ function regradeInPlace(target: Record<string, unknown>, fileType: unknown): boo
 }
 
 /**
- * Apply the severity grade cap to a stored report, mutating the parsed object
+ * Apply the severity score cap to a stored report, mutating the parsed object
  * and returning it. Safe to call on already-capped reports (the cap is
  * idempotent) and on anything at all — a non-object, a report predating
  * `categories`, or a truncated row returns unchanged rather than throwing.

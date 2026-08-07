@@ -12,18 +12,20 @@
         <span class="text-8xl sm:text-9xl font-black" :style="{ color }">{{ grade }}</span>
       </div>
     </div>
-    <p class="text-base sm:text-lg font-semibold mt-5" :style="{ color: labelColor }">
+    <p class="text-4xl sm:text-5xl font-bold mt-5">
+      {{ overallScore }}<span class="text-xl sm:text-2xl text-[var(--text-secondary)]">/100</span>
+    </p>
+    <p class="text-base sm:text-lg font-semibold mt-2" :style="{ color: labelColor }">
       {{ label }}
     </p>
 
-    <!-- The score, deliberately NOT presented as a peer of the letter.
-         It used to render at text-4xl directly beneath the grade circle,
-         which read as "D = 80" once the letter stopped being derived from
-         the average — reported as more confusing than the problem the cap
-         fixed. It is the same number, doing the job it was always good at:
-         showing how much of the work is done, across re-audits. So it is
-         labelled for that job, sized as supporting detail, and given the
-         one sentence that reconciles it with the letter above. -->
+    <!-- Score and letter are a matched pair again: the score is capped by the
+         worst finding and the letter is derived from it through the published
+         scale, so 69 is a D and always will be. v1.58.0 capped the LETTER
+         instead and produced "D" above "80/100", which readers correctly
+         called wrong. What the panel now has to explain is not the letter but
+         the NUMBER — why it stalls below the raw average until a blocking
+         finding is fixed. -->
     <div
       class="mt-5 mx-auto max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-5 py-4 text-left"
     >
@@ -32,7 +34,7 @@
           Fix progress
         </span>
         <span class="text-sm font-semibold text-[var(--text-heading)]">
-          {{ overallScore }} of 100
+          {{ checksPassed }} of {{ checksTotal }} checks passed
         </span>
       </div>
       <div
@@ -50,7 +52,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { gradeColor, severityColor, gradeCapReason } from "@file-audit/shared";
+import { gradeColor, severityColor, scoreCapReason } from "@file-audit/shared";
 import { gradeLabel } from "~/utils/exportFormats/shared";
 import { publicationVerdict } from "~/utils/actionPlan";
 
@@ -89,20 +91,32 @@ const labelColor = computed(() =>
     : color.value,
 );
 
-const barWidth = computed(() => Math.max(0, Math.min(100, props.overallScore)));
+// Plain counts, not a percentage — a second figure out of 100 next to the
+// score would be one more thing to mistake for the grade.
+const scored = computed(() =>
+  (Array.isArray(props.categories) ? props.categories : []).filter(
+    (c) => c && c.score !== null && c.score !== undefined,
+  ),
+);
+const checksTotal = computed(() => scored.value.length);
+const checksPassed = computed(() => scored.value.filter((c) => c.score === 100).length);
+const barWidth = computed(() =>
+  checksTotal.value === 0 ? 0 : Math.round((checksPassed.value / checksTotal.value) * 100),
+);
 
-// Reconciles the number with the letter in one sentence, in the place the
-// number actually appears. When the grade is NOT capped the two already agree
-// and there is nothing to reconcile, so the note just says what the bar is for.
+// Explains the NUMBER, not the letter. A reader watching the score stall
+// needs to know one finding is holding it there — not that the checks stopped
+// improving. When nothing is capped there is nothing to explain.
 const progressNote = computed(() => {
-  const reason = gradeCapReason(props.overallScore, props.categories);
+  const reason = scoreCapReason(props.overallScore, props.categories);
   if (!reason) {
-    return "How much of the automated checking already passes. Fix the steps below and re-upload to watch it rise.";
+    return "Fix the steps below and re-upload to watch this rise.";
   }
+  const n = checksTotal.value - checksPassed.value;
   return (
-    `How much of the automated checking already passes — but a ${reason.severity.toLowerCase()} ` +
-    `issue is still open, and the grade follows the worst issue rather than the average. ` +
-    `On the score alone this would be a ${reason.uncappedGrade}.`
+    `${n === 1 ? "The one check that didn't pass is" : `${n} checks did not pass; the most serious is`} ` +
+    `${reason.severity.toLowerCase()}, which holds the score at ${reason.cappedScore} — ` +
+    `a ${reason.severity.toLowerCase()} issue caps a document at ${reason.cappedGrade} until it is fixed.`
   );
 });
 </script>

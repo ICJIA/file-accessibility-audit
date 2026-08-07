@@ -157,16 +157,18 @@ Every audit produces **two distinct things**, and the distinction is deliberate:
 
 **A WCAG 2.2 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
 
-#### The letter grade is capped by the worst finding (v1.58.0)
+#### The score is capped by the worst finding (v1.58.0, corrected in v1.58.2)
 
-The weighted average decides where a document sits *within* a band; **its worst unresolved finding decides which band it can be in**:
+**A document's score may never outrank its worst unresolved finding.** The letter is then derived from that score through the one published scale (90 = A, 80 = B, 70 = C, 60 = D, below that F), exactly as it always was — so the number and the letter can never disagree:
 
-| Worst finding | Highest possible grade |
-| --- | :--: |
-| none | **A** |
-| Minor | **B** |
-| Moderate | **C** |
-| Critical | **D** (F if the average is also failing) |
+| Worst finding | Score ceiling | Best possible grade |
+| --- | :--: | :--: |
+| none | 100 | **A** |
+| Minor | 89 | **B** |
+| Moderate | 79 | **C** |
+| Critical | 69 | **D** |
+
+The ceilings are *derived* from `GRADE_THRESHOLDS` (`maxScoreForGrade`), so moving a band boundary moves the caps with it and the two cannot drift.
 
 Renormalizing away N/A categories has two consequences that made the tool contradict itself in front of the people it exists to help — both confirmed against a 31-document corpus:
 
@@ -175,11 +177,13 @@ Renormalizing away N/A categories has two consequences that made the tool contra
 
 An averaged score cannot express "one thing here is disqualifying", but accessibility conformance is pass/fail per criterion, not a mean. The cap restores that, and gives the letters a rule that fits in one sentence for the agency staff deciding whether to publish: **A = nothing found · B = only minor items · C = a real problem to fix · D/F = do not publish.** It also makes the grade and the publication verdict structurally incapable of disagreeing, which was the reported symptom — a reader ranking documents by letter got the opposite of the truth.
 
-The cap **only ever lowers** a grade, never raises one, so a poor average keeps its worse letter. Rule and helpers live in `packages/shared/src/scoring.ts` (`SEVERITY_GRADE_CAPS`, `capGradeBySeverity`, `gradeCapReason`) so the analyzer, web, API, and CLI share one definition.
+**Why the score and not the letter.** v1.58.0 capped the *letter* instead. That fixed both problems above and broke something more basic: it severed the letter from the number, so a report headline read `D` above `80/100`. Reported twice, in those words — *"80 and above is a B. Not a C, and certainly not a D."* On the published scale the report was simply wrong on its face, and no amount of relabelling the number fixed it (v1.58.1 tried, and a reader immediately read "81 of 100" as a percentage grade too). Any figure out of 100 beside a letter grade is read **as** the grade. Capping the score instead keeps one consistent scale and one derivation. `scorer.test.ts`'s **THE INVARIANT** test walks real scoring paths asserting `grade === gradeForScore(overallScore)` for the document *and* both score profiles — it fails on a re-introduction of the v1.58.0 bug (verified by sabotage: "score 92: expected 'C' to be 'A'"), which nothing in the suite caught the first time.
 
-**The score is presented as progress, not as the grade** (v1.58.1). Once the letter stops being derived from the average, showing a bold `80/100` directly beneath a `D` reads as a typo — reported verbatim as *"a 'D' is not 80"*, and more confusing than the problem the cap fixed. The number is the same one, doing the job it was always good at: showing how much of the work is done across re-audits. So both report views now render it in a labelled **Fix progress** panel (`80 of 100`, a bar, and one sentence) sized as supporting detail rather than as a peer of the letter. When the grade *is* capped that sentence reconciles the two — "How much of the automated checking already passes — but a critical issue is still open, and the grade follows the worst issue rather than the average. On the score alone this would be a B." When it isn't, there is nothing to reconcile and the panel just says what it measures.
+The cap **only ever lowers** a score, never raises one, so a poor average keeps its own worse number. Rule and helpers live in `packages/shared/src/scoring.ts` (`SEVERITY_GRADE_CAPS`, `maxScoreForGrade`, `capScoreBySeverity`, `scoreCapReason`) so the analyzer, web, API, and CLI share one definition.
 
-**Already-shared report links self-correct.** The cap is a pure function of a report's own stored category severities, so the API applies it when *serving* a stored audit — shared reports and both remediation audits — rather than migrating the database. Stored rows stay byte-identical (they are an agency's evidence of what was computed on the day; deriving the display value beats rewriting the record), and a link shared before the change no longer disagrees with the same document re-audited today. The stored executive summary is *regenerated* rather than string-patched, because it branches on the grade — swapping the letter inside stale prose would leave the sentence arguing against its own grade.
+**What the report shows.** Score and letter sit together as a matched pair again, and the "Fix progress" panel beneath them carries a plain **count** — "5 of 6 checks passed" — rather than a second figure out of 100, which would be one more thing to mistake for the grade. When the score is sitting at its ceiling the panel says which finding is holding it there ("The one check that didn't pass is critical, which holds the score at 69 — a critical issue caps a document at D until it is fixed"), because a reader watching a number stall needs to know one finding is responsible, not that the checks stopped improving. Both report views render this identically.
+
+**Already-shared report links self-correct.** The cap is a pure function of a report's own stored category severities, so the API applies it when *serving* a stored audit — recomputing the score and re-deriving the letter from it, — shared reports and both remediation audits — rather than migrating the database. Stored rows stay byte-identical (they are an agency's evidence of what was computed on the day; deriving the display value beats rewriting the record), and a link shared before the change no longer disagrees with the same document re-audited today. The stored executive summary is *regenerated* rather than string-patched, because it branches on the grade — swapping the letter inside stale prose would leave the sentence arguing against its own grade.
 
 > Cite the **score** for tracking remediation progress; cite the **conformance verdict** for the pass/fail compliance question. Neither replaces review by a human accessibility specialist — pair the audit with PAC 2024 and an Adobe Acrobat Accessibility Full Check for a definitive determination.
 
@@ -844,7 +848,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,068 tests** across 130 test files (API 1172, Web 847, CLI 49). Run all three suites with one summary:
+**2,074 tests** across 130 test files (API 1176, Web 849, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -860,19 +864,19 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1172 passed (60 files)
+  ✔ API      1176 passed (60 files)
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2068 tests passed across 130 files
+  ✔ 2074 tests passed across 130 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1172 tests)
+### API Tests (1176 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
-| `severityGradeCap.test.ts` | 20 | The rule that a letter grade may never outrank the document's worst unresolved finding. Each rung of the ladder (Critical→D, Moderate→C, Minor→B); that the cap **only lowers** — an F with a Critical is not promoted to D; that the worst severity wins when several are present; that a never-assessed category cannot cap anything ("no images were found" is not a finding); idempotency, which is what allows the cap to run at the source *and* again at render; and pass-through on an unrecognized letter, a null grade, or a non-array. Plus `regradeStoredReport`: stored letters lowered, each score profile capped against its **own** categories, the executive summary **regenerated** rather than string-patched (it branches on the grade, so a patched letter would leave the sentence arguing against itself), the numeric score left alone, idempotency, and — because this runs on public share links — that a malformed, truncated, or ancient row never throws, and that a summary which cannot be regenerated still keeps the corrected grade. Closes with the four real documents that caused the change, pinned by name: the two Word files with the identical defect must now share a letter, and the two PDFs with the worse defect must rank below them |
+| `severityGradeCap.test.ts` | 24 | The rule that a document's **score** may never outrank its worst unresolved finding, and that the letter is then derived from that score through the one published scale. Leads with **THE INVARIANT** — an exhaustive sweep over all 101 scores × 4 severities asserting `gradeForScore(capped)` matches 90/80/70/60 — because v1.58.0 capped the letter independently and shipped "D" above "80/100"; this makes that unshippable. Then each rung's ceiling (Critical 69, Moderate 79, Minor 89), that those ceilings are *derived* from `GRADE_THRESHOLDS` rather than hardcoded, that the cap **only lowers**, that the worst severity wins, that a never-assessed category cannot cap anything ("no images were found" is not a finding), idempotency, and pass-through on a null score or a non-array. `scoreCapReason` works from the **already-capped** score — all any consumer has — reporting the ceiling when the score sits at it. Plus `regradeStoredReport`: the stored score lowered *and* the letter re-derived from it, each profile capped against its **own** categories, the summary regenerated rather than patched (a stale one would reintroduce the "D above 80/100" mismatch verbatim), idempotency, and — because this runs on public share links — no throw on a malformed, truncated or ancient row. Closes with the four real documents that caused the change, now permanent fixtures in `controls/` |
 | `scorer.test.ts` | 155 | All scoring categories, grade/severity thresholds, N/A handling, weight renormalization, executive-summary generation, the WCAG conformance gate, table header-association credit via `/Scope` or `/Headers`, table caption credited as a non-blocking note, filename-like titles earning partial credit without a false 2.4.2 failure, help-link accuracy (version-matched W3C Understanding URLs, no broken WebAIM anchors), and supplementary findings (list markup, marked content, font embedding, empty pages, role mapping, tab order, language spans, paragraph count, PDF/UA identifier, artifact tagging, ActualText & expansion text, the Acrobat fix guide) |
 | `qpdfParser.test.ts` | 120 | QPDF JSON parsing: StructTreeRoot/Lang/Outlines/AcroForm detection, heading tags (H1-H6 + generic /H) collected in document/reading order, table analysis (TH/scope/rows/nesting/caption/columns/headers) with nested tables excluded from the top-level count and ColSpan/RowSpan-aware column consistency, list analysis (LI/Lbl/LBody — LBody required, Lbl advisory), multi-widget form fields (radio groups collapse to one field with /TU from the parent), MarkInfo, RoleMap, tab order, font embedding, paragraph/language spans, figure alt text, orphaned-phantom pruning (container tags — `<Figure>`, `<L>`, `<Table>` — that carry `/S` but have no `/P` parent and are named by no `/K` are excluded when a StructTreeRoot exists, but never pruned in a treeless document), MCID content ordering, outline counting, tree depth, PDF/UA identifier, artifact tagging, ActualText & expansion text, malformed JSON, qpdf exit-code-3 recovery (warnings with valid stdout JSON), and real qpdf-v2 `obj:`-key fixtures |
 | `veraPdfBuffer.test.ts` | 3 | The audit-time veraPDF wrapper `runVeraPdfOnBuffer`: returns `available:false` without writing a temp file when `VERAPDF_PATH` is unset; otherwise writes a short-lived temp PDF, runs veraPDF against that path with the 30 s audit timeout, and unlinks it in `finally` (including when veraPDF rejects); never throws |
@@ -928,12 +932,12 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (847 tests)
+### Web Tests (849 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
-| `gradeCapNote.test.ts` | 7 | The on-page explanation of a capped grade, on **both** report views — because a "C" above an "87/100" reads as a bug, and shipping that unexplained would trade one contradiction for another. Pins that the note states the cap, the severity that caused it, and what the average alone would have given; that it stays silent when score and letter already agree or the document is clean; that the hero still shows the grade and score themselves; and that ScoreCard computes it from the **strict profile's own** categories, so it can never explain a gap the displayed numbers do not have |
+| `gradeCapNote.test.ts` | 9 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
 | `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**: both surfaces must fail on "no personal data" / "no PII" / "anonymized", and must name the sign-in email, the IP/user-agent log, and the file name as uploaded — reassurance by omission is the regression, and sabotage confirmed each guard bites |
 | `actionPlan.test.ts` | 25 | The Visual view's action-plan mapper: a plain-language dictionary entry (jargon-free title AND why) for all 13 category ids, Critical→Moderate→Minor ordering with stable ties, PDF two-route vs OOXML one-route fix instructions, preference for the report's own Acrobat steps over dictionary defaults, unknown-id and missing-fileType fallbacks, forged-report input guards, and the `verdictPhrase` publication clause |
 | `reportSectionOrder.test.ts` | 16 | Report layout invariants per view, source-inspected: both pages carry the exact `VISUAL VIEW`/`DETAILED VIEW` markers (visual first), the Detailed slice preserves every pre-redesign blocking-before-informational ordering unchanged, ReportVisualView's own source pins hero → tiles → verdict → plan → bars → technical report, and TechnicalReport keeps findings above the PDF/UA panels above methodology |

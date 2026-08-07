@@ -12,7 +12,7 @@ import {
   SCORING_PROFILES,
   WCAG_CATEGORY_MAP,
 } from "#config";
-import { capGradeBySeverity } from "@file-audit/shared";
+import { capScoreBySeverity } from "@file-audit/shared";
 import type { CategoryResult, ScoreProfileResult, ScoringMode } from "@file-audit/shared";
 import type { AdobeParityResult } from "./adobeParity.js";
 import type { ConformanceVerdict } from "./conformance.js";
@@ -202,19 +202,21 @@ export function aggregateScore(
     return Math.round(cats.reduce((sum, c) => sum + c.score! * (c.weight / totalWeight), 0));
   };
 
-  const overallScore = weightedAverage(applicable);
-
-  // The average positions the document within a band; its worst unresolved
-  // finding decides which band it may be in. Without this, four perfect
-  // categories outvote one catastrophic one — two PDFs missing both title and
-  // language (Critical) graded B, above a Word file with strictly the milder
-  // defect. See SEVERITY_GRADE_CAPS in packages/shared for the full case.
+  // The SCORE is capped by the worst unresolved finding, and the grade is
+  // then derived from it exactly as it always was. Without the cap, four
+  // perfect categories outvote one catastrophic one — two PDFs missing both
+  // title and language (Critical) graded B, above a Word file with strictly
+  // the milder defect. Capping the LETTER instead (v1.58.0) fixed that but
+  // severed the number from the grade, so a report read "D" above "80/100";
+  // capping the score keeps GRADE_THRESHOLDS the one consistent scale. See
+  // SEVERITY_GRADE_CAPS in packages/shared for the full case.
   //
-  // Capped BEFORE generateSummary so the prose quotes the grade the reader is
-  // actually shown; the two disagreeing was the original complaint in another
-  // form. `applicable` rather than `categories`: an unassessed category has no
+  // `applicable` rather than `categories`: an unassessed category has no
   // severity to cap with.
-  const grade = capGradeBySeverity(getGrade(overallScore), applicable) ?? getGrade(overallScore);
+  const rawScore = weightedAverage(applicable);
+  const overallScore = capScoreBySeverity(rawScore, applicable) ?? rawScore;
+
+  const grade = getGrade(overallScore);
   const executiveSummary = generateSummary(
     overallScore,
     grade,

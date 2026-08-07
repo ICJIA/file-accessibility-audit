@@ -16,16 +16,22 @@
       </div>
     </div>
 
+    <!-- Score -->
+    <p class="text-3xl font-bold">
+      {{ displayedProfile.overallScore
+      }}<span class="text-lg text-[var(--text-secondary)]">/100</span>
+    </p>
+
     <!-- Label -->
     <p class="text-sm font-medium" :style="{ color: gradeColor }">
       {{ gradeLabel }}
     </p>
 
-    <!-- Score, demoted and labelled — same treatment as the Visual view's
-         hero, for the same reason. It rendered at text-3xl directly under the
-         grade circle, which read as "D = 80" once the letter stopped being
-         derived from the average. Both views must handle it the same way, or
-         switching views becomes its own contradiction. -->
+    <!-- Score and letter are a matched pair: the score is capped by the worst
+         finding, the letter derived from it through the published scale. The
+         panel explains the NUMBER — why it stalls below the raw average until
+         a blocking finding is fixed. Same treatment as the Visual view's hero;
+         both must match or switching views becomes its own contradiction. -->
     <div
       class="mx-auto max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-5 py-4 text-left"
     >
@@ -34,7 +40,7 @@
           Fix progress
         </span>
         <span class="text-sm font-semibold text-[var(--text-heading)]">
-          {{ displayedProfile.overallScore }} of 100
+          {{ checksPassed }} of {{ checksTotal }} checks passed
         </span>
       </div>
       <div
@@ -203,7 +209,7 @@ import {
   type ScoringMode,
 } from "~/utils/scoringProfiles";
 import { escapeHtml } from "~/utils/escapeHtml";
-import { GRADE_THRESHOLDS, safeHttpUrl, gradeCapReason } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, safeHttpUrl, scoreCapReason } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
 
 const wcag = useWcag();
@@ -340,21 +346,29 @@ const displayedCategories = computed(() =>
 const gradeColor = computed(() => gradeMap[displayedProfile.value.grade]?.color || "#666");
 const gradeLabel = computed(() => gradeMap[displayedProfile.value.grade]?.label || "");
 
-const barWidth = computed(() => Math.max(0, Math.min(100, displayedProfile.value.overallScore)));
+// Computed against the STRICT profile's own categories, the same ones
+// displayedProfile's score came from, so it can never describe a document
+// other than the one on screen.
+const scored = computed(() =>
+  (displayedCategories.value ?? []).filter((c) => c && c.score !== null && c.score !== undefined),
+);
+const checksTotal = computed(() => scored.value.length);
+const checksPassed = computed(() => scored.value.filter((c) => c.score === 100).length);
+const barWidth = computed(() =>
+  checksTotal.value === 0 ? 0 : Math.round((checksPassed.value / checksTotal.value) * 100),
+);
 
-// Reconciles the number with the letter, in the place the number appears —
-// see ReportGradeHero for the full reasoning. Computed against the STRICT
-// profile's own categories, the same ones displayedProfile's grade came from,
-// so it can never explain a gap the displayed numbers do not have.
+// Explains the NUMBER — see ReportGradeHero for the reasoning.
 const progressNote = computed(() => {
-  const reason = gradeCapReason(displayedProfile.value.overallScore, displayedCategories.value);
+  const reason = scoreCapReason(displayedProfile.value.overallScore, displayedCategories.value);
   if (!reason) {
-    return "How much of the automated checking already passes. Fix the findings below and re-upload to watch it rise.";
+    return "Fix the findings below and re-upload to watch this rise.";
   }
+  const n = checksTotal.value - checksPassed.value;
   return (
-    `How much of the automated checking already passes — but a ${reason.severity.toLowerCase()} ` +
-    `issue is still open, and the grade follows the worst issue rather than the average. ` +
-    `On the score alone this would be a ${reason.uncappedGrade}.`
+    `${n === 1 ? "The one check that didn't pass is" : `${n} checks did not pass; the most serious is`} ` +
+    `${reason.severity.toLowerCase()}, which holds the score at ${reason.cappedScore} — ` +
+    `a ${reason.severity.toLowerCase()} issue caps a document at ${reason.cappedGrade} until it is fixed.`
   );
 });
 

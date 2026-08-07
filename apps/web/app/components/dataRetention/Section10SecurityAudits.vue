@@ -76,19 +76,20 @@
         </span>
       </header>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
-        <strong>Letter grades are now capped by the worst problem found in a document.</strong> A
-        reader noticed that two reports with the same missing-title problem carried different
-        grades, and they were right. The grade had been an average across the checks that applied,
-        so the same single fault counted for more in a short document with little to check and less
-        in a longer one with more — and a few perfect checks could outweigh one serious failure. Two
-        files missing both a title and a language declaration were graded better than a file missing
-        only the title. A grade can no longer sit above a document's worst unresolved problem: no
-        findings is an A, minor items only is a B, a moderate problem is at best a C, and a critical
-        problem is at best a D. Grades can only move down under this rule, never up, and a document
-        with a critical problem can no longer read as close to publishable. Reports say plainly when
-        the letter is being held below the numeric score, and reports shared before this change show
-        the corrected letter when reopened, so an older link and a fresh audit of the same file no
-        longer disagree.
+        <strong>Scores are now capped by the worst problem found in a document.</strong> A reader
+        noticed that two reports with the same missing-title problem carried different grades, and
+        they were right. The score had been an average across the checks that applied, so the same
+        single fault counted for more in a short document with little to check and less in a longer
+        one with more — and a few perfect checks could outweigh one serious failure. Two files
+        missing both a title and a language declaration were scored better than a file missing only
+        the title. A document's score can no longer rise above what its worst unresolved problem
+        allows: a minor item holds it at 89, a moderate problem at 79, a critical problem at 69. The
+        letter still comes from the same scale it always has — 90 and above is an A, 80 a B, 70 a C,
+        60 a D, below that an F — so the number and the letter always agree. Scores can only move
+        down under this rule, never up, and a document with a critical problem can no longer read as
+        close to publishable. Where a score is being held at its ceiling, the report names the
+        problem holding it there, and reports shared before this change show the corrected score
+        when reopened, so an older link and a fresh audit of the same file no longer disagree.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
         <strong>The status page now explains why anything is backed up</strong> when the tool

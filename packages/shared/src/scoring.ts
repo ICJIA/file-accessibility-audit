@@ -253,9 +253,9 @@ export function severityColor(severity: string | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// SEVERITY GRADE CAP
+// SEVERITY SCORE CAP
 // ---------------------------------------------------------------------------
-// The letter grade may never outrank the document's worst unresolved finding.
+// A document's score may never outrank its worst unresolved finding.
 //
 // WHY THIS EXISTS. The overall score is a weighted average over only the
 // categories that produced a score; anything unassessable is dropped and the
@@ -275,38 +275,49 @@ export function severityColor(severity: string | null | undefined): string {
 //      milder defect. Corpus-wide, 4 documents held an A while carrying an
 //      unresolved Moderate finding, and 2 held a B while carrying a Critical.
 //
-// An averaged score cannot express "one thing here is disqualifying", but
-// accessibility conformance is pass/fail per criterion, not a mean. The cap
-// restores that: the average still positions a document WITHIN a band, but
-// the worst finding decides which band it can be in.
+// WHY THE SCORE AND NOT THE LETTER. v1.58.0 capped the LETTER instead, which
+// fixed both of the above and broke something more basic: it severed the
+// score from the grade, so a report read "D" above "80/100". Readers apply
+// the school-grading reflex — 80 is a B, why does this say D? — and reported
+// it twice, in those words, as more confusing than the problem being fixed.
+// A figure out of 100 beside a letter grade is READ as the grade no matter
+// what label it carries.
 //
-// The resulting letters carry a rule that fits in one sentence, which is the
-// point — the audience is agency staff deciding whether to publish:
+// Capping the score instead keeps GRADE_THRESHOLDS the single, published,
+// consistent scale (90 = A, 80 = B, 70 = C, 60 = D, below that F): the letter
+// is still derived from the number, exactly as before, so the two can never
+// disagree. What changes is the number — a document carrying a Critical
+// cannot climb past the top of the D band however well the rest of it scores.
 //
-//   A  nothing found          B  only minor items
-//   C  a real problem to fix  D  do not publish (F if the average is bad too)
-//
-// It also makes the grade and the publication verdict structurally incapable
-// of disagreeing, which was the reported symptom: a reader ranking documents
-// by letter got the opposite of the truth.
+// The ceilings are DERIVED from GRADE_THRESHOLDS rather than written out, so
+// moving a band boundary moves the caps with it and the two cannot drift.
 //
 // This is a PURE function of the stored category severities, which is what
 // lets already-shared reports self-correct at render time rather than needing
-// a database migration — see capGradeBySeverity's callers.
+// a database migration — see regradeStoredReport's callers.
 //
-// SAFE TO CHANGE: Carefully. Raising a cap re-grades every document in the
-// corpus and every historical shared report at once (the strict ladder below
-// moved 11 of 31 controls, all downward). Keep it sorted worst-first.
+// SAFE TO CHANGE: Carefully. Raising a cap re-scores every document in the
+// corpus and every historical shared report at once. Keep it sorted
+// worst-first.
 // ---------------------------------------------------------------------------
 
+/** The best grade a document carrying each severity may reach. */
 export const SEVERITY_GRADE_CAPS = [
   { severity: "Critical", maxGrade: "D" as const },
   { severity: "Moderate", maxGrade: "C" as const },
   { severity: "Minor", maxGrade: "B" as const },
 ] as const;
 
-/** Best (lowest index) to worst, matching GRADE_THRESHOLDS' own order. */
-const GRADE_RANK: readonly string[] = GRADE_THRESHOLDS.map((t) => t.grade);
+/** Highest score that still lands in `grade`, i.e. one below the next band up.
+ *  Derived so a change to GRADE_THRESHOLDS carries automatically. */
+export function maxScoreForGrade(grade: string): number | null {
+  const idx = GRADE_THRESHOLDS.findIndex((t) => t.grade === grade);
+  if (idx === -1) return null;
+  // GRADE_THRESHOLDS is sorted best-first, so the band ABOVE is the previous
+  // entry. The top band has no ceiling.
+  const above = GRADE_THRESHOLDS[idx - 1];
+  return above ? above.min - 1 : 100;
+}
 
 interface SeverityBearing {
   score?: number | null;
@@ -316,7 +327,7 @@ interface SeverityBearing {
 /** The worst severity among categories that were actually scored, or null.
  *
  *  Unassessed categories (`score === null`) are skipped: "no images were
- *  found" is not a finding, and letting it cap a grade would punish a
+ *  found" is not a finding, and letting it cap a score would punish a
  *  document for what it does not contain. */
 export function worstSeverity(
   categories: ReadonlyArray<SeverityBearing> | null | undefined,
@@ -329,48 +340,51 @@ export function worstSeverity(
 }
 
 /**
- * The letter grade, lowered to the worst finding's ceiling if the average
- * scored above it. Never RAISES a grade — a document whose average already
- * lands below the cap keeps its worse letter (an F stays an F).
+ * The score, lowered to the ceiling of the band its worst finding allows.
+ * Never RAISES a score — a document already below the ceiling keeps its own
+ * lower number.
  *
  * Idempotent by construction, so it is safe to apply at the source AND again
  * at render on a stored report that was already capped.
  */
-export function capGradeBySeverity(
-  grade: string | null | undefined,
+export function capScoreBySeverity(
+  score: number | null | undefined,
   categories: ReadonlyArray<SeverityBearing> | null | undefined,
-): string | null {
-  if (typeof grade !== "string" || grade === "") return grade ?? null;
+): number | null {
+  if (typeof score !== "number" || !Number.isFinite(score)) return score ?? null;
   const worst = worstSeverity(categories);
-  if (worst === null) return grade;
+  if (worst === null) return score;
   const cap = SEVERITY_GRADE_CAPS.find((c) => c.severity === worst)?.maxGrade;
-  if (!cap) return grade;
-
-  const have = GRADE_RANK.indexOf(grade);
-  const most = GRADE_RANK.indexOf(cap);
-  // An unrecognized letter is left alone rather than silently rewritten.
-  if (have === -1 || most === -1) return grade;
-  return have < most ? cap : grade;
+  if (!cap) return score;
+  const ceiling = maxScoreForGrade(cap);
+  if (ceiling === null) return score;
+  return Math.min(score, ceiling);
 }
 
 /**
- * Why the displayed grade is below what the score alone would give — or null
- * when the score was not capped.
+ * The ceiling a document's worst finding imposes — reported whenever the score
+ * is sitting AT it, which is what "the cap is holding this back" means.
  *
- * The UI must say this out loud. "C" beside "87 / 100" reads as a bug to
- * someone who does not know the rule, and this whole change exists to stop
- * the tool contradicting itself in front of non-technical staff.
+ * Deliberately not a raw-vs-capped comparison: every consumer (both report
+ * views, exports, stored reports) only ever has the ALREADY-CAPPED score, so
+ * a function needing the raw average could never fire where it matters. A
+ * score at the ceiling is the observable, and it is the honest claim either
+ * way — a document whose average happens to land exactly on 79 with a
+ * Moderate open still cannot climb past it until that finding is fixed.
+ *
+ * Returns null when the score is below the ceiling (nothing is being held
+ * back) or when there is no finding to impose one.
  */
-export function gradeCapReason(
+export function scoreCapReason(
   score: number | null | undefined,
   categories: ReadonlyArray<SeverityBearing> | null | undefined,
-): { uncappedGrade: string; cappedGrade: string; severity: string } | null {
+): { cappedScore: number; severity: string; cappedGrade: string } | null {
   if (typeof score !== "number" || !Number.isFinite(score)) return null;
-  const uncapped = gradeForScore(score);
-  if (uncapped === null) return null;
   const worst = worstSeverity(categories);
   if (worst === null) return null;
-  const capped = capGradeBySeverity(uncapped, categories);
-  if (capped === null || capped === uncapped) return null;
-  return { uncappedGrade: uncapped, cappedGrade: capped, severity: worst };
+  const cap = SEVERITY_GRADE_CAPS.find((c) => c.severity === worst)?.maxGrade;
+  if (!cap) return null;
+  const ceiling = maxScoreForGrade(cap);
+  if (ceiling === null || score < ceiling) return null;
+  return { cappedScore: ceiling, severity: worst, cappedGrade: cap };
 }

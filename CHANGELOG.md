@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.58.2] - 2026-08-07
+
+### Fixed
+
+- **The severity cap moved from the letter grade onto the score, so the published scale holds again.** v1.58.0 capped the *letter* at the document's worst finding and left the weighted average alone, which severed the two: a report headline read `D` above `80/100`. Reported twice — *"a 'D' is not 80"*, then *"80 and above is a B. Not a C, and certainly not a D."* On the scale this tool publishes (90 = A, 80 = B, 70 = C, 60 = D, below that F) the report was wrong on its face.
+
+  v1.58.1 tried to solve it by relabelling the number as "Fix progress"; that failed for the same reason, and a reader read "81 of 100" as a percentage grade within minutes. **Any figure out of 100 beside a letter grade is read as the grade.** The number itself had to change, not its packaging.
+
+  The cap now lowers the **score** — Minor to 89, Moderate to 79, Critical to 69, ceilings *derived* from `GRADE_THRESHOLDS` so they cannot drift from the published bands — and the letter is derived from that score exactly as it always was. Every contradiction v1.58.0 fixed stays fixed: across the 31-document control corpus the grade distribution is byte-identical to the letter-cap version (A:6 B:3 C:8 D:7 F:7), with the two Word files sharing the same defect landing on the same letter and the two PDFs with the worse defect ranking below them. What changes is that 69 is now a D, 79 a C, and 71 a C — each by the same rule anyone reading the page already knows.
+
+- **The four documents that drove this are now permanent controls.** Checked into `controls/`, bringing the corpus to 31.
+
+### Added
+
+- **`scorer.test.ts` gained THE INVARIANT test**: a real audit's grade always equals `gradeForScore(overallScore)`, for the document and for both published score profiles. Nothing in the suite tied the score to the letter, which is why v1.58.0 shipped green; sabotage-verified by re-introducing that exact bug, which the test catches with "score 92: expected 'C' to be 'A'". `severityGradeCap.test.ts` carries the same invariant as an exhaustive sweep over all 101 scores × 4 severities.
+
+### Notes
+
+Tests 2,069 → 2,074.
+
 ## [1.58.1] - 2026-08-07
 
 ### Fixed

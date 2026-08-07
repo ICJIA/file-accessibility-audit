@@ -330,16 +330,17 @@ describe("ScoreCard", () => {
     ).not.toThrow();
   });
 
-  it("renders the overall score as labelled progress, not as the grade", () => {
-    // Was `toContain("/100")`. v1.58.0 moved the score out of a bare
-    // "87/100" line under the grade circle and into a "Fix progress ...
-    // 87 of 100" panel: once the letter is capped by the worst finding
-    // rather than derived from the average, the two sitting together read
-    // as "D = 80" (reported verbatim).
+  it("renders the overall score with /100 suffix, plus the check count", () => {
+    // The score and the letter are a matched pair again (v1.58.2) — the cap
+    // moved onto the SCORE, so GRADE_THRESHOLDS still maps one to the other.
+    // The "Fix progress" panel remains, now carrying a plain check COUNT: a
+    // second figure out of 100 would be one more thing to mistake for the
+    // grade.
     const wrapper = mount(ScoreCard, { props: { result: baseResult } });
+    expect(wrapper.text()).toContain("87");
+    expect(wrapper.text()).toContain("/100");
     expect(wrapper.text()).toContain("Fix progress");
-    expect(wrapper.text()).toContain("87 of 100");
-    expect(wrapper.text()).not.toContain("87/100");
+    expect(wrapper.text()).toMatch(/\d+ of \d+ checks passed/);
   });
 
   it("renders the filename and page count", () => {

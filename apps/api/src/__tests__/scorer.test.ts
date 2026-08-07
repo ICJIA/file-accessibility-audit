@@ -731,13 +731,16 @@ describe("grade thresholds", () => {
   // to produce known overall scores.
   //
   // Two of these tests used to assert the grade purely from the score band,
-  // and both went red when the severity grade cap shipped — correctly. They
-  // had encoded the behaviour the cap exists to remove: a high average
+  // and both went red when the severity cap shipped — correctly. They had
+  // encoded the behaviour the cap exists to remove: a high average
   // outranking a real finding. Their scenarios (1 of 2 images missing alt;
   // no title plus a skipped heading level) each leave a MODERATE category
-  // behind, which now holds the letter at C no matter how high the average
-  // climbs. They are rewritten below to assert both halves — the score still
-  // lands in its old band, and the letter is now set by the worst finding.
+  // behind, which now holds the SCORE at the top of the C band (79).
+  //
+  // The cap moved from the letter to the score in v1.58.2: capping the letter
+  // alone severed it from the number and shipped "D" above "80/100". Capping
+  // the score keeps GRADE_THRESHOLDS the one consistent scale, so these tests
+  // assert the score and read the grade back through it.
 
   it("score 100 → grade A", () => {
     const { qpdf, pdfjs } = fullyAccessible();
@@ -745,23 +748,23 @@ describe("grade thresholds", () => {
     expect(result.grade).toBe("A");
   });
 
-  it("an A requires a clean sweep — one moderate finding holds a 90+ average at C", () => {
+  it("an A requires a clean sweep — one moderate finding holds the score at 79", () => {
     const { qpdf, pdfjs } = fullyAccessible();
-    // 1 of 2 images missing alt → alt_text = 50 → Moderate.
+    // 1 of 2 images missing alt → alt_text = 50 → Moderate. The raw weighted
+    // average clears 90; the cap holds it at the top of the C band.
     qpdf.images = [
       { ref: "10 0 R", hasAlt: true },
       { ref: "11 0 R", hasAlt: false },
     ];
     const result = scoreDocument(qpdf, pdfjs);
 
-    // The average is untouched by the cap — it still lands where it always did.
-    expect(result.overallScore).toBeGreaterThanOrEqual(90);
     expect(findCategory(result, "alt_text").severity).toBe("Moderate");
-    // ...but the letter follows the worst finding, not the average.
+    expect(result.overallScore).toBe(79);
+    // And the letter still comes straight off the published scale.
     expect(result.grade).toBe("C");
   });
 
-  it("two moderate findings in the 80s also land at C — the cap, not the band", () => {
+  it("two moderate findings land at 79/C too — the ceiling, not the band", () => {
     const { qpdf, pdfjs } = fullyAccessible();
     pdfjs.title = null; // title_language → 50 (language only) → Moderate
     qpdf.headings = [
@@ -770,8 +773,7 @@ describe("grade thresholds", () => {
     ];
     const result2 = scoreDocument(qpdf, pdfjs);
 
-    expect(result2.overallScore).toBeGreaterThanOrEqual(80);
-    expect(result2.overallScore).toBeLessThan(100);
+    expect(result2.overallScore).toBe(79);
     expect(result2.grade).toBe("C");
   });
 
@@ -795,15 +797,71 @@ describe("grade thresholds", () => {
     // Guard the premise: if scoring shifts this category out of Minor, the
     // assertion below would be testing a different rung than it claims to.
     expect(sev).toBe("Minor");
+    expect(result.overallScore).toBe(89);
     expect(result.grade).toBe("B");
   });
 
-  it("the cap only ever lowers a grade — a bad average keeps its worse letter", () => {
+  it("THE INVARIANT: a real audit's grade always matches its own score", () => {
+    // The regression test for v1.58.0, which capped the LETTER and left the
+    // score alone — shipping reports that read "D" above "80/100". Nothing in
+    // the suite tied the two together, so CI stayed green while the headline
+    // was self-contradictory. This walks real scoring paths rather than the
+    // pure helper, because that is where the two came apart.
+    const scenarios: Array<[string, () => ReturnType<typeof fullyAccessible>]> = [
+      ["clean", () => fullyAccessible()],
+      [
+        "moderate",
+        () => {
+          const f = fullyAccessible();
+          f.pdfjs.title = null;
+          return f;
+        },
+      ],
+      [
+        "critical",
+        () => {
+          const f = fullyAccessible();
+          f.pdfjs.title = null;
+          f.pdfjs.lang = null;
+          return f;
+        },
+      ],
+      [
+        "minor",
+        () => {
+          const f = fullyAccessible();
+          f.qpdf.headings = [
+            { level: "H1", tag: "/H1" },
+            { level: "H2", tag: "/H2" },
+            { level: "H2", tag: "/H2" },
+            { level: "H1", tag: "/H1" },
+          ];
+          return f;
+        },
+      ],
+    ];
+    for (const [name, build] of scenarios) {
+      const { qpdf, pdfjs } = build();
+      const r = scoreDocument(qpdf, pdfjs);
+      const s = r.overallScore;
+      const expected = s >= 90 ? "A" : s >= 80 ? "B" : s >= 70 ? "C" : s >= 60 ? "D" : "F";
+      expect(r.grade, `${name}: score ${s}`).toBe(expected);
+      // Both score profiles are published too, and each carries its own pair.
+      for (const [mode, profile] of Object.entries(r.scoreProfiles)) {
+        const ps = profile.overallScore;
+        const pe = ps >= 90 ? "A" : ps >= 80 ? "B" : ps >= 70 ? "C" : ps >= 60 ? "D" : "F";
+        expect(profile.grade, `${name}/${mode}: score ${ps}`).toBe(pe);
+      }
+    }
+  });
+
+  it("the cap only ever lowers — a bad average keeps its own worse score", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // Critical findings cap at D, but this document's average is F. The cap
-    // must not promote it to D.
+    // Critical findings cap at 69, but this document's average is far below.
+    // The cap must not PROMOTE it.
+    expect(result.overallScore).toBeLessThan(60);
     expect(result.grade).toBe("F");
   });
 });

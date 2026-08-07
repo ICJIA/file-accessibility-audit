@@ -13,11 +13,12 @@ describe("ReportGradeHero", () => {
       props: { grade: "D", overallScore: 62, categories: [sev("Critical"), sev("Minor")] },
     });
     expect(w.text()).toContain("D");
-    // The score is still shown, but as labelled progress rather than as a
-    // peer of the letter — a bare "62/100" beside a severity-capped "D" was
-    // reported as more confusing than the mismatch the cap fixed.
-    expect(w.text()).toContain("62 of 100");
-    expect(w.text()).not.toContain("62/100");
+    // Score and letter are a matched pair again (v1.58.2): the SCORE is what
+    // the severity cap lowers, so 62 -> D comes straight off the published
+    // scale. The interim v1.58.1 layout hid the number to paper over a
+    // mismatch that no longer exists.
+    expect(w.text()).toContain("62");
+    expect(w.text()).toContain("/100");
     // The blocker leads and counts itself; the grade adjective is dropped so
     // the sentence can never contradict the tally that produced it.
     expect(w.text()).toContain("Not ready to publish — 1 critical issue");

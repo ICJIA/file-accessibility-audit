@@ -689,14 +689,15 @@
           class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)] p-4 mb-4"
         >
           <p class="text-[var(--text-heading)] font-semibold mb-2">
-            The letter grade is capped by the worst finding
+            The score is capped by the worst finding
           </p>
           <p class="text-[var(--text-muted)] mb-3">
-            The average above decides where a document sits <em>within</em> a band; its worst
-            unresolved finding decides which band it can be in. A weighted average cannot express
-            "one thing here is disqualifying" — but accessibility conformance is pass/fail per
-            criterion, not a mean, so the average alone let four perfect categories outvote one
-            catastrophic one.
+            A document's score may never outrank its worst unresolved finding — a Minor caps it at
+            89, a Moderate at 79, a Critical at 69. The letter then comes off the same published
+            scale it always has (90 = A, 80 = B, 70 = C, 60 = D, below that F), so the number and
+            the letter can never disagree. A weighted average cannot express "one thing here is
+            disqualifying", but accessibility conformance is pass/fail per criterion, not a mean, so
+            the average alone let four perfect categories outvote one catastrophic one.
           </p>
           <ul class="space-y-1.5 text-[var(--text-muted)] mb-3">
             <li><strong class="text-[var(--text-heading)]">A</strong> — nothing found</li>
@@ -710,14 +711,13 @@
             </li>
           </ul>
           <p class="text-[var(--text-muted)]">
-            The cap only ever lowers a grade, never raises one, so a poor average keeps its worse
-            letter. This is why a report can read
-            <strong class="text-[var(--text-heading)]">C</strong> beside a score in the eighties —
-            the report says so explicitly wherever that happens. It also means two documents with
-            the same defect get the same letter regardless of how much else was checkable in each,
-            which was not true before tool v1.58.0: a one-page notice and a longer agenda missing
-            the identical document title graded C and B, because the notice had only three
-            applicable categories to average against and the agenda had seven.
+            The cap only ever lowers a score, never raises one, so a document already below a
+            ceiling keeps its own lower number. It also means two documents with the same defect get
+            the same letter regardless of how much else was checkable in each, which was not true
+            before tool v1.58.0: a one-page notice and a longer agenda missing the identical
+            document title graded C and B, because the notice had only three applicable categories
+            to average against and the agenda had seven. Where a score is sitting at its ceiling,
+            the report says which finding is holding it there.
           </p>
         </div>
         <div class="overflow-x-auto mb-4">
