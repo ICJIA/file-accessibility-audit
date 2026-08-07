@@ -68,9 +68,49 @@
 
   /* Report action hover */
   --report-hover-text: #4ade80;
+
+  /* ------------------------------------------------------------------
+     Grade + severity palette.
+
+     Mirrors GRADE_COLORS / SEVERITY_COLORS in @file-audit/shared, for
+     stylesheet use. Components do NOT read these: they take the hex from
+     gradeColorFor()/severityColorFor() via useTokenColors(), because these
+     colours are consumed through inline :style bindings and a var() there is
+     dropped outright by the test DOM. Keep the two in step by hand.
+
+     These are the dark-mode values (5.3-10.3:1 on #0a0a0a). The light
+     overrides are NOT a stylistic preference: the dark tokens measure
+     1.9-3.8:1 on a light background, every one of them under the 4.5:1
+     WCAG AA floor, in a tool that exists to catch exactly that.
+     ------------------------------------------------------------------ */
+  --grade-a: #22c55e;
+  --grade-b: #14b8a6;
+  --grade-c: #eab308;
+  --grade-d: #f97316;
+  --grade-f: #ef4444;
+
+  --sev-pass: #22c55e;
+  --sev-minor: #3b82f6;
+  --sev-moderate: #eab308;
+  --sev-critical: #ef4444;
 }
 
 html.light {
+  /* The -700 shades of the same hues: 4.7-6.7:1 on both #ffffff cards and
+     the #f9fafb body, while staying recognisably the same colour. The -800
+     shades score higher but read as muddy, and a severity palette nobody can
+     tell apart is its own accessibility problem. */
+  --grade-a: #15803d;
+  --grade-b: #0f766e;
+  --grade-c: #946005;
+  --grade-d: #c2410c;
+  --grade-f: #b91c1c;
+
+  --sev-pass: #15803d;
+  --sev-minor: #1d4ed8;
+  --sev-moderate: #946005;
+  --sev-critical: #b91c1c;
+
   --surface-body: #f9fafb;
   --surface-card: #ffffff;
   --surface-card-alt: #f3f4f6;

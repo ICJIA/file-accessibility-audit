@@ -5,8 +5,8 @@
         class="w-44 h-44 sm:w-56 sm:h-56 rounded-full flex items-center justify-center border-[6px]"
         :style="{
           borderColor: color,
-          backgroundColor: color + '15',
-          boxShadow: `0 0 80px ${color}40, 0 0 24px ${color}25`,
+          backgroundColor: withAlpha(color, 8),
+          boxShadow: `0 0 80px ${withAlpha(color, 25)}, 0 0 24px ${withAlpha(color, 15)}`,
         }"
       >
         <span class="text-8xl sm:text-9xl font-black" :style="{ color }">{{ grade }}</span>
@@ -51,8 +51,11 @@
 </template>
 
 <script setup lang="ts">
+import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
-import { gradeColor, severityColor, scoreCapReason } from "@file-audit/shared";
+import { scoreCapReason } from "@file-audit/shared";
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { gradeColor, severityColor, withAlpha } = useTokenColors();
 import { gradeLabel } from "~/utils/exportFormats/shared";
 import { publicationVerdict } from "~/utils/actionPlan";
 

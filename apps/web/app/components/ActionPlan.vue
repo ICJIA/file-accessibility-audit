@@ -128,8 +128,11 @@
 </template>
 
 <script setup lang="ts">
+import { withAlpha } from "@file-audit/shared";
+import { useTokenColors } from "~/composables/useTokenColors";
 import { computed, ref, watch } from "vue";
-import { severityColor } from "@file-audit/shared";
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
@@ -176,7 +179,7 @@ function sevIcon(s: PlanSeverity): string {
 
 function sevChipStyle(s: PlanSeverity): Record<string, string> {
   const c = severityColor(s);
-  return { color: c, backgroundColor: c + "15", border: `1px solid ${c}35` };
+  return { color: c, backgroundColor: withAlpha(c, 8), border: `1px solid ${c}35` };
 }
 
 function numStyle(s: PlanSeverity): Record<string, string> {

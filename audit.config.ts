@@ -1443,6 +1443,28 @@ export const STATUS = {
    * (interval between runs) + a few hours of slack.
    */
   BACKUP_STALE_AFTER_HOURS: 30,
+
+  /**
+   * Percentage of free disk space below which /status reports the service as
+   * degraded.
+   *
+   * WHY THIS EXISTS: a full disk breaks uploads AND the nightly backup at the
+   * same time, silently, while every other check on /status stays green — the
+   * audit path holds files in memory and the backup writes elsewhere, so
+   * neither reports a disk problem as its own failure. Without this probe the
+   * first symptom is a failed restore months later.
+   *
+   * A DEGRADED reading is deliberately not a 503: the service can still audit
+   * with a nearly-full disk, and paging someone about an outage that has not
+   * happened yet is how alerts get ignored. It joins `degraded` exactly like a
+   * stale backup does, which is what the existing UptimeRobot keyword alert
+   * already watches.
+   *
+   * SAFE TO CHANGE: Yes. 10% of a 50 GB volume is 5 GB — comfortably more than
+   * a snapshot plus a day of logs, which is the margin this needs to buy.
+   * Raise it on a small volume, where 10% may be smaller than one backup.
+   */
+  DISK_LOW_FREE_PCT: 10,
 } as const;
 
 // ---------------------------------------------------------------------------

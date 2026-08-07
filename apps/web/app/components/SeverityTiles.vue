@@ -9,7 +9,7 @@
       :style="
         tile.count === 0
           ? {}
-          : { borderColor: tile.color + '40', backgroundColor: tile.color + '10' }
+          : { borderColor: withAlpha(tile.color, 25), backgroundColor: withAlpha(tile.color, 6) }
       "
     >
       <div
@@ -31,8 +31,10 @@
 </template>
 
 <script setup lang="ts">
+import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
-import { severityColor } from "@file-audit/shared";
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { severityColor, withAlpha } = useTokenColors();
 import { tallySeverity } from "~/utils/severityTally";
 
 const props = defineProps<{ categories: Array<{ severity?: string | null }> }>();

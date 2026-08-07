@@ -21,6 +21,34 @@ const remediationEnv = {
   REMEDIATION_VERAPDF_PATH: process.env.REMEDIATION_VERAPDF_PATH || "",
 };
 
+// Restart policy, shared by both apps.
+//
+// `max_restarts` + `min_uptime` are the pair that matters. Without them PM2
+// restarts a process that dies instantly, for ever: a bad deploy or a missing
+// binary becomes a silent hot loop that burns CPU and fills the log disk while
+// `pm2 status` shows the app "online" between crashes. With them, a process
+// that cannot stay up for `min_uptime` 10 times in a row is marked **errored**
+// and left down — which is what /status is watching for, and what a human
+// should be paged about. Failing visibly beats failing invisibly.
+//
+// exp_backoff_restart_delay makes the retries spread out rather than hammer,
+// so a dependency that is merely slow to come back (the database on a host
+// reboot) still recovers on its own.
+const restartPolicy = {
+  max_memory_restart: "512M",
+  restart_delay: 3000,
+  exp_backoff_restart_delay: 100,
+  /** Consecutive failed restarts before PM2 gives up and marks it errored. */
+  max_restarts: 10,
+  /** A process must stay up this long to count as a successful start. */
+  min_uptime: 20000,
+  /** Log rotation is handled by the pm2-logrotate MODULE, installed on the
+   *  server — see docs/process-supervision.md. These two keep the files it
+   *  rotates timestamped and in one stream per app. */
+  time: true,
+  merge_logs: true,
+};
+
 module.exports = {
   apps: [
     {
@@ -38,9 +66,7 @@ module.exports = {
         ...remediationEnv,
       },
       watch: false,
-      max_memory_restart: "512M",
-      restart_delay: 3000,
-      exp_backoff_restart_delay: 100,
+      ...restartPolicy,
     },
     {
       name: "file-audit-web",
@@ -56,9 +82,7 @@ module.exports = {
         ...remediationEnv,
       },
       watch: false,
-      max_memory_restart: "512M",
-      restart_delay: 3000,
-      exp_backoff_restart_delay: 100,
+      ...restartPolicy,
     },
   ],
 };

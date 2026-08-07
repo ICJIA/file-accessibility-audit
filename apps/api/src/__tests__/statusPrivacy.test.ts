@@ -75,6 +75,7 @@ function build(probes: EngineProbes = OK_ENGINES, db: DB = seededDb()) {
     // section in its "unavailable" shape, and the path itself (a server
     // path) must never appear in the payload.
     backupStatusFile: "/nonexistent/backups/last-backup.json",
+    diskPath: ".",
   }).getStatus();
 }
 
@@ -162,6 +163,18 @@ describe("/status never discloses identifying data", () => {
     expect(payload.engines.qpdf.version).toMatch(/^\d+\.\d+(\.\d+)?$/);
   });
 
+  it("reports free space without ever naming the filesystem it measured", async () => {
+    // The disk probe is handed a real path; the payload must carry only
+    // numbers. A path here would leak the server's directory layout on a
+    // public endpoint — the same rule the backup section follows.
+    const payload = await build();
+    const serialized = JSON.stringify(payload.disk);
+    expect(serialized).not.toMatch(/[/\\]/);
+    expect(Object.keys(payload.disk).sort()).toEqual(
+      ["free_bytes", "free_pct", "status", "total_bytes"].sort(),
+    );
+  });
+
   it("keeps the top-level key set to the documented allow-list", async () => {
     // A new key is not automatically a leak, but it must be a deliberate
     // decision — this test makes an accidental addition fail loudly.
@@ -172,6 +185,7 @@ describe("/status never discloses identifying data", () => {
         "checked_at",
         "checked_at_chicago",
         "database",
+        "disk",
         "documents_audited",
         "documents_rejected",
         "engines",

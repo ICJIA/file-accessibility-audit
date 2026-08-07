@@ -888,6 +888,44 @@ function backupExplainer(): string {
 }
 
 /**
+ * Free-space line. Additive like every other curated field: a payload
+ * predating `disk` (an older API build, a shared report) renders nothing.
+ *
+ * A full disk breaks uploads AND the nightly backup at once while every other
+ * check stays green, so this is the one number on the page that predicts a
+ * failure rather than reporting one. It is deliberately phrased as headroom
+ * ("X free of Y") rather than usage: the question a reader has is how much
+ * room is left, not how much has gone.
+ */
+export function renderDiskLine(raw: unknown): string {
+  const d = asRecord(raw);
+  if (!d) return "";
+  const status = d.status === "low" || d.status === "ok" ? d.status : "unavailable";
+  if (status === "unavailable") {
+    return (
+      `<p class="none">Free disk space could not be read on this server — ` +
+      `the audit and backup paths are unaffected, but this early warning is not available.</p>`
+    );
+  }
+  const pct = typeof d.free_pct === "number" && Number.isFinite(d.free_pct) ? d.free_pct : null;
+  const dot = status === "low" ? "#d29922" : "#3fb950";
+  const amounts =
+    d.free_bytes !== null && d.total_bytes !== null
+      ? `${formatBytes(d.free_bytes)} free of ${formatBytes(d.total_bytes)}`
+      : "free space unknown";
+  const note =
+    status === "low"
+      ? ` — <strong>running low</strong>. A full disk stops uploads and the nightly backup together, ` +
+        `so this is a warning rather than a fault: nothing has failed yet.`
+      : "";
+  return (
+    `<p class="bak"><span class="dot" style="background:${dot}"></span>` +
+    `Disk ${pct === null ? "" : `<strong>${pct}%</strong> `}` +
+    `(${amounts})${note}</p>`
+  );
+}
+
+/**
  * Last-successful-backup row. Additive like every curated section: a payload
  * predating the field (older API build, shared report) renders nothing.
  *
@@ -943,15 +981,23 @@ export function renderBackup(body: Record<string, unknown>): string {
         ? `⚠ ${age} h ago — older than expected`
         : "none yet — expected before the first scheduled run";
 
-  // A stale backup is the one card state the reader must not have to click
-  // for; it arrives pre-opened. Healthy and never-run states stay compact.
+  // Disk space lives in THIS card rather than its own, because it is the same
+  // disk: the snapshot below is what fills it, and a full disk is how the
+  // backup silently stops. A reader looking at "is my backup safe" is asking
+  // one question, not two.
+  const diskLine = renderDiskLine(body.disk);
+
+  // A stale backup — or a nearly-full disk, which is how a backup stops
+  // without anything else going red — is a card state the reader must not
+  // have to click for; it arrives pre-opened.
   return fold({
     id: "bak-h",
     title: "Last successful backup",
     peek,
-    open: status === "stale",
+    open: status === "stale" || asRecord(body.disk)?.status === "low",
     body:
       line +
+      diskLine +
       backupExplainer() +
       `<p class="caveat">Recorded only after a snapshot passes its integrity check — this row is ` +
       `the proof the nightly backup ran, not merely that the scheduler fired. Snapshots stay on ` +

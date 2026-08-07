@@ -46,7 +46,7 @@
                 v-if="cat.grade"
                 class="inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
                 :style="{
-                  backgroundColor: catColor(cat) + '20',
+                  backgroundColor: withAlpha(catColor(cat), 12),
                   color: catColor(cat),
                 }"
                 >{{ cat.grade }}</span
@@ -58,7 +58,7 @@
                 v-if="cat.severity"
                 class="text-xs px-2 py-0.5 rounded-full"
                 :style="{
-                  backgroundColor: sevColor(cat.severity) + '15',
+                  backgroundColor: withAlpha(sevColor(cat.severity), 8),
                   color: sevColor(cat.severity),
                 }"
                 >{{ cat.severity }}</span
@@ -171,7 +171,7 @@
             v-if="cat.severity"
             class="text-xs px-2 py-0.5 rounded-full"
             :style="{
-              backgroundColor: sevColor(cat.severity) + '15',
+              backgroundColor: withAlpha(sevColor(cat.severity), 8),
               color: sevColor(cat.severity),
             }"
             >{{ cat.severity }}</span
@@ -503,6 +503,7 @@ import {
   type CategoryResult,
   type ScoreProfileResult,
   type ScoringMode,
+  withAlpha,
 } from "@file-audit/shared";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings, isGuidanceFinding } from "~/utils/findings";

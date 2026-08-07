@@ -228,6 +228,99 @@ export const SEVERITY_COLORS: Record<string, string> = {
   Critical: "#ef4444",
 };
 
+// ---------------------------------------------------------------------------
+// LIGHT-MODE PALETTE
+// ---------------------------------------------------------------------------
+// The colours above are tuned for the dark UI, where they run 5.3–10.3:1
+// against #0a0a0a. On the light background they are 1.9–3.8:1 — every one of
+// them below the 4.5:1 WCAG AA floor for normal text, in a tool whose entire
+// purpose is catching exactly that. Measured 2026-08-07; the worst was
+// Moderate yellow at 1.92:1.
+//
+// One palette cannot serve both: a colour dark enough to pass on white is too
+// dark to pass on near-black. So there are two, and CSS picks between them —
+// see --grade-* / --sev-* in apps/web/app/assets/css/main.css, which is the
+// only place either palette is consumed by the UI.
+//
+// Mostly the -700 shades of the same hues, clearing 4.5:1 on ALL THREE light
+// surfaces (#f9fafb body, #ffffff cards, #f3f4f6 alt) while staying
+// recognisably the same colour. The -800 shades score higher but read as
+// muddy, and a severity palette nobody can tell apart is its own
+// accessibility problem.
+//
+// Yellow is the exception and is one step darker than the rest: yellow-700
+// (#a16207) clears white and the body surface but lands at 4.47:1 on
+// #f3f4f6 — caught by test, not by eye, which is why the test measures every
+// surface rather than the one that came to mind.
+//
+// EXPORTS DO NOT USE THESE. A downloaded HTML report carries its own dark
+// styling and no CSS variables, so exportFormats/html.ts, the CLI and the
+// /status renderer all keep using the hex values above.
+
+export const GRADE_COLORS_LIGHT: Record<string, string> = {
+  A: "#15803d",
+  B: "#0f766e",
+  C: "#946005",
+  D: "#c2410c",
+  F: "#b91c1c",
+};
+
+export const SEVERITY_COLORS_LIGHT: Record<string, string> = {
+  Pass: "#15803d",
+  "No issues found": "#15803d",
+  Minor: "#1d4ed8",
+  Moderate: "#946005",
+  Critical: "#b91c1c",
+};
+
+/** UI theme the colour is being rendered into. */
+export type ColorScheme = "dark" | "light";
+
+/**
+ * A grade's colour for the given theme.
+ *
+ * Returns a HEX string, deliberately. The obvious alternative — emitting
+ * `var(--grade-a)` and letting CSS pick — was built and rejected: these
+ * colours are consumed almost entirely through Vue inline `:style` bindings,
+ * and happy-dom drops any inline style containing `var()` or `color-mix()`
+ * ENTIRELY, so every existing test asserting a rendered colour would have
+ * gone blind at the moment the values started varying. Deriving the hex in JS
+ * keeps the tests real and the alpha maths below possible.
+ */
+export function gradeColorFor(grade: string | null | undefined, scheme: ColorScheme): string {
+  if (!grade) return "#666";
+  const table = scheme === "light" ? GRADE_COLORS_LIGHT : GRADE_COLORS;
+  return table[grade] ?? GRADE_COLORS[grade] ?? "#666";
+}
+
+export function severityColorFor(severity: string | null | undefined, scheme: ColorScheme): string {
+  if (!severity) return "#999";
+  const table = scheme === "light" ? SEVERITY_COLORS_LIGHT : SEVERITY_COLORS;
+  return table[severity] ?? SEVERITY_COLORS[severity] ?? "#999";
+}
+
+/**
+ * A colour at partial opacity, for tinted backgrounds, borders and glows.
+ *
+ * Replaces hex-alpha suffixes concatenated by hand (`color + "15"`), which
+ * were duplicated across 13 sites in 8 files with no shared definition of
+ * what "15" meant — and which silently produce nonsense for any colour that
+ * is not a 6-digit hex.
+ *
+ * Percent in, 8-digit hex out, so the result stays a plain colour literal
+ * that both browsers and the test DOM handle.
+ */
+export function withAlpha(color: string, percent: number): string {
+  const pct = Math.max(0, Math.min(100, percent));
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return color;
+  return (
+    color +
+    Math.round((pct / 100) * 255)
+      .toString(16)
+      .padStart(2, "0")
+  );
+}
+
 export function gradeForScore(score: number | null): string | null {
   if (score === null) return null;
   for (const t of GRADE_THRESHOLDS) {

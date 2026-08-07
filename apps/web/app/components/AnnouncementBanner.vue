@@ -25,11 +25,18 @@
       >
       <span class="mt-1 block text-xs text-[var(--text-muted)]">
         <template v-if="current.date">Updated {{ current.date }} · </template>
-        <!-- /announcements is a Vue page, so no `external` needed here. -->
+        <!-- /announcements is a Vue page, so no `external` needed here.
+
+             The accessible name CONTAINS the visible text (WCAG 2.5.3 Label
+             in Name): a speech-input user says what they can see, so "see all
+             updates" has to match. The old label was "See all previous
+             announcements" — saying the visible words matched nothing, and
+             Lighthouse flagged it as the site's only accessibility failure,
+             on an accessibility tool. -->
         <NuxtLink
           to="/announcements"
           class="underline hover:text-[var(--text-heading)]"
-          aria-label="See all previous announcements"
+          aria-label="See all updates — previous announcements"
           >See all updates</NuxtLink
         >
       </span>

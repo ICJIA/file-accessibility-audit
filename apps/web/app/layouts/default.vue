@@ -422,7 +422,7 @@
                       <div v-for="s in severities" :key="s.label" class="flex items-center gap-3">
                         <span
                           class="text-xs px-2 py-0.5 rounded-full w-20 text-center"
-                          :style="{ backgroundColor: s.color + '15', color: s.color }"
+                          :style="{ backgroundColor: withAlpha(s.color, 8), color: s.color }"
                           >{{ s.label }}</span
                         >
                         <span class="text-[var(--text-muted)]">{{ s.description }}</span>
@@ -580,7 +580,7 @@
 </template>
 
 <script setup lang="ts">
-import { SCORING_PROFILES, GRADE_THRESHOLDS, SEVERITY_COLORS } from "@file-audit/shared";
+import { SCORING_PROFILES, GRADE_THRESHOLDS, SEVERITY_COLORS, withAlpha } from "@file-audit/shared";
 
 const config = useRuntimeConfig();
 const user = inject<Ref<any>>("user");

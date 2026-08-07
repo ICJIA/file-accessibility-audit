@@ -11,6 +11,7 @@ import { REMEDIATION } from "#config";
 import {
   createStatusService,
   defaultBackupStatusFile,
+  defaultDataDir,
   defaultProbes,
   payloadIsCoreFailure,
   readApiVersion,
@@ -31,6 +32,10 @@ const service = createStatusService({
   startedAtMs: STARTED_AT_MS,
   remediationEnabled: REMEDIATION.ENABLED,
   backupStatusFile: defaultBackupStatusFile(),
+  // The API's own data directory — where uploaded files are briefly written
+  // and the SQLite database lives. Measuring the volume that actually matters
+  // to this service, rather than the process cwd, which can differ under PM2.
+  diskPath: defaultDataDir(),
 });
 
 router.get("/status", statusLimiter, async (_req, res) => {

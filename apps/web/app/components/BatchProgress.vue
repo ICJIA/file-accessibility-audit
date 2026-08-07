@@ -89,7 +89,7 @@
           v-if="item.status === 'done' && item.result?.grade"
           class="flex-shrink-0 inline-flex w-6 h-6 rounded-full text-xs font-bold items-center justify-center"
           :style="{
-            backgroundColor: gradeColor(item.result.grade) + '20',
+            backgroundColor: withAlpha(gradeColor(item.result.grade), 12),
             color: gradeColor(item.result.grade),
           }"
           >{{ item.result.grade }}</span
@@ -112,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTokenColors } from "~/composables/useTokenColors";
 interface BatchItem {
   id: string;
   filename: string;
@@ -142,15 +143,6 @@ const hasActive = computed(() =>
   props.items.some((i) => i.status === "queued" || i.status === "processing"),
 );
 
-const gradeColors: Record<string, string> = {
-  A: "#22c55e",
-  B: "#14b8a6",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
-};
-
-function gradeColor(grade: string): string {
-  return gradeColors[grade] || "#666";
-}
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { gradeColor, withAlpha } = useTokenColors();
 </script>

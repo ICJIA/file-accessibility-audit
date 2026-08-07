@@ -30,7 +30,7 @@
             v-if="value"
             class="inline-block w-8 h-8 rounded-full text-sm font-bold leading-8 text-center"
             :style="{
-              backgroundColor: gradeColor(value as string) + '20',
+              backgroundColor: withAlpha(gradeColor(value as string), 12),
               color: gradeColor(value as string),
             }"
           >
@@ -50,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTokenColors } from "~/composables/useTokenColors";
 import ReportsTable from "~/components/ReportsTable.vue";
 import PaginationControls from "~/components/PaginationControls.vue";
 import { usePaginatedReports } from "~/composables/usePaginatedReports";
@@ -83,17 +84,8 @@ const columns = [
   { key: "created_at", label: "Date", align: "right" as const },
 ];
 
-const gradeColors: Record<string, string> = {
-  A: "#22c55e",
-  B: "#14b8a6",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
-};
-
-function gradeColor(grade: string): string {
-  return gradeColors[grade] || "#666";
-}
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { gradeColor, withAlpha } = useTokenColors();
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {

@@ -861,7 +861,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,099 tests** across 131 test files (API 1179, Web 871, CLI 49). Run all three suites with one summary:
+**2,135 tests** across 132 test files (API 1185, Web 901, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -877,15 +877,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1179 passed (60 files)
+  ✔ API      1185 passed (60 files)
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2099 tests passed across 131 files
+  ✔ 2135 tests passed across 132 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1179 tests)
+### API Tests (1185 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -945,11 +945,12 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (871 tests)
+### Web Tests (901 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
+| `colorTokens.test.ts` | 30 | The grade and severity palette, measured against the surfaces it is actually painted on. The dark colours run 5.3–10.3:1; the SAME colours on the light theme measured 1.9–3.8:1 — every one below the 4.5:1 WCAG AA floor, in a tool that exists to catch that. Both palettes are now asserted against all three surfaces of their own theme, which is what caught yellow-700 passing on white and the body surface but landing at 4.47:1 on `#f3f4f6`. Also pins that the two tables stay parallel (a grade in one and missing from the other would silently fall back to the dark hex), that `main.css` mirrors both for stylesheet use, and that the helpers return a plain hex rather than `var()`/`color-mix()` — load-bearing, because the test DOM drops inline styles containing either, which would blind every colour assertion in the suite. Closes with a deliberately non-vacuous check that the OLD single palette really did fail, so the file cannot quietly start passing if thresholds or surfaces drift. Plus `withAlpha`, which replaced 13 hand-written hex-alpha suffixes across 8 files |
 | `manualReview.test.ts` | 21 | The checklist a report shows an author when there is nothing left to fix. A 100 used to yield an empty action plan and a line of bare criterion numbers, leaving the obvious question unanswered. Pins that the list is built from the checks that **passed** (failing ones are already the action plan), that unscored categories contribute nothing, that the scorer's own order is preserved so the heaviest checks read first, and that malformed input on a public shared report cannot throw. Two guards carry the weight: a **completeness** check that every scoring category able to pass has a prompt — so one added to the profile later cannot silently vanish from an author's checklist — and a copy check that each prompt names a concrete action rather than restating the check it came from. Then the card itself: six entries for a perfect document, the specific judgment automation cannot make ("'image', 'logo' and a filename all pass this check"), "Nothing below is a failure" stated outright, the unexamined WCAG criteria listed by name with working links, and a different framing on a report that still has fixes so it never reads as claiming a pass |
 | `gradeCapNote.test.ts` | 10 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
 | `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**: both surfaces must fail on "no personal data" / "no PII" / "anonymized", and must name the sign-in email, the IP/user-agent log, and the file name as uploaded — reassurance by omission is the regression, and sabotage confirmed each guard bites |
@@ -1027,7 +1028,18 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 
-The web interface itself meets **WCAG 2.1 Level AA** standards. Both the main audit page and shared report pages score **95+** on Lighthouse accessibility audits.
+The web interface itself meets **WCAG 2.2 Level AA** standards. Measured against production on **2026-08-07** (desktop, Lighthouse via `lightcap`):
+
+| Category | Score |
+| --- | :--: |
+| Accessibility | **100** |
+| Best Practices | **100** |
+| SEO | **100** |
+| Performance | **97** |
+
+The previous "95+ on Lighthouse accessibility" claim predated the v1.54 report redesign and had never been re-run — it was understating the real figure, which is the less common way for a stale number to be wrong, but stale either way.
+
+That run surfaced one genuine failure, now fixed: the announcement banner's "See all updates" link carried the accessible name *"See all previous announcements"*, so the visible words appeared nowhere in the accessible name — a **WCAG 2.5.3 Label in Name** violation, which breaks speech input, on an accessibility tool. The remaining Performance gap is a CLS of 0.104 from header and results-region layout shifts; tracked, not yet fixed.
 
 **What's enforced:**
 

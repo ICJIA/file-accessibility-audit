@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.60.0] - 2026-08-07
+
+Clearing the four items carried since the 2026-08-05 operational review.
+
+### Added
+
+- **Disk-space probe on `/status`.** A full disk breaks uploads *and* the nightly backup at the same time, silently, while every other check on the page stays green — the audit path holds files in memory and the backup writes elsewhere, so neither surfaces a disk problem as its own failure. The first symptom would otherwise be a failed restore months later. The payload gains a `disk` section (free bytes, total, percent) measured on the volume holding the database, and drops below `STATUS.DISK_LOW_FREE_PCT` (10%) into `degraded` — where the existing UptimeRobot keyword alert already watches. It is a degradation, never a 503: the service can still audit with a nearly-full disk, and paging about an outage that has not happened is how alerts get ignored. `unavailable` deliberately does **not** degrade — an unqueryable filesystem is a gap in our knowledge, not evidence of a problem. **No path is ever reported**; `statusPrivacy.test.ts` now asserts the section contains no path separator at all.
+
+- **PM2 `max_restarts` + `min_uptime`, and a log-rotation runbook** (`docs/process-supervision.md`). Both were missing. Without them PM2 restarts an instantly-dying process for ever: a bad deploy becomes a silent hot loop that burns CPU and fills the log disk while `pm2 status` shows "online" between crashes. A process that cannot stay up 20s ten times running is now marked **errored** and left down — failing visibly beats failing invisibly. Exponential backoff keeps that from being trigger-happy, so a merely-slow dependency still recovers on its own. `pm2-logrotate` is a server-side module the repo cannot install, so the runbook carries the exact commands and the `pm2 save` that makes them survive a reboot.
+
+### Fixed
+
+- **Light-mode contrast on the grade and severity palette.** The colours are tuned for the dark UI (5.3–10.3:1). On the light theme the same colours measured **1.9–3.8:1 — every one of them below the 4.5:1 WCAG AA floor**, in a tool whose entire purpose is catching exactly that. Worst was Moderate yellow at 1.92:1.
+
+  One palette cannot serve both backgrounds, so there are now two, selected by `useTokenColors()` from the active theme. The light values clear AA against **all three** light surfaces — a detail that mattered: yellow-700 passes on white and the body surface but lands at 4.47:1 on `#f3f4f6`, caught by test rather than by eye, which is why the test measures every surface rather than the one that came to mind.
+
+  The obvious implementation — emitting `var(--grade-a)` and letting CSS choose — was built and rejected: these colours are consumed through inline `:style` bindings, and the test DOM drops any inline style containing `var()` or `color-mix()` **entirely**, which would have blinded every colour assertion in the suite. Deriving the hex in JS keeps the tests real.
+
+  Along the way this removed two hard-coded copies of the palette (`BatchProgress.vue`, `my-history.vue`) that had drifted out of shared entirely — the reason those two surfaces would have stayed unreadable even after a CSS-only fix — and replaced 13 hand-written hex-alpha suffixes across 8 files with `withAlpha(color, percent)`.
+
+- **A WCAG 2.5.3 Label in Name violation**, found by re-running Lighthouse: the announcement banner's "See all updates" link carried the accessible name *"See all previous announcements"*, so a speech-input user saying the visible words matched nothing. It was the site's only accessibility failure.
+
+- **README's Lighthouse figures**, which claimed "95+ accessibility" and predated the v1.54 report redesign. Re-measured against production: **Accessibility 100, Best Practices 100, SEO 100, Performance 97.** The old figure was *understating* the real number — the less common way for a stale claim to be wrong, but stale either way. The remaining performance gap (CLS 0.104) is recorded rather than quietly dropped.
+
+### Notes
+
+Tests 2,099 → 2,135. The new `colorTokens.test.ts` measures both palettes against the surfaces they are actually painted on, asserts the two stay parallel, and includes a deliberately non-vacuous check that the *old* single palette really did fail — so the file cannot quietly start passing if the thresholds or surfaces drift.
+
 ## [1.59.2] - 2026-08-07
 
 ### Changed

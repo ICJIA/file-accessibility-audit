@@ -48,6 +48,11 @@ _global.useState = <T>(key: string, init?: () => T): Ref<T> => {
 _global.useAuditInProgress = () => _global.useState("audit-in-progress", () => false);
 // Mirror the full runtimeConfig.public surface exposed in nuxt.config.ts so any
 // component mounted in tests gets defined values (not just the WCAG keys).
+// The app is dark by default, so tests get the dark palette — which is what
+// every existing colour assertion was written against. Light-mode values are
+// asserted directly against the token tables in colorTokens.test.ts instead of
+// by re-mounting everything in a second theme.
+_global.useColorMode = () => ({ value: "dark", preference: "dark" });
 _global.useRuntimeConfig = () => ({
   public: {
     appName: "Accessibility Audit",

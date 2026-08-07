@@ -21,7 +21,7 @@
 // or real elapsed time.
 
 import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, statfsSync } from "node:fs";
 import { access, constants } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,6 +137,9 @@ export interface StatusPayload {
    *  folding it in would inflate the audit count and dump every refusal into
    *  the grade distribution's 'ungraded' bucket. */
   documents_rejected: RejectedCounts;
+  /** Free space on the volume holding the database. NO PATH is reported —
+   *  /status is public, and statusPrivacy.test.ts forbids filesystem paths. */
+  disk: DiskStatus;
   last_audit_at: string | null;
   /** Same instant as last_audit_at, rendered in America/Chicago — the local
    *  zone of the people who read this page. Null when there is no audit yet,
@@ -152,6 +155,18 @@ export interface StatusPayload {
    *  page); "unavailable" still does not — a deployment before its first
    *  scheduled run must not alarm. Never part of isCoreFailure/503. */
   backup: BackupStatus;
+}
+
+export interface DiskStatus {
+  /** "low" is a degradation, never an outage — see STATUS.DISK_LOW_FREE_PCT.
+   *  "unavailable" means the filesystem could not be queried at all, which
+   *  must never be mistaken for "plenty of room". */
+  status: "ok" | "low" | "unavailable";
+  free_bytes: number | null;
+  total_bytes: number | null;
+  /** Whole percent, so the number a reader sees is the number the threshold
+   *  compares — no rounding disagreement between the payload and the rule. */
+  free_pct: number | null;
 }
 
 export interface BackupStatus {
@@ -196,6 +211,10 @@ export interface StatusDeps {
    *  DB) so tests point it at fixtures; production uses
    *  defaultBackupStatusFile(). */
   backupStatusFile: string;
+  /** Directory whose volume is measured for free space. Injected like the
+   *  clock and DB so tests point it at a temp dir; production uses the API's
+   *  own data directory, where uploads and the database live. */
+  diskPath: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -679,6 +698,7 @@ export function degradedList(
   engines: EngineSnapshot,
   database: "ok" | "down",
   backupStatus: BackupStatus["status"],
+  diskStatus: DiskStatus["status"] = "ok",
 ): string[] {
   const out: string[] = [];
   if (database === "down") out.push("database");
@@ -686,6 +706,14 @@ export function degradedList(
     if (!engines[name].ok) out.push(name);
   }
   if (backupStatus === "stale") out.push("backup");
+  // Like a stale backup: joins `degraded` (so the existing keyword alert
+  // fires) but is never part of isCoreFailure, because the service can still
+  // audit with a nearly-full disk, and paging about an outage that has not
+  // happened yet is how alerts get ignored. "unavailable" does NOT degrade —
+  // an unqueryable filesystem is a gap in our knowledge, not evidence of a
+  // problem, and alarming on it would fire on any platform where statfs
+  // behaves differently.
+  if (diskStatus === "low") out.push("disk");
   return out;
 }
 
@@ -756,8 +784,9 @@ export function createStatusService(deps: StatusDeps) {
     const nowMs = deps.now();
     const [agg, eng] = [getAggregates(nowMs), await getEngines(nowMs)];
     const backup = readBackupStatus(deps.backupStatusFile, nowMs);
+    const disk = readDiskStatus(deps.diskPath);
 
-    const degraded = degradedList(eng, agg.database, backup.status);
+    const degraded = degradedList(eng, agg.database, backup.status, disk.status);
     const uptimeSeconds = Math.max(0, Math.floor((nowMs - deps.startedAtMs) / 1000));
 
     const payload: StatusPayload = {
@@ -771,6 +800,7 @@ export function createStatusService(deps: StatusDeps) {
       engines: eng,
       documents_audited: agg.documents_audited,
       documents_rejected: agg.documents_rejected,
+      disk,
       last_audit_at: agg.last_audit_at,
       // Derived here rather than stored, so it can never disagree with the
       // UTC value above. Date.parse of an ISO string with an explicit Z is
@@ -810,6 +840,61 @@ export function payloadIsCoreFailure(payload: StatusPayload): boolean {
  *  `git clean -xdf` cannot delete the backups along with the database, and
  *  outside any web root). Must match scripts/backup-db.sh's default, which
  *  derives the same path from its own location. */
+/**
+ * Free space on the volume holding a given path.
+ *
+ * WHY: a full disk breaks uploads AND the nightly backup at once, silently,
+ * while every other check on this page stays green — the audit path holds
+ * files in memory and the backup writes elsewhere, so neither surfaces a disk
+ * problem as its own failure. The first symptom would otherwise be a failed
+ * restore months later.
+ *
+ * Reports percentages and byte counts ONLY. The path is deliberately absent
+ * from the return value: /status is public and statusPrivacy.test.ts forbids
+ * filesystem paths in the payload, so there is nothing here to leak even if a
+ * field were added carelessly later.
+ *
+ * `bavail` (blocks available to an unprivileged user), not `bfree` — on ext4
+ * the 5% root reserve is free but unusable by the `forge` user, and counting
+ * it would report headroom the service cannot actually spend.
+ *
+ * Any failure returns "unavailable" rather than throwing or guessing: this
+ * runs on every status request, and a status endpoint that 500s because it
+ * could not stat a directory is worse than one admitting it does not know.
+ */
+export function readDiskStatus(dirPath: string): DiskStatus {
+  try {
+    const fs = statfsSync(dirPath);
+    const total = Number(fs.blocks) * Number(fs.bsize);
+    const free = Number(fs.bavail) * Number(fs.bsize);
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(free) || free < 0) {
+      return { status: "unavailable", free_bytes: null, total_bytes: null, free_pct: null };
+    }
+    const freePct = Math.round((free / total) * 100);
+    return {
+      status: freePct < STATUS.DISK_LOW_FREE_PCT ? "low" : "ok",
+      free_bytes: free,
+      total_bytes: total,
+      free_pct: freePct,
+    };
+  } catch {
+    return { status: "unavailable", free_bytes: null, total_bytes: null, free_pct: null };
+  }
+}
+
+/**
+ * The directory whose free space matters to this service: where the SQLite
+ * database lives and where a PDF's short-lived qpdf temp copy is written.
+ *
+ * Derived the same way db/sqlite.ts derives the database path (DB_PATH, else
+ * ./data/audit.db) so the two cannot point at different volumes — measuring a
+ * disk the service does not actually use would be worse than not measuring
+ * one, because it would report reassuring numbers about the wrong thing.
+ */
+export function defaultDataDir(): string {
+  return path.dirname(process.env.DB_PATH || "./data/audit.db");
+}
+
 export function defaultBackupStatusFile(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(here, "../../../..");

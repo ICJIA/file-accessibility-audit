@@ -80,7 +80,7 @@
               v-if="item.status === 'done' && item.result?.grade"
               class="flex-shrink-0 inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center"
               :style="{
-                backgroundColor: gradeColor(item.result.grade) + '20',
+                backgroundColor: withAlpha(gradeColor(item.result.grade), 12),
                 color: gradeColor(item.result.grade),
               }"
               :aria-label="`Grade ${item.result.grade}`"
@@ -791,6 +791,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTokenColors } from "~/composables/useTokenColors";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
@@ -800,7 +801,9 @@ import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import ReportVisualView from "~/components/ReportVisualView.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
-import { gradeColor, type AnalysisResult } from "@file-audit/shared";
+import { type AnalysisResult } from "@file-audit/shared";
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { gradeColor, withAlpha } = useTokenColors();
 import type { PrefillError } from "~/composables/usePrefill";
 
 // Word / PowerPoint / Excel support can each be disabled server-side

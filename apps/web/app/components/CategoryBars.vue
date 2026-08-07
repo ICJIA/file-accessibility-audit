@@ -35,14 +35,17 @@
         >
         <span
           class="inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center flex-shrink-0"
-          :style="{ backgroundColor: barColor(cat) + '20', color: barColor(cat) }"
+          :style="{ backgroundColor: withAlpha(barColor(cat), 12), color: barColor(cat) }"
           aria-hidden="true"
           >{{ cat.grade || "—" }}</span
         >
         <span
           v-if="cat.severity"
           class="inline text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-          :style="{ backgroundColor: sevColor(cat.severity) + '15', color: sevColor(cat.severity) }"
+          :style="{
+            backgroundColor: withAlpha(sevColor(cat.severity), 8),
+            color: sevColor(cat.severity),
+          }"
           aria-hidden="true"
           >{{ cat.severity }}</span
         >
@@ -67,8 +70,10 @@
 </template>
 
 <script setup lang="ts">
+import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
-import { gradeColor, severityColor } from "@file-audit/shared";
+// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
+const { gradeColor, severityColor, withAlpha } = useTokenColors();
 import { naReason } from "~/utils/modeDivergence";
 
 interface BarCategory {

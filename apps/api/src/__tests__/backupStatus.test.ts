@@ -164,6 +164,7 @@ describe("status payload backup section", () => {
       startedAtMs: NOW - 60_000,
       remediationEnabled: false,
       backupStatusFile,
+      diskPath: ".",
     }).getStatus();
   }
 

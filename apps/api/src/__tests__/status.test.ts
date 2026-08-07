@@ -20,6 +20,7 @@ import {
   collectAggregates,
   degradedList,
   isCoreFailure,
+  readDiskStatus,
   payloadIsCoreFailure,
   extractVersion,
   formatUptime,
@@ -104,6 +105,7 @@ function makeService(db: DB, probes: EngineProbes = OK_ENGINES, clock = { now: T
     startedAtMs: T0 - (2 * DAY + 3 * HOUR),
     remediationEnabled: true,
     backupStatusFile: "/nonexistent/backups/last-backup.json",
+    diskPath: ".",
   });
 }
 
@@ -490,6 +492,7 @@ describe("tiered failure semantics", () => {
       startedAtMs: T0 - DAY,
       remediationEnabled: false,
       backupStatusFile: "/nonexistent/backups/last-backup.json",
+      diskPath: ".",
     });
 
     // Reporting breakage is the endpoint's job; it must not itself break.
@@ -758,5 +761,68 @@ describe("collectAggregates", () => {
     expect(result.documents_rejected.by_format_30d).toEqual(zeroFmt);
     expect(result.documents_rejected.by_format_total).toEqual(zeroFmt);
     spy.mockRestore();
+  });
+});
+
+describe("disk space — the failure nothing else on /status can see", () => {
+  // A full disk breaks uploads AND the nightly backup at the same time while
+  // every other check stays green: the audit path holds files in memory and
+  // the backup writes elsewhere, so neither reports a disk problem as its own
+  // failure. Without this probe the first symptom is a failed restore months
+  // later. Found by the 2026-08-05 ops review, shipped v1.59.3.
+
+  it("reports free space for a real directory", () => {
+    const d = readDiskStatus(".");
+    expect(["ok", "low"]).toContain(d.status);
+    expect(d.free_bytes).toBeGreaterThan(0);
+    expect(d.total_bytes).toBeGreaterThan(0);
+    expect(d.free_pct).toBeGreaterThanOrEqual(0);
+    expect(d.free_pct).toBeLessThanOrEqual(100);
+  });
+
+  it("says 'unavailable' rather than throwing on a path it cannot stat", () => {
+    // This runs on every status request. An endpoint that 500s because it
+    // could not stat a directory is worse than one admitting it does not know.
+    const d = readDiskStatus("/definitely/not/a/real/path/xyzzy");
+    expect(d.status).toBe("unavailable");
+    expect(d.free_bytes).toBeNull();
+    expect(d.free_pct).toBeNull();
+  });
+
+  it("degrades on low, and NEVER on unavailable", () => {
+    const engines: EngineSnapshot = {
+      checked_at: "2026-08-03T14:22:10Z",
+      qpdf: { ok: true },
+      verapdf: { ok: true },
+      chromium: { ok: true },
+    };
+    expect(degradedList(engines, "ok", "ok", "low")).toContain("disk");
+    // An unqueryable filesystem is a gap in our knowledge, not evidence of a
+    // problem — alarming on it would fire wherever statfs behaves differently.
+    expect(degradedList(engines, "ok", "ok", "unavailable")).not.toContain("disk");
+    expect(degradedList(engines, "ok", "ok", "ok")).not.toContain("disk");
+  });
+
+  it("is a degradation, never an outage", () => {
+    // The service can still audit with a nearly-full disk. Returning 503 —
+    // paging someone about an outage that has not happened — is how alerts
+    // get ignored. Mirrors the stale-backup rule exactly.
+    const engines: EngineSnapshot = {
+      checked_at: "2026-08-03T14:22:10Z",
+      qpdf: { ok: true },
+      verapdf: { ok: true },
+      chromium: { ok: true },
+    };
+    expect(isCoreFailure(engines, "ok")).toBe(false);
+    expect(degradedList(engines, "ok", "ok", "low")).toEqual(["disk"]);
+  });
+
+  it("carries the disk section in the payload", async () => {
+    const db = new Database(":memory:");
+    runMigrations(db);
+    const payload = await makeService(db as unknown as DB).getStatus();
+    expect(payload.disk).toBeDefined();
+    expect(["ok", "low", "unavailable"]).toContain(payload.disk.status);
+    expect(payload.disk.free_pct).toBeGreaterThanOrEqual(0);
   });
 });
