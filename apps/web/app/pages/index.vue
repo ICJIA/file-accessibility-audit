@@ -311,6 +311,16 @@
 
             <IssuesSummary v-if="result?.categories" :categories="result.categories" class="mb-8" />
 
+            <!-- See the note on the shared-report page: IssuesSummary renders
+                 nothing when there are no findings, which left a clean report's
+                 Detailed view empty below the hero. -->
+            <ManualReviewCard
+              v-if="result?.categories"
+              :categories="result.categories"
+              :conformance="result.conformance"
+              class="mb-8"
+            />
+
             <!-- Auto-Remediate (component
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each

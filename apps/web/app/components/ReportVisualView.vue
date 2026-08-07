@@ -53,7 +53,6 @@
       <ManualReviewCard
         :categories="displayedCategories"
         :conformance="result.conformance"
-        :wcag-version="wcag.version"
         class="mb-6"
       />
 

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.59.1] - 2026-08-07
+
+### Fixed
+
+- **The manual-review checklist reaches the Detailed view too.** v1.59.0 wired it into the Visual view only, while also changing ScoreCard's copy to point at "the manual-review list" — which, in the Detailed view, did not exist. Worse, `IssuesSummary` is `v-if="rows.length"`, so a document with no findings rendered **nothing at all** below the hero on that view. A reader's honest reaction was *"where are the findings?"*.
+
+  The card now renders on all three report surfaces — the Visual view, and the Detailed view on both the audit page and the shared-report page — and a source-scan test pins each one, including that both `categories` and `conformance` are passed (without the verdict, the "not checked at all" half silently disappears, which is the half a perfect report most needs).
+
+  The card reads its own WCAG version rather than taking it as a prop, since neither page had a binding to thread through.
+
+### Notes
+
+Tests 2,091 → 2,095.
+
 ## [1.59.0] - 2026-08-07
 
 ### Added

@@ -1,4 +1,6 @@
 import "./test-helpers";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import ManualReviewCard from "../components/ManualReviewCard.vue";
@@ -114,7 +116,7 @@ describe("manualChecks — built from what PASSED", () => {
 describe("ManualReviewCard — a perfect report still has a list", () => {
   it("renders a substantial checklist for a 100/A document", () => {
     const w = mount(ManualReviewCard, {
-      props: { categories: PERFECT, conformance: CONFORMANCE, wcagVersion: "2.2" },
+      props: { categories: PERFECT, conformance: CONFORMANCE },
     });
     const text = w.text();
     expect(text).toContain("Still worth checking by hand");
@@ -127,7 +129,7 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
 
   it("says plainly that nothing below is a failure", () => {
     const w = mount(ManualReviewCard, {
-      props: { categories: PERFECT, conformance: CONFORMANCE, wcagVersion: "2.2" },
+      props: { categories: PERFECT, conformance: CONFORMANCE },
     });
     expect(w.text()).toContain("Nothing below is a failure");
     expect(w.text()).toContain("Every automated check passed");
@@ -135,7 +137,7 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
 
   it("lists the criteria the tool does not evaluate, with links", () => {
     const w = mount(ManualReviewCard, {
-      props: { categories: PERFECT, conformance: CONFORMANCE, wcagVersion: "2.2" },
+      props: { categories: PERFECT, conformance: CONFORMANCE },
     });
     expect(w.text()).toContain("Not checked by this tool at all");
     expect(w.text()).toContain("1.4.3 Contrast (Minimum)");
@@ -146,7 +148,7 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
   it("reframes on a report that still has fixes, rather than claiming a pass", () => {
     const mixed = [cat("alt_text", 50, "Alt Text"), cat("heading_structure", 100, "Headings")];
     const w = mount(ManualReviewCard, {
-      props: { categories: mixed, conformance: CONFORMANCE, wcagVersion: "2.2" },
+      props: { categories: mixed, conformance: CONFORMANCE },
     });
     expect(w.text()).not.toContain("Every automated check passed");
     expect(w.text()).toContain("Separate from the fixes above");
@@ -154,8 +156,42 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
 
   it("renders nothing when there is genuinely nothing to say", () => {
     const w = mount(ManualReviewCard, {
-      props: { categories: [], conformance: null, wcagVersion: "2.2" },
+      props: { categories: [], conformance: null },
     });
     expect(w.find('[data-testid="manual-review"]').exists()).toBe(false);
+  });
+});
+
+describe("wiring — every surface that shows a report shows the checklist", () => {
+  // The card first shipped into the Visual view only, while ScoreCard's copy
+  // was changed to point at "the manual-review list". In the DETAILED view
+  // that list did not exist, and since IssuesSummary is `v-if="rows.length"`
+  // a clean report rendered NOTHING below the hero — reported as "where are
+  // the findings?". A source scan, because mounting either page needs Nuxt's
+  // own resolution (see dataRetentionVersion.test.ts for the precedent).
+  const read = (rel: string) => readFileSync(resolve(__dirname, "..", rel), "utf8");
+
+  it.each([
+    ["Visual view", "components/ReportVisualView.vue"],
+    ["Detailed view — shared report page", "pages/report/[id].vue"],
+    ["Detailed view — audit page", "pages/index.vue"],
+  ])("%s renders ManualReviewCard", (_label, file) => {
+    expect(read(file)).toContain("<ManualReviewCard");
+  });
+
+  it("passes it the categories and the conformance verdict on every surface", () => {
+    // Without conformance the "not checked at all" list silently disappears,
+    // which is the half a perfect report most needs.
+    for (const file of [
+      "components/ReportVisualView.vue",
+      "pages/report/[id].vue",
+      "pages/index.vue",
+    ]) {
+      const src = read(file);
+      const tag = src.slice(src.indexOf("<ManualReviewCard"));
+      const el = tag.slice(0, tag.indexOf("/>"));
+      expect(el, file).toMatch(/:categories=/);
+      expect(el, file).toMatch(/:conformance=/);
+    }
   });
 });

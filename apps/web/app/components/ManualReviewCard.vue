@@ -68,6 +68,7 @@
 import { computed } from "vue";
 import { safeHttpUrl } from "@file-audit/shared";
 import { manualChecks } from "~/utils/manualReview";
+import { useWcag } from "~/composables/useWcag";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
 // A clean report used to end with a one-line green card and a list of bare
@@ -79,8 +80,11 @@ import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 const props = defineProps<{
   categories: Array<{ id?: string; label?: string; score?: number | null }>;
   conformance?: ConformanceVerdict | null;
-  wcagVersion: string;
 }>();
+
+// Read rather than receive: this card renders on both report views and on two
+// pages, and neither page had a wcag binding to thread through.
+const wcagVersion = useWcag().version;
 
 const checks = computed(() => manualChecks(props.categories));
 const criteria = computed(() => props.conformance?.notAssessed ?? []);

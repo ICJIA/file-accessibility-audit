@@ -138,6 +138,17 @@
               class="mb-8"
             />
 
+            <!-- IssuesSummary is v-if="rows.length", so a document with no
+                 findings rendered nothing at all here — leaving "where are the
+                 findings?" as the reader's honest reaction. This answers it:
+                 there are none, and here is what a person still has to judge. -->
+            <ManualReviewCard
+              v-if="data?.report?.categories"
+              :categories="data.report.categories"
+              :conformance="data.report.conformance"
+              class="mb-8"
+            />
+
             <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
              ScoreCard (which rendered it at the very top of the report, above
              the blocking issues) so conformance-flavoured markers can no longer
