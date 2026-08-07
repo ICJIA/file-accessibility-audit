@@ -6,6 +6,7 @@ import {
   renderFormatSplit,
   renderRejectedUploads,
   renderBackup,
+  renderStatusStrip,
   pickFormat,
   escapeHtml,
 } from "../../server/utils/statusHtml";
@@ -614,5 +615,135 @@ describe("escaping", () => {
   it("escapes the document title", () => {
     const out = renderStatusHtml({ status: "</title><script>alert(1)</script>" });
     expect(out).not.toMatch(/<\/title><script>/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Collapsible cards + always-visible status strip (v1.55.0)
+// ---------------------------------------------------------------------------
+// The page grew enough cards that a first-time reader met a wall. Every card
+// is now a native <details> fold, collapsed by default, whose summary carries
+// the card's one headline fact — while the answer people arrive for ("is it
+// up?") moved into an always-visible strip that no fold can hide.
+
+describe("renderStatusStrip — the always-visible answer", () => {
+  it("shows a green all-systems pill with version and humanized uptime", () => {
+    const html = renderStatusStrip(PAYLOAD);
+    expect(html).toContain('class="pill ok"');
+    expect(html).toContain("All systems normal");
+    expect(html).toContain("v1.41.2");
+    expect(html).toContain("up 10 m");
+  });
+
+  it("shows the degraded list next to an amber pill", () => {
+    const html = renderStatusStrip({
+      ...PAYLOAD,
+      status: "degraded",
+      degraded: ["verapdf", "backup"],
+    });
+    expect(html).toContain('class="pill warn"');
+    expect(html).toContain("Degraded");
+    expect(html).toContain("degraded: verapdf, backup");
+  });
+
+  it("renders down (and anything unexpected) as the red pill, escaped", () => {
+    expect(renderStatusStrip({ ...PAYLOAD, status: "down" })).toContain('class="pill down"');
+    const weird = renderStatusStrip({ ...PAYLOAD, status: "<b>odd</b>" });
+    expect(weird).toContain('class="pill down"');
+    expect(weird).toContain("&lt;b&gt;odd&lt;/b&gt;");
+    expect(weird).not.toContain("<b>odd</b>");
+  });
+
+  it("humanizes long uptimes into days and hours", () => {
+    expect(renderStatusStrip({ ...PAYLOAD, uptime_seconds: 3 * 86_400 + 4 * 3600 })).toContain(
+      "up 3 d 4 h",
+    );
+  });
+
+  it("appears on the assembled page between the h1 and the first card", () => {
+    const page = renderStatusHtml(PAYLOAD);
+    const h1 = page.indexOf("<h1>Service status</h1>");
+    const strip = page.indexOf('class="strip"');
+    const firstCard = page.indexOf('<details class="card"');
+    expect(h1).toBeGreaterThan(-1);
+    expect(strip).toBeGreaterThan(h1);
+    expect(firstCard).toBeGreaterThan(strip);
+  });
+});
+
+describe("collapsible cards", () => {
+  const FULL = {
+    ...PAYLOAD,
+    documents_audited: {
+      total: 4121,
+      last_24h: 12,
+      last_30d: 300,
+      by_grade_24h: { A: 1, B: 2, C: 3, D: 3, F: 3, ungraded: 0 },
+      by_grade_30d: { A: 10, B: 20, C: 30, D: 40, F: 200, ungraded: 0 },
+      by_grade_total: { A: 100, B: 200, C: 300, D: 400, F: 3121, ungraded: 0 },
+      by_format_30d: { pdf: 290, docx: 8, pptx: 1, xlsx: 1, unknown_extension: 0 },
+      by_format_total: { pdf: 4074, docx: 39, pptx: 2, xlsx: 5, unknown_extension: 1 },
+    },
+    documents_rejected: {
+      total: 17,
+      last_30d: 3,
+      by_format_30d: { doc: 1, xls: 1, ppt: 0, rtf: 0, csv: 1, other: 0 },
+      by_format_total: { doc: 5, xls: 4, ppt: 2, rtf: 1, csv: 5, other: 0 },
+    },
+    backup: {
+      status: "ok",
+      finished_at: "2026-08-05T08:00:12Z",
+      finished_at_chicago: "Aug 5, 2026, 3:00:12 AM CDT",
+      age_hours: 6.2,
+      size_bytes: 574850,
+      rows: 4143,
+    },
+  };
+
+  it("collapses every card by default — summaries only, no open attribute", () => {
+    const page = renderStatusHtml(FULL);
+    expect(page).toContain('<details class="card">');
+    expect(page).not.toContain('<details class="card" open>');
+  });
+
+  it("each summary carries the card's headline fact as a peek", () => {
+    const page = renderStatusHtml(FULL);
+    expect(page).toContain("4,121 documents all-time · 12 in the last 24 h");
+    expect(page).toContain("mostly PDF — by file type");
+    expect(page).toContain("17 attempts all-time");
+    expect(page).toContain("✓ 6.2 h ago · 561.4 KB");
+  });
+
+  it("keeps the h2 headings (with their ids) inside the summaries", () => {
+    const page = renderStatusHtml(FULL);
+    expect(page).toContain('<summary><h2 id="dist-h">Grade distribution</h2>');
+    expect(page).toContain('<summary><h2 id="bak-h">Last successful backup</h2>');
+  });
+
+  it("pre-opens the backup card when the backup is stale — that state must not hide", () => {
+    const stale = renderStatusHtml({
+      ...FULL,
+      backup: { ...FULL.backup, status: "stale", age_hours: 47.3 },
+    });
+    expect(stale).toContain('<details class="card" open>');
+    expect(stale).toContain("⚠ 47.3 h ago — older than expected");
+  });
+
+  it("says so in the peek when no backup has ever completed", () => {
+    const never = renderStatusHtml({ ...FULL, backup: { status: "unavailable" } });
+    expect(never).toContain("none yet — expected before the first scheduled run");
+    expect(never).not.toContain('<details class="card" open>');
+  });
+
+  it("wraps the raw JSON tree in its own collapsed card", () => {
+    const page = renderStatusHtml(FULL);
+    expect(page).toContain("Raw status payload");
+    expect(page).toContain("top-level keys — the exact JSON monitors read");
+    // The tree itself still expands fully once the card is opened.
+    expect(page).toContain("<details open>");
+  });
+
+  it("still ships zero JavaScript", () => {
+    expect(renderStatusHtml(FULL)).not.toContain("<script");
   });
 });

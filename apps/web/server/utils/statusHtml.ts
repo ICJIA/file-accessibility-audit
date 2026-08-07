@@ -147,6 +147,73 @@ function formatBytes(value: unknown): string {
   return `${n} B`;
 }
 
+/** Collapsible card shell around a section. Native <details> — same
+ *  no-JavaScript rule as the JSON tree, keyboard-accessible for free.
+ *
+ *  Cards are COLLAPSED by default: a first-time reader meets a stack of
+ *  one-line summaries instead of a wall of tables. Each summary carries a
+ *  `peek` — the card's single headline fact — so a collapsed card still
+ *  answers its question, and `open` forces a card open when it carries
+ *  something the reader must not miss (a stale backup). The exact
+ *  `<h2 id=…>` markup is preserved inside the summary so heading structure,
+ *  aria-labelledby wiring, and the tests pinning both stay intact. */
+function fold(o: {
+  id: string;
+  title: string;
+  peek: string;
+  body: string;
+  open?: boolean;
+}): string {
+  return (
+    `<section class="dist" aria-labelledby="${o.id}">` +
+    `<details class="card"${o.open ? " open" : ""}>` +
+    `<summary><h2 id="${o.id}">${o.title}</h2><span class="peek">${o.peek}</span></summary>` +
+    `<div class="card-body">${o.body}</div>` +
+    `</details></section>`
+  );
+}
+
+/** "3 m", "5 h 12 m", "2 d 4 h" — for the always-visible strip. */
+function humanUptime(value: unknown): string {
+  const s = asCount(value);
+  if (s < 60) return `${Math.floor(s)} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} m`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h} h ${m % 60} m`;
+  return `${Math.floor(h / 24)} d ${h % 24} h`;
+}
+
+/** The one thing that must never hide behind a fold: is the service up?
+ *
+ *  With every card collapsed, this strip is the page's at-a-glance answer —
+ *  status pill, version, uptime, and the degraded list when there is one.
+ *  Everything printed here already appears in the JSON tree below; this is
+ *  presentation, not new surface. */
+export function renderStatusStrip(body: Record<string, unknown>): string {
+  const status = typeof body.status === "string" ? body.status : "unknown";
+  const pillClass = status === "ok" ? "ok" : status === "degraded" ? "warn" : "down";
+  const pillText =
+    status === "ok" ? "All systems normal" : status === "degraded" ? "Degraded" : status;
+
+  const bits: string[] = [];
+  if (typeof body.version === "string" && body.version !== "")
+    bits.push(`v${escapeHtml(body.version)}`);
+  if (typeof body.uptime_seconds === "number") bits.push(`up ${humanUptime(body.uptime_seconds)}`);
+
+  const degraded =
+    Array.isArray(body.degraded) && body.degraded.length > 0
+      ? `<span class="deg">degraded: ${body.degraded.map((d) => escapeHtml(String(d))).join(", ")}</span>`
+      : "";
+
+  return (
+    `<div class="strip"><span class="pill ${pillClass}">${escapeHtml(pillText)}</span>` +
+    (bits.length ? `<span class="meta">${bits.join(" · ")}</span>` : "") +
+    degraded +
+    `</div>`
+  );
+}
+
 /** Pulls one window out of the payload, or null if the payload predates the
  *  field. A shared /report page or an older API build must still render. */
 function readWindow(
@@ -236,16 +303,21 @@ export function renderGradeDistribution(body: Record<string, unknown>): string {
 
   if (windows.length === 0) return "";
 
-  return (
-    `<section class="dist" aria-labelledby="dist-h">` +
-    `<h2 id="dist-h">Grade distribution</h2>` +
-    `<p class="caveat"><strong>This describes files uploaded to this tool, not any organization's document library.</strong> ` +
-    `Submissions are self-selected — people bring documents they already suspect have problems, alongside test files, ` +
-    `and the same file may be uploaded more than once. Read this as a picture of what visitors check here, ` +
-    `not as a measure of how accessible any agency's documents are overall.</p>` +
-    `<div class="windows">${windows.map(renderWindow).join("")}</div>` +
-    `</section>`
-  );
+  const total = asCount(docs.total);
+  const last24 = asCount(docs.last_24h);
+  return fold({
+    id: "dist-h",
+    title: "Grade distribution",
+    peek:
+      `${total.toLocaleString("en-US")} document${total === 1 ? "" : "s"} all-time` +
+      ` · ${last24.toLocaleString("en-US")} in the last 24 h`,
+    body:
+      `<p class="caveat"><strong>This describes files uploaded to this tool, not any organization's document library.</strong> ` +
+      `Submissions are self-selected — people bring documents they already suspect have problems, alongside test files, ` +
+      `and the same file may be uploaded more than once. Read this as a picture of what visitors check here, ` +
+      `not as a measure of how accessible any agency's documents are overall.</p>` +
+      `<div class="windows">${windows.map(renderWindow).join("")}</div>`,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -304,16 +376,26 @@ export function renderFormatSplit(body: Record<string, unknown>): string {
   if (dTotal) windows.push(["All time", asCount(docs.total), dTotal]);
   if (windows.length === 0) return "";
 
-  return (
-    `<section class="dist" aria-labelledby="fmt-h">` +
-    `<h2 id="fmt-h">What was audited</h2>` +
-    `<p class="caveat">The same documents as the grades above, split by file type. ` +
-    `<strong>Unrecognized extension</strong> means the document was audited normally but its filename ` +
-    `carried no extension we could classify — typically a web address ending in something like ` +
-    `<code>download?id=123</code>. It is not a refusal; refusals are counted separately below.</p>` +
-    `<div class="windows">${windows.map(([t, n, r]) => renderFormatWindow(t, n, r)).join("")}</div>` +
-    `</section>`
-  );
+  // Peek: lead with the dominant all-time format when one exists.
+  const allTime = dTotal ?? d30;
+  let top: { label: string; n: number } | null = null;
+  if (allTime) {
+    for (const r of FORMAT_ROWS) {
+      const n = asCount(allTime[r.key]);
+      if (n > 0 && (top === null || n > top.n)) top = { label: r.label, n };
+    }
+  }
+  return fold({
+    id: "fmt-h",
+    title: "What was audited",
+    peek: top ? `mostly ${escapeHtml(top.label)} — by file type` : "by file type",
+    body:
+      `<p class="caveat">The same documents as the grades above, split by file type. ` +
+      `<strong>Unrecognized extension</strong> means the document was audited normally but its filename ` +
+      `carried no extension we could classify — typically a web address ending in something like ` +
+      `<code>download?id=123</code>. It is not a refusal; refusals are counted separately below.</p>` +
+      `<div class="windows">${windows.map(([t, n, r]) => renderFormatWindow(t, n, r)).join("")}</div>`,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -388,16 +470,21 @@ export function renderRejectedUploads(body: Record<string, unknown>): string {
   if (dTotal) windows.push(["All time", asCount(rej.total), dTotal]);
   if (windows.length === 0) return "";
 
-  return (
-    `<section class="dist" aria-labelledby="rej-h">` +
-    `<h2 id="rej-h">Files the tool could not check</h2>` +
-    `<p class="caveat">Uploads refused because the format cannot carry accessibility information at all — ` +
-    `the legacy Office formats, and CSV data files. These are <strong>attempts, not documents</strong>: ` +
-    `one person retrying the same file counts each time, and they are counted separately from the audited ` +
-    `totals above because a refused file was never assessed.</p>` +
-    `<div class="windows">${windows.map(([t, n, r]) => renderRejectedWindow(t, n, r)).join("")}</div>` +
-    `</section>`
-  );
+  const total = asCount(rej.total);
+  return fold({
+    id: "rej-h",
+    title: "Files the tool could not check",
+    peek:
+      total > 0
+        ? `${total.toLocaleString("en-US")} attempt${total === 1 ? "" : "s"} all-time`
+        : "none yet",
+    body:
+      `<p class="caveat">Uploads refused because the format cannot carry accessibility information at all — ` +
+      `the legacy Office formats, and CSV data files. These are <strong>attempts, not documents</strong>: ` +
+      `one person retrying the same file counts each time, and they are counted separately from the audited ` +
+      `totals above because a refused file was never assessed.</p>` +
+      `<div class="windows">${windows.map(([t, n, r]) => renderRejectedWindow(t, n, r)).join("")}</div>`,
+  });
 }
 
 const STYLE = `
@@ -436,6 +523,20 @@ h1{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 14px;color:#e6
 .none{margin:0;font-size:12px;color:#6e7681}
 .bak{margin:0 0 8px;font-size:12px;line-height:1.7}
 .caveat code{font-size:.95em;padding:1px 4px;border-radius:4px;background:#21262d;color:#e6edf3}
+.strip{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 14px;margin:0 0 18px}
+.pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em}
+.pill.ok{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid rgba(63,185,80,.4)}
+.pill.warn{background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.45)}
+.pill.down{background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.45)}
+.strip .meta{color:#8b949e;font-size:12px}
+.strip .deg{color:#d29922;font-size:12px}
+details.card>summary{display:flex;align-items:baseline;gap:8px;white-space:normal;cursor:pointer}
+details.card>summary h2{margin:0}
+details.card>summary .peek{margin-left:auto;color:#8b949e;font-size:12px;font-weight:400;text-align:right}
+details.card>summary:hover h2,details.card>summary:focus-visible h2{color:#58a6ff}
+details.card>summary:focus-visible{outline:2px solid #58a6ff;outline-offset:4px;border-radius:4px}
+details.card>.card-body{margin-top:12px}
+.card-body .tree{border:0;padding:0;background:transparent}
 .tree{background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:14px 16px;overflow-x:auto}
 .row{white-space:pre}
 details{margin:0}
@@ -472,6 +573,13 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  .dist td.pc,.gd{color:#57606a}
  .none{color:#6e7781}
  .caveat code{background:#eaeef2;color:#1f2328}
+ .strip .meta,details.card>summary .peek{color:#57606a}
+ .pill.ok{background:rgba(26,127,55,.1);color:#1a7f37;border-color:rgba(26,127,55,.4)}
+ .pill.warn{background:rgba(154,103,0,.1);color:#9a6700;border-color:rgba(154,103,0,.45)}
+ .pill.down{background:rgba(209,36,47,.1);color:#d1242f;border-color:rgba(209,36,47,.45)}
+ .strip .deg{color:#9a6700}
+ details.card>summary:hover h2,details.card>summary:focus-visible h2{color:#0969da}
+ details.card>summary:focus-visible{outline-color:#0969da}
  .k{color:#0550ae}.p{color:#6e7781}
  .v.str{color:#0a7b28}.v.num{color:#953800}.v.bool{color:#6639ba}.v.null{color:#6e7781}
 }
@@ -518,14 +626,29 @@ export function renderBackup(body: Record<string, unknown>): string {
       `${staleNote}</p>`;
   }
 
-  return (
-    `<section class="dist" aria-labelledby="bak-h">` +
-    `<h2 id="bak-h">Last successful backup</h2>` +
-    line +
-    `<p class="caveat">Recorded only after a snapshot passes its integrity check — this row is ` +
-    `the proof the nightly backup ran. Snapshots never leave the server.</p>` +
-    `</section>`
-  );
+  const age =
+    typeof b.age_hours === "number" && Number.isFinite(b.age_hours) && b.age_hours >= 0
+      ? b.age_hours
+      : 0;
+  const peek =
+    status === "ok"
+      ? `✓ ${age} h ago · ${formatBytes(b.size_bytes)}`
+      : status === "stale"
+        ? `⚠ ${age} h ago — older than expected`
+        : "none yet — expected before the first scheduled run";
+
+  // A stale backup is the one card state the reader must not have to click
+  // for; it arrives pre-opened. Healthy and never-run states stay compact.
+  return fold({
+    id: "bak-h",
+    title: "Last successful backup",
+    peek,
+    open: status === "stale",
+    body:
+      line +
+      `<p class="caveat">Recorded only after a snapshot passes its integrity check — this row is ` +
+      `the proof the nightly backup ran. Snapshots never leave the server.</p>`,
+  });
 }
 
 /**
@@ -567,11 +690,17 @@ export function renderStatusHtml(
 <div class="wrap">
 <div class="bar"><a class="toggle" href="${escapeHtml(appHref)}"><span class="arrow" aria-hidden="true">&#8592;</span>${escapeHtml(appName)}</a><a class="toggle" href="${escapeHtml(jsonHref)}">View raw JSON</a></div>
 <h1>Service status</h1>
+${renderStatusStrip(body)}
 ${renderGradeDistribution(body)}
 ${renderFormatSplit(body)}
 ${renderRejectedUploads(body)}
 ${renderBackup(body)}
-<div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>
+${fold({
+  id: "raw-h",
+  title: "Raw status payload",
+  peek: `${entries.length} top-level keys — the exact JSON monitors read`,
+  body: `<div class="tree"><div class="row"><span class="p">{</span></div><div class="children">${children}</div><div class="row"><span class="p">}</span></div></div>`,
+})}
 </div>
 </body>
 </html>`;

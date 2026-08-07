@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.55.0] - 2026-08-07
+
+The status page now opens as five one-line cards instead of a wall of tables.
+
+### Changed
+
+- **Every section of the `/status` HTML view is now a collapsible card, collapsed by default** — grade distribution, format split, refused uploads, the backup row, and the raw JSON tree. Each card's summary carries its headline fact as a right-aligned peek ("4,143 documents all-time · 12 in the last 24 h", "✓ 13.6 h ago · 28.0 MB"), so a collapsed card still answers its question without a click.
+- **An always-visible status strip** sits above the cards: a colored pill (green "All systems normal" / amber "Degraded" / red otherwise), the version, humanized uptime, and the degraded list when present — the at-a-glance answer that must never hide behind a fold.
+- **A stale backup card pre-opens.** The one card state that demands attention arrives expanded; healthy and never-run states stay compact.
+
+### Notes
+
+Still zero JavaScript — collapsing is native `<details>/<summary>`, keyboard-accessible, invisible to the CSP. The machine contract is untouched: the JSON body, the negotiation rules (`?json` monitor URL, wildcard-Accept → JSON), and the top-level key allow-list are byte-identical, so UptimeRobot's keyword alert is unaffected — all 67 pre-existing renderer tests pass unmodified, 12 new ones pin the folds and the strip. Tests 1,961 → 1,973.
+
 ## [1.54.1] - 2026-08-07
 
 The remediation result now hands you the file with its verdict attached.
