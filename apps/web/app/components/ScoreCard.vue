@@ -368,7 +368,9 @@ const barWidth = computed(() =>
 const progressNote = computed(() => {
   const reason = scoreCapReason(displayedProfile.value.overallScore, displayedCategories.value);
   if (!reason) {
-    return "Fix the findings below and re-upload to watch this rise.";
+    return checksPassed.value === checksTotal.value && checksTotal.value > 0
+      ? "Every automated check passed. Some things still need a person — see the manual-review list."
+      : "Fix the findings below and re-upload to watch this rise.";
   }
   const n = checksTotal.value - checksPassed.value;
   return (

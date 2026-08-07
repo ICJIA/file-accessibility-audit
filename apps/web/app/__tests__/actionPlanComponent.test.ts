@@ -122,7 +122,7 @@ describe("ActionPlan", () => {
     expect(w.text()).toContain("№ 1–2 block publication");
   });
 
-  it("empty plan renders the green pass card with the manual-review reminder", () => {
+  it("empty plan hands off to the manual-review list instead of dumping SC numbers", () => {
     const w = mount(ActionPlan, {
       props: {
         steps: [],
@@ -144,6 +144,13 @@ describe("ActionPlan", () => {
     });
     expect(w.find("[data-testid='plan-pass-card']").exists()).toBe(true);
     expect(w.text()).toContain("Nothing to fix");
-    expect(w.text()).toContain("1.4.3");
+    // Was `toContain("1.4.3")`. A list of bare criterion numbers told a
+    // document author nothing they could act on, and it was the only thing a
+    // perfect report had left to say. ManualReviewCard now sits directly
+    // below and names each criterion with a link, so this card's job is to
+    // point at it — and to deny the "100 means done" reading outright.
+    expect(w.text()).not.toContain("1.4.3");
+    expect(w.text()).toContain("Still worth checking by hand");
+    expect(w.text()).toContain("not the same as being accessible");
   });
 });

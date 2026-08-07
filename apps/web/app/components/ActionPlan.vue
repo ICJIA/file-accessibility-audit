@@ -115,10 +115,13 @@
         <span aria-hidden="true">✓</span> Nothing to fix — this document passes all automated
         checks.
       </p>
+      <!-- Was a list of bare SC numbers, which told an author nothing they
+           could act on. The manual-review card directly below now names each
+           criterion and links it, so this only has to hand off to it. -->
       <p v-if="conformance?.notAssessed?.length" class="text-xs text-[var(--text-muted)] mt-1.5">
-        Some WCAG criteria can't be checked automatically ({{
-          conformance.notAssessed.map((n) => n.sc).join(", ")
-        }}) — a quick manual review is still recommended.
+        Passing every automated check is not the same as being accessible — see
+        <strong class="text-[var(--text-secondary)]">Still worth checking by hand</strong> below for
+        what a person still needs to confirm.
       </p>
     </div>
   </section>

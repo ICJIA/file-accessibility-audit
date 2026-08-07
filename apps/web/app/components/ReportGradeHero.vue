@@ -117,7 +117,11 @@ const barWidth = computed(() =>
 const progressNote = computed(() => {
   const reason = scoreCapReason(props.overallScore, props.categories);
   if (!reason) {
-    return "Fix the steps below and re-upload to watch this rise.";
+    // "Fix the steps below" is wrong on a document with no steps — which is
+    // exactly the report an author is most likely to read closely.
+    return checksPassed.value === checksTotal.value && checksTotal.value > 0
+      ? "Every automated check passed. See what still needs a human below."
+      : "Fix the steps below and re-upload to watch this rise.";
   }
   const n = checksTotal.value - checksPassed.value;
   return (

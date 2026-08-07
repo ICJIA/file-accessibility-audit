@@ -45,6 +45,18 @@
 
       <slot name="cta" />
 
+      <!-- Directly under the plan, so on a clean report — where the plan is a
+           single green line — this is the first substantial thing the author
+           reads. A 100 used to end the report with nothing to act on, and the
+           question it left behind ("what should I still look at?") is exactly
+           the one a document author asks. -->
+      <ManualReviewCard
+        :categories="displayedCategories"
+        :conformance="result.conformance"
+        :wcag-version="wcag.version"
+        class="mb-6"
+      />
+
       <CategoryBars :categories="displayedCategories" class="mb-6" />
 
       <TechnicalReport

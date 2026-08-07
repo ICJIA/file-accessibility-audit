@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.59.0] - 2026-08-07
+
+### Added
+
+- **"Still worth checking by hand" — a real checklist on every report, including perfect ones.** A document scoring 100 got an empty action plan and a one-line green card listing bare criterion numbers, which left its author with the obvious question: *what should I still look at?*
+
+  The honest answer is that these checks confirm accessibility structure **exists**; almost none can judge whether it is **correct**. Alt text of "image" passes. A heading that describes the wrong section passes. A reading order tagged in the wrong sequence passes if it is tagged at all. That gap is invisible on a clean report unless the report names it — so now it does.
+
+  Every check that **passed** contributes an entry: what the automated check actually established, and the judgment only a person can make, phrased as something to go and do ("Read each description and ask whether it tells someone who cannot see the image what the image is doing there — 'image', 'logo' and a filename all pass this check and convey nothing"). Failing checks are deliberately absent; they are already the action plan. Below that, the WCAG criteria this tool does not evaluate at all are listed by name with links to their W3C pages, stated plainly as unexamined rather than failed.
+
+  The card sits directly under the action plan, so on a clean report it is the first substantial thing the author reads. The plan's pass card now hands off to it instead of printing SC numbers, and the hero stops saying "fix the steps below" on a document with no steps.
+
+### Notes
+
+Tests 2,078 → 2,091. A completeness test asserts every scoring category that can pass has a prompt, so a category added to the profile later cannot silently vanish from an author's checklist; another asserts each prompt names a concrete action rather than restating the check it came from.
+
 ## [1.58.4] - 2026-08-07
 
 ### Fixed

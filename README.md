@@ -861,7 +861,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,078 tests** across 130 test files (API 1179, Web 850, CLI 49). Run all three suites with one summary:
+**2,091 tests** across 131 test files (API 1179, Web 863, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -881,7 +881,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2078 tests passed across 130 files
+  ✔ 2091 tests passed across 131 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -945,11 +945,12 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (850 tests)
+### Web Tests (863 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
+| `manualReview.test.ts` | 13 | The checklist a report shows an author when there is nothing left to fix. A 100 used to yield an empty action plan and a line of bare criterion numbers, leaving the obvious question unanswered. Pins that the list is built from the checks that **passed** (failing ones are already the action plan), that unscored categories contribute nothing, that the scorer's own order is preserved so the heaviest checks read first, and that malformed input on a public shared report cannot throw. Two guards carry the weight: a **completeness** check that every scoring category able to pass has a prompt — so one added to the profile later cannot silently vanish from an author's checklist — and a copy check that each prompt names a concrete action rather than restating the check it came from. Then the card itself: six entries for a perfect document, the specific judgment automation cannot make ("'image', 'logo' and a filename all pass this check"), "Nothing below is a failure" stated outright, the unexamined WCAG criteria listed by name with working links, and a different framing on a report that still has fixes so it never reads as claiming a pass |
 | `gradeCapNote.test.ts` | 10 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
 | `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**: both surfaces must fail on "no personal data" / "no PII" / "anonymized", and must name the sign-in email, the IP/user-agent log, and the file name as uploaded — reassurance by omission is the regression, and sabotage confirmed each guard bites |
 | `actionPlan.test.ts` | 25 | The Visual view's action-plan mapper: a plain-language dictionary entry (jargon-free title AND why) for all 13 category ids, Critical→Moderate→Minor ordering with stable ties, PDF two-route vs OOXML one-route fix instructions, preference for the report's own Acrobat steps over dictionary defaults, unknown-id and missing-fileType fallbacks, forged-report input guards, and the `verdictPhrase` publication clause |
