@@ -124,7 +124,8 @@ function goBack(): void {
         same request — even when analysis fails. The two run in parallel and their combined output
         feeds the scorer. A third check runs concurrently for PDFs: veraPDF validates the file
         against PDF/UA-1 (ISO 14289-1), and its verdict appears on the report as a separate panel
-        (since v1.37.0).
+        (since v1.37.0; in the default Visual view, inside the collapsed "Full technical report"
+        section).
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
         <strong>Word (.docx), PowerPoint (.pptx), and Excel (.xlsx)</strong>
@@ -673,7 +674,7 @@ Either way, the end state is the same: <span class="text-emerald-300">zero PDF a
           <div class="text-sm font-semibold text-[var(--text-heading)]">Audit page</div>
           <p class="text-xs text-[var(--text-muted)] mt-1">
             Upload a PDF, Word, PowerPoint, or Excel document and run the audit. Full prose
-            <em>Technical Details</em> dropdown at the bottom of that page with code references and
+            <em>Technical Details</em> dropdown further down that page with code references and
             tool-by-tool deep dives.
           </p>
         </NuxtLink>

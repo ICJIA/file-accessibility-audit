@@ -216,7 +216,7 @@
           fix accessibility issues in the <em>source document</em> (Word, InDesign, etc.) and
           re-export with tagging enabled. The next-best path — and what this tool's optional
           auto-remediation feature does — is to take an already-exported PDF and add structure tags
-          after the fact. The audit results page surfaces this distinction in the "Best path to
+          after the fact. The audit results page surfaces this distinction in the "The best path to
           accessibility starts at the source" notice.
         </p>
 
@@ -1163,10 +1163,11 @@
           As of <strong>v1.18.0</strong>, the tool also exposes an optional PDF auto-remediation
           feature behind the <code class="text-xs font-mono">REMEDIATION_ENABLED=true</code> env
           flag. When enabled, the audit results page surfaces an <em>Attempt remediation</em> button
-          next to the score. Clicking it spawns a detached worker that runs a four-stage pipeline,
-          validates the output, and either serves the remediated file to the user (single-use
-          download, deleted on stream close) or rejects it and surfaces a fallback message. The user
-          re-uploads to remediate; no PDF is cached between the audit and remediation stages.
+          further down the results page. Clicking it spawns a detached worker that runs a four-stage
+          pipeline, validates the output, and either serves the remediated file to the user
+          (single-use download, deleted on stream close) or rejects it and surfaces a fallback
+          message. The user re-uploads to remediate; no PDF is cached between the audit and
+          remediation stages.
         </p>
         <pre
           class="mt-3 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"

@@ -236,7 +236,7 @@ releases (write a short "no new findings; release covered X" entry).
 
 ---
 
-## API surface (current as of v1.48.0)
+## API surface (current as of v1.55.0)
 
 Public endpoints under `/api`:
 

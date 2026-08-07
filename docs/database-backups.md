@@ -50,7 +50,7 @@ Forge → your server → **Scheduler** → New Scheduled Job:
 | --- | --- |
 | Command | `/home/forge/audit.icjia.app/file-accessibility-audit/scripts/backup-db.sh` |
 | User | `forge` |
-| Frequency | Custom: `0 8 * * *` (08:00 UTC ≈ 2–3am America/Chicago) — or Forge's "Nightly" preset |
+| Frequency | Custom: `0 0 * * *` (00:00 UTC = 7pm America/Chicago during CDT, 6pm during CST) — or Forge's "Nightly" preset |
 
 No output redirect: Forge captures each run's output in the job's Output
 panel, and `last-backup.json` plus the `/status` backup row are the durable

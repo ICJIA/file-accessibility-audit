@@ -505,12 +505,11 @@ Reports can be downloaded in four formats, all with links back to [audit.icjia.a
 | **Markdown (.md)** | Plain-text report with tables and findings — works in any text editor or docs platform         |
 | **JSON (.json)**   | Machine-readable v2.0 schema with WCAG mappings, remediation plan, and LLM context (see below) |
 
-Reports can also be shared via **shareable links** that expire after 1 year. Shared report pages include:
+Reports can also be shared via **shareable links** that expire after 1 year. In Detailed view, shared report pages also include:
 
-- **Export buttons** — download the report as Text, Markdown, or JSON directly from the shared link
+- **Export buttons** — download the report as Text, HTML, Markdown, or JSON directly from the shared link
 - **CTA to audit tool** — "Audit Your Document" button linking back to the live tool
 - **Methodology card** — "How Scores Are Derived" section with links to QPDF and PDF.js (Mozilla) docs, WCAG 2.2 and ADA Title II references, and a link to the full scoring rubric
-- **Recommendation card** — a prominent Strict vs Practical explainer near the score hero that recommends Strict for agency publication and ADA/WCAG/ITTAA-oriented legal accessibility review
 - **Per-category WCAG references** — every scored category card shows a dedicated "WCAG 2.2 References" panel listing the exact success criteria the score is tied to (id, name, Level A/AA), with each row linking to the official W3C Understanding document so reviewers can verify the grade against the standard
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — for PDFs, a recommendation to verify with Adobe Acrobat and make the source document accessible before export; for Word, PowerPoint, and Excel files, a pointer to run the file's own built-in Microsoft Accessibility Checker directly on the source document
