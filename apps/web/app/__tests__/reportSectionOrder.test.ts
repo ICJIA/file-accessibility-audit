@@ -32,6 +32,33 @@ function at(src: string, component: string): number {
   return i;
 }
 
+// Exact :result / :verapdf-url bindings each page's Visual view block must
+// keep. Pinned as literal strings (not "the attribute exists") because
+// `grep -rn ':result="' apps/web/app/__tests__` turns up ZERO hits anywhere
+// else in this suite: indexA11y.test.ts mounts index.vue with `shallow:
+// true`, which stubs ReportVisualView out before its props are ever
+// evaluated, and nothing else here mounts either page's Visual block at
+// all. Without this pin, changing `:result="data.report"` to `:result="data"`
+// on the shared report page — passing the whole `{report, createdAt,
+// expiresAt}` fetch envelope instead of the report itself, so
+// `.overallScore`/`.grade` resolve to undefined — would render a hero with
+// a blank score and every test in the suite would still pass. The shared
+// page additionally gets a real mount + prop assertion in
+// reportPageWiring.test.ts (its data comes from an async fetch, which can
+// be mocked); index.vue's does not, because its data is local component
+// state (`result`), not fetched — for that page this string pin is the
+// only net today.
+const VISUAL_RESULT_BINDING: Record<string, { result: string; verapdfUrl: string }> = {
+  "index.vue": {
+    result: ':result="result"',
+    verapdfUrl: ":verapdf-url=\"String(runtimeConfig.public.verapdfUrl ?? '')\"",
+  },
+  "report/[id].vue": {
+    result: ':result="data.report"',
+    verapdfUrl: ":verapdf-url=\"String(config.public.verapdfUrl ?? '')\"",
+  },
+};
+
 describe.each([
   ["audit results page", "index.vue"],
   ["shared report page", "report/[id].vue"],
@@ -51,6 +78,13 @@ describe.each([
   it("visual block renders ReportVisualView; toggle is present", () => {
     expect(visual).toContain("<ReportVisualView");
     expect(src).toContain("<ReportViewToggle");
+  });
+
+  it("visual block wires :result to the actual report object, not some other in-scope value, and passes a verapdf URL", () => {
+    const expected = VISUAL_RESULT_BINDING[file];
+    expect(expected, `no pinned binding for ${file}`).toBeDefined();
+    expect(visual).toContain(expected!.result);
+    expect(visual).toContain(expected!.verapdfUrl);
   });
 
   describe("detailed block keeps today's exact invariants", () => {
