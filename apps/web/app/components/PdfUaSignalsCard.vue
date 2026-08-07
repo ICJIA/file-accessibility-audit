@@ -28,11 +28,15 @@
       "
       data-testid="pdfua-readiness"
     >
-      <p class="text-sm"><span
+      <p class="text-sm">
+        <span
           class="text-base font-bold tabular-nums"
           :class="allEssentialsMet ? 'text-emerald-200' : 'text-amber-200'"
           >{{ essentialsMet }} of {{ essentialsTotal }}</span
-        ><span class="font-semibold text-[var(--text-heading)]">&nbsp;PDF/UA-1 essentials met (readiness)</span></p>
+        ><span class="font-semibold text-[var(--text-heading)]"
+          >&nbsp;PDF/UA-1 essentials met (readiness)</span
+        >
+      </p>
       <p class="mt-1 text-[11px] sm:text-xs text-[var(--text-secondary)] leading-relaxed">
         Structural essentials read directly from the file. Content-level PDF/UA requirements — alt
         text, table headers, heading structure — are covered by the accessibility findings in this
@@ -48,8 +52,9 @@
         >
         PDF/UA-1 essentials are structural markers; they cannot tell whether alt text is meaningful
         or the reading order makes sense.
-        {{ outstandingCritical }} critical {{ outstandingCritical === 1 ? "issue" : "issues" }} above
-        must still be fixed before publishing.
+        {{ outstandingCritical }} critical
+        {{ outstandingCritical === 1 ? "issue" : "issues" }} above must still be fixed before
+        publishing.
       </p>
     </div>
 

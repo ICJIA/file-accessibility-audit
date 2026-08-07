@@ -50,10 +50,7 @@ export const AUDIT_LEAVE_WARNING =
  * Escape handling, focus restoration) is where accessibility bugs live, and
  * this app has no business shipping one.
  */
-export function guardNavigation(
-  auditRunning: boolean,
-  ask: (message: string) => boolean,
-): boolean {
+export function guardNavigation(auditRunning: boolean, ask: (message: string) => boolean): boolean {
   if (!auditRunning) return true;
   return ask(AUDIT_LEAVE_WARNING);
 }

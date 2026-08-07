@@ -46,7 +46,8 @@ describe("pdfUaFixHint", () => {
     const hint = pdfUaFixHint({
       ruleId: "13.7-1",
       clause: "13.7",
-      description: "Document shall not contain any bookmarks pointing to non-existent destinations.",
+      description:
+        "Document shall not contain any bookmarks pointing to non-existent destinations.",
     });
     expect(hint).toContain("13.7");
     expect(hint).toMatch(/Acrobat/i);
@@ -83,7 +84,8 @@ describe("pdfUaFixHint", () => {
     const hint = pdfUaFixHint({
       ruleId: "7.4-1",
       clause: "7.4",
-      description: "The document does not have a Title entry in the document information dictionary.",
+      description:
+        "The document does not have a Title entry in the document information dictionary.",
     });
     expect(hint).toMatch(/document title/i);
   });

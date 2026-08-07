@@ -216,8 +216,7 @@ function processFiles(files: File[]) {
     // list — the two say different things, because converting a .doc is the
     // right advice and converting a CSV is not.
     const hint = files.map((f) => unsupportedFormatHint(f.name)).find(Boolean);
-    validationError.value =
-      hint || `Please select ${uploadNounWithExts(uploadFlags.value)} files`;
+    validationError.value = hint || `Please select ${uploadNounWithExts(uploadFlags.value)} files`;
     return;
   }
 

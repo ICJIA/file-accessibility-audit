@@ -410,7 +410,8 @@ function walkPicsAndFrames(
     const acc: FrameAcc = {};
     frames.push(acc);
     frameStack.push(acc);
-    for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
+    for (const c of childrenOf(node))
+      walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
     frameStack.pop();
     return;
   }
@@ -428,7 +429,8 @@ function walkPicsAndFrames(
     const top = frameStack[frameStack.length - 1];
     if (top && !top.cNvPr) top.cNvPr = node;
   }
-  for (const c of childrenOf(node)) walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
+  for (const c of childrenOf(node))
+    walkPicsAndFrames(c, frameStack, standalonePics, frames, coveredGroups);
 }
 
 function collectSlideContent(

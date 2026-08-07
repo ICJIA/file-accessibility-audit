@@ -118,7 +118,9 @@ describe("docx images", () => {
       body: inlineImage({ descr: "Bar chart of quarterly sales" }),
     });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([{ altText: "Bar chart of quarterly sales", decorative: false, titleOnly: false }]);
+    expect(r.images).toEqual([
+      { altText: "Bar chart of quarterly sales", decorative: false, titleOnly: false },
+    ]);
   });
 
   it("reports a missing alt text as null", async () => {
@@ -201,8 +203,7 @@ describe("docx custom heading styles (outlineLvl / basedOn)", () => {
 
 describe("docx AlternateContent (text boxes serialize Choice + Fallback)", () => {
   it("counts text-box content once, not per branch", async () => {
-    const inner =
-      `<w:p><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>Big Pull Quote</w:t></w:r></w:p>`;
+    const inner = `<w:p><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>Big Pull Quote</w:t></w:r></w:p>`;
     const body =
       `<w:p><w:r><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">` +
       `<mc:Choice Requires="wps"><w:drawing><wp:anchor><wp:docPr id="7" name="TB"/>` +
@@ -230,7 +231,8 @@ describe("docx lists — style numbering, numId=0, numbered headings", () => {
     const buf = await buildDocx({
       stylesXml: LIST_STYLES,
       body:
-        styledParagraph("ListBullet", "First point") + styledParagraph("ListBullet", "Second point"),
+        styledParagraph("ListBullet", "First point") +
+        styledParagraph("ListBullet", "Second point"),
     });
     const r = await analyzeDocx(buf);
     expect(r.lists.realListItems).toBe(2);
@@ -324,7 +326,9 @@ describe("docx legacy VML images", () => {
       `<v:imagedata r:id="rId9"/></v:shape></w:pict></w:r></w:p>`;
     const buf = await buildDocx({ body });
     const r = await analyzeDocx(buf);
-    expect(r.images).toEqual([{ altText: "Old letterhead logo", decorative: false, titleOnly: false }]);
+    expect(r.images).toEqual([
+      { altText: "Old letterhead logo", decorative: false, titleOnly: false },
+    ]);
   });
 });
 

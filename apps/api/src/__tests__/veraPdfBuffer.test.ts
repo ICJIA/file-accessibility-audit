@@ -47,7 +47,9 @@ describe("runVeraPdfOnBuffer", () => {
 
   it("writes a temp file, runs veraPDF against its path, and unlinks it", async () => {
     runVeraPdf.mockResolvedValue({
-      available: true, passed: false, profile: "ua1",
+      available: true,
+      passed: false,
+      profile: "ua1",
       failures: [{ ruleId: "7.1-1", clause: "7.1", description: "x", count: 2 }],
       totalFailureCount: 2,
     });

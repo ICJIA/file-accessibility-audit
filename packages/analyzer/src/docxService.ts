@@ -733,7 +733,8 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   // extractors.
   const auxPartNames = Object.keys(zip.files)
     .filter(
-      (p) => /^word\/(header|footer)\d+\.xml$/.test(p) || /^word\/(footnotes|endnotes)\.xml$/.test(p),
+      (p) =>
+        /^word\/(header|footer)\d+\.xml$/.test(p) || /^word\/(footnotes|endnotes)\.xml$/.test(p),
     )
     .sort();
   for (const partName of auxPartNames) {

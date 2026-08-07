@@ -90,8 +90,7 @@ describe("conformance gate — encryption accessibility permission", () => {
     );
     expect(v.status).toBe("fail");
     const f = v.failures.find(
-      (x: any) =>
-        x.issue.includes("security settings") && x.issue.includes("assistive-technology"),
+      (x: any) => x.issue.includes("security settings") && x.issue.includes("assistive-technology"),
     );
     expect(f).toBeDefined();
     expect(f!.sc).toBe("1.1.1");

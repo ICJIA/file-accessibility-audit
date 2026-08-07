@@ -458,7 +458,9 @@ function parseQpdfJson(json: any): QpdfResult {
         if (o["/AcroForm"]) {
           result.hasAcroForm = true;
           const acroForm =
-            typeof o["/AcroForm"] === "string" ? resolveRef(o["/AcroForm"], objects) : o["/AcroForm"];
+            typeof o["/AcroForm"] === "string"
+              ? resolveRef(o["/AcroForm"], objects)
+              : o["/AcroForm"];
           if (acroForm?.["/XFA"] !== undefined) result.hasXfa = true;
         }
         // Viewer preferences — DisplayDocTitle decides whether conforming
@@ -575,9 +577,7 @@ function parseQpdfJson(json: any): QpdfResult {
         // control document carries orphaned ones, and they are signal counts,
         // not container-level findings.
         const structReachable =
-          !docHasStructTree ||
-          o["/P"] !== undefined ||
-          referencedStructRefs.has(normRef(ref));
+          !docHasStructTree || o["/P"] !== undefined || referencedStructRefs.has(normRef(ref));
         // Headings
         if (
           tag === "/H" ||

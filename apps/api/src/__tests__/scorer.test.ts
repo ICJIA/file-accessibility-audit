@@ -563,11 +563,13 @@ describe("weight renormalization", () => {
       structTreeDepth: 3,
       contentOrder: [0, 1, 2],
     };
-    const pdfjs = makePdfjs({ hasText: true, textLength: 500, title: "Annual Report", pageCount: 3 });
-    const withFlag = scoreDocument(
-      makeQpdf({ ...base, displayDocTitle: true }),
-      pdfjs,
-    );
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      title: "Annual Report",
+      pageCount: 3,
+    });
+    const withFlag = scoreDocument(makeQpdf({ ...base, displayDocTitle: true }), pdfjs);
     expect(findCategory(withFlag, "title_language").score).toBe(100);
 
     const withoutFlag = scoreDocument(makeQpdf(base), pdfjs);
@@ -2332,7 +2334,12 @@ describe("alt_text — content images that were never tagged as <Figure>", () =>
     // Strictly worse than a tagged figure missing /Alt, yet the category
     // used to return N/A and drop out of the weighted average entirely.
     const result = scoreDocument(
-      makeQpdf({ hasStructTree: true, paragraphCount: 20, contentOrder: [0], imageObjectCount: 10 }),
+      makeQpdf({
+        hasStructTree: true,
+        paragraphCount: 20,
+        contentOrder: [0],
+        imageObjectCount: 10,
+      }),
       makePdfjs({
         hasText: true,
         textLength: 5000,

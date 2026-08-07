@@ -174,10 +174,7 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
       ? 100
       : Math.max(
           40,
-          Math.min(
-            85,
-            Math.round((100 * (visible.length - defaultNamed.length)) / visible.length),
-          ),
+          Math.min(85, Math.round((100 * (visible.length - defaultNamed.length)) / visible.length)),
         );
   return xlsxCategory(
     "sheet_names",
@@ -423,9 +420,7 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
       `Empty or vague link text: ${needsFix
         .slice(0, 5)
         .map((l) => (l.text ? `"${l.text}"` : "(empty)"))
-        .join(
-          ", ",
-        )}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase.`,
+        .join(", ")}. In Excel: right-click the cell → Edit Link, and use a descriptive phrase.`,
     );
   }
   if (rawUrls.length > 0) {

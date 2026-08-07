@@ -32,9 +32,7 @@ describe("XLSX config", () => {
   });
 
   it("title_language scores 50 when only the title is missing (parity with other formats)", () => {
-    const r = scoreXlsx(
-      baseAnalysis({ metadata: { title: null, creator: "x", sheetCount: 1 } }),
-    );
+    const r = scoreXlsx(baseAnalysis({ metadata: { title: null, creator: "x", sheetCount: 1 } }));
     expect(r.categories.find((c) => c.id === "title_language")!.score).toBe(50);
   });
 

@@ -95,7 +95,9 @@ describe("xlsxService: tables, drawings, links", () => {
       ],
     });
     const a = await analyzeXlsx(buf);
-    expect(a.images).toEqual([{ altText: "Two-cell anchored", decorative: false, titleOnly: false }]);
+    expect(a.images).toEqual([
+      { altText: "Two-cell anchored", decorative: false, titleOnly: false },
+    ]);
   });
 
   it("collects every object in a grouped anchor (nothing silently dropped)", async () => {
@@ -235,7 +237,11 @@ describe("xlsxService: hidden sheets, chartsheets, dimensions, text boxes", () =
     const buf = await buildXlsx({
       sheets: [
         { name: "Data", dimensionRef: "A1:B4" },
-        { name: "Dashboard", chartsheet: true, drawings: [{ kind: "chart", descr: "Sales chart" }] },
+        {
+          name: "Dashboard",
+          chartsheet: true,
+          drawings: [{ kind: "chart", descr: "Sales chart" }],
+        },
       ],
     });
     const a = await analyzeXlsx(buf);
