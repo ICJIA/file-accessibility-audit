@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRemediationJob, type CategoryResult } from "~/composables/useRemediationJob";
 import type { PdfUaVerdict } from "@file-audit/shared";
+import { afterGradeOf, isPublishReady as isPublishReadyGrade } from "~/utils/publishReadiness";
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
 // v1.21+: single Strict (WCAG + IITAA §E205.4) score. The historical
@@ -87,21 +88,25 @@ const categoryPairs = computed<CategoryPair[]>(() => {
 });
 
 // Outstanding issues by severity (after remediation). Severity comes
-// from the audit's getSeverity() and lives on each CategoryResult.
+// from the audit's getSeverity() and lives on each CategoryResult. The
+// severity taxonomy (packages/shared/src/scoring.ts SEVERITY_THRESHOLDS) is
+// exactly "Critical" | "Moderate" | "Minor" | "No issues found" — there has
+// never been a "Serious" value. Declared most-severe-first to match the
+// render order below.
 const outstandingCritical = computed(() =>
   afterCategories.value.filter((c) => c.severity === "Critical"),
-);
-const outstandingSerious = computed(() =>
-  afterCategories.value.filter((c) => c.severity === "Serious"),
 );
 const outstandingModerate = computed(() =>
   afterCategories.value.filter((c) => c.severity === "Moderate"),
 );
+const outstandingMinor = computed(() =>
+  afterCategories.value.filter((c) => c.severity === "Minor"),
+);
 const outstandingCount = computed(
   () =>
     outstandingCritical.value.length +
-    outstandingSerious.value.length +
-    outstandingModerate.value.length,
+    outstandingModerate.value.length +
+    outstandingMinor.value.length,
 );
 
 // Acrobat next-steps hints per category id. Drawn from the actual
@@ -347,13 +352,11 @@ const downloadHref = computed(() =>
 // Publish-readiness for the After card's download block. Derived the same
 // way ScoreCard picks its displayed grade (strict profile when present) so
 // the warning can never contradict the big grade rendered directly above it.
-const afterGrade = computed<string | null>(() => {
-  const out = receipt.value?.outputAudit as
-    { grade?: string | null; scoreProfiles?: { strict?: { grade?: string | null } } } | undefined;
-  if (!out) return null;
-  return out.scoreProfiles?.strict?.grade ?? out.grade ?? null;
-});
-const isPublishReady = computed(() => afterGrade.value === "A");
+// Logic lives in ~/utils/publishReadiness.ts so it's unit-testable outside
+// a full Nuxt mount (see app/__tests__/publishReadiness.test.ts) — a source
+// grep can no longer stay green while the actual gate is broken.
+const afterGrade = computed<string | null>(() => afterGradeOf(receipt.value?.outputAudit));
+const isPublishReady = computed(() => isPublishReadyGrade(afterGrade.value));
 
 // ------------------------------------------------------------------
 // Result-section gating
@@ -745,7 +748,7 @@ function labelForEvent(name: string): string {
           <div class="mt-6 pt-6 border-t border-emerald-700/30">
             <!-- Inline summary -->
             <p v-if="outstandingCount === 0" class="text-sm text-emerald-300 text-center">
-              ✓ No critical, serious, or moderate issues remain.
+              ✓ No critical, moderate, or minor issues remain.
             </p>
             <p v-else class="text-sm text-amber-300 text-center">
               <strong>{{ outstandingCount }}</strong>
@@ -754,8 +757,8 @@ function labelForEvent(name: string): string {
                   ? "issue still needs attention"
                   : "issues still need attention"
               }}
-              ({{ outstandingCritical.length }} critical, {{ outstandingSerious.length }} serious,
-              {{ outstandingModerate.length }} moderate).
+              ({{ outstandingCritical.length }} critical, {{ outstandingModerate.length }} moderate,
+              {{ outstandingMinor.length }} minor).
             </p>
 
             <!-- Expandable detail with Adobe Acrobat next steps -->
@@ -799,13 +802,13 @@ function labelForEvent(name: string): string {
                   </ul>
                 </div>
 
-                <!-- Serious outstanding -->
-                <div v-if="outstandingSerious.length > 0">
-                  <h3 class="text-sm font-semibold uppercase tracking-wider text-orange-400 mb-2">
-                    Serious issues still outstanding
+                <!-- Moderate outstanding -->
+                <div v-if="outstandingModerate.length > 0">
+                  <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">
+                    Moderate issues still outstanding
                   </h3>
                   <ul class="space-y-4 text-sm">
-                    <li v-for="cat in outstandingSerious" :key="cat.id">
+                    <li v-for="cat in outstandingModerate" :key="cat.id">
                       <div class="flex items-baseline gap-3">
                         <span class="font-medium flex-1">{{ cat.label }}</span>
                         <span class="font-mono text-[var(--text-muted)] text-xs">
@@ -828,13 +831,13 @@ function labelForEvent(name: string): string {
                   </ul>
                 </div>
 
-                <!-- Moderate outstanding -->
-                <div v-if="outstandingModerate.length > 0">
-                  <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">
-                    Moderate issues still outstanding
+                <!-- Minor outstanding -->
+                <div v-if="outstandingMinor.length > 0">
+                  <h3 class="text-sm font-semibold uppercase tracking-wider text-blue-400 mb-2">
+                    Minor issues still outstanding
                   </h3>
                   <ul class="space-y-4 text-sm">
-                    <li v-for="cat in outstandingModerate" :key="cat.id">
+                    <li v-for="cat in outstandingMinor" :key="cat.id">
                       <div class="flex items-baseline gap-3">
                         <span class="font-medium flex-1">{{ cat.label }}</span>
                         <span class="font-mono text-[var(--text-muted)] text-xs">
@@ -1109,8 +1112,8 @@ function labelForEvent(name: string): string {
             v-if="
               needsManualCategories.length > 0 ||
               outstandingCritical.length > 0 ||
-              outstandingSerious.length > 0 ||
-              outstandingModerate.length > 0
+              outstandingModerate.length > 0 ||
+              outstandingMinor.length > 0
             "
             class="rounded-lg border border-amber-700/30 bg-amber-950/10 p-4 sm:p-5"
           >

@@ -45,10 +45,22 @@ describe("remediate/[jobId].vue — download placement", () => {
     expect(afterCard).toContain('data-testid="publish-ready"');
     expect(afterCard).toContain("Not ready to publish yet");
     expect(afterCard).toContain("Grade A — ready to publish");
-    // …and the script derives readiness from the strict-profile grade,
-    // exactly A.
-    expect(src).toContain('afterGrade.value === "A"');
-    expect(src).toMatch(/scoreProfiles\?\.strict\?\.grade \?\? out\.grade/);
+  });
+
+  // The actual grade-derivation logic (strict-profile-first fallback, exact
+  // "A" equality, failing closed for missing/lowercase/"A+" grades) used to
+  // live inline here and be "covered" only by a source-text regex on that
+  // expression — a test that stays green even if the v-if/v-else branches
+  // are inverted or the equality is loosened. It's now a pure function in
+  // ~/utils/publishReadiness.ts, executed (not grepped) by
+  // app/__tests__/publishReadiness.test.ts. All this file needs to verify
+  // is that the page actually uses that module rather than reimplementing
+  // the gate inline again.
+  it("derives publish-readiness from the utils/publishReadiness module, not an inline expression", () => {
+    const publishReadinessImport = src.match(/^import .*publishReadiness.*$/m)?.[0] ?? "";
+    expect(publishReadinessImport).toContain('"~/utils/publishReadiness"');
+    expect(publishReadinessImport).toContain("afterGradeOf");
+    expect(publishReadinessImport).toContain("isPublishReady");
   });
 
   it("the warning tells the reader to fix remaining issues before publishing", () => {
