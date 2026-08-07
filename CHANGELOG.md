@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.54.1] - 2026-08-07
+
+The remediation result now hands you the file with its verdict attached.
+
+### Changed
+
+- **The remediated-file download moved inside the "After Remediation" card.** The card now reads top to bottom: grade, score comparison and per-category explanation, then the download controls (filename recommendation and options unchanged) — instead of a separate download section below both cards.
+- **A grade-driven readiness banner sits above the download.** Anything below an A carries an explicit warning that the auto-remediated file still has issues to fix — ideally in the source document — before publishing, absorbing the old blanket manual-review note. A grade-A result gets a "ready to publish" confirmation with a short nudge to spot-check alt text for accuracy, since automated checks verify presence, not meaning. The banner derives its grade exactly the way the score card above it does, so the two can never disagree.
+
+### Notes
+
+Presentation-only change to the remediation results page; the remediation pipeline, downloads, and API are untouched. Tests 1,956 → 1,961 (new source-inspection suite pinning the placement and the grade-A gate).
+
 ## [1.54.0] - 2026-08-07
 
 The audit report now leads with a visual, plain-language view built for non-technical document authors — with the complete technical report one toggle away.

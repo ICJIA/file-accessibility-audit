@@ -64,6 +64,29 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.54.1 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.54.1</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-07</strong> · scope: the remediation results page — not a
+          security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        The download for an auto-remediated file now appears inside the "After Remediation" card,
+        beneath the grade and its explanation, and carries a plain-language readiness banner: unless
+        the remediated file grades an A, the banner states that issues remain and should be fixed
+        before publishing. Presentation only — the remediation pipeline, the one-time download
+        token, and the file-retention windows are all unchanged.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.54.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

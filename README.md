@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.54.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1956%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.54.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-1961%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -821,7 +821,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**1,956 tests** across 123 test files (API 1151, Web 756, CLI 49). Run all three suites with one summary:
+**1,961 tests** across 124 test files (API 1151, Web 761, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -841,7 +841,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 1956 tests passed across 123 files
+  ✔ 1961 tests passed across 124 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -904,7 +904,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (756 tests)
+### Web Tests (761 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -932,6 +932,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `reportVisualView.test.ts` | 6 | The assembled Visual view: zone DOM order (hero → tiles → verdict → plan → bars → technical report), plan steps built from the result, warnings + notice slot, evidence clicks opening the technical expander, the page-audit guard (hero only — never tiles/plan/bars/expander/pass-card), and legacy strict-profile derivation matching the Detailed view |
 | `technicalReport.test.ts` | 6 | The Full-technical-report expander: collapsed by default behind a real `aria-expanded` button, expanding to reveal the conformance detail (failing criteria, not-assessed list, standards basis), executive summary + audit-scope caveat, embedded ReportContent without its score table, and `v-model:open` for evidence links — plus ReportContent's `showScoreTable` prop defaulting to today's behavior |
 | `categoryBars.test.ts` | 4 | CategoryBars score-table parity: one row per scored category with label, grade-colored bar, numeric score, grade letter, and severity chip; full-sentence `aria-label` per row; N/A rows distinguishing not-assessed from not-applicable with their `naReason`; malformed categories rendering empty rather than throwing |
+| `remediateDownloadPlacement.test.ts` | 5 | The remediation results page, source-inspected: the remediated-file download controls (filename options + button) render inside the "After Remediation" card after the ScoreCard, the old standalone download section is gone, and the readiness banner is grade-gated — a fix-before-publishing warning for anything below an A (strict-profile grade, matching the card's own ScoreCard), a ready-to-publish note on exactly A |
 | `exportSnapshotAccordion.test.ts` | 2 | The snapshot HTML export vs the exclusive accordion: plan-step toggles are never clicked during export (live accordion state untouched) and the exported document force-shows every `.plan-step-body` and the technical-report body regardless of captured inline styles |
 | `wcag.test.ts` | 12 | `WCAG_MAP`'s remediation guidance: every fix-it category gained a Word/PowerPoint/Excel equivalent alongside its existing Acrobat steps (Styles gallery for headings, the Alt Text pane, Repeat Header Rows / Header Row, the Selection Pane and linear-flow guidance for reading order), `link_quality` no longer frames every fix as a pre-PDF-export step, `bookmarks` is clarified as PDF-specific, `color_contrast` states Office contrast is machine-checked (not a PDF-only manual step), and `pdf_ua_compliance` is confirmed untouched (it has no Office equivalent) |
 | `useRemediationJob.test.ts` | 11 | `useRemediationJob`'s polling behavior: a 1-second base cadence, 429 responses treated as silent back-off feedback (not a job error) with exponential backoff capped at 8 seconds and reset on success, a previously shown error clearing once a later poll succeeds, polling stopping cleanly on a 404, a terminal status, or component unmount, and job-token passthrough (C5 anonymous-mode authorization) — `?token=` is appended (URL-encoded) to both the status and receipt requests when a token is provided, and omitted entirely when it isn't, matching the pre-C5 URL exactly |
@@ -1165,6 +1166,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 ### Review history
 
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise.
+
+### v1.54.1 — 2026-08-07 · Remediation download moves into the After card with a grade-gated publish warning (not a security release)
+
+Presentation-only change to the remediation results page: the download block (filename options, rename confirm gate, one-time-token download button — all unchanged mechanically) relocated inside the "After Remediation" card beneath the grade and explanations, with a readiness banner that warns below-A results still need fixes before publishing and confirms grade-A results as ready (with an alt-text spot-check nudge). The banner's grade derives from the same strict-profile path as the adjacent ScoreCard, so the two cannot disagree. No new inputs, storage, endpoints, or token behavior; pinned by a source-inspection test. Tests 1,956 → 1,961.
 
 ### v1.54.0 — 2026-08-07 · Visual report view + Visual/Detailed toggle (not a security release)
 
