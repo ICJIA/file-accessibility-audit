@@ -78,7 +78,10 @@ describe("buildActionPlan", () => {
   });
 
   it("gives OOXML files a single source route (the upload IS the source)", () => {
-    const docx = buildActionPlan([cat("heading_structure", "Heading Structure", "Critical")], "docx");
+    const docx = buildActionPlan(
+      [cat("heading_structure", "Heading Structure", "Critical")],
+      "docx",
+    );
     expect(docx[0]!.routes.map((r) => r.tool)).toEqual(["source"]);
     const pptx = buildActionPlan([cat("slide_titles", "Slide Titles", "Moderate")], "pptx");
     expect(pptx[0]!.routes.map((r) => r.tool)).toEqual(["source"]);

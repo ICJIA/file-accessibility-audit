@@ -41,6 +41,12 @@ interface PlanCopyEntry {
   source: Partial<Record<PlanFileType, string[]>>;
   /** Dictionary default when the report carries no per-document Acrobat block. */
   acrobat?: string[];
+  /** True when `acrobat` has no real PDF-only fix — the steps just explain
+   *  that this one has to go back to the source document. The route still
+   *  renders (so a reader isn't left silently short a fix), but under
+   *  SOURCE_ONLY_LABEL instead of ACROBAT_LABEL so it reads as a straight
+   *  answer instead of a dead-end redirect. */
+  acrobatIsSourceOnly?: boolean;
 }
 
 const SOURCE_LABEL_PDF = "Easiest — fix the source document, then re-export";
@@ -50,7 +56,14 @@ const SOURCE_LABEL: Record<PlanFileType, string> = {
   pptx: "Fix it in PowerPoint",
   xlsx: "Fix it in Excel",
 };
-const ACROBAT_LABEL = "No source file? Fix the PDF in Acrobat";
+const ACROBAT_LABEL = "No source file? Fix the PDF in Acrobat Pro";
+/** Swapped in for ACROBAT_LABEL when a category has no PDF-only remedy — the
+ *  dictionary's "acrobat" steps just explain that this one has to go back to
+ *  the source document. Labeling that route "Fix the PDF in Acrobat" would
+ *  redirect a reader who just told us they have no source file straight back
+ *  to needing one. Set via the matching PLAN_COPY entry's
+ *  `acrobatIsSourceOnly` flag. */
+const SOURCE_ONLY_LABEL = "Only fixable in the source document";
 
 /** Exported for the dictionary-completeness test. */
 export const PLAN_COPY: Record<string, PlanCopyEntry> = {
@@ -60,11 +73,11 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     source: {
       pdf: [
         "Open the original Word (or Google Docs) file",
-        'In Word: File → Save As → PDF → Options → check "Document structure tags for accessibility", then save',
+        'In Word: File → Save As → PDF → Options → check "Document structure tags for accessibility" (the hidden labels that tell a screen reader what\'s a heading, a list, a table), then save',
       ],
     },
     acrobat: [
-      "All tools → Scan & OCR → Recognize Text → In This File",
+      "All tools → Scan & OCR → Recognize Text → In This File (runs OCR, which turns a picture of text into real, readable text)",
       "Then: All tools → Prepare for accessibility → Automatically tag PDF",
     ],
   },
@@ -146,8 +159,9 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       ],
     },
     acrobat: [
-      "Contrast is a design property — fix the colors in the source document and re-export; Acrobat cannot restyle text reliably",
+      "Color is a design property — Acrobat can't restyle text reliably. This one has to be fixed in the original document and re-exported.",
     ],
+    acrobatIsSourceOnly: true,
   },
   bookmarks: {
     title: "Add bookmarks so the document is navigable",
@@ -179,7 +193,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       xlsx: ['Select the data → Insert → Table → check "My table has headers"'],
     },
     acrobat: [
-      "Open the Tags panel and confirm each table uses <Table>/<TR>/<TH>/<TD>",
+      "Open the Tags panel and confirm each table uses <Table>/<TR>/<TH>/<TD> (TH = header cell, TD = data cell)",
       "Use Fix reading order → Table Editor to mark the header cells as header cells",
     ],
   },
@@ -198,8 +212,9 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       xlsx: ["Rewrite each link's cell text to describe the destination"],
     },
     acrobat: [
-      "Link wording lives in the text itself — rewrite it in the source document and re-export",
+      "Link text lives in the document itself — Acrobat can't rewrite it for you. This one has to be fixed in the original document and re-exported.",
     ],
+    acrobatIsSourceOnly: true,
   },
   form_accessibility: {
     title: "Label every form field",
@@ -251,7 +266,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       pptx: ["Use the layout's content placeholder bullets instead of typing dashes"],
     },
     acrobat: [
-      "In the Tags panel, ensure each list uses <L> with <LI> items, each containing an <LBody>",
+      "In the Tags panel, ensure each list uses <L> with <LI> items, each containing an <LBody> (L = list, LI = list item, LBody = item text)",
     ],
   },
   slide_titles: {
@@ -323,7 +338,14 @@ export function buildActionPlan(categories: unknown, fileType?: string | null): 
     // Per-document Acrobat steps beat the dictionary default — they're
     // specific to what the analyzer actually saw in this file.
     const reportAcrobat = partitionCardFindings(findings).acrobat;
+    const usesDictionaryAcrobat = !reportAcrobat.length;
     const acrobatSteps = reportAcrobat.length ? reportAcrobat : (entry?.acrobat ?? []);
+    // A per-document Acrobat block from the report itself is always a real,
+    // actionable PDF fix — only the dictionary's generic default can be a
+    // "you have to go back to the source" dead end, so acrobatIsSourceOnly
+    // only swaps the label when we're actually using that default.
+    const acrobatLabel =
+      usesDictionaryAcrobat && entry?.acrobatIsSourceOnly ? SOURCE_ONLY_LABEL : ACROBAT_LABEL;
 
     const routes: FixRoute[] = [];
     if (ft === "pdf") {
@@ -331,7 +353,7 @@ export function buildActionPlan(categories: unknown, fileType?: string | null): 
       if (sourceSteps.length)
         routes.push({ tool: "source", label: SOURCE_LABEL.pdf, steps: sourceSteps });
       if (acrobatSteps.length)
-        routes.push({ tool: "acrobat", label: ACROBAT_LABEL, steps: acrobatSteps });
+        routes.push({ tool: "acrobat", label: acrobatLabel, steps: acrobatSteps });
     } else {
       const sourceSteps = entry?.source[ft] ?? [];
       if (sourceSteps.length)
