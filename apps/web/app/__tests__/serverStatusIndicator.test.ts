@@ -132,6 +132,24 @@ describe("the tooltip names what 'online' is claiming", () => {
     expect(tip.text()).toContain("up");
   });
 
+  it("colours each glyph as a second channel beside the word — never instead of it", async () => {
+    // Green ✓ / red ✕ at a glance, requested after real use; the word stays,
+    // so nothing rides on colour alone (WCAG 1.4.1). The classes are the same
+    // status tokens the contrast group below measures on --surface-raised —
+    // the tooltip's own background — so these exact pairs are already proven
+    // ≥ 4.5:1 in both palettes. Unknown stays muted: it is not good news or
+    // bad news, and painting it green would dress "not yet checked" up as up.
+    mockHealth({ status: "degraded", degraded: ["backup"], systems: SYSTEMS });
+    const w = await mountIndicator();
+    const rows = w.findAll('[data-testid="server-status-tooltip"] .flex');
+    const glyph = (label: string) =>
+      rows.find((r) => r.text().includes(label))!.find('[aria-hidden="true"]');
+    expect(glyph("Database").classes()).toContain("text-[var(--status-success)]");
+    expect(glyph("Nightly backup").classes()).toContain("text-[var(--status-error)]");
+    expect(glyph("veraPDF").classes()).toContain("text-[var(--text-muted)]");
+    expect(glyph("veraPDF").classes().join(" ")).not.toMatch(/status-success|status-error/);
+  });
+
   it("shows 'not established' as its own state, never dressed up as up or down", async () => {
     // An engine /status has never probed is unknown. Claiming "up" would be
     // an unverified claim on the one signal visible on every page.

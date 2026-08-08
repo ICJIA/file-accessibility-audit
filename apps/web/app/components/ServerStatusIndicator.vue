@@ -201,6 +201,16 @@ function systemMark(s: HealthSystem): string {
   return "—";
 }
 
+/** Colour on the glyph as a SECOND channel beside the word, never instead of
+ *  it. The same status tokens the text uses, so the contrast test's
+ *  measurements on --surface-raised — the tooltip's own background — cover
+ *  these exact pairs. Unknown stays muted: it is not good news or bad news. */
+function markClass(s: HealthSystem): string {
+  if (s.ok === true) return "text-[var(--status-success)]";
+  if (s.ok === false) return "text-[var(--status-error)]";
+  return "text-[var(--text-muted)]";
+}
+
 const tipIntro = computed(() => {
   if (status.value === "ok") return "All systems accounted for. Click for the full status page.";
   if (status.value === "degraded")
@@ -272,7 +282,9 @@ const tipIntro = computed(() => {
           class="flex items-baseline justify-between gap-3 text-xs"
         >
           <span class="text-[var(--text-heading)]">
-            <span aria-hidden="true" class="inline-block w-3.5">{{ systemMark(s) }}</span>
+            <span aria-hidden="true" class="inline-block w-3.5 font-bold" :class="markClass(s)">{{
+              systemMark(s)
+            }}</span>
             {{ s.label }}
           </span>
           <span class="shrink-0 text-[var(--text-secondary)]">{{ s.state }}</span>

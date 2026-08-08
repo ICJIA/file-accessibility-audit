@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.65.1] - 2026-08-08
+
+### Changed
+
+- **The tooltip's glyphs are coloured: green ✓, red ✕, muted —.** Requested after using v1.65.0: the states were words with monochrome marks, and a coloured mark reads at a glance. Colour is added as a **second** channel beside the word, never instead of it (WCAG 1.4.1 was the reason the words exist), using the same status tokens the header text already uses — so the contrast test's measurements on `--surface-raised`, the tooltip's own background, cover these exact pairs in both palettes with nothing new to prove. "Not yet checked" deliberately stays muted: it is not good news or bad news, and painting it green would dress an unverified state up as up — the exact overclaim the tri-state exists to avoid. Verified in the browser in both themes.
+
+### Notes
+
+Tests 2,214 → 2,215.
+
 ## [1.65.0] - 2026-08-08
 
 ### Added

@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.65.1",
+    meta: "Reviewed <strong>2026-08-08</strong> · scope: colour added to the header status panel's marks — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The header status panel's marks are now coloured</strong> — a green check for a part of the service that is up, a red cross for one that is down, grey for one that has not been checked yet. The colour is an addition, not a replacement: every state is still written out as a word, so the panel reads the same for anyone who cannot distinguish the colours. The colours used are the same ones already verified against the contrast standard in both the dark and light themes, and an unverified state deliberately stays grey rather than green — the panel never presents something unchecked as something known to be fine. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.65.0",
     meta: "Reviewed <strong>2026-08-08</strong> · scope: the status light in the page header becomes a link with an accessible detail panel — not a security release.",
     body: [
