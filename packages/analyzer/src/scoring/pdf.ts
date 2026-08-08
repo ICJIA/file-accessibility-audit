@@ -835,7 +835,9 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   }
   if (suspicious.length > 0) {
     findings.push(`--- ⚠ Alt Text Quality Warning ---`);
-    findings.push(`  ${suspicious.length} image(s) have alt text that needs review (no score penalty):`);
+    findings.push(
+      `  ${suspicious.length} image(s) have alt text that needs review (no score penalty):`,
+    );
     for (const s of suspicious.slice(0, 15)) {
       const preview = s.alt.length > 60 ? s.alt.slice(0, 60) + "…" : s.alt;
       findings.push(`  Image ${s.index}: "${preview}" — ${s.reason}`);

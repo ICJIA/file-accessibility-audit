@@ -194,7 +194,10 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
   it("renders the artifacted-images caution distinctly — not as a green tick", () => {
     const w = mount(ManualReviewCard, {
       props: {
-        categories: [...PERFECT.filter((c) => c.id !== "alt_text"), cat("alt_text", null, "Alt Text on Images", true)],
+        categories: [
+          ...PERFECT.filter((c) => c.id !== "alt_text"),
+          cat("alt_text", null, "Alt Text on Images", true),
+        ],
         conformance: CONFORMANCE,
       },
     });
@@ -202,7 +205,9 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
     expect(text).toContain("Alt Text on Images");
     expect(text).toMatch(/excluded from automated/i);
     // The caution entry must not carry the "✓ verified" glyph of a passed check.
-    const cautionItem = w.findAll("ol > li").find((li) => /excluded from automated/i.test(li.text()));
+    const cautionItem = w
+      .findAll("ol > li")
+      .find((li) => /excluded from automated/i.test(li.text()));
     expect(cautionItem).toBeDefined();
     expect(cautionItem!.text()).not.toContain("✓");
     expect(cautionItem!.text()).toContain("!");

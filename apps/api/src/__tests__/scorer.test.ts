@@ -2632,9 +2632,9 @@ describe("alt text that declares itself decorative", () => {
       "alt_text",
     );
     expect(cat.score).toBe(100); // advisory only — alt coverage is complete
-    expect(
-      cat.findings.some((f) => f.includes("Decorative border") && /artifact/i.test(f)),
-    ).toBe(true);
+    expect(cat.findings.some((f) => f.includes("Decorative border") && /artifact/i.test(f))).toBe(
+      true,
+    );
   });
 
   it("does not flag alt that merely depicts decoration", () => {
