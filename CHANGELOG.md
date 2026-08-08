@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.61.0] - 2026-08-08
+
+### Fixed
+
+- **The landing page's layout shift (CLS 0.104 → effectively zero).** The announcement banner rendered only after hydration, so it appeared ~250px tall above everything and pushed the heading, the drop zone and the whole page down in one 0.067 shift — essentially the page's entire CLS, and over Google's 0.1 "good" threshold.
+
+  The cause was a deliberate trade made the wrong way round: the banner started hidden and revealed itself on mount so that a *dismissed* banner never flashed. That made every **first-time** visitor pay a layout shift to spare returning dismissers a brief flash — and a first-time visitor is precisely who the banner is written for. It now renders during SSR and only ever *hides* on mount. Measured after the change: **0.0698 → 0.0001**.
+
+  The residual is stated rather than hidden: someone who previously dismissed an announcement sees it for a frame before it goes. Removing that too would need the dismissal readable on the *server* — a cookie rather than localStorage — which is a new piece of client-side storage on a tool that documents every one it keeps, and not worth it for a frame.
+
+- **`scrollbar-gutter: stable`.** A page growing past the viewport gained a scrollbar mid-render, jumping every centred element left by half its width. Small (0.0023) and free to fix; no amount of content reservation could, since the cause is the viewport narrowing rather than content moving.
+
+### Changed
+
+- **Announcement copy is capped at four or five sentences.** Today's two entries had grown to 135 and 247 words (six and eight sentences) and dominated the page they sit above; now 95 and 123 words, four and five sentences. Shorter copy also shrinks the residual shift for dismissers — the banner is 183px tall rather than 228px.
+
+- **The banner gets its own surface** (`--surface-announce`: `#16191f` dark, `#eef2f7` light) rather than reusing the card colour, so it reads as distinct from the page without becoming a second card competing with the report below it. Text contrast measured 11.9:1 dark and 9.2:1 light.
+
+### Notes
+
+Tests 2,138 → 2,140. The regression test asserts the banner is visible in its *initial* render, deliberately without `await` — awaiting would let `onMounted` run and make it pass for the wrong reason, which is exactly the bug it guards. Sabotage-verified against the old behaviour.
+
 ## [1.60.1] - 2026-08-08
 
 ### Fixed

@@ -861,7 +861,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,138 tests** across 132 test files (API 1185, Web 904, CLI 49). Run all three suites with one summary:
+**2,140 tests** across 132 test files (API 1185, Web 906, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -881,7 +881,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2138 tests passed across 132 files
+  ✔ 2140 tests passed across 132 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -945,7 +945,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (904 tests)
+### Web Tests (906 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1035,7 +1035,7 @@ The web interface itself meets **WCAG 2.2 Level AA** standards. Measured against
 | Accessibility | **100** |
 | Best Practices | **100** |
 | SEO | **100** |
-| Performance | **97** |
+| Performance | **97** (CLS 0.104 fixed in v1.61.0 — re-measure) |
 
 The previous "95+ on Lighthouse accessibility" claim predated the v1.54 report redesign and had never been re-run — it was understating the real figure, which is the less common way for a stale number to be wrong, but stale either way.
 

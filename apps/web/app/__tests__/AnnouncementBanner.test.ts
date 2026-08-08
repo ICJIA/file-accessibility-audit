@@ -182,3 +182,31 @@ describe("AnnouncementBanner", () => {
     });
   });
 });
+
+describe("layout stability — the banner must not appear after hydration", () => {
+  // The banner used to start hidden and reveal itself in onMounted, so a
+  // dismissed one never flashed. It is ~250px tall and sits above everything,
+  // so appearing after hydration pushed the heading, the drop zone and the
+  // whole page down — a single 0.067 layout shift that was essentially the
+  // landing page's entire CLS (0.104 throttled, over Google's 0.1 "good"
+  // threshold), paid by every FIRST-TIME visitor to spare returning
+  // dismissers a brief flash. First-time visitors are who the banner is for.
+  //
+  // The property that fixes it: visible before any mount hook runs.
+
+  it("is visible in its initial render, before onMounted can hide it", () => {
+    // Deliberately synchronous — no await, no flushPromises. Awaiting would
+    // let onMounted run and make this pass for the wrong reason, which is
+    // exactly the bug it guards.
+    localStorage.clear();
+    const w = mount(AnnouncementBanner);
+    expect(w.find('[role="region"]').exists()).toBe(true);
+  });
+
+  it("still hides after mount when this announcement was dismissed", async () => {
+    localStorage.setItem("a11y-audit:dismissed-announcements", JSON.stringify(["test-x"]));
+    const w = mount(AnnouncementBanner);
+    await nextTick();
+    expect(w.find('[role="region"]').exists()).toBe(false);
+  });
+});

@@ -3,7 +3,7 @@
     v-if="visible && current"
     role="region"
     aria-label="Site announcement"
-    class="mb-6 flex items-start gap-3 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-card-alt)] px-4 py-3"
+    class="mb-6 flex items-start gap-3 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-announce)] px-4 py-3"
   >
     <span
       class="mt-0.5 shrink-0 rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-300"
@@ -78,9 +78,25 @@ const current = announcements.find(
   (a) => !a.requiresWcagVersion || a.requiresWcagVersion === wcagVersion,
 );
 
-// Render only after a client-side mount check so a dismissed banner never
-// flashes during SSR/hydration.
-const visible = ref(false);
+// Rendered during SSR by DEFAULT, then hidden on mount if this visitor has
+// dismissed it.
+//
+// The reverse — starting hidden and revealing on mount — is what this used to
+// do, to stop a dismissed banner flashing. That traded the wrong way round.
+// The banner is ~250px tall and sits above everything, so appearing after
+// hydration pushed the heading, the drop zone and the whole page down: a
+// single 0.067 layout shift, essentially the landing page's entire CLS
+// (0.104 throttled, over Google's 0.1 "good" threshold). Every first-time
+// visitor paid that, to spare returning dismissers a brief flash — and a
+// first-time visitor is precisely who the banner is written for.
+//
+// Now the common case shifts not at all. The residual is honest and much
+// smaller: someone who previously dismissed this announcement sees it for a
+// frame before it goes. Removing that too would need the dismissal to be
+// readable on the SERVER — a cookie instead of localStorage — which is a new
+// piece of client-side storage on a tool that documents every one it keeps,
+// and not worth it for a frame.
+const visible = ref(true);
 
 function readDismissed(): string[] {
   try {
@@ -96,7 +112,9 @@ function readDismissed(): string[] {
 
 onMounted(() => {
   if (!current) return;
-  visible.value = !readDismissed().includes(current.id);
+  // Only ever hides. The server already rendered it visible, so assigning
+  // true here would be a no-op that still counted as a hydration write.
+  if (readDismissed().includes(current.id)) visible.value = false;
 });
 
 function dismiss() {
