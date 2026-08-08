@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.65.0] - 2026-08-08
+
+### Added
+
+- **The header's status light is now a link to the status page, with a tooltip naming what "online" is actually claiming.** The one always-visible signal on the site was informational only; now it goes where its own message points ("degraded — see status"), and hovering or keyboard-focusing it lists every system behind the verdict — Database, Document audits (qpdf), PDF/UA checks (veraPDF), Web-page audits (Chromium), Nightly backup, Disk space — each with a glyph **and a word**, never colour alone (WCAG 1.4.1).
+
+  `/api/health` gains a `systems` array carrying those per-system states. Three states, honestly: up, down/stale/low, and **"not yet checked" / "never recorded"** for anything not established — an engine `/status` has never probed, a backup that has never run. Claiming "up" about a system nothing has verified would be an unverified claim on the one signal visible on every page. The `degraded` list is derived from the same array, so the dot's colour and the tooltip's contents are structurally incapable of disagreeing, and the load-bearing "never triggers an engine probe" property is unchanged and still pinned.
+
+  The tooltip is a real on-page element, not a `title` attribute — `title` needs a ~1s mouse hover, never appears on touch, and is silent to screen readers (the same reasons the "Don't Panic" chip dropped it in v1.37.5). It opens on hover **and** keyboard focus, Escape dismisses it without moving focus, a fresh hover reopens it (WCAG 1.4.13), and it is wired with `aria-describedby`, so a screen reader announces the full system list as the link's description. The visible text remains the link's accessible name (WCAG 2.5.3), and the polite live region still announces state changes. The link is a plain `<a href="/status?html">` — deliberately not a `NuxtLink`, which would client-side-navigate a Nitro server route into the SPA 404 — matching every other in-site status link.
+
+### Fixed
+
+- **The status text itself failed contrast on the light theme.** Verifying the tooltip on both themes exposed it: the text was raw `green-500`/`amber-500`, which measured **~2:1 on the light header** — under the 4.5:1 AA floor, on what is now a link's visible name, in an accessibility tool. It now uses the theme's status tokens, and the light `--status-success`/`--status-error` values darkened one step (green-700 → green-800, red-600 → red-700) because they measured **4.46:1 and 4.3:1 on the hover surface** (`--surface-raised`) — the same lesson as v1.60.0: measure on every surface the colour is actually painted on, not the one that comes to mind. A test now computes contrast for the tooltip's text and the status text against both the resting and hover surfaces, in both palettes, straight from `main.css`.
+
+### Notes
+
+Tests 2,193 → 2,214. Verified live in the browser in **both** themes: screenshots with the tooltip open, keyboard focus → open → Escape → dismissed → reopen, the accessibility tree showing the full system list as the link's description, and the click-through landing on `/status?html`. Sabotage-verified: removing the tooltip's role, un-wiring Escape, swapping the measured surface token, and paling a light token each fail their test.
+
 ## [1.64.0] - 2026-08-08
 
 ### Added

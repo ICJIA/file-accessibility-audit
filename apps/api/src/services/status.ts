@@ -671,6 +671,25 @@ export const CORE_ENGINES = ["qpdf"] as const;
  *  audits. Paging an operator at 3am for either would be wrong. */
 export const OPTIONAL_ENGINES = ["verapdf", "chromium"] as const;
 
+/** One system behind the health verdict, as the header's tooltip shows it.
+ *  `ok: null` means not established (no probe cached, backup never recorded,
+ *  disk not measurable) — which never degrades and must not read as failure. */
+export interface HealthSystem {
+  id: string;
+  label: string;
+  ok: boolean | null;
+  state: string;
+}
+
+/** Plain-language names for the tooltip; the audience is whoever is looking
+ *  at the page header, so the program name is the parenthetical, not the
+ *  label. Full descriptions of what each engine does live on /status. */
+const ENGINE_LABELS: Record<(typeof CORE_ENGINES | typeof OPTIONAL_ENGINES)[number], string> = {
+  qpdf: "Document audits (qpdf)",
+  verapdf: "PDF/UA checks (veraPDF)",
+  chromium: "Web-page audits (Chromium)",
+};
+
 export async function collectEngines(probes: EngineProbes, nowMs: number): Promise<EngineSnapshot> {
   // Concurrent, and each independently guarded: one broken or hung engine
   // must not delay or fail the report on the others.
@@ -842,24 +861,60 @@ export function createStatusService(deps: StatusDeps) {
    * Everything else here is cheap: aggregates are 5-second-cached synchronous
    * SQL, the backup status is one small file read, the disk check is a statfs.
    */
-  function getHealthSummary(): { status: "ok" | "degraded"; degraded: string[] } {
+  function getHealthSummary(): {
+    status: "ok" | "degraded";
+    degraded: string[];
+    systems: HealthSystem[];
+  } {
     const nowMs = deps.now();
     const agg = getAggregates(nowMs);
     const backup = readBackupStatus(deps.backupStatusFile, nowMs);
     const disk = readDiskStatus(deps.diskPath);
     const cachedEngines = engines?.value;
 
-    const out: string[] = [];
-    if (agg.database === "down") out.push("database");
-    if (cachedEngines) {
-      for (const name of [...CORE_ENGINES, ...OPTIONAL_ENGINES]) {
-        if (!cachedEngines[name].ok) out.push(name);
-      }
-    }
-    if (backup.status === "stale") out.push("backup");
-    if (disk.status === "low") out.push("disk");
+    // The per-system list behind the verdict, for the header's tooltip. Each
+    // entry is a static label plus a one-word state — never a path, count, or
+    // anything measured, so there is nothing here /status does not already
+    // say in more detail. `ok: null` means "not established", which is
+    // deliberately distinct from failure: engines before their first /status
+    // probe, a backup that has never recorded, a filesystem that could not be
+    // measured. None of those degrade the verdict, and the tooltip must not
+    // dress them up as either "up" or "down".
+    const systems: HealthSystem[] = [
+      {
+        id: "database",
+        label: "Database",
+        ok: agg.database === "ok",
+        state: agg.database === "ok" ? "up" : "down",
+      },
+      ...[...CORE_ENGINES, ...OPTIONAL_ENGINES].map((name): HealthSystem => {
+        const engine = cachedEngines?.[name];
+        return {
+          id: name,
+          label: ENGINE_LABELS[name],
+          ok: engine ? engine.ok : null,
+          state: engine ? (engine.ok ? "up" : "down") : "not yet checked",
+        };
+      }),
+      {
+        id: "backup",
+        label: "Nightly backup",
+        ok: backup.status === "ok" ? true : backup.status === "stale" ? false : null,
+        state:
+          backup.status === "ok" ? "up" : backup.status === "stale" ? "stale" : "never recorded",
+      },
+      {
+        id: "disk",
+        label: "Disk space",
+        ok: disk.status === "ok" ? true : disk.status === "low" ? false : null,
+        state: disk.status === "ok" ? "ok" : disk.status === "low" ? "low" : "not measured",
+      },
+    ];
 
-    return { status: out.length === 0 ? "ok" : "degraded", degraded: out };
+    // The verdict itself is unchanged: only an established failure degrades.
+    const out = systems.filter((s) => s.ok === false).map((s) => s.id);
+
+    return { status: out.length === 0 ? "ok" : "degraded", degraded: out, systems };
   }
 
   return { getStatus, getHealthSummary };

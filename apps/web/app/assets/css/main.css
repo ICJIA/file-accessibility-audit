@@ -154,10 +154,10 @@ html.light {
   --accent-green: #15803d;
   --accent-orange: #c2410c;
 
-  --status-error: #dc2626;
+  --status-error: #b91c1c; /* red-700: red-600 was 4.3:1 on --surface-raised, under the 4.5 floor */
   --status-warning-orange: #c2410c;
   --status-warning-yellow: #92400e;
-  --status-success: #15803d;
+  --status-success: #166534; /* green-800: green-700 was 4.46:1 on --surface-raised, under the 4.5 floor */
 
   --icon-pass: #15803d;
   --icon-fail: #dc2626;

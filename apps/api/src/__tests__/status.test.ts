@@ -13,6 +13,9 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import Database from "better-sqlite3";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runMigrations } from "../db/migrations.js";
 import { STATUS } from "#config";
 import {
@@ -891,5 +894,125 @@ describe("getHealthSummary — the header's verdict, without the cost", () => {
       expect(after.degraded).toContain("verapdf");
       expect(after.status).toBe("degraded");
     });
+  });
+});
+
+describe("getHealthSummary systems — what the header's tooltip names", () => {
+  // The header indicator is now a link to /status with a tooltip naming the
+  // systems its "online" is actually claiming. Three states per system, and
+  // the third is the load-bearing one: `ok: null` means NOT ESTABLISHED — an
+  // engine /status has never probed, a backup that has never recorded, a
+  // filesystem that could not be measured. None of those degrade the verdict,
+  // and the tooltip must not dress them up as either up or down: both would
+  // be unverified claims on the one signal visible on every page.
+
+  it("names every system behind the verdict, in a stable order", () => {
+    const summary = makeService(freshDb()).getHealthSummary();
+    expect(summary.systems.map((s) => s.id)).toEqual([
+      "database",
+      "qpdf",
+      "verapdf",
+      "chromium",
+      "backup",
+      "disk",
+    ]);
+    for (const s of summary.systems) {
+      expect(s.label.length).toBeGreaterThan(0);
+      expect(s.state.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("reports engines as 'not yet checked' before /status has cached a probe", () => {
+    // getHealthSummary never probes (pinned above), so at boot the honest
+    // answer about the engines is "nothing established" — not "up".
+    const summary = makeService(freshDb()).getHealthSummary();
+    const qpdf = summary.systems.find((s) => s.id === "qpdf")!;
+    expect(qpdf.ok).toBeNull();
+    expect(qpdf.state).toBe("not yet checked");
+    expect(summary.status).toBe("ok"); // and it does not degrade
+  });
+
+  it("reports an engine down once a failing probe HAS been cached", async () => {
+    const broken: EngineProbes = {
+      qpdf: async () => ({ ok: true, version: "12.0.0" }),
+      verapdf: async () => ({ ok: false, reason: "not_configured" }),
+      chromium: async () => ({ ok: true }),
+    };
+    const svc = makeService(freshDb(), broken);
+    await svc.getStatus(); // caches the probe
+    const systems = svc.getHealthSummary().systems;
+    expect(systems.find((s) => s.id === "verapdf")).toMatchObject({ ok: false, state: "down" });
+    expect(systems.find((s) => s.id === "qpdf")).toMatchObject({ ok: true, state: "up" });
+  });
+
+  it("a backup that has NEVER recorded is null — a stale one is an established failure", () => {
+    // The distinction the /status card already draws: a brand-new deployment
+    // must not alarm before its first scheduled run, but a backup that ran
+    // and then silently stopped is exactly what needs surfacing.
+    const never = makeService(freshDb()).getHealthSummary();
+    expect(never.systems.find((s) => s.id === "backup")).toMatchObject({
+      ok: null,
+      state: "never recorded",
+    });
+    expect(never.degraded).not.toContain("backup");
+
+    const dir = mkdtempSync(join(tmpdir(), "health-systems-"));
+    try {
+      const staleMs = (STATUS.BACKUP_STALE_AFTER_HOURS + 2) * 3_600_000;
+      const file = join(dir, "last-backup.json");
+      writeFileSync(
+        file,
+        JSON.stringify({
+          finishedAt: new Date(T0 - staleMs).toISOString(),
+          bytes: 1,
+          integrity: "ok",
+        }),
+      );
+      const svc = createStatusService({
+        now: () => T0,
+        db: freshDb() as unknown as StatusDb,
+        probes: OK_ENGINES,
+        version: "1.38.2",
+        startedAtMs: T0,
+        remediationEnabled: true,
+        backupStatusFile: file,
+        diskPath: ".",
+      });
+      const stale = svc.getHealthSummary();
+      expect(stale.systems.find((s) => s.id === "backup")).toMatchObject({
+        ok: false,
+        state: "stale",
+      });
+      expect(stale.degraded).toContain("backup");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("the degraded list and the systems list cannot disagree", async () => {
+    // The header colours the dot from `status`/`degraded` and writes the
+    // tooltip from `systems`; if the two drifted, the dot could be amber over
+    // a tooltip of ticks.
+    const broken: EngineProbes = {
+      qpdf: async () => ({ ok: false, reason: "error" }),
+      verapdf: async () => ({ ok: true }),
+      chromium: async () => ({ ok: false, reason: "not_configured" }),
+    };
+    const svc = makeService(freshDb(), broken);
+    await svc.getStatus();
+    const summary = svc.getHealthSummary();
+    expect(summary.degraded).toEqual(
+      summary.systems.filter((s) => s.ok === false).map((s) => s.id),
+    );
+  });
+
+  it("labels and states carry no filesystem path", () => {
+    // /api/health is public. "PDF/UA" is one slash and fine; two consecutive
+    // path segments are not.
+    const summary = makeService(freshDb()).getHealthSummary();
+    for (const s of summary.systems) {
+      expect(`${s.label} ${s.state}`).not.toMatch(/(\/[\w.-]+){2,}/);
+      expect(`${s.label} ${s.state}`).not.toMatch(/[A-Za-z]:\\/);
+    }
   });
 });

@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.65.0",
+    meta: "Reviewed <strong>2026-08-08</strong> · scope: the status light in the page header becomes a link with an accessible detail panel — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The status light in the page header is now a button to the status page, and it can tell you what it knows.</strong> Hovering over it — or reaching it with the keyboard — shows a small panel naming each part of the service behind that light: the database, the three checking engines, the nightly backup, and disk space, each marked up or down in words, not colour alone. Clicking it goes to the full status page. The panel is honest about uncertainty: a part of the service that has not been checked yet says <em>not yet checked</em> rather than being presented as fine, because the one indicator visible on every page should never claim more than the service has actually verified.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Checking the panel in both colour themes caught a real accessibility fault, which was fixed.</strong> The status wording in the header — the green “audit server online” itself — measured well below the required contrast against a light background. In a tool whose job is catching exactly this in other people's documents, that is not acceptable in its own header. The colours now meet the standard in both themes, verified by an automated check that measures them against every background they actually appear on, including while hovered. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.64.0",
     meta: "Reviewed <strong>2026-08-08</strong> · scope: completing this section's own record — no change to the tool itself, and not a security release.",
     body: [

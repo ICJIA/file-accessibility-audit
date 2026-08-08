@@ -108,6 +108,10 @@ function healthPayload() {
     status: summary.status,
     uptime: formatUptime(uptimeSec),
     ...(summary.degraded.length > 0 ? { degraded: summary.degraded } : {}),
+    // The per-system list behind the verdict, so the header's tooltip can name
+    // what "online" is actually claiming. Static labels and one-word states
+    // only — nothing here /status does not already publish in more detail.
+    systems: summary.systems,
   };
 }
 
