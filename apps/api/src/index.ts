@@ -13,7 +13,7 @@ import auditUrlRoutes from "./routes/audit-url.js";
 import auditUrlPageRoutes from "./routes/audit-url-page.js";
 import tokensRoutes from "./routes/tokens.js";
 import remediateRoutes from "./routes/remediate.js";
-import statusRoutes from "./routes/status.js";
+import statusRoutes, { service as statusService } from "./routes/status.js";
 import { runCleanup, startCleanupInterval } from "./services/remediationCleanup.js";
 import { formatUptime } from "./services/status.js";
 
@@ -95,9 +95,20 @@ const startedAt = new Date();
 
 function healthPayload() {
   const uptimeSec = Math.floor((Date.now() - startedAt.getTime()) / 1000);
-  // Shared with /api/status so the two endpoints cannot drift into reporting
-  // the same number two different ways.
-  return { status: "ok", uptime: formatUptime(uptimeSec) };
+  // `status` is the SAME verdict /status computes, read from already-cached
+  // state — so the always-visible header indicator can say "degraded" instead
+  // of a green "online" while /status reports a stale backup, a low disk or a
+  // dead engine. It previously answered only "is this process alive", which is
+  // a different and much weaker question.
+  //
+  // Computed here rather than by polling /status because that endpoint is
+  // capped at 120/min shared globally; see getHealthSummary's note.
+  const summary = statusService.getHealthSummary();
+  return {
+    status: summary.status,
+    uptime: formatUptime(uptimeSec),
+    ...(summary.degraded.length > 0 ? { degraded: summary.degraded } : {}),
+  };
 }
 
 app.get("/", (_req, res) => res.json(healthPayload()));

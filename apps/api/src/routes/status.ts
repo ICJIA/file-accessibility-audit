@@ -24,7 +24,10 @@ const router = express.Router();
 // process's uptime because that is the process that performs audits.
 const STARTED_AT_MS = Date.now();
 
-const service = createStatusService({
+// Exported so /api/health can report the SAME verdict from the same cached
+// state, rather than answering the weaker "is this process alive" question or
+// paying /status's rate limit to ask properly.
+export const service = createStatusService({
   now: () => Date.now(),
   db: db as unknown as StatusDb,
   probes: defaultProbes,

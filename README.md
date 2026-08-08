@@ -873,7 +873,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,171 tests** across 133 test files (API 1185, Web 937, CLI 49). Run all three suites with one summary:
+**2,177 tests** across 133 test files (API 1188, Web 940, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -893,11 +893,11 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2171 tests passed across 133 files
+  ✔ 2177 tests passed across 133 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1185 tests)
+### API Tests (1188 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -957,7 +957,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (937 tests)
+### Web Tests (940 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -1195,6 +1195,8 @@ Two details worth knowing:
 - **`other` is genuinely populated here**, unlike `documents_audited`'s `unknown_extension`. It covers unrelated types (`.jpg`, `.zip`) and files whose extension lies — a `.doc` renamed to `.docx` is caught by content detection but buckets by its *stated* extension, since that is all the SQL can see. The two catch-alls are different questions and are named differently for that reason: this one means *refused, and not one of the named unauditable formats*; `unknown_extension` means *audited fine, but unclassifiable by filename*.
 
 The caveat differs from the grade distribution's: these are **attempts, not documents**, so one person retrying the same file counts each time.
+
+**The header indicator shares this verdict.** `/api/health` reports the same `status`/`degraded` summary, computed from already-cached state — it never triggers an engine probe, and it exists precisely so the header does not poll `/status`, whose 120/min cap is shared globally (Nitro proxies it over loopback, so every browser hit is `127.0.0.1`). ~40 concurrent tabs polling `/status` would exhaust that budget and blind the uptime monitor's keyword alert.
 
 **Last successful backup.** The `backup` key (since v1.50.0) surfaces the nightly database backup remotely: completion time (UTC + Chicago), age in hours, snapshot size, and the usage-log row count it contains. It is read from the `last-backup.json` the backup job writes **only after a snapshot passes `integrity_check`** — so the row is proof a real, verified backup ran, not merely that cron fired. A missing, unreadable, malformed, or failed-integrity status file collapses to `"unavailable"` (never a crash, never a fake success). The row count is labeled *usage-log records* rather than *documents* deliberately: `audit_log` also holds page audits, auth events, and refusals, so it is always larger than `documents_audited.total`, and the two figures must not read as contradicting each other. The source file carries two absolute server paths (`sourcePath`, `snapshotPath`); neither is copied into the payload, asserted by a dedicated unit test.
 

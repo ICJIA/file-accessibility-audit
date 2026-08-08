@@ -951,6 +951,7 @@ function labelForEvent(name: string): string {
               :result="receipt?.outputAudit as never"
               heading="What still needs fixing"
               intro="Automatic remediation has already run on this PDF. Everything below is what it could not fix — plus the checks no automated tool can make. Fix these in the source document where you can; the Acrobat route is here for when you cannot."
+              :show-url="false"
               class="mb-6"
             />
 

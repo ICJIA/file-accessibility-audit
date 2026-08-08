@@ -826,3 +826,70 @@ describe("disk space — the failure nothing else on /status can see", () => {
     expect(payload.disk.free_pct).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe("getHealthSummary — the header's verdict, without the cost", () => {
+  // The always-visible header indicator polled /api/health, which answered
+  // only "is this process alive" — so it showed a confident green "online"
+  // while /status reported a stale backup, a low disk or a dead engine. The
+  // one signal on every page contradicted the status page.
+  //
+  // It could not simply poll /status: that endpoint is capped at 120/min
+  // shared GLOBALLY (Nitro proxies it over loopback, so every browser hit
+  // arrives as 127.0.0.1 in one bucket). At 3 requests/min per open tab, ~40
+  // concurrent tabs would exhaust the budget, /status would answer "unknown",
+  // and the uptime monitor's keyword alert would go blind.
+
+  it("reports ok on a healthy service", () => {
+    const db = new Database(":memory:");
+    runMigrations(db);
+    const summary = makeService(db as unknown as DB).getHealthSummary();
+    expect(summary.status).toBe("ok");
+    expect(summary.degraded).toEqual([]);
+  });
+
+  it("NEVER triggers an engine probe", () => {
+    // The load-bearing property. Probes spawn processes — veraPDF starts a
+    // JVM — and a header polling every 20s across every open tab would make
+    // the most expensive operation on the service its most frequent one.
+    const db = new Database(":memory:");
+    runMigrations(db);
+    let probes = 0;
+    const counting: EngineProbes = {
+      qpdf: async () => {
+        probes++;
+        return { ok: true };
+      },
+      verapdf: async () => {
+        probes++;
+        return { ok: true };
+      },
+      chromium: async () => {
+        probes++;
+        return { ok: true };
+      },
+    };
+    const svc = makeService(db as unknown as DB, counting);
+    svc.getHealthSummary();
+    svc.getHealthSummary();
+    svc.getHealthSummary();
+    expect(probes).toBe(0);
+  });
+
+  it("reports engine failures once a probe HAS been cached by /status", () => {
+    // It does not probe, but it must not ignore what is already known.
+    const db = new Database(":memory:");
+    runMigrations(db);
+    const broken: EngineProbes = {
+      qpdf: async () => ({ ok: true, version: "12.0.0" }),
+      verapdf: async () => ({ ok: false, reason: "not_configured" }),
+      chromium: async () => ({ ok: true }),
+    };
+    const svc = makeService(db as unknown as DB, broken);
+    expect(svc.getHealthSummary().degraded).toEqual([]); // nothing cached yet
+    return svc.getStatus().then(() => {
+      const after = svc.getHealthSummary();
+      expect(after.degraded).toContain("verapdf");
+      expect(after.status).toBe("degraded");
+    });
+  });
+});

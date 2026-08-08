@@ -201,3 +201,24 @@ describe("the print button reaches every surface that shows a report", () => {
     expect(src).toMatch(/Automatic remediation has already run/);
   });
 });
+
+describe("the printed header link", () => {
+  it("is omitted entirely when no URL is given", () => {
+    const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
+    expect(html).not.toContain("<a href=");
+  });
+
+  it("is suppressed on the remediation page", () => {
+    // That job page expires, and it is not somewhere the reader should return
+    // to: the file has already been remediated, and the page cannot show the
+    // original audit either. A dead link on a printout is worse than no link.
+    const src = readFileSync(resolve(__dirname, "..", "pages/remediate/[jobId].vue"), "utf8");
+    expect(src).toContain(':show-url="false"');
+  });
+
+  it("is kept on the audit report, which is a live shareable page", () => {
+    const src = readFileSync(resolve(__dirname, "..", "components/ReportVisualView.vue"), "utf8");
+    const tag = src.slice(src.indexOf("<PrintPlanButton"));
+    expect(tag.slice(0, tag.indexOf("/>"))).not.toContain("show-url");
+  });
+});

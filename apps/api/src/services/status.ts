@@ -818,7 +818,51 @@ export function createStatusService(deps: StatusDeps) {
     return payload;
   }
 
-  return { getStatus };
+  /**
+   * The same verdict /status computes, from what is ALREADY cached — for the
+   * always-visible header indicator, which polls every 20 seconds per open
+   * tab.
+   *
+   * Two things it must not do, and does not:
+   *
+   *   - **Trigger an engine probe.** Those spawn processes (veraPDF starts a
+   *     JVM). A header polling every 20s across every open tab would turn the
+   *     most expensive operation on the service into its most frequent one.
+   *     Only an already-cached engine snapshot is consulted; with none, the
+   *     engines simply do not contribute to the verdict yet.
+   *
+   *   - **Touch /status's rate limit.** That endpoint is capped at 120/min
+   *     shared GLOBALLY — Nitro proxies it over loopback, so every browser hit
+   *     arrives as 127.0.0.1 in one bucket. Pointing the header at /status
+   *     would let ~40 concurrent tabs exhaust the budget, at which point
+   *     /status answers "unknown" and the uptime monitor's keyword alert goes
+   *     blind. Making the header prettier by disabling the alarm is not a
+   *     trade worth making, so this rides on /api/health instead.
+   *
+   * Everything else here is cheap: aggregates are 5-second-cached synchronous
+   * SQL, the backup status is one small file read, the disk check is a statfs.
+   */
+  function getHealthSummary(): { status: "ok" | "degraded"; degraded: string[] } {
+    const nowMs = deps.now();
+    const agg = getAggregates(nowMs);
+    const backup = readBackupStatus(deps.backupStatusFile, nowMs);
+    const disk = readDiskStatus(deps.diskPath);
+    const cachedEngines = engines?.value;
+
+    const out: string[] = [];
+    if (agg.database === "down") out.push("database");
+    if (cachedEngines) {
+      for (const name of [...CORE_ENGINES, ...OPTIONAL_ENGINES]) {
+        if (!cachedEngines[name].ok) out.push(name);
+      }
+    }
+    if (backup.status === "stale") out.push("backup");
+    if (disk.status === "low") out.push("disk");
+
+    return { status: out.length === 0 ? "ok" : "degraded", degraded: out };
+  }
+
+  return { getStatus, getHealthSummary };
 }
 
 /** Whether a built payload represents an outage rather than a degradation.

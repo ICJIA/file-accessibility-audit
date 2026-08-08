@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.63.1] - 2026-08-08
+
+### Fixed
+
+- **The header indicator now reports the same verdict as `/status`.** It polled `/api/health`, which answered only *"is this process alive"* — so the one signal visible on every page could show a confident green "audit server online" while `/status` reported a stale backup, a low disk or a dead engine. It now shows an amber **"degraded — see status"** and names what is degraded in its tooltip.
+
+  Deliberately **not** by polling `/status`: that endpoint is capped at 120/min shared *globally*, because Nitro proxies it over loopback and every browser hit arrives as `127.0.0.1` in one bucket. At three requests a minute per open tab, roughly 40 concurrent tabs would exhaust the budget, `/status` would start answering `"unknown"`, and the uptime monitor's keyword alert would go blind. Making the header prettier by disabling the alarm is not a trade worth making.
+
+  Instead `/api/health` carries the verdict, computed from state that is **already cached** — `getHealthSummary()` never triggers an engine probe, since those spawn processes (veraPDF starts a JVM) and a header polling every 20 seconds across every open tab would make the most expensive operation on the service its most frequent one. Pinned by a test that counts probe invocations and requires zero.
+
+- **The printable plan no longer prints a dead link on the remediation page.** Its header carried the source URL, which there points back at a job that expires — and which cannot show the original audit either, since the file has already been remediated. A dead link on a printout is worse than no link. The audit report, which is a live shareable page, still prints its URL.
+
+### Notes
+
+Tests 2,171 → 2,177.
+
 ## [1.63.0] - 2026-08-08
 
 ### Added

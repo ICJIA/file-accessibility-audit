@@ -7,10 +7,16 @@ const POLL_RETRY_MS = 2_500; // when unknown/down: retry every 2.5s up to MAX_FA
 const MAX_FAST_RETRIES = 5; // ~12.5s of fast retries before settling into slow polling
 const PROBE_TIMEOUT_MS = 4_000;
 
-type Status = "unknown" | "ok" | "down";
+// "degraded" is new: /api/health now reports the SAME verdict /status
+// computes (stale backup, low disk, a dead engine), not merely "is this
+// process alive". Without it the header showed a confident green "online"
+// while /status said degraded — the one always-visible signal on the site
+// contradicting the status page.
+type Status = "unknown" | "ok" | "degraded" | "down";
 
 const status = ref<Status>("unknown");
 const uptime = ref<string | null>(null);
+const degraded = ref<string[]>([]);
 let timer: ReturnType<typeof setTimeout> | null = null;
 let consecutiveFailures = 0;
 
@@ -29,24 +35,29 @@ async function probe(): Promise<void> {
       const json = (await res.json().catch(() => null)) as {
         status?: string;
         uptime?: string;
+        degraded?: string[];
       } | null;
-      if (json?.status === "ok") {
-        status.value = "ok";
+      if (json?.status === "ok" || json?.status === "degraded") {
+        status.value = json.status === "degraded" ? "degraded" : "ok";
         uptime.value = json.uptime ?? null;
+        degraded.value = Array.isArray(json.degraded) ? json.degraded : [];
         consecutiveFailures = 0;
       } else {
         status.value = "down";
         uptime.value = null;
+        degraded.value = [];
         consecutiveFailures += 1;
       }
     } else {
       status.value = "down";
       uptime.value = null;
+      degraded.value = [];
       consecutiveFailures += 1;
     }
   } catch {
     status.value = "down";
     uptime.value = null;
+    degraded.value = [];
     consecutiveFailures += 1;
   }
 }
@@ -110,28 +121,40 @@ const label = computed(() => {
       ? `Audit & remediation server online — uptime ${uptime.value}`
       : "Audit & remediation server online";
   }
+  if (status.value === "degraded") {
+    // Names what is degraded, because "degraded" alone sends a reader to the
+    // status page to find out; the tooltip can just tell them.
+    const what = degraded.value.length ? `: ${degraded.value.join(", ")}` : "";
+    return `Audit server running with a degraded feature${what} — see the status page`;
+  }
   if (status.value === "down") return "Audit & remediation server offline";
   return "Checking audit & remediation server…";
 });
 
 const dotClass = computed(() => {
   if (status.value === "ok") return "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.7)]";
+  if (status.value === "degraded") return "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.7)]";
   if (status.value === "down") return "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]";
   return "bg-[var(--text-muted)]";
 });
 
-const pulseClass = computed(() =>
-  status.value === "ok" ? "animate-ping bg-green-500" : "animate-ping bg-red-500",
-);
+const pulseClass = computed(() => {
+  if (status.value === "ok") return "animate-ping bg-green-500";
+  if (status.value === "degraded") return "animate-ping bg-amber-500";
+  return "animate-ping bg-red-500";
+});
 
 const statusText = computed(() => {
   if (status.value === "ok") return "audit server online";
+  // Not "online" — the whole point is that this is no longer the same state.
+  if (status.value === "degraded") return "degraded — see status";
   if (status.value === "down") return "audit server offline";
   return "audit server…";
 });
 
 const statusTextClass = computed(() => {
   if (status.value === "ok") return "text-green-500/90";
+  if (status.value === "degraded") return "text-amber-500/90";
   if (status.value === "down") return "text-red-500/90";
   return "text-[var(--text-muted)]";
 });

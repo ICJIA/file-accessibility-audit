@@ -73,6 +73,11 @@ const props = defineProps<{
    *  what is STILL wrong after the automatic fixes ran. */
   heading?: string;
   intro?: string;
+  /** Print the source URL in the header. Off for remediation: that job page
+   *  expires, and it is not somewhere the reader should return to — the file
+   *  has already been remediated, and the page cannot show the original
+   *  audit either. A dead link on a printout is worse than no link. */
+  showUrl?: boolean;
 }>();
 
 const categories = computed(() => props.result?.categories ?? []);
@@ -105,7 +110,8 @@ function openPlan(): void {
       steps: steps.value,
       manualChecks: checks.value,
       notAssessed: notAssessed.value,
-      reportUrl: typeof window !== "undefined" ? window.location.href : null,
+      reportUrl:
+        props.showUrl !== false && typeof window !== "undefined" ? window.location.href : null,
       heading: props.heading,
       intro: props.intro,
     }),
