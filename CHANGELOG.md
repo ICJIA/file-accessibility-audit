@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.64.0] - 2026-08-08
+
+### Added
+
+- **The security-audit record is complete: every release since v1.18.0 now has an entry in both places it belongs.** 27 releases had no § 10 entry on the data-retention page and 29 had no README § Security entry — overwhelmingly the small follow-up corrections (v1.24.x, v1.30.x–v1.32.x, v1.37.x, v1.41.x–v1.42.x, and the v1.58.x–v1.62.0 runs of 2026-08-07/08). Each has been written from that release's own changelog: § 10 in plain language for the non-technical reader the page is written for, README § Security in technical framing.
+
+  **They are marked, not backdated.** Every backfilled entry carries *"entry recorded 2026-08-08"*, and both surfaces explain why in their own introduction. Those releases were reviewed at the time; this write-up of them was not. A compliance record that quietly presents a reconstruction as contemporaneous is worth less than one that says which of its entries were written after the fact — and an auditor cares about exactly that distinction.
+
+  Two entries are worth calling out as deliberate. **v1.58.1** records an attempt that *failed* — relabelling the score instead of changing it, replaced the same day — because a failed attempt is part of the honest history of how the scoring was corrected, and because the lesson it produced ("any figure out of 100 beside a letter grade is read as the grade") is the one that settled the design. **v1.58.0**'s existing § 10 entry describes the *final* rule rather than the letter-cap it actually shipped; the README entry for it now says so explicitly rather than leaving the two records to disagree.
+
+### Changed
+
+- **`securityAudits.test.ts` now asserts completeness, not just the release in hand.** The v1.63.2 check — does the shipping version have an entry? — could not tell you anything about the archive behind it. Now that the archive is intact, that is worth pinning: every version in `CHANGELOG.md` at or above 1.18.0 must appear in § 10 **and** in the README's Review history, and the "recorded after the fact" markers must still be present. Sabotage-verified by deleting a mid-history entry from each and by stripping the markers.
+
+### Notes
+
+Tests 2,190 → 2,193.
+
 ## [1.63.2] - 2026-08-08
 
 ### Changed

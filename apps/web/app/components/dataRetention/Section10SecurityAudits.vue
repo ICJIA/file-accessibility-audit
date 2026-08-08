@@ -61,7 +61,17 @@
 
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
       Audit entries below are in reverse-chronological order (most recent first). Each entry lists
-      the findings discovered during that release's review and what was done about them.
+      the findings discovered during that release's review and what was done about them. Every
+      release since v1.18.0 has an entry.
+    </p>
+    <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+      <strong>On dates.</strong> Some entries are marked <em>"entry recorded 2026-08-08"</em>. Those
+      releases were reviewed at the time, but this plain-language write-up of them was reconstructed
+      later from the project's own change log — 27 releases, mostly small follow-up corrections, had
+      been left out of this section. The distinction is marked rather than smoothed over: a record
+      that quietly backdates itself is worth less than one that says which of its entries were
+      written after the fact. An automated check now prevents a release from shipping without an
+      entry here, so the gap cannot reopen.
     </p>
 
     <!-- One card per release. The entries live in ~/data/securityAudits; this

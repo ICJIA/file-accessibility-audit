@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.64.0",
+    meta: "Reviewed <strong>2026-08-08</strong> · scope: completing this section's own record — no change to the tool itself, and not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>This history is now complete.</strong> Twenty-seven releases had no entry here — almost all of them small follow-up corrections rather than significant changes — while the project's own change log carried every one. Each has now been written up in the same plain language as the rest of this section, from that release's change log. Nothing that was already published has been altered.",
+      },
+      {
+        kind: "p",
+        html: '<strong>Those entries say so.</strong> Every one of them is marked <em>"entry recorded 2026-08-08"</em>, and the note above this list explains why. The releases were reviewed at the time; this write-up of them was not, and a record that presents a reconstruction as though it had been written on the day is worth less to the auditor reading it than one that is honest about which of its entries came later.',
+      },
+      {
+        kind: "p",
+        html: "<strong>One of the new entries records something that did not work</strong> — a first attempt, on 7 August, at resolving a report that showed a letter grade and a number contradicting each other. It was replaced the same day. It is included because how a mistake in the scoring was found and corrected is part of the record, and leaving out the unsuccessful step would make that history read more smoothly than it deserves. An automated check now confirms that every release since v1.18.0 has an entry both here and in the project's technical documentation, so this section cannot fall behind again. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.63.2",
     meta: "Reviewed <strong>2026-08-08</strong> · scope: how this page's own history is stored and rendered — no change to any record, and not a security release.",
     body: [
@@ -96,12 +114,162 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     ],
   },
   {
+    version: "v1.62.0",
+    meta: "Reviewed <strong>2026-08-08</strong> · entry recorded 2026-08-08 · scope: two controls that were being missed on screen — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The control for choosing how to read a report is now unmistakably a control.</strong> It had been two small labels in a strip above the report, and it was missed — including by the person who asked for it. Someone looking for the plain-language, step-by-step plan could not find the button that shows it, and reported the plan as having been removed. It had not been. The chooser now runs the full width of the page, asks its question out loud, and says in a sentence what each option actually gives you. The option you are currently reading is marked with the word <em>Showing</em> rather than by colour alone, because colour is not available to every reader — a requirement this tool checks other people's documents against, and should not fail itself.",
+      },
+      {
+        kind: "p",
+        html: "<strong>After an automatic repair, whatever is still outstanding is now shown by default.</strong> It used to sit behind a closed panel, so the only thing visible after a successful repair was a green result and a one-line count. That is exactly the moment someone is most likely to decide a file is finished, and a count reads as a footnote beside a success message. The detail is still collapsible; it simply starts open whenever anything remains. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.61.1",
     meta: "Reviewed <strong>2026-08-08</strong> · scope: one fewer thing stored on your device — not a security release.",
     body: [
       {
         kind: "p",
         html: "<strong>Every report now opens in the visual, step-by-step view</strong>, for everyone, every time. The choice between the visual and detailed views used to be remembered on your device, which meant anyone who looked at the detailed view once saw it for every report afterwards — and because the step-by-step fix list only appears in the visual view, people reported that the plan had vanished. That preference is no longer stored anywhere, and the old value is deleted from your browser the next time you open a report. The toggle still works; it simply applies to the report in front of you rather than to every report you will ever open. <strong>No change to what data is collected, how it is used, or how long it is kept — this removes one of the few things the tool kept on your device.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.61.0",
+    meta: "Reviewed <strong>2026-08-08</strong> · entry recorded 2026-08-08 · scope: the home page settling as it loads, and the length and colour of the announcement — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The home page no longer jumps as it finishes loading.</strong> The announcement at the top used to appear only after the page had already drawn, pushing the heading and the upload area down. It is now sent complete by the server. One consequence is worth stating plainly here, of all places — the alternative fix would have required storing a small marker in your browser so the server could know you had already dismissed an announcement. That was rejected. This tool lists every piece of information it keeps on your device, and adding another one to remove a flicker is not a trade worth making.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Announcements are now capped at four or five sentences.</strong> Two had grown to the length of a memo and dominated the page they sit above. Shorter is also less disruptive for anyone who has already dismissed them. The announcement was also given its own background shade so it reads as distinct from the page without competing with the report below it; the text contrast was measured at 11.9:1 in the dark theme and 9.2:1 in the light one, well above the 4.5:1 standard. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.60.1",
+    meta: "Reviewed <strong>2026-08-08</strong> · entry recorded 2026-08-08 · scope: one number on the public status page shown in the wrong unit — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The status page reported free disk space in five-digit megabytes</strong> — <em>"61112.6 MB free of 78284.0 MB"</em> for what is really a 76 GB volume. Accurate, unreadable, and on the one page written specifically for people who do not think in megabytes. It now reads <em>"78% (59.7 GB free of 76.4 GB)"</em>. As before, the page reports a percentage and a size and never a location on disk. Found by looking at the live page rather than by an automated check, because nothing had ever fed that formatter a number that large; three checks now cover it. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.60.0",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: three items carried over from the 2026-08-05 operational review, including one accessibility failure in this tool itself.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The service now watches its own free disk space.</strong> A full disk would break uploads and the nightly backup at the same time, silently, while every other check on the status page stayed green — the first symptom would otherwise be a failed restore months later. Free space is now reported on the status page and the service flags itself as needing attention below 10%, where the external monitoring already watches. It is deliberately a warning and never an outage: the tool can still check documents on a nearly-full disk, and raising an alarm about an outage that has not happened is how alarms come to be ignored. <strong>No location on disk is ever published</strong> — an automated check asserts the published figures contain no file path at all.",
+      },
+      {
+        kind: "p",
+        html: '<strong>The server now gives up restarting a process that cannot stay running.</strong> Previously a failed deployment would have been restarted for ever: a silent loop burning processor time and filling the log disk, while the monitoring showed the service as "online" in the gaps between crashes. A process that cannot stay up for twenty seconds, ten times in a row, is now marked as failed and left down — visible failure being far better than invisible failure. A written procedure for rotating the server\'s log files was added at the same time.',
+      },
+      {
+        kind: "p",
+        html: "<strong>An accessibility failure in this tool was found and fixed.</strong> The colours used for grades and severity ratings are tuned for the dark theme, where they are comfortably readable. On the light theme the same colours measured between 1.9:1 and 3.8:1 against their backgrounds — <em>every one of them below the 4.5:1 minimum this tool checks other people's documents against</em>. There are now two sets of colours, one per theme, each verified against all three background shades it is actually painted on. A separate re-check also found a link whose spoken name did not match its visible words, which would have prevented someone using voice control from activating it. It was the site's only remaining accessibility failure; an independent audit of the site now scores 100 for accessibility. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.59.2",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: making the human-review statement unconditional, and rewriting the status page for the people who actually open it.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>Every report now carries the human-review statement, whatever the score.</strong> It had appeared only when there was something to list — which meant a badly failing document, the case that most needs a person to look at it, could receive no such statement at all. Every report now opens that section with a standing line: <em>no automated audit, this one included, can tell you a document is accessible; it can only tell you where it definitely is not.</em> A document that still has problems is additionally told that working through the list is not the finish line, because a completed list is a stronger pull toward "done" than a perfect score ever is.',
+      },
+      {
+        kind: "p",
+        html: "<strong>The status page now describes each of its checking programs in plain language.</strong> The people who open a status page are rarely engineers; they are usually managers arriving sceptical — <em>what is this thing, and is it really doing what you say it is?</em> Each entry now says what the program is, who maintains it, what it does here specifically, and what its running does and does not prove. In particular veraPDF is maintained by an independent organisation, which is what stops this tool marking its own homework. The page also states the moment it was generated, and the one genuinely cached figure on it now says when its reading was taken rather than implying it is live. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.59.1",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: a checklist added the day before reached only one of the two ways of reading a report.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The "still worth checking by hand" list now appears however you read a report.</strong> It had been added to the step-by-step view only, while the wording elsewhere on the page had already been changed to point at it — so in the detailed view it pointed at something that was not there. On a document with no problems that view showed nothing at all beneath the score, and a reader\'s honest reaction was to ask where the findings had gone. The list now appears on all three surfaces that display a report, and an automated check pins each one, because this is the second time in two releases that something shipped into one view and not the other. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.59.0",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: what a person still has to check when the automated result is perfect.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>Every report now lists what still needs a human eye — including reports that scored 100.</strong> A perfect document previously produced an empty list of fixes and a short green panel, which left its author with the obvious question: <em>so what should I still look at?</em> The honest answer is that these checks confirm accessibility structure <em>exists</em>; almost none of them can judge whether it is <em>correct</em>. A picture described as "image" passes. A heading that describes the wrong section passes. That gap is invisible on a clean report unless the report names it.',
+      },
+      {
+        kind: "p",
+        html: "Every check that <strong>passed</strong> now contributes an entry saying what was actually established and what judgment only a person can make — phrased as something to go and do, not as a restatement of the check. Checks that failed are deliberately absent, since those are already the list of fixes. Below that, the accessibility criteria this tool does not evaluate at all are listed by name with links to the published standard, described plainly as unexamined rather than as passed. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.58.4",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: an older shared link disagreeing with a fresh check of the same file — the last correction in that day's scoring work.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>A report shared earlier now shows the same score as checking the file again today.</strong> Found by testing the previous release on the live service: a shared link to a Word file showed 71 while re-uploading the identical document gave 79 — precisely the disagreement that recalculating on open exists to prevent. The recalculation had only been able to move a score <em>down</em>, so it could pick up the corrections that lowered scores but was structurally unable to pick up the one that <em>raised</em> simple documents. Saved reports keep everything the calculation needs, so the score is now fully re-derived when a stored report is opened.",
+      },
+      {
+        kind: "p",
+        html: "The stored records themselves are still never rewritten — they are an agency's evidence of what was computed on the day. The recalculation happens when a report is displayed. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.58.3",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: documents being marked down for being simple.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>A document is no longer penalised for being short.</strong> Checks that do not apply now count as passing and stay in the calculation, instead of being removed from it — a document with no tables does not have a table problem, it has no tables. Reported from real use: a one-page public notice and a longer meeting agenda, both missing a document title and nothing else in common, scored 71 and 79 — <em>the notice worse, despite having fewer problems</em>, because only three of its ten checks applied at all and its single fault therefore counted for more than half its score. Both now score 79.",
+      },
+      {
+        kind: "p",
+        html: 'Two limits were kept deliberately, and both were confirmed by test rather than by argument. A check the tool could not evaluate is still left out rather than assumed to have passed — "no tables were found" and "contrast could not be determined" mean different things, and scoring the second as a pass would be an unverified claim. And a scanned document still scores zero, because its checks come back empty for the opposite reason: a screen reader gets nothing from it at all. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.58.2",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: the score and the letter grade contradicting each other on the page.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The score and the letter grade agree again.</strong> The previous day's change had capped the <em>letter</em> at a document's worst problem while leaving the number alone, so a report could show a <strong>D</strong> directly above <strong>80 out of 100</strong> — wrong on its face against the scale this tool publishes, where 90 and above is an A, 80 a B, 70 a C, 60 a D and anything lower an F. It was reported twice, in the plainest possible terms: <em>\"a 'D' is not 80\"</em>, then <em>\"80 and above is a B. Not a C, and certainly not a D.\"</em>",
+      },
+      {
+        kind: "p",
+        html: "The intermediate attempt (v1.58.1) tried to solve this by relabelling the number rather than changing it; a reader read the relabelled figure as a percentage grade within minutes. <strong>Any figure out of 100 beside a letter grade is read as the grade</strong>, whatever it is called. So the number itself now carries the limit — a minor problem holds a document at 89, a moderate one at 79, a critical one at 69 — and the letter is worked out from that number exactly as it always was. Those ceilings are derived from the published bands rather than written down separately, so they cannot drift apart from them. Every contradiction the first attempt fixed stays fixed: across the 31-document reference set the distribution of letters is identical. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.58.1",
+    meta: "Reviewed <strong>2026-08-07</strong> · entry recorded 2026-08-08 · scope: a first, unsuccessful attempt at the contradiction corrected later the same day by v1.58.2.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>This release tried to resolve a report showing a D above 80 out of 100 by relabelling the number rather than changing it.</strong> The letter was the verdict; the number was moved into a panel called "Fix progress" with a sentence reconciling the two. It did not work — a reader read "81 of 100" as a percentage grade within minutes of it going out — and it was replaced the same day by v1.58.2, which changed the number itself.',
+      },
+      {
+        kind: "p",
+        html: "It is recorded here rather than omitted because an unsuccessful attempt is part of the honest history of how the scoring was corrected, and because the lesson it produced is the one that finally settled the design: a figure out of 100 sitting beside a letter grade will be read as the grade no matter what it is labelled. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
       },
     ],
   },
@@ -346,6 +514,16 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     ],
   },
   {
+    version: "v1.42.1",
+    meta: "Reviewed <strong>2026-08-03</strong> · entry recorded 2026-08-08 · scope: the wording of in-site links to the status page — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>Links to the status page now state which version of it they want</strong> — the readable page for people, the raw data for monitoring systems. Nothing a visitor sees has changed; browsers were already being given the readable page automatically. The point is that the intent is now written down in the link itself rather than inferred, so a future change to how that choice is made cannot silently hand an automated monitor a human-readable page and blind its alerting. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.42.0",
     meta: "Reviewed <strong>2026-08-03</strong> · scope: presentation of the public status page — not a security release.",
     body: [
@@ -528,6 +706,60 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     ],
   },
   {
+    version: "v1.37.5",
+    meta: "Reviewed <strong>2026-07-23</strong> · entry recorded 2026-08-08 · scope: attribution and reachability of one label on the PDF conformance panel — no change to scoring.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>A borrowed phrase on the conformance panel now credits its author, and can be read by everyone.</strong> The reference had been placed in a hover tooltip, which requires holding a mouse still for about a second, never appears on a touchscreen, and is not announced to screen readers — so for most people it simply did not exist, and a borrowed phrase read as an uncredited one. It is now a proper button that reveals a footnote on the page crediting Douglas Adams and <em>The Hitchhiker's Guide to the Galaxy</em> (1979). <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.37.4",
+    meta: "Reviewed <strong>2026-07-23</strong> · entry recorded 2026-08-08 · scope: the wording of the PDF conformance verdict — no change to scoring.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The PDF conformance panel no longer leads with the word "Fail."</strong> A document that does not meet the formal PDF/UA-1 file standard now reads <em>"Additional checks could be addressed"</em>. This is not softening a real result: the accessibility grade is the measure that reflects what a person using the document actually experiences, and a formal file-format gap is a punch list rather than an alarm. The specific rules that did not pass remain one click away, unchanged. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.37.3",
+    meta: "Reviewed <strong>2026-07-23</strong> · entry recorded 2026-08-08 · scope: explaining how a strong accessibility grade can sit beside a formal conformance failure — no change to scoring.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The conformance panel now explains why a good grade and a formal "fail" can appear on the same report.</strong> They answer different questions: the grade measures human impact and is graded, while PDF/UA-1 is a binary check of formal file conformance — which is why Adobe Acrobat, PAC and veraPDF can each disagree with the grade and with one another. The panel now says so, in place, rather than leaving a reader to reconcile two apparently contradictory verdicts on their own.',
+      },
+      {
+        kind: "p",
+        html: "<strong>One piece of repair advice was also withdrawn as actively harmful.</strong> A hint about embedded fonts had suggested re-creating the PDF through a print-to-PDF route, which flattens a tagged document and destroys the accessibility structure inside it — trading a cosmetic conformance point for a real accessibility loss. It now points to repairs that preserve the structure, and warns against the other route explicitly. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.37.2",
+    meta: "Reviewed <strong>2026-07-23</strong> · entry recorded 2026-08-08 · scope: a count on the PDF conformance panel that overstated the work — no change to scoring.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The conformance panel no longer headlines a number that reads as thousands of separate problems.</strong> The underlying validator reports one failure for every <em>occurrence</em>, so a document could be described as having "6,941 rule failures" when it really had a handful of distinct issues repeated across many objects. The panel now leads with the number of distinct issues to fix, keeps the occurrence total as quiet context, and explains the difference in one line. Where a small number of issues genuinely accounts for most of the occurrences, it says so — and where the spread is flat, it does not pretend otherwise. A related fault was fixed at the same time: the stored list of failures was being shortened before it was sorted, so the most frequent issues could be the ones omitted. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.37.1",
+    meta: "Reviewed <strong>2026-07-22</strong> · entry recorded 2026-08-08 · scope: making the PDF conformance verdict actionable — no change to scoring.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>Each failed conformance checkpoint now carries a short repair instruction</strong> rather than only a diagnosis, so the panel tells a document author what to do about it. A summary line was also added covering the six structural essentials of PDF/UA-1 — tagging, marked content, embedded fonts, language, title and the format identifier — which are determined from the document itself and are therefore shown on every PDF report regardless of which optional checking programs are available. It is presented as separate from the accessibility grade, because it is a structural checklist rather than a measure of human impact. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.37.0",
     meta: "Reviewed <strong>2026-07-22</strong> · scope: a new PDF/UA-1 conformance verdict shown on audit results — not a security release.",
     body: [
@@ -554,6 +786,20 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
       {
         kind: "p",
         html: 'Some PDFs — often those exported from design tools like Adobe InDesign — carry leftover "phantom" image tags that are not part of the document a screen reader actually reads. The audit was counting those phantom tags as real images and reporting them as missing a description, which unfairly lowered the score of otherwise well-built documents. The tool now ignores image tags that are not connected to the live document structure, and correctly recognizes when every image on a page is deliberately marked as decorative and therefore needs no description. This changes only how existing information in the file is interpreted — no new information is read from your documents. <strong>No change to what data is collected or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.36.1",
+    meta: "Reviewed <strong>2026-07-19</strong> · entry recorded 2026-08-08 · scope: four accuracy corrections found by checking a real accessible form.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>Four scoring inaccuracies were corrected, all found by auditing a genuinely accessible form that this tool was marking down unfairly.</strong> A category of form built with Adobe's designer tools was being refused a verdict altogether, even though it ships a complete conventional version that is exactly what a reader sees; those are now checked normally. A related fault meant the document's declared language and title settings were being read as internal reference codes rather than as their values, producing a false penalty. A structural measure about reading order was scoring routine, correct forms as though they had a critical fault, and has been reduced to a moderate one — the measure genuinely cannot tell which of two orderings is the correct one. And tables that associate their headings using one of the two methods the standard permits were losing points for not using the other; both are now accepted, as the formal conformance check and independent tools already did.",
+      },
+      {
+        kind: "p",
+        html: "The reference set of documents was re-run in full: all 22 previously checked documents produced identical results, and the form that prompted the work went from a withheld verdict to a clean one. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
       },
     ],
   },
@@ -654,6 +900,16 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     ],
   },
   {
+    version: "v1.32.1",
+    meta: "Reviewed <strong>2026-07-02</strong> · entry recorded 2026-08-08 · scope: the automatic repair page interfering with its own progress reporting.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The automatic repair page no longer blocks itself on longer jobs.</strong> While a repair was running, the page asked the service for progress four times a second. On any job longer than about twenty-five seconds that was enough to exhaust the ordinary limit on how often one visitor may contact the service, so the page reported "too many requests" even though the repair itself was completing normally on the server. Progress checks are now counted against their own separate, much higher allowance — that particular request is a single quick lookup — and the page asks once a second, backs off if anything goes wrong, and clears its own error message as soon as it recovers. The general limit protecting the rest of the service is unchanged, and was confirmed by live test to still apply exactly as before. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
     version: "v1.32.0",
     meta: "Audited <strong>2026-07-02</strong> · scope: a follow-up red/blue team review of a round of internal code-quality changes, plus a hardening of the website's defenses against malicious scripts.",
     body: [
@@ -682,6 +938,56 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
       {
         kind: "p",
         html: "<strong>No change to what data is collected or how long it is kept.</strong> These are display-and-safety changes only; uploaded files are still processed in memory and discarded in seconds. The full technical write-up is in the project's README security section.",
+      },
+    ],
+  },
+  {
+    version: "v1.31.1",
+    meta: "Reviewed <strong>2026-07-01</strong> · entry recorded 2026-08-08 · scope: controls left behind in a downloaded report that could not do anything.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>A downloaded report no longer shows buttons that do nothing.</strong> The download is a fixed snapshot with every section already opened, so the controls it had captured — show/hide switches, an expand chevron, a "click a row" hint — were visible but inert. They are now removed from the download while everything they would have revealed stays fully visible. The live page keeps them. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.31.0",
+    meta: "Reviewed <strong>2026-07-01</strong> · entry recorded 2026-08-08 · scope: making the downloadable report identical to the one on screen.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The downloadable report is now exactly what you saw on screen.</strong> It had been separately assembled, and had drifted: different wording, and missing the method notes, the disclaimer, and the per-category detail. It is now taken directly from the report in front of you, with every collapsed section opened first and the page's styling included so the file stands alone. This matters because these downloads are what gets sent back to a document's author when a file fails — a download that disagrees with the page it came from is worse than no download. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.30.3",
+    meta: "Reviewed <strong>2026-07-01</strong> · entry recorded 2026-08-08 · scope: the same correction applied to the two remaining download formats.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>The plain-text and Markdown downloads now separate scored checks from those that did not apply</strong>, exactly as the web page, the shared report and the HTML download already did — with the reason given, and the distinction between "not applicable" and "not assessed" preserved. All four ways of reading a result now present it identically. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>',
+      },
+    ],
+  },
+  {
+    version: "v1.30.2",
+    meta: "Reviewed <strong>2026-07-01</strong> · entry recorded 2026-08-08 · scope: a downloadable report that disagreed with the page it came from.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The downloadable report listed checks that did not apply as though they were results.</strong> The web page and the shared report separated the checks that were scored from those that did not apply — showing the reason for each — while the download put everything in one table and showed detailed findings for all of it. On a Word document, which commonly has several inapplicable checks, a result showing five scored checks on screen could show ten rows in the download. The download now mirrors the page. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.30.1",
+    meta: "Reviewed <strong>2026-07-01</strong> · entry recorded 2026-08-08 · scope: documentation catching up with Word support — no code paths changed.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The explanatory pages and diagrams now describe Word as well as PDF.</strong> Word checking had shipped in the previous release while the technical explanation, the description on the home page and the scoring guide still described a PDF-only tool — including how the two formats are examined by different means, and which checks apply to Word and which do not. The processing diagram was redrawn to show both paths. No checking behaviour changed. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
       },
     ],
   },
@@ -868,6 +1174,30 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
     ],
   },
   {
+    version: "v1.24.2",
+    meta: "Reviewed <strong>2026-06-05</strong> · entry recorded 2026-08-08 · scope: a table scoring rule that penalised documents for something the standard does not require.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>A table without a caption is no longer marked down.</strong> A caption is good practice, but no accessibility success criterion requires one — and a fully conformant simple table without one was being capped at 95. Those points are now awarded unconditionally and a missing caption is raised as an optional suggestion. Combined with the header correction in the previous release, a simple table built correctly now scores 100. Scores can move slightly upward on documents containing uncaptioned tables. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
+    version: "v1.24.1",
+    meta: "Reviewed <strong>2026-06-05</strong> · entry recorded 2026-08-08 · scope: three reporting and scoring inaccuracies reported by a user.",
+    body: [
+      {
+        kind: "p",
+        html: '<strong>Three inaccuracies in what reports said about tables and headings were corrected, all reported by someone using the tool.</strong> A table nested inside another table\'s cell was being counted as a separate table, so reports showed more tables and more rows than the document actually had. Headings were being listed in the order they happened to be stored rather than in reading order, so a heading added later could appear at the end of the outline — which also carried a hidden scoring fault, since an out-of-order list could trigger a false "heading levels skipped" penalty.',
+      },
+      {
+        kind: "p",
+        html: "<strong>And a table could score below 100 while passing every check.</strong> The standard permits two methods of associating a table's headings with its data, and only one of them was being credited; a table built correctly using the other was losing points it had earned. Both are now accepted, which is what the formal conformance check and independent tools already did. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.24.0",
     meta: "Audited <strong>2026-06-03</strong> · scope: WCAG 2.2 re-anchor, IITAA 2.1 citations, announcement banner, and a new /wcag-2-2 page. No security review was required — nothing about data handling changed.",
     body: [
@@ -892,6 +1222,16 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
             html: "<strong> No new data and no new attack surface</strong> — All changes are presentational. No code path, endpoint, or data-handling behavior changed; every defensive control from prior releases remains in force. The WCAG_VERSION env flag controls text and criteria display only.",
           },
         ],
+      },
+    ],
+  },
+  {
+    version: "v1.23.0",
+    meta: "Reviewed <strong>2026-06-03</strong> · entry recorded 2026-08-08 · scope: making every report state which document it describes — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>Every report now names the file it describes, in full, across the top.</strong> A report that is saved, printed or forwarded on could previously be mistaken for one about a different document — the filename appeared only in smaller text beside the score. It now leads the page as a banner, wrapping rather than being cut short, and carries the same prominence into every downloadable form: the web page, the printable version, the Word version and the plain-text version all lead with the file's name. This is a provenance improvement rather than a security one: an accessibility report is a record about a specific document, and a record that cannot be tied confidently to its subject is of limited use to whoever receives it. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
       },
     ],
   },

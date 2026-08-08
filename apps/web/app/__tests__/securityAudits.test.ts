@@ -30,6 +30,13 @@ const source = readFileSync(resolve(__dirname, "../data/securityAudits.ts"), "ut
 const shippingVersion = (): string =>
   JSON.parse(readFileSync(resolve(__dirname, "../../package.json"), "utf-8")).version;
 
+const readmeHistory = (): string => {
+  const readme = readFileSync(resolve(__dirname, "../../../../README.md"), "utf-8");
+  return readme.slice(readme.indexOf("### Review history"));
+};
+
+const rank = (v: string): number => v.split(".").reduce((acc, n) => acc * 1000 + Number(n), 0);
+
 describe("the data carries prose, not capability", () => {
   // The whole safety argument for the renderer's v-html is that these strings
   // are inert formatting. If that stops being true, this is where it should
@@ -104,9 +111,9 @@ describe("every entry is renderable", () => {
 
 describe("the history stays a history", () => {
   it("is newest-first", () => {
-    const rank = (v: string) =>
-      (v.match(/^v(\d+)\.(\d+)\.(\d+)/) ?? []).slice(1).reduce((a, n) => a * 1000 + Number(n), 0);
-    const ranked = SECURITY_AUDIT_ENTRIES.map((e) => rank(e.version)).filter((r) => r > 0);
+    const ranked = SECURITY_AUDIT_ENTRIES.map((e) =>
+      /^v\d+\.\d+\.\d+$/.test(e.version) ? rank(e.version.slice(1)) : 0,
+    ).filter((r) => r > 0);
     expect([...ranked].sort((a, b) => b - a)).toEqual(ranked);
   });
 
@@ -122,17 +129,48 @@ describe("the history stays a history", () => {
     // AGENTS.md step 4 of the release checklist. This is the auditor-facing
     // record; skipping it on a bug-fix release leaves a gap in the evidence.
     // It was documented but not enforced, and v1.63.1 shipped without one —
-    // which is how this test came to exist. It checks the release in hand, not
-    // the archive: older gaps are backfilled deliberately, not by fabricating
-    // dated reviews to make a test pass.
+    // which is how this test came to exist.
     expect(SECURITY_AUDIT_ENTRIES.map((e) => e.version)).toContain(`v${shippingVersion()}`);
   });
 
   it("has a README § Security entry for the version being shipped", () => {
     // The technical-framed half of the same record (step 3). It drifted the
     // same way and for the same reason, so it is held to the same rule.
-    const readme = readFileSync(resolve(__dirname, "../../../../README.md"), "utf-8");
-    const history = readme.slice(readme.indexOf("### Review history"));
-    expect(history).toContain(`### v${shippingVersion()} —`);
+    expect(readmeHistory()).toContain(`### v${shippingVersion()} —`);
+  });
+});
+
+describe("the record has no gaps", () => {
+  // Once the shipping-version check existed it was worth asking how far back
+  // it held: 27 releases had no § 10 entry and 29 no README entry, almost all
+  // small follow-up corrections. Those are now backfilled from each release's
+  // own changelog and marked as recorded after the fact, so completeness is
+  // true — which makes it worth asserting, since a per-release check alone
+  // cannot tell you the archive behind it is intact.
+  const releases = Array.from(
+    readFileSync(resolve(__dirname, "../../../../CHANGELOG.md"), "utf-8").matchAll(
+      /^## \[(\d+\.\d+\.\d+)\]/gm,
+    ),
+    (m) => m[1]!,
+  ).filter((v) => rank(v) >= rank("1.18.0"));
+
+  it("covers every release since v1.18.0 in § 10", () => {
+    // v1.18.0 is where the format began; § 10's oldest entry says so, and
+    // points at the commit history for anything earlier.
+    const have = new Set(SECURITY_AUDIT_ENTRIES.map((e) => e.version));
+    expect(releases.filter((v) => !have.has(`v${v}`))).toEqual([]);
+  });
+
+  it("covers every release since v1.18.0 in the README", () => {
+    const history = readmeHistory();
+    expect(releases.filter((v) => !history.includes(`### v${v} —`))).toEqual([]);
+  });
+
+  it("says which entries were written after the fact rather than backdating them", () => {
+    // The backfilled entries are marked in both places. An unmarked
+    // reconstruction would be a compliance record quietly claiming to be
+    // contemporaneous, which is worse than the gap it replaced.
+    expect(source.match(/entry recorded 2026-08-08/g)?.length).toBeGreaterThan(20);
+    expect(readmeHistory()).toContain("(entry recorded 2026-08-08)");
   });
 });
