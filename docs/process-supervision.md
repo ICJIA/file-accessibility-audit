@@ -34,6 +34,21 @@ that is merely slow to return (the database after a host reboot) still gets
 recovered automatically, because the retries spread out across the window
 rather than being spent in the first second.
 
+**Changing these options requires re-registering the process — a redeploy is
+not enough.** `pm2 restart ecosystem.config.cjs --update-env` (what
+`rebuild.sh` runs) re-reads the file for *environment* only; changed restart
+*options* are silently ignored for a process PM2 already knows. Proved on
+production 2026-08-08: twenty deploys after v1.59.3 added
+`max_restarts`/`min_uptime`, `pm2 prettylist` still showed neither. After
+editing any option in `ecosystem.config.cjs`:
+
+```bash
+# required env must be exported in this shell — delete drops the old env
+pm2 delete file-audit-api file-audit-web
+pm2 start ecosystem.config.cjs
+pm2 save        # persist, so resurrection after a reboot keeps the options
+```
+
 **To verify after a deploy:**
 
 ```bash

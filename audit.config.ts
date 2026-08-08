@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "scoring-calibration-2026-08-08",
+    badge: "Improved",
+    text: "Scores are now calibrated strictly to the accessibility standard: style-guide advice (like “use exactly one top-level heading”) still appears on your report, but no longer lowers your grade. If you re-audit a document, its score may be a little higher than an older shared link of the same file — nothing changed about what passes or fails the standard. Reports are also more upfront about limits: they now list more of what no automated tool can check, and they warn you when every image in a document is marked decorative, since screen readers skip those silently.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 8, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "printable-action-steps-2026-08-08",
     badge: "New",
     text: "Every report now has a big \u201cPrinter-friendly action steps\u201d button. It opens a clean page in a new tab with your fixes written out in full \u2014 each one showing both how to fix it in the original Word or PowerPoint file and how to fix it in Adobe Acrobat, so whoever ends up doing the work has what they need. Print it, or save it as a PDF, and work from it beside the document instead of keeping this page open. The same button appears after auto-remediation, where it lists what the automatic fixes could not repair. Reports also always open in the visual step-by-step view now, and the Visual/Detailed chooser above every report is much easier to find.",

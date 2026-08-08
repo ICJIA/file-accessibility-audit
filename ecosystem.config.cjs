@@ -8,9 +8,24 @@
 //   export REMEDIATION_VERAPDF_PATH=/opt/verapdf/verapdf           # optional PDF/UA check
 //   ./rebuild.sh
 //
-// `pm2 restart ecosystem.config.cjs` re-evaluates this file, so the
-// values are picked up fresh on every redeploy. Unset variables fall
-// back to safe defaults (feature off, tool not configured).
+// `pm2 restart ecosystem.config.cjs --update-env` re-evaluates this file
+// for ENVIRONMENT variables only — env values are picked up fresh on every
+// redeploy, and unset variables fall back to safe defaults (feature off,
+// tool not configured).
+//
+// It does NOT apply changed RESTART OPTIONS (max_restarts, min_uptime,
+// restart_delay, exp_backoff_restart_delay, …) to an already-registered
+// process — proved on production 2026-08-08, where 20 deploys had left
+// max_restarts unset since v1.59.3 added it. After editing any option here,
+// re-register from this file and persist the new process list:
+//
+//   pm2 delete file-audit-api file-audit-web
+//   pm2 start ecosystem.config.cjs
+//   pm2 save
+//
+// (Check required env is exported in the shell first — the delete drops the
+// old process's environment. Verify with:
+//   pm2 prettylist | grep -E "max_restarts|min_uptime" )
 //
 // For permanent enable in production, set the vars in /etc/environment
 // (or Forge's "Environment" page) so they survive shell sessions.

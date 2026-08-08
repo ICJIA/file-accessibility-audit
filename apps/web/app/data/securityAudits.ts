@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.66.0",
+    meta: "Reviewed <strong>2026-08-08</strong> · scope: an adversarial audit of the scoring itself, and the corrections it produced — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The scoring was audited against a set of real documents whose faults we know, and the verdict was that it tells the truth.</strong> Every failure it reported and every clean result it gave was checked by hand against what is actually inside the files, and all of them held up. Two kinds of correction came out of the review, and both are about honesty rather than about catching more or fewer problems.",
+      },
+      {
+        kind: "p",
+        html: "<strong>First: style preferences no longer lower a document's grade.</strong> A few rules the tool scored — such as “a document should have exactly one top-level heading” — are style-guide advice, not requirements of the accessibility standard. A document meeting the standard could still lose its A to one of them. Those rules are now stated as advice on the report without affecting the score. Because of this, <strong>a document audited again today may score somewhat higher than an older shared report of the same file</strong> — the old link keeps the number it always had, and the difference is the removed style rules, not a change in what passes or fails the standard.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Second: the report is more explicit about what automation cannot see.</strong> The list of things this tool never checks now includes five more parts of the standard (among them whether colours alone carry meaning, and whether passages in another language are marked for screen readers). And when every image in a document has been marked “decorative” — which hides them from screen readers entirely — the report now says so prominently and asks a person to confirm none of them actually carries information, instead of staying silent. <strong>No change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.65.1",
     meta: "Reviewed <strong>2026-08-08</strong> · scope: colour added to the header status panel's marks — not a security release.",
     body: [

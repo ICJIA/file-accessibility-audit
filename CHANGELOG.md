@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.66.0] - 2026-08-08
+
+### Changed
+
+- **Scoring conventions with no standards basis are now advisory instead of grade-capping.** From an adversarial review of the analyzer against the `controls/` corpus — whose headline verdict was that every conformance failure and every pass hand-checked at byte level came back **true** — the residual problem was opinion leaking into the letter grade. Because any sub-100 category score becomes a severity and a severity **caps the grade**, only findings with a standards or tool-precedent basis may now score below 100:
+  - **Multiple H1 headings** no longer score 75/Minor. No WCAG criterion, PDF/UA-1 clause, or Matterhorn condition requires a single H1 — PDF/UA explicitly permits repeated H1s — and Acrobat/PAC do not flag it, yet it was capping conformance-clean documents at B (`DVFR_Biennial_Report_2024`: 5×H1, its only finding, now 100/A). The observation survives as an advisory finding with its basis stated; hierarchy **skips** keep their 60 (Matterhorn 13-004).
+  - **Single-column tables** are excluded from the PDF table score using the conformance gate's exact expression (`(columnCounts[0] ?? 2) >= 2`), so the score can never again dock layout scaffolds the gate itself classifies as non-data — `2022_DVFR_Annual_Report`'s 26 single-column tables had it at table_markup 75. They still appear in the overview, marked "layout, not scored". The merged-first-row classifier weakness stays on the ledger — now consistently applied instead of contradictory.
+  - **Bookmarks keep their 45/Moderate** (Acrobat's own checker flags long documents without them), but the finding no longer cites 2.4.5 as the requirement — Multiple Ways is scoped to a *set* of web pages, and the copy now says exactly what the basis is.
+
+  Controls re-run before/after: **zero conformance-verdict changes**; four scores moved, all up, each traceable (`DVFR_Biennial_2024` 89→100/A, `WomenInPolicing-remediated` 88→89/B, `2022_SFS` 73→77/C, `Full_DJJ` 59/F→66/D). Stored shared reports keep their stored numbers — a fresh audit of the same file can now score higher, the same drift class as v1.58.x, already caveated on `/status`.
+
+### Added
+
+- **The "not checked by this tool at all" disclosure is now complete.** `conformance.notAssessed` held only contrast and (conditionally) reading order, implying everything else was covered. Five criteria that apply to every document and are genuinely never assessed are now disclosed on every verdict, all four formats: **3.1.2 Language of Parts, 1.4.1 Use of Color, 1.4.5 Images of Text, 1.4.11 Non-text Contrast, 1.3.3 Sensory Characteristics**. The live counterexample that forced it: a 100/A control declaring `no/de/da/it` spans in an English report — Word autodetect noise, squarely 3.1.2 territory, previously undisclosed. For PDFs the 3.1.2 entry cites the document's own measured span languages (primary-subtag compare, so `en` vs `en-US` is not "foreign").
+- **The manual-review card and the printable plan warn when every image is excluded from scoring.** A 100/A control carries four images hidden as artifacts — one a 612×423pt half-page **cover image** marked as a "Pagination/Header" artifact — and the card whose premise is "each passing check contributes the judgment automation could not make" said nothing about images on exactly that report. A category with images present but excluded (score null + notAssessed) now emits a **caution-tone** prompt — amber `!`, never the passed-check ✓ — on the card and on paper.
+- **Alt text that declares itself decorative is flagged.** Three `<Figure>`s in a control carry `/Alt "Decorative border"` — announced three times by a screen reader as pure noise. Alt matching `^decorat…` (or bare "border"/"spacer"/"divider"…) now draws an advisory to mark the image as an `/Artifact` instead. No score change, and anchored so alt that *depicts* decoration ("Photo of decorative ironwork…") is untouched.
+
+### Fixed
+
+- **`ecosystem.config.cjs` no longer claims `pm2 restart` re-evaluates the whole file.** True for environment, false for restart options — proved on production, where twenty deploys had left `max_restarts` unset. The comment and `docs/process-supervision.md` now document the real procedure (`pm2 delete` + `pm2 start` + `pm2 save`).
+
+### Notes
+
+Tests 2,215 → 2,233 (API 1206 / web 978 / CLI 49). Full writeup: `docs/scoring-calibration-and-disclosure-2026-08-08.md`. The review itself verified the analyzer's honesty end to end: all 33 controls batch-audited, ~12 hand-verified with qpdf/unzip, remediated pairs ordered correctly, and the empty-tag-tree detector caught a cosmetically-tagged "remediated" file exactly as designed.
+
 ## [1.65.1] - 2026-08-08
 
 ### Changed
