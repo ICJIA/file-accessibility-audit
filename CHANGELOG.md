@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.61.1] - 2026-08-08
+
+### Fixed
+
+- **Every report opens in the Visual (stepper) view, for everyone, every time.** The Visual/Detailed choice used to persist per device, so anyone who opened the Detailed view once got it for every report afterwards. Reported as *"the stepper is gone"* — a reader who had toggled to Detailed earlier met the technical view on a fresh audit, and because the action plan has only ever existed in the Visual view, the plan appeared to have been deleted. It had not; it was one click away, behind a toggle whose state nobody remembered setting.
+
+  The preference is no longer stored at all, and the legacy `far:report-view` key is cleared from the browser on mount, so a stale "detailed" cannot linger on anyone's device. The toggle still works — it applies to the report in front of you rather than to every report you will ever open.
+
+  The default carries the product's whole intent: the stepper is the view written for non-technical document authors, and the cost of being wrong is asymmetric. Showing it to someone who wanted detail costs one click; hiding it from someone who needed it costs them the guidance.
+
+- **The data-retention policy's v1.54.0 entry** stated the view preference "is kept on your own device (in your browser's local storage)". True when written, no longer true. Corrected in place rather than quietly deleted, with a pointer to the change — and § 10 gains its own entry, since this *removes* one of the few things the tool kept on a visitor's device.
+
+### Notes
+
+Tests 2,140 → 2,141. The load-bearing assertion mounts with a stored "detailed" preference — the exact state the reader was in — and requires Visual anyway.
+
 ## [1.61.0] - 2026-08-08
 
 ### Fixed

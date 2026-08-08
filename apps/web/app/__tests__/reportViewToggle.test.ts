@@ -18,29 +18,49 @@ describe("useReportView", () => {
     },
   });
 
+  // The view preference used to persist per device, so anyone who once opened
+  // the Detailed view got it for every report thereafter. That surfaced as
+  // "the stepper is gone": a reader who had toggled to Detailed days earlier
+  // met the technical view on a fresh report, and since the Detailed view has
+  // never contained the action plan, the plan looked deleted.
+  //
+  // Everyone now starts on Visual, every time — including people who prefer
+  // the detailed view and know where the toggle is. The cost of being wrong
+  // is asymmetric: showing the stepper to someone who wanted detail costs one
+  // click; hiding it from someone who needed it costs them the guidance.
+
   it("defaults to visual", () => {
     const w = mount(Harness);
     expect(w.text()).toBe("visual");
   });
 
-  it("applies a stored 'detailed' preference on mount", async () => {
+  it("starts on visual even when a previous preference is stored", async () => {
+    // The load-bearing assertion. This is the exact state a returning reader
+    // was in when they reported the stepper missing.
     localStorage.setItem("far:report-view", "detailed");
-    const w = mount(Harness);
-    await nextTick();
-    expect(w.text()).toBe("detailed");
-  });
-
-  it("ignores garbage stored values", async () => {
-    localStorage.setItem("far:report-view", "bogus");
     const w = mount(Harness);
     await nextTick();
     expect(w.text()).toBe("visual");
   });
 
-  it("setMode persists to localStorage", () => {
+  it("clears the legacy key so it cannot linger on a device", async () => {
+    localStorage.setItem("far:report-view", "detailed");
+    mount(Harness);
+    await nextTick();
+    expect(localStorage.getItem("far:report-view")).toBeNull();
+  });
+
+  it("setMode switches the current report without persisting anything", () => {
     const w = mount(Harness);
     (w.vm as unknown as { setMode: (m: string) => void }).setMode("detailed");
-    expect(localStorage.getItem("far:report-view")).toBe("detailed");
+    expect(localStorage.getItem("far:report-view")).toBeNull();
+  });
+
+  it("still switches the view for the report in front of you", async () => {
+    const w = mount(Harness);
+    (w.vm as unknown as { setMode: (m: string) => void }).setMode("detailed");
+    await nextTick();
+    expect(w.text()).toBe("detailed");
   });
 });
 

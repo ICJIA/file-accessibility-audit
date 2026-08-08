@@ -64,6 +64,33 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.61.1 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.61.1</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-08</strong> · scope: one fewer thing stored on your device — not
+          a security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        <strong>Every report now opens in the visual, step-by-step view</strong>, for everyone,
+        every time. The choice between the visual and detailed views used to be remembered on your
+        device, which meant anyone who looked at the detailed view once saw it for every report
+        afterwards — and because the step-by-step fix list only appears in the visual view, people
+        reported that the plan had vanished. That preference is no longer stored anywhere, and the
+        old value is deleted from your browser the next time you open a report. The toggle still
+        works; it simply applies to the report in front of you rather than to every report you will
+        ever open.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept — this
+          removes one of the few things the tool kept on your device.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.58.0 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
@@ -234,9 +261,11 @@
         report available through a Visual/Detailed toggle on every report. This is a presentation
         change only: the audit itself, what it examines, and what the service stores are all
         unchanged, and previously shared reports simply display in the new layout. The view
-        preference is kept on your own device (in your browser's local storage), never sent to the
-        server. Every fact shown in the classic report remains visible in the new one, and the
-        redesigned interface itself was contrast-checked against WCAG AA during development.
+        preference was kept on your own device (in your browser's local storage), never sent to the
+        server — as of v1.61.1 it is not stored at all, and every report opens in the visual view
+        (see that entry above). Every fact shown in the classic report remains visible in the new
+        one, and the redesigned interface itself was contrast-checked against WCAG AA during
+        development.
         <strong
           >No change to what data is collected, how it is used, or how long it is kept.</strong
         >
