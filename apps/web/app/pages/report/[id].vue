@@ -36,8 +36,9 @@
           />
           <!-- Header -->
           <div class="text-center mb-8">
+            <!-- The theme button stays a small right-aligned control; the
+                 view chooser is now full width below it. -->
             <div class="flex justify-end items-center gap-2 mb-4">
-              <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
               <button
                 class="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                 :aria-label="
@@ -74,6 +75,9 @@
                   />
                 </svg>
               </button>
+            </div>
+            <div class="mb-6">
+              <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
             </div>
             <h1 class="text-xl sm:text-2xl font-bold mb-1">
               {{ appName.replace("Audit", "Report") }}

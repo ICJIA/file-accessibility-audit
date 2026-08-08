@@ -81,3 +81,52 @@ describe("ReportViewToggle", () => {
     expect(w.text()).toContain("Detailed");
   });
 });
+
+describe("ReportViewToggle — findable, not just present", () => {
+  // The toggle was two text-xs labels in a small right-aligned strip, and a
+  // reader looking for the step-by-step plan could not find the control that
+  // shows it — they reported the plan as gone. A toggle nobody sees is not a
+  // toggle; it is a hidden setting. These pin the properties that make it
+  // findable, since "it renders" was already true when it was being missed.
+
+  it("asks its own question, so the control explains itself", () => {
+    const w = mount(ReportViewToggle, { props: { modelValue: "visual" } });
+    expect(w.text()).toContain("How do you want to read this report?");
+  });
+
+  it("says what each view actually gives you", () => {
+    const w = mount(ReportViewToggle, { props: { modelValue: "visual" } });
+    // Naming the numbered plan is the point: it is what the reader was
+    // looking for and could not find.
+    expect(w.text()).toMatch(/numbered plan/i);
+    expect(w.text()).toMatch(/full technical report/i);
+  });
+
+  it("marks the active view in WORDS, not colour alone", () => {
+    // 1.4.1 Use of Colour. Colour is not available to every reader, and this
+    // is an accessibility tool — the state has to survive without it.
+    const visual = mount(ReportViewToggle, { props: { modelValue: "visual" } });
+    const [vBtn, dBtn] = visual.findAll("button");
+    expect(vBtn!.text()).toContain("Showing");
+    expect(dBtn!.text()).not.toContain("Showing");
+
+    const detailed = mount(ReportViewToggle, { props: { modelValue: "detailed" } });
+    const [vBtn2, dBtn2] = detailed.findAll("button");
+    expect(vBtn2!.text()).not.toContain("Showing");
+    expect(dBtn2!.text()).toContain("Showing");
+  });
+
+  it("keeps both options as real buttons with an accessible group name", () => {
+    const w = mount(ReportViewToggle, { props: { modelValue: "visual" } });
+    expect(w.findAll("button").length).toBe(2);
+    expect(w.find('[role="group"]').attributes("aria-label")).toBe("Report view");
+  });
+
+  it("hides the decorative glyphs from assistive technology", () => {
+    // They repeat what the titles already say; announcing them would be noise.
+    const w = mount(ReportViewToggle, { props: { modelValue: "visual" } });
+    for (const svg of w.findAll("svg")) {
+      expect(svg.element.closest("[aria-hidden='true']")).not.toBeNull();
+    }
+  });
+});

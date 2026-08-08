@@ -70,3 +70,29 @@ describe("remediate/[jobId].vue — download placement", () => {
     expect(afterCard).toContain("reading order");
   });
 });
+
+describe("outstanding issues are visible without a click", () => {
+  // Auto-remediation improving a file is the moment someone is most likely to
+  // conclude it is finished. The count alone ("3 issues still need attention")
+  // reads as a footnote next to a large green "remediated" panel, and the
+  // detail behind a closed disclosure was easy never to open. The scope of
+  // what remains has to be visible by default.
+  //
+  // Source-scanned for the same reason as the rest of this file: it is a Nuxt
+  // page that cannot be mounted meaningfully in isolation.
+
+  it("opens the outstanding-issues disclosure whenever anything remains", () => {
+    expect(src).toContain('<details class="mt-4 group" :open="outstandingCount > 0">');
+  });
+
+  it("does not open it when there is nothing left to show", () => {
+    // The binding is a condition, not a literal `open` — an empty expanded
+    // disclosure under "No issues remain" would be noise.
+    expect(src).not.toMatch(/<details class="mt-4 group" open>/);
+  });
+
+  it("keeps it collapsible, so the reader can still put it away", () => {
+    // Native <details>: `open` is the initial state, not a lock.
+    expect(src).toContain("Hide outstanding issues");
+  });
+});

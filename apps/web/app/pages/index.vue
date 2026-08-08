@@ -232,7 +232,10 @@
             class="mb-6"
           />
 
-          <div class="flex justify-end mb-4" data-export-exclude>
+          <!-- Full width, above the report. It was a small right-aligned
+               strip and got missed — a reader looking for the step-by-step
+               plan could not find the control that shows it. -->
+          <div class="mb-6">
             <ReportViewToggle :model-value="viewMode" @update:model-value="setViewMode" />
           </div>
 

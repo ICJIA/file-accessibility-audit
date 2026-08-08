@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.62.0] - 2026-08-08
+
+### Changed
+
+- **The Visual/Detailed chooser is now a chooser, not a hint.** It was two `text-xs` labels in a small right-aligned strip above the report — and it was missed: a reader looking for the step-by-step plan could not find the control that shows it, and reported the plan as gone. A toggle nobody sees is not a toggle; it is a hidden setting.
+
+  It now runs full width above the report in both views, asks its own question ("How do you want to read this report?"), gives each option a glyph and a sentence saying what you actually get — *"Your grade, then a numbered plan — one fix at a time, in plain language"* vs *"The full technical report: every finding, WCAG criteria and evidence"* — and marks the active view with the word **Showing** rather than by background colour alone. Colour is not available to every reader, and this is an accessibility tool (WCAG 1.4.1).
+
+- **The remediation result page shows outstanding issues by default.** They sat behind a closed "Show outstanding issues" disclosure, so the only thing visible after a successful remediation was a green panel and a one-line count. That is the moment someone is most likely to conclude the file is finished — the count reads as a footnote next to the success. The detail is now open whenever anything remains, and collapsed only when nothing does, since an expanded empty disclosure under "No issues remain" is noise. It is still collapsible; `open` is an initial state, not a lock.
+
+### Notes
+
+Tests 2,141 → 2,149. The toggle's new tests pin the properties that make it *findable* rather than merely present — "it renders" was already true while it was being missed.
+
 ## [1.61.1] - 2026-08-08
 
 ### Fixed

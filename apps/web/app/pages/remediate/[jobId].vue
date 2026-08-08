@@ -761,8 +761,17 @@ function labelForEvent(name: string): string {
               {{ outstandingMinor.length }} minor).
             </p>
 
-            <!-- Expandable detail with Adobe Acrobat next steps -->
-            <details class="mt-4 group">
+            <!-- Expandable detail with Adobe Acrobat next steps.
+                 OPEN whenever anything is still outstanding. Auto-remediation
+                 improving a file is the moment someone is most likely to
+                 conclude it is finished, so the scope of what remains has to
+                 be visible without a click — the count alone reads as a
+                 footnote next to a green "remediated" panel. Collapsed only
+                 when there is genuinely nothing left, where an open empty
+                 disclosure would be noise. Same rule as the stale-backup card
+                 on /status: a reader must not have to click to discover the
+                 thing that matters. They can still collapse it. -->
+            <details class="mt-4 group" :open="outstandingCount > 0">
               <summary
                 class="cursor-pointer text-sm font-medium text-emerald-200 hover:text-emerald-100 select-none text-center list-none flex items-center justify-center gap-2"
               >
