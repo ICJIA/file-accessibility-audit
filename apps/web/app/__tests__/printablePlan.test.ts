@@ -109,6 +109,30 @@ describe("buildPrintablePlan", () => {
     expect(html).toContain("1.4.3");
   });
 
+  it("renders a caution-tone check with ! instead of the passed-check tick", () => {
+    // The excluded-images prompt (every image marked decorative) is not a
+    // passed check — on paper as on screen, a ✓ would claim a verification
+    // that never happened. Same wiring rule as the card: every surface that
+    // shows the checks must honor the tone.
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      steps: [],
+      manualChecks: [
+        {
+          id: "alt_text",
+          label: "Alt Text",
+          tone: "caution",
+          verified: "Every image is excluded from automated scoring.",
+          confirm: "Look at each image.",
+        },
+      ],
+      generatedAt: AT,
+    });
+    expect(html).toContain("Every image is excluded from automated scoring.");
+    expect(html).not.toContain("&#10003;");
+    expect(html).toContain('class="caution"');
+  });
+
   it("says so plainly when there is nothing to fix", () => {
     const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
     expect(html).toContain("passed every automated check");

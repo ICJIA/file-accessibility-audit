@@ -226,7 +226,7 @@ Nine categories, weighted by WCAG conformance level and user impact. A category 
 | Alt Text on Images | 15% | 1.1.1 (A) | Every informative image needs a text alternative. |
 | Table Markup | 10% | 1.3.1 (A) | Without header cells (TH), screen readers read table data as a flat, context-free stream. |
 | Reading Order | 10% | 1.3.2 (A) | The tag tree must define a logical reading sequence — out-of-order content makes a document unusable, so this Level-A category is weighted accordingly. |
-| Bookmarks | 5% | 2.4.5 (AA) | For documents over 10 pages, bookmarks provide a navigable table of contents — one of several "ways" to navigate (a clear heading structure is a partial alternative), so it is weighted below the Level-A categories. |
+| Bookmarks | 5% | 2.4.5 (AA) | For documents over 10 pages, bookmarks provide a navigable table of contents. No criterion strictly requires them in a single document (2.4.5 is scoped to sets of pages; W3C's PDF2 technique relates bookmarks to it), but Acrobat's own checker flags long documents without them, so their absence is a moderate readiness issue weighted below the Level-A categories. |
 | Link Quality | 5% | 2.4.4 (A) | Raw URLs and vague phrases ("click here", "read more") are meaningless read aloud. |
 | Form Accessibility | 5% | 1.3.1, 3.3.2, 4.1.2 (A) | Unlabeled form fields are unusable with assistive technology. |
 | Color Contrast | not scored | 1.4.3 (AA) | Rendered-PDF contrast analysis is not yet implemented, so this row applies to PDF only — surfaced as **"Not assessed"** — never as a pass — so a PDF report never implies contrast was checked. Word, PowerPoint, and Excel documents store explicit colors, so contrast *is* computed and scored directly for those formats. |
@@ -873,7 +873,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,215 tests** across 135 test files (API 1194, Web 972, CLI 49). Run all three suites with one summary:
+**2,233 tests** across 135 test files (API 1206, Web 978, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -893,7 +893,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2215 tests passed across 135 files
+  ✔ 2233 tests passed across 135 files
 ════════════════════════════════════════════════════════════
 ```
 

@@ -505,7 +505,6 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
 
   const h1Count = levels.filter((l) => l === 1).length;
   let hierarchyBroken = false;
-  const hasMultipleH1 = h1Count > 1;
 
   for (let i = 1; i < levels.length; i++) {
     if (levels[i] > levels[i - 1] + 1) {
@@ -516,33 +515,33 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
     }
   }
 
-  if (hasMultipleH1) {
+  // Multiple H1s are ADVISORY, never scored. No WCAG criterion, PDF/UA-1
+  // clause, or Matterhorn condition requires a single H1 (PDF/UA explicitly
+  // permits repeated H1s in strongly structured documents), and Acrobat/PAC
+  // do not flag it. Because any sub-100 category score becomes a severity
+  // and a severity caps the GRADE (SEVERITY_GRADE_CAPS), scoring this
+  // HTML-era convention 75 was denying a conformance-clean document its A:
+  // controls/DVFR_Biennial_2024 (5×H1, no other finding) graded B for it.
+  // Hierarchy SKIPS keep their penalty — that one has a standards basis
+  // (Matterhorn 13-004; WCAG technique G141).
+  if (h1Count > 1) {
     findings.push(
-      `Found ${h1Count} H1 headings — a document should have exactly one H1 (the document title)`,
-    );
-    findings.push(
-      "Fix: Change extra H1 tags to H2 or lower so there is a single top-level heading",
+      `Found ${h1Count} H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading (the document title), with sections demoted to H2 and below, so the outline has a single root.`,
     );
   }
 
-  if (hierarchyBroken || hasMultipleH1) {
-    const issues: string[] = [];
-    if (hierarchyBroken) issues.push("hierarchy has gaps");
-    if (hasMultipleH1) issues.push(`${h1Count} H1 headings instead of one`);
-    findings.unshift(`Found ${levels.length} heading tags, but ${issues.join(" and ")}`);
-    if (hierarchyBroken) {
-      findings.push(
-        "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
-      );
-    }
-    const score = hierarchyBroken && hasMultipleH1 ? 55 : hasMultipleH1 ? 75 : 60;
+  if (hierarchyBroken) {
+    findings.unshift(`Found ${levels.length} heading tags, but the hierarchy has gaps`);
+    findings.push(
+      "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
+    );
     return {
       id: "heading_structure",
       label: "Heading Structure",
       weight: SCORING_WEIGHTS.heading_structure,
-      score,
-      grade: getGrade(score),
-      severity: getSeverity(score),
+      score: 60,
+      grade: getGrade(60),
+      severity: getSeverity(60),
       findings,
       explanation: headingExplanation,
       helpLinks: headingLinks,
@@ -565,12 +564,25 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
 
 /**
  * Heuristic check for alt text that is likely machine-generated, encoded,
- * or otherwise not human-readable. Returns a reason string if suspicious,
- * or null if the text looks plausible.
+ * not human-readable, or self-defeating (declaring the image decorative).
+ * Returns a reason string if suspicious, or null if the text looks plausible.
  */
 function detectSuspiciousAltText(text: string): string | null {
   if (!text || text.trim().length === 0) return null;
   const t = text.trim();
+
+  // Alt text that says the image is decorative is a category error: a
+  // genuinely decorative image belongs outside the reading order as an
+  // /Artifact, not inside it with a description a screen reader will
+  // announce ("Decorative border, graphic" ×3 — observed in controls/).
+  // Anchored at the start so alt that DEPICTS decoration ("Photo of
+  // decorative ironwork…") is untouched.
+  if (
+    /^decorat(ive|ion|ed)?\b/i.test(t) ||
+    /^(border|spacer|divider|separator|flourish|ornament)s?$/i.test(t)
+  ) {
+    return "describes the image as decorative — a genuinely decorative image should be marked as an /Artifact (removed from the reading order) instead of carrying alt text";
+  }
 
   // Hex-encoded / binary-looking: long run of hex chars (possibly with "b:" prefix)
   const hexCleaned = t.replace(/^b:/, "");
@@ -823,9 +835,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   }
   if (suspicious.length > 0) {
     findings.push(`--- ⚠ Alt Text Quality Warning ---`);
-    findings.push(
-      `  ${suspicious.length} image(s) have alt text that may not be human-readable (no score penalty):`,
-    );
+    findings.push(`  ${suspicious.length} image(s) have alt text that needs review (no score penalty):`);
     for (const s of suspicious.slice(0, 15)) {
       const preview = s.alt.length > 60 ? s.alt.slice(0, 60) + "…" : s.alt;
       findings.push(`  Image ${s.index}: "${preview}" — ${s.reason}`);
@@ -967,7 +977,11 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     severity: getSeverity(45),
     findings: [
       `Document has ${pdfjs.pageCount} pages but no bookmarks`,
-      "Bookmarks map to WCAG 2.4.5 Multiple Ways (Level AA). A clear heading structure is a partial alternative way to navigate, so missing bookmarks is treated as a moderate issue rather than a critical failure — but bookmarks remain best practice for long documents.",
+      // Deliberately NOT cited as a WCAG requirement: 2.4.5 Multiple Ways is
+      // scoped to a SET of web pages, and no criterion mandates bookmarks
+      // inside a single document. The honest precedent is Acrobat's own
+      // checker, which flags long documents without them.
+      "No WCAG criterion strictly requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages, and W3C's PDF2 technique lists bookmarks as one way to satisfy it). But Adobe Acrobat's own accessibility checker flags long documents without them, and they remain the fastest way for every reader — screen-reader users included — to move around a long PDF, so their absence is treated as a moderate readiness issue.",
       "How to fix: In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks from Structure).",
     ],
     explanation: bookmarkExplanation,
@@ -1011,15 +1025,28 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     };
   }
 
-  const n = qpdf.tables.length;
-  const findings: string[] = [];
-  let score = 0;
+  // A construct whose first row spans a single column is a layout scaffold,
+  // not a data table. The conformance gate already skips these for the 1.3.1
+  // no-headers failure ((t.columnCounts[0] ?? 2) >= 2 — the SAME expression,
+  // so score and gate can never disagree), and the DOCX/XLSX scorers skip
+  // them explicitly. Docking the score for missing <TH> on them contradicted
+  // all three: controls/2022_DVFR_Annual_Report carried 26 single-column
+  // tables and scored 75 for header markup on constructs this tool itself
+  // classifies as layout. One-column tables still appear in the overview,
+  // marked, so nothing is silently hidden.
+  const isDataTable = (t: TableAnalysis): boolean => (t.columnCounts[0] ?? 2) >= 2;
+  const scored = qpdf.tables.map((t, i) => ({ t, i })).filter(({ t }) => isDataTable(t));
+  const dataTables = scored.map(({ t }) => t);
+  const layoutCount = qpdf.tables.length - dataTables.length;
 
-  // Per-table structural summary
+  const totalTables = qpdf.tables.length;
+  const findings: string[] = [];
+
+  // Per-table structural summary — ALL tables, layout ones marked.
   findings.push(`--- Table Structure Overview ---`);
-  for (let ti = 0; ti < n; ti++) {
+  for (let ti = 0; ti < totalTables; ti++) {
     const t = qpdf.tables[ti];
-    const label = n > 1 ? `Table ${ti + 1}` : "Table";
+    const label = totalTables > 1 ? `Table ${ti + 1}` : "Table";
     const cols = t.columnCounts.length > 0 ? `${t.columnCounts[0]} cols` : "no col data";
     const parts: string[] = [
       `${t.rowCount} rows × ${cols}`,
@@ -1034,25 +1061,53 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       parts.push(`inconsistent cols: [${unique.join(", ")}]`);
     }
     if (t.hasHeaderAssociation) parts.push("/Headers assoc: yes");
+    if (!isDataTable(t)) parts.push("single-column — layout, not scored");
     findings.push(`  ${label}: ${parts.join(" | ")}`);
   }
 
+  if (dataTables.length === 0) {
+    findings.push(
+      `${totalTables} single-column table(s) detected — treated as layout structures rather than data tables, so header markup is not required and this category does not affect the score.`,
+    );
+    findings.push(
+      "If any of these actually presents data relationships, restructure it as a real table with <TH> header cells; if it only positions content, consider whether it needs to be a <Table> at all.",
+    );
+    return {
+      id: "table_markup",
+      label: "Table Markup",
+      weight: SCORING_WEIGHTS.table_markup,
+      score: null,
+      grade: null,
+      severity: null,
+      findings,
+      explanation: tableExplanation,
+      helpLinks: tableLinks,
+    };
+  }
+
+  if (layoutCount > 0) {
+    findings.push(
+      `${layoutCount} single-column table(s) are treated as layout structures and excluded from the checks below; the ${dataTables.length} multi-column data table(s) are scored.`,
+    );
+  }
+
+  const n = dataTables.length;
+  let score = 0;
+
   // 1. Header presence (40 points) — most critical for screen reader navigation
-  const withHeaders = qpdf.tables.filter((t) => t.hasHeaders).length;
+  const withHeaders = dataTables.filter((t) => t.hasHeaders).length;
   if (withHeaders === n) {
     score += 40;
-    const totalTH = qpdf.tables.reduce((sum, t) => sum + t.headerCount, 0);
+    const totalTH = dataTables.reduce((sum, t) => sum + t.headerCount, 0);
     findings.push(`All ${n} table(s) have header cells (TH) — ${totalTH} header cell(s) total`);
   } else if (withHeaders > 0) {
     score += 20;
     findings.push(
       `${withHeaders} of ${n} table(s) have header cells — ${n - withHeaders} table(s) are missing <TH> tags`,
     );
-    for (let ti = 0; ti < n; ti++) {
-      if (!qpdf.tables[ti].hasHeaders) {
-        findings.push(
-          `  Table ${ti + 1}: 0 <TH> found — all ${qpdf.tables[ti].dataCellCount} cells are <TD>`,
-        );
+    for (const { t, i } of scored) {
+      if (!t.hasHeaders) {
+        findings.push(`  Table ${i + 1}: 0 <TH> found — all ${t.dataCellCount} cells are <TD>`);
       }
     }
     findings.push(
@@ -1062,8 +1117,8 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     findings.push(
       `${n} table(s) found but none have header cells — screen readers cannot identify column or row headers`,
     );
-    for (let ti = 0; ti < n; ti++) {
-      findings.push(`  Table ${ti + 1}: ${qpdf.tables[ti].dataCellCount} <TD> cells, 0 <TH> cells`);
+    for (const { t, i } of scored) {
+      findings.push(`  Table ${i + 1}: ${t.dataCellCount} <TD> cells, 0 <TH> cells`);
     }
     findings.push(
       "Fix: In Adobe Acrobat, open the Tags panel → expand each <Table> → find the header row → change the cell tags from <TD> to <TH>",
@@ -1071,17 +1126,17 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   }
 
   // 2. Row structure (20 points) — second most important structural requirement
-  const withRows = qpdf.tables.filter((t) => t.hasRowStructure).length;
+  const withRows = dataTables.filter((t) => t.hasRowStructure).length;
   if (withRows === n) {
     score += 20;
-    const totalRows = qpdf.tables.reduce((sum, t) => sum + t.rowCount, 0);
+    const totalRows = dataTables.reduce((sum, t) => sum + t.rowCount, 0);
     findings.push(`All ${n} table(s) have proper row structure — ${totalRows} <TR> row(s) total`);
   } else if (withRows > 0) {
     score += 10;
-    for (let ti = 0; ti < n; ti++) {
-      if (!qpdf.tables[ti].hasRowStructure) {
+    for (const { t, i } of scored) {
+      if (!t.hasRowStructure) {
         findings.push(
-          `  Table ${ti + 1}: missing <TR> row structure — cells are directly under <Table>`,
+          `  Table ${i + 1}: missing <TR> row structure — cells are directly under <Table>`,
         );
       }
     }
@@ -1101,8 +1156,8 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   //    and advisory only, matching how the conformance gate (and PAC)
   //    already treat Scope-or-Headers as equivalent.
   const associated = (t: TableAnalysis): boolean => t.hasScope || t.hasHeaderAssociation;
-  const withAssociation = qpdf.tables.filter((t) => t.hasHeaders && associated(t)).length;
-  const tablesWithHeaders = qpdf.tables.filter((t) => t.hasHeaders);
+  const withAssociation = dataTables.filter((t) => t.hasHeaders && associated(t)).length;
+  const tablesWithHeaders = dataTables.filter((t) => t.hasHeaders);
   if (tablesWithHeaders.length === 0) {
     findings.push("Scope attributes: N/A (no header cells to check)");
   } else if (withAssociation === tablesWithHeaders.length) {
@@ -1120,7 +1175,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       );
     }
   } else {
-    const totalMissing = qpdf.tables.reduce(
+    const totalMissing = dataTables.reduce(
       (sum, t) => (associated(t) ? sum : sum + t.scopeMissingCount),
       0,
     );
@@ -1128,11 +1183,10 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     findings.push(
       `${totalMissing} <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data`,
     );
-    for (let ti = 0; ti < n; ti++) {
-      const t = qpdf.tables[ti];
+    for (const { t, i } of scored) {
       if (t.headerCount > 0 && t.scopeMissingCount > 0 && !associated(t)) {
         findings.push(
-          `  Table ${ti + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`,
+          `  Table ${i + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`,
         );
       }
     }
@@ -1142,15 +1196,15 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   }
 
   // 4. No nested tables (10 points)
-  const withNesting = qpdf.tables.filter((t) => t.hasNestedTable).length;
+  const withNesting = dataTables.filter((t) => t.hasNestedTable).length;
   if (withNesting === 0) {
     score += 10;
     findings.push("No nested tables detected");
   } else {
-    for (let ti = 0; ti < n; ti++) {
-      if (qpdf.tables[ti].hasNestedTable) {
+    for (const { t, i } of scored) {
+      if (t.hasNestedTable) {
         findings.push(
-          `  Table ${ti + 1}: contains nested <Table> — extremely difficult for screen readers to navigate`,
+          `  Table ${i + 1}: contains nested <Table> — extremely difficult for screen readers to navigate`,
         );
       }
     }
@@ -1165,7 +1219,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   // awarded unconditionally; a missing caption is surfaced as an optional
   // recommendation only.
   score += 5;
-  const withCaption = qpdf.tables.filter((t) => t.hasCaption).length;
+  const withCaption = dataTables.filter((t) => t.hasCaption).length;
   if (withCaption === n) {
     findings.push(`All ${n} table(s) have <Caption> elements`);
   } else if (withCaption > 0) {
@@ -1179,20 +1233,19 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   }
 
   // 6. Consistent columns (10 points)
-  const withConsistent = qpdf.tables.filter((t) => t.hasConsistentColumns === true).length;
-  const checkable = qpdf.tables.filter((t) => t.hasConsistentColumns !== null).length;
+  const withConsistent = dataTables.filter((t) => t.hasConsistentColumns === true).length;
+  const checkable = dataTables.filter((t) => t.hasConsistentColumns !== null).length;
   if (checkable === 0) {
     findings.push("Column consistency: could not be checked (no row structure)");
   } else if (withConsistent === checkable) {
     score += 10;
     findings.push("All tables have consistent column counts across rows");
   } else {
-    for (let ti = 0; ti < n; ti++) {
-      const t = qpdf.tables[ti];
+    for (const { t, i } of scored) {
       if (t.hasConsistentColumns === false) {
         const unique = [...new Set(t.columnCounts)];
         findings.push(
-          `  Table ${ti + 1}: inconsistent column counts — rows span [${t.columnCounts.join(", ")}] grid columns (expected uniform ${unique[0]}; ColSpan/RowSpan are already accounted for)`,
+          `  Table ${i + 1}: inconsistent column counts — rows span [${t.columnCounts.join(", ")}] grid columns (expected uniform ${unique[0]}; ColSpan/RowSpan are already accounted for)`,
         );
       }
     }
@@ -1208,8 +1261,8 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   // /Scope is the recommended approach for simple tables, while the explicit
   // /Headers attribute is intended for complex tables. Crediting only /Headers
   // would wrongly dock a fully-conformant scope-based simple table 5 points.
-  const withExplicitHeaders = qpdf.tables.filter((t) => t.hasHeaderAssociation).length;
-  const withAssoc = qpdf.tables.filter((t) => t.hasHeaderAssociation || t.hasScope).length;
+  const withExplicitHeaders = dataTables.filter((t) => t.hasHeaderAssociation).length;
+  const withAssoc = dataTables.filter((t) => t.hasHeaderAssociation || t.hasScope).length;
   if (withAssoc > 0) {
     score += 5;
     if (withExplicitHeaders > 0) {

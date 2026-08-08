@@ -18,7 +18,12 @@ import { SCORING_PROFILES } from "@file-audit/shared";
 // substantial, actionable list — and that the list is built from the checks
 // that PASSED, since the failed ones are already the action plan.
 
-const cat = (id: string, score: number | null, label = id) => ({ id, label, score });
+const cat = (id: string, score: number | null, label = id, notAssessed?: boolean) => ({
+  id,
+  label,
+  score,
+  ...(notAssessed === undefined ? {} : { notAssessed }),
+});
 
 const PERFECT = [
   cat("text_extractability", 100, "Text Extractability"),
@@ -113,6 +118,38 @@ describe("manualChecks — built from what PASSED", () => {
   });
 });
 
+describe("manualChecks — images excluded from scoring still get a prompt", () => {
+  // Found in controls/: 2026_dvfrc_biennial_report.pdf scores 100/A with four
+  // images hidden as /Artifact — one a half-page cover image marked as a
+  // "Pagination/Header" artifact. The alt-text category is null+notAssessed,
+  // so the old score===100 gate meant the card said NOTHING about images on
+  // exactly the file whose most important human check is "confirm those
+  // hidden images are truly decorative". The asymmetry rule applies: showing
+  // an extra prompt costs a paragraph; hiding it publishes an invisible cover.
+  it("alt_text null + notAssessed → a caution prompt about decorative-marked images", () => {
+    const out = manualChecks([cat("alt_text", null, "Alt Text on Images", true)]);
+    expect(out.map((c) => c.id)).toEqual(["alt_text"]);
+    expect(out[0]!.tone).toBe("caution");
+    expect(out[0]!.verified).toMatch(/excluded from automated/i);
+    expect(out[0]!.confirm).toMatch(/decorative/i);
+    expect(out[0]!.confirm).toMatch(/look/i);
+  });
+
+  it("alt_text null WITHOUT notAssessed (no images at all) stays silent", () => {
+    expect(manualChecks([cat("alt_text", null, "Alt Text on Images")])).toEqual([]);
+  });
+
+  it("other notAssessed categories stay silent — contrast is already in the criteria list", () => {
+    expect(manualChecks([cat("color_contrast", null, "Color Contrast", true)])).toEqual([]);
+  });
+
+  it("a scored alt_text still gets the ordinary verified prompt, not the caution", () => {
+    const out = manualChecks([cat("alt_text", 100, "Alt Text on Images")]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.tone).toBeUndefined();
+  });
+});
+
 describe("ManualReviewCard — a perfect report still has a list", () => {
   it("renders a substantial checklist for a 100/A document", () => {
     const w = mount(ManualReviewCard, {
@@ -152,6 +189,23 @@ describe("ManualReviewCard — a perfect report still has a list", () => {
     });
     expect(w.text()).not.toContain("Every automated check passed");
     expect(w.text()).toContain("Separate from the fixes above");
+  });
+
+  it("renders the artifacted-images caution distinctly — not as a green tick", () => {
+    const w = mount(ManualReviewCard, {
+      props: {
+        categories: [...PERFECT.filter((c) => c.id !== "alt_text"), cat("alt_text", null, "Alt Text on Images", true)],
+        conformance: CONFORMANCE,
+      },
+    });
+    const text = w.text();
+    expect(text).toContain("Alt Text on Images");
+    expect(text).toMatch(/excluded from automated/i);
+    // The caution entry must not carry the "✓ verified" glyph of a passed check.
+    const cautionItem = w.findAll("ol > li").find((li) => /excluded from automated/i.test(li.text()));
+    expect(cautionItem).toBeDefined();
+    expect(cautionItem!.text()).not.toContain("✓");
+    expect(cautionItem!.text()).toContain("!");
   });
 
   it("renders nothing when there is no document to talk about", () => {

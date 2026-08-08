@@ -83,6 +83,7 @@ ul.checks{list-style:none;padding:0;margin:0}
 ul.checks li{border-left:3px solid #bbb;padding:0 0 0 12px;margin:0 0 14px;
  break-inside:avoid;page-break-inside:avoid}
 .verified{color:#1a7f37;font-size:13px;margin:2px 0 4px}
+.caution{color:#9a6700;font-size:13px;margin:2px 0 4px;font-weight:600}
 .confirm{color:#333;margin:0}
 .note{border:1px solid #111;border-left-width:5px;border-radius:6px;padding:12px 14px;margin:0 0 18px}
 .na li{margin:0 0 4px}
@@ -152,16 +153,26 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
       `<ol class="steps">${o.steps.map(renderStep).join("")}</ol>`
     : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
 
+  const hasCaution = (o.manualChecks ?? []).some((c) => c.tone === "caution");
   const checks = (o.manualChecks ?? []).length
     ? `<h2>Still worth checking by hand</h2>` +
       `<p class="sub">These checks passed. Passing means the structure is there, not that it is right — ` +
-      `only a person can judge that. None of these is a failure.</p>` +
+      `only a person can judge that. None of these is a failure.` +
+      (hasCaution
+        ? ` Items marked with ! were not checked at all — the content was excluded from automated scoring, and the exclusion itself is what needs a look.`
+        : "") +
+      `</p>` +
       `<ul class="checks">` +
       (o.manualChecks ?? [])
         .map(
           (c) =>
             `<li><h3>${escapeHtml(c.label)}</h3>` +
-            `<p class="verified">&#10003; ${escapeHtml(c.verified)}</p>` +
+            // A caution entry is NOT a passed check — the ✓ would claim a
+            // verification that never happened (e.g. every image marked
+            // decorative). Same tone rule as ManualReviewCard.
+            (c.tone === "caution"
+              ? `<p class="caution">! ${escapeHtml(c.verified)}</p>`
+              : `<p class="verified">&#10003; ${escapeHtml(c.verified)}</p>`) +
             `<p class="confirm">${escapeHtml(c.confirm)}</p></li>`,
         )
         .join("") +

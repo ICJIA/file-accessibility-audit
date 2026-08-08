@@ -88,6 +88,11 @@ const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
   "2.4.5": "multiple-ways",
   "2.4.6": "headings-and-labels",
   "3.1.1": "language-of-page",
+  "3.1.2": "language-of-parts",
+  "1.3.3": "sensory-characteristics",
+  "1.4.1": "use-of-color",
+  "1.4.5": "images-of-text",
+  "1.4.11": "non-text-contrast",
   "3.3.2": "labels-or-instructions",
   "4.1.2": "name-role-value",
   // New in WCAG 2.2 (form-relevant):
@@ -101,6 +106,69 @@ function wcagUrl(sc: string): string {
   const slug = WCAG_UNDERSTANDING_SLUGS[sc];
   const base = WCAG.UNDERSTANDING_BASE[WCAG.VERSION];
   return slug ? `${base}${slug}.html` : WCAG.QUICKREF[WCAG.VERSION];
+}
+
+/**
+ * Criteria that apply to every document this tool audits but that no
+ * automated check here can evaluate — appended to every verdict's
+ * `notAssessed` so the manual-review card's "not checked by this tool at
+ * all" list is complete rather than implying coverage.
+ *
+ * WHY: until 2026-08-08 the disclosure held only contrast and (conditionally)
+ * reading order, and controls/ produced a live counterexample — a 100/A
+ * report carrying stray da/de/it/no span languages, squarely 3.1.2
+ * territory, with nothing telling the reader that span language is never
+ * verified. A "not assessed" list that undersells what was skipped is the
+ * one dishonesty this page's whole design exists to avoid.
+ *
+ * Deliberately NOT included: 1.4.4 Resize Text and 1.4.10 Reflow (behaviour
+ * of the viewer as much as the file, and contested for fixed-layout formats
+ * — listing them would demand judgments a document author cannot act on),
+ * and the web-UI-only WCAG 2.2 criteria (documented on /wcag-2-2 instead).
+ */
+function universalNotAssessed(): NotAssessedCriterion[] {
+  return [
+    {
+      sc: "3.1.2",
+      name: "Language of Parts",
+      level: "AA",
+      reason:
+        "Passages in a different language from the document (quotations, place names, legal terms) must carry their own language marking so screen readers switch pronunciation. Whether individual passages are marked, and marked correctly, is not automatically verified.",
+      url: wcagUrl("3.1.2"),
+    },
+    {
+      sc: "1.4.1",
+      name: "Use of Color",
+      level: "A",
+      reason:
+        "Whether any information is conveyed by color alone — chart series distinguished only by hue, or wording like “items in red are overdue” — can only be judged by looking at the content.",
+      url: wcagUrl("1.4.1"),
+    },
+    {
+      sc: "1.4.5",
+      name: "Images of Text",
+      level: "AA",
+      reason:
+        "Whether any image is really a picture of text that should be actual text (a scanned letterhead, a screenshot of a paragraph) is not reliably detectable automatically.",
+      url: wcagUrl("1.4.5"),
+    },
+    {
+      sc: "1.4.11",
+      name: "Non-text Contrast",
+      level: "AA",
+      reason:
+        "The contrast of charts, icons, form-field borders, and other graphics against their background is not measured by this tool.",
+      url: wcagUrl("1.4.11"),
+    },
+    {
+      sc: "1.3.3",
+      name: "Sensory Characteristics",
+      level: "A",
+      reason:
+        "Instructions that rely on shape, position, or size alone — “click the round button”, “see the box on the right” — can only be found by reading the content.",
+      url: wcagUrl("1.3.3"),
+    },
+  ];
 }
 
 /**
@@ -384,6 +452,31 @@ export function evaluateConformance(
     }
   }
 
+  // The universally-unassessed criteria, with 3.1.2 upgraded from an abstract
+  // caveat to the document's own evidence when the tag tree declares spans in
+  // other languages. Compared by primary subtag ("en" vs "en-US" is not a
+  // foreign passage); Word's language autodetect routinely scatters wrong
+  // span languages through an English document, and whether each is a real
+  // foreign passage or noise is exactly the judgment a machine cannot make.
+  const docPrimaryLang = (qpdf.lang || "").toLowerCase().split("-")[0];
+  const foreignSpanLangs = [
+    ...new Set(
+      (qpdf.langSpans ?? [])
+        .map((s) => (s.lang || "").toLowerCase().split("-")[0])
+        .filter((lang) => lang.length > 0 && lang !== docPrimaryLang),
+    ),
+  ];
+  for (const criterion of universalNotAssessed()) {
+    if (criterion.sc === "3.1.2" && foreignSpanLangs.length > 0) {
+      notAssessed.push({
+        ...criterion,
+        reason: `This document declares passages in ${foreignSpanLangs.join(", ")} alongside its main language. Screen readers will switch pronunciation for each — whether every marking is a real foreign-language passage (rather than authoring-tool autodetect noise) and whether unmarked foreign passages remain is not automatically verified.`,
+      });
+    } else {
+      notAssessed.push(criterion);
+    }
+  }
+
   const status: ConformanceVerdict["status"] =
     failures.length > 0 ? "fail" : "no-automated-failures";
 
@@ -423,6 +516,12 @@ function finalizeVerdict(
   notAssessed: NotAssessedCriterion[],
   contrastNotEvaluated: boolean,
 ): ConformanceVerdict {
+  // Every Office verdict funnels through here, so the universally-unassessed
+  // document criteria are appended in one place for docx/pptx/xlsx. (The PDF
+  // gate has its own tail and appends them itself, with a 3.1.2 reason built
+  // from the document's measured language spans.)
+  notAssessed = [...notAssessed, ...universalNotAssessed()];
+
   const status: ConformanceVerdict["status"] =
     failures.length > 0 ? "fail" : "no-automated-failures";
 

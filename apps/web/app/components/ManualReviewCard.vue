@@ -37,14 +37,26 @@
       >
         <div class="flex items-start gap-3">
           <span
-            class="shrink-0 w-6 h-6 rounded-full bg-emerald-900/40 text-emerald-300 text-xs font-bold flex items-center justify-center"
+            class="shrink-0 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center"
+            :class="
+              c.tone === 'caution'
+                ? 'bg-amber-900/40 text-amber-300'
+                : 'bg-emerald-900/40 text-emerald-300'
+            "
             aria-hidden="true"
             >{{ i + 1 }}</span
           >
           <div class="min-w-0">
             <p class="text-sm font-semibold text-[var(--text-heading)]">{{ c.label }}</p>
-            <p class="text-xs text-emerald-300/90 mt-1">
-              <span aria-hidden="true">✓</span> {{ c.verified }}
+            <!-- A caution entry is NOT a passed check — the category was
+                 excluded from scoring (e.g. every image marked decorative),
+                 so the ✓ would claim a verification that never happened. -->
+            <p
+              class="text-xs mt-1"
+              :class="c.tone === 'caution' ? 'text-amber-300/90' : 'text-emerald-300/90'"
+            >
+              <span aria-hidden="true">{{ c.tone === "caution" ? "!" : "✓" }}</span>
+              {{ c.verified }}
             </p>
             <p class="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
               {{ c.confirm }}
@@ -94,7 +106,12 @@ import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 // section passes. This card names that gap, so a perfect score is not read as
 // "nothing left to do".
 const props = defineProps<{
-  categories: Array<{ id?: string; label?: string; score?: number | null }>;
+  categories: Array<{
+    id?: string;
+    label?: string;
+    score?: number | null;
+    notAssessed?: boolean | null;
+  }>;
   conformance?: ConformanceVerdict | null;
 }>();
 

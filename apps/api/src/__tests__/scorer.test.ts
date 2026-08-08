@@ -789,18 +789,25 @@ describe("grade thresholds", () => {
     // Critical → D. Without a case at each rung, a change that collapsed them
     // into one cap would pass.
     const { qpdf, pdfjs } = fullyAccessible();
-    // Multiple H1s with an otherwise sound hierarchy → heading_structure 75,
-    // which is the Minor band (70–99). A skipped level scores 60 and would be
-    // Moderate — the premise guard below caught exactly that substitution
-    // while this test was being written.
-    qpdf.headings = [
-      { level: "H1", tag: "/H1" },
-      { level: "H2", tag: "/H2" },
-      { level: "H2", tag: "/H2" },
-      { level: "H1", tag: "/H1" },
+    // A data table with headers and rows but no scope/association and no
+    // caption → table_markup 85, which is the Minor band (70–99). (This test
+    // originally generated Minor via multiple H1s; the 2026-08-08 calibration
+    // made that advisory, and the premise guard below caught the substitution
+    // — twice now — exactly as designed.)
+    qpdf.tables = [
+      makeTable({
+        hasHeaders: true,
+        headerCount: 3,
+        scopeMissingCount: 3,
+        dataCellCount: 9,
+        hasRowStructure: true,
+        rowCount: 4,
+        hasConsistentColumns: true,
+        columnCounts: [3, 3, 3, 3],
+      }),
     ];
     const result = scoreDocument(qpdf, pdfjs);
-    const sev = findCategory(result, "heading_structure").severity;
+    const sev = findCategory(result, "table_markup").severity;
     // Guard the premise: if scoring shifts this category out of Minor, the
     // assertion below would be testing a different rung than it claims to.
     expect(sev).toBe("Minor");
@@ -1134,25 +1141,8 @@ describe("scoreHeadingStructure edge cases", () => {
     expect(findCategory(result, "heading_structure").score).toBe(100);
   });
 
-  it("H1→H2→H2→H1 (multiple H1s) → score 75 with warning", () => {
-    const qpdf = makeQpdf({
-      headings: [
-        { level: "H1", tag: "/H1" },
-        { level: "H2", tag: "/H2" },
-        { level: "H2", tag: "/H2" },
-        { level: "H1", tag: "/H1" },
-      ],
-    });
-    const pdfjs = makePdfjs();
-    const result = scoreDocument(qpdf, pdfjs);
-    // No hierarchy skip, but 2 H1s → minor ding (75)
-    expect(findCategory(result, "heading_structure").score).toBe(75);
-    expect(
-      findCategory(result, "heading_structure").findings.some(
-        (f: string) => f.includes("H1 headings") && f.includes("exactly one"),
-      ),
-    ).toBe(true);
-  });
+  // Multiple-H1 behavior is pinned by "multiple H1s are advisory, not scored"
+  // below — the 2026-08-08 calibration replaced the old 75/Minor penalty.
 });
 
 describe("scoreAltText pdfjs fallback", () => {
@@ -2493,5 +2483,174 @@ describe("alt_text — content images that were never tagged as <Figure>", () =>
     );
     const cat = result.categories.find((c) => c.id === "alt_text")!;
     expect(cat.score).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2026-08-08 calibration — adversarial review against controls/.
+// The score is a readiness metric and may be stricter than WCAG, but a
+// sub-100 category score becomes a severity, and a severity CAPS the grade
+// (SEVERITY_GRADE_CAPS). So only findings with a standards or tool-precedent
+// basis may score below 100; conventions stay as advisory findings.
+// ---------------------------------------------------------------------------
+
+describe("multiple H1s are advisory, not scored", () => {
+  // No WCAG SC, PDF/UA clause, or Matterhorn condition requires a single H1,
+  // and Acrobat/PAC do not flag it. The old 75/Minor capped a document with
+  // zero automated conformance failures at B: controls/DVFR_Biennial_2024
+  // (5×H1, its ONLY sub-100 category) was denied its A by an HTML-era
+  // convention.
+  it("H1→H2→H2→H1 keeps score 100 with an advisory finding", () => {
+    const qpdf = makeQpdf({
+      headings: [
+        { level: "H1", tag: "/H1" },
+        { level: "H2", tag: "/H2" },
+        { level: "H2", tag: "/H2" },
+        { level: "H1", tag: "/H1" },
+      ],
+    });
+    const cat = findCategory(scoreDocument(qpdf, makePdfjs()), "heading_structure");
+    expect(cat.score).toBe(100);
+    expect(cat.severity).toBe("No issues found");
+    // The observation is still surfaced — as advice, with its basis stated.
+    expect(cat.findings.some((f) => f.includes("2 H1 headings"))).toBe(true);
+    expect(cat.findings.some((f) => /no WCAG criterion requires/i.test(f))).toBe(true);
+  });
+
+  it("an all-H1 flat outline is still advisory, with pointed copy", () => {
+    const qpdf = makeQpdf({
+      headings: Array.from({ length: 6 }, () => ({ level: "H1", tag: "/H1" })),
+    });
+    const cat = findCategory(scoreDocument(qpdf, makePdfjs()), "heading_structure");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => f.includes("6 H1 headings"))).toBe(true);
+  });
+
+  it("hierarchy skips still score 60, and multiple H1s no longer compound to 55", () => {
+    // The skip penalty keeps its technique basis (G141); the H1 count no
+    // longer stacks a second penalty on top.
+    const qpdf = makeQpdf({
+      headings: [
+        { level: "H1", tag: "/H1" },
+        { level: "H3", tag: "/H3" },
+        { level: "H1", tag: "/H1" },
+      ],
+    });
+    expect(findCategory(scoreDocument(qpdf, makePdfjs()), "heading_structure").score).toBe(60);
+  });
+});
+
+describe("single-column tables are layout, not data", () => {
+  // The conformance gate already skips one-column constructs
+  // ((t.columnCounts[0] ?? 2) >= 2); the score docked them for missing <TH>
+  // anyway. controls/2022_DVFR_Annual_Report: 26 single-column tables →
+  // table_markup 75 for header markup on constructs the tool itself
+  // classifies as layout.
+  it("a document whose only tables are single-column gets N/A, not a dock", () => {
+    const qpdf = makeQpdf({
+      tables: [
+        makeTable({
+          rowCount: 5,
+          columnCounts: [1, 1, 1, 1, 1],
+          dataCellCount: 5,
+          hasRowStructure: true,
+          hasConsistentColumns: true,
+        }),
+        makeTable({
+          rowCount: 3,
+          columnCounts: [1, 1, 1],
+          dataCellCount: 3,
+          hasRowStructure: true,
+          hasConsistentColumns: true,
+        }),
+      ],
+    });
+    const cat = findCategory(scoreDocument(qpdf, makePdfjs()), "table_markup");
+    expect(cat.score).toBeNull();
+    expect(cat.findings.some((f) => /single-column/i.test(f))).toBe(true);
+  });
+
+  it("layout tables do not dilute a real data table's score", () => {
+    const dataTable = makeTable({
+      hasHeaders: true,
+      headerCount: 3,
+      dataCellCount: 9,
+      hasScope: true,
+      hasRowStructure: true,
+      rowCount: 4,
+      hasConsistentColumns: true,
+      columnCounts: [3, 3, 3, 3],
+    });
+    const layout = makeTable({
+      rowCount: 4,
+      columnCounts: [1, 1, 1, 1],
+      dataCellCount: 4,
+      hasRowStructure: true,
+      hasConsistentColumns: true,
+    });
+    const withLayout = findCategory(
+      scoreDocument(makeQpdf({ tables: [dataTable, layout] }), makePdfjs()),
+      "table_markup",
+    );
+    const alone = findCategory(
+      scoreDocument(makeQpdf({ tables: [dataTable] }), makePdfjs()),
+      "table_markup",
+    );
+    expect(withLayout.score).toBe(alone.score);
+  });
+});
+
+describe("bookmarks framing — best practice, not a WCAG requirement", () => {
+  it("missing bookmarks on a long PDF keeps its score but stops citing 2.4.5 as the rule", () => {
+    // 2.4.5 Multiple Ways is scoped to a SET of web pages; no criterion
+    // requires bookmarks inside a single document. Acrobat's own checker
+    // flags them on long documents, which is the honest precedent to cite.
+    const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
+    const pdfjs = makePdfjs({ pageCount: 40, hasText: true, textLength: 9000 });
+    const cat = findCategory(scoreDocument(qpdf, pdfjs), "bookmarks");
+    expect(cat.score).toBe(45);
+    expect(cat.findings.some((f) => f.includes("map to WCAG 2.4.5"))).toBe(false);
+    expect(cat.findings.some((f) => /no WCAG criterion strictly requires/i.test(f))).toBe(true);
+    expect(cat.findings.some((f) => /Acrobat/.test(f))).toBe(true);
+  });
+});
+
+describe("alt text that declares itself decorative", () => {
+  // controls/DVFR_Biennial_2024: three <Figure>s carry /Alt "Decorative
+  // border". A screen reader announces every one; an image that IS
+  // decorative belongs outside the reading order as an /Artifact, not in it
+  // with a self-cancelling description.
+  it("flags 'Decorative border' and points at artifacting instead", () => {
+    const qpdf = makeQpdf({
+      images: [
+        { ref: "12 0 R", hasAlt: true, altText: "Decorative border" },
+        { ref: "13 0 R", hasAlt: true, altText: "Chart of 2024 referrals by county" },
+      ],
+    });
+    const cat = findCategory(
+      scoreDocument(qpdf, makePdfjs({ hasText: true, textLength: 500 })),
+      "alt_text",
+    );
+    expect(cat.score).toBe(100); // advisory only — alt coverage is complete
+    expect(
+      cat.findings.some((f) => f.includes("Decorative border") && /artifact/i.test(f)),
+    ).toBe(true);
+  });
+
+  it("does not flag alt that merely depicts decoration", () => {
+    const qpdf = makeQpdf({
+      images: [
+        {
+          ref: "12 0 R",
+          hasAlt: true,
+          altText: "Photo of decorative ironwork on the courthouse gate",
+        },
+      ],
+    });
+    const cat = findCategory(
+      scoreDocument(qpdf, makePdfjs({ hasText: true, textLength: 500 })),
+      "alt_text",
+    );
+    expect(cat.findings.some((f) => /marked as an \/Artifact/i.test(f))).toBe(false);
   });
 });

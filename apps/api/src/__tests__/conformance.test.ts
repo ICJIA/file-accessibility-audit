@@ -114,6 +114,51 @@ describe("conformance gate — encryption accessibility permission", () => {
   });
 });
 
+describe("conformance gate — universally-unassessed criteria are disclosed", () => {
+  // The manual-review card presents notAssessed as "criteria this tool does
+  // not evaluate at all". Until 2026-08-08 that list held only contrast and
+  // (conditionally) reading order — implying everything else was covered.
+  // controls/ showed a live counterexample: a 100/A report carrying stray
+  // da/de/it/no span languages the tool neither checks nor discloses (3.1.2).
+  const UNIVERSAL = ["3.1.2", "1.4.1", "1.4.5", "1.4.11", "1.3.3"];
+
+  it("PDF: lists Language of Parts, Use of Color, Images of Text, Non-text Contrast, Sensory Characteristics", async () => {
+    const evaluate = await loadGate();
+    const v = evaluate(makeQpdf(), makePdfjs(), cleanCategories);
+    const scs = v.notAssessed.map((n: any) => n.sc);
+    expect(scs).toEqual(expect.arrayContaining(UNIVERSAL));
+    for (const n of v.notAssessed) {
+      expect(n.reason.length, n.sc).toBeGreaterThan(40);
+      expect(n.url, n.sc).toMatch(/^https:\/\/www\.w3\.org\//);
+    }
+  });
+
+  it("PDF: cites the document's own foreign-language spans in the 3.1.2 reason when present", async () => {
+    // controls/2022-DVFR-Annual-Report-A0.pdf declares da/de/it/no spans in
+    // an English document — almost certainly Word autodetect noise. The
+    // disclosure should point at the measured evidence, not speak abstractly.
+    const evaluate = await loadGate();
+    const v = evaluate(
+      makeQpdf({
+        lang: "en",
+        hasLang: true,
+        langSpans: [
+          { lang: "da", tag: "Span" },
+          { lang: "de", tag: "Span" },
+          { lang: "en", tag: "Span" },
+        ],
+      }),
+      makePdfjs(),
+      cleanCategories,
+    );
+    const entry = v.notAssessed.find((n: any) => n.sc === "3.1.2");
+    expect(entry).toBeDefined();
+    expect(entry!.reason).toContain("da");
+    expect(entry!.reason).toContain("de");
+    expect(entry!.reason).not.toContain('"en"');
+  });
+});
+
 describe("conformance gate — 1.1.1 scanned-document evidence", () => {
   it("does not assert 1.1.1 for a short born-digital document (little text, no images)", async () => {
     const evaluate = await loadGate();

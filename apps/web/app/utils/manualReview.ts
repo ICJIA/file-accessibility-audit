@@ -30,6 +30,13 @@ export interface ManualCheck {
   verified: string;
   /** The judgment only a person can make, phrased as something to go and do. */
   confirm: string;
+  /**
+   * "caution" marks a prompt whose check did NOT pass — the category was
+   * EXCLUDED from scoring while content is present (score null +
+   * notAssessed), so rendering it with the passed-check ✓ would claim a
+   * verification that never happened. Absent for ordinary passed checks.
+   */
+  tone?: "caution";
 }
 
 /** Keyed by scoring-category id. A category absent from here contributes no
@@ -92,7 +99,34 @@ interface CategoryLike {
   label?: string;
   score?: number | null;
   severity?: string | null;
+  notAssessed?: boolean | null;
 }
+
+/**
+ * Prompts for categories EXCLUDED from scoring while content is present —
+ * score null with notAssessed set — where the exclusion itself is the
+ * judgment a person must make. Only alt_text today: "every image is
+ * artifacted / not verifiably tagged" is an author's claim the tool cannot
+ * check, and the old score===100 gate meant the card said nothing about
+ * images on exactly the report that most needed the prompt
+ * (controls/2026_dvfrc_biennial_report.pdf: 100/A with a half-page cover
+ * image hidden as a Pagination artifact). The asymmetry rule from the report
+ * views applies here too: an unneeded prompt costs a paragraph; a missing
+ * one publishes an invisible cover image.
+ *
+ * Deliberately NOT color_contrast: that exclusion is already disclosed in
+ * the "not checked by this tool at all" criteria list (1.4.3), and a second
+ * entry would double-report it.
+ */
+const NOT_ASSESSED_CHECKS: Record<string, Omit<ManualCheck, "id">> = {
+  alt_text: {
+    tone: "caution",
+    verified:
+      "Images are present, but every one of them is excluded from automated alt-text scoring — most commonly because it is marked decorative, which hides it from screen readers entirely.",
+    confirm:
+      "Look at each image in the document. Marking an image decorative claims it conveys nothing — if a chart, photograph, or cover image actually carries information, it needs a real text description instead. Screen readers skip decorative images silently, so a mis-marked image simply disappears for those readers.",
+  },
+};
 
 /**
  * Prompts for every category that PASSED, in the order the categories are
@@ -109,10 +143,15 @@ export function manualChecks(
   if (!Array.isArray(categories)) return [];
   const out: Array<ManualCheck & { label: string }> = [];
   for (const c of categories) {
-    if (!c || typeof c.id !== "string" || c.score !== 100) continue;
-    const copy = MANUAL_CHECKS[c.id];
-    if (!copy) continue;
-    out.push({ id: c.id, label: typeof c.label === "string" && c.label ? c.label : c.id, ...copy });
+    if (!c || typeof c.id !== "string") continue;
+    const label = typeof c.label === "string" && c.label ? c.label : c.id;
+    if (c.score === 100) {
+      const copy = MANUAL_CHECKS[c.id];
+      if (copy) out.push({ id: c.id, label, ...copy });
+    } else if (c.score === null && c.notAssessed === true) {
+      const copy = NOT_ASSESSED_CHECKS[c.id];
+      if (copy) out.push({ id: c.id, label, ...copy });
+    }
   }
   return out;
 }

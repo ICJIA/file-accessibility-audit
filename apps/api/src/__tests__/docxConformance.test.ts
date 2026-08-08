@@ -163,3 +163,13 @@ describe("evaluateDocxConformance", () => {
     expect(checked.notAssessed.some((c) => c.sc === "1.4.3")).toBe(false);
   });
 });
+
+describe("universally-unassessed criteria are disclosed (docx)", () => {
+  it("lists 3.1.2 / 1.4.1 / 1.4.5 / 1.4.11 / 1.3.3 as not assessed", () => {
+    const v = evaluateDocxConformance(analysis());
+    const scs = v.notAssessed.map((n) => n.sc);
+    for (const sc of ["3.1.2", "1.4.1", "1.4.5", "1.4.11", "1.3.3"]) {
+      expect(scs, sc).toContain(sc);
+    }
+  });
+});

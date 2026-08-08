@@ -88,3 +88,13 @@ describe("evaluateXlsxConformance", () => {
     expect(v.status).toBe("no-automated-failures");
   });
 });
+
+describe("universally-unassessed criteria are disclosed (xlsx)", () => {
+  it("lists 3.1.2 / 1.4.1 / 1.4.5 / 1.4.11 / 1.3.3 as not assessed", () => {
+    const v = evaluateXlsxConformance(analysis({}));
+    const scs = v.notAssessed.map((n) => n.sc);
+    for (const sc of ["3.1.2", "1.4.1", "1.4.5", "1.4.11", "1.3.3"]) {
+      expect(scs, sc).toContain(sc);
+    }
+  });
+});

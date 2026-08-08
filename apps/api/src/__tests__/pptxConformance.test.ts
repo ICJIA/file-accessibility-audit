@@ -60,3 +60,13 @@ describe("evaluatePptxConformance", () => {
     expect(v.notAssessed.map((n) => n.sc)).toContain("1.2.2");
   });
 });
+
+describe("universally-unassessed criteria are disclosed (pptx)", () => {
+  it("lists 3.1.2 / 1.4.1 / 1.4.5 / 1.4.11 / 1.3.3 as not assessed", () => {
+    const v = evaluatePptxConformance(analysis({}));
+    const scs = v.notAssessed.map((n) => n.sc);
+    for (const sc of ["3.1.2", "1.4.1", "1.4.5", "1.4.11", "1.3.3"]) {
+      expect(scs, sc).toContain(sc);
+    }
+  });
+});
