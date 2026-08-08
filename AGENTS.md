@@ -160,9 +160,12 @@ auto-reads from `apps/web/package.json` via
 1. `CHANGELOG.md` (root) — add entry under new version heading
 2. The three `package.json` files
 3. `README.md` § Security — technical-framed audit log entry
-4. `apps/web/app/components/dataRetention/Section10SecurityAudits.vue`
-   (§ 10 of the data-retention page) — plain-language audit log entry
-   for auditors
+4. `apps/web/app/data/securityAudits.ts` — plain-language audit log
+   entry for auditors (§ 10 of the data-retention page). Prepend an
+   object to `SECURITY_AUDIT_ENTRIES`; the markup is in
+   `components/dataRetention/Section10SecurityAudits.vue` and needs no
+   change. `securityAudits.test.ts` fails until the shipping version
+   has an entry.
 5. Create an annotated git tag `vX.Y.Z`
 
 The Security / data-retention entries are the auditor-facing

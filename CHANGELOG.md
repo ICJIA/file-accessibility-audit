@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.63.2] - 2026-08-08
+
+### Changed
+
+- **§ 10 of the data-retention page — the security-audit history — is now data plus one renderer.** It was 3,273 lines of hand-written markup: 65 `<article>` blocks of ~46 lines each, 536 duplicated class attributes, and the same card copied and re-edited for every release. The entries now live in `apps/web/app/data/securityAudits.ts` (781 lines of prose in a typed structure) and the component is 161 lines. Adding a release is a few lines instead of fifty.
+
+  **No record changed.** Verified by rendering the old component and the new one and comparing the text of all 65 entries — identical, character for character, once inter-element whitespace is ignored. Two content bugs surfaced doing it and were fixed: 28 findings' follow-up notes contained inline markup and were being rendered through text interpolation (so a reader would have seen a literal `<strong>`), and three sub-headings kept a raw `&amp;`.
+
+  **On the `v-html`.** Entries use inline emphasis mid-sentence, so their text is markup and is rendered as markup. That is safe for one reason only: the strings are authored in the repository and compiled into the bundle — the component takes no props, makes no requests, and nothing user-supplied or database-derived can reach it. `securityAudits.test.ts` makes that a checked claim rather than a comment, asserting the data contains only `<a> <br> <code> <em> <strong>`, no event handler, no `style`, no `src`, no `data:`/`javascript:` URI, and no template interpolation. Each of those assertions was sabotage-verified.
+
+### Fixed
+
+- **A release can no longer ship without its auditor-facing entries.** § 10 (step 4) and the README § Security review history (step 3) were both documented in AGENTS.md and neither was enforced — v1.63.1 shipped without either, which is how this was found. Tests now fail until the version in `package.json` appears in both. v1.63.0, v1.63.1 and v1.63.2 are recorded in both.
+
+  The checks cover the release in hand, not the archive. 27 earlier releases have no § 10 entry and 29 have no README entry, mostly the v1.58.x–v1.62.0 patch runs of 2026-08-07/08; those are worth backfilling deliberately, and are deliberately not backfilled by a test that would otherwise be satisfied with fabricated dated reviews. Nothing already published is wrong — § 10's v1.58.0 entry describes the *final* scoring rule, not the letter-cap version that was corrected two patches later.
+
+### Notes
+
+Tests 2,177 → 2,190.
+
 ## [1.63.1] - 2026-08-08
 
 ### Fixed
