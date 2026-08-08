@@ -28,11 +28,12 @@
   --surface-body: #0a0a0a;
   --surface-card: #111111;
   --surface-card-alt: #141414;
-  /* Announcement banner. Sits directly on the page background, so it needs to
-     read as a distinct surface without becoming a second card competing with
-     the report below it — a cool lift rather than a brighter grey. Text stays
-     at 11.9:1 (measured 2026-08-08). */
-  --surface-announce: #16191f;
+  /* Anything sitting directly ON the page background that must read as its
+     own thing — the announcement banner, the view chooser. A cool lift rather
+     than a brighter grey, so it separates from the page without becoming a
+     second card competing with the report. Text stays at 11.9:1 dark / 9.2:1
+     light (measured 2026-08-08). */
+  --surface-raised: #16191f;
   --surface-hover: #1a1a1a;
   --surface-deep: #0d0d0d;
   --surface-icon: #222222;
@@ -130,7 +131,7 @@ html.light {
   --surface-body: #f9fafb;
   --surface-card: #ffffff;
   --surface-card-alt: #f3f4f6;
-  --surface-announce: #eef2f7;
+  --surface-raised: #eef2f7;
   --surface-hover: #f3f4f6;
   --surface-deep: #f9fafb;
   --surface-icon: #e5e7eb;

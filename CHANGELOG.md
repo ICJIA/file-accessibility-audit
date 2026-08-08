@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.63.0] - 2026-08-08
+
+### Added
+
+- **Printer-friendly action steps.** The workflow this tool serves is *drop a file, get a grade, get fixes* — and that last step required keeping a browser tab open while working in Word or Acrobat. The fix steps are exactly the part someone needs beside the document rather than behind it. A large button on every report opens a self-contained page in a new tab: every fix expanded, **both** routes always shown (source document *and* Acrobat, because the person holding the printout may not be the one who chose the route), the human checks, and the unexamined WCAG criteria. Print it or save it as a PDF.
+
+  Its own renderer rather than a reuse of the HTML export: that one reproduces the whole report — score tiles, category bars, technical signals — styled dark for screen. This is the opposite document, ink-friendly and instruction-first, with page-break rules so a fix and its steps never straddle a page. No scripts, no external requests, everything escaped.
+
+- **The same button on the auto-remediation result**, printing what the automatic fixes could *not* repair, plus the human-only checks — retitled *"What still needs fixing"* since it prints a different thing.
+
+- **The button appears in both the Visual and Detailed views**, on the audit page and on shared reports. Someone reading the detailed report is just as likely to be the person who has to go and make the fixes.
+
+### Fixed
+
+- **The audit report and the remediation result no longer contradict each other about publishing.** Reported on a real file: the audit page said *"ready to publish"* while the remediation page said *"Not ready to publish yet"* — same PDF, opposite answers to the only question a non-technical author actually has.
+
+  Two different rules were answering it. The audit report used `publicationVerdict` (a severity tally: Critical blocks, Moderate cautions); the remediation page used `grade === "A"`. On a file graded B with three Minor findings and nothing worse, those disagree. The audit page's rule survives because it is the one the grade ladder already publishes everywhere: A = nothing found, B = only minor items, C = a real problem, D/F = do not publish. Treating B as unpublishable contradicted our own scale. Both surfaces now call the same function.
+
+  The genuine caution about auto-remediation — that machine-generated structure can satisfy a checker without being good — has **not** been dropped. It moved out of the verdict into a note shown at *every* grade, which is where it belongs: it is equally true of an A, and previously a file good enough to publish never heard it.
+
+  A regression caught by the existing suite while making this change: delegating naively made a missing or unreadable audit report *"ready to publish"*, because a severity tally of nothing finds nothing wrong. It now **fails closed** and says the file could not be re-checked. The old grade gate got that right by accident (`null !== "A"`); it is now right on purpose.
+
+### Changed
+
+- **The Visual/Detailed chooser reads as buttons**, on a raised surface (`--surface-raised`) with a heavier border, so it separates from the page background instead of floating on it. The announcement banner now shares that token — one "lifted off the page" surface rather than two with the same values.
+
+- **In-app documentation** gained a *"How a report is presented"* section covering the two views, why the choice is not remembered, the human-check list, and the printable plan.
+
+### Notes
+
+Tests 2,149 → 2,171.
+
 ## [1.62.0] - 2026-08-08
 
 ### Changed

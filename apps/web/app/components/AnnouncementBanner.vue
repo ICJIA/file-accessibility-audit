@@ -3,7 +3,7 @@
     v-if="visible && current"
     role="region"
     aria-label="Site announcement"
-    class="mb-6 flex items-start gap-3 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-announce)] px-4 py-3"
+    class="mb-6 flex items-start gap-3 rounded-xl border border-[var(--border-alt)] bg-[var(--surface-raised)] px-4 py-3"
   >
     <span
       class="mt-0.5 shrink-0 rounded-md bg-emerald-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-300"

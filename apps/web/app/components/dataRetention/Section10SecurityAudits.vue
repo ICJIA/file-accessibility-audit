@@ -64,6 +64,38 @@
       the findings discovered during that release's review and what was done about them.
     </p>
 
+    <!-- v1.63.0 audit entry -->
+    <article
+      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"
+    >
+      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+        <h3 class="text-lg font-bold text-[var(--text-heading)]">v1.63.0</h3>
+        <span class="text-xs text-[var(--text-muted)]">
+          Reviewed <strong>2026-08-08</strong> · scope: a printable fix plan, and one contradiction
+          about whether a file could be published — not a security release.
+        </span>
+      </header>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
+        <strong>Every report now has a printer-friendly version of its fix steps.</strong> The
+        button opens a clean page in a new tab, listing each fix in full — both how to correct it in
+        the original Word or PowerPoint file and how to correct it in Adobe Acrobat — so it can be
+        printed, saved as a PDF, or handed to whoever actually edits the document. That page is
+        built entirely inside your own browser from the report already on screen: nothing is sent
+        anywhere to produce it, and the page itself loads nothing from the internet.
+      </p>
+      <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
+        <strong>The audit report and the auto-remediation result no longer disagree</strong> about
+        whether a file is ready to publish. They were using two different rules, so one file could
+        be called ready on one page and not ready on the other. Both now use the same rule, and when
+        a file's results cannot be re-read the tool says so rather than assuming the file is fine.
+        Reports also always open in the visual, step-by-step view, and the control for switching to
+        the detailed view is far easier to find.
+        <strong
+          >No change to what data is collected, how it is used, or how long it is kept.</strong
+        >
+      </p>
+    </article>
+
     <!-- v1.61.1 audit entry -->
     <article
       class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6 mb-4"

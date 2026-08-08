@@ -177,6 +177,18 @@ Renormalizing away N/A categories has two consequences that made the tool contra
 
 An averaged score cannot express "one thing here is disqualifying", but accessibility conformance is pass/fail per criterion, not a mean. The cap restores that, and gives the letters a rule that fits in one sentence for the agency staff deciding whether to publish: **A = nothing found · B = only minor items · C = a real problem to fix · D/F = do not publish.** It also makes the grade and the publication verdict structurally incapable of disagreeing, which was the reported symptom — a reader ranking documents by letter got the opposite of the truth.
 
+#### How a report is presented
+
+Every report opens in the **Visual view**: the grade, then a numbered action plan that walks through one fix at a time in plain language, with instructions for both the source document and Adobe Acrobat. The **Detailed view** holds the complete technical report — every finding, the WCAG criteria it maps to, the evidence, PDF/UA signals, methodology.
+
+The chooser sits above every report and the choice is **not remembered between reports**. It used to persist per device, which meant anyone who opened the Detailed view once got it for every report afterwards — and since the action plan exists only in the Visual view, the plan appeared to have been deleted (reported exactly that way). The cost of being wrong here is asymmetric: showing the stepper to someone who wanted detail costs one click; hiding it from someone who needed it costs them the guidance.
+
+Both views end with **"Still worth checking by hand"**, on every report at every score, including a perfect one. These checks confirm accessibility structure is *present*; almost none can judge whether it is *correct* — alt text reading "image" passes, a heading describing the wrong section passes. Each check a document passed contributes the one judgment the tool could not make, and the WCAG criteria the tool does not evaluate at all are listed by name with links.
+
+**Printer-friendly action steps** opens the plan in a new tab as a self-contained page — every fix expanded, both routes shown, human checks included, nothing loaded from the network — to print or save as PDF and work from beside the document. The same button appears on the auto-remediation result, printing what the automatic fixes could *not* repair.
+
+**One publish verdict, everywhere.** The audit report and the remediation result both call `publicationVerdict`. They used to differ (`publicationVerdict` vs `grade === "A"`), and on a file graded B with only Minor findings the two said "ready to publish" and "Not ready to publish yet" about the same PDF. Readiness now **fails closed** when the audit cannot be read, rather than reporting a file publishable because it could not be assessed.
+
 #### How a category that doesn't apply is counted
 
 A category that **doesn't apply** counts as **passing** and stays in the denominator. A document with no tables does not have a table-markup problem — it has no tables. A category the tool **could not evaluate** (`notAssessed`, e.g. "contrast could not be resolved in this version") is excluded from the denominator instead: scoring it as a pass would be an unverified claim.
@@ -861,7 +873,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,149 tests** across 132 test files (API 1185, Web 915, CLI 49). Run all three suites with one summary:
+**2,171 tests** across 133 test files (API 1185, Web 937, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -881,7 +893,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
   ✔ Web      679 passed (49 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2149 tests passed across 132 files
+  ✔ 2171 tests passed across 133 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -945,12 +957,13 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (915 tests)
+### Web Tests (937 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
 | `color-mode.test.ts` | 51 | Light-mode WCAG 2.1 contrast (all text/background combinations), dark-mode contrast validation, CSS variable definitions in both `:root` and `html.light`, color-mode toggle, no hardcoded dark-only colors in templates, branding-configuration checks |
 | `colorTokens.test.ts` | 30 | The grade and severity palette, measured against the surfaces it is actually painted on. The dark colours run 5.3–10.3:1; the SAME colours on the light theme measured 1.9–3.8:1 — every one below the 4.5:1 WCAG AA floor, in a tool that exists to catch that. Both palettes are now asserted against all three surfaces of their own theme, which is what caught yellow-700 passing on white and the body surface but landing at 4.47:1 on `#f3f4f6`. Also pins that the two tables stay parallel (a grade in one and missing from the other would silently fall back to the dark hex), that `main.css` mirrors both for stylesheet use, and that the helpers return a plain hex rather than `var()`/`color-mix()` — load-bearing, because the test DOM drops inline styles containing either, which would blind every colour assertion in the suite. Closes with a deliberately non-vacuous check that the OLD single palette really did fail, so the file cannot quietly start passing if thresholds or surfaces drift. Plus `withAlpha`, which replaced 13 hand-written hex-alpha suffixes across 8 files |
+| `printablePlan.test.ts` | 22 | The printable action plan and its button. The load-bearing properties are that **both** fix routes survive into the printout — on screen they sit behind an accordion, on paper there is nothing to click and the reader may not be the person who chose the route — that document-derived strings are escaped (findings quote alt text, link labels and titles straight out of the uploaded file), and that the page is genuinely standalone: no scripts, no `<link href>`, no `src="http`, since it opens as a blob URL where a relative path resolves to nothing and a printout needing the network is useless on paper. Plus the page-break rules that keep a fix and its instructions together, the ink-friendly print styles, the human checks and unexamined criteria, the retitling the remediation page uses, and a source scan pinning the button onto **all four** surfaces that show a report — the same wiring gap that left the manual-review card missing from a whole view two releases earlier |
 | `manualReview.test.ts` | 21 | The checklist a report shows an author when there is nothing left to fix. A 100 used to yield an empty action plan and a line of bare criterion numbers, leaving the obvious question unanswered. Pins that the list is built from the checks that **passed** (failing ones are already the action plan), that unscored categories contribute nothing, that the scorer's own order is preserved so the heaviest checks read first, and that malformed input on a public shared report cannot throw. Two guards carry the weight: a **completeness** check that every scoring category able to pass has a prompt — so one added to the profile later cannot silently vanish from an author's checklist — and a copy check that each prompt names a concrete action rather than restating the check it came from. Then the card itself: six entries for a perfect document, the specific judgment automation cannot make ("'image', 'logo' and a filename all pass this check"), "Nothing below is a failure" stated outright, the unexamined WCAG criteria listed by name with working links, and a different framing on a report that still has fixes so it never reads as claiming a pass |
 | `gradeCapNote.test.ts` | 10 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
 | `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**: both surfaces must fail on "no personal data" / "no PII" / "anonymized", and must name the sign-in email, the IP/user-agent log, and the file name as uploaded — reassurance by omission is the regression, and sabotage confirmed each guard bites |

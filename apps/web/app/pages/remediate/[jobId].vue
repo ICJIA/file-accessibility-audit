@@ -3,7 +3,11 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRemediationJob, type CategoryResult } from "~/composables/useRemediationJob";
 import type { PdfUaVerdict } from "@file-audit/shared";
-import { afterGradeOf, isPublishReady as isPublishReadyGrade } from "~/utils/publishReadiness";
+import {
+  afterGradeOf,
+  isPublishReady as isPublishReadyFor,
+  publishVerdictFor,
+} from "~/utils/publishReadiness";
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
 // v1.21+: single Strict (WCAG + IITAA §E205.4) score. The historical
@@ -356,7 +360,19 @@ const downloadHref = computed(() =>
 // a full Nuxt mount (see app/__tests__/publishReadiness.test.ts) — a source
 // grep can no longer stay green while the actual gate is broken.
 const afterGrade = computed<string | null>(() => afterGradeOf(receipt.value?.outputAudit));
-const isPublishReady = computed(() => isPublishReadyGrade(afterGrade.value));
+// One verdict, shared with the audit report. This used to be `grade === "A"`,
+// which contradicted the audit page outright: a B with only Minor findings
+// read "ready to publish" there and "Not ready to publish yet" here — same
+// PDF, opposite answers to the only question a non-technical author has.
+const publishVerdict = computed(() => publishVerdictFor(receipt.value?.outputAudit));
+
+/** publicationVerdict returns "fix recommended before publishing" in lower
+ *  case because the audit hero prefixes it with a grade adjective. Here it
+ *  starts the sentence. */
+function capitalizeFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+const isPublishReady = computed(() => isPublishReadyFor(receipt.value?.outputAudit));
 
 // ------------------------------------------------------------------
 // Result-section gating
@@ -887,15 +903,18 @@ function labelForEvent(name: string): string {
                The readiness banner is grade-driven: anything below an A keeps a
                fix-before-publishing warning attached to the file itself. -->
           <div data-testid="after-card-download" class="mt-6 pt-6 border-t border-emerald-700/30">
+            <!-- The verdict is publicationVerdict(), the same function and the
+                 same words the audit report uses, so the two can never give
+                 opposite answers about one file. -->
             <div
               v-if="isPublishReady"
               data-testid="publish-ready"
               class="mb-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200 leading-relaxed"
             >
-              <strong class="text-emerald-100">✓ Grade A — ready to publish.</strong>
-              This file now passes every automated check. One human minute well spent before it goes
-              out: skim the alt text for accuracy — automated checks verify that descriptions exist,
-              not that they say the right thing.
+              <strong class="text-emerald-100"
+                >✓ {{ afterGrade ? `Grade ${afterGrade} — ` : "" }}ready to publish.</strong
+              >
+              No critical or moderate issues remain.
             </div>
             <div
               v-else
@@ -903,13 +922,37 @@ function labelForEvent(name: string): string {
               class="mb-4 rounded-lg border border-amber-600/50 bg-amber-950/30 p-4 text-sm text-amber-200 leading-relaxed"
             >
               <strong class="text-amber-100"
-                >⚠ Not ready to publish yet{{ afterGrade ? ` — grade ${afterGrade}` : "" }}.</strong
+                >⚠ {{ capitalizeFirst(publishVerdict.text)
+                }}{{ afterGrade ? ` — grade ${afterGrade}` : "" }}.</strong
               >
-              Auto-remediation improved this file, but issues remain: the categories above still
-              list problems that should be fixed — ideally in the source document — before this PDF
-              is published. Automated fixes handle structure and metadata; they can't write
-              meaningful alt text for charts or verify complex reading order.
+              The categories above still list what to fix — ideally in the source document, then
+              re-export.
             </div>
+
+            <!-- The auto-remediation caveat, at EVERY grade. It used to live
+                 inside the warning branch, which meant a file good enough to
+                 publish never heard it — and it is exactly as true of an A:
+                 machine-generated structure can satisfy a checker without
+                 being good. -->
+            <p
+              data-testid="auto-remediation-caveat"
+              class="mb-4 text-xs text-[var(--text-secondary)] leading-relaxed"
+            >
+              However this file scores, remember what the automatic fixes could and could not do.
+              They add structure and metadata; they cannot write meaningful alt text for a chart, or
+              judge whether a complex page reads in the right order. Skim the alt text and the
+              reading order yourself before this goes out.
+            </p>
+
+            <!-- The same printable plan the audit report offers, built from the
+                 AFTER audit: what auto-remediation could not fix, plus the
+                 checks only a person can make. -->
+            <PrintPlanButton
+              :result="receipt?.outputAudit as never"
+              heading="What still needs fixing"
+              intro="Automatic remediation has already run on this PDF. Everything below is what it could not fix — plus the checks no automated tool can make. Fix these in the source document where you can; the Acrobat route is here for when you cannot."
+              class="mb-6"
+            />
 
             <h3 class="text-base font-semibold text-emerald-100 text-center mb-4">
               Download remediated PDF

@@ -324,6 +324,11 @@
               class="mb-8"
             />
 
+            <!-- Same printable plan the Visual view offers. Someone reading the
+                 detailed report is just as likely to be the person who has to go
+                 and make the fixes. -->
+            <PrintPlanButton :result="result" class="mb-8" />
+
             <!-- Auto-Remediate (component
              self-hides on score ≥ 90 or when REMEDIATION feature is off).
              In batch mode this targets the currently-active tab — each

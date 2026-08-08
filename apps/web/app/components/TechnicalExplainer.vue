@@ -672,6 +672,37 @@
         </div>
       </div>
 
+      <!-- How a report is presented -->
+      <div>
+        <h3 class="font-semibold text-[var(--text-heading)] mb-2">How a report is presented</h3>
+        <p class="text-[var(--text-muted)] mb-3">
+          Every report opens in the <strong>Visual view</strong>: the grade, then a numbered action
+          plan that walks through one fix at a time in plain language, with instructions for both
+          the source document and Adobe Acrobat. The <strong>Detailed view</strong> holds the
+          complete technical report — every finding, the WCAG criteria each maps to, the evidence
+          behind it, PDF/UA signals and methodology. The chooser sits above every report and the
+          choice is <em>not</em> remembered between reports: the stepper is written for document
+          authors, so it is what greets everyone, every time, including people who prefer the
+          detailed view and know where the toggle is.
+        </p>
+        <p class="text-[var(--text-muted)] mb-3">
+          Both views end with <strong>&ldquo;Still worth checking by hand&rdquo;</strong>, which
+          appears on every report at every score — including a perfect one. These checks confirm
+          that accessibility structure is <em>present</em>; almost none of them can judge whether it
+          is <em>correct</em>. Alt text reading &ldquo;image&rdquo; passes. A heading describing the
+          wrong section passes. So each check a document passed contributes the one judgment the
+          tool could not make, and the WCAG criteria this tool does not evaluate at all are listed
+          by name.
+        </p>
+        <p class="text-[var(--text-muted)] mb-6">
+          <strong>Printer-friendly action steps</strong> opens the plan in a new tab as a
+          self-contained page: every fix expanded, both routes shown, the human checks included, and
+          nothing loaded from the network. Print it or save it as a PDF and work from it beside the
+          document rather than behind it. The same button appears on the auto-remediation result,
+          where it prints what the automatic fixes could <em>not</em> repair.
+        </p>
+      </div>
+
       <!-- Scoring -->
       <div>
         <h3 class="font-semibold text-[var(--text-heading)] mb-2">How Scores Are Calculated</h3>

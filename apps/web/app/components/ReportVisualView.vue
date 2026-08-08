@@ -43,6 +43,10 @@
         @show-evidence="revealEvidence"
       />
 
+      <!-- Directly under the plan: the moment someone has read the fixes is
+           the moment they go and do them, away from this tab. -->
+      <PrintPlanButton :result="result" class="mb-6" />
+
       <slot name="cta" />
 
       <!-- Directly under the plan, so on a clean report — where the plan is a
@@ -74,6 +78,7 @@ import ReportGradeHero from "~/components/ReportGradeHero.vue";
 import SeverityTiles from "~/components/SeverityTiles.vue";
 import VerdictStrip from "~/components/VerdictStrip.vue";
 import ActionPlan from "~/components/ActionPlan.vue";
+import PrintPlanButton from "~/components/PrintPlanButton.vue";
 import CategoryBars from "~/components/CategoryBars.vue";
 import TechnicalReport from "~/components/TechnicalReport.vue";
 import { buildActionPlan } from "~/utils/actionPlan";

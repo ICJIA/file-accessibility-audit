@@ -153,6 +153,11 @@
               class="mb-8"
             />
 
+            <!-- Same printable plan the Visual view offers. Someone reading the
+                 detailed report is just as likely to be the person who has to go
+                 and make the fixes. -->
+            <PrintPlanButton :result="data.report" class="mb-8" />
+
             <!-- PDF/UA-1 signals (ISO 14289-1) — INFORMATIONAL. Lifted out of
              ScoreCard (which rendered it at the very top of the report, above
              the blocking issues) so conformance-flavoured markers can no longer

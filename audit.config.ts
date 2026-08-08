@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "printable-action-steps-2026-08-08",
+    badge: "New",
+    text: "Every report now has a big \u201cPrinter-friendly action steps\u201d button. It opens a clean page in a new tab with your fixes written out in full \u2014 each one showing both how to fix it in the original Word or PowerPoint file and how to fix it in Adobe Acrobat, so whoever ends up doing the work has what they need. Print it, or save it as a PDF, and work from it beside the document instead of keeping this page open. The same button appears after auto-remediation, where it lists what the automatic fixes could not repair. Reports also always open in the visual step-by-step view now, and the Visual/Detailed chooser above every report is much easier to find.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 8, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "manual-review-checklist-2026-08-07",
     badge: "New",
     text: "Every report now ends with a checklist of what a person still needs to check by hand — including reports that score 100. Automated checks can confirm that accessibility structure is present, but not that it is right: a picture described as \u201cimage\u201d passes the alt-text check and tells a screen reader nothing. So each check your document passed now comes with the one judgment the tool could not make. Nothing in that list is a failure — it is the difference between a document that is structured correctly and one that actually reads well.",

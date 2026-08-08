@@ -90,11 +90,11 @@ const options: Array<{ mode: ReportViewMode; title: string; blurb: string }> = [
 
 function cardClass(m: ReportViewMode): string {
   const base =
-    "flex items-start gap-3 rounded-xl border p-4 text-left transition-colors cursor-pointer " +
+    "flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors cursor-pointer " +
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--link)]";
   return m === props.modelValue
-    ? `${base} border-emerald-500/50 bg-emerald-500/10`
-    : `${base} border-[var(--border)] bg-[var(--surface-card)] hover:border-[var(--border-hover)] hover:bg-[var(--surface-hover)]`;
+    ? `${base} border-emerald-500/60 bg-emerald-500/10 shadow-sm`
+    : `${base} border-[var(--border-alt)] bg-[var(--surface-raised)] shadow-sm hover:border-[var(--border-hover)] hover:bg-[var(--surface-hover)]`;
 }
 
 function iconClass(m: ReportViewMode): string {
