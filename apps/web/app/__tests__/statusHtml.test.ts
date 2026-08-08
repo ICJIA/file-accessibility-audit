@@ -6,6 +6,7 @@ import {
   renderFormatSplit,
   renderRejectedUploads,
   renderBackup,
+  renderDiskLine,
   renderEngines,
   renderStatusStrip,
   pickFormat,
@@ -918,5 +919,29 @@ describe("renderEngines — per-engine health card", () => {
       engines: { ...ENGINES_HEALTHY, qpdf: { ok: false, reason: "error" } },
     });
     expect(down).not.toContain("<script");
+  });
+});
+
+describe("formatBytes — scales past the backup row's megabytes", () => {
+  // The disk line reused the backup row's formatter, which capped at MB, and
+  // rendered a 76 GB volume as "78284.0 MB free of ...". Correct, unreadable,
+  // and on the page written for people who do not think in megabytes. Found
+  // on production because nothing here asserted a gigabyte-scale value.
+  const render = (bytes: number) =>
+    renderDiskLine({ status: "ok", free_pct: 78, free_bytes: bytes, total_bytes: bytes });
+
+  it("renders a disk-sized volume in GB, not five-digit MB", () => {
+    const html = render(82_057_216_000); // ~76 GB, the real production volume
+    expect(html).toContain("GB");
+    expect(html).not.toMatch(/\d{5,}(\.\d)? MB/);
+  });
+
+  it("still renders a backup-sized snapshot in MB", () => {
+    // The original caller must not regress into "0.0 GB".
+    expect(render(29_360_128)).toContain("28.0 MB");
+  });
+
+  it("scales to TB for a large volume", () => {
+    expect(render(3_298_534_883_328)).toContain("TB");
   });
 });

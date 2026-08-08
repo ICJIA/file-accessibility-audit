@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.60.1] - 2026-08-08
+
+### Fixed
+
+- **`/status` rendered the disk line in five-digit megabytes** — *"61112.6 MB free of 78284.0 MB"* for a 76 GB volume. `formatBytes` had been written for the backup row, whose only values are snapshot-sized (~28 MB), and capped there; the new disk line reused it. Technically correct, unreadable, and on the page written specifically for people who do not think in megabytes. It now scales to GB and TB: *"Disk 78% (59.7 GB free of 76.4 GB)"*.
+
+  Caught on production rather than by test, because nothing asserted a gigabyte-scale value — the formatter had only ever been fed megabytes. Three tests now cover it, including that a backup-sized snapshot does not regress into "0.0 GB".
+
+### Notes
+
+Tests 2,135 → 2,138.
+
 ## [1.60.0] - 2026-08-07
 
 Clearing the four items carried since the 2026-08-05 operational review.
