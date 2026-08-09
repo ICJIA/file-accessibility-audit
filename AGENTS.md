@@ -36,11 +36,20 @@ Repo: <https://github.com/ICJIA/file-accessibility-audit>
 - **DB:** `better-sqlite3` with WAL mode. Baseline schema + numbered
   migrations live in `apps/api/src/db/migrations.ts`, keyed on
   `PRAGMA user_version`; `sqlite.ts` just calls `runMigrations(db)`.
-- **Auth:** Optional. `AUTH.REQUIRE_LOGIN` in `audit.config.ts`. When
-  on: OTP email codes (Mailgun default) plus Personal Access Tokens
-  for headless / API automation. When off: anonymous-friendly.
-- **Email:** Mailgun (default), SMTP2GO (alternative). Both via
-  nodemailer SMTP.
+- **Auth: none — removed in v1.68.0.** No accounts, no sign-in, no
+  OTP, no JWT sessions, no personal access tokens, no admin role.
+  Every endpoint is public and rate-limited per IP. The database
+  schema stores no identifiers (migration 11 dropped the email /
+  ip_address / user_agent columns and the otp_codes / revoked_jtis /
+  access_tokens tables); an `audit_log` row is metadata about the
+  audit — event type, sanitized filename, score, grade, content hash,
+  timestamp — never the file, never the caller. The one credential
+  is the optional `API_PRIVILEGED_TOKEN` fleet **service** token
+  (rate tier + URL-allowlist bypass), not a user account.
+- **Email: none.** The mailer left with the OTP flow — the app sends
+  no email and reads no `SMTP_*`/`MAILGUN_*` env vars (the analyzer's
+  child-process env DENY-list still strips those names, kept as
+  defense in depth).
 - **Java tools:** OpenDataLoader (PDF auto-tagging) and veraPDF
   (PDF/UA-1 conformance) are shelled-out as Java JARs. JDK 17+
   required for the remediation feature; not needed for audit-only.
@@ -138,7 +147,7 @@ historical constant, not "the latest version."
 ### `audit.config.ts` is the single source of truth
 
 All tunables — scoring weights, retention TTLs, rate limits, batch
-sizes, email-provider config, allowlists, branding, deployment URLs
+sizes, allowlists, branding, deployment URLs
 — live here. Every export has a doc-comment marked `SAFE TO CHANGE`
 or `DO NOT CHANGE` with the rationale. Read them before changing
 anything; respect them after.
@@ -150,15 +159,16 @@ via `useRuntimeConfig().public.<name>`.
 ### Versioning
 
 Project uses semver: patch for fixes, minor for features, major for
-breaking changes. Current version is in three `package.json` files
-(root, `apps/web`, `apps/api`) and must stay in sync. Footer version
+breaking changes. Current version is in six `package.json` files
+(root, `apps/web`, `apps/api`, `apps/cli`, `packages/shared`,
+`packages/analyzer`) and must stay in sync. Footer version
 auto-reads from `apps/web/package.json` via
 `config.public.appVersion`.
 
 **Every version bump must update all of:**
 
 1. `CHANGELOG.md` (root) — add entry under new version heading
-2. The three `package.json` files
+2. The six `package.json` files
 3. `README.md` § Security — technical-framed audit log entry
 4. `apps/web/app/data/securityAudits.ts` — plain-language audit log
    entry for auditors (§ 10 of the data-retention page). Prepend an
@@ -195,15 +205,16 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── api/
 │   │   └── src/
 │   │       ├── routes/       Express route handlers
-│   │       ├── services/     api-only business logic (auth, mailer,
-│   │       │                 remediation, safeFetch/urlPolicy) plus
+│   │       ├── services/     api-only business logic (remediation incl.
+│   │       │                 the in-memory remediationCap, safeFetch/
+│   │       │                 urlPolicy, status) plus
 │   │       │                 thin re-export shims to @file-audit/analyzer
 │   │       │                 for pdfAnalyzer/scorer/ooxml/etc.
 │   │       ├── db/sqlite.ts  schema + numbered migrations (db/migrations.ts,
 │   │       │                 PRAGMA user_version — see below)
-│   │       ├── middleware/   auth, rate limiting, upload
+│   │       ├── middleware/   rate limiting, upload
 │   │       ├── jobs/         remediation worker (detached child process)
-│   │       └── __tests__/    vitest, 1,151 tests
+│   │       └── __tests__/    vitest (run `pnpm test` for current counts)
 │   │
 │   ├── web/                  Nuxt 4 frontend
 │   │   ├── nuxt.config.ts    runtimeConfig + global head config
@@ -229,8 +240,8 @@ releases (write a short "no new findings; release covered X" entry).
 │   ├── archive/00-master-design.md                single source of truth
 │   ├── archive/pdf-remediation-integration-plan.md
 │   ├── archive/fleet-inventory-reporting.md       fleet-tool integration brief
-│   ├── archive/06-smtp2go-integration.md
-│   ├── archive/07-mailgun-integration.md          default email provider
+│   ├── archive/06-smtp2go-integration.md          historical (mailer removed v1.68.0)
+│   ├── archive/07-mailgun-integration.md          historical (mailer removed v1.68.0)
 │   └── (per-fix accuracy write-ups, e.g. table-and-heading-accuracy-fixes.md,
 │       live at the docs/ root — everything else historical is in archive/)
 │
@@ -239,26 +250,25 @@ releases (write a short "no new findings; release covered X" entry).
 
 ---
 
-## API surface (current as of v1.55.0)
+## API surface (current as of v1.68.0)
 
-Public endpoints under `/api`:
+Every endpoint under `/api` is public — no auth of any kind, rate-limited
+per IP (the optional `API_PRIVILEGED_TOKEN` bearer token selects the
+generous rate tier and the URL-allowlist bypass):
 
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/analyze` | POST | Upload + audit a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file |
 | `/api/analyze-url` | POST | Audit a document (PDF/DOCX/PPTX/XLSX) by URL — returns the full AnalysisResult, not persisted |
-| `/api/audit-url` | POST | Audit by URL **and** persist a shareable report — returns trimmed CSV-friendly shape with reportUrl. Hash-dedups by content per caller. For fleet inventory automation. |
+| `/api/audit-url` | POST | Audit by URL **and** persist a shareable report — returns trimmed CSV-friendly shape with reportUrl. Hash-dedups by content (hash alone since v1.68.0). For fleet inventory automation. |
 | `/api/bulk-from-inventory` | POST | Batch variant taking a filecap NDJSON inventory |
 | `/api/reports` | POST/GET | Save / retrieve shareable reports (UUID id) |
-| `/api/remediate` | POST | Start a remediation job (gated on `REMEDIATION_ENABLED`) |
-| `/api/remediate/:id/status` | GET | Job status polling |
+| `/api/remediate` | POST | Start a remediation job (gated on `REMEDIATION_ENABLED`; audit-gate binds to content hash; daily cap is in-memory per IP, resets on restart) |
+| `/api/remediate/:id/status` | GET | Job status polling (authorized by the job's download token) |
 | `/api/remediate/:id/download` | GET | Download remediated PDF (single-use token) |
-| `/api/remediate/:id/receipt` | GET | Lifecycle audit trail JSON |
-| `/api/auth/*` | various | OTP email + session |
-| `/api/tokens` | various | Personal access token management |
+| `/api/remediate/:id/receipt` | GET | Lifecycle audit trail JSON (authorized by the job's download token) |
 | `/api/status` | GET | Service status JSON — engines, DB, usage aggregates (public, v1.39.0+) |
 | `/api/health` | GET | Static liveness (`{status:"ok"}`; no DB or engine probe) |
-| `/api/logs` | GET | Admin-only `audit_log` query |
 
 URL-fetching endpoints (`/analyze-url`, `/audit-url`, `/bulk-from-inventory`)
 share a host allowlist defined in
@@ -286,9 +296,12 @@ pages (link with a plain `<a href>`, never `<NuxtLink>`).
   needs.** They're ~100+ MB. The repo's image generation uses
   `sharp` (SVG → PNG). For PDF export from a Nuxt page, browser
   `window.print()` with print-friendly CSS is the lightest path.
-- **`req.user!.email` is safe in dev** when `AUTH.REQUIRE_LOGIN=false`
-  because `authMiddleware` sets the user to `{ email: 'anonymous' }`.
-  No production-style PAT setup needed for local testing.
+- **There is no `req.user` and no auth middleware** (both removed in
+  v1.68.0) — don't reintroduce an identity object or key anything on a
+  caller identity. Endpoints are public and per-IP rate-limited; the
+  remediation job endpoints authorize by the job's download token, and
+  the daily remediation cap lives in process memory keyed by IP
+  (`services/remediationCap.ts` — transient, written nowhere).
 - **Mermaid render order matters.** Multiple `MermaidDiagram`
   instances on a single page must serialize their renders via a
   shared promise queue, otherwise mermaid's global state races and

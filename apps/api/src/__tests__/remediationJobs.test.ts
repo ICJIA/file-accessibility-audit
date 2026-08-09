@@ -24,9 +24,8 @@ beforeAll(async () => {
   jobs = await import("../services/remediationJobs.js");
 });
 
-function makeJob(email = "user@example.com") {
+function makeJob() {
   return jobs.createJob({
-    email,
     inputFilename: "report.pdf",
     originalFilename: "FY 22 Report (final).pdf",
     contentHash: "abc123",
@@ -113,20 +112,6 @@ describe("audit JSON round-trip", () => {
       inputAudit: null,
       outputAudit: null,
     });
-  });
-});
-
-describe("countActiveJobsForEmail", () => {
-  it("counts only pending/running jobs for that email", () => {
-    const email = `active-${process.pid}@example.com`;
-    const p = makeJob(email).job; // pending
-    const r = makeJob(email).job;
-    jobs.setRunning(r.id); // running
-    const f = makeJob(email).job;
-    jobs.setFailed(f.id, "x"); // terminal — not counted
-    makeJob("other@example.com"); // different user — not counted
-    expect(jobs.countActiveJobsForEmail(email)).toBe(2);
-    expect(p.id).not.toBe(r.id);
   });
 });
 

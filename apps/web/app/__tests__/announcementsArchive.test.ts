@@ -41,22 +41,20 @@ describe("announcement archive: reachability", () => {
     expect(layout).toContain('to="/announcements"');
   });
 
-  it("puts the header link OUTSIDE the auth-gated nav", () => {
-    // The header's main <nav> is `v-if="user"`. That nav DOES render for
-    // ordinary visitors today, because /api/auth/me returns
-    // { email: "anonymous" } rather than null while AUTH.REQUIRE_LOGIN is
-    // false — so `user` is truthy. But that is incidental: enabling login,
-    // or changing the anonymous sentinel to null, would silently hide
-    // anything placed inside it. The archive link must not depend on auth
-    // state, so it lives outside that block.
-    const gatedNavStart = layout.indexOf('<nav v-if="user"');
-    const gatedNavEnd = layout.indexOf("</nav>", gatedNavStart);
-    const headerLink = layout.indexOf('to="/announcements"');
+  it("the header has no auth-gated nav for the link to hide inside (v1.68.0)", () => {
+    // This test used to pin the link's position OUTSIDE `<nav v-if="user">`
+    // so auth state could never hide it. The tool no longer has auth at all
+    // — so the stronger invariant is that NO conditional user nav exists in
+    // the layout: every header link renders for every visitor, always.
+    expect(layout).not.toContain('v-if="user"');
+    expect(layout).toContain('to="/announcements"');
+  });
 
-    expect(gatedNavStart).toBeGreaterThan(-1);
+  it("legacy shape of the placement guard is impossible to regress silently", () => {
+    const gatedNavStart = layout.indexOf('<nav v-if="user"');
+    const headerLink = layout.indexOf('to="/announcements"');
+    expect(gatedNavStart).toBe(-1);
     expect(headerLink).toBeGreaterThan(-1);
-    const insideGatedNav = headerLink > gatedNavStart && headerLink < gatedNavEnd;
-    expect(insideGatedNav).toBe(false);
   });
 
   it("is also linked from the banner itself", () => {

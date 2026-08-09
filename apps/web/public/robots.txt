@@ -3,7 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /healthz
 Disallow: /status
-Disallow: /login
-Disallow: /my-history
-Disallow: /history
 Disallow: /publist

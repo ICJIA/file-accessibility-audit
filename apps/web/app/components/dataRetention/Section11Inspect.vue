@@ -13,12 +13,12 @@
       class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
       tabindex="0"
     >
-<span class="text-[var(--text-muted)]">-- All remediations a specific user performed in a date range</span>
+<span class="text-[var(--text-muted)]">-- All remediations in a date range (jobs carry no user identity)</span>
 <span class="text-sky-300">SELECT</span> id, input_filename, status, input_score, output_score,
        datetime(created_at/1000,   'unixepoch', 'localtime') <span class="text-sky-300">AS</span> started,
        datetime(completed_at/1000, 'unixepoch', 'localtime') <span class="text-sky-300">AS</span> finished
 <span class="text-sky-300">FROM</span> remediation_jobs
-<span class="text-sky-300">WHERE</span> email = ? <span class="text-sky-300">AND</span> created_at <span class="text-sky-300">BETWEEN</span> ? <span class="text-sky-300">AND</span> ?
+<span class="text-sky-300">WHERE</span> created_at <span class="text-sky-300">BETWEEN</span> ? <span class="text-sky-300">AND</span> ?
 <span class="text-sky-300">ORDER BY</span> created_at <span class="text-sky-300">DESC</span>;
 
 <span class="text-[var(--text-muted)]">-- Full lifecycle of a specific job</span>

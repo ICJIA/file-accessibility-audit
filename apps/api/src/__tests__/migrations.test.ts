@@ -53,18 +53,13 @@ describe("runMigrations: fresh database", () => {
 
     expect(db.pragma("user_version", { simple: true })).toBe(LATEST_VERSION);
 
-    for (const table of [
-      "audit_log",
-      "otp_codes",
-      "shared_reports",
-      "access_tokens",
-      "remediation_jobs",
-      "remediation_events",
-      "revoked_jtis",
-    ]) {
+    for (const table of ["audit_log", "shared_reports", "remediation_jobs", "remediation_events"]) {
       expect(tableExists(db, table)).toBe(true);
     }
-    expect(hasColumn(db, "revoked_jtis", "expires_at")).toBe(true);
+    // Migration 11 removes the sign-in tables a fresh baseline still creates.
+    for (const table of ["otp_codes", "revoked_jtis", "access_tokens"]) {
+      expect(tableExists(db, table)).toBe(false);
+    }
 
     // Every backfilled column is present too — migration 1's baseline
     // already declares these, and migrations 2+ must not choke on that.
@@ -333,5 +328,71 @@ describe("LEGACY_BASELINE_VERSION regression guard", () => {
 
   it("MIGRATIONS never shrinks below the legacy baseline", () => {
     expect(MIGRATIONS.length).toBeGreaterThanOrEqual(LEGACY_BASELINE_VERSION);
+  });
+});
+
+describe("migration 11: identity removal (no email / IP / user-agent anywhere)", () => {
+  it("a fresh database ends with no identity columns and no auth tables", () => {
+    const db = freshDb();
+    runMigrations(db);
+
+    for (const col of ["email", "ip_address", "user_agent"]) {
+      expect(hasColumn(db, "audit_log", col)).toBe(false);
+    }
+    expect(hasColumn(db, "shared_reports", "email")).toBe(false);
+    expect(hasColumn(db, "remediation_jobs", "email")).toBe(false);
+    for (const table of ["otp_codes", "revoked_jtis", "access_tokens"]) {
+      expect(tableExists(db, table)).toBe(false);
+    }
+  });
+
+  it("destroys existing identity data in a populated v10 database while keeping audit rows", () => {
+    const db = freshDb();
+    // Provision to v10 (the last identity-bearing schema), then populate.
+    runMigrationList(
+      db,
+      MIGRATIONS.filter((m) => m.version <= 10),
+      0,
+    );
+    db.prepare(
+      `INSERT INTO audit_log (event_type, email, filename, score, grade,
+        ip_address, user_agent, content_hash)
+       VALUES ('analyze', 'anon:203.0.113.7', 'report.pdf', 91, 'A',
+        '203.0.113.7', 'Mozilla/5.0', 'abc123')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
+       VALUES ('s1', 'person@example.gov', 'r.pdf', '{}', 'abc123', datetime('now', '+1 day'))`,
+    ).run();
+    db.prepare(
+      `INSERT INTO remediation_jobs (id, email, input_filename, status, created_at, expires_at)
+       VALUES ('job-1', 'person@example.gov', 'r.pdf', 'complete', 0, 0)`,
+    ).run();
+
+    runMigrations(db);
+
+    // The rows survive; the identity columns do not exist at all.
+    const audit = db.prepare("SELECT * FROM audit_log").get() as Record<string, unknown>;
+    expect(audit.filename).toBe("report.pdf");
+    expect(audit.grade).toBe("A");
+    expect(audit.content_hash).toBe("abc123");
+    expect("email" in audit).toBe(false);
+    expect("ip_address" in audit).toBe(false);
+    expect("user_agent" in audit).toBe(false);
+
+    const shared = db.prepare("SELECT * FROM shared_reports").get() as Record<string, unknown>;
+    expect(shared.filename).toBe("r.pdf");
+    expect("email" in shared).toBe(false);
+
+    const job = db.prepare("SELECT * FROM remediation_jobs").get() as Record<string, unknown>;
+    expect(job.status).toBe("complete");
+    expect("email" in job).toBe(false);
+
+    // The dedup index was rebuilt without email — content-hash lookups work.
+    expect(() =>
+      db
+        .prepare("SELECT id FROM shared_reports WHERE content_hash = ? AND expires_at > ?")
+        .get("abc123", 0),
+    ).not.toThrow();
   });
 });

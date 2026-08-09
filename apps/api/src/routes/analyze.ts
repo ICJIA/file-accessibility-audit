@@ -1,12 +1,10 @@
-import { Router, Response, type IRouter } from "express";
-import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
+import { Router, Request, Response, type IRouter } from "express";
 import { analyzeLimiter } from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { analyzeDocument, detectFileType, detectLegacyFormat } from "../services/analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
 import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
 import {
-  gateIdentity,
   recordAudit,
   recordRejectedUpload,
   sanitizeStoredFilename,
@@ -22,10 +20,9 @@ const sanitizeFilename = sanitizeStoredFilename;
 // POST /api/analyze
 router.post(
   "/analyze",
-  authMiddleware,
   analyzeLimiter,
   uploadMiddleware.single("file"),
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
       const file = req.file;
 
@@ -55,21 +52,15 @@ router.post(
       }
 
       // Always record the audit — audit_log is the canonical "this
-      // content has been audited" record consulted by /api/remediate's
-      // audit-gate. Anonymous (no-auth) mode writes the row under the
-      // 'anonymous' sentinel email so the gate still functions.
+      // content has been audited" metadata consulted by /api/remediate's
+      // audit-gate. The row is about the event only: file name, score,
+      // grade, content hash. No identity (v1.68.0).
       recordAudit({
         eventType: "analyze",
-        // gateIdentity binds anonymous callers to their IP so the
-        // remediation gate (v1.20.1+) can't be exploited across users
-        // in shared-bucket dev/anonymous deployments.
-        email: gateIdentity(req.user?.email ?? null, req.ip),
         filename,
         score: result.overallScore,
         grade: result.grade,
         contentHash,
-        ipAddress: req.ip ?? null,
-        userAgent: req.get("user-agent") ?? null,
       });
 
       res.json(result);
@@ -97,9 +88,6 @@ router.post(
         if (req.file) {
           recordRejectedUpload({
             filename: sanitizeFilename(req.file.originalname),
-            email: gateIdentity(req.user?.email ?? null, req.ip),
-            ipAddress: req.ip ?? null,
-            userAgent: req.get("user-agent") ?? null,
           });
         }
         const legacy = req.file ? detectLegacyFormat(req.file.buffer) : null;

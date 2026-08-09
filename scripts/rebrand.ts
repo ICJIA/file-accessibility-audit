@@ -59,6 +59,10 @@ function buildManifest(): string {
 
 // ── llms.txt ──────────────────────────────────────────────────────────────
 
+// ⚠️ STALE TEMPLATES (known issue, registered 2026-08-09): the two llms
+// builders below still describe a PDF-only, WCAG 2.1, auth-era tool and
+// would CLOBBER the corrected apps/web/public/llms*.txt if this script is
+// run. Update these templates from the live files before any rebrand run.
 function buildLlmsTxt(): string {
   const lines = [
     `# ${APP_NAME}`,

@@ -122,15 +122,6 @@
               <code class="font-mono">SHARED_REPORTS.EXPIRY_DAYS</code>
             </td>
           </tr>
-          <tr>
-            <td class="py-2.5 pr-4 font-medium">OTP authentication codes</td>
-            <td class="py-2.5 pr-4">SQLite, <code class="font-mono">otp_codes</code> table</td>
-            <td class="py-2.5 pr-4">15 minutes (single-use)</td>
-            <td class="py-2.5">
-              Yes —
-              <code class="font-mono">AUTH.OTP_EXPIRY_MINUTES</code>
-            </td>
-          </tr>
         </tbody>
       </table>
     </div>
@@ -143,12 +134,11 @@
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
       A <strong>periodic cleanup sweep</strong> runs every 5 minutes within the API process and on
       every API startup — regardless of whether the optional remediation feature is enabled (tool
-      v1.51.0+). It performs eight tasks idempotently: expire outputs past
+      v1.51.0+). It performs seven tasks idempotently: expire outputs past
       <code class="text-xs font-mono">expires_at</code>; mark stuck jobs as failed; remove orphan
       directories; purge old <code class="text-xs font-mono">remediation_jobs</code> rows; purge old
       <code class="text-xs font-mono">remediation_events</code> rows; purge
-      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; purge
-      expired revoked sign-in tokens; and delete
+      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; and delete
       <code class="text-xs font-mono">shared_reports</code> rows roughly 30 days after their link
       expires. Source:
       <code class="text-xs font-mono">apps/api/src/services/remediationCleanup.ts</code>.
@@ -174,9 +164,13 @@
       </h3>
       <p class="text-sm text-[var(--text-secondary)] mb-5 leading-relaxed max-w-3xl">
         Because two different things are involved, and only one of them is kept. Your
-        <strong>document</strong> is never saved. The service's <strong>record</strong> that a
-        document was checked is — that record is what an agency shows when it has to prove what it
-        reviewed and when. The nightly backup protects the record.
+        <strong>document</strong> is never saved. What is kept is
+        <strong>metadata about the audit</strong> — data about the file, never the file: a note that
+        a document with this name was checked on this date and received this grade. That metadata is
+        what an agency shows when it has to prove what it reviewed and when, and it says nothing
+        about <em>who</em> did the checking — the service has no accounts, no sign-in, and no column
+        anywhere for an email address, an IP address, or a browser identifier. The nightly backup
+        protects that metadata.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -226,10 +220,10 @@
         <!-- Lane B: the record. Emerald matches § 8's "Stored" card. -->
         <div class="rounded-xl border border-emerald-700/40 bg-emerald-950/15 p-5 flex flex-col">
           <h4 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-1">
-            The record of the audit
+            The audit metadata
           </h4>
           <p class="text-xs text-[var(--text-muted)] mb-4">
-            one line of metadata in the service's own logbook
+            one line in the service's own logbook — data about the file, never the file
           </p>
           <ol class="space-y-3 text-xs text-[var(--text-secondary)] flex-1">
             <li class="flex gap-3">
@@ -273,30 +267,33 @@
         class="mt-4 rounded-xl border border-emerald-700/40 bg-emerald-950/15 px-5 py-4 text-sm text-[var(--text-secondary)] leading-relaxed"
       >
         <strong class="text-[var(--text-heading)]">Bottom line:</strong> a backup could not
-        reproduce one page of anyone's document. It is a copy of the logbook — audit metadata — not
-        of the files that passed through it. If every snapshot were handed to a stranger, they would
-        learn which file names were checked, when, and what they scored — not what any document
-        said. For auditors, the precise claim matters: this policy never claims the records are free
-        of personal detail. Of the metadata kept, the personal fields are named in §&nbsp;7 and
-        §&nbsp;8 — the sign-in email for people who signed in, the connection log's IP address and
-        browser identifier (purged after 365 days), and the file name as uploaded, which can itself
-        name a person. What the records never hold is the document, or anything read from inside it.
+        reproduce one page of anyone's document, and could not say who audited anything. It is a
+        copy of the logbook — audit metadata — not of the files or the people that passed through
+        it. If every snapshot were handed to a stranger, they would learn which file names were
+        checked, when, and what they scored — not what any document said, and not who brought it.
+        For auditors, the precise claim matters: this policy still never claims the metadata is free
+        of personal detail. The one personal thing it can carry is the
+        <em>file name as uploaded</em> — a file named after a person stores that person's name — and
+        a <em>saved or shared</em> report quotes short labels from inside the document (§&nbsp;8a).
+        What no row can carry any more is an email address, an IP address, or a browser identifier:
+        since tool v1.68.0 the database schema has no such columns, there are no accounts and no
+        sign-in, and the caller's address is used only in server memory to rate-limit requests,
+        written nowhere.
       </p>
 
       <!-- The honest counterweight. A page that claimed "no personal data" here
-           would be wrong in three specific ways, and being caught on any one of
-           them would discredit everything else on this page. -->
+           would still be wrong in two specific ways, and being caught on either
+           would discredit everything else on this page. -->
       <p class="text-sm text-[var(--text-secondary)] mt-4 leading-relaxed max-w-3xl">
         <strong class="text-[var(--text-heading)]"
-          >What personal details the record does contain:</strong
+          >What personal details the metadata can still contain:</strong
         >
-        a sign-in email address for anyone who signed in; the routine connection log every web
-        server keeps (IP address and browser name, deleted after 365 days); and the
-        <em>file name</em> as uploaded — so a file named after a person stores that person's name. A
-        report someone chose to <em>save or share</em> also quotes short labels from inside the
-        document — image alt text, link wording, bookmark titles, the document's own title and
-        author fields — because the findings have to point at what to fix (§ 8a). Never the pages
-        themselves. The complete accounting is in
+        the <em>file name</em> as uploaded — so a file named after a person stores that person's
+        name — and, for a report someone chose to <em>save or share</em>, short quoted labels from
+        inside the document: image alt text, link wording, bookmark titles, the document's own title
+        and author fields — because the findings have to point at what to fix (§ 8a). Never the
+        pages themselves, and never who uploaded anything: there is no account to record, and the
+        schema has no email, IP-address, or browser column to fill. The complete accounting is in
         <a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]"
           >§ 8, What is and isn't stored</a
         >.

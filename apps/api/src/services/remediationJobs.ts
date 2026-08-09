@@ -9,7 +9,6 @@ export type RemediationStep = "preparing" | "tagging" | "validating" | "comparin
 
 export interface RemediationJob {
   id: string;
-  email: string | null;
   inputFilename: string;
   /**
    * The user's exact uploaded filename, including spaces, unicode,
@@ -37,7 +36,6 @@ export interface RemediationJob {
 
 interface JobRow {
   id: string;
-  email: string | null;
   input_filename: string;
   original_filename: string | null;
   content_hash: string | null;
@@ -59,7 +57,6 @@ interface JobRow {
 function rowToJob(r: JobRow): RemediationJob {
   return {
     id: r.id,
-    email: r.email,
     inputFilename: r.input_filename,
     originalFilename: r.original_filename,
     contentHash: r.content_hash,
@@ -81,10 +78,10 @@ function rowToJob(r: JobRow): RemediationJob {
 
 const insertJob = db.prepare(
   `INSERT INTO remediation_jobs (
-     id, email, input_filename, original_filename, content_hash,
+     id, input_filename, original_filename, content_hash,
      page_count, status, progress_pct, download_token_hash,
      created_at, expires_at
-   ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
+   ) VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
 );
 
 const selectJobById = db.prepare("SELECT * FROM remediation_jobs WHERE id = ?");
@@ -118,12 +115,7 @@ const expireJob = db.prepare(
   "UPDATE remediation_jobs SET status = 'expired', output_path = NULL WHERE id = ?",
 );
 
-const countRunningByEmail = db.prepare(
-  "SELECT COUNT(*) AS n FROM remediation_jobs WHERE email = ? AND status IN ('pending','running')",
-);
-
 export interface CreateJobInput {
-  email: string | null;
   inputFilename: string;
   /**
    * Optional. The user's exact uploaded filename (no sanitization).
@@ -154,7 +146,6 @@ export function createJob(input: CreateJobInput): CreatedJob {
 
   insertJob.run(
     id,
-    input.email,
     input.inputFilename,
     input.originalFilename ?? null,
     input.contentHash,
@@ -296,11 +287,6 @@ export function setFailed(id: string, reason: string): void {
 
 export function setExpired(id: string): void {
   expireJob.run(id);
-}
-
-export function countActiveJobsForEmail(email: string): number {
-  const row = countRunningByEmail.get(email) as { n: number };
-  return row.n;
 }
 
 /**

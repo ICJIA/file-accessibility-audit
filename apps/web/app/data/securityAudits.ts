@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.68.0",
+    meta: "Reviewed <strong>2026-08-09</strong> · scope: the sign-in system removed, and identifier storage removed at the database level — the largest data-minimization change in the tool's history.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The tool no longer has accounts, sign-in, or any way to know who you are.</strong> The optional email sign-in — login codes, sessions, the My History page — is gone entirely, and with it the only email the service could ever send. The tool is free and open: upload a document, read the report, leave. Nothing to register for, nothing to remember, nothing to be locked out of.",
+      },
+      {
+        kind: "p",
+        html: "<strong>And the database physically cannot store identifiers any more.</strong> This release did not just stop writing the email, IP-address, and browser columns — it <em>deleted the columns themselves</em>, along with every value they already held, and removed the sign-in tables outright. What each audit leaves behind is metadata — the file's name, its score and grade, the date, and a fingerprint of its bytes. Data <em>about</em> the file, never the file — and now, about nobody. An automated test asserts the columns are absent from the schema, so they cannot quietly return.",
+      },
+      {
+        kind: "p",
+        html: "<strong>What this deliberately does not claim:</strong> that the records hold nothing personal. A file <em>named after a person</em> stores that person's name, and a report someone chooses to share quotes short labels from inside the document. The caller's network address is still used for a moment, in server memory only, to limit request rates — written nowhere. The hosting layer's ordinary web-server logs exist outside the application, as on effectively every website (§&nbsp;8a). Backups made before this release keep the old shape for about five days until rotation replaces them. <strong>Recorded as v1.6 in the policy's own change log.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.67.1",
     meta: "Reviewed <strong>2026-08-09</strong> · scope: precise wording about what the retained records are, for federal and state auditors — not a security release, and nothing stored changed.",
     body: [

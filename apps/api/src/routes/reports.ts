@@ -1,7 +1,6 @@
 import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
 import { regradeStoredReport } from "@file-audit/analyzer";
-import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { reportsLimiter } from "../middleware/rateLimiter.js";
 import { SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
@@ -10,7 +9,7 @@ import { sanitizeStoredReport } from "../services/reportSanitize.js";
 const router: IRouter = Router();
 
 // POST /api/reports — save a report and return a shareable ID
-router.post("/reports", authMiddleware, reportsLimiter, (req: AuthRequest, res: Response) => {
+router.post("/reports", reportsLimiter, (req: Request, res: Response) => {
   try {
     const { report } = req.body;
 
@@ -42,14 +41,8 @@ router.post("/reports", authMiddleware, reportsLimiter, (req: AuthRequest, res: 
     expiresAt.setDate(expiresAt.getDate() + SHARED_REPORTS.EXPIRY_DAYS);
 
     db.prepare(
-      "INSERT INTO shared_reports (id, email, filename, report_json, expires_at) VALUES (?, ?, ?, ?, ?)",
-    ).run(
-      id,
-      req.user!.email,
-      report.filename,
-      JSON.stringify(sanitized.report),
-      expiresAt.toISOString(),
-    );
+      "INSERT INTO shared_reports (id, filename, report_json, expires_at) VALUES (?, ?, ?, ?)",
+    ).run(id, report.filename, JSON.stringify(sanitized.report), expiresAt.toISOString());
 
     res.json({ id, expiresAt: expiresAt.toISOString() });
   } catch (err: any) {

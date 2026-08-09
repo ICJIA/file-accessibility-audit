@@ -1,12 +1,12 @@
 import rateLimit from "express-rate-limit";
 import crypto from "node:crypto";
-import { AUTH, RATE_LIMITS } from "#config";
+import { RATE_LIMITS } from "#config";
 
-// When auth is off, all users are "anonymous" — key by IP instead so
-// multiple testers don't share a single rate-limit bucket.
-function userOrIpKey(req: any): string {
-  if (!AUTH.REQUIRE_LOGIN) return req.ip || "unknown";
-  return req.user?.email || req.ip || "unknown";
+// Per-IP rate-limit bucket key. The IP is used TRANSIENTLY, in memory only —
+// the service stores no identity anywhere (v1.68.0); express-rate-limit's
+// default MemoryStore never touches disk and forgets everything on restart.
+function ipKey(req: any): string {
+  return req.ip || "unknown";
 }
 
 // ---------------------------------------------------------------------------
@@ -18,14 +18,14 @@ function userOrIpKey(req: any): string {
 // applied in the route handlers; see analyze-url.ts / audit-url.ts /
 // audit-url-page.ts).
 //
-// This is deliberately NOT the OTP/JWT/DB-PAT auth system (which stays off
-// while AUTH.REQUIRE_LOGIN is false). It grants ONLY higher limits + the
-// allowlist bypass — never a private/reserved-IP SSRF bypass, a size-cap
-// bypass, or a concurrency bypass. A leaked token cannot reach internal
-// services.
+// This is a service credential for the fleet integration, not a user
+// account — the tool has no user accounts or sign-in (v1.68.0). It grants
+// ONLY higher limits + the allowlist bypass — never a private/reserved-IP
+// SSRF bypass, a size-cap bypass, or a concurrency bypass. A leaked token
+// cannot reach internal services.
 //
-// Read from process.env at request time (same pattern as authMiddleware's
-// JWT_SECRET / ADMIN_EMAILS) so it is never committed and rotates on restart.
+// Read from process.env at request time so it is never committed and
+// rotates on restart.
 // Empty/unset → feature off → every request is anonymous (fail-safe to strict).
 //
 // The compare hashes both sides to fixed-length SHA-256 digests and uses
@@ -55,7 +55,7 @@ export function tierLimit(req: any, cfg: { anon: number; privileged: number }): 
 }
 
 export function tierKey(req: any): string {
-  return isPrivilegedRequest(req) ? "privileged" : userOrIpKey(req);
+  return isPrivilegedRequest(req) ? "privileged" : ipKey(req);
 }
 
 // ---------------------------------------------------------------------------
@@ -125,23 +125,6 @@ export function tieredLimiter(cfg: TierConfig) {
   });
 }
 
-export const authRequestLimiter = rateLimit({
-  windowMs: RATE_LIMITS.authRequest.windowMs,
-  max: RATE_LIMITS.authRequest.max,
-  keyGenerator: (req) => req.body?.email || req.ip || "unknown",
-  message: { error: "Too many OTP requests. Please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-export const authVerifyLimiter = rateLimit({
-  windowMs: RATE_LIMITS.authVerify.windowMs,
-  max: RATE_LIMITS.authVerify.max,
-  message: { error: "Too many verification attempts. Please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // Two-tier: anonymous (per-IP) vs privileged (API_PRIVILEGED_TOKEN).
 export const analyzeLimiter = tieredLimiter({
   windowMs: RATE_LIMITS.analyze.windowMs,
@@ -153,7 +136,7 @@ export const analyzeLimiter = tieredLimiter({
 export const reportsLimiter = rateLimit({
   windowMs: RATE_LIMITS.reports.windowMs,
   max: RATE_LIMITS.reports.max,
-  keyGenerator: userOrIpKey,
+  keyGenerator: ipKey,
   message: { error: "Share limit reached. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -177,7 +160,7 @@ export const globalLimiter = tieredLimiter({
 export const remediationStatusLimiter = rateLimit({
   windowMs: RATE_LIMITS.remediationStatus.windowMs,
   max: RATE_LIMITS.remediationStatus.max,
-  keyGenerator: userOrIpKey,
+  keyGenerator: ipKey,
   message: { error: "Too many status requests. Please slow down." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -185,7 +168,7 @@ export const remediationStatusLimiter = rateLimit({
 
 // Flood guard for the public /api/status document — the only cap that
 // applies to it, since globalLimiter skips it. Keyed by IP rather than
-// userOrIpKey: the endpoint is unauthenticated by design, so there is no
+// ipKey: the endpoint is unauthenticated by design, so there is no
 // user to key by.
 export const statusLimiter = rateLimit({
   windowMs: RATE_LIMITS.status.windowMs,

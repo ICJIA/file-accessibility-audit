@@ -151,7 +151,7 @@ describe("analyzeWithPdfjs — headingOutline", () => {
     const r = await analyzeWithPdfjs(pdf);
     expect(r.error).toBeNull();
     expect(r.headingOutline).toEqual([{ level: "H1", text: "Hello Heading" }]);
-  });
+  }, 30_000);
 
   it("extracts a non-empty outline from the fully tagged fixture", async () => {
     const r = await analyzeWithPdfjs(readFileSync(join(FIXTURES, "accessible.pdf")));
@@ -160,10 +160,10 @@ describe("analyzeWithPdfjs — headingOutline", () => {
       expect(h.level).toMatch(/^H[1-6]?$/);
       expect(h.text.trim().length).toBeGreaterThan(0);
     }
-  });
+  }, 30_000);
 
   it("returns an empty outline for an untagged PDF", async () => {
     const r = await analyzeWithPdfjs(readFileSync(join(FIXTURES, "inaccessible.pdf")));
     expect(r.headingOutline).toEqual([]);
-  });
+  }, 30_000);
 });

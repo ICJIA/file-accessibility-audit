@@ -18,13 +18,10 @@ import { FILENAME, STATUS } from "#config";
  */
 
 export interface RecordAuditInput {
-  email: string | null;
   filename: string;
   score: number | null;
   grade: string | null;
   contentHash?: string | null;
-  ipAddress?: string | null;
-  userAgent?: string | null;
   /** Event type label. Default: 'analyze'. */
   eventType?: string;
 }
@@ -33,49 +30,26 @@ export function sha256Hex(buf: Buffer): string {
   return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
-/**
- * The identity string used by the audit-gate + daily-cap on
- * /api/remediate. When authenticated, this is just the user's email.
- * When anonymous (AUTH.REQUIRE_LOGIN=false), it's `anon:${ip}` so two
- * different callers don't share a single 'anonymous' bucket — closing
- * P2.1 from the v1.20.1 red/blue review.
- *
- * Treat the result as opaque; only the equality comparison matters.
- */
-export function gateIdentity(
-  email: string | null | undefined,
-  ip: string | null | undefined,
-): string {
-  if (email && email !== "anonymous") {
-    return email;
-  }
-  // Strip IPv6 brackets + zone identifier for stability.
-  const cleanIp = (ip ?? "unknown").replace(/^\[|\]$/g, "").split("%")[0];
-  return `anon:${cleanIp}`;
-}
-
 const insertStmt = db.prepare(
   `INSERT INTO audit_log
-     (event_type, email, filename, score, grade,
-      ip_address, user_agent, content_hash)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (event_type, filename, score, grade, content_hash)
+   VALUES (?, ?, ?, ?, ?)`,
 );
 
 /**
- * Hard length caps applied at the writer, not at the call sites.
+ * Hard length cap applied at the writer, not at the call sites.
  *
- * Both values are attacker-controlled on every request — `filename` comes from
- * the multipart Content-Disposition header and `user_agent` from a request
- * header — and neither is bounded by anything upstream. Clamping here means a
- * new caller cannot reintroduce the gap by forgetting, which is exactly how
- * the rejection path acquired it (see recordRejectedUpload).
+ * `filename` is attacker-controlled on every request — it comes from the
+ * multipart Content-Disposition header — and is not bounded by anything
+ * upstream. Clamping here means a new caller cannot reintroduce the gap by
+ * forgetting, which is exactly how the rejection path acquired it (see
+ * recordRejectedUpload).
  *
  * Length ONLY, no character filtering: audit-url-page deliberately stores a
  * URL in the filename column, and stripping `:` and `/` would mangle it.
  * Character sanitising belongs at the callers that know they hold a filename.
  */
 const MAX_FILENAME_CHARS = 512;
-const MAX_USER_AGENT_CHARS = 512;
 
 function clamp(value: string | null | undefined, max: number): string | null {
   if (value === null || value === undefined) return null;
@@ -111,16 +85,16 @@ export function sanitizeStoredFilename(raw: string): string {
 
 export function recordAudit(input: RecordAuditInput): void {
   try {
+    // The whole row is metadata ABOUT the audit event — file name, score,
+    // grade, timestamp, content hash. Deliberately nothing about WHO:
+    // v1.68.0 removed identity storage (no email, no IP address, no
+    // user-agent), and this writer is where that guarantee is enforced for
+    // every current and future call site.
     insertStmt.run(
       input.eventType ?? "analyze",
-      // email is required-NOT-NULL on audit_log; coerce anonymous to a
-      // sentinel string so dev / no-auth deployments still write rows.
-      input.email ?? "anonymous",
       clamp(input.filename, MAX_FILENAME_CHARS) ?? "",
       input.score,
       input.grade,
-      input.ipAddress ?? null,
-      clamp(input.userAgent, MAX_USER_AGENT_CHARS),
       input.contentHash ?? null,
     );
   } catch (err) {
@@ -147,19 +121,12 @@ export function recordAudit(input: RecordAuditInput): void {
  * Best-effort like recordAudit: a logging failure must never turn a clean 400
  * into a 500.
  */
-export function recordRejectedUpload(input: {
-  filename: string;
-  email?: string | null;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-}): void {
+export function recordRejectedUpload(input: { filename: string }): void {
   recordAudit({
     eventType: STATUS.REJECTION_EVENT_TYPES[0],
-    email: input.email ?? null,
     // Sanitised HERE rather than at the callers. The multer file filter had
     // been passing file.originalname straight through, so a 4 kB filename
-    // carrying raw markup was persisted verbatim and surfaced to the
-    // admin-only /api/logs view (which is `SELECT *`). Doing it in the writer
+    // carrying raw markup was persisted verbatim. Doing it in the writer
     // means the guarantee holds for every call site including future ones,
     // instead of depending on each one remembering — the same reasoning as
     // the NULL content_hash above.
@@ -167,49 +134,30 @@ export function recordRejectedUpload(input: {
     score: null,
     grade: null,
     contentHash: null,
-    ipAddress: input.ipAddress ?? null,
-    userAgent: input.userAgent ?? null,
   });
 }
 
 /**
- * "Has this content been audited by this caller within the window?"
- * Used by POST /api/remediate to enforce the audit-before-remediate
- * gate.
+ * "Has this content been audited within the window?" Used by POST
+ * /api/remediate to enforce the audit-before-remediate gate.
  *
- * The query matches on content_hash + email (so audits from any
- * audit path — browser upload, URL submit, fleet bulk — all count
- * uniformly). When AUTH.REQUIRE_LOGIN is false, every caller is the
- * "anonymous" sentinel and the check still works.
+ * Content-hash only (v1.68.0): identity storage is gone, so the gate binds
+ * to the BYTES — remediation still requires that these exact bytes passed
+ * through an audit recently (any path: browser upload, URL submit, fleet
+ * bulk), which is the property that stops callers bypassing the audit
+ * pipeline's rate limit by jumping straight to remediation. The per-caller
+ * daily cap that used to ride the same identity lives in
+ * services/remediationCap.ts (in-memory, transient).
  */
 const findRecentAuditStmt = db.prepare(
   `SELECT 1 FROM audit_log
     WHERE content_hash = ?
-      AND email = ?
       AND created_at > datetime(?, 'unixepoch')
     LIMIT 1`,
 );
 
-export function hasRecentAudit(contentHash: string, email: string, windowMs: number): boolean {
+export function hasRecentAudit(contentHash: string, windowMs: number): boolean {
   const sinceUnixSec = Math.floor((Date.now() - windowMs) / 1000);
-  const row = findRecentAuditStmt.get(contentHash, email, sinceUnixSec);
+  const row = findRecentAuditStmt.get(contentHash, sinceUnixSec);
   return !!row;
-}
-
-/**
- * "How many remediation jobs has this caller started in the window?"
- * Used by POST /api/remediate to enforce the daily cap. Counts every
- * non-pending row (pending rows aren't yet a meaningful resource hit;
- * the per-user concurrent limit handles those separately).
- */
-const countRemediationsStmt = db.prepare(
-  `SELECT COUNT(*) AS n FROM remediation_jobs
-    WHERE email = ?
-      AND created_at > ?`,
-);
-
-export function countRecentRemediations(email: string, windowMs: number): number {
-  const sinceMs = Date.now() - windowMs;
-  const row = countRemediationsStmt.get(email, sinceMs) as { n: number };
-  return row.n;
 }

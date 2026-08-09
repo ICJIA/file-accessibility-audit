@@ -10,8 +10,11 @@
 #     audit_log        — per-document audit history
 #     shared_reports   — saved / shared report JSON
 #
-# It does NOT touch otp_codes, access_tokens, remediation_jobs, or
-# remediation_events (the long-retention remediation compliance trail).
+# It does NOT touch remediation_jobs or remediation_events (the
+# long-retention remediation compliance trail). Since v1.68.0 those four —
+# audit_log, shared_reports, remediation_jobs, remediation_events — are the
+# only tables in the database (otp_codes / access_tokens / revoked_jtis were
+# dropped with the auth system).
 #
 # The database is backed up before anything is deleted.
 #
@@ -60,7 +63,7 @@ before_reports="$(sqlite3 "$DB" 'SELECT COUNT(*) FROM shared_reports;')"
 echo "Rows to be DELETED:"
 echo "  audit_log:       $before_audit"
 echo "  shared_reports:  $before_reports"
-echo "Left untouched:    otp_codes, access_tokens, remediation_jobs, remediation_events"
+echo "Left untouched:    remediation_jobs, remediation_events"
 echo
 read -r -p "Back up the database and clear those two tables? Type 'yes' to proceed: " reply
 [ "$reply" = "yes" ] || { echo "Aborted — nothing changed."; exit 0; }

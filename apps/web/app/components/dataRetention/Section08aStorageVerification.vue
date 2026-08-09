@@ -7,11 +7,16 @@
 
     <div class="rounded-xl border-2 border-blue-700/40 bg-blue-950/15 p-5 sm:p-6 mb-5">
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
-        <strong>Audited 2026-08-05, against the source code at tool v1.49.0.</strong> Section 8
-        above states what is and isn't stored. This section is the proof: a complete, dated
-        inventory of every place the application can write data — every database table, every
-        statement that inserts into one, every file the server creates, everything its process logs
-        and emails can contain — each verified by direct inspection of the code, with the code
+        <strong
+          >Audited 2026-08-05, against the source code at tool v1.49.0; re-verified 2026-08-09
+          against tool v1.68.0</strong
+        >
+        after the identifier-removal release (accounts, sign-in, and every email / IP-address /
+        user-agent column removed; migration 11 dropped the columns and their existing data from the
+        live database). Section 8 above states what is and isn't stored. This section is the proof:
+        a complete, dated inventory of every place the application can write data — every database
+        table, every statement that inserts into one, every file the server creates, everything its
+        process logs can contain — each verified by direct inspection of the code, with the code
         quoted. It exists so that a manager, records officer, or external auditor does not have to
         take § 8 on trust.
       </p>
@@ -38,11 +43,12 @@
       The entire database, table by table
     </h3>
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-      The application has exactly <strong>seven tables</strong>, all created in one file. None has a
+      The application has exactly <strong>four tables</strong>, all created in one file. None has a
       BLOB (binary) column — a search of the whole server codebase finds no binary column type
       anywhere, so the database is <em>structurally incapable</em> of holding file bytes. There is
-      also <strong>no user-accounts table</strong>: identity is an email string carried on
-      individual rows; no password, profile, or user record exists anywhere.
+      also <strong>no identity anywhere</strong>: since tool v1.68.0 there are no accounts and no
+      sign-in, and no table has a column for an email address, an IP address, or a browser
+      user-agent — the columns were removed from the schema itself, not merely left unwritten.
     </p>
     <div class="overflow-x-auto mb-4" tabindex="0">
       <table class="w-full text-sm">
@@ -59,17 +65,16 @@
         <tbody class="text-[var(--text-secondary)] text-xs">
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-mono">audit_log</td>
-            <td class="py-2.5 pr-4">Usage log (audits + refused uploads); gates remediation</td>
-            <td class="py-2.5">
-              email, filename (sanitized, 512-char clamp), IP address, browser user-agent, content
-              hash
+            <td class="py-2.5 pr-4">
+              Usage metadata (audits + refused uploads); gates remediation
             </td>
+            <td class="py-2.5">filename (sanitized, 512-char clamp), content hash</td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-mono">shared_reports</td>
-            <td class="py-2.5 pr-4">Reports a user chose to share, or fleet/URL audit reports</td>
+            <td class="py-2.5 pr-4">Reports someone chose to share, or fleet/URL audit reports</td>
             <td class="py-2.5">
-              email, filename (or audited URL), the report itself —
+              filename (or audited URL), the report itself —
               <strong>see the nuance below</strong>
             </td>
           </tr>
@@ -77,7 +82,7 @@
             <td class="py-2.5 pr-4 font-mono">remediation_jobs</td>
             <td class="py-2.5 pr-4">Remediation job lifecycle (metadata only, 30-day rows)</td>
             <td class="py-2.5">
-              email, filenames, content hash, before/after report JSON (same nuance below)
+              filenames, content hash, before/after report JSON (same nuance below)
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
@@ -85,44 +90,27 @@
             <td class="py-2.5 pr-4">Append-only auditor receipt per job (§ 6)</td>
             <td class="py-2.5">sanitized filename + byte size on the "received" event</td>
           </tr>
-          <tr class="border-b border-[var(--border)]/40">
-            <td class="py-2.5 pr-4 font-mono">otp_codes</td>
-            <td class="py-2.5 pr-4">One-time login codes (bcrypt-hashed, deleted on use)</td>
-            <td class="py-2.5">email</td>
-          </tr>
-          <tr class="border-b border-[var(--border)]/40">
-            <td class="py-2.5 pr-4 font-mono">access_tokens</td>
-            <td class="py-2.5 pr-4">API tokens — SHA-256 hash only, raw token never stored</td>
-            <td class="py-2.5">email, user-chosen token label</td>
-          </tr>
-          <tr>
-            <td class="py-2.5 pr-4 font-mono">revoked_jtis</td>
-            <td class="py-2.5 pr-4">Sign-out denylist (opaque IDs + expiry)</td>
-            <td class="py-2.5">none</td>
-          </tr>
         </tbody>
       </table>
     </div>
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
-      The usage-log table's complete definition, verbatim from
-      <code class="text-xs font-mono">apps/api/src/db/migrations.ts</code> (a
-      <code class="text-xs font-mono">content_hash TEXT</code> column is added by a later migration)
-      — note there is nowhere for document content to go:
+      The usage-metadata table's complete effective definition (baseline from
+      <code class="text-xs font-mono">apps/api/src/db/migrations.ts</code>, plus migration 2's
+      <code class="text-xs font-mono">content_hash</code> and minus the identity columns migration
+      11 dropped) — note there is nowhere for document content, or for an identity, to go:
     </p>
     <pre
       class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border)] px-4 py-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto mb-4"
       tabindex="0"
     >
-CREATE TABLE IF NOT EXISTS audit_log (
+CREATE TABLE audit_log (          -- shape after migration 11 (v1.68.0)
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   event_type TEXT NOT NULL,
-  email TEXT NOT NULL,
   filename TEXT,
   score INTEGER,
   grade TEXT,
-  ip_address TEXT,
-  user_agent TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  content_hash TEXT
 );</pre>
 
     <!-- Files -->
@@ -183,7 +171,7 @@ try {
     <div class="rounded-xl border border-amber-700/40 bg-amber-950/15 p-5 sm:p-6 mb-4">
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
         A plain audit — upload, read the results, close the tab — stores only the metadata row shown
-        above: filename, score, grade, hash, IP, user-agent. But when a report is
+        above: filename, score, grade, hash. But when a report is
         <em>saved</em> (you click share, or a report is created by the URL/fleet audit paths, or a
         remediation job stores its before/after reports), the stored report includes the findings
         text — and
@@ -222,9 +210,9 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
       </p>
     </div>
 
-    <!-- Logs and email -->
+    <!-- Logs -->
     <h3 class="text-lg font-semibold text-[var(--text-heading)] mb-2">
-      What the server's own logs and email can contain
+      What the server's own logs can contain
     </h3>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 mb-4">
       <li>
@@ -232,16 +220,13 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
         no request logger (no morgan, pino, winston, or bunyan), and no middleware writes
         per-request lines. The process log accumulates: startup banners, cleanup-sweep counts, and
         error stack traces. Every <code class="text-xs font-mono">console.*</code>
-        call in the server was reviewed: in production, none interpolates a filename, email address,
-        IP address, or any document content. (One development-only line prints the login code to the
-        console for local testing; it is disabled by the production environment setting the
-        deployment applies.)
+        call in the server was reviewed: in production, none interpolates a filename, an address, or
+        any document content.
       </li>
       <li>
-        <strong>Exactly one email can ever leave the server</strong> — the login code. Its entire
-        body is the code and its expiry time (<code class="text-xs font-mono"
-          >apps/api/src/mailer.ts</code
-        >): no filename, score, report content, or link is ever emailed.
+        <strong>No email can leave the server at all</strong> — tool v1.68.0 removed the sign-in
+        system, which was the only thing that ever sent mail, along with the mail-sending code and
+        its credentials. There is no mailer left to misuse.
       </li>
       <li>
         <strong>The hosting layer keeps standard web-server access logs.</strong> The site runs
@@ -304,11 +289,12 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
             <td class="py-2.5">no such dependency or outbound call exists (§ 4)</td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
-            <td class="py-2.5 pr-4">IP address and user-agent are stored in the usage log</td>
-            <td class="py-2.5 pr-4 text-amber-300 font-semibold">Corrected 2026-08-05</td>
+            <td class="py-2.5 pr-4">No email, IP address, or user-agent is stored anywhere</td>
+            <td class="py-2.5 pr-4 text-emerald-300 font-semibold">Verified 2026-08-09</td>
             <td class="py-2.5">
-              always true in the schema; § 8 previously implied otherwise — disclosed since policy
-              v1.2, columns quoted above
+              true since tool v1.68.0 — migration 11 dropped the columns and their data; before that
+              the usage log did store IP and user-agent (disclosed since policy v1.2, and still
+              visible in snapshots until the keep-5 rotation ages them out, ≈5 days)
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
@@ -320,11 +306,11 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
-            <td class="py-2.5 pr-4">Raw tokens and codes are never stored</td>
+            <td class="py-2.5 pr-4">Raw tokens are never stored</td>
             <td class="py-2.5 pr-4 text-emerald-300 font-semibold">Verified</td>
             <td class="py-2.5">
-              login codes bcrypt-hashed; API tokens and download tokens SHA-256-hashed; raw values
-              exist only in transit
+              download tokens SHA-256-hashed; raw values exist only in transit (login codes and
+              API-token rows no longer exist at all — v1.68.0)
             </td>
           </tr>
           <tr>

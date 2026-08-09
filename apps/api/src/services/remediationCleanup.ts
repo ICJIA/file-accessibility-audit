@@ -3,7 +3,7 @@
  * — ALWAYS, regardless of REMEDIATION.ENABLED (since v1.51.0; the interval
  * previously early-returned when remediation was off, which silently
  * disabled steps 6–8 too — retention must not hang off a feature flag).
- * Does eight things, in order:
+ * Does seven things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
  *      record verified_absent for the auditor).
@@ -12,10 +12,7 @@
  *   4. Purge job rows past JOB_ROW_RETENTION_DAYS (terminal states only).
  *   5. Purge event rows past EVENT_LOG_RETENTION_DAYS.
  *   6. Purge audit_log rows past AUDIT_LOG_RETENTION_DAYS.
- *   7. Purge expired revoked_jtis rows (C4 JWT revocation denylist). Also
- *      purged opportunistically on every logout (see auth.ts /
- *      jtiDenylist.ts), so this is a backstop for a server with few logouts.
- *   8. Purge shared_reports rows past EXPIRY_DAYS + PURGE_GRACE_DAYS
+ *   7. Purge shared_reports rows past EXPIRY_DAYS + PURGE_GRACE_DAYS
  *      (v1.51.0). The grace window keeps the read gate's 410 "link has
  *      expired" response alive for a while after expiry before the row —
  *      and its up-to-1MB report_json — is deleted for good.
@@ -32,7 +29,6 @@ import db from "../db/sqlite.js";
 import { REMEDIATION, SHARED_REPORTS } from "#config";
 import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
 import { setExpired, setFailed } from "./remediationJobs.js";
-import { purgeExpiredJtis } from "./jtiDenylist.js";
 
 const STUCK_RUNNING_MS = 10 * 60_000;
 
@@ -83,8 +79,6 @@ export interface CleanupResult {
   purgedEvents: number;
   /** v1.20.1+: audit_log rows purged past AUDIT_LOG_RETENTION_DAYS. */
   purgedAuditLog: number;
-  /** C4: revoked_jtis rows purged past their own expiry. */
-  purgedJtis: number;
   /** v1.51.0: shared_reports rows purged past EXPIRY_DAYS + PURGE_GRACE_DAYS. */
   purgedSharedReports: number;
   errors: Array<{ step: string; message: string }>;
@@ -99,7 +93,6 @@ export async function runCleanup(): Promise<CleanupResult> {
     purgedJobs: 0,
     purgedEvents: 0,
     purgedAuditLog: 0,
-    purgedJtis: 0,
     purgedSharedReports: 0,
     errors: [],
   };
@@ -233,17 +226,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     });
   }
 
-  /* 7. Purge expired revoked_jtis rows (C4). */
-  try {
-    result.purgedJtis = purgeExpiredJtis();
-  } catch (e) {
-    result.errors.push({
-      step: "purge_jtis",
-      message: (e as Error).message,
-    });
-  }
-
-  /* 8. Purge shared_reports past expiry + grace (v1.51.0). Rows inside the
+  /* 7. Purge shared_reports past expiry + grace (v1.51.0). Rows inside the
    *    grace window survive so GET /api/reports/:id can keep answering the
    *    informative 410 before the id finally goes 404. */
   try {

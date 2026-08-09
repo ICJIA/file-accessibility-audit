@@ -55,7 +55,6 @@ function seedAudit(
     eventType: string;
     filename: string;
     agoMs?: number;
-    email?: string;
     /** Defaults to "B". Pass null explicitly to write a NULL grade, which is
      *  what a failed audit (and any row predating the column) looks like. */
     grade?: string | null;
@@ -63,16 +62,9 @@ function seedAudit(
 ): void {
   const at = new Date(T0 - (opts.agoMs ?? 0)).toISOString().replace("T", " ").slice(0, 19);
   db.prepare(
-    `INSERT INTO audit_log (event_type, email, filename, score, grade, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(
-    opts.eventType,
-    opts.email ?? "anonymous",
-    opts.filename,
-    80,
-    opts.grade === undefined ? "B" : opts.grade,
-    at,
-  );
+    `INSERT INTO audit_log (event_type, filename, score, grade, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(opts.eventType, opts.filename, 80, opts.grade === undefined ? "B" : opts.grade, at);
 }
 
 /** Inserts a refused-upload row the way recordRejectedUpload does: the
@@ -81,9 +73,9 @@ function seedAudit(
 function seedRejection(db: DB, filename: string, agoMs = 0): void {
   const at = new Date(T0 - agoMs).toISOString().replace("T", " ").slice(0, 19);
   db.prepare(
-    `INSERT INTO audit_log (event_type, email, filename, score, grade, content_hash, created_at)
-     VALUES (?, ?, ?, NULL, NULL, NULL, ?)`,
-  ).run(STATUS.REJECTION_EVENT_TYPES[0], "anonymous", filename, at);
+    `INSERT INTO audit_log (event_type, filename, score, grade, content_hash, created_at)
+     VALUES (?, ?, NULL, NULL, NULL, ?)`,
+  ).run(STATUS.REJECTION_EVENT_TYPES[0], filename, at);
 }
 
 function seedRemediation(db: DB, status: string, agoMs = 0): void {
@@ -345,20 +337,20 @@ describe("document counting", () => {
   });
 
   it("cannot satisfy the remediation audit-gate, because the hash is NULL", async () => {
-    // The gate (hasRecentAudit) matches on content_hash + email with NO
-    // event_type filter, so the only thing keeping "this content was refused"
-    // from passing a check that means "this content was audited" is the NULL
+    // The gate (hasRecentAudit) matches on content_hash with NO event_type
+    // filter, so the only thing keeping "this content was refused" from
+    // passing a check that means "this content was audited" is the NULL
     // hash. This asserts the SQL semantics that guarantee it — a future
     // COALESCE or IS NOT DISTINCT FROM in that query would fail here.
     const db = freshDb();
     seedRejection(db, "old.doc");
 
     const gateSql = `SELECT 1 FROM audit_log
-                      WHERE content_hash = ? AND email = ?
+                      WHERE content_hash = ?
                       LIMIT 1`;
     // Any hash at all, including the empty string, must miss a NULL column.
     for (const probe of ["", "deadbeef", "0".repeat(64)]) {
-      expect(db.prepare(gateSql).get(probe, "anonymous")).toBeUndefined();
+      expect(db.prepare(gateSql).get(probe)).toBeUndefined();
     }
     // Sanity: the row really is there, so the miss is about NULL, not an
     // empty table.

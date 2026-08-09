@@ -21,79 +21,11 @@
           </a>
         </h1>
         <div class="flex items-center gap-2 sm:gap-4">
-          <!-- Mobile hamburger -->
-          <button
-            v-if="user"
-            class="md:hidden p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-heading)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-            aria-label="Toggle menu"
-            @click="mobileMenuOpen = !mobileMenuOpen"
-          >
-            <svg
-              v-if="!mobileMenuOpen"
-              class="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-              />
-            </svg>
-            <svg
-              v-else
-              class="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <!-- Desktop nav -->
-          <nav v-if="user" class="hidden md:flex items-center gap-4">
-            <a
-              v-if="config.public.faqsUrl"
-              :href="config.public.faqsUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors"
-            >
-              FAQs
-            </a>
-            <template v-if="user.email !== 'anonymous'">
-              <NuxtLink
-                to="/my-history"
-                class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors"
-              >
-                My History
-              </NuxtLink>
-              <NuxtLink
-                v-if="user.isAdmin"
-                to="/history"
-                class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors"
-              >
-                Admin Logs
-              </NuxtLink>
-              <span class="text-xs text-[var(--text-muted)]">{{ user.email }}</span>
-              <UButton size="xs" variant="ghost" color="neutral" @click="logout"> Logout </UButton>
-            </template>
-          </nav>
-          <!-- Always-visible site links.
-               Deliberately OUTSIDE the <nav v-if="user"> above so their
-               visibility never depends on auth state.
+          <!-- Always-visible site links. There is no auth state to gate on —
+               the tool has no accounts or sign-in (v1.68.0) — so every
+               header link renders for every visitor, always.
 
-               NOTE: that nav DOES currently render for ordinary visitors —
-               /api/auth/me returns { email: "anonymous" } rather than null
-               while AUTH.REQUIRE_LOGIN is false, so `user` is truthy. But
-               that is incidental, and turning login on (or changing the
-               anonymous sentinel to null) would silently hide anything
-               placed inside it. These links must survive that.
-
-               The two links use DIFFERENT elements on purpose:
+               Two of the links use DIFFERENT elements on purpose:
                  /announcements is a Vue page  -> NuxtLink (SPA navigation)
                  /status is a Nitro SERVER route -> plain <a>
 
@@ -103,6 +35,15 @@
                shipped in v1.39.0 and was fixed in v1.39.1 — do not
                "tidy" this into a NuxtLink. -->
           <nav aria-label="Site information" class="flex items-center gap-3 sm:gap-4">
+            <a
+              v-if="config.public.faqsUrl"
+              :href="config.public.faqsUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors"
+            >
+              FAQs
+            </a>
             <NuxtLink
               to="/announcements"
               class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
@@ -162,54 +103,6 @@
           <ServerStatusIndicator />
         </div>
       </div>
-      <!-- Mobile nav dropdown -->
-      <Transition name="slide-down">
-        <nav
-          v-if="user && mobileMenuOpen"
-          class="md:hidden mx-auto max-w-4xl border-t border-[var(--border-subtle)] pt-3 pb-1 px-3 flex flex-col gap-2"
-        >
-          <a
-            v-if="config.public.faqsUrl"
-            :href="config.public.faqsUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]"
-          >
-            FAQs
-          </a>
-          <template v-if="user.email !== 'anonymous'">
-            <NuxtLink
-              to="/my-history"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]"
-              @click="mobileMenuOpen = false"
-            >
-              My History
-            </NuxtLink>
-            <NuxtLink
-              v-if="user.isAdmin"
-              to="/history"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]"
-              @click="mobileMenuOpen = false"
-            >
-              Admin Logs
-            </NuxtLink>
-            <div class="flex items-center justify-between px-2 py-1.5">
-              <span class="text-xs text-[var(--text-muted)]">{{ user.email }}</span>
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                @click="
-                  logout?.();
-                  mobileMenuOpen = false;
-                "
-              >
-                Logout
-              </UButton>
-            </div>
-          </template>
-        </nav>
-      </Transition>
     </header>
 
     <main class="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8">
@@ -583,12 +476,9 @@
 import { SCORING_PROFILES, GRADE_THRESHOLDS, SEVERITY_COLORS, withAlpha } from "@file-audit/shared";
 
 const config = useRuntimeConfig();
-const user = inject<Ref<any>>("user");
 const goAnalyze = inject<() => void>("goAnalyze");
-const logout = inject<() => void>("logout");
 
 const colorMode = useColorMode();
-const mobileMenuOpen = ref(false);
 
 function toggleColorMode() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";

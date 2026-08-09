@@ -19,9 +19,10 @@ import { renderBackup, renderStatusHtml } from "../../server/utils/statusHtml";
 //
 // The hardest assertions below are the ones guarding against OVERCLAIM. The
 // tempting simplification — "the backup contains no personal information" —
-// is false in three specific ways (sign-in email, IP/user-agent connection
-// log, and the uploaded file name, which can itself name a person), and being
-// caught on any one of them would discredit the whole policy page. Copy that
+// remains false even after v1.68.0 removed accounts and every email/IP/
+// user-agent column: the uploaded file name can itself name a person, and a
+// saved/shared report quotes short labels from inside the document. Being
+// caught on either would discredit the whole policy page. Copy that
 // reassures by omission is the regression these tests exist to catch.
 
 const WEB_ROOT = resolve(__dirname, "../..");
@@ -81,22 +82,24 @@ describe("/status backup card — what is in a backup", () => {
     const text = visibleText(renderBackup({ ...PAYLOAD, backup: BACKUP_OK }));
     expect(text).toContain("In a backup");
     expect(text).toContain("Not in a backup");
-    expect(text).toMatch(/one line per audit/i);
+    expect(text).toMatch(/one line of metadata per audit/i);
     expect(text).toMatch(/PDF, Word, PowerPoint or Excel file itself/i);
     expect(text).toMatch(/could not reproduce one page/i);
   });
 
-  it("does not claim the records are free of personal detail", () => {
-    // The overclaim guard. Every phrase below would be a lie about a
-    // database holding audit_log.email, audit_log.ip_address, and a
-    // sanitized-but-preserved filename.
+  it("states the identity guarantees affirmatively and never overclaims (v1.68.0)", () => {
+    // The overclaim guard survives the identifier removal: a file NAME can
+    // still name a person and a shared report still quotes short labels, so
+    // "no personal data" stays banned even now that no email / IP / browser
+    // identifier exists anywhere in the schema. What the card must now say
+    // outright is the affirmative absence — no accounts, and no columns.
     const text = visibleText(renderStatusHtml({ ...PAYLOAD, backup: BACKUP_OK }));
     expect(text).not.toMatch(/no personal (data|information|details)/i);
     expect(text).not.toMatch(/(contains|holds) no PII/i);
     expect(text).not.toMatch(/anonymous|anonymi[sz]ed/i);
-    // And the two it must name outright rather than leave to the policy page.
-    expect(text).toMatch(/sign-in email addresses/i);
-    expect(text).toMatch(/IP address/i);
+    expect(text).toMatch(/no accounts or sign-in/i);
+    expect(text).toMatch(/no column for an email address, an IP address, or a browser/i);
+    expect(text).toMatch(/says nothing about who did the checking/i);
   });
 
   it("keeps the explanation on every backup state, not just the healthy one", () => {
@@ -165,19 +168,20 @@ describe("data-retention § 7a — the same answer, for someone reading the poli
   it("draws the two lanes rather than only asserting the conclusion", () => {
     const text = visibleText(RETENTION_SECTION);
     expect(text).toContain("Your document");
-    expect(text).toContain("The record of the audit");
+    expect(text).toContain("The audit metadata");
     // Each lane ends in its own verdict — the point of setting them side by side.
     expect(text).toMatch(/Never written to disk, so it cannot be in a backup/i);
     expect(text).toMatch(/only this .{0,10} is what the nightly backup copies/i);
   });
 
-  it("states the personal detail the record does carry", () => {
+  it("states the personal detail the metadata can still carry", () => {
     const text = visibleText(RETENTION_SECTION);
     expect(text).not.toMatch(/no personal (data|information|details)/i);
-    expect(text).toMatch(/sign-in email address/i);
-    expect(text).toMatch(/IP address and browser name/i);
-    // The one most likely to be quietly dropped as an inconvenience, and the
-    // one a records officer most needs: the file name is kept as uploaded.
+    // The affirmative absences an auditor verifies against the schema...
+    expect(text).toMatch(/no accounts, no sign-in/i);
+    expect(text).toMatch(/no email, IP-address, or browser column/i);
+    // ...and the one personal thing that remains, which a records officer
+    // most needs named: the file name is kept as uploaded.
     expect(text).toMatch(/file named after a person stores that person's name/i);
   });
 

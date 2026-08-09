@@ -28,11 +28,6 @@
             keywords), image alt-text values, link text and destinations, bookmark titles, and
             form-field names, quoted inside the findings (§ 8a)
           </li>
-          <li>User's email address (only if logged in; tied to the user's own account)</li>
-          <li>
-            Caller IP address and browser user-agent string (usage log; purged with the same 365-day
-            retention)
-          </li>
           <li>Server-side timestamps for every lifecycle event</li>
           <li>Job status, step name, progress percentage</li>
           <li>Failure reasons (string descriptions, no content)</li>

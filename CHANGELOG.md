@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.68.0] - 2026-08-09
+
+### Removed
+
+- **The sign-in system, in its entirety.** The tool is free and open to use, and now the code says so: the OTP email flow, JWT sessions, the logout jti denylist, personal access tokens (`fap_`), the admin role, the login and My History and Admin Logs pages, the auth middleware on every route, and the mailer itself (OTP codes were the only email the service ever sent — there is no mail-sending code left, and `JWT_SECRET`/`SMTP_*`/`ADMIN_EMAILS`/`ALLOWED_DOMAINS` are no longer read). The `API_PRIVILEGED_TOKEN` fleet service credential is unchanged — it is a rate-tier/allowlist bypass for the fleet integration, not a user account, and never touched identity storage.
+- **Identifier storage, at the schema level.** Migration 11 **drops the columns and their data**: `audit_log.email` (which held `anon:<ip>` sentinels for everyone since login was never required), `audit_log.ip_address`, `audit_log.user_agent`, `shared_reports.email`, `remediation_jobs.email`, and the whole `otp_codes` / `revoked_jtis` / `access_tokens` tables. What remains per audit is metadata about the event — file name (sanitized), score, grade, timestamp, content hash — data about the file, never the file, and nothing about the caller. `statusPrivacy.test.ts` now asserts the columns are physically absent, not merely unwritten. Old nightly snapshots carry the old shape until the keep-5 rotation ages them out (≈5 days).
+
+### Changed
+
+- **The remediation gates were rekeyed for an identity-free world.** The audit-before-remediate gate binds to the **content hash** alone: these exact bytes must have passed a recent audit (any path), which is still the property that stops callers bypassing the audit pipeline's rate limit. The per-caller daily cap moved to **process memory** (`remediationCap.ts`), keyed by the caller's IP used transiently — never written to disk, a row, or a log — with single-threaded check-and-reserve replacing the old P2.4 SQL transaction; it resets on API restart, which is acceptable for an abuse brake. Job status/download/receipt authorize by the job's **download token only** (the C5 anonymous path, now the only path — 404 on failure so existence never leaks). URL-audit dedup keys on content hash alone, which preserves the exact behavior production already had (every caller shared the `anonymous` identity). Per-IP rate limiting itself is unchanged and in-memory (express-rate-limit's MemoryStore).
+- **Every policy and status surface now tells the identity-free story in "metadata" terms** — data about the file, never the file: the `/status` backup card (✗ column now includes "Who uploaded it"), data-retention §§ 2, 3, 4, 5, 6, 7, 7a, 8, 8a and § 11's sample SQL, the §&nbsp;4 no-AI diagram (Mailgun node removed — its mermaid source is now inline in `scripts/generate-diagrams.mjs`), and the technical explainer. § 8a is re-verified and dated 2026-08-09: four tables, no identity columns anywhere, no email can leave the server at all. Policy change log **v1.6**. The overclaim guards remain and got stronger: "no personal data"/"no PII"/"anonymized" are still banned phrases (a file name as uploaded can itself name a person; shared reports quote short labels), and the surfaces must now state the affirmative absences — no accounts or sign-in, and no email/IP/browser column in the schema for anything to fill.
+
+### Notes
+
+The header nav no longer has an auth-gated section or a mobile hamburger (its only cargo was My History/Admin/Logout); FAQs joined the always-visible links. `nodemailer`, `jsonwebtoken`, `bcryptjs`, and `cookie-parser` left the dependency tree. Origin: the user's decision, in their words — "it's more important that this be free of PII instead of an auth sign in."
+
 ## [1.67.1] - 2026-08-09
 
 ### Changed

@@ -19,7 +19,7 @@ A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xl
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF/Office SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
 | **3** | Files per batch | Upload up to 3 files (PDF, Word, PowerPoint, or Excel) at once; per-tab remediation for PDFs. `POST /api/analyze-url` for programmatic auditing of public documents. |
-| **4** | Export formats | Text / HTML / Markdown / JSON report exports. 1-year shareable links (no login required to view). |
+| **4** | Export formats | Text / HTML / Markdown / JSON report exports. 1-year shareable links — no account needed (the tool has none). |
 
 Auto-remediation is **disabled by default** — set `REMEDIATION_ENABLED=true` in your environment to enable. Architectural details in [docs/archive/pdf-remediation-integration-plan.md](docs/archive/pdf-remediation-integration-plan.md); the Phase 1 follow-on (interactive alt-text walkthrough) is specced in [docs/archive/pdf-remediation-alt-text-walkthrough-spec.md](docs/archive/pdf-remediation-alt-text-walkthrough-spec.md).
 
@@ -30,8 +30,8 @@ The intended workflow is: **upload → review findings → either auto-remediate
 New here? The live tool is at **[audit.icjia.app](https://audit.icjia.app)**; this README is the technical companion. Jump to:
 
 - **Overview** — [What it does](#what-it-does) · [Scoring rubric](#scoring-rubric)
-- **Run it** — [Quick Start](#quick-start) · [Authentication](#authentication) · [Configuration](#configuration) · [Deployment](#deployment)
-- **APIs & automation** — [Batch Upload](#batch-upload) · [Analyze from URL](#analyze-from-url) · [Fleet Document Auditing](#fleet-document-auditing) · [Bulk Inventory Scoring](#bulk-inventory-scoring) · [Personal Access Tokens](#personal-access-tokens-pats) · [CLI Tool](#cli-tool)
+- **Run it** — [Quick Start](#quick-start) · [No Accounts, No Sign-In](#no-accounts-no-sign-in) · [Configuration](#configuration) · [Deployment](#deployment)
+- **APIs & automation** — [Batch Upload](#batch-upload) · [Analyze from URL](#analyze-from-url) · [Fleet Document Auditing](#fleet-document-auditing) · [Bulk Inventory Scoring](#bulk-inventory-scoring) · [API Access & the Fleet Service Token](#api-access--the-fleet-service-token) · [CLI Tool](#cli-tool)
 - **Reports & data** — [Report Exports](#report-exports) · [Document Metadata](#document-metadata) · [SEO](#seo) · [AI Readiness](#ai-readiness)
 - **Project** — [Structure](#project-structure) · [Tech Stack](#tech-stack) · [Branding & White-Labeling](#branding-and-white-labeling) · [Design Documents](#design-documents) · [Tests](#tests)
 - **Security & history** — [Security](#security) · [Changelog](#changelog) · [License](#license)
@@ -78,7 +78,7 @@ It auto-detects your Java install (brew openjdk on macOS, apt openjdk on Ubuntu)
 - **Frontend:** http://localhost:5102
 - **API:** http://localhost:5103
 
-That's it — the app works immediately with authentication disabled (the default). No email provider or credentials needed.
+That's it — the app works immediately. There are no accounts to create, no sign-in, and no email provider to configure (the tool sends no email at all).
 
 ### Utility Scripts
 
@@ -93,57 +93,20 @@ pnpm start:all  # Start both production servers (kills stale ports, API :5103, W
 pnpm rebrand    # Regenerate static files after changing BRANDING in audit.config.ts
 ```
 
-## Authentication
+## No Accounts, No Sign-In
 
-Authentication is **off by default**. The app can be used without any login, email provider, or credentials. This is controlled by a single toggle in `audit.config.ts`:
+Since **v1.68.0** the tool has no authentication system at all — removed deliberately, because keeping the tool free of stored identifiers matters more than gating a free service:
 
-```ts
-export const AUTH = {
-  REQUIRE_LOGIN: false, // ← set to true to enable OTP authentication
-  // ...
-};
-```
+- **No accounts, no sign-in.** No OTP codes, no JWT sessions, no personal access tokens (`fap_`), no admin role, and no login / My History / Admin Logs pages. Every endpoint is public and **rate-limited per IP**.
+- **No email sending.** The mailer was removed with the OTP flow (login codes were the only email the service ever sent). There is no email provider to configure and no SMTP credential to hold.
+- **No identifier storage, at the schema level.** Migration 11 dropped the `email`, `ip_address`, and `user_agent` columns — and their data — from every table, and deleted the `otp_codes`, `revoked_jtis`, and `access_tokens` tables outright. An `audit_log` row is now: event type, file name (sanitized), score, grade, content hash, timestamp — **metadata about the audit, never the file, never the caller**.
+- **Env vars no longer read:** `JWT_SECRET`, `SMTP_*`, `MAILGUN_*`, `ADMIN_EMAILS`, `ALLOWED_DOMAINS`. The child-process env DENY-list in `packages/analyzer` still strips those names before spawning qpdf / the OOXML worker / veraPDF — defense in depth kept even though nothing sets them anymore.
+- **Remediation controls were rekeyed for an identity-free world.** The audit-before-remediate gate binds to the **content hash** alone; the daily remediation cap lives in **process memory keyed by IP** (used transiently, never written to disk, a row, or a log; resets on restart); `/api/remediate/:jobId/{status,download,receipt}` authorize by the job's own **download token** only.
+- **All other protections remain active** — rate limiting, file validation, size caps, SSRF blocks, CORS.
 
-### With auth disabled (`REQUIRE_LOGIN: false` — default)
+One credential still exists and is unchanged: the optional **`API_PRIVILEGED_TOKEN`** fleet service token — a rate-tier/allowlist bypass for server-to-server fleet automation, **a service credential, not a user account**. See [API Access & the Fleet Service Token](#api-access--the-fleet-service-token).
 
-- Users go straight to the upload page — no login screen
-- No email provider or SMTP credentials needed
-- No audit history is recorded (no user identity to associate with analyses)
-- All security protections (rate limiting, file validation, CORS) remain active
-
-### With auth enabled (`REQUIRE_LOGIN: true`)
-
-- Users must authenticate via a **6-digit one-time password (OTP)** sent to their email
-- Only `illinois.gov` email addresses are accepted (configurable via `AUTH.ALLOWED_EMAIL_REGEX`)
-- Sessions last 72 hours via JWT in an httpOnly cookie — no passwords stored
-- All analyses are logged with the authenticated user's email for audit history
-- **Requires an email provider** — the app needs to send OTP codes (see below)
-
-### Why an email provider is needed
-
-When authentication is enabled, the app sends one-time passcodes via email. This requires an SMTP relay service. The app supports two providers out of the box:
-
-| Provider          | Docs                                                             |
-| ----------------- | ---------------------------------------------------------------- |
-| Mailgun (default) | [docs/archive/07-mailgun-integration.md](docs/archive/07-mailgun-integration.md) |
-| SMTP2GO           | [docs/archive/06-smtp2go-integration.md](docs/archive/06-smtp2go-integration.md) |
-
-The provider is controlled in `audit.config.ts` → `EMAIL.PROVIDER`. Credentials go in `apps/api/.env`:
-
-```env
-SMTP_USER=your-smtp-login
-SMTP_PASS=your-smtp-password
-```
-
-**To switch providers**, change one line in `audit.config.ts`:
-
-```ts
-PROVIDER: "mailgun"; // ← change to 'smtp2go' to switch
-```
-
-Host and port are set automatically per provider.
-
-**Dev note:** When running locally with auth enabled, OTP codes are printed to the API console — no email credentials needed for development.
+The plain-language version of all of this lives on the in-app [data-retention policy](https://audit.icjia.app/data-retention); precise wording matters there — the schema has no email, IP-address, or browser column, but the tool deliberately never claims "no personal data" (a file name as uploaded can itself name a person, and shared reports quote short labels from documents).
 
 ## Scoring Rubric
 
@@ -302,12 +265,11 @@ This is the server-side complement to the "Audit Link" column that [filecap-cli]
 
 ```bash
 curl -X POST https://audit.icjia.app/api/analyze-url \
-  -H "Authorization: Bearer fap_yourtoken" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}'
 ```
 
-Auth required — send the session cookie or a Bearer PAT (same as `/api/analyze`).
+No credential is required — the endpoint is public and rate-limited per IP (same limiter as `/api/analyze`). Anonymous callers are restricted to the URL allowlist below; a request presenting the deployment's fleet service token (`Authorization: Bearer <API_PRIVILEGED_TOKEN>`) bypasses the allowlist and gets the generous rate tier.
 
 ### URL allowlist
 
@@ -360,12 +322,12 @@ The difference from `/api/analyze-url`:
 
 ```bash
 curl -X POST https://audit.icjia.app/api/audit-url \
-  -H "Authorization: Bearer fap_yourtoken" \
+  -H "Authorization: Bearer $API_PRIVILEGED_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}'
 ```
 
-Pass `"force": true` (body field) or `?force=true` (query) to bypass the hash dedup and force a fresh audit even if an unexpired cached report exists for the same content.
+The `Authorization` header is optional: the endpoint is public and rate-limited per IP, but fleet automation typically presents the deployment's [fleet service token](#api-access--the-fleet-service-token) for the generous rate tier and the URL-allowlist bypass. Pass `"force": true` (body field) or `?force=true` (query) to bypass the hash dedup and force a fresh audit even if an unexpired cached report exists for the same content.
 
 ### Response (`200 OK`)
 
@@ -385,11 +347,11 @@ Every top-level field is a scalar or a `{ score, grade }` pair — ready to flat
 }
 ```
 
-`cached: true` indicates a hash-dedup hit — same file content was previously audited by the same caller, the existing `reportUrl` is being returned, and no new audit ran. `false` indicates a fresh audit + persist.
+`cached: true` indicates a hash-dedup hit — the same file content was previously audited, the existing `reportUrl` is being returned, and no new audit ran. `false` indicates a fresh audit + persist.
 
 ### Hash dedup (Policy A)
 
-After fetching the file the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching the same hash for the same caller. On a hit, the cached `reportId` / `reportUrl` are returned and no new audit runs — your quarterly fleet runs will return the same URL for unchanged files (clean CSV diffs).
+After fetching the file the server computes `sha256(bytes)` and looks for an unexpired `shared_reports` row matching the same content hash (since v1.68.0 the dedup keys on the hash alone — there is no caller identity to key on). On a hit, the cached `reportId` / `reportUrl` are returned and no new audit runs — your quarterly fleet runs will return the same URL for unchanged files (clean CSV diffs).
 
 When the file content has changed (different hash) a fresh audit runs and produces a new `reportId`. The previous report stays accessible at its URL until its 365-day TTL elapses.
 
@@ -397,7 +359,7 @@ When the file content has changed (different hash) a fresh audit runs and produc
 
 ```bash
 curl -sS https://audit.icjia.app/api/audit-url \
-  -H "Authorization: Bearer fap_yourtoken" \
+  -H "Authorization: Bearer $API_PRIVILEGED_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://icjia.illinois.gov/documents/2024/annual-report.pdf"}' \
   | jq -r '[.filename, .pageCount, .strict.score, .strict.grade, .practical.score, .practical.grade, .reportUrl, .reportExpiresAt] | @csv'
@@ -417,7 +379,7 @@ Same as `/api/analyze-url` (15 MB file cap, 30-second fetch timeout, `analyzeLim
 
 `POST /api/bulk-from-inventory` — accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every file in it server-side in one request. The server fetches each file by its public URL, runs the existing `analyzeDocument` pipeline (PDF, Word, PowerPoint, or Excel — dispatched by detected content type), saves a shareable report, and returns a manifest with per-file scores, grades, and report links.
 
-**Auth required.** Send the session cookie or an `Authorization` header as you would for `/api/analyze`.
+**No credential required.** The endpoint is public and rate-limited per IP; presenting the deployment's fleet service token (`Authorization: Bearer <API_PRIVILEGED_TOKEN>`) unlocks the generous rate tier.
 
 ### How it works
 
@@ -427,7 +389,6 @@ Same as `/api/analyze-url` (15 MB file cap, 30-second fetch timeout, `analyzeLim
 ```bash
 # Option A — raw NDJSON (Content-Type: text/plain, max 5 MB)
 curl -X POST \
-  -H "Cookie: token=<your-jwt>" \
   -H "Content-Type: text/plain" \
   --data-binary @inventory.ndjson \
   https://audit.icjia.app/api/bulk-from-inventory \
@@ -435,7 +396,6 @@ curl -X POST \
 
 # Option B — JSON body
 curl -X POST \
-  -H "Cookie: token=<your-jwt>" \
   -H "Content-Type: application/json" \
   -d '{ "inventory": "<NDJSON string>" }' \
   https://audit.icjia.app/api/bulk-from-inventory \
@@ -452,91 +412,34 @@ curl -X POST \
 | Max files per request   | 100      | Additional entries beyond 100 are silently skipped       |
 | Max file size           | 15 MB    | Per-file limit, matches `ANALYSIS.MAX_FILE_SIZE_MB`      |
 | Fetch timeout           | 30 s     | Per file; timed-out entries are recorded as errors        |
-| Rate limit              | shared with `/api/reports` (10/hour per user)            |
+| Rate limit              | shared with `/api/reports` (10/hour per IP)              |
 
 ### Considerations
 
 - **Serial processing.** Files are scored one at a time to respect the 2-at-a-time semaphore in `pdfAnalyzer.ts` (shared across all four formats). Large inventories (50+ files) can take several minutes inside a single HTTP request.
-- **Auth model.** The endpoint accepts both the session cookie and a personal access token (`Authorization: Bearer fap_xxx`). See [Personal Access Tokens](#personal-access-tokens-pats) below for how to create a token for CLI use.
+- **Access model.** The endpoint is public and rate-limited per IP; there are no user credentials (see [API Access & the Fleet Service Token](#api-access--the-fleet-service-token) for the one service token that exists).
 - **No URL allowlist.** The server will fetch any URL in the inventory. A per-deployment allowlist of permitted hostnames is recommended before exposing this endpoint publicly.
 
-## Personal Access Tokens (PATs)
+## API Access & the Fleet Service Token
 
-Personal access tokens let CLI tools and automation scripts authenticate against the API without an interactive browser session. They are intended for headless workflows such as the [@icjia/filecap](https://github.com/ICJIA/filecap-cli) `audit-enrich` command.
+**Every API endpoint is public.** There are no user credentials — no session cookies, no personal access tokens (the `fap_` PAT system was removed in v1.68.0 along with the rest of the auth stack, and the `access_tokens` table no longer exists). Abuse is bounded by per-IP rate limits, the 2-slot analysis semaphore, size caps, and the SSRF controls, exactly as before.
 
-### Creating a token
+One service credential remains, unchanged: **`API_PRIVILEGED_TOKEN`**.
 
-Tokens can only be created from a browser session (cookie auth). Use `curl` with your session cookie, or use the **Settings → Tokens** tab once a UI is added.
+| Property | Detail |
+| --- | --- |
+| What it is | A single static bearer token set in the server environment (`API_PRIVILEGED_TOKEN` in PM2 env / `/etc/environment`) — a **service credential for fleet automation, not a user account** |
+| How it's sent | `Authorization: Bearer <token>` on the audit endpoints |
+| What it grants | (1) the generous rate tier (5000/hr analyze, 1000/min global, vs. 500/hr / 100/min per anonymous IP); (2) a bypass of the ICJIA / illinois.gov URL allowlist on the URL-audit endpoints |
+| What it never bypasses | The private/reserved-IP SSRF block, the size caps, and the concurrency semaphores — a leaked token cannot reach internal services |
+| Comparison | Constant-time; the token is read from the environment, never logged or persisted |
+| Unset | Feature off — every caller gets the strict anonymous tier (fail-safe) |
 
-```bash
-# Create a token named "filecap-cli"
-curl -X POST \
-  -H "Cookie: token=<your-session-jwt>" \
-  -H "Content-Type: application/json" \
-  -d '{ "name": "filecap-cli" }' \
-  https://audit.icjia.app/api/tokens
-```
-
-Response:
-
-```json
-{
-  "id": "a1b2c3d4e5f6a7b8",
-  "name": "filecap-cli",
-  "token": "fap_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "createdAt": "2026-05-09T00:00:00.000Z",
-  "note": "Save this token now. You will not be able to see it again."
-}
-```
-
-**The raw token is shown only once.** Copy it immediately — the server stores only a SHA-256 hash and cannot return the original.
-
-### Using a token
-
-Pass the token in the `Authorization` header on any protected endpoint:
-
-```bash
-curl -X POST \
-  -H "Authorization: Bearer fap_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" \
-  -H "Content-Type: text/plain" \
-  --data-binary @inventory.ndjson \
-  https://audit.icjia.app/api/bulk-from-inventory
-```
-
-Or set the environment variable used by filecap-cli:
-
-```bash
-export FILECAP_AUDIT_TOKEN="fap_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
-filecap audit-enrich inventory.ndjson
-```
-
-### Listing and revoking tokens
-
-```bash
-# List all tokens for your account (metadata only — raw tokens are never returned)
-curl -H "Cookie: token=<your-session-jwt>" https://audit.icjia.app/api/tokens
-
-# Revoke a token by ID
-curl -X DELETE \
-  -H "Cookie: token=<your-session-jwt>" \
-  https://audit.icjia.app/api/tokens/<token-id>
-```
-
-### Token format and security
-
-| Property         | Detail                                                         |
-| ---------------- | -------------------------------------------------------------- |
-| Format           | `fap_` prefix + 32 lowercase hex chars (128-bit entropy)       |
-| Storage          | SHA-256 hash only — the raw token never persists server-side   |
-| One-time display | Shown once at creation; cannot be retrieved later              |
-| Revocation       | Immediate; revoked tokens are retained in the DB for audit     |
-| Mint/revoke via PAT | Not allowed — only browser sessions can manage tokens (prevents a leaked token from self-replicating) |
-| Per-user limit   | 10 active tokens maximum                                        |
-| Audit trail      | `last_used_at` updated on each authenticated request           |
+Headless workflows (e.g. the [@icjia/filecap](https://github.com/ICJIA/filecap-cli) `audit-enrich` command, or the fleet-audit pipeline) simply call the public endpoints, presenting the service token when a deployment has issued them one.
 
 ## Report Views
 
-Since v1.54.0 every report — the live result and shared report pages alike — renders in one of two views, switched by a **Visual / Detailed** toggle in the report's upper right. The preference persists per device (localStorage; never sent to the server).
+Since v1.54.0 every report — the live result and shared report pages alike — renders in one of two views, switched by a full-width **Visual / Detailed** chooser above the report. Every report opens on the Visual view for everyone, every time (v1.61.1) — the choice deliberately does not persist, because the action plan lives in the Visual view and a sticky "Detailed" once hid it from the person who needed it.
 
 - **Visual view (default)** — an infographic-style layout written for non-technical document authors: an oversized grade circle with the score and a plain-English verdict that leads with the blocker when there is one ("Not ready to publish — 2 critical issues") and otherwise pairs the grade word with the outlook ("Excellent — ready to publish"), color-coded severity count tiles, a one-line WCAG 2.2 AA verdict strip, and a numbered **action plan** ordered by severity. One step is open at a time; each carries big severity-colored step numbers, a plain-language "why it matters," fix routes for the source document (Word / PowerPoint / Excel) and — for PDFs — an Acrobat route that prefers the report's own document-specific steps, and WCAG criterion chips linking into the evidence. "Where the score comes from" bars carry the score table's full data (score, grade, severity per category, not-scored reasons), and a single **Full technical report** expander holds the WCAG criteria detail, executive summary, audit-scope caveat, detailed findings with evidence, PDF/UA checks, methodology, and document metadata.
 - **Detailed view** — the classic report, byte-identical to v1.53.0: score card with the conformance panel, issues summary, PDF/UA panels, methodology, and the full category detail.
@@ -567,7 +470,7 @@ Reports can also be shared via **shareable links** that expire after 1 year. In 
 - **Severity highlighting** — critical issue counts in red, moderate in yellow within the executive summary
 - **Caveat notice** — for PDFs, a recommendation to verify with Adobe Acrobat and make the source document accessible before export; for Word, PowerPoint, and Excel files, a pointer to run the file's own built-in Microsoft Accessibility Checker directly on the source document
 
-When auth is disabled, shared reports display "Shared on [date]" without exposing usernames.
+Shared reports display "Shared on [date]" and nothing about who shared them — the `shared_reports` schema has no email column, so no sharer identity exists to show.
 
 ## Document Metadata
 
@@ -623,8 +526,8 @@ The app uses **[@nuxtjs/seo](https://nuxtseo.com/)** for comprehensive search en
 
 | Feature           | Implementation                                                                             |
 | ----------------- | ------------------------------------------------------------------------------------------ |
-| **Sitemap**       | Auto-generated at `/sitemap.xml` — includes public pages, excludes auth/admin routes       |
-| **Robots**        | Auto-generated at `/robots.txt` — blocks `/api/`, `/login`, `/my-history`, `/history`      |
+| **Sitemap**       | Auto-generated at `/sitemap.xml` — every page is public (there are no auth/admin routes)   |
+| **Robots**        | `/robots.txt` — blocks `/api/`, `/status`, `/healthz`, `/publist`                          |
 | **Schema.org**    | `Organization` identity (ICJIA) via module + `WebApplication` JSON-LD in page head         |
 | **Open Graph**    | Full OG tags with 1200x630 image, alt text, site name, locale                              |
 | **Twitter Cards** | `summary_large_image` with title, description, image, and alt text                         |
@@ -774,25 +677,22 @@ file-accessibility-audit/
 | SEO          | @nuxtjs/seo (sitemap, robots, Schema.org, OG)                                      |
 | API          | Express / TypeScript / tsx (no build step in dev)                                  |
 | PDF Analysis | QPDF (structure tree, tags) + pdfjs-dist (text/metadata, image detection fallback) |
-| Database     | SQLite via better-sqlite3 (audit logs, shared reports)                             |
-| Auth         | Optional email OTP → JWT (httpOnly cookie)                                         |
-| Email        | Mailgun (default) / SMTP2GO (alternative) / Nodemailer                             |
+| Database     | SQLite via better-sqlite3 (audit metadata, shared reports — no identifier columns) |
+| Access       | No accounts or sign-in — public endpoints, per-IP rate limits (+ optional `API_PRIVILEGED_TOKEN` fleet service token) |
 | CLI          | Runs via tsx (no build step) — depends on `@file-audit/analyzer` for QPDF + pdfjs-dist |
 | Tooling      | ESLint + Prettier + editorconfig / GitHub Actions CI (lint → typecheck → build → test) |
 | Deployment   | DigitalOcean → Laravel Forge → PM2 → nginx                                         |
 
 ## Configuration
 
-All magic numbers, thresholds, weights, limits, and email provider settings are in **`audit.config.ts`** at the project root. This is the single source of truth — the API imports it directly, and the docs reference it.
+All magic numbers, thresholds, weights, and limits are in **`audit.config.ts`** at the project root. This is the single source of truth — the API imports it directly, and the docs reference it.
 
-- **Auth toggle** → `AUTH.REQUIRE_LOGIN` (`true` or `false`)
 - **Scoring profiles & weights** → `SCORING_PROFILES` (`SCORING_WEIGHTS` remains the strict-profile alias)
-- **Email provider** → `EMAIL.PROVIDER` (`'mailgun'` or `'smtp2go'`)
 - **Share link expiry** → `SHARED_REPORTS.EXPIRY_DAYS` (default: 365)
 - **Rate limits** → `RATE_LIMITS`
 - **Dev/prod URLs** → automatic based on `NODE_ENV`
 
-Secrets (`JWT_SECRET`, `SMTP_PASS`) stay in `.env` — never in config.
+The one secret (`API_PRIVILEGED_TOKEN`, optional) stays in the environment — never in config.
 
 ## Branding and White-Labeling
 
@@ -830,8 +730,6 @@ These values are in `audit.config.ts` but separate from `BRANDING`:
 | Config                     | Section  | What it controls                                               |
 | -------------------------- | -------- | -------------------------------------------------------------- |
 | `DEPLOY.PRODUCTION_URL`    | `DEPLOY` | Production domain for CORS, canonical URL, shared report links |
-| `EMAIL.DEFAULT_FROM`       | `EMAIL`  | Sender email address for OTP codes                             |
-| `AUTH.ALLOWED_EMAIL_REGEX` | `AUTH`   | Allowed email domains for authentication                       |
 
 ### Regenerating static files
 
@@ -860,8 +758,8 @@ The app's current behavior is defined by the code and [`audit.config.ts`](audit.
 | [00 — Master Design](docs/archive/00-master-design.md) | Architecture, scoring model, API, auth, security — original design reference |
 | [01 — Phase 1: Core Grader](docs/archive/01-phase-1-core-grader.md) | Core grader deliverables and testing checklist |
 | [04 — Deployment Guide](docs/archive/04-deployment-guide.md) | Infrastructure, env vars, nginx, firewall |
-| [06 — SMTP2GO Integration](docs/archive/06-smtp2go-integration.md) | Email provider setup (alternative provider) |
-| [07 — Mailgun Integration](docs/archive/07-mailgun-integration.md) | Mailgun setup (default provider) |
+| [06 — SMTP2GO Integration](docs/archive/06-smtp2go-integration.md) | Email provider setup (historical — the mailer and OTP flow were removed in v1.68.0) |
+| [07 — Mailgun Integration](docs/archive/07-mailgun-integration.md) | Mailgun setup (historical — the mailer and OTP flow were removed in v1.68.0) |
 | [09 — Forge Deployment Cheatsheet](docs/archive/09-forge-deployment-cheatsheet.md) | Step-by-step Laravel Forge deploy: nginx proxies, PM2, deploy script |
 | [10 — Scoring Reconciliation](docs/archive/10-scoring-reconciliation.md) | Strict vs Practical scoring, PDF/UA rationale, WCAG/ADA interpretation, Matterhorn note |
 | [Fleet Inventory Reporting](docs/archive/fleet-inventory-reporting.md) | The `/api/audit-url` fleet endpoint: profile scores, report URLs, hash dedup |
@@ -873,7 +771,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,254 tests** across 136 test files (API 1224, Web 981, CLI 49). Run all three suites with one summary:
+**2,131 tests** across 129 test files (API 1150, Web 932, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -889,11 +787,11 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1224 passed (61 files)
-  ✔ Web      981 passed (69 files)
+  ✔ API      1150 passed (57 files)
+  ✔ Web      932 passed (66 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2254 tests passed across 136 files
+  ✔ 2131 tests passed across 129 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -911,42 +809,38 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxService.test.ts` | 44 | Excel `.xlsx` parsing: workbook/sheet metadata, used-range and merged-cell counts, defined tables, picture/chart alt text and hyperlinks, cell-style contrast (large-text threshold, theme-indexed colors unresolved, empty cells excluded), and DoS hardening — a real-cell-count `MAX_CELLS` cap (not the spoofable dimension ref), pre-counted drawing/hyperlink/table caps that reject before any read fan-out, a cumulative auxiliary-part byte budget that catches large object-sparse drawing parts fast, and aggregate zip-package limits (entry-count and total-uncompressed-size caps, even when no single part exceeds `XLSX.MAX_UNCOMPRESSED_BYTES`) |
 | `pdfjsTitle.test.ts` | 33 | The filename-like-title classifier: flags real filename/tool-generated titles ("report_v3_final.pdf", "Microsoft Word - …", "scan_20240115") while preserving legitimate one-word titles ("Introduction", "Budget2024", "COVID-19", "Section-508") that the old heuristic erased, plus real-pdfjs wiring tests proving the /Info title is preserved with only the advisory flag set |
 | `pdfjsHeadingOutline.test.ts` | 10 | PDF heading-TEXT extraction: the marked-content id → text map (innermost-run attribution, id-less BMC runs falling to the nearest enclosing id, unbalanced ends tolerated), the struct-tree walk (H/H1–H6 roles, Alt/ActualText preferred over content text, nested-span joining, blank headings skipped), and real-pdfjs wiring — a hand-built tagged PDF resolving to `[{level:"H1", text:"Hello Heading"}]`, the fully tagged fixture yielding a non-empty outline, an untagged PDF yielding an empty one |
-| `auth.test.ts` | 32 | JWT middleware (missing/invalid/expired/wrong-algorithm tokens), admin middleware (role checking, case sensitivity), email-domain validation, and server-side JWT revocation (a token with a revoked `jti` is rejected even with a valid signature/exp, a legacy no-`jti` token is unaffected, `/verify` issues a JWT carrying a `jti`, and `/logout` writes the session's `jti` to the denylist while a legacy session's logout is a no-op) |
 | `ooxml.test.ts` | 34 | The shared OOXML core (`ooxml.ts`) used by the DOCX/PPTX/XLSX checkers: namespace-agnostic XML walking (`parseXml`/`rootElement`/`textOf`/`attrOf`/`childrenOf`/`rawText`), relationship-map parsing, core-property text extraction, drawing alt-text resolution (descr → title → decorative-at-any-depth), shared contrast math (`normalizeHex`/`contrastRatio` against known WCAG reference values), the manual-bullet regex, `readCapped`'s per-part byte cap, theme scheme-color resolution (`resolveSchemeColor`/`buildSchemeColorMap`), DOCTYPE rejection with entity-expansion hardening (a part carrying `<!DOCTYPE` is parsed as empty rather than handed to the XML parser, case-insensitively, while the five built-in XML entities still decode in ordinary text), and `assertZipWithinLimits` (the aggregate entry-count and total-uncompressed-size gate shared by every OOXML format, including exact-boundary and error-message cases) |
 | `integration.test.ts` | 32 | End-to-end PDF analysis: accessible/inaccessible fixture scoring, category completeness, grade/severity validation, comparative scoring, malformed-PDF handling, and the Heading Outline signals surviving the full real pipeline (qpdf binary + pdfjs + scorer) with actual heading text |
 | `docxService.test.ts` | 57 | Word `.docx` parsing: title/creator/language/page-count metadata (with `dc:language` core.xml fallback), heading extraction in document order with fake-heading (bold/large/styleless paragraph) detection, image alt text and decorative flags, table header/dimension/nesting detection, link resolution via relationships, real-vs-manual-bullet list detection, run-level color contrast, format validation, `readCapped` zip-bomb resource limits, aggregate zip-package limits (entry-count and total-uncompressed-size caps even when no single part exceeds `DOCX.MAX_UNCOMPRESSED_BYTES`), and DOCTYPE/entity hardening (a DOCTYPE-bearing `document.xml` is neutralized rather than parsed, while `&amp;`/`&lt;`/`&gt;` in real heading and alt text still decode end-to-end) |
 | `audit-url.test.ts` | 29 | Fleet `audit-url` endpoint: profile-score extraction (strict/remediation, with pre-scoreProfiles fallback), report-URL building, SHA-256 Policy-A hash dedup, response shape, filename derivation (`remote.<type>` fallback, not hardcoded `.pdf`), the unsupported-type 422 gate, per-format error-code→HTTP-status mapping (`*_DISABLED`→415, `*_PARSE_FAILED`→422, timeout/killed→504, and a generic 500 that never echoes `err.message`), and `sanitizeStoredReport` applied before the `shared_reports` insert |
 | `pptxService.test.ts` | 42 | PowerPoint `.pptx` parsing: package/slide metadata, title-first-shape detection, picture/table/hyperlink/list/media extraction, run-level contrast (shape fill → slide background → theme scheme colors, large-text threshold), and DoS hardening — shape and text-element caps that count at any nesting depth (not just top-level, not just shape count), a linear frame/pic walk that avoids double-counting nested graphicFrames, theme-color resolution bounded per analysis rather than per run, and aggregate zip-package limits (entry-count and total-uncompressed-size caps, even when no single part exceeds `PPTX.MAX_UNCOMPRESSED_BYTES`) |
-| `tokens.test.ts` | 27 | Personal access tokens: token generation, name sanitization, the PAT branch of the auth middleware, and the create/list/revoke `/api/tokens` endpoints |
 | `safeFetch.test.ts` | 25 | SSRF private-IP classifier: IPv4 reserved ranges, IPv6 loopback/link-local/ULA, and the bracketed / IPv4-mapped IPv6 forms that previously failed open (`[::1]`, `[::ffff:127.0.0.1]`, hex-mapped) |
 | `urlPolicy.test.ts` | 22 | The extracted URL/SSRF policy module: allowlist + subdomain matching, lookalike-suffix rejection, private/local-host blocking, `ANALYZE_URL_ALLOWED_HOSTS` env extension, the privileged public-URL validator, and `SafeFetchError`→HTTP status mapping |
 | `rateLimiter.test.ts` | 22 | The privileged bearer-token tier — constant-time `isPrivilegedRequest` (missing/wrong/empty/prefix/over-length tokens, feature-off when unset), tier selection (strict per-IP vs generous shared bucket), a live limiter test proving a token exceeds the anonymous cap on the same IP — plus both global-limiter carve-outs: `isRemediationStatusRequest` and `isStatusRequest` route matching (including lookalikes like `/api/statuses` and `POST /api/status`), `isGlobalLimitExempt` exempting exactly those two and nothing else, `tieredLimiter`/`globalLimiter` skip semantics that exempt them without draining the shared bucket, and `remediationStatusLimiter`'s own generous per-IP cap |
 | `status.test.ts` | 46 | The public `/api/status` payload, built against a real `:memory:` database provisioned by the actual migration runner (so the SQL meets production's real column types — `audit_log.created_at` is a UTC datetime *string* while `remediation_jobs.created_at` is an INTEGER ms epoch). Covers the document-event-type split (page audits and auth events excluded), extension-derived format buckets including `unknown_extension` for extension-less URL filenames, the 24h/30d windows, `last_audit_at` emitted as zone-marked ISO so it can't be parsed as local time, tiered failure semantics (qpdf/database → outage; veraPDF/Chromium → degraded), a corrupt database degrading to `database:"down"` rather than throwing, probe failures becoming data (`{ok:false, reason}`) instead of exceptions, a hung probe timing out under fake timers, and the two independent cache TTLs asserted by **probe invocation count** — the property that stops an uptime monitor spawning a veraPDF JVM on every poll. Also the letter-grade distribution: the A–F split, a NULL grade counted as `ungraded` rather than dropped, an unrecognized value bucketed there too without injecting a key onto the struct, a lower-case grade normalized into its letter, per-window filtering, zeroed buckets on the database-down path, and — the headline guarantee — **every window's buckets summing to that window's document total**, so the page can never print two figures that disagree. Plus refused uploads: the rejection event type asserted disjoint from the audited and page types, refusals counted without moving the audit total or the grade split, the extension buckets (`.csv`/`.tsv` sharing one, `.docx`/`.xlsx`/`.pptx` never falling into the legacy ones — a regression to an unanchored `LIKE` would reclassify every modern file), buckets summing to the refusal total, per-window filtering, zeroed shape on the database-down path, and the invariant that a refusal **cannot satisfy the remediation audit-gate** because its `content_hash` is NULL |
-| `statusPrivacy.test.ts` | 7 | Privacy guard for the public, unauthenticated status document. Seeds `audit_log` and `remediation_jobs` with a distinctive filename, email, IP, user-agent, and content hash, then asserts the counts prove the row was read while none of those values — nor any `@`, nor any `/opt`-`/usr`-`/home`-`/Users`-style path — appears anywhere in the serialized JSON. Also pins probe failures to the closed reason enum (a thrown error carrying `/opt/verapdf/verapdf` must not reach the payload), engine versions to bare numbers rather than raw tool output, and the top-level key set to an allow-list so a new field can't be added by accident |
+| `statusPrivacy.test.ts` | 9 | Privacy guard for the public status document. Seeds `audit_log` and `remediation_jobs` with a distinctive filename and content hash, then asserts the counts prove the row was read while neither value — nor any `@`, nor any `/opt`-`/usr`-`/home`-`/Users`-style path — appears anywhere in the serialized JSON. Since v1.68.0 it also asserts the schema itself: the migrated database **physically has no** `email`, `ip_address`, or `user_agent` column anywhere, so identifying data cannot reach the payload because it cannot exist in the first place. Also pins probe failures to the closed reason enum (a thrown error carrying `/opt/verapdf/verapdf` must not reach the payload), engine versions to bare numbers rather than raw tool output, the disk section never naming a filesystem, and the top-level key set to an allow-list so a new field can't be added by accident |
 | `reportSanitize.test.ts` | 17 | `sanitizeStoredReport`, the store-boundary guard applied before every report insert: strips unsafe (`javascript:`/`data:`) help-link and conformance-finding URL schemes — including nested under `scoreProfiles.*.categories` — while preserving the finding text, rejects malformed (non-array `categories`, non-object) reports without mutating the caller's object, and tolerates malformed `conformance` shapes (string, null, missing `url`) without throwing |
 | `migrations.test.ts` | 15 | The numbered SQLite migration runner (`PRAGMA user_version`-keyed): a fresh database lands at the latest version with the full schema and re-opening is a no-op; the version-selection algorithm applies exactly the `N+1..latest` migrations to a snapshotted database and bumps `user_version` after each one individually (not just at the end, so a crash mid-migration can resume); and the legacy fast-forward path — the core correctness requirement — lands an already-provisioned pre-migration-runner database at the latest version without re-running any `ALTER`, preserves its data, still runs later migrations after the fast-forward, and targets a FIXED baseline constant rather than the migration list's current length |
 | `ooxmlWorker.test.ts` | 14 | The interruptible OOXML child-process worker (DOCX/PPTX/XLSX now analyze off the main event loop): results and `ParseError` codes survive the IPC round-trip, a timeout SIGKILLs the child rather than abandoning it and frees its concurrency slot, the promise only settles once the child's OS-confirmed `exit` fires (with a grace-timer fallback so it never hangs forever), and the spawn environment excludes API secrets while the child still boots and analyzes correctly |
 | `uploadMiddleware.test.ts` | 20 | The multer upload filter: accepts PDF/Word/PowerPoint/Excel by MIME type or extension (case-insensitive, extension wins over a wrong mimetype), rejects unsupported files with a 400 (not the framework's default 500) whose message lists every currently-accepted format, and `acceptedFormatsMessage`'s one/two/many-way label joins (Oxford comma when all four formats are enabled) as formats are flag-disabled. Plus the recognized-but-unauditable formats: a `.doc`/`.xls`/`.ppt`/`.rtf` upload is told which modern format to produce and how, a `.csv` gets copy that never says "Save As" (converting a CSV to `.xlsx` to score better is bad advice), both still carry the 400, an unrelated type still falls back to the accepted-formats list, and none of the four modern formats is hijacked |
 | `auditLogSanitize.test.ts` | 7 | The storage-hygiene guard for `audit_log`'s attacker-controlled text columns, added as the regression test for red/blue finding **R1**: markup stripped from a stored filename, an over-long name capped at `FILENAME.MAX_LENGTH` (the empirical repro was 4,040 characters), newlines removed so a filename cannot forge a second log line (**R2**, which this test is what found), a traversal attempt reduced to its basename, never an empty string, an ordinary filename left byte-identical, and idempotence — `routes/analyze.ts` sanitises before calling `recordRejectedUpload`, which sanitises again, and that must be a no-op rather than progressive mangling |
 | `detectLegacyFormat.test.ts` | 15 | Content-based recognition of the file types the tool can name but not audit, so a **renamed** file (a `.doc` saved as `.docx` sails past the extension filter) is not told to check whether it is a `.zip`. Covers each OLE2 directory stream — `WordDocument`, `Workbook` (BIFF8), `Book` (BIFF5), `PowerPoint Document` — the `ole-unknown` fallback for the rest of the family (`.msg`, `.vsd`), and RTF, which is text rather than an OLE2 binary. Also the bounds that keep it cheap and safe: the scan stops after 8 KB (a name past the bound degrades to `ole-unknown`, the intended trade) while one just inside is still found, the signature must sit at offset 0 so a PDF embedding those bytes stays a PDF, and empty/truncated buffers return null rather than throwing. Fixtures are synthesized in-test — the detector reads only the 8-byte signature and a UTF-16LE name, so committing real Office binaries would assert nothing extra |
-| `remediateAuthz.test.ts` | 12 | Remediation job status/receipt authorization in anonymous mode (C5): a request without the job's download token gets a 404 (not a leak-revealing 401/403), the correct token gets 200, the wrong token gets the same 404 shape as missing, an unknown job id 404s regardless of token, and the pre-existing logged-in-owner path is unchanged (an owner match succeeds with no token at all; a different logged-in user still gets 403, not 404) |
+| `remediateAuthz.test.ts` | 8 | Remediation job status/receipt authorization — since v1.68.0 the job's own download token is the **only** authorization there is (no owner identity exists): a request without the token gets a 404 (not a leak-revealing 401/403), the correct token gets 200, the wrong token gets the same 404 shape as missing, and an unknown job id 404s regardless of token |
 | `analyzer.test.ts` | 11 | The top-level `detectFileType`/`analyzeDocument` dispatcher: content-based format detection (PDF header, real Word/PowerPoint/Excel ZIP parts — never confused with each other or rejected as null for a non-document buffer) and routing to the correct pipeline, including that a `.docx` result omits PDF-only signals, an unsupported type is rejected cleanly, and a zip exceeding the aggregate `OOXML.MAX_ZIP_ENTRIES` cap is treated as unsupported/undetectable rather than crashing the dispatcher |
 | `docxConformance.test.ts` | 13 | The Word WCAG 2.2 conformance gate: a clean document passes; confirmed failures fire for 1.1.1 (non-decorative image missing alt text, not decorative ones), 2.4.2 (no title), 3.1.1 (no declared language), 1.3.1 (a data table with no header row, but not a single-row layout-like table), and 1.4.3 (confirmed low-contrast text); 1.3.2 is always not-assessed and 1.4.3 is not-assessed only when no runs were checkable |
 | `pageAuditor.test.ts` | 10 | `slimIssue`, the axe-core finding slimmer for page audits: maps id/impact/description/helpUrl/tags, caps returned nodes at 25 while `nodeCount` still reflects the true uncapped count, and tolerates missing/empty nodes, tags, or targets without throwing |
-| `remediationJobs.test.ts` | 9 | Remediation job store: single-use download tokens stored hash-only and verified constant-time (tampered/cross-job tokens rejected), status transitions (pending→running→stepped→complete/failed/expired), audit-JSON round-trip, and per-user active-job counting |
-| `remediationLifecycle.test.ts` | 9 | Remediation lifecycle log + cleanup sweep against a real temp SQLite DB: append-only event ordering, path-hash privacy (no raw paths in the compliance log), delete-and-verify semantics (idempotent on already-absent files), TTL expiry deleting outputs and flipping status, stuck-job failure, sweep idempotency, and opportunistic purging of expired JWT-revocation (`revoked_jtis`) rows during the same sweep |
+| `remediationJobs.test.ts` | 8 | Remediation job store: single-use download tokens stored hash-only and verified constant-time (tampered/empty/cross-job tokens rejected), status transitions (pending→running→stepped→complete/failed/expired), and audit-JSON round-trip — job rows carry no caller identity since v1.68.0 |
+| `remediationCap.test.ts` | 4 | The in-memory per-IP daily remediation cap that replaced the old per-user SQL count (v1.68.0): admits up to the limit inside the window then refuses, keys callers independently, frees slots as reservations age out, and a refused attempt consumes no slot — the IP is used transiently in process RAM only, written nowhere, and the store resets on restart |
+| `remediationLifecycle.test.ts` | 8 | Remediation lifecycle log + cleanup sweep against a real temp SQLite DB: append-only event ordering, path-hash privacy (no raw paths in the compliance log), delete-and-verify semantics (idempotent on already-absent files), TTL expiry deleting outputs and flipping status, stuck-job failure, sweep idempotency, and the start/stop of the cleanup interval being safe regardless of the feature flag |
 | `docxScorer.test.ts` | 17 | `scoreDocx`: a clean document grades A with no failures, Text Extractability is an automatic pass (Word text is always extractable), Reading Order and Form Accessibility are marked not-assessed and excluded from the weighted average, the DOCX-specific `list_structure` category carries its own WCAG map, PDF-only signals (`pdfUa`, `adobeParity`) are omitted, the executive summary uses Word-appropriate wording, and the heading card's outline signals: every real heading listed as `H{level} "text"` (capped at 40 with a remainder note, long text truncated) plus fake-heading paragraphs listed verbatim so authors can find and restyle them |
 | `pageAuditGuard.test.ts` | 8 | The headless-browser SSRF interceptor's decision logic: data:/blob:/about: allowed, non-http(s) blocked, document navigations allowlist-gated (open-redirect targets rejected), subresources IP-checked but not allowlist-gated, and the private-IP check still forced when a privileged token bypasses the allowlist |
 | `adobeParity.test.ts` | 7 | The Adobe Acrobat parity report builder - the 32-rule mapping is still computed and persisted for backward compatibility, though no longer surfaced in the UI |
 | `audit-url-page.test.ts` | 6 | The Chromium page-audit route's error handling: a busy-semaphore 503 keeps its existing safe message, timeout and non-timeout `auditPage` failures map to 504/502 without ever echoing the raw `err.message`, a post-audit failure (e.g. the `shared_reports` insert) falls through to a generic detail-free 500, and `sanitizeStoredReport` runs on the result before that insert |
 | `childSpawnEnv.test.ts` | 6 | `buildChildSpawnEnv`, the environment scrubber shared by every child-process spawn site: strips this app's known secret families plus any generic `*_SECRET`/`*_TOKEN`/`*_PASSWORD`/`*_KEY` name, preserves what the child needs to boot (including non-credential operational config like `DB_PATH` or an allowlist), never mutates the source object, and defaults to the real `process.env` |
 | `conformance.test.ts` | 17 | WCAG conformance gate: version-flag switching between 2.1 and 2.2 criterion sets, form-field gating for 2.2-only criteria, and 1.3.2 Meaningful Sequence asserted only from the rigorous MCID order comparison (never from heuristic category scores) |
-| `jtiDenylist.test.ts` | 6 | The `revoked_jtis` denylist store: `revokeJti`/`isJtiRevoked` round-trip, a revoked jti past its own recorded expiry no longer reports as revoked, re-revoking the same jti twice does not throw, and `purgeExpiredJtis` deletes only rows past expiry (leaving active ones) — including an opportunistic purge inside `revokeJti` itself |
-| `mailer.test.ts` | 6 | Email config validation: production exits without credentials, development warns but continues, provider-info logging |
 | `pptxScorer.test.ts` | 11 | PowerPoint scoring config and `scorePptx`: enabled by default with the spec's caps/weights, `slide_titles` registered in the WCAG category map and penalizing untitled or duplicate slide titles (naming the offending slide numbers), `reading_order` deducting for a title that isn't the first shape and advising on shape-heavy slides, and empty categories null-scored so they renormalize out of the weighted average |
 | `xlsxScorer.test.ts` | 15 | Excel scoring config and `scoreXlsx`: enabled by default with the spec's caps/weights, `sheet_names` registered in the WCAG category map and penalizing only default-named *visible* sheets, `table_markup` deducting per issue (headerless table, a dataful sheet with no defined table, capped merge-cell penalty), and `title_language` scoring on title alone while explaining the language gap |
 | `qpdfNormalize.test.ts` | 5 | Remediation normalize step: qpdf exit 3 (repaired recoverable damage, output written) counts as success, mirroring the audit's exit-3 recovery; hard failures still throw; a wall-clock timeout is passed to qpdf |
-| `authConfig.test.ts` | 4 | Fail-closed startup check: the API refuses to boot when login is enabled with a missing or dev-default `JWT_SECRET` |
 | `veraPdf.test.ts` | 4 | veraPDF JSON verdict extraction: rule identifiers built from clause + test number (never the "FAILED" status string), per-rule counts, and the authoritative failed-checks total |
 | `pdfuaXmp.test.ts` | 3 | PDF/UA identifier detection from XMP through real pdfjs parsing — element form and RDF attribute form (`pdfuaid:part="1"`), which pdfjs's own parser misses |
 | `pptxConformance.test.ts` | 3 | The PowerPoint WCAG 2.2 conformance gate: clean for a well-formed deck, fires 1.1.1/2.4.2/3.1.1/1.3.1/1.4.3 only on confirmed violations, and does not fire for untitled slides (a scoring-only deduction) or media (listed not-assessed) |
@@ -969,7 +863,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `printablePlan.test.ts` | 22 | The printable action plan and its button. The load-bearing properties are that **both** fix routes survive into the printout — on screen they sit behind an accordion, on paper there is nothing to click and the reader may not be the person who chose the route — that document-derived strings are escaped (findings quote alt text, link labels and titles straight out of the uploaded file), and that the page is genuinely standalone: no scripts, no `<link href>`, no `src="http`, since it opens as a blob URL where a relative path resolves to nothing and a printout needing the network is useless on paper. Plus the page-break rules that keep a fix and its instructions together, the ink-friendly print styles, the human checks and unexamined criteria, the retitling the remediation page uses, and a source scan pinning the button onto **all four** surfaces that show a report — the same wiring gap that left the manual-review card missing from a whole view two releases earlier |
 | `manualReview.test.ts` | 21 | The checklist a report shows an author when there is nothing left to fix. A 100 used to yield an empty action plan and a line of bare criterion numbers, leaving the obvious question unanswered. Pins that the list is built from the checks that **passed** (failing ones are already the action plan), that unscored categories contribute nothing, that the scorer's own order is preserved so the heaviest checks read first, and that malformed input on a public shared report cannot throw. Two guards carry the weight: a **completeness** check that every scoring category able to pass has a prompt — so one added to the profile later cannot silently vanish from an author's checklist — and a copy check that each prompt names a concrete action rather than restating the check it came from. Then the card itself: six entries for a perfect document, the specific judgment automation cannot make ("'image', 'logo' and a filename all pass this check"), "Nothing below is a failure" stated outright, the unexamined WCAG criteria listed by name with working links, and a different framing on a report that still has fixes so it never reads as claiming a pass |
 | `gradeCapNote.test.ts` | 10 | What the report shows now that score and letter are a matched pair again, on **both** views. The pair renders together; the "Fix progress" panel carries a plain **count** ("1 of 2 checks passed") rather than a second figure out of 100, which is precisely how the v1.58.1 layout failed — a reader read "81 of 100" as a percentage grade; unassessed categories are excluded from that count; where the score sits at its ceiling the panel names the finding holding it there and the grade it caps to; and it stays silent when the score is below the ceiling or the document is clean. ScoreCard computes all of it from the **strict profile's own** categories, so it can never describe a document other than the one on screen |
-| `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**: both surfaces must fail on "no personal data" / "no PII" / "anonymized", and must name the sign-in email, the IP/user-agent log, and the file name as uploaded — reassurance by omission is the regression, and sabotage confirmed each guard bites |
+| `backupsExplained.test.ts` | 13 | The answer to "why back up anything if nothing is stored?", pinned on **both** surfaces in one file — because the failure here is not a surface losing the explanation outright but the two drifting into different claims. On `/status`: the literal question is posed (not paraphrased), the ✓/✗ split names what a snapshot holds and what it cannot, the explanation survives all three backup states rather than only the healthy one, the collapsed peek says "records, not documents" so a reader who never expands it does not read "28.0 MB" as 28 MB of files, the policy link is same-origin with no script surface, the whole thing stays inside a collapsed `<details>` so the default page stays terse, and a payload with no `backup` field still renders nothing. On the retention page: § 7a exists, is anchored where `/status` links to it, is listed in the table of contents, draws both lanes to their own verdicts, and § 8 agrees. The load-bearing assertions are the **overclaim guards**, tightened for v1.68.0: both surfaces must still fail on "no personal data" / "no PII" / "anonymized" (a file name as uploaded can itself name a person), while now stating the affirmative absences — no accounts or sign-in, and no email, IP-address, or browser column in the schema — and describing what a snapshot holds as metadata about the audit. Reassurance by omission is the regression, and sabotage confirmed each guard bites |
 | `actionPlan.test.ts` | 25 | The Visual view's action-plan mapper: a plain-language dictionary entry (jargon-free title AND why) for all 13 category ids, Critical→Moderate→Minor ordering with stable ties, PDF two-route vs OOXML one-route fix instructions, preference for the report's own Acrobat steps over dictionary defaults, unknown-id and missing-fileType fallbacks, forged-report input guards, and the `verdictPhrase` publication clause |
 | `reportSectionOrder.test.ts` | 16 | Report layout invariants per view, source-inspected: both pages carry the exact `VISUAL VIEW`/`DETAILED VIEW` markers (visual first), the Detailed slice preserves every pre-redesign blocking-before-informational ordering unchanged, ReportVisualView's own source pins hero → tiles → verdict → plan → bars → technical report, and TechnicalReport keeps findings above the PDF/UA panels above methodology |
 | `components.test.ts` | 45 | DropZone (drag/drop, all four format validations — PDF/docx/pptx/xlsx MIME + extension, size cap, per-format enable/disable flags dropping both the accept attr and the copy), ScoreCard (grade display, recommendation copy, all five grade colors, source-app-aware conformance-fix wording, and href-stripping for `javascript:` conformance-finding URLs while keeping the finding text), ProcessingOverlay (stage messaging), and the unsupported-format copy reaching the banner — legacy Office by behaviour rather than exact phrasing (the wording is owned by `@file-audit/shared`), and CSV asserted to never say "Save As" |
@@ -980,7 +874,6 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `tableSemantics.test.ts` | 16 | Source-scans every page/component for table semantics (Task F6): every `<table>` has exactly one `<caption>`, and every `<th>` declares `scope="col"` |
 | `ai-analysis.test.ts` | 15 | `buildAiAnalysis` — the AI-analysis export and prompt generation, remediation-focused output, and per-format framing (slide count and PowerPoint title for pptx, sheet count and Excel fix wording for xlsx, unchanged Pages/Acrobat wording for pdf) |
 | `findings.test.ts` | 15 | Findings utilities: guidance-vs-actionable finding classification and per-card finding partitioning |
-| `login.test.ts` | 15 | Two-step OTP flow (email then code), API-call verification, error handling, back navigation, and both the email-step and OTP-step error banners carrying `role="alert"` (Task F6 live-region hardening) |
 | `scoring-display.test.ts` | 15 | ScoreCard grade color mapping (A-F), the conformance-verdict explanation, and the single-Strict-view guard |
 | `modeDivergence.test.ts` | 13 | `naReason`, the Not-Applicable/Not-Assessed explanation text: format-scopes claims that used to read as universal — `color_contrast` and `reading_order`'s PDF/Acrobat-specific wording now says so explicitly (with a Word equivalent added for reading order), `alt_text` points to the right pane in Word/PowerPoint/Excel as well as Acrobat/PAC, `bookmarks` is stated as PDF-only rather than implying PowerPoint is scored by slide count, and unrelated categories (`table_markup`, `link_quality`, `form_accessibility`) are asserted unchanged |
 | `ReportActionBanner.test.ts` | 13 | The ReportActionBanner component — the report-page severity-count banner (singular/plural critical/moderate/minor combinations, the all-pass state) and format-neutral wording that never says "PDF" for a docx/pptx/xlsx result |
@@ -1001,12 +894,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `scoring-profiles.test.ts` | 9 | The `scoringProfiles` utility - scoring-profile selection and per-category resolution |
 | `reportBanner.test.ts` | 8 | The `reportBanner` helper: the shared eyebrow label and singular/plural `N pages · PDF` line, extended to label Word/PowerPoint/Excel results by their own noun (pages/slides/sheets) and fall back to the PDF wording for an unknown stored `fileType` |
 | `ReportDownloadBar.test.ts` | 8 | The ReportDownloadBar component in both its cards (index.vue) and compact (report/[id].vue) variants: renders the original 5 buttons in their original order and labels with a descriptive `aria-label` added to each, clicking each one calls the matching `useReportExport` function with the result prop, and each variant keeps its own original PDF print-dialog title text and classes |
-| `ReportsTable.test.ts` | 8 | The shared ReportsTable component: renders one row per item and one `<th>` per column, renders raw cell values by default or a `cell-<key>` scoped slot when provided (passed both `row` and `value`), every header `<th>` carries `scope="col"` with a visually-hidden `<caption>` (Task F6 folded in), and an empty `rows` array renders a table with no rows rather than the page's own empty-state message |
 | `AnnouncementBanner.test.ts` | 7 | The AnnouncementBanner component - permanent dismissal per announcement id, localStorage key scoping, and re-show after clear |
-| `usePaginatedReports.test.ts` | 7 | The `usePaginatedReports` composable shared by the history pages: fetches the given URL on mount at page 1 with credentials included, exposes the response under `data`, `goToPage(n)` refetches with the new page in the query (a no-op when the page is unchanged), and a fetch error sets `error` (cleared once a later page succeeds) |
 | `usePrefill.test.ts` | 7 | The `usePrefill` composable: URL `?prefill` handling, happy path, error handling, and URL-decoding edge cases |
 | `shared-constants.test.ts` | 6 | The `@file-audit/shared` scoring constants the web UI derives from: strict weights sum to 1.0 (and bookmarks/reading_order carry the engine's real 5%/10%), grade thresholds/colors, severity thresholds/colors, and WCAG category-map completeness |
-| `announcementsArchive.test.ts` | 10 | Reachability of the `/announcements` archive, whose whole purpose is defeated if the banner can hide it. Asserts the archive is linked from both the header and the footer (surfaces that render on every page regardless of banner state), that the page never reads the banner's dismissal store or `localStorage` at all, that it renders every entry rather than only the newest, and that it applies the same WCAG-version filter and honours `linkExternal`. The load-bearing one: the header link must sit **outside** the `v-if="user"` nav — `AUTH.REQUIRE_LOGIN` is false, so a link placed inside would look correct in review while being invisible to every anonymous visitor |
+| `announcementsArchive.test.ts` | 11 | Reachability of the `/announcements` archive, whose whole purpose is defeated if the banner can hide it. Asserts the archive is linked from both the header and the footer (surfaces that render on every page regardless of banner state), that the page never reads the banner's dismissal store or `localStorage` at all, that it renders every entry rather than only the newest, and that it applies the same WCAG-version filter and honours `linkExternal`. The load-bearing one evolved with v1.68.0: it used to pin the header link **outside** the `v-if="user"` nav (a link inside would have been invisible to every anonymous visitor while looking correct in review); now that auth is gone it asserts the stronger invariant that **no conditional user nav exists in the header at all** for a link to hide inside |
 | `monitorRouteMethods.test.ts` | 12 | The uptime-monitor routes (`/status`, `/healthz`) must answer **HEAD** as well as GET — several monitors, UptimeRobot included, send HEAD by default, and as `*.get.ts` files Nitro 404'd them, which would report a healthy service as down. Asserts both halves of the fix: the filename carries no method suffix (and the `.get.ts` variant is gone), and an explicit guard narrows to GET/HEAD with a `405` + `Allow` header otherwise. Also pins that HEAD still runs the real probe rather than short-circuiting — a HEAD that always returned 200 would be worse than the 404 it replaced — that `X-Robots-Tag` is set before any work, and that `publist.get.ts` was not swept up by the rename. Also pins that in-site links use a plain `<a href="/status?html">` — never a `NuxtLink`, which renders the SPA 404 without contacting the server — and that it stays in the **same tab** (a test that fails if `target=` reappears) |
 | `auditLeaveWarning.test.ts` | 11 | The guard that stops a stray click discarding a running audit. The half most easily broken is the negative one, asserted first: with no audit running the prompt function is **never called** — an unconditional caution would fire on nearly every click and become a notice people dismiss unread. Also pins that a running audit is asked about with wording naming what is lost, that answering no blocks the navigation, and that all three exits are covered, since the browser treats them as unrelated: `beforeunload` for document navigations (the Status link, reload, closing the tab), a router guard for in-app links that never unload the document, and `goAnalyze` asking for itself because the site-title reset navigates to the route it is already on. Plus the flag tracking both single and batch audits, and clearing on unmount — a stuck flag would prompt on every later click |
 | `statusHtml.test.ts` | 91 | The human-readable `/status` view, whose defining property is that it is **additive** — `/status` is a monitored endpoint and a keyword alert reads the JSON body, so quietly serving HTML to a monitor would disable that alarm while looking healthy. Pins that a wildcard `Accept` (UptimeRobot, curl) and a missing `Accept` both still get JSON, that only an explicit `text/html` selects HTML, and that `?json` wins even from a browser (the monitor-proof URL). Also covers the renderer: no `<script>`, no inline handlers, no `javascript:`; native `<details>` for collapsing; type-coloured scalars; arrays including the `degraded` list; empty containers rendered inline; a regression guard against an expanded object rendering as an empty `{}`; and HTML-escaping of keys, values, both hrefs and the document title. Plus the back link to the audit tool, whose label is passed in rather than hardcoded so it follows a rebrand. Plus the grade distribution: three windows rendered, thousands separators, per-window share arithmetic, a singularized one-document window, the `ungraded` row shown only when non-zero, an empty window saying so instead of dividing by zero, a malformed bucket never reaching `NaN`, colours sourced from `GRADE_THRESHOLDS`, best-first ordering, the bars marked `aria-hidden` with the meaning in a `scope`d table under a real `<h1>`, and the self-selection caveat asserted both in the section and above the JSON tree on the assembled page — plus the backward-compatibility case that a payload predating `by_grade_*` renders nothing rather than breaking. Plus the refused-uploads section: both windows, plain-language format names rather than bucket keys, per-window shares, zero rows omitted, an empty window saying so without dividing by zero, a malformed bucket never reaching `NaN`, its own `aria-labelledby` distinct from the grade section's, ordering below the grade distribution and above the JSON tree, and the "attempts, not documents" caveat. Plus the audited-format section, whose whole job is disambiguation: the catch-all labelled **Unrecognized extension** and never "Other", explained in the caveat even in a window where its row is hidden for being zero, stated plainly as *not a refusal*, ordered between the grades and the refusals, and — the point of the section — both catch-alls remaining distinguishable on one page. Plus the v1.55.0 fold-up: every card collapsed by default with its headline fact as a summary peek, the always-visible status strip (pill class per status, version, humanized uptime, degraded list, hostile status string escaped), the stale-backup card pre-opening, the never-run backup peek, the raw-JSON card wrapping a still-fully-expanded tree, and the page still shipping zero JavaScript |
@@ -1167,7 +1058,7 @@ The HTML view's toolbar carries the JSON toggle on the right and a link **back t
 
 **Collapsible cards + an always-visible status strip** (v1.55.0). Every section — grade distribution, format split, refusals, the backup row, and the raw JSON tree — is a native `<details>` card. The four interpretive cards are **collapsed by default**, so a first-time reader meets a stack of one-line summaries instead of a wall of tables, while the **raw JSON payload stays open**: operators and monitors come here for exactly that, so it should never cost a click. Each summary carries the card's headline fact as a right-aligned "peek" ("4,143 documents all-time · 12 in the last 24 h", "✓ 13.6 h ago · 28.0 MB of records, not documents"), so a collapsed card still answers its question without a click. Because collapsing everything would also hide the one thing visitors come for, a **status strip** sits above the cards and never folds: a colored pill (green "All systems normal" / amber "Degraded" / red for anything else), the version, humanized uptime, and the degraded list when there is one. One state overrides the default: a **stale backup arrives pre-opened** — the reader must not have to click to discover it. Still zero JavaScript — `<details>/<summary>` is native, keyboard-accessible, and invisible to the CSP.
 
-**"Why back up anything if nothing is stored?"** (v1.58.0). The tool's headline promise — *your file is never stored* — and a card announcing a nightly backup read as a contradiction, and a real reader raised exactly that. The backup card now answers it in place: a two-column ✓/✗ split of what a snapshot contains (one line per audit; sign-in emails; saved and shared reports; the routine connection log) against what it cannot (the document itself, its pages, anything a readable copy could be rebuilt from), then the resolution in one sentence — the *document* is never saved, the *record* that it was checked is, and that is what the backup copies. Because no document is ever written to disk, no backup can hold one. The collapsed peek says "of records, not documents" so a reader who never expands the card does not read "28.0 MB" as 28 MB of files. Both this card and § 7a of the [data-retention policy](https://audit.icjia.app/data-retention#backups-explained) — which draws the same answer as two side-by-side lanes, one ending in *discarded*, one in *backed up* — deliberately state what the records **do** carry: a sign-in email, the IP/user-agent connection log, and the file name as uploaded (a file named after a person stores that name). "Contains no personal data" would be false, and `backupsExplained.test.ts` fails on that phrasing on both surfaces specifically, because reassurance by omission is the regression worth catching here.
+**"Why back up anything if nothing is stored?"** (v1.58.0, rewritten for v1.68.0). The tool's headline promise — *your file is never stored* — and a card announcing a nightly backup read as a contradiction, and a real reader raised exactly that. The backup card answers it in place: a two-column ✓/✗ split of what a snapshot contains (one line of metadata per audit — date, file name, score, grade; saved and shared reports) against what it cannot (the document itself, its pages, **who uploaded it** — the schema has no email, IP-address, or browser column for a snapshot to copy), then the resolution in one sentence — the *document* is never saved, the *metadata* that it was checked is, and that is what the backup copies. Because no document is ever written to disk, no backup can hold one. The collapsed peek says "of records, not documents" so a reader who never expands the card does not read "28.0 MB" as 28 MB of files. Both this card and § 7a of the [data-retention policy](https://audit.icjia.app/data-retention#backups-explained) — which draws the same answer as two side-by-side lanes, one ending in *discarded*, one in *backed up* — state the guarantees affirmatively (no accounts, no sign-in; no identifier columns in the schema) while still never claiming "contains no personal data": the file name as uploaded can itself name a person, and `backupsExplained.test.ts` fails on the overclaim phrasing on both surfaces specifically, because reassurance by omission is the regression worth catching here.
 
 The live production page (v1.58.0) — as it opens, and with its cards expanded:
 
@@ -1201,7 +1092,7 @@ The caveat differs from the grade distribution's: these are **attempts, not docu
 
 **The header indicator shares this verdict** — and is a link to this page, with a tooltip listing each system's state from `/api/health`'s `systems` array. `/api/health` reports the same `status`/`degraded` summary, computed from already-cached state — it never triggers an engine probe, and it exists precisely so the header does not poll `/status`, whose 120/min cap is shared globally (Nitro proxies it over loopback, so every browser hit is `127.0.0.1`). ~40 concurrent tabs polling `/status` would exhaust that budget and blind the uptime monitor's keyword alert.
 
-**Last successful backup.** The `backup` key (since v1.50.0) surfaces the nightly database backup remotely: completion time (UTC + Chicago), age in hours, snapshot size, and the usage-log row count it contains. It is read from the `last-backup.json` the backup job writes **only after a snapshot passes `integrity_check`** — so the row is proof a real, verified backup ran, not merely that cron fired. A missing, unreadable, malformed, or failed-integrity status file collapses to `"unavailable"` (never a crash, never a fake success). The row count is labeled *usage-log records* rather than *documents* deliberately: `audit_log` also holds page audits, auth events, and refusals, so it is always larger than `documents_audited.total`, and the two figures must not read as contradicting each other. The source file carries two absolute server paths (`sourcePath`, `snapshotPath`); neither is copied into the payload, asserted by a dedicated unit test.
+**Last successful backup.** The `backup` key (since v1.50.0) surfaces the nightly database backup remotely: completion time (UTC + Chicago), age in hours, snapshot size, and the usage-log row count it contains. It is read from the `last-backup.json` the backup job writes **only after a snapshot passes `integrity_check`** — so the row is proof a real, verified backup ran, not merely that cron fired. A missing, unreadable, malformed, or failed-integrity status file collapses to `"unavailable"` (never a crash, never a fake success). The row count is labeled *usage-log records* rather than *documents* deliberately: `audit_log` also holds page audits, refusals, and (in rows predating v1.68.0) legacy auth events, so it is always larger than `documents_audited.total`, and the two figures must not read as contradicting each other. The source file carries two absolute server paths (`sourcePath`, `snapshotPath`); neither is copied into the payload, asserted by a dedicated unit test.
 
 **Privacy.** The endpoint is public and unauthenticated, so everything it reports is an aggregate `COUNT(*)` or a boolean about a local engine. No filename, email, IP, user-agent, or filesystem path is ever serialized — filenames are consumed by the by-format `CASE` expression *inside SQLite* and never cross the boundary, and probe failures collapse to a fixed reason enum (`not_configured` / `not_executable` / `timeout` / `error`) because subprocess stderr routinely embeds absolute paths. `statusPrivacy.test.ts` seeds identifying values and fails the build if any reaches the payload.
 
@@ -1218,9 +1109,9 @@ Other endpoints:
 
 The application undergoes a security review before every release plus periodic standalone comprehensive audits; the running history is in [Review history](#review-history) below. Current posture:
 
-- **Auth is optional** — all other protections apply regardless of the auth toggle; the API fails closed at startup if login is enabled without a strong `JWT_SECRET`.
+- **No accounts, no identifier storage** (v1.68.0) — the entire auth stack was removed: no sign-in, no OTP codes, no JWT sessions, no personal access tokens, no admin role, and no mail-sending code at all. Every endpoint is public and rate-limited per IP. At the schema level, migration 11 dropped the `email`, `ip_address`, and `user_agent` columns (and their data) and deleted the `otp_codes` / `revoked_jtis` / `access_tokens` tables; an `audit_log` row is event type, sanitized file name, score, grade, content hash, and timestamp — metadata about the audit, never the file, never the caller. The remediation audit-gate binds to the content hash alone; the daily remediation cap is held in process memory keyed by IP (transient, written nowhere, resets on restart); remediation job status/download/receipt authorize by the job's download token only. `JWT_SECRET`/`SMTP_*`/`MAILGUN_*`/`ADMIN_EMAILS`/`ALLOWED_DOMAINS` are no longer read, though the child-process env DENY-list still strips those names as defense in depth.
 - **Files processed in memory** — PDF analysis writes a QPDF temp file under a random name, deleted in the same request even on failure; Word, PowerPoint, and Excel analysis never touches disk — the buffer stays in memory, including across the IPC channel to the interruptible OOXML child process (below).
-- **Nightly database backups** (since v1.49.0) — the SQLite database is snapshotted every night using SQLite's online-backup API (WAL-safe where a plain file copy is not), integrity-checked before a snapshot is kept, and rotated so **only the five newest snapshots are retained**. Snapshots stay on the same server, in a dedicated backups directory outside both the application checkout and anything web-reachable; they never leave the machine. The last successful backup is visible on `/status`, and the restore path is scripted and drill-tested. Whole-machine loss is covered separately by the host's own droplet backups. Operator runbook: `docs/database-backups.md`. **What a snapshot contains** (v1.58.0 states this in-product, because "your file is never stored" and "nightly backups" read as a contradiction until someone says otherwise): a copy of this database and nothing else — one row per audit (date, file name, score, grade), sign-in email addresses, saved and shared reports, and the usage log. Audited documents are never written to disk at all, so no backup can contain one; a snapshot could not reproduce a page of anyone's document. Explained for non-technical readers in the `/status` backup card and in § 7a of the data-retention policy, both of which also state plainly what personal detail the records *do* carry (sign-in email, IP/user-agent connection log, and the file name as uploaded) rather than claiming none.
+- **Nightly database backups** (since v1.49.0) — the SQLite database is snapshotted every night using SQLite's online-backup API (WAL-safe where a plain file copy is not), integrity-checked before a snapshot is kept, and rotated so **only the five newest snapshots are retained**. Snapshots stay on the same server, in a dedicated backups directory outside both the application checkout and anything web-reachable; they never leave the machine. The last successful backup is visible on `/status`, and the restore path is scripted and drill-tested. Whole-machine loss is covered separately by the host's own droplet backups. Operator runbook: `docs/database-backups.md`. **What a snapshot contains** (stated in-product since v1.58.0, because "your file is never stored" and "nightly backups" read as a contradiction until someone says otherwise): a copy of this database and nothing else — one line of metadata per audit (date, sanitized file name, score, grade, content hash), saved and shared reports, and the remediation job trail. Since v1.68.0 the schema has no email, IP-address, or browser (user-agent) column anywhere, so a snapshot cannot carry those either; snapshots taken before v1.68.0 keep the old shape until the keep-5 rotation ages them out (≈5 days). Audited documents are never written to disk at all, so no backup can contain one; a snapshot could not reproduce a page of anyone's document. Explained for non-technical readers in the `/status` backup card and in § 7a of the data-retention policy — both of which deliberately never claim "no personal data": a file name as uploaded can itself name a person, and shared reports quote short labels from documents.
 - **No shell** — QPDF / OpenDataLoader / veraPDF are invoked via `execFile` with array arguments; user-supplied filenames never reach a shell or a path component.
 - **SSRF-hardened URL fetching** — both `/api/analyze-url` and the fleet `/api/audit-url` endpoint fetch and audit PDF, Word, PowerPoint, or Excel content by URL; each resolves DNS in-process, rejects private/reserved IPs (IPv4 + IPv6), pins the connection to the validated IP, and re-validates every redirect hop; the headless-browser page-audit path enforces the same private-IP block on every request via a Chromium interceptor.
 - **Bounded work** — per-request size caps (including a per-part uncompressed-size cap on each OOXML format — `.docx`/`.pptx`/`.xlsx` — to stop decompression bombs), a 2-slot analysis semaphore shared by the PDF, Word, PowerPoint, and Excel paths, pdfjs and OOXML (docx/pptx/xlsx) parse/analysis timeouts — the latter enforced by a dedicated per-request child process that a timeout can SIGKILL outright rather than merely abandon — and an enforced wall-clock timeout (with process-group kill) on the remediation worker.
@@ -1238,7 +1129,6 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
 | **Filename / document-text XSS** | Filenames and all PDF-, Word-, PowerPoint-, and Excel-derived text (title, alt text, link text, headings) render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data, and HTML exports run every string **and** numeric/grade field through a shared `escapeHtml` helper (verified in the 2026-06-10 and 2026-07-01 audits). Server also sanitizes filenames before storage. |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
-| **Auth bypass during batch**   | Each request carries the JWT cookie. A 401 on any request immediately navigates to login and abandons remaining items.                                           |
 | **Concurrent upload flood**    | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP.                                         |
 
 ### Review history
@@ -1246,6 +1136,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.68.0 — 2026-08-09 · Sign-in removed; identifier storage removed at the schema level
+
+The largest data-minimization change in the tool's history, made at the maintainer's direction ("it's more important that this be free of PII instead of an auth sign in"). **Removed outright:** the OTP email flow, JWT sessions + the jti logout denylist, personal access tokens (`fap_`), the admin role and log viewer, the login/My History pages, `authMiddleware` on every route, and the mailer (`nodemailer`, `jsonwebtoken`, `bcryptjs`, `cookie-parser` left the dependency tree; `JWT_SECRET`/`SMTP_*`/`ADMIN_EMAILS` are no longer read — the analyzer child-env DENY-list still strips them as defense in depth). **Migration 11 drops the identity columns and their data**: `audit_log.{email,ip_address,user_agent}` (email held `anon:<ip>` sentinels), `shared_reports.email`, `remediation_jobs.email`, and the `otp_codes`/`revoked_jtis`/`access_tokens` tables — `statusPrivacy.test.ts` asserts the columns are physically absent. **Gates rekeyed:** audit-before-remediate binds to content hash alone; the daily cap is in-memory per-IP (`remediationCap.ts`, transient, restart-reset, atomic by single-threaded check-and-reserve — the P2.4 successor); job status/download/receipt are download-token-only (C5 path, 404 on failure). Accepted trade-offs, on the record: the P2.1 per-caller audit-gate binding is gone (the gate is content-bound now), and the daily cap resets on restart. `API_PRIVILEGED_TOKEN` (fleet service credential) unchanged. Every surface — /status card, §§ 2–8a, § 11, README, llms.txt, AGENTS.md, backups runbook — now tells the identity-free story in metadata terms; policy change log v1.6; overclaim guards strengthened, not relaxed ("no personal data"/"no PII" still banned: a file name can itself name a person). Old nightly snapshots keep the old shape ≈5 days until rotation.
 
 ### v1.67.1 — 2026-08-09 · Records described as audit metadata; the personal-detail claim made auditor-precise (not a security release)
 
@@ -1797,7 +1691,7 @@ A dedicated patch release in the "every feature gets a fresh red/blue team revie
 #### Added (the feature this release also brings — driven by the same security thinking)
 
 - `POST /api/remediate` now requires a prior audit of the same content (same `sha256(bytes)`) from the same caller within `REMEDIATION.AUDIT_REQUIRED_WINDOW_MS` (default 60 minutes). Returns `403` with an explanatory body when not met. Closes the "automated thousands of remediations" vector the user flagged.
-- New `REMEDIATION.MAX_JOBS_PER_DAY_PER_USER = 100` daily cap as a second layer. Sized to cover a normal agency workflow (~50 PDFs) with 2× headroom while blocking 3000+ at scale. Returns `429` with `{ limit, used }` when exceeded.
+- New `REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER = 100` daily cap as a second layer. Sized to cover a normal agency workflow (~50 PDFs) with 2× headroom while blocking 3000+ at scale. Returns `429` with `{ limit, used }` when exceeded.
 - Unified `audit_log` writes — every audit endpoint (`/api/analyze`, `/api/analyze-url`, `/api/audit-url`, `/api/bulk-from-inventory`) now writes a row with content_hash. Previously only `/api/analyze` wrote to `audit_log` (and without the hash). Required for the gate to work across all audit paths; documented in `AGENTS.md` and the integration brief.
 
 #### P3 — Accepted with documented mitigation

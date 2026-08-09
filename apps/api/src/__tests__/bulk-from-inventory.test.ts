@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AuthRequest } from "../middleware/authMiddleware.js";
 import type { Response } from "express";
 import { detectFileType } from "../services/analyzer.js";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
@@ -66,16 +65,15 @@ vi.mock("../services/pdfAnalyzer.js", () => ({
 // Helpers to build mock Express req/res/next
 // ---------------------------------------------------------------------------
 
-function makeReq(overrides: Partial<AuthRequest> = {}): AuthRequest {
+function makeReq(overrides: Record<string, unknown> = {}) {
   return {
-    user: { email: "test@illinois.gov" },
     body: {},
     get: vi.fn((header: string) => {
       if (header.toLowerCase() === "content-type") return "application/json";
       return undefined;
     }),
     ...overrides,
-  } as unknown as AuthRequest;
+  } as any;
 }
 
 function makeRes(): Response & { _status: number; _json: any } {
@@ -988,8 +986,8 @@ describe("bulk-from-inventory: sanitizeStoredReport applied before shared_report
       const sql = Object.keys(runCallsBySql).find((s) => s.includes("INSERT INTO shared_reports"));
       expect(sql).toBeTruthy();
       const insertArgs = runCallsBySql[sql!][0];
-      // INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
-      const storedReportJson = insertArgs[3] as string;
+      // INSERT INTO shared_reports (id, filename, report_json, content_hash, expires_at)
+      const storedReportJson = insertArgs[2] as string;
       const stored = JSON.parse(storedReportJson);
       expect(stored.categories[0].helpLinks).toEqual([]);
       expect(storedReportJson).not.toContain("javascript:");
@@ -1040,7 +1038,7 @@ describe("bulk-from-inventory: sanitizeStoredReport applied before shared_report
       await handler(req, res);
 
       const sql = Object.keys(runCallsBySql).find((s) => s.includes("INSERT INTO shared_reports"));
-      const stored = JSON.parse(runCallsBySql[sql!][0][3] as string);
+      const stored = JSON.parse(runCallsBySql[sql!][0][2] as string);
       expect(stored.categories[0].helpLinks).toEqual([
         { label: "WCAG", url: "https://www.w3.org/WAI/" },
       ]);

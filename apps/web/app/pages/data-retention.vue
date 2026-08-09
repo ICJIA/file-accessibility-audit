@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Public page — no auth middleware. Agency staff, auditors, lawyers,
-// records-retention officers, and the general public should be able to
-// read this without logging in.
+// Public page — like everything else on this tool. There are no accounts
+// and no sign-in anywhere (v1.68.0); agency staff, auditors, lawyers,
+// records-retention officers, and the general public read this directly.
 import { useRouter } from "vue-router";
 import { onMounted, ref } from "vue";
 

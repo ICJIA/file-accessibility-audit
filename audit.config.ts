@@ -10,7 +10,7 @@
  * RULES:
  * 1. If you add a new constant anywhere in the codebase, put it here first.
  * 2. Never hardcode a configurable value in a service, route, or component.
- * 3. Secrets (JWT_SECRET, SMTP_PASS) stay in .env — this file is committed.
+ * 3. Secrets (API_PRIVILEGED_TOKEN) stay in .env — this file is committed.
  * 4. After changing a value, run `pnpm --filter api test:scoring` to verify
  *    scoring still produces expected results against test fixtures.
  * ============================================================================
@@ -187,6 +187,17 @@ export const WCAG_22_NEW_AA = [
 // ---------------------------------------------------------------------------
 
 export const ANNOUNCEMENTS = [
+  {
+    id: "no-accounts-no-identifiers-2026-08-09",
+    badge: "Privacy",
+    text: "The sign-in system has been removed — this tool is free and open, with no accounts and nothing to register for. The service also no longer stores who uses it: the database columns for email address, IP address, and browser identifier were deleted outright, along with the data they held. What an audit leaves behind is metadata about the file — its name, score, grade, and date — never the file, and now about nobody. The full accounting is in the data-retention policy, updated to v1.6 today.",
+    linkText: "Read the data-retention policy",
+    linkTo: "/data-retention",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 9, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
   {
     id: "heading-outlines-2026-08-09",
     badge: "New",
@@ -563,49 +574,6 @@ export const PUBLIST = {
    * resolve (e.g. a checkout without apps/web present).
    */
   WEB_PUBLIC_DIR: "../web/public",
-} as const;
-
-// ---------------------------------------------------------------------------
-// EMAIL PROVIDER
-// ---------------------------------------------------------------------------
-// Controls which SMTP relay is used for OTP delivery. Credentials (user,
-// pass) stay in .env — only non-secret connection details live here.
-//
-// To switch providers: change PROVIDER below. Both sets of SMTP settings
-// are defined here; the mailer picks the active one automatically.
-// Credentials for whichever provider you choose must be in .env as
-// SMTP_USER and SMTP_PASS.
-//
-// SAFE TO CHANGE: Yes — swap PROVIDER any time. No code changes needed.
-// ---------------------------------------------------------------------------
-
-export const EMAIL = {
-  /**
-   * Active email provider. Determines which SMTP settings are used.
-   *
-   * SAFE TO CHANGE: Yes — set to 'mailgun' or 'smtp2go'.
-   */
-  PROVIDER: "mailgun" as "mailgun" | "smtp2go",
-
-  /**
-   * Default sender address for OTP emails.
-   *
-   * SAFE TO CHANGE: Yes — must match a verified sender on the active provider.  
-   * Can be overridden in .env with SMTP_FROM.
-   */
-  DEFAULT_FROM: "admin@icjia.cloud",
-
-  /** Mailgun SMTP connection details (no secrets). */
-  mailgun: {
-    host: "smtp.mailgun.org",
-    port: 587,
-  },
-
-  /** SMTP2GO SMTP connection details (no secrets). */
-  smtp2go: {
-    host: "mail.smtp2go.com",
-    port: 2525,
-  },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1054,94 +1022,13 @@ export const ANALYSIS = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// AUTHENTICATION
-// ---------------------------------------------------------------------------
-// Controls for the OTP-based auth system. These values are also referenced
-// in the auth flow description (doc 00, Section 3) and rate limiting.
-//
-// Note: JWT_SECRET is in .env (per-environment secret), not here.
-// ---------------------------------------------------------------------------
-
-export const AUTH = {
-  /**
-   * Master switch for OTP-based authentication.
-   *
-   * When false:
-   * - No login page is required; users go straight to the upload page.
-   * - The API accepts requests without a JWT (authMiddleware passes through).
-   * - No audit history is recorded (no email to associate with analyses).
-   * - Email configuration (SMTP_USER/SMTP_PASS) is not required at startup.
-   *
-   * When true:
-   * - Full OTP auth flow is enforced (email → OTP → JWT session).
-   * - All analyses are logged with the authenticated user's email.
-   * - Valid email provider credentials must be configured.
-   *
-   * SAFE TO CHANGE: Yes — flip to true once email delivery is configured
-   * and you want to gate access behind OTP authentication.
-   */
-  REQUIRE_LOGIN: false,
-
-  /**
-   * How long a JWT session lasts, in hours.
-   * After this, the user must re-authenticate via OTP.
-   *
-   * SAFE TO CHANGE: Yes. Shorter = more secure but more OTP emails.
-   * 72 hours means users authenticate roughly once every 3 days.
-   * Do not exceed 168 (7 days) for an internal tool handling documents.
-   */
-  JWT_EXPIRY_HOURS: 72,
-
-  /**
-   * How long an OTP code remains valid, in minutes.
-   * After this, the OTP is rejected and the user must request a new one.
-   *
-   * SAFE TO CHANGE: Yes. 15 minutes gives users time to check email and
-   * switch tabs. Don't go below 5 (email delivery can be slow) or above
-   * 30 (increases the brute-force window).
-   */
-  OTP_EXPIRY_MINUTES: 15,
-
-  /**
-   * Maximum wrong OTP attempts before the code is invalidated.
-   * After this many failures, the user must request a new OTP.
-   *
-   * SAFE TO CHANGE: Yes. 5 is generous for typos but still makes brute-force
-   * impractical (5 guesses out of 1,000,000 combinations). Don't go above 10.
-   */
-  OTP_MAX_ATTEMPTS: 5,
-
-  /**
-   * Number of digits in the OTP code.
-   *
-   * DO NOT CHANGE unless you also update the OTP generation logic
-   * (crypto.randomInt range), the email template formatting, and the
-   * frontend input field. 6 digits is the industry standard for email OTPs.
-   */
-  OTP_LENGTH: 6,
-
-  /**
-   * Regex pattern for allowed email domains.
-   * Only users with email addresses matching this pattern can authenticate.
-   *
-   * SAFE TO CHANGE: Yes — e.g., to add additional state domains. The regex
-   * must be case-insensitive and anchor both sides. The current pattern
-   * allows any subdomain of illinois.gov (e.g., icjia.illinois.gov,
-   * dhs.illinois.gov, etc.).
-   *
-   * ALSO UPDATE: the .env ALLOWED_DOMAINS variable for development overrides.
-   */
-  ALLOWED_EMAIL_REGEX: /^[^@]+@([a-z0-9-]+\.)*illinois\.gov$/i,
-} as const;
-
-// ---------------------------------------------------------------------------
 // RATE LIMITS
 // ---------------------------------------------------------------------------
 // Per-endpoint rate limiting via express-rate-limit. Each limiter has a
 // `max` (requests allowed) and `windowMs` (time window in milliseconds).
 //
-// The `key` for each limiter (email vs IP) is configured in rateLimiter.ts,
-// not here — keys depend on request parsing logic, not just numbers.
+// Limiters key by IP (held in memory only, never stored — see
+// rateLimiter.ts); the privileged tier shares one bucket.
 //
 // SAFE TO CHANGE: Yes for all values. Increase `max` if legitimate users
 // are hitting limits; decrease if you see abuse. The in-memory store resets
@@ -1163,27 +1050,17 @@ export const AUTH = {
 //                      handlers — see apps/api/src/routes/analyze-url.ts,
 //                      audit-url.ts, audit-url-page.ts).
 //
-// It is NOT the OTP/JWT/DB-PAT auth system (which stays off while
-// AUTH.REQUIRE_LOGIN is false). It grants ONLY those two things and never
-// bypasses the private/reserved-IP SSRF block, the size caps, or the
+// It is a SERVICE credential for the fleet integration — the tool has no
+// user accounts or sign-in (v1.68.0). It grants ONLY those two things and
+// never bypasses the private/reserved-IP SSRF block, the size caps, or the
 // concurrency semaphores — a leaked token cannot reach internal services.
 //
-// Empty/unset → feature off → every request is anonymous (fail-safe to strict).
+// Empty/unset → feature off → every request gets the strict tier (fail-safe).
 // The match is a constant-time compare in rateLimiter.ts (isPrivilegedRequest),
-// which reads process.env directly, mirroring authMiddleware's JWT_SECRET /
-// ADMIN_EMAILS pattern.
+// which reads process.env directly at request time.
 // ---------------------------------------------------------------------------
 
 export const RATE_LIMITS = {
-  /** POST /api/auth/request — keyed by email address.
-   *  Prevents an attacker from spamming OTP emails to a victim.
-   *  (Moot while AUTH.REQUIRE_LOGIN is false, but kept wired.) */
-  authRequest: { max: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour
-
-  /** POST /api/auth/verify — keyed by IP address.
-   *  Prevents brute-forcing OTP codes from a single source. */
-  authVerify: { max: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 min
-
   /**
    * The four audit endpoints — /api/analyze, /api/analyze-url,
    * /api/audit-url, /api/audit-url-page. Two-tier (see the privileged-token
@@ -1742,20 +1619,14 @@ export const REMEDIATION = {
   JVM_HEAP_MB: 768,
 
   /**
-   * Maximum concurrent remediation jobs per user.
-   * Enforced at POST /api/remediate. Prevents one user from queueing
-   * dozens of jobs and saturating disk/CPU.
-   *
-   * SAFE TO CHANGE: Yes — keep at 1 for v1; revisit if user volume grows.
-   */
-  MAX_CONCURRENT_JOBS_PER_USER: 1,
-
-  /**
    * Maximum remediation jobs a single caller can start in a rolling
    * 24-hour window. Enforced at POST /api/remediate after the
-   * audit-gate check (v1.20.1+). Prevents the "thousands of automated
-   * remediations" abuse case while leaving plenty of headroom for a
-   * legitimate agency clearing a backlog of ~50 PDFs.
+   * audit-gate check (v1.20.1+). Since v1.68.0 the count lives in
+   * process memory keyed by the caller's IP (used transiently, never
+   * stored anywhere), so it resets on API restart — acceptable for an
+   * abuse brake. Prevents the "thousands of automated remediations"
+   * abuse case while leaving plenty of headroom for a legitimate
+   * agency clearing a backlog of ~50 PDFs.
    *
    * Sizing rationale: ICJIA's typical agency fleet runs into the
    * tens of PDFs; an unusually large day is ~50. 100 covers a 2×
@@ -1766,7 +1637,7 @@ export const REMEDIATION = {
    * SAFE TO CHANGE: Yes — raise if a real fleet workload trips it,
    * lower if abuse surfaces.
    */
-  MAX_JOBS_PER_DAY_PER_USER: 100,
+  MAX_JOBS_PER_DAY_PER_CALLER: 100,
 
   /**
    * The "you must audit this PDF before remediating it" window, in

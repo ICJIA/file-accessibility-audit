@@ -26,7 +26,6 @@
 
 <span class="text-sky-300">CREATE TABLE</span> remediation_jobs (
   id                   <span class="text-purple-300">TEXT</span> <span class="text-sky-300">PRIMARY KEY</span>,   <span class="text-[var(--text-muted)]">-- UUIDv4</span>
-  email                <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- null when anonymous</span>
   input_filename       <span class="text-purple-300">TEXT</span> <span class="text-sky-300">NOT NULL</span>,      <span class="text-[var(--text-muted)]">-- sanitized</span>
   original_filename    <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- as offered, length-clamped only</span>
   content_hash         <span class="text-purple-300">TEXT</span>,               <span class="text-[var(--text-muted)]">-- SHA-256 of input bytes</span>

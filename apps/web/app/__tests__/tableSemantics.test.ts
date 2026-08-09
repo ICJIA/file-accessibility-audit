@@ -15,9 +15,8 @@ import { resolve } from "path";
 // heavy Nuxt-composable dependencies, and the invariant being checked is a
 // property of the raw template markup, not of any runtime interaction.
 //
-// ReportsTable.vue (used by history.vue / my-history.vue, Task F3) and
 // ReportContent.vue's score table (Task F6) already have dedicated
-// component-level a11y tests (ReportsTable.test.ts, report-content.test.ts)
+// component-level a11y tests (report-content.test.ts)
 // — included here too for one single source of truth on the full sweep.
 // ---------------------------------------------------------------------------
 
@@ -51,7 +50,6 @@ function countTemplateScopedThs(source: string): number {
 }
 
 const filesWithTables = [
-  "components/ReportsTable.vue",
   "components/ReportContent.vue",
   "components/TechnicalExplainer.vue",
   "components/dataRetention/Section05Tools.vue",

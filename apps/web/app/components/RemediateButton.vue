@@ -97,10 +97,6 @@ async function startRemediation(file: File): Promise<void> {
     await navigateTo(`/remediate/${res.jobId}?t=${encodeURIComponent(res.downloadToken)}`);
   } catch (e) {
     const err = e as { status?: number; data?: { error?: string } };
-    if (err.status === 401) {
-      await navigateTo("/login");
-      return;
-    }
     error.value = err.data?.error ?? (e as Error).message ?? "Could not start remediation.";
     phase.value = "idle";
     clearSlowTimer();

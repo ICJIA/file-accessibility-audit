@@ -214,15 +214,17 @@ describe("audit-url-page: sanitizeStoredReport applied before shared_reports ins
 
     expect(res._json?.reportId).toBeTruthy();
     // db.prepare/.run is shared by BOTH this route's own shared_reports
-    // insert (6 args: id, email, filename, report_json, content_hash,
-    // expires_at) AND auditLog.ts's recordAudit() audit_log insert (8 args)
-    // — both funnel through the same mocked db. Key on arg count to isolate
-    // the shared_reports call specifically, mirroring how
-    // bulk-from-inventory.test.ts's F3 section keys by SQL text for the same
-    // reason (that helper isn't available here — see loadRouterWith above).
-    const reportInsertCall = runCalls.find((args) => args.length === 6);
+    // insert (5 args: id, filename, report_json, content_hash, expires_at)
+    // AND auditLog.ts's recordAudit() audit_log insert (also 5 args since
+    // v1.68.0) — both funnel through the same mocked db. Arg COUNT no
+    // longer discriminates; the report insert is the call whose third arg
+    // is a JSON object string (audit_log's third arg is a numeric score).
+    const reportInsertCall = runCalls.find(
+      (args) =>
+        args.length === 5 && typeof args[2] === "string" && (args[2] as string).startsWith("{"),
+    );
     expect(reportInsertCall).toBeTruthy();
-    const storedReportJson = reportInsertCall![3] as string;
+    const storedReportJson = reportInsertCall![2] as string;
     const stored = JSON.parse(storedReportJson);
     expect(stored.helpLinks).toEqual([]);
     expect(storedReportJson).not.toContain("javascript:");
@@ -252,9 +254,12 @@ describe("audit-url-page: sanitizeStoredReport applied before shared_reports ins
 
     await handler(req, res);
 
-    const reportInsertCall = runCalls.find((args) => args.length === 6);
+    const reportInsertCall = runCalls.find(
+      (args) =>
+        args.length === 5 && typeof args[2] === "string" && (args[2] as string).startsWith("{"),
+    );
     expect(reportInsertCall).toBeTruthy();
-    const stored = JSON.parse(reportInsertCall![3] as string);
+    const stored = JSON.parse(reportInsertCall![2] as string);
     expect(stored.url).toBe("https://example.gov/clean");
     expect(stored.score).toBe(100);
   });

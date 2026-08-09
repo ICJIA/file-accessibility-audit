@@ -50,11 +50,10 @@ const DAY = 86_400_000;
 
 function insertReport(id: string, expiresAtMs: number): void {
   db.prepare(
-    `INSERT INTO shared_reports (id, email, filename, report_json, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO shared_reports (id, filename, report_json, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
   ).run(
     id,
-    "auditor@agency.illinois.gov",
     "report.pdf",
     "{}",
     new Date(expiresAtMs).toISOString(),

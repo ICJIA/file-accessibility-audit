@@ -44,7 +44,7 @@ Approximate category weights by format:
 
 ## API
 
-The application exposes a REST API. Protected endpoints accept a session cookie or a Bearer personal access token (`fap_` prefix); the public deployment currently runs with auth disabled, so no credential is required.
+The application exposes a REST API. There are no accounts and no sign-in: every endpoint is public and rate-limited per IP, so no credential is required. (Deployments may configure a single privileged fleet service token — `Authorization: Bearer <API_PRIVILEGED_TOKEN>` — which unlocks a generous rate tier and the URL-allowlist bypass on the URL-audit endpoints; it is a service credential for fleet automation, not a user account.)
 
 - POST /api/analyze - Upload a PDF, Word, PowerPoint, or Excel file for analysis (multipart/form-data, field: "file", max 15 MB)
 - POST /api/analyze-url - Audit a document (any of the four formats) by URL instead of upload (JSON body: `{ "url": "..." }`); returns the same result shape as /api/analyze

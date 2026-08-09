@@ -833,8 +833,6 @@ const heroTitle = computed(() =>
 );
 const heroUploadNoun = computed(() => `${uploadNoun(uploadFlags.value)} file`);
 
-definePageMeta({ middleware: "auth" });
-
 interface BatchItem {
   id: string;
   filename: string;
@@ -1017,10 +1015,6 @@ async function analyzeFile(file: File) {
     singleResult.value = response;
     focusResultsHeading();
   } catch (err: any) {
-    if (err.status === 401) {
-      navigateTo("/login");
-      return;
-    }
     analysisError.value = err.data || {
       error: "Analysis failed. Please try again.",
     };
@@ -1086,10 +1080,6 @@ async function analyzeBatch(files: File[]) {
         if (signal.aborted) {
           item.status = "cancelled";
           item.file = null;
-          return;
-        }
-        if (err.status === 401) {
-          navigateTo("/login");
           return;
         }
         item.error = err.data || { error: "Analysis failed." };

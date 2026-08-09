@@ -25,10 +25,10 @@ type DB = InstanceType<typeof Database>;
 const T0 = Date.UTC(2026, 7, 3, 14, 22, 10);
 
 // Distinctive enough that an accidental appearance cannot be a coincidence.
+// v1.68.0: the schema no longer HAS email/IP/user-agent columns — that
+// absence is itself asserted below — so the seeded secrets are the values
+// that still exist: the uploaded filename and the content hash.
 const SECRET_FILENAME = "ZZTOP-Confidential-Budget-Memo-2026.pdf";
-const SECRET_EMAIL = "whistleblower@agency.illinois.gov";
-const SECRET_IP = "203.0.113.77";
-const SECRET_UA = "Mozilla/5.0 (SecretBrowser/13.37)";
 const SECRET_HASH = "deadbeefcafebabe0123456789abcdef0123456789abcdef0123456789abcdef";
 const SECRET_PATH = "/opt/verapdf/verapdf";
 
@@ -37,23 +37,13 @@ function seededDb(): DB {
   runMigrations(db);
   db.prepare(
     `INSERT INTO audit_log
-       (event_type, email, filename, score, grade, ip_address, user_agent, content_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    "analyze",
-    SECRET_EMAIL,
-    SECRET_FILENAME,
-    42,
-    "F",
-    SECRET_IP,
-    SECRET_UA,
-    SECRET_HASH,
-    "2026-08-03 09:22:10",
-  );
-  db.prepare(
-    `INSERT INTO remediation_jobs (id, email, input_filename, status, created_at, expires_at)
+       (event_type, filename, score, grade, content_hash, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("job-1", SECRET_EMAIL, SECRET_FILENAME, "complete", T0 - 1000, T0 + 1000);
+  ).run("analyze", SECRET_FILENAME, 42, "F", SECRET_HASH, "2026-08-03 09:22:10");
+  db.prepare(
+    `INSERT INTO remediation_jobs (id, input_filename, status, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run("job-1", SECRET_FILENAME, "complete", T0 - 1000, T0 + 1000);
   return db;
 }
 
@@ -91,10 +81,18 @@ describe("/status never discloses identifying data", () => {
     expect(payload.remediation.jobs_24h.complete).toBe(1);
 
     expect(json).not.toContain(SECRET_FILENAME);
-    expect(json).not.toContain(SECRET_EMAIL);
-    expect(json).not.toContain(SECRET_IP);
-    expect(json).not.toContain(SECRET_UA);
     expect(json).not.toContain(SECRET_HASH);
+  });
+
+  it("the database physically cannot hold email, IP, or user-agent (v1.68.0)", () => {
+    const db = seededDb();
+    for (const table of ["audit_log", "remediation_jobs", "shared_reports"]) {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+      const names = cols.map((c) => c.name);
+      expect(names).not.toContain("email");
+      expect(names).not.toContain("ip_address");
+      expect(names).not.toContain("user_agent");
+    }
   });
 
   it("contains no email address at all", async () => {

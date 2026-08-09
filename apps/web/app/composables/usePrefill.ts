@@ -51,12 +51,6 @@ export function usePrefill(callbacks: PrefillCallbacks): void {
       });
       callbacks.onResult(result);
     } catch (err: any) {
-      if (err?.status === 401) {
-        // Let the auth middleware redirect handle this — navigateTo is a
-        // Nuxt auto-import and will route to /login.
-        navigateTo("/login");
-        return;
-      }
       callbacks.onError(
         err?.data ?? { error: "Could not analyze the prefill URL. Please try again." },
       );

@@ -483,8 +483,8 @@ describe("audit-url: sanitizeStoredReport applied before shared_reports insert (
       const sql = Object.keys(runCallsBySql).find((s) => s.includes("INSERT INTO shared_reports"));
       expect(sql).toBeTruthy();
       const insertArgs = runCallsBySql[sql!][0];
-      // INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at)
-      const storedReportJson = insertArgs[3] as string;
+      // INSERT INTO shared_reports (id, filename, report_json, content_hash, expires_at)
+      const storedReportJson = insertArgs[2] as string;
       const stored = JSON.parse(storedReportJson);
       expect(stored.categories[0].helpLinks).toEqual([]);
       expect(storedReportJson).not.toContain("javascript:");
@@ -536,7 +536,7 @@ describe("audit-url: sanitizeStoredReport applied before shared_reports insert (
       await handler(req, res);
 
       const sql = Object.keys(runCallsBySql).find((s) => s.includes("INSERT INTO shared_reports"));
-      const stored = JSON.parse(runCallsBySql[sql!][0][3] as string);
+      const stored = JSON.parse(runCallsBySql[sql!][0][2] as string);
       expect(stored.categories[0].helpLinks).toEqual([
         { label: "WCAG", url: "https://www.w3.org/WAI/" },
       ]);

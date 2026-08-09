@@ -1,9 +1,8 @@
-import { Router, Response, type IRouter } from "express";
+import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
-import { authMiddleware, AuthRequest } from "../middleware/authMiddleware.js";
 import { reportsLimiter } from "../middleware/rateLimiter.js";
 import { analyzeDocument, detectFileType } from "../services/analyzer.js";
-import { gateIdentity, recordAudit, sha256Hex } from "../services/auditLog.js";
+import { recordAudit, sha256Hex } from "../services/auditLog.js";
 import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
 import { validateUrlForFetch } from "../services/urlPolicy.js";
 import { SHARED_REPORTS } from "#config";
@@ -177,7 +176,6 @@ function parseInventory(
 
 router.post(
   "/bulk-from-inventory",
-  authMiddleware,
   reportsLimiter,
   // Use text/plain body parsing with an expanded 5 MB limit for the inventory
   // payload. The global express.json({ limit: '1mb' }) does not cover this
@@ -185,7 +183,7 @@ router.post(
   // Callers should send: Content-Type: text/plain  (or multipart — TBD).
   // For the initial implementation the caller can also send JSON with an
   // `inventory` string field; see parsing logic below.
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
       // Support two intake modes:
       //   1. JSON body: { inventory: "<NDJSON>", filterCategory?: "pdf" | "docx" | "pptx" | "xlsx" }
@@ -328,10 +326,9 @@ router.post(
           const reportToStore = sanitized.ok ? sanitized.report : analysis;
 
           db.prepare(
-            "INSERT INTO shared_reports (id, email, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO shared_reports (id, filename, report_json, content_hash, expires_at) VALUES (?, ?, ?, ?, ?)",
           ).run(
             id,
-            req.user!.email,
             entry.filename,
             JSON.stringify(reportToStore),
             contentHash,
@@ -339,16 +336,13 @@ router.post(
           );
 
           // Canonical audit-log write so each bulk-audited entry
-          // counts for the remediation gate (v1.20.1+).
+          // counts for the remediation gate (v1.20.1+). Metadata only.
           recordAudit({
             eventType: "bulk-from-inventory",
-            email: gateIdentity(req.user?.email ?? null, req.ip),
             filename: entry.filename,
             score: analysis.overallScore,
             grade: analysis.grade,
             contentHash,
-            ipAddress: req.ip ?? null,
-            userAgent: req.get("user-agent") ?? null,
           });
 
           result.reportId = id;

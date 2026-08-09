@@ -857,45 +857,46 @@ details>.row.close::before{content:"";display:inline-block;width:1em}
  * reality collide in public: the app says "your file is never stored", and
  * then this page announces a nightly backup. A reader who notices both
  * concludes one of them is a lie. The real answer — the DOCUMENT is never
- * saved, the service's own RECORD of the audit is — is not deducible from a
+ * saved, the service's own audit METADATA is — is not deducible from a
  * completion timestamp, so it is stated here rather than left to inference.
  *
- * Deliberately not "no personal data": the database does hold sign-in email
- * addresses and the routine IP/user-agent connection log, and a file NAME can
- * itself name a person. Overclaiming here would be the one thing that makes a
- * records officer distrust everything else on the page, so the ✓ column lists
- * those plainly and the ✗ column claims only what the code actually
- * guarantees — no document content, and nothing a document could be rebuilt
- * from. The full accounting lives in the data-retention policy, linked below.
+ * v1.68.0: the service has no accounts, no sign-in, and stores no email, IP
+ * address, or browser identifier — the schema physically lacks the columns.
+ * Still deliberately not "no personal data": a file NAME can itself name a
+ * person, and a saved/shared report can quote short labels from the
+ * document. Overclaiming here would be the one thing that makes a records
+ * officer distrust everything else on the page, so the ✓ column names those
+ * plainly and the ✗ column claims only what the code actually guarantees.
+ * The full accounting lives in the data-retention policy, linked below.
  */
 function backupExplainer(): string {
   return (
     `<div class="split">` +
-    `<div class="yes"><h3>In a backup — the service's own records</h3><ul>` +
-    `<li>One line per audit: date, file name, score, grade</li>` +
-    `<li>Sign-in email addresses, for people who signed in</li>` +
+    `<div class="yes"><h3>In a backup — audit metadata only</h3><ul>` +
+    `<li>One line of metadata per audit: date, file name, score, grade</li>` +
     `<li>Reports someone chose to save or share — whose findings can quote short labels ` +
     `from the document, such as image alt text or link wording</li>` +
-    `<li>The routine connection log every web server keeps (IP address, browser), ` +
-    `deleted after 365 days</li>` +
     `</ul></div>` +
     `<div class="no"><h3>Not in a backup — never stored at all</h3><ul>` +
     `<li>The PDF, Word, PowerPoint or Excel file itself</li>` +
     `<li>The pages, paragraphs, images or tables inside it</li>` +
+    `<li>Who uploaded it: there are no accounts or sign-in, and the service&#39;s ` +
+    `database has no column for an email address, an IP address, or a browser ` +
+    `identifier</li>` +
     `<li>Anything a readable copy of a document could be rebuilt from</li>` +
     `</ul></div></div>` +
     `<p class="why"><strong>Why back up anything if documents aren&#39;t stored?</strong> ` +
     `Because two different things are involved. Your <em>document</em> is never saved — it is ` +
     `read in memory, scored, and gone within seconds. What is kept is <em>metadata about the ` +
-    `audit</em>: the record that a file with this name was checked on this date and received ` +
-    `this grade, so an agency can show what it reviewed and when. The record is ` +
-    `<em>about</em> the document, never a copy of any part of it — it says the file was ` +
-    `checked, not what the file said. The nightly backup protects that record. A document ` +
-    `cannot be inside a backup, because no document is ever written to disk in the first ` +
-    `place.</p>` +
+    `audit</em>: data about the file, never the file — a note that a file with this name was ` +
+    `checked on this date and received this grade, so an agency can show what it reviewed ` +
+    `and when. The metadata says the file was checked, not what the file said, and it says ` +
+    `nothing about who did the checking. The nightly backup protects that metadata. A ` +
+    `document cannot be inside a backup, because no document is ever written to disk in the ` +
+    `first place.</p>` +
     `<p class="blmark">Bottom line: a backup could not reproduce one page of anyone&#39;s ` +
-    `document. It is a copy of the logbook — audit metadata — not of the files that passed ` +
-    `through it.</p>`
+    `document, and could not say who audited anything. It is a copy of the logbook — audit ` +
+    `metadata — not of the files or the people that passed through it.</p>`
   );
 }
 

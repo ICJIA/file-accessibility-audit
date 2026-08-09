@@ -67,7 +67,7 @@
       <DiagramFigure
         name="no-ai"
         title="No AI services contacted"
-        desc="Flowchart showing the ICJIA server talks only to local tools (qpdf, OpenDataLoader, veraPDF, SQLite) and Mailgun (for OTP codes only). It NEVER sends data to ChatGPT, Claude, Gemini, or Copilot."
+        desc="Flowchart showing the ICJIA server talks only to local tools (qpdf, OpenDataLoader, veraPDF, SQLite). It NEVER sends data to ChatGPT, Claude, Gemini, or Copilot."
       />
     </div>
   </section>

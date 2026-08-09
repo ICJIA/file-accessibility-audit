@@ -279,6 +279,52 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 11,
+    // Identity removal (v1.68.0): the service stops storing WHO — no email,
+    // no IP address, no browser user-agent, and no sign-in system at all.
+    // What remains is metadata about the audit event: file name, score,
+    // grade, timestamp, content hash. This migration DESTROYS the existing
+    // identity data on purpose — dropping the columns removes the values,
+    // not just future writes. Old nightly snapshots still carry the old
+    // shape until the keep-5 rotation ages them out (~5 days).
+    //
+    // Probe-before-ALTER per the repo pattern: a fresh database reaches
+    // here with all columns present (baseline creates them), but a crash
+    // between statements must leave a re-runnable migration.
+    name: "drop identity storage (audit_log email/ip/ua, shared_reports.email, remediation_jobs.email, otp_codes, revoked_jtis, access_tokens)",
+    up(db) {
+      if (hasColumn(db, "audit_log", "email")) {
+        db.exec(`DROP INDEX IF EXISTS idx_audit_email;`);
+        db.exec(`ALTER TABLE audit_log DROP COLUMN email;`);
+      }
+      if (hasColumn(db, "audit_log", "ip_address")) {
+        db.exec(`ALTER TABLE audit_log DROP COLUMN ip_address;`);
+      }
+      if (hasColumn(db, "audit_log", "user_agent")) {
+        db.exec(`ALTER TABLE audit_log DROP COLUMN user_agent;`);
+      }
+      if (hasColumn(db, "shared_reports", "email")) {
+        // The dedup index references email — drop it first, then rebuild
+        // keyed on content alone. With sign-in gone every caller shares one
+        // identity anyway, so content-hash dedup preserves the behavior
+        // production (REQUIRE_LOGIN: false) already had.
+        db.exec(`DROP INDEX IF EXISTS idx_shared_reports_dedup;`);
+        db.exec(`ALTER TABLE shared_reports DROP COLUMN email;`);
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_shared_reports_dedup
+            ON shared_reports(content_hash, expires_at);
+        `);
+      }
+      if (hasColumn(db, "remediation_jobs", "email")) {
+        db.exec(`DROP INDEX IF EXISTS idx_remediation_jobs_email_created;`);
+        db.exec(`ALTER TABLE remediation_jobs DROP COLUMN email;`);
+      }
+      db.exec(`DROP TABLE IF EXISTS otp_codes;`);
+      db.exec(`DROP TABLE IF EXISTS revoked_jtis;`);
+      db.exec(`DROP TABLE IF EXISTS access_tokens;`);
+    },
+  },
 ];
 
 /**

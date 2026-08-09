@@ -120,6 +120,18 @@ const INLINE_SOURCES = {
   S --> G[Grade + WCAG verdict]
   G --> B[HTTP response to client]
   B --> K[Discard memory buffer]`,
+
+  // No-AI / no-third-party diagram (data-retention § 4). v1.68.0 removed the
+  // sign-in system, so the Mailgun node (its only outbound service, used for
+  // OTP codes) is gone: every arrow now points at a local tool, plus the
+  // crossed-out NEVER edge to the AI services.
+  "no-ai": `flowchart TD
+  A[Your PDF] --> B[ICJIA server]
+  B --> C[qpdf local]
+  B --> D[OpenDataLoader local]
+  B --> E[veraPDF local]
+  B --> F[SQLite local]
+  B -. NEVER .-> X[ChatGPT, Claude, Gemini, Copilot]`,
 };
 
 const sources = { ...extractSources(), ...INLINE_SOURCES };

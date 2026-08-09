@@ -307,9 +307,10 @@
             <p class="text-xs text-[var(--text-muted)]">
               An <strong>Express</strong> (Node.js/TypeScript) server that handles file uploads,
               runs QPDF/PDF.js analysis on PDFs and an in-process OOXML parser on
-              Word/PowerPoint/Excel files, scores the results, manages authentication (passwordless
-              OTP via email), and stores shared reports in a <strong>SQLite</strong>
-              database (WAL mode). Managed by PM2 in production.
+              Word/PowerPoint/Excel files, scores the results, and stores shared reports in a
+              <strong>SQLite</strong> database (WAL mode). There are no accounts or sign-in — the
+              tool is free and open to use, and stores no email addresses, IP addresses, or browser
+              identifiers. Managed by PM2 in production.
             </p>
           </div>
         </div>
@@ -2002,8 +2003,8 @@ pm2 restart ecosystem.config.cjs</pre>
           <li class="flex gap-2">
             <span class="text-[var(--text-muted)]">•</span
             ><span
-              >Anyone with the link can view the report without logging in. No account is required
-              to view a shared report.</span
+              >Anyone with the link can view the report. There are no accounts on this tool at all —
+              nothing to sign in to, for sharing or anything else.</span
             >
           </li>
           <li class="flex gap-2">

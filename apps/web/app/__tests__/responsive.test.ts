@@ -20,28 +20,12 @@ function readSource(file: string): string {
 describe("Responsive — Mobile Navigation", () => {
   const source = readSource("layouts/default.vue");
 
-  it("has a mobile hamburger button visible only below md", () => {
-    expect(source).toContain("md:hidden");
-    expect(source).toContain("Toggle menu");
-  });
-
-  it("desktop nav is hidden on mobile (hidden md:flex)", () => {
-    expect(source).toContain("hidden md:flex");
-  });
-
-  it("has a mobile nav dropdown section for small screens", () => {
-    expect(source).toContain("mobileMenuOpen");
-  });
-
-  it("mobile nav includes all key navigation links", () => {
-    expect(source).toContain("Analyze");
-    expect(source).toContain("FAQs");
-    expect(source).toContain("My History");
-    expect(source).toContain("Admin Logs");
-  });
-
-  it("mobile menu has slide-down transition", () => {
-    expect(source).toContain("slide-down");
+  // v1.68.0 removed the auth-gated mobile hamburger/dropdown wholesale —
+  // the header's links are always visible on every viewport, so the one
+  // responsive property left to pin is that nothing auth-shaped returns.
+  it("has no hamburger, no dropdown, and no auth-gated nav", () => {
+    expect(source).not.toContain("mobileMenuOpen");
+    expect(source).not.toContain('v-if="user"');
   });
 });
 
@@ -225,38 +209,6 @@ describe("Responsive — Report Page", () => {
 // ---------------------------------------------------------------------------
 // History Pages — Responsive Tables
 // ---------------------------------------------------------------------------
-describe("Responsive — History Pages", () => {
-  it("my-history table has overflow-x-auto", () => {
-    const source = readSource("pages/my-history.vue");
-    expect(source).toContain("overflow-x-auto");
-  });
-
-  it("my-history table has min-width constraint", () => {
-    const source = readSource("pages/my-history.vue");
-    expect(source).toContain("min-w-[420px]");
-  });
-
-  it("my-history table cells use responsive padding", () => {
-    const source = readSource("pages/my-history.vue");
-    expect(source).toContain("px-3 sm:px-4");
-  });
-
-  it("admin history table has overflow-x-auto", () => {
-    const source = readSource("pages/history.vue");
-    expect(source).toContain("overflow-x-auto");
-  });
-
-  it("admin history table has min-width constraint", () => {
-    const source = readSource("pages/history.vue");
-    expect(source).toContain("min-w-[520px]");
-  });
-
-  it("admin history table cells use responsive padding", () => {
-    const source = readSource("pages/history.vue");
-    expect(source).toContain("px-3 sm:px-4");
-  });
-});
-
 // ---------------------------------------------------------------------------
 // CSS — Mobile Menu Transition
 // ---------------------------------------------------------------------------

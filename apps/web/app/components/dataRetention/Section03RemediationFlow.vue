@@ -23,7 +23,6 @@ Client → HTTPS multipart upload (re-upload required by design)
   ▼
 [create remediation_jobs row]
   • status: 'pending'
-  • email (if logged in)
   • content_hash: SHA-256 of input bytes
   • download_token: 32-byte random, sha256-hashed at rest
   │

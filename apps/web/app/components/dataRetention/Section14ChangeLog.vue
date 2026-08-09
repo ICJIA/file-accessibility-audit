@@ -6,6 +6,22 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.6 · 2026-08-09</strong> — Documents the identifier-removal release (tool
+        v1.68.0): the sign-in system is removed entirely — no accounts, no login codes, no sessions,
+        no API tokens tied to a person — and the service
+        <em>stops storing identifiers altogether</em>. The email, IP-address, and browser user-agent
+        columns were dropped from the database schema itself (migration 11), destroying the
+        previously stored values, not merely ending new writes; the login-code and token tables were
+        deleted; and the one email the service could ever send (the login code) is gone with the
+        mail-sending code. What remains per audit is metadata about the event — file name, score,
+        grade, timestamp, content hash — and it says nothing about who did the checking. The
+        caller's IP address is still used <em>transiently in server memory</em> to rate-limit
+        requests and cap remediation jobs, and is written nowhere. Old nightly snapshots retain the
+        old shape until the keep-5 rotation ages them out (≈5 days). The hosting layer's standard
+        nginx access logs are unchanged and remain outside these application records (§ 8a). Updates
+        §§ 2, 3, 4, 5, 6, 7, 7a, 8, 8a, 11.
+      </li>
+      <li>
         <strong>v1.5 · 2026-08-09</strong> — Wording only; nothing stored, used, or retained
         changed. States explicitly — for federal and state auditors — that every retained row is
         <em>metadata about an audit event</em> (date, file name, score, grade): a record

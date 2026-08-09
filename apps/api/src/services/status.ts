@@ -7,7 +7,8 @@
 // below, and statusPrivacy.test.ts fails the build if either is broken:
 //
 //   1. Only aggregates leave this module. Every figure is a COUNT(*). No
-//      filename, email, IP address, or user-agent is ever serialized —
+//      filename or content hash is ever serialized (the schema itself has
+//      no email/IP/user-agent columns since v1.68.0) —
 //      filenames are read *inside SQLite* by the by-format CASE expression
 //      and never cross the boundary.
 //   2. No filesystem paths, ever. Not VERAPDF_PATH, not the qpdf binary, not

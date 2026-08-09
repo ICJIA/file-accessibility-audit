@@ -5,14 +5,12 @@ import { createHash } from "node:crypto";
 import { createReadStream, promises as fs, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { authMiddleware, type AuthRequest } from "../middleware/authMiddleware.js";
 import { analyzeLimiter, remediationStatusLimiter } from "../middleware/rateLimiter.js";
 import { analyzePDF } from "../services/pdfAnalyzer.js";
 import { buildChildSpawnEnv } from "../services/childSpawnEnv.js";
 import {
   createJob,
   getJob,
-  countActiveJobsForEmail,
   verifyDownloadToken,
   setExpired,
   setInputAudit,
@@ -21,10 +19,17 @@ import {
   type RemediationJob,
 } from "../services/remediationJobs.js";
 import { recordEvent, getEventsForJob, deleteAndVerify } from "../services/remediationEvents.js";
-import { AUTH, DEPLOY, FILENAME, REMEDIATION } from "#config";
-import { gateIdentity, hasRecentAudit, countRecentRemediations } from "../services/auditLog.js";
+import { DEPLOY, FILENAME, REMEDIATION } from "#config";
+import { hasRecentAudit } from "../services/auditLog.js";
+import {
+  capKeyFromIp,
+  reserveRemediationSlot,
+  remediationSlotsUsed,
+} from "../services/remediationCap.js";
 
 const router: IRouter = Router();
+
+const DAILY_CAP_WINDOW_MS = 24 * 60 * 60_000;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = path.resolve(HERE, "../jobs/remediate.ts");
@@ -116,10 +121,9 @@ export function spawnWorker(jobId: string): void {
 router.post(
   "/remediate",
   requireEnabled,
-  authMiddleware,
   analyzeLimiter,
   remediateUpload.single("file"),
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
       const file = req.file;
       if (!file) {
@@ -144,42 +148,29 @@ router.post(
       // paths, internal storage, and the path-traversal check below.
       const originalFilename = String(file.originalname ?? "").slice(0, 500);
       const filename = sanitizeFilename(file.originalname);
-      const email = AUTH.REQUIRE_LOGIN ? (req.user?.email ?? null) : null;
-
-      // Per-user concurrent job limit
-      if (email) {
-        const active = countActiveJobsForEmail(email);
-        if (active >= REMEDIATION.MAX_CONCURRENT_JOBS_PER_USER) {
-          res.status(429).json({
-            error: "You already have a remediation in progress.",
-            details: "Please wait for your current remediation to finish before starting another.",
-          });
-          return;
-        }
-      }
 
       // v1.20.1+: gate remediation behind a prior audit and a daily
-      // cap. Both checks are cheap SQL lookups and run BEFORE the
-      // resource-intensive analyzePDF preflight so an unauthorized
-      // caller never gets to consume an analysis semaphore slot.
+      // cap. Both checks are cheap and run BEFORE the resource-intensive
+      // analyzePDF preflight so an over-cap caller never gets to consume
+      // an analysis semaphore slot.
       //
-      // Identity for both checks comes from gateIdentity(), which is
-      // the caller's email when auth is on and 'anon:${ip}' when off.
-      // The IP-binding in anonymous mode (v1.20.1+) closes P2.1 from
-      // the security review — a different anonymous caller can't
-      // unlock remediation for content audited by someone else just
-      // because they happen to share the 'anonymous' bucket.
-      const gateEmail = gateIdentity(email, req.ip);
+      // v1.68.0: identity storage is gone, so the two checks bind to
+      // different things now. The audit-gate binds to the BYTES (content
+      // hash): these exact bytes must have passed through an audit
+      // recently, which is the property that stops callers bypassing the
+      // audit pipeline's rate limit. The daily cap binds to the caller's
+      // IP address held TRANSIENTLY in process memory (remediationCap.ts)
+      // — never written to disk, a database row, or any log.
+      const capKey = capKeyFromIp(req.ip);
       const contentHash = sha256Hex(file.buffer);
 
       // (1) Audit-gate. Reject if no audit_log row exists for this
-      // content from this caller within REMEDIATION.AUDIT_REQUIRED_
-      // WINDOW_MS. The hash is the identifier — any audit path
-      // counts (browser upload, URL audit, fleet bulk, audit-url
-      // persist). Forces every remediation to be preceded by an
-      // audit so abusers can't bypass the audit pipeline's rate
-      // limit by jumping straight to remediation.
-      if (!hasRecentAudit(contentHash, gateEmail, REMEDIATION.AUDIT_REQUIRED_WINDOW_MS)) {
+      // content within REMEDIATION.AUDIT_REQUIRED_WINDOW_MS. The hash is
+      // the identifier — any audit path counts (browser upload, URL
+      // audit, fleet bulk, audit-url persist). Forces every remediation
+      // to be preceded by an audit so abusers can't bypass the audit
+      // pipeline's rate limit by jumping straight to remediation.
+      if (!hasRecentAudit(contentHash, REMEDIATION.AUDIT_REQUIRED_WINDOW_MS)) {
         const minutes = Math.round(REMEDIATION.AUDIT_REQUIRED_WINDOW_MS / 60_000);
         const auditUrl =
           process.env.NODE_ENV === "production" ? DEPLOY.PRODUCTION_URL : DEPLOY.DEV_FRONTEND_URL;
@@ -196,22 +187,22 @@ router.post(
         return;
       }
 
-      // (2) Daily cap. Reject when this caller has already started
-      // REMEDIATION.MAX_JOBS_PER_DAY_PER_USER jobs in the past 24
-      // hours. Sized to comfortably cover a normal agency workflow
-      // (~50 PDFs/day) while blocking abuse at scale (3000+ PDFs
-      // would take a month at the cap).
-      const recentJobs = countRecentRemediations(gateEmail, 24 * 60 * 60_000);
-      if (recentJobs >= REMEDIATION.MAX_JOBS_PER_DAY_PER_USER) {
+      // (2) Daily cap fast-path. Reject when this caller has already
+      // started REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER jobs in the past
+      // 24 hours. Sized to comfortably cover a normal agency workflow
+      // (~50 PDFs/day) while blocking abuse at scale (3000+ PDFs would
+      // take a month at the cap). The count lives in process memory only.
+      const recentJobs = remediationSlotsUsed(capKey, DAILY_CAP_WINDOW_MS);
+      if (recentJobs >= REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER) {
         res.status(429).json({
           error: "Daily remediation limit reached.",
           details:
-            `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_USER} remediations ` +
+            `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER} remediations ` +
             `per caller per 24 hours. You've used ${recentJobs}. Wait for ` +
             `older jobs to age out of the window, or contact the audit-tool ` +
             `administrator if you need a higher cap for a legitimate ` +
             `large-scale workflow.`,
-          limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_USER,
+          limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER,
           used: recentJobs,
         });
         return;
@@ -232,57 +223,39 @@ router.post(
 
       // contentHash was computed earlier for the audit-gate check.
 
-      // (v1.20.1+ — closes P2.4 from the security review)
-      // Wrap the daily-cap re-check and the createJob INSERT in a
-      // SQLite transaction so concurrent requests that both passed the
-      // earlier fast-path cap check still cannot both create the
-      // (cap+1)th job. better-sqlite3 transactions serialize writes,
-      // so the count + insert are atomic.
-      //
-      // The earlier (pre-preflight) cap check stays — it's a cheap
-      // fast-path that avoids running analyzePDF when the caller is
-      // obviously over cap. This in-transaction re-check is the
-      // authoritative enforcement that closes the race window.
-      let createdJob: ReturnType<typeof createJob>;
-      try {
-        const dbMod = (await import("../db/sqlite.js")).default;
-        const txn = dbMod.transaction(() => {
-          const nowCount = countRecentRemediations(gateEmail, 24 * 60 * 60_000);
-          if (nowCount >= REMEDIATION.MAX_JOBS_PER_DAY_PER_USER) {
-            const err = new Error("cap_exceeded") as Error & {
-              code?: string;
-              used?: number;
-            };
-            err.code = "cap_exceeded";
-            err.used = nowCount;
-            throw err;
-          }
-          return createJob({
-            email,
-            inputFilename: filename,
-            originalFilename,
-            contentHash,
-            pageCount: preflight.pageCount ?? null,
-          });
+      // Authoritative cap enforcement (the successor to the v1.20.1 P2.4
+      // SQL transaction): reserveRemediationSlot's check-and-reserve is
+      // atomic because Node's event loop is single-threaded, so two
+      // concurrent requests that both passed the fast-path above still
+      // cannot both take the (cap+1)th slot. The earlier check stays as a
+      // cheap pre-preflight rejection that avoids running analyzePDF for
+      // an obviously over-cap caller.
+      if (
+        !reserveRemediationSlot(
+          capKey,
+          REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER,
+          DAILY_CAP_WINDOW_MS,
+        )
+      ) {
+        const used = remediationSlotsUsed(capKey, DAILY_CAP_WINDOW_MS);
+        res.status(429).json({
+          error: "Daily remediation limit reached.",
+          details:
+            `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER} ` +
+            `remediations per caller per 24 hours. You've used ` +
+            `${used}. (Detected at job-creation time after a ` +
+            `concurrent request consumed the last slot.)`,
+          limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_CALLER,
+          used,
         });
-        createdJob = txn();
-      } catch (e: any) {
-        if (e?.code === "cap_exceeded") {
-          res.status(429).json({
-            error: "Daily remediation limit reached.",
-            details:
-              `Up to ${REMEDIATION.MAX_JOBS_PER_DAY_PER_USER} ` +
-              `remediations per caller per 24 hours. You've used ` +
-              `${e.used}. (Detected at job-creation time after a ` +
-              `concurrent request consumed the last slot.)`,
-            limit: REMEDIATION.MAX_JOBS_PER_DAY_PER_USER,
-            used: e.used,
-          });
-          return;
-        }
-        throw e;
+        return;
       }
-      const { job, downloadToken } = createdJob;
+      const { job, downloadToken } = createJob({
+        inputFilename: filename,
+        originalFilename,
+        contentHash,
+        pageCount: preflight.pageCount ?? null,
+      });
 
       // Persist the pre-flight input score on the job row immediately so
       // the worker doesn't have to re-audit the input. Also persist the
@@ -341,23 +314,16 @@ router.get(
   // path in the API), which also means it keys by IP, never email.
   remediationStatusLimiter,
   requireEnabled,
-  authMiddleware,
-  (req: AuthRequest, res: Response) => {
+  (req: Request, res: Response) => {
     const job = getJob(String(req.params.jobId));
     if (!job) {
       res.status(404).json({ error: "Job not found" });
       return;
     }
-    // Authorize: row's email (if any) must match the requesting user
-    if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
-    // C5: anonymous mode (AUTH.REQUIRE_LOGIN off, or a job with no owner
-    // email) — there is no email to check against, so require the job
-    // token instead. 404 (not 401/403) so a caller without it can't
+    // C5: ownership is the job token, full stop — jobs carry no owner
+    // identity (v1.68.0). 404 (not 401/403) so a caller without it can't
     // distinguish "wrong token" from "no such job" — don't leak existence.
-    if ((!AUTH.REQUIRE_LOGIN || !job.email) && !isAuthorizedByToken(job, req)) {
+    if (!isAuthorizedByToken(job, req)) {
       res.status(404).json({ error: "Job not found" });
       return;
     }
@@ -387,183 +353,164 @@ router.get(
 /* GET /api/remediate/:jobId/download?token=...                         */
 /* -------------------------------------------------------------------- */
 
-router.get(
-  "/remediate/:jobId/download",
-  requireEnabled,
-  authMiddleware,
-  async (req: AuthRequest, res: Response) => {
-    const job = getJob(String(req.params.jobId));
-    if (!job) {
-      res.status(404).json({ error: "Job not found" });
+router.get("/remediate/:jobId/download", requireEnabled, async (req: Request, res: Response) => {
+  const job = getJob(String(req.params.jobId));
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+  if (job.status !== "complete" || !job.outputPath) {
+    if (job.status === "expired") {
+      res.status(410).json({ error: "Output expired and was deleted." });
       return;
     }
-    if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
-    if (job.status !== "complete" || !job.outputPath) {
-      if (job.status === "expired") {
-        res.status(410).json({ error: "Output expired and was deleted." });
-        return;
-      }
-      res.status(409).json({
-        error: `Job is ${job.status}.`,
-        details: "Wait for completion before downloading.",
-      });
-      return;
-    }
-    const presentedToken = String(req.query.token ?? "");
-    if (!presentedToken || !verifyDownloadToken(job, presentedToken)) {
-      res.status(403).json({ error: "Invalid or missing download token." });
-      return;
-    }
-    if (!existsSync(job.outputPath)) {
-      setExpired(job.id);
-      recordEvent(job.id, "expired", { reason: "file already gone at download" });
-      res.status(410).json({ error: "Output already deleted." });
-      return;
-    }
-
-    // Single-use enforcement: mark expired BEFORE we begin sending so a
-    // concurrent download request sees status='expired' and gets 410.
-    // The file is still on disk at this point; cleanup happens on
-    // stream close below. If the stream itself fails after this, the
-    // file gets deleted by the next cleanup sweep (orphan removal).
+    res.status(409).json({
+      error: `Job is ${job.status}.`,
+      details: "Wait for completion before downloading.",
+    });
+    return;
+  }
+  const presentedToken = String(req.query.token ?? "");
+  if (!presentedToken || !verifyDownloadToken(job, presentedToken)) {
+    res.status(403).json({ error: "Invalid or missing download token." });
+    return;
+  }
+  if (!existsSync(job.outputPath)) {
     setExpired(job.id);
+    recordEvent(job.id, "expired", { reason: "file already gone at download" });
+    res.status(410).json({ error: "Output already deleted." });
+    return;
+  }
 
-    // Resolve the download filename. Priority:
-    //   1. ?name=<custom> query param — caller-specified rename. The
-    //      caller is choosing this name deliberately (e.g., to flatten
-    //      a CMS-versioned name into something cleaner). We trust it
-    //      but sanity-check length and force a .pdf extension.
-    //   2. job.originalFilename — the exact uploaded name, spaces and
-    //      all. Critical for CMS file-replacement: the remediated PDF
-    //      drops in over the original under the same name, so any
-    //      links in the CMS keep resolving.
-    //   3. job.inputFilename + '_remediated.pdf' — legacy fallback for
-    //      jobs created before v1.20.0 (original_filename was null).
-    const customName =
-      typeof req.query?.name === "string" && req.query.name.length > 0
-        ? String(req.query.name)
-        : null;
+  // Single-use enforcement: mark expired BEFORE we begin sending so a
+  // concurrent download request sees status='expired' and gets 410.
+  // The file is still on disk at this point; cleanup happens on
+  // stream close below. If the stream itself fails after this, the
+  // file gets deleted by the next cleanup sweep (orphan removal).
+  setExpired(job.id);
 
-    let downloadName: string;
-    if (customName) {
-      const trimmed = customName.trim().slice(0, 250);
-      downloadName = /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`;
-    } else if (job.originalFilename) {
-      downloadName = job.originalFilename;
+  // Resolve the download filename. Priority:
+  //   1. ?name=<custom> query param — caller-specified rename. The
+  //      caller is choosing this name deliberately (e.g., to flatten
+  //      a CMS-versioned name into something cleaner). We trust it
+  //      but sanity-check length and force a .pdf extension.
+  //   2. job.originalFilename — the exact uploaded name, spaces and
+  //      all. Critical for CMS file-replacement: the remediated PDF
+  //      drops in over the original under the same name, so any
+  //      links in the CMS keep resolving.
+  //   3. job.inputFilename + '_remediated.pdf' — legacy fallback for
+  //      jobs created before v1.20.0 (original_filename was null).
+  const customName =
+    typeof req.query?.name === "string" && req.query.name.length > 0
+      ? String(req.query.name)
+      : null;
+
+  let downloadName: string;
+  if (customName) {
+    const trimmed = customName.trim().slice(0, 250);
+    downloadName = /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`;
+  } else if (job.originalFilename) {
+    downloadName = job.originalFilename;
+  } else {
+    downloadName = sanitizeFilename(job.inputFilename.replace(/\.pdf$/i, "") + "_remediated.pdf");
+  }
+
+  // RFC 6266 dual filename header — provides an ASCII fallback for
+  // older clients alongside the percent-encoded UTF-8 name. The
+  // ASCII fallback runs through sanitizeFilename so spaces and
+  // unicode become underscores there; the UTF-8 filename* preserves
+  // the exact name including spaces. Modern browsers (and curl)
+  // honor filename* and present the exact original name to the user.
+  const asciiFallback = sanitizeFilename(downloadName);
+  const encodedName = encodeURIComponent(downloadName);
+  let fileSize = 0;
+  try {
+    fileSize = statSync(job.outputPath).size;
+  } catch {
+    // shouldn't happen; existsSync passed above
+  }
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`,
+  );
+  if (fileSize > 0) {
+    res.setHeader("Content-Length", String(fileSize));
+  }
+
+  // Stream the file instead of loading the full buffer into memory.
+  // 50MB+ outputs would otherwise blow through the API's PM2 memory
+  // cap (512MB) under concurrent downloads. Stream errors and
+  // client disconnects both trigger cleanup via the response 'close'
+  // event.
+  const stream = createReadStream(job.outputPath);
+  let bytesSent = 0;
+  stream.on("data", (chunk) => {
+    bytesSent += chunk.length;
+  });
+
+  const cleanup = async (): Promise<void> => {
+    recordEvent(job.id, "downloaded", { bytes_sent: bytesSent });
+    if (job.outputPath) {
+      await deleteAndVerify(job.id, job.outputPath, "download");
+    }
+  };
+  res.once("close", () => {
+    void cleanup();
+  });
+  stream.on("error", (err) => {
+    recordEvent(job.id, "error", {
+      error_type: "download_stream_failed",
+      message: err.message,
+    });
+    if (!res.headersSent) {
+      res.status(500).end();
     } else {
-      downloadName = sanitizeFilename(job.inputFilename.replace(/\.pdf$/i, "") + "_remediated.pdf");
+      res.end();
     }
+  });
 
-    // RFC 6266 dual filename header — provides an ASCII fallback for
-    // older clients alongside the percent-encoded UTF-8 name. The
-    // ASCII fallback runs through sanitizeFilename so spaces and
-    // unicode become underscores there; the UTF-8 filename* preserves
-    // the exact name including spaces. Modern browsers (and curl)
-    // honor filename* and present the exact original name to the user.
-    const asciiFallback = sanitizeFilename(downloadName);
-    const encodedName = encodeURIComponent(downloadName);
-    let fileSize = 0;
-    try {
-      fileSize = statSync(job.outputPath).size;
-    } catch {
-      // shouldn't happen; existsSync passed above
-    }
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`,
-    );
-    if (fileSize > 0) {
-      res.setHeader("Content-Length", String(fileSize));
-    }
-
-    // Stream the file instead of loading the full buffer into memory.
-    // 50MB+ outputs would otherwise blow through the API's PM2 memory
-    // cap (512MB) under concurrent downloads. Stream errors and
-    // client disconnects both trigger cleanup via the response 'close'
-    // event.
-    const stream = createReadStream(job.outputPath);
-    let bytesSent = 0;
-    stream.on("data", (chunk) => {
-      bytesSent += chunk.length;
-    });
-
-    const cleanup = async (): Promise<void> => {
-      recordEvent(job.id, "downloaded", { bytes_sent: bytesSent });
-      if (job.outputPath) {
-        await deleteAndVerify(job.id, job.outputPath, "download");
-      }
-    };
-    res.once("close", () => {
-      void cleanup();
-    });
-    stream.on("error", (err) => {
-      recordEvent(job.id, "error", {
-        error_type: "download_stream_failed",
-        message: err.message,
-      });
-      if (!res.headersSent) {
-        res.status(500).end();
-      } else {
-        res.end();
-      }
-    });
-
-    stream.pipe(res);
-  },
-);
+  stream.pipe(res);
+});
 
 /* -------------------------------------------------------------------- */
 /* GET /api/remediate/:jobId/receipt                                    */
 /* -------------------------------------------------------------------- */
 
-router.get(
-  "/remediate/:jobId/receipt",
-  requireEnabled,
-  authMiddleware,
-  (req: AuthRequest, res: Response) => {
-    const job = getJob(String(req.params.jobId));
-    if (!job) {
-      res.status(404).json({ error: "Job not found" });
-      return;
-    }
-    if (AUTH.REQUIRE_LOGIN && job.email && job.email !== req.user?.email) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
-    // C5: see the matching check in the /status route above for the full
-    // rationale — anonymous mode requires the job token instead of a
-    // logged-in owner match, 404 either way so existence isn't leaked.
-    if ((!AUTH.REQUIRE_LOGIN || !job.email) && !isAuthorizedByToken(job, req)) {
-      res.status(404).json({ error: "Job not found" });
-      return;
-    }
+router.get("/remediate/:jobId/receipt", requireEnabled, (req: Request, res: Response) => {
+  const job = getJob(String(req.params.jobId));
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+  // C5: see the matching check in the /status route above — ownership is
+  // the job token, 404 either way so existence isn't leaked.
+  if (!isAuthorizedByToken(job, req)) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
 
-    const events = getEventsForJob(job.id);
-    const audits = getJobAuditPair(job.id);
-    const verapdf = getJobVeraPdf(job.id);
-    res.json({
-      jobId: job.id,
-      filename: job.inputFilename,
-      contentHash: job.contentHash,
-      status: job.status,
-      inputScore: job.inputScore,
-      outputScore: job.outputScore,
-      createdAt: job.createdAt,
-      completedAt: job.completedAt,
-      inputAudit: audits.inputAudit,
-      outputAudit: audits.outputAudit,
-      veraPdf: verapdf,
-      events: events.map((e) => ({
-        event: e.event,
-        occurredAt: e.occurredAt,
-        details: e.details,
-      })),
-    });
-  },
-);
+  const events = getEventsForJob(job.id);
+  const audits = getJobAuditPair(job.id);
+  const verapdf = getJobVeraPdf(job.id);
+  res.json({
+    jobId: job.id,
+    filename: job.inputFilename,
+    contentHash: job.contentHash,
+    status: job.status,
+    inputScore: job.inputScore,
+    outputScore: job.outputScore,
+    createdAt: job.createdAt,
+    completedAt: job.completedAt,
+    inputAudit: audits.inputAudit,
+    outputAudit: audits.outputAudit,
+    veraPdf: verapdf,
+    events: events.map((e) => ({
+      event: e.event,
+      occurredAt: e.occurredAt,
+      details: e.details,
+    })),
+  });
+});
 
 export default router;

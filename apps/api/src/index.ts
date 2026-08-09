@@ -1,17 +1,13 @@
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import { globalLimiter } from "./middleware/rateLimiter.js";
-import authRoutes from "./routes/auth.js";
 import analyzeRoutes from "./routes/analyze.js";
 import reportsRoutes from "./routes/reports.js";
-import logsRoutes from "./routes/logs.js";
 import bulkInventoryRoutes from "./routes/bulk-from-inventory.js";
 import analyzeUrlRoutes from "./routes/analyze-url.js";
 import auditUrlRoutes from "./routes/audit-url.js";
 import auditUrlPageRoutes from "./routes/audit-url-page.js";
-import tokensRoutes from "./routes/tokens.js";
 import remediateRoutes from "./routes/remediate.js";
 import statusRoutes, { service as statusService } from "./routes/status.js";
 import { runCleanup, startCleanupInterval } from "./services/remediationCleanup.js";
@@ -19,21 +15,7 @@ import { formatUptime } from "./services/status.js";
 
 // Import db to trigger table creation on startup
 import "./db/sqlite.js";
-import { validateMailConfig } from "./mailer.js";
-import { checkAuthConfig } from "./services/authConfig.js";
-import { ANALYSIS, AUTH, DEPLOY } from "#config";
-
-// Validate email + auth-secret config before starting — only needed when
-// auth requires OTP emails and JWT sessions. Fail closed: a missing/default
-// JWT_SECRET with login enabled would let anyone forge session cookies.
-if (AUTH.REQUIRE_LOGIN) {
-  validateMailConfig();
-  const authConfigError = checkAuthConfig(AUTH.REQUIRE_LOGIN);
-  if (authConfigError) {
-    console.error(`[API] Refusing to start: ${authConfigError}`);
-    process.exit(1);
-  }
-}
+import { ANALYSIS, DEPLOY } from "#config";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5103;
@@ -57,7 +39,6 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 // text/plain is used by bulk-from-inventory when the caller pipes NDJSON directly
 app.use(express.text({ limit: "5mb", type: "text/plain" }));
-app.use(cookieParser());
 
 // Public status document. Mounted BEFORE globalLimiter and carrying its own
 // limiter: the Nitro tier proxies /status over loopback, so every browser hit
@@ -71,15 +52,12 @@ app.use("/api", statusRoutes);
 app.use(globalLimiter);
 
 // Routes
-app.use("/api/auth", authRoutes);
 app.use("/api", analyzeRoutes);
 app.use("/api", reportsRoutes);
-app.use("/api", logsRoutes);
 app.use("/api", bulkInventoryRoutes);
 app.use("/api", analyzeUrlRoutes);
 app.use("/api", auditUrlRoutes);
 app.use("/api", auditUrlPageRoutes);
-app.use("/api", tokensRoutes);
 app.use("/api", remediateRoutes);
 
 // Remediation cleanup: one-shot on startup to reconcile from any crash,

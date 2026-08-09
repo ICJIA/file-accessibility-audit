@@ -211,8 +211,6 @@ describe("No hardcoded dark-only colors in templates", () => {
     "layouts/default.vue",
     "pages/index.vue",
     "pages/report/[id].vue",
-    "pages/my-history.vue",
-    "pages/history.vue",
   ];
 
   for (const file of sourceFiles) {

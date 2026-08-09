@@ -3,9 +3,9 @@
 Nightly, WAL-safe, integrity-checked snapshots of the SQLite database, with a
 scripted and tested restore path. Added in v1.49.0 after the 2026-08-05
 operational review found the single most valuable file in the deployment —
-`apps/api/data/audit.db`, holding every audit record, shared-report link, and
-access token — had **no backup of any kind** and lives inside the git working
-tree, where a `git clean -xdf` would delete it.
+`apps/api/data/audit.db`, holding every audit row, shared-report link, and (at
+the time) access token — had **no backup of any kind** and lives inside the git
+working tree, where a `git clean -xdf` would delete it.
 
 ## What runs
 
@@ -19,25 +19,33 @@ tree, where a `git clean -xdf` would delete it.
 ## What a snapshot contains (and why anyone asks)
 
 A snapshot is a copy of `audit.db` and nothing else. Concretely: one `audit_log`
-row per audit and per refused upload (timestamp, sanitized file name, score,
-grade, sign-in email, IP, user-agent), `shared_reports` rows for reports someone
-chose to share, `remediation_jobs`/`remediation_events`, `access_tokens` and
-`otp_codes` hashes. **No audited document is in it**, because no audited
-document is ever written to disk in the first place — the audit path holds the
-buffer in memory (a PDF's qpdf temp copy is deleted in the same request).
+row per audit and per refused upload — timestamp, sanitized file name, score,
+grade, content hash: **metadata about the audit event**, data about the file,
+never the file — plus `shared_reports` rows for reports someone chose to share
+and the `remediation_jobs`/`remediation_events` compliance trail. Since
+v1.68.0 that is the whole database: there is no email, IP-address, or
+user-agent column anywhere in the schema (migration 11 dropped the columns and
+their data), and the `otp_codes`, `access_tokens`, and `revoked_jtis` tables
+no longer exist. Snapshots taken **before** v1.68.0 still carry the old shape
+— the identifier columns and the deleted tables — until the keep-5 rotation
+ages them out (≈5 days of nightly runs). **No audited document is in it**,
+because no audited document is ever written to disk in the first place — the
+audit path holds the buffer in memory (a PDF's qpdf temp copy is deleted in
+the same request).
 
 This gets asked because the tool's headline promise is *your file is never
 stored*, and a nightly backup reads as a contradiction until someone separates
-the document from the record of having checked it. Since v1.58.0 the product
-says so itself rather than leaving it to this runbook: the `/status` backup
-card carries a ✓/✗ split and the plain-language answer, and § 7a of the
-data-retention policy draws the same two lanes. Both deliberately state what
-the records **do** carry — sign-in email, the IP/user-agent connection log, and
-the file name as uploaded (a file named after a person stores that name) —
-because "contains no personal data" would be false and, once caught, would
+the document from the metadata about having checked it. Since v1.58.0 the
+product says so itself rather than leaving it to this runbook: the `/status`
+backup card carries a ✓/✗ split and the plain-language answer, and § 7a of the
+data-retention policy draws the same two lanes. Since v1.68.0 both state the
+guarantees affirmatively — no accounts, no sign-in; no email, IP-address, or
+browser column in the schema — while still never claiming "contains no
+personal data": the file name as uploaded can itself name a person (a file
+named after a person stores that name), and an overclaim, once caught, would
 discredit the rest of the policy. Pinned by
-`apps/web/app/__tests__/backupsExplained.test.ts`, which fails on that
-overclaim specifically.
+`apps/web/app/__tests__/backupsExplained.test.ts`, whose overclaim guards fail
+on that phrasing specifically.
 
 **Why not `cp` + cron:** the database runs in WAL mode. Copying the main file
 misses every committed row still sitting in `audit.db-wal` — a stale or torn

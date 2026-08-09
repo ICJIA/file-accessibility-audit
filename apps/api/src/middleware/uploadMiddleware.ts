@@ -94,12 +94,7 @@ export const uploadMiddleware = multer({
       // multer's callback is overloaded — (error) or (null, accept) — so the
       // branches cannot be collapsed into one cb(error, accept) call.
       if (error) {
-        const r = req as { ip?: string; get?: (h: string) => string | undefined };
-        recordRejectedUpload({
-          filename: file.originalname,
-          ipAddress: r.ip ?? null,
-          userAgent: r.get?.("user-agent") ?? null,
-        });
+        recordRejectedUpload({ filename: file.originalname });
         cb(error);
         return;
       }
