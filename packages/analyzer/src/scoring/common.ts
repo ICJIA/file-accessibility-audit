@@ -337,3 +337,33 @@ export function classifyLinkText(text: string): LinkClass {
   if (t.replace(/[^a-z0-9]/gi, "").length <= 2) return "needsFix";
   return "descriptive";
 }
+
+// ---------------------------------------------------------------------------
+// Heading outline rendering — shared by the PDF and DOCX heading cards.
+// Renders a captured heading outline (level + text) as technical-signal
+// lines. Caps keep a heading-heavy report readable; the "... and N more"
+// line makes the truncation visible instead of silent.
+// ---------------------------------------------------------------------------
+
+export const MAX_HEADING_OUTLINE_LINES = 40;
+const MAX_HEADING_TEXT_CHARS = 80;
+
+export function truncateHeadingText(text: string): string {
+  return text.length > MAX_HEADING_TEXT_CHARS
+    ? `${text.slice(0, MAX_HEADING_TEXT_CHARS - 1)}…`
+    : text;
+}
+
+export function headingOutlineLines(
+  headings: Array<{ level: string | number; text: string }>,
+): string[] {
+  const lines = [`--- Heading Outline ---`];
+  for (const h of headings.slice(0, MAX_HEADING_OUTLINE_LINES)) {
+    const level = typeof h.level === "number" ? `H${h.level}` : h.level;
+    lines.push(`  ${level} "${truncateHeadingText(h.text)}"`);
+  }
+  if (headings.length > MAX_HEADING_OUTLINE_LINES) {
+    lines.push(`  ... and ${headings.length - MAX_HEADING_OUTLINE_LINES} more heading(s)`);
+  }
+  return lines;
+}

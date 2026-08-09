@@ -186,23 +186,23 @@
             <button
               class="flex items-center gap-2 text-xs cursor-pointer select-none rounded-full px-2.5 py-1 border transition-colors duration-200"
               :class="
-                advancedCards[cat.id]
+                isAdvanced(cat.id)
                   ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
                   : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
               "
-              :title="advancedCards[cat.id] ? 'Hide technical signals' : 'Show technical signals'"
-              :aria-expanded="!!advancedCards[cat.id]"
+              :title="isAdvanced(cat.id) ? 'Hide technical signals' : 'Show technical signals'"
+              :aria-expanded="isAdvanced(cat.id)"
               data-export-exclude
               @click="toggleAdvanced(cat.id)"
             >
-              <span class="font-medium">{{ advancedCards[cat.id] ? "Advanced" : "Basic" }}</span>
+              <span class="font-medium">{{ isAdvanced(cat.id) ? "Advanced" : "Basic" }}</span>
               <span
                 class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200"
-                :class="advancedCards[cat.id] ? 'bg-blue-500' : 'bg-emerald-500'"
+                :class="isAdvanced(cat.id) ? 'bg-blue-500' : 'bg-emerald-500'"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200"
-                  :class="advancedCards[cat.id] ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+                  :class="isAdvanced(cat.id) ? 'translate-x-[18px]' : 'translate-x-[3px]'"
                 />
               </span>
             </button>
@@ -241,7 +241,7 @@
         </ul>
 
         <div
-          v-if="advancedCards[cat.id] && partitionCardFindings(cat.findings).signalCount > 0"
+          v-if="isAdvanced(cat.id) && partitionCardFindings(cat.findings).signalCount > 0"
           class="mt-4 rounded-lg border border-[var(--border-subtle)] border-l-2 border-l-[var(--border)] bg-[var(--surface-deep)] px-4 py-3"
           data-testid="technical-signals-panel"
         >
@@ -583,11 +583,18 @@ const hasAnyNaRow = computed(
 );
 
 // Per-category expand state for the Basic/Advanced technical-signals pill.
+// OPEN by default: someone reading this view has already asked for depth
+// (they chose Detailed, or expanded the Visual view's technical report), so
+// the panels start expanded and the pill exists to collapse, not to reveal.
+// Only an explicit false in the record means collapsed.
 // The pill carries :aria-expanded — the HTML-export snapshot clicks every
 // [aria-expanded="false"] to fully expand before cloning. Don\'t remove it.
 const advancedCards = reactive<Record<string, boolean>>({});
+function isAdvanced(catId: string): boolean {
+  return advancedCards[catId] !== false;
+}
 function toggleAdvanced(catId: string): void {
-  advancedCards[catId] = !advancedCards[catId];
+  advancedCards[catId] = !isAdvanced(catId);
 }
 
 function formatMetaDate(iso: string | null | undefined): string | null {

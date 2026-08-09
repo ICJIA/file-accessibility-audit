@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "heading-outlines-2026-08-09",
+    badge: "New",
+    text: "Reports now show your document's full heading outline — every heading with its actual text, for both PDF and Word files. Word reports also list any paragraphs that only look like headings (bold, large text) so you can restyle them with real Heading styles. And the technical detail on each report card starts open in the detailed view, so the specifics — which image, which heading, which table — are visible without extra clicks. Each card's toggle still collapses the detail if you prefer the summary.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 9, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "scoring-calibration-2026-08-08",
     badge: "Improved",
     text: "Scores are now calibrated strictly to the accessibility standard: style-guide advice (like “use exactly one top-level heading”) still appears on your report, but no longer lowers your grade. If you re-audit a document, its score may be a little higher than an older shared link of the same file — nothing changed about what passes or fails the standard. Reports are also more upfront about limits: they now list more of what no automated tool can check, and they warn you when every image in a document is marked decorative, since screen readers skip those silently.",

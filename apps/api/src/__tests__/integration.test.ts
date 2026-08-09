@@ -69,6 +69,16 @@ describe("integration: accessible PDF", () => {
     expect(cat.score).toBe(100);
   });
 
+  // Wiring, not just logic: the outline must survive the FULL pipeline
+  // (qpdf binary + pdfjs + scorer), not merely the pdfjs unit that
+  // extracts it. Each entry is `  H2 "Section Title"`.
+  it("emits the Heading Outline signals with real heading text", () => {
+    const cat = findCategory(result, "heading_structure");
+    const start = cat.findings.indexOf("--- Heading Outline ---");
+    expect(start).toBeGreaterThan(-1);
+    expect(cat.findings[start + 1]).toMatch(/^ {2}H[1-6]? ".+"$/);
+  });
+
   it("has alt text on all images (score 100)", () => {
     const cat = findCategory(result, "alt_text");
     expect(cat.score).toBe(100);

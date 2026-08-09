@@ -13,6 +13,8 @@ import {
   clamp100,
   aggregateScore,
   applyWcagCriteria,
+  headingOutlineLines,
+  truncateHeadingText,
   type ScoringResult,
 } from "./common.js";
 import { evaluateDocxConformance } from "./conformance.js";
@@ -123,6 +125,8 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
   );
 }
 
+const MAX_FAKE_HEADING_LINES = 15;
+
 function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   const total = a.headings.length;
   const fakes = a.fakeHeadings.length;
@@ -173,6 +177,18 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
     findings.push(
       `${fakes} paragraph(s) are formatted to look like headings (bold/large text) but are not real Heading styles. Apply Heading 1–6 so assistive technology can navigate them.`,
     );
+  }
+  if (total > 0) {
+    findings.push(...headingOutlineLines(a.headings));
+  }
+  if (fakes > 0) {
+    findings.push(`--- Paragraphs Styled Like Headings ---`);
+    for (const fh of a.fakeHeadings.slice(0, MAX_FAKE_HEADING_LINES)) {
+      findings.push(`  "${truncateHeadingText(fh.text)}"`);
+    }
+    if (fakes > MAX_FAKE_HEADING_LINES) {
+      findings.push(`  ... and ${fakes - MAX_FAKE_HEADING_LINES} more paragraph(s)`);
+    }
   }
   return docxCategory(
     "heading_structure",

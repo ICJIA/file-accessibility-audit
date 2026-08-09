@@ -2654,3 +2654,47 @@ describe("alt text that declares itself decorative", () => {
     expect(cat.findings.some((f) => /marked as an \/Artifact/i.test(f))).toBe(false);
   });
 });
+
+describe("heading outline signals (pdf.js heading text)", () => {
+  const taggedQpdf = () =>
+    makeQpdf({
+      hasStructTree: true,
+      isMarkedContent: true,
+      headings: [
+        { level: "H1", tag: "/H1" },
+        { level: "H2", tag: "/H2" },
+      ],
+    });
+
+  it("emits a Heading Outline group with each heading's text when pdfjs resolved it", () => {
+    const pdfjs = makePdfjs({
+      headingOutline: [
+        { level: "H1", text: "Annual Report" },
+        { level: "H2", text: "Introduction" },
+      ],
+    });
+    const f = findCategory(scoreDocument(taggedQpdf(), pdfjs), "heading_structure").findings;
+    expect(f).toContain("--- Heading Outline ---");
+    expect(f).toContain('  H1 "Annual Report"');
+    expect(f).toContain('  H2 "Introduction"');
+  });
+
+  it("omits the Heading Outline group when pdfjs found no heading text", () => {
+    const f = findCategory(scoreDocument(taggedQpdf(), makePdfjs()), "heading_structure").findings;
+    expect(f).not.toContain("--- Heading Outline ---");
+    expect(f).toContain("--- Heading Tree ---");
+  });
+
+  it("caps the outline at 40 headings and notes the remainder", () => {
+    const outline = Array.from({ length: 45 }, (_, i) => ({
+      level: "H2",
+      text: `Section ${i + 1}`,
+    }));
+    const f = findCategory(
+      scoreDocument(taggedQpdf(), makePdfjs({ headingOutline: outline })),
+      "heading_structure",
+    ).findings;
+    expect(f.filter((l) => /^ {2}H\d "/.test(l))).toHaveLength(40);
+    expect(f).toContain("  ... and 5 more heading(s)");
+  });
+});

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.67.0] - 2026-08-09
+
+### Added
+
+- **Word reports list the document's heading outline with its real text.** The DOCX heading card gains a `--- Heading Outline ---` technical-signals group listing every real heading as `H2 "Introduction"` — the analyzer had been capturing `{level, text}` for each heading and printing only counts. Paragraphs that merely *look* like headings (bold/large text, no Heading style) are listed verbatim under `--- Paragraphs Styled Like Headings ---` so an author can find each one and restyle it — those were the single most requested "what, exactly, is missing" detail for non-technical remediators. This is the first technical-signals content on any Office-format card, which also means DOCX heading cards get the Basic/Advanced pill for the first time. Outlines cap at 40 lines with a visible `... and N more` note; heading text truncates at 80 characters.
+- **PDF heading cards show each heading's text, not just its level.** Below the existing `--- Heading Tree ---` level flow (`H1 → H2 → H2`), a new `--- Heading Outline ---` group gives every heading its text, resolved through pdf.js: `page.getStructTree()` content leaves and `getTextContent({ includeMarkedContent: true })` marked-content items share the same `p{pageObjId}_mc{mcid}` id format (verified against the installed pdfjs-dist 4.10.38 source before building on it), so a per-page id → text map plus a tree walk for H/H1–H6 roles recovers the outline. Text attribution follows the innermost marked-content run; an author-supplied `/Alt` or `/ActualText` on the heading node wins over painted text; headings with no resolvable text are skipped rather than listed blank. Extraction is never fatal — a page with a broken struct tree contributes nothing — and is bounded at 300 entries before the display cap of 40. The group is wired through the full real pipeline (qpdf binary + pdfjs + scorer) by a new integration assertion, not just unit-tested.
+
+### Changed
+
+- **Technical-signals panels start open.** Someone reading the Detailed view — or the Visual view's expanded "Full technical report" — has already asked for depth, so every category card's signals panel now renders expanded, with the Basic/Advanced pill starting on **Advanced** and existing to collapse rather than to reveal. By the report-view asymmetry rule (v1.61.1): hiding the specifics from someone who needed them costs more than showing them costs someone who didn't. The HTML export is unaffected — it already force-expands any `aria-expanded="false"` toggle before snapshotting, which is now simply a no-op in the default state.
+
+### Notes
+
+Tests 2,233 → 2,254 (API 1224 / web 981 / CLI 49, 136 files). Origin: a "where did the Basic/Advanced cards go?" investigation — they were never gone (the always-open-on-Visual default of v1.61.1 hid them behind one more click) — that turned into "the advanced view must carry as much concrete detail as possible: alt text, headings, table headers, by name."
+
 ## [1.66.0] - 2026-08-08
 
 ### Changed

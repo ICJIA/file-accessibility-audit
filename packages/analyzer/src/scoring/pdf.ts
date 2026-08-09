@@ -16,6 +16,7 @@ import {
   classifyLinkText,
   structTreeIsContentFree,
   untaggedContentImageCount,
+  headingOutlineLines,
   type ScoringResult,
   type PdfUaSignals,
 } from "./common.js";
@@ -114,7 +115,7 @@ function buildCategories(
 
   categories.push(scoreTextExtractability(qpdf, pdfjs));
   categories.push(scoreTitleLanguage(qpdf, pdfjs));
-  categories.push(scoreHeadingStructure(qpdf));
+  categories.push(scoreHeadingStructure(qpdf, pdfjs));
   categories.push(scoreAltText(qpdf, pdfjs));
   categories.push(scoreBookmarks(qpdf, pdfjs));
   categories.push(scoreTableMarkup(qpdf));
@@ -395,7 +396,7 @@ function getHeadingLikeParagraphMappings(qpdf: QpdfResult): string[] {
   });
 }
 
-function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
+function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const findings: string[] = [];
   const headingExplanation =
     "Headings (H1–H6) create a navigable outline of the document. Screen reader users rely on headings to skim and jump between sections — similar to how sighted users scan bold section titles. Headings must follow a logical hierarchy: H1 for the main title, H2 for major sections, H3 for subsections, and so on. Skipping levels (e.g., H1 → H3) confuses assistive technology.";
@@ -475,6 +476,13 @@ function scoreHeadingStructure(qpdf: QpdfResult): CategoryResult {
   // Show the heading outline as a compact flow
   findings.push(`--- Heading Tree ---`);
   findings.push(`  ${qpdf.headings.map((h) => h.level).join(" → ")}`);
+
+  // The tree above shows LEVELS (from qpdf); this shows each heading's TEXT
+  // (from pdfjs's struct-tree walk) so a remediator can see which section is
+  // which. Absent when pdfjs could not resolve any heading text.
+  if (pdfjs.headingOutline?.length) {
+    findings.push(...headingOutlineLines(pdfjs.headingOutline));
+  }
 
   const hasNumberedHeadings = qpdf.headings.some((h) => /^H[1-6]$/.test(h.level));
 

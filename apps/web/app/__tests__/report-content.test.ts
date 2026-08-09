@@ -325,3 +325,35 @@ describe("ReportContent — document metadata", () => {
     expect(wrapper.find('[data-testid="document-metadata"]').exists()).toBe(false);
   });
 });
+
+describe("ReportContent — technical signals default open", () => {
+  // Someone reading the Detailed view (or the Visual view's expanded
+  // technical report) has already asked for depth — hiding the signals
+  // behind a second per-card toggle costs them more than showing the
+  // panels costs anyone who didn't want them (one click to collapse).
+  const SIGNAL_FINDINGS = [
+    "Found 12 headings with logical hierarchy",
+    "--- Heading Tree ---",
+    "  H1 → H2 → H2",
+  ];
+
+  it("renders each card's technical-signals panel without any toggling", () => {
+    const wrapper = mountReport([cat({ findings: SIGNAL_FINDINGS })]);
+    expect(wrapper.find('[data-testid="technical-signals-panel"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("H1 → H2 → H2");
+  });
+
+  it("labels the pill Advanced with aria-expanded true by default", () => {
+    const wrapper = mountReport([cat({ findings: SIGNAL_FINDINGS })]);
+    const pill = wrapper.find("button[aria-expanded]");
+    expect(pill.attributes("aria-expanded")).toBe("true");
+    expect(pill.text()).toContain("Advanced");
+  });
+
+  it("collapses the panel when the pill is clicked, and flips the state", async () => {
+    const wrapper = mountReport([cat({ findings: SIGNAL_FINDINGS })]);
+    await wrapper.find("button[aria-expanded]").trigger("click");
+    expect(wrapper.find('[data-testid="technical-signals-panel"]').exists()).toBe(false);
+    expect(wrapper.find("button[aria-expanded]").attributes("aria-expanded")).toBe("false");
+  });
+});

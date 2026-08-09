@@ -53,8 +53,20 @@ export interface PdfjsResult {
   // number. Compared against QpdfResult.structTreeMcidsByPage to measure
   // reading-order fidelity.
   contentStreamMcidsByPage: Record<number, number[]>;
+  // Heading LEVEL + TEXT in document order, resolved from each page's struct
+  // tree. qpdf's walk can only see levels ({level, tag}) — the text lives in
+  // marked-content runs, which pdfjs can resolve because getStructTree()
+  // content leaves and getTextContent({includeMarkedContent: true}) items
+  // share the same "p{pageObjId}_mc{mcid}" id format. Optional: absent on
+  // stored reports from before this field existed.
+  headingOutline?: Array<{ level: string; text: string }>;
   error: string | null;
 }
+
+// A struct tree can be arbitrarily large; the scorer displays at most 40
+// outline lines, so extraction stops well past that rather than carrying
+// thousands of entries through the report payload.
+const MAX_HEADING_OUTLINE_ENTRIES = 300;
 
 export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
   // Dynamic import since pdfjs-dist is ESM-heavy
@@ -78,6 +90,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     pdfUaPart: null,
     artifactRunCount: 0,
     contentStreamMcidsByPage: {},
+    headingOutline: [],
     metadata: {
       creator: null,
       producer: null,
@@ -177,9 +190,13 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
 
-      // Text content
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str || "").join(" ");
+      // Text content. includeMarkedContent interleaves begin/endMarkedContent
+      // marker items (no `str`) into the stream for the heading-text pass
+      // below — filter to real text items so pageText/emptyPages/textLength
+      // keep their exact pre-existing semantics.
+      const textContent = await page.getTextContent({ includeMarkedContent: true });
+      const textItems = textContent.items.filter((item: any) => typeof item.str === "string");
+      const pageText = textItems.map((item: any) => item.str || "").join(" ");
       totalText += pageText + " ";
 
       // Track empty pages (pages with negligible text content)
@@ -193,11 +210,26 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         for (const annot of annotations) {
           if (annot.subtype === "Link" && annot.url) {
             // Find the text content near this link's position
-            const linkText = findLinkText(annot, textContent.items) || annot.url;
+            const linkText = findLinkText(annot, textItems) || annot.url;
             result.links.push({ url: annot.url, text: linkText });
           }
         }
       } catch {}
+
+      // Heading text. Never fatal: a page with a broken struct tree just
+      // contributes no outline entries.
+      try {
+        if (result.headingOutline!.length < MAX_HEADING_OUTLINE_ENTRIES) {
+          const tree = await page.getStructTree();
+          if (tree) {
+            const textById = buildMarkedContentTextMap(textContent.items);
+            result.headingOutline!.push(...collectStructTreeHeadings(tree, textById));
+          }
+        }
+      } catch {}
+    }
+    if (result.headingOutline!.length > MAX_HEADING_OUTLINE_ENTRIES) {
+      result.headingOutline!.length = MAX_HEADING_OUTLINE_ENTRIES;
     }
 
     // Count meaningful images via operator list (fallback when QPDF can't detect them)
@@ -370,6 +402,76 @@ function findLinkText(annot: any, textItems: any[]): string {
   }
 
   return matchingTexts.join(" ");
+}
+
+// Build "p{pageObjId}_mc{mcid}" → text from a getTextContent({
+// includeMarkedContent: true }) item stream. begin/endMarkedContent items
+// nest; a text run belongs to the NEAREST enclosing run that has an id (BMC
+// runs have none — their text still belongs to the enclosing MCID run for
+// struct-tree purposes). Exported for tests.
+export function buildMarkedContentTextMap(items: unknown[]): Map<string, string> {
+  const map = new Map<string, string>();
+  const stack: Array<string | null> = [];
+  for (const raw of items) {
+    const item = raw as any;
+    if (item?.type === "beginMarkedContent" || item?.type === "beginMarkedContentProps") {
+      stack.push(typeof item.id === "string" && item.id ? item.id : null);
+    } else if (item?.type === "endMarkedContent") {
+      stack.pop();
+    } else if (typeof item?.str === "string" && item.str) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const id = stack[i];
+        if (id) {
+          map.set(id, (map.get(id) ?? "") + item.str);
+          break;
+        }
+      }
+    }
+  }
+  return map;
+}
+
+// Serialized getStructTree() heading roles: H1–H6, or generic H (no level).
+const HEADING_ROLE = /^H[1-6]?$/;
+
+// Walk a serialized struct tree (page.getStructTree()) and resolve each
+// heading node's text: the node's /Alt or /ActualText when the author
+// provided one, else the concatenated text of its content leaves (including
+// leaves nested under Spans and other child elements). Headings whose text
+// cannot be resolved are skipped — an outline of blank lines helps nobody.
+// Exported for tests.
+export function collectStructTreeHeadings(
+  tree: unknown,
+  textById: Map<string, string>,
+): Array<{ level: string; text: string }> {
+  const out: Array<{ level: string; text: string }> = [];
+  const normalize = (s: string): string => s.replace(/\s+/g, " ").trim();
+  const contentText = (node: any): string => {
+    const parts: string[] = [];
+    const walk = (n: any): void => {
+      if (!n || typeof n !== "object") return;
+      if (n.type === "content" && typeof n.id === "string") {
+        const t = textById.get(n.id);
+        if (t) parts.push(t);
+        return;
+      }
+      if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+    };
+    walk(node);
+    return normalize(parts.join(" "));
+  };
+  const visit = (node: any): void => {
+    if (!node || typeof node !== "object") return;
+    if (typeof node.role === "string" && HEADING_ROLE.test(node.role)) {
+      const alt = typeof node.alt === "string" ? normalize(node.alt) : "";
+      const text = alt || contentText(node);
+      if (text) out.push({ level: node.role, text });
+      return;
+    }
+    if (Array.isArray(node.children)) for (const c of node.children) visit(c);
+  };
+  visit(tree);
+  return out;
 }
 
 // pdfjs-dist passes the tag on a marked-content op either as a plain string

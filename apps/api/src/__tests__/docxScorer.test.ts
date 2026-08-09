@@ -189,3 +189,44 @@ describe("scoreDocx", () => {
     expect(summary).not.toContain("PDF");
   });
 });
+
+describe("scoreDocx — heading outline signals", () => {
+  const headingFindings = (over: Partial<DocxAnalysis>): string[] =>
+    scoreDocx(analysis(over)).categories.find((c) => c.id === "heading_structure")!.findings;
+
+  it("lists each real heading with its text in a Heading Outline signals group", () => {
+    const f = headingFindings({
+      headings: [
+        { level: 1, text: "Annual Report" },
+        { level: 2, text: "Introduction" },
+      ],
+    });
+    expect(f).toContain("--- Heading Outline ---");
+    expect(f).toContain('  H1 "Annual Report"');
+    expect(f).toContain('  H2 "Introduction"');
+  });
+
+  it("caps the outline at 40 headings and notes the remainder", () => {
+    const many = Array.from({ length: 45 }, (_, i) => ({
+      level: 2,
+      text: `Section ${i + 1}`,
+    }));
+    const f = headingFindings({ headings: [{ level: 1, text: "Top" }, ...many] });
+    expect(f.filter((l) => /^ {2}H\d "/.test(l))).toHaveLength(40);
+    expect(f).toContain("  ... and 6 more heading(s)");
+  });
+
+  it("truncates very long heading text in the outline", () => {
+    const f = headingFindings({ headings: [{ level: 1, text: "X".repeat(120) }] });
+    const line = f.find((l) => l.startsWith('  H1 "'));
+    expect(line).toBeDefined();
+    expect(line!.length).toBeLessThanOrEqual(90);
+    expect(line).toContain("…");
+  });
+
+  it("lists fake-heading paragraph text so authors can find and restyle them", () => {
+    const f = headingFindings({ fakeHeadings: [{ text: "Our Bold Mission" }] });
+    expect(f).toContain("--- Paragraphs Styled Like Headings ---");
+    expect(f).toContain('  "Our Bold Mission"');
+  });
+});

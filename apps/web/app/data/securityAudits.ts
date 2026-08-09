@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.67.0",
+    meta: "Reviewed <strong>2026-08-09</strong> · scope: reports now name every heading, so people can see exactly what to fix — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>Reports now show your document's heading outline with its actual text.</strong> Where a report used to say a Word document had “3 real heading(s)”, it now lists them — <em>Heading 1 “Annual Report”, Heading 2 “Introduction”</em>, and so on — and PDF reports, which showed only the pattern of heading levels, now show each heading's text beside its level. This exists for the person who has to do the fixing: “a heading level is skipped” is only actionable when you can see <em>which</em> heading it is.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Word reports also list paragraphs that only look like headings.</strong> Text made bold and large reads as a heading to the eye but is invisible as one to a screen reader. Each such paragraph is now quoted on the report, so an author can go straight to it and apply a real Heading style rather than hunting through the document.",
+      },
+      {
+        kind: "p",
+        html: "<strong>The technical detail on each report card now starts open instead of hidden behind a toggle.</strong> Someone who chose the detailed view has already asked for depth, and the specifics — which image, which heading, which table — are the point of it. Each card's toggle still collapses the detail for anyone who prefers the summary. The new outline text is read from the document you upload and shown back to you on your own report, exactly like every other finding; <strong>no change to what data is collected, how it is used, or how long it is kept.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.66.0",
     meta: "Reviewed <strong>2026-08-08</strong> · scope: an adversarial audit of the scoring itself, and the corrections it produced — not a security release.",
     body: [
