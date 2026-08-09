@@ -6,6 +6,18 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.5 · 2026-08-09</strong> — Wording only; nothing stored, used, or retained
+        changed. States explicitly — for federal and state auditors — that every retained row is
+        <em>metadata about an audit event</em> (date, file name, score, grade): a record
+        <em>about</em> the document, never a copy of any part of it (§&nbsp;7a; the same wording now
+        appears on the status page's backup card). Adds the reconciliation auditors need in one
+        place: this policy never claims the records are free of personal detail — the personal
+        fields are named (sign-in email for signed-in users; the connection log's IP address and
+        browser user-agent, purged after 365 days; the file name as uploaded, which can itself name
+        a person), and what the records never hold is the document or anything read from inside it
+        (§&nbsp;7a, §&nbsp;8, §&nbsp;8a).
+      </li>
+      <li>
         <strong>v1.4 · 2026-08-05</strong> — Documents that shared-report rows are now physically
         deleted by the cleanup sweep roughly 30 days after their link expires (tool v1.51.0) — a
         total stored lifetime of about 395 days (§ 7, § 8a). Previously the link stopped working at

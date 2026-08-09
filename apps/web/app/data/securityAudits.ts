@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.67.1",
+    meta: "Reviewed <strong>2026-08-09</strong> · scope: precise wording about what the retained records are, for federal and state auditors — not a security release, and nothing stored changed.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The records this service keeps are now described as exactly what they are: metadata about the audit.</strong> A retained row says that a file with this name was checked on this date and received this grade. It is a record <em>about</em> the document, never a copy of any part of it — it says the file was checked, not what the file said. The status page's backup explanation and §&nbsp;7a of this policy now both use those words.",
+      },
+      {
+        kind: "p",
+        html: "<strong>And the policy is deliberately precise about personal detail, because auditors test claims.</strong> It would be shorter to say the records contain nothing personal — and it would be wrong: a sign-in email is personal, the routine connection log (IP address, browser) is personal, and a file name as uploaded can itself name a person. So the policy names those fields and their deletion schedule instead of waving them away, and this project's automated tests fail any page that claims the records are free of personal detail. What the records never hold is the document, or anything read from inside it. <strong>Nothing about what is stored, how it is used, or how long it is kept changed in this release — wording only</strong>, recorded as v1.5 in the policy's own change log.",
+      },
+    ],
+  },
+  {
     version: "v1.67.0",
     meta: "Reviewed <strong>2026-08-09</strong> · scope: reports now name every heading, so people can see exactly what to fix — not a security release.",
     body: [

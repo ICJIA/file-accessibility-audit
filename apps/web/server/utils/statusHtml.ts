@@ -886,12 +886,16 @@ function backupExplainer(): string {
     `</ul></div></div>` +
     `<p class="why"><strong>Why back up anything if documents aren&#39;t stored?</strong> ` +
     `Because two different things are involved. Your <em>document</em> is never saved — it is ` +
-    `read in memory, scored, and gone within seconds. The service&#39;s <em>record</em> that a ` +
-    `file was checked is kept, so an agency can show what it reviewed and when. The nightly ` +
-    `backup protects that record. A document cannot be inside a backup, because no document is ` +
-    `ever written to disk in the first place.</p>` +
+    `read in memory, scored, and gone within seconds. What is kept is <em>metadata about the ` +
+    `audit</em>: the record that a file with this name was checked on this date and received ` +
+    `this grade, so an agency can show what it reviewed and when. The record is ` +
+    `<em>about</em> the document, never a copy of any part of it — it says the file was ` +
+    `checked, not what the file said. The nightly backup protects that record. A document ` +
+    `cannot be inside a backup, because no document is ever written to disk in the first ` +
+    `place.</p>` +
     `<p class="blmark">Bottom line: a backup could not reproduce one page of anyone&#39;s ` +
-    `document. It is a copy of the logbook, not of the files that passed through it.</p>`
+    `document. It is a copy of the logbook — audit metadata — not of the files that passed ` +
+    `through it.</p>`
   );
 }
 

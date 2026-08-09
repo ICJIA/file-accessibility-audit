@@ -228,7 +228,9 @@
           <h4 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-1">
             The record of the audit
           </h4>
-          <p class="text-xs text-[var(--text-muted)] mb-4">one line in the service's own logbook</p>
+          <p class="text-xs text-[var(--text-muted)] mb-4">
+            one line of metadata in the service's own logbook
+          </p>
           <ol class="space-y-3 text-xs text-[var(--text-secondary)] flex-1">
             <li class="flex gap-3">
               <span
@@ -236,7 +238,10 @@
                 aria-hidden="true"
                 >1</span
               >
-              <span>One row is written: date, file name, score, grade.</span>
+              <span
+                >One row of metadata is written: date, file name, score, grade — a record
+                <em>about</em> the document, never a copy of any part of it.</span
+              >
             </li>
             <li class="flex gap-3">
               <span
@@ -268,9 +273,14 @@
         class="mt-4 rounded-xl border border-emerald-700/40 bg-emerald-950/15 px-5 py-4 text-sm text-[var(--text-secondary)] leading-relaxed"
       >
         <strong class="text-[var(--text-heading)]">Bottom line:</strong> a backup could not
-        reproduce one page of anyone's document. It is a copy of the logbook, not of the files that
-        passed through it. If every snapshot were handed to a stranger, they would learn which file
-        names were checked, when, and what they scored — not what any document said.
+        reproduce one page of anyone's document. It is a copy of the logbook — audit metadata — not
+        of the files that passed through it. If every snapshot were handed to a stranger, they would
+        learn which file names were checked, when, and what they scored — not what any document
+        said. For auditors, the precise claim matters: this policy never claims the records are free
+        of personal detail. Of the metadata kept, the personal fields are named in §&nbsp;7 and
+        §&nbsp;8 — the sign-in email for people who signed in, the connection log's IP address and
+        browser identifier (purged after 365 days), and the file name as uploaded, which can itself
+        name a person. What the records never hold is the document, or anything read from inside it.
       </p>
 
       <!-- The honest counterweight. A page that claimed "no personal data" here

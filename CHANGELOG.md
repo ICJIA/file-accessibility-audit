@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.67.1] - 2026-08-09
+
+### Changed
+
+- **The records are described as what they are: metadata about the audit event — wording only, for federal and state auditors.** The `/status` backup card's "why back up anything?" answer and the data-retention §&nbsp;7a lane now state that what is kept is *metadata about the audit* — date, file name, score, grade — "a record **about** the document, never a copy of any part of it — it says the file was checked, not what the file said." §&nbsp;7a also gains the reconciliation auditors need in one place: the policy **never claims the records are free of personal detail** — the personal fields are named (sign-in email for signed-in users; the connection log's IP address and browser user-agent, purged after 365 days; the file name as uploaded, which can itself name a person), and what the records never hold is the document or anything read from inside it. A blanket "no PII" claim was considered and rejected: §&nbsp;8a's own verification names the sign-in email and uploaded file name, and `backupsExplained.test.ts`'s overclaim guards fail any surface that claims otherwise — those guards forced one rewording of this very release's copy, which is them working. Policy change log gains **v1.5** recording the clarification. Nothing stored, used, or retained changed.
+
+### Notes
+
+Copy-only release; behavior, storage, and retention unchanged. Both pinned surfaces (`/status` card and §&nbsp;7a) updated together — `backupsExplained.test.ts` exists precisely because they once drifted.
+
 ## [1.67.0] - 2026-08-09
 
 ### Added
