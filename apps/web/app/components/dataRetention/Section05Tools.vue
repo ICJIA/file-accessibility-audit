@@ -136,9 +136,10 @@
       fast-xml-parser, for Word, PowerPoint, and Excel). That child process receives the file buffer
       over a local, in-memory channel — never a temporary file — and is terminated if it exceeds its
       analysis timeout. None of these tools opens an outbound network connection during processing.
-      Outbound network traffic from the API process during a remediation job is limited to the email
-      server (Mailgun, used for OTP authentication of users only — not for any content transmission)
-      and the database (local SQLite, no network).
+      During a remediation job the API process makes no outbound network connections at all — the
+      only data store is the local SQLite database (no network), and since tool v1.68.0 the service
+      sends no email either: the sign-in system, the one thing that ever emailed anyone, was removed
+      along with the mail-sending code.
     </p>
   </section>
 </template>

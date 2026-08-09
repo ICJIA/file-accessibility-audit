@@ -62,9 +62,8 @@ router.get("/reports/:id", (req: Request, res: Response) => {
     }
 
     const row = db
-      .prepare("SELECT report_json, expires_at, created_at, email FROM shared_reports WHERE id = ?")
-      .get(id) as
-      { report_json: string; expires_at: string; created_at: string; email: string } | undefined;
+      .prepare("SELECT report_json, expires_at, created_at FROM shared_reports WHERE id = ?")
+      .get(id) as { report_json: string; expires_at: string; created_at: string } | undefined;
 
     if (!row) {
       res.status(404).json({ error: "Report not found" });
@@ -85,10 +84,9 @@ router.get("/reports/:id", (req: Request, res: Response) => {
     // on the day, and deriving the display value beats rewriting the record.
     const report = regradeStoredReport(JSON.parse(row.report_json));
 
-    // Note: the sharer's email is intentionally NOT returned. This endpoint
-    // is public (share links are bearer-style), and the creator's identity
-    // is not needed by recipients — exposing it would leak PII to anyone
-    // holding the link.
+    // No sharer identity exists to return (v1.68.0): shared_reports has no
+    // email column at all. Share links are bearer-style and the payload is
+    // report + timestamps only.
     res.json({
       report,
       createdAt: row.created_at,

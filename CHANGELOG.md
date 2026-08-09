@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.68.1] - 2026-08-09
+
+### Fixed
+
+- **Shared-report links were broken on production since v1.68.0 deployed — every `GET /api/reports/:id` returned 500.** Migration 11 dropped `shared_reports.email`, and this route's SELECT still named the column; better-sqlite3 threw "no such column" at prepare time and the catch-all turned it into a 500 for every stored report, including the fleet's stable reportUrls. The removal sweep caught every writer but missed this one reader, and no test exercised the route against the migrated schema — the suite stayed green while production broke. Found within the hour by the post-release documentation verification pass (an agent checking §8a's "every statement enumerated" claim against the code), confirmed live, fixed by dropping the column from the SELECT, and pinned by a new `reportsRoute.test.ts` that runs the real route against a real migrated database (200 / 404 / 410 paths, plus "nothing email-shaped in the payload").
+
 ## [1.68.0] - 2026-08-09
 
 ### Removed

@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.68.1",
+    meta: "Reviewed <strong>2026-08-09</strong> · scope: an emergency fix, found by our own verification pass within the hour.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>Shared-report links stopped working for about an hour after the v1.68.0 release, and this fix restored them.</strong> One database query still asked for the deleted email column; the database rightly refused, and every shared-report link answered with an error instead of the report. No data was lost and nothing was exposed — the links simply failed until this release.",
+      },
+      {
+        kind: "p",
+        html: "<strong>How it was caught matters:</strong> not by a visitor report, but by the verification pass this project runs on its own documentation — checking §&nbsp;8a's claim that every database statement had been enumerated turned up the one that hadn't. A new automated test now loads a shared report against the real, migrated database shape on every future change, so this exact failure cannot ship silently again.",
+      },
+    ],
+  },
+  {
     version: "v1.68.0",
     meta: "Reviewed <strong>2026-08-09</strong> · scope: the sign-in system removed, and identifier storage removed at the database level — the largest data-minimization change in the tool's history.",
     body: [
