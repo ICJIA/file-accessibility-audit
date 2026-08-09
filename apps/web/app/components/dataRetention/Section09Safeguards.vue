@@ -10,9 +10,10 @@
         deployment uses certificates issued by Let's Encrypt and renewed automatically.
       </li>
       <li>
-        <strong>HTTP-only cookies</strong> for authentication, with
-        <code class="text-xs font-mono">SameSite=Strict</code> set to prevent cross-site request
-        forgery.
+        <strong>No cookies, no sessions</strong> — the tool has no accounts or sign-in (v1.68.0),
+        and the API sets no cookie of any kind. The only credentials in the system are the per-job
+        download token (returned once at job creation, stored only as a SHA-256 hash) and the
+        optional fleet service token.
       </li>
       <li>
         <strong>Restrictive filesystem permissions</strong> on remediation data:
@@ -53,8 +54,10 @@
         JVM child is killed on overrun.
       </li>
       <li>
-        <strong>Per-user concurrency limit</strong>: 1 remediation job at a time per user
-        (configurable).
+        <strong>Daily remediation cap</strong>: 100 jobs per caller per rolling 24 hours
+        (configurable), counted in server memory keyed by the caller's IP address — used
+        transiently, written nowhere, reset on restart. Analysis concurrency is bounded globally at
+        2 simultaneous documents.
       </li>
       <li><strong>Rate limiting</strong> on upload endpoints to prevent abuse.</li>
       <li>

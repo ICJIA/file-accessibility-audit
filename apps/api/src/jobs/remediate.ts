@@ -352,8 +352,14 @@ export async function runRemediationJob(jobId: string): Promise<void> {
       return;
     }
 
-    // 5. Move tagged output to canonical location and finalize
+    // 5. Move tagged output to canonical location and finalize.
+    // chmod 0600: the tagged file was written by the OpenDataLoader JVM
+    // under the process umask, so without this the served output's mode is
+    // whatever that happened to be — while § 9 of the data-retention policy
+    // promises owner-only files. The 0700 job directory already gates
+    // access; this makes the stated per-file guarantee true as well.
     await fs.rename(taggedPath, paths.finalOutputPath);
+    await fs.chmod(paths.finalOutputPath, 0o600);
     recordEvent(jobId, "output_ready", {
       output_size_bytes: (await fs.stat(paths.finalOutputPath)).size,
       ttl_seconds: Math.floor(REMEDIATION.OUTPUT_TTL_MS / 1000),

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.68.2] - 2026-08-09
+
+### Fixed
+
+- **The documentation-truth pass: 27 findings from an adversarial verification of the data-retention page, README, and technical-details surfaces against the v1.68.0 code.** The two that mattered most: the policy page's header still advertised **"Policy · v1.4"** while its own § 14 change log said v1.6 (the constant had been forgotten on two consecutive releases — a new test now pins the header to § 14's newest entry), and § 9 still listed "HTTP-only cookies for authentication" and a "per-user concurrency limit" citing a config key that no longer exists (replaced by the real safeguards: no cookies at all, and the in-memory per-IP daily cap). Also corrected: § 11's receipt URL now shows the required `?t=<token>` (a bare jobId 404s by design); § 7 gains a row for the host nginx access log (rotated daily, 52 kept — the one identifier-bearing store that had no retention listed) and names `PURGE_GRACE_DAYS` and `BACKUP_KEEP_COUNT`'s real home (a backup-script env var, not audit.config.ts); § 8a's Limitations paragraph, verdict-table attribution, and "standard web logs" cross-reference now match what the sections actually say; § 6 no longer promises an `audit_log` schema it doesn't show; § 2 scopes "the only thing an audit produces" to the browser-upload path (URL/fleet audits also persist a shared report); § 3's poll line carries the token; the §§ 12–15 HTML comments are renumbered.
+- **Technical-details/explainer factual drift, some of it predating v1.68.0:** the last surviving identity claim (a "per-user concurrency limit" bullet) replaced with the real per-IP daily cap; Bookmarks/Reading Order weight percentages un-transposed (5%/10%, matching the file's own table); the PPTX and Excel category lists corrected (PPTX omits Heading Structure and Bookmarks — slide titles ARE the outline; Excel also omits Reading Order and List Structure); four "fully in-process, no subprocess" claims about OOXML parsing corrected to the real design (dedicated short-lived child process, in-memory hand-off, no temp file) — the page's own ASCII diagram had it right four lines away; the status-poll interval corrected to once per second with backoff; veraPDF described as conditional on configuration (it is configured in production) and its own short-lived temp copy disclosed alongside qpdf's.
+- **One code change to make a promised guarantee true instead of softening the promise:** remediation outputs are now `chmod 0600` after the tagged file lands (`jobs/remediate.ts`) — the JVM wrote it under the process umask, so § 9's "0600 on output files" described only the input until now. Stale auth-era comments swept from audit.config.ts, auditLog.ts, remediationCleanup.ts, and scoring.ts.
+
+### Notes
+
+Copy + comments + one chmod; no behavior change beyond the file mode. Findings produced by two read-only verification agents cross-checking every claim against the code — the same pass that caught v1.68.1's broken shared-report links. Tests 2,133 → 2,134.
+
 ## [1.68.1] - 2026-08-09
 
 ### Fixed

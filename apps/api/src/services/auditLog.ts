@@ -112,7 +112,7 @@ export function recordAudit(input: RecordAuditInput): void {
  * and never land in the grade distribution.
  *
  * Never writes a content_hash. The remediation audit-gate matches on
- * content_hash + email with no event_type filter, so a hash here would let
+ * content_hash with no event_type filter, so a hash here would let
  * "this content was refused" satisfy a check that means "this content was
  * audited". Passing nothing means the column is NULL, which cannot match.
  * (The multer filter has no buffer to hash at that point anyway — the

@@ -103,8 +103,8 @@
             </td>
             <td class="py-2.5 pr-4">The 5 newest snapshots; older ones deleted by rotation</td>
             <td class="py-2.5">
-              Yes —
-              <code class="font-mono">BACKUP_KEEP_COUNT</code>
+              Yes — <code class="font-mono">BACKUP_KEEP_COUNT</code> (backup script environment
+              variable, default 5 — not in <code class="font-mono">audit.config.ts</code>)
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
@@ -118,9 +118,22 @@
               cleanup sweep roughly 30 days after that (≈395 days total)
             </td>
             <td class="py-2.5">
-              Yes —
-              <code class="font-mono">SHARED_REPORTS.EXPIRY_DAYS</code>
+              Yes — <code class="font-mono">SHARED_REPORTS.EXPIRY_DAYS</code> (the link's 365 days)
+              + <code class="font-mono">SHARED_REPORTS.PURGE_GRACE_DAYS</code> (the ≈30-day grace
+              before the row is deleted)
             </td>
+          </tr>
+          <tr>
+            <td class="py-2.5 pr-4 font-medium">
+              Host web-server access log (nginx — outside this application; IP address, timestamp,
+              URL path, status, browser user-agent; see § 8a)
+            </td>
+            <td class="py-2.5 pr-4">
+              <code class="font-mono">/var/log/nginx/</code> on the server, managed by the host's
+              logrotate — never readable from the web
+            </td>
+            <td class="py-2.5 pr-4">Rotated daily, 52 rotations kept (≈52 days)</td>
+            <td class="py-2.5">Yes — host logrotate config (not this application)</td>
           </tr>
         </tbody>
       </table>

@@ -1,5 +1,5 @@
 <template>
-  <!-- 14. Contact -->
+  <!-- 15. Contact -->
   <section
     id="contact"
     class="scroll-mt-8 rounded-xl border-2 border-blue-700/40 bg-blue-950/15 p-5 sm:p-7"

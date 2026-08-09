@@ -1,5 +1,5 @@
 <template>
-  <!-- 11. Standards -->
+  <!-- 12. Standards -->
   <section id="standards" class="scroll-mt-8">
     <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
       12. Standards &amp; compliance alignment

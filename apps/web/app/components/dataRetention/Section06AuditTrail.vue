@@ -7,7 +7,7 @@
       SQLite database file (<code class="text-xs font-mono">apps/api/data/audit.db</code>, table
       <code class="text-xs font-mono">remediation_events</code>). The same database also holds the
       lighter-weight audit log (<code class="text-xs font-mono">audit_log</code> table) for plain
-      audit requests. Schemas:
+      audit requests — its schema is shown in § 8a. The two remediation tables:
     </p>
     <pre
       class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-muted)] overflow-x-auto"

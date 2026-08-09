@@ -1,5 +1,5 @@
 <template>
-  <!-- 12. Glossary -->
+  <!-- 13. Glossary -->
   <section id="glossary" class="scroll-mt-8">
     <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
       13. Glossary of technical terms

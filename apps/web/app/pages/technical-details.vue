@@ -122,10 +122,11 @@ function goBack(): void {
         by two tools: pdfjs reads the in-memory buffer directly, while qpdf (a command-line tool
         that needs a file path) gets a short-lived temp copy under a random name, deleted in the
         same request — even when analysis fails. The two run in parallel and their combined output
-        feeds the scorer. A third check runs concurrently for PDFs: veraPDF validates the file
-        against PDF/UA-1 (ISO 14289-1), and its verdict appears on the report as a separate panel
-        (since v1.37.0; in the default Visual view, inside the collapsed "Full technical report"
-        section).
+        feeds the scorer. A third check runs concurrently for PDFs when the veraPDF engine is
+        configured (it is on the production deployment): veraPDF validates the file against PDF/UA-1
+        (ISO 14289-1) — it, too, works from a short-lived temp copy deleted in the same request —
+        and its verdict appears on the report as a separate panel (since v1.37.0; in the default
+        Visual view, inside the collapsed "Full technical report" section).
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
         <strong>Word (.docx), PowerPoint (.pptx), and Excel (.xlsx)</strong>
@@ -140,7 +141,7 @@ function goBack(): void {
       <DiagramFigure
         name="audit-flow"
         title="Audit pipeline — PDF, Word, PowerPoint, and Excel"
-        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) with no temp file or subprocess. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, while veraPDF concurrently checks a PDF for PDF/UA-1 conformance; the result returns to the browser and the memory buffer is discarded.`"
+        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) inside a short-lived child process, with no temp file. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, while veraPDF concurrently checks a PDF for PDF/UA-1 conformance; the result returns to the browser and the memory buffer is discarded.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4 mb-2">
@@ -163,7 +164,7 @@ Client → HTTPS upload (multipart/form-data)
 <span class="text-sky-300">[analyzeDocument]</span> — detects format, dispatches:
   ├── PDF ──┬── <span class="text-emerald-300">qpdf</span>     subprocess; random-name temp copy, <span class="text-amber-300">deleted same request</span>
   │         ├── <span class="text-emerald-300">pdfjs</span>    in-process; reads the memory buffer directly
-  │         └── <span class="text-emerald-300">veraPDF</span>  concurrent PDF/UA-1 conformance check → verdict panel
+  │         └── <span class="text-emerald-300">veraPDF</span>  concurrent PDF/UA-1 check (own temp copy, <span class="text-amber-300">deleted same request</span>) → verdict panel
   │
   └── Word / PowerPoint / Excel
             └── short-lived child process: <span class="text-emerald-300">JSZip</span> + <span class="text-emerald-300">fast-xml-parser</span>

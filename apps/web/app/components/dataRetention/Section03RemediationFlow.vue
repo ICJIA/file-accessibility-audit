@@ -67,7 +67,7 @@ Client → HTTPS multipart upload (re-upload required by design)
 [Emit: 'output_ready']
   │
   ▼
-Client polls /api/remediate/&lt;jobId&gt;/status; sees 'complete'
+Client polls /api/remediate/&lt;jobId&gt;/status?token=…; sees 'complete'
   │
   ▼
 Client downloads via single-use token:

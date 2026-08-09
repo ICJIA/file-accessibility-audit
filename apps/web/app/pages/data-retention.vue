@@ -43,8 +43,8 @@ useHead({
   ],
 });
 
-const POLICY_VERSION = "1.4";
-const POLICY_EFFECTIVE = "2026-08-05";
+const POLICY_VERSION = "1.6";
+const POLICY_EFFECTIVE = "2026-08-09";
 const TOOL_VERSION = runtimeConfig.public.appVersion;
 
 // Mermaid diagram sources. Deliberately simple — flowchart TD only,
@@ -260,7 +260,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
         </li>
         <li>
           <a href="#storage-verification" class="text-[var(--link)] hover:text-[var(--link-hover)]"
-            >8a. Storage verification — the evidence for § 8 (audited 2026-08-05)</a
+            >8a. Storage verification — the evidence for § 8 (re-verified 2026-08-09)</a
           >
         </li>
         <li>

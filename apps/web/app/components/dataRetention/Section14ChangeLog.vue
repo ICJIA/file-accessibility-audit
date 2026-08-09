@@ -1,5 +1,5 @@
 <template>
-  <!-- 13. Change log -->
+  <!-- 14. Change log -->
   <section id="change-log" class="scroll-mt-8">
     <h2 class="text-2xl font-bold text-[var(--text-heading)] mb-3">
       14. Change log for this policy
@@ -18,8 +18,8 @@
         caller's IP address is still used <em>transiently in server memory</em> to rate-limit
         requests and cap remediation jobs, and is written nowhere. Old nightly snapshots retain the
         old shape until the keep-5 rotation ages them out (≈5 days). The hosting layer's standard
-        nginx access logs are unchanged and remain outside these application records (§ 8a). Updates
-        §§ 2, 3, 4, 5, 6, 7, 7a, 8, 8a, 11.
+        nginx access logs are unchanged and remain outside these application records (§ 8a; their
+        retention is now listed in § 7). Updates §§ 2, 3, 4, 5, 6, 7, 7a, 8, 8a, 9, 11.
       </li>
       <li>
         <strong>v1.5 · 2026-08-09</strong> — Wording only; nothing stored, used, or retained

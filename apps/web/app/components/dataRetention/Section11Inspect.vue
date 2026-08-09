@@ -62,11 +62,15 @@
       above.
     </p>
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
-      A user can also see their own complete remediation receipt by visiting the result page for any
-      of their jobs (URL pattern:
-      <code class="text-xs font-mono">https://audit.icjia.app/remediate/&lt;jobId&gt;</code>). The
-      receipt shows every lifecycle event with human-readable labels, including the
-      verified-deletion event.
+      Whoever started a remediation can also see its complete receipt by returning to the result
+      page with the job's download token (URL pattern:
+      <code class="text-xs font-mono"
+        >https://audit.icjia.app/remediate/&lt;jobId&gt;?t=&lt;token&gt;</code
+      >
+      — the token is issued once, when the job is created). Without the token the server answers
+      404, deliberately: jobs carry no owner identity, so the token is the only key, and a wrong key
+      must not even confirm the job exists. The receipt shows every lifecycle event with
+      human-readable labels, including the verified-deletion event.
     </p>
   </section>
 </template>

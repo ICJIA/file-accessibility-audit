@@ -230,10 +230,10 @@
           accessibility categories and produces a weighted overall score.
           <strong>Word, PowerPoint, and Excel</strong> files skip that two-tool step entirely —
           they're already ZIP archives of XML, so the server unzips them with JSZip and reads the
-          relevant parts with fast-xml-parser, entirely in-process with no external subprocess, then
-          scores the result against a category set adapted for that format (see "How Scores Are
-          Calculated" below). No data is sent to third-party services or AI models — all processing
-          happens on the server (hosted on
+          relevant parts with fast-xml-parser inside a dedicated, short-lived child process (no
+          external binary; killed on timeout), then scores the result against a category set adapted
+          for that format (see "How Scores Are Calculated" below). No data is sent to third-party
+          services or AI models — all processing happens on the server (hosted on
           <a
             href="https://www.digitalocean.com/"
             target="_blank"
@@ -255,7 +255,7 @@
 
 <span class="text-sky-300">Word / PowerPoint / Excel:</span>
   File → [validate type &amp; size]
-       → <span class="text-emerald-300">JSZip</span> + <span class="text-emerald-300">fast-xml-parser</span> (in-process)
+       → <span class="text-emerald-300">JSZip</span> + <span class="text-emerald-300">fast-xml-parser</span> (short-lived child process)
        → Scorer (adapted categories) → Weighted Score → Report</pre>
 
         <p class="text-[var(--text-muted)] mt-3">
@@ -306,7 +306,7 @@
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               An <strong>Express</strong> (Node.js/TypeScript) server that handles file uploads,
-              runs QPDF/PDF.js analysis on PDFs and an in-process OOXML parser on
+              runs QPDF/PDF.js analysis on PDFs and a child-process OOXML parser on
               Word/PowerPoint/Excel files, scores the results, and stores shared reports in a
               <strong>SQLite</strong> database (WAL mode). There are no accounts or sign-in — the
               tool is free and open to use, and stores no email addresses, IP addresses, or browser
@@ -325,7 +325,7 @@
           <DiagramFigure
             name="architecture"
             title="Application architecture"
-            desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. For PDFs, Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; for Word, PowerPoint, and Excel files, it parses OOXML in-process with JSZip and fast-xml-parser instead. Express reads and writes SQLite locally. No external services."
+            desc="Browser talks to Nginx reverse proxy. Nginx routes to either the Nuxt web app (port 5102) or the Express API (port 5103). The web app makes some API calls back to Express. For PDFs, Express shells out to qpdf, OpenDataLoader Java, and veraPDF Java; for Word, PowerPoint, and Excel files, it parses OOXML with JSZip and fast-xml-parser in a short-lived child process instead. Express reads and writes SQLite locally. No external services."
           />
         </div>
       </div>
@@ -668,7 +668,7 @@
           <DiagramFigure
             name="two-tool"
             title="Two-tool parallel analysis (PDF)"
-            desc="For a PDF, the uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel; their results combine in the scorer for a weighted score across 9 categories. Word, PowerPoint, and Excel files don't need this two-tool split — a single in-process parser (JSZip + fast-xml-parser) reads their XML directly."
+            desc="For a PDF, the uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel; their results combine in the scorer for a weighted score across 9 categories. Word, PowerPoint, and Excel files don't need this two-tool split — a single JavaScript parser (JSZip + fast-xml-parser, in a short-lived child process) reads their XML directly."
           />
         </div>
       </div>
@@ -832,7 +832,8 @@
             technology can actually use.
           </p>
           <p class="text-xs text-[var(--text-muted)]">
-            Every PDF audit also includes a formal
+            When the veraPDF engine is configured (it is on the production deployment), every PDF
+            audit also includes a formal
             <strong>PDF/UA-1 (ISO 14289-1) conformance check</strong> by
             <a
               href="https://verapdf.org/"
@@ -1804,7 +1805,7 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
           <code class="font-mono">progress_pct</code>, <code class="font-mono">step</code>) which
           the frontend polls via
           <code class="font-mono">GET /api/remediate/:id/status</code>
-          every 2 seconds.
+          once per second (backing off toward 8 s if requests fail).
         </p>
         <p class="text-[var(--text-muted)] mb-3">
           <strong>System packages required on the deploy box:</strong>
@@ -1941,8 +1942,9 @@ pm2 restart ecosystem.config.cjs</pre>
             ><span
               >A PDF is written to a temporary directory on the server, analyzed by QPDF, PDF.js,
               and veraPDF, and <strong>immediately deleted</strong>. A Word, PowerPoint, or Excel
-              file never touches disk — it's held in server memory and parsed in-process (JSZip +
-              fast-xml-parser). Either way, no file content is retained after analysis
+              file never touches disk — it's held in server memory and parsed by JSZip +
+              fast-xml-parser in a short-lived child process — the bytes cross over an in-memory
+              channel, never a temp file. Either way, no file content is retained after analysis
               completes.</span
             >
           </li>

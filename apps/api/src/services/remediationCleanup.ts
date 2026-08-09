@@ -2,7 +2,7 @@
  * The application's retention sweep. Runs on API startup and on an interval
  * — ALWAYS, regardless of REMEDIATION.ENABLED (since v1.51.0; the interval
  * previously early-returned when remediation was off, which silently
- * disabled steps 6–8 too — retention must not hang off a feature flag).
+ * disabled steps 6–7 too — retention must not hang off a feature flag).
  * Does seven things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,

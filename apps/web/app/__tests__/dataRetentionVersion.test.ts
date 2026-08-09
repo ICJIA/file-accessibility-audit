@@ -34,3 +34,21 @@ describe("data-retention page: real app version (not hardcoded 1.18.0)", () => {
     expect(source).toMatch(/TOOL_VERSION\s*=\s*runtimeConfig\.public\.appVersion/);
   });
 });
+
+describe("data-retention page: POLICY_VERSION matches its own § 14 change log", () => {
+  // v1.68.0 shipped with the header still reading "Policy · v1.4" while § 14's
+  // newest entry said v1.6 — the constant had been forgotten on two releases
+  // in a row. The header's claim and the change log's newest entry must agree.
+  it("the header constant equals the newest change-log entry's version", () => {
+    const page = readFileSync(resolve(__dirname, "../pages/data-retention.vue"), "utf8");
+    const changeLog = readFileSync(
+      resolve(__dirname, "../components/dataRetention/Section14ChangeLog.vue"),
+      "utf8",
+    );
+    const header = page.match(/const POLICY_VERSION = "([\d.]+)"/)?.[1];
+    const newest = changeLog.match(/<strong>v([\d.]+) · /)?.[1];
+    expect(header).toBeTruthy();
+    expect(newest).toBeTruthy();
+    expect(header).toBe(newest);
+  });
+});

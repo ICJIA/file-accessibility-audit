@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.68.2",
+    meta: "Reviewed <strong>2026-08-09</strong> · scope: every claim on this page, the README, and the technical pages re-checked against the code after the identifier removal — not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>After removing sign-in and identifier storage, we re-verified this page line by line against the code — and fixed what the check found.</strong> The most visible correction: the header above said <em>Policy v1.4</em> while this very change log said v1.6; the header had simply not been updated, twice in a row. It now reads from the same version as § 14's newest entry, and an automated test keeps the two in agreement from now on.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Other corrections, all wording:</strong> § 9 no longer lists sign-in cookies (there is no sign-in) and now describes the real remediation brake — a daily per-caller cap counted in server memory; § 11's example link now shows the access token a receipt requires; § 7 gains a row for the web server's own access log, the one identifier-bearing store whose retention (about 52 days, managed by the host) was not listed anywhere; and several technical descriptions were tightened to match the code exactly, down to which checks run in a separate helper process. One small code change accompanied the words: remediated files are now explicitly restricted to owner-only permissions, so a promise § 9 was already making is enforced rather than assumed. <strong>Nothing about what is stored, how it is used, or how long it is kept changed.</strong>",
+      },
+    ],
+  },
+  {
     version: "v1.68.1",
     meta: "Reviewed <strong>2026-08-09</strong> · scope: an emergency fix, found by our own verification pass within the hour.",
     body: [

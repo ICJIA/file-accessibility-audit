@@ -232,8 +232,8 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
         <strong>The hosting layer keeps standard web-server access logs.</strong> The site runs
         behind nginx, which — as on effectively every website — records each request's IP address,
         timestamp, URL path, status, and browser user-agent in its own log files on the server,
-        outside this application. That is the "standard web logs" § 8 has always referred to; it is
-        stated here so the phrase is concrete rather than a hedge.
+        outside this application. It is stated here, with its retention listed in § 7, so the phrase
+        "standard web-server logs" is concrete rather than a hedge.
       </li>
     </ul>
 
@@ -289,7 +289,9 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
             <td class="py-2.5">no such dependency or outbound call exists (§ 4)</td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
-            <td class="py-2.5 pr-4">No email, IP address, or user-agent is stored anywhere</td>
+            <td class="py-2.5 pr-4">
+              No email, IP address, or user-agent is stored anywhere (§ 7a's claim)
+            </td>
             <td class="py-2.5 pr-4 text-emerald-300 font-semibold">Verified 2026-08-09</td>
             <td class="py-2.5">
               true since tool v1.68.0 — migration 11 dropped the columns and their data; before that
@@ -327,10 +329,10 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
 
     <p class="text-sm text-[var(--text-muted)] leading-relaxed">
       <strong>Limitations.</strong> This verification is a statement about the code as of tool
-      v1.49.0 on 2026-08-05, not a permanent guarantee; it is re-verified when data handling
-      changes, and any change would appear in § 14's change log. The full technical evidence pack —
-      every write site with file and line numbers — is preserved in the project repository's history
-      for this release.
+      v1.68.0, re-verified 2026-08-09 (first audited 2026-08-05 at v1.49.0), not a permanent
+      guarantee; it is re-verified when data handling changes, and any change would appear in § 14's
+      change log. The full technical evidence pack — every write site with file and line numbers —
+      is preserved in the project repository's history for this release.
     </p>
   </section>
 </template>

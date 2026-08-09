@@ -518,7 +518,6 @@ export const DEPLOY = {
    *
    * Used in:
    * - Shared report URLs returned by POST /api/reports
-   * - OTP email footer (optional "sent from" link)
    * - CORS origin validation (production mode)
    * - nginx server_name directive
    *
@@ -1204,7 +1203,7 @@ export const SHARED_REPORTS = {
    * shared-report retention so audit-related records age out
    * together.
    *
-   * Rows store only metadata (hash, score, grade, IP, user-agent,
+   * Rows store only metadata (hash, score, grade,
    * timestamp) — no PDF content — so retention is cheap. A 100-PDF
    * fleet at ~200 bytes per row adds ~7 MB per year of audits.
    *
@@ -1327,7 +1326,7 @@ export const STATUS = {
    *
    * Rejection rows are written with content_hash NULL, deliberately. The
    * remediation audit-gate (hasRecentAudit in services/auditLog.ts) matches on
-   * content_hash + email with NO event_type filter, so a hash on a refusal row
+   * content_hash with NO event_type filter, so a hash on a refusal row
    * would make "this content was refused" satisfy a check that means "this
    * content was audited". NULL can never match, which closes that by
    * construction rather than by remembering to filter.
@@ -1643,7 +1642,8 @@ export const REMEDIATION = {
    * The "you must audit this PDF before remediating it" window, in
    * milliseconds. Enforced at POST /api/remediate (v1.20.1+) by
    * looking for a recent audit_log row matching the same content_hash
-   * for the same caller. Any audit path counts: browser upload via
+   * regardless of caller (v1.68.0: the gate is content-bound; no caller
+   * identity exists). Any audit path counts: browser upload via
    * /api/analyze, URL audit via /api/analyze-url or /api/audit-url,
    * fleet bulk via /api/bulk-from-inventory. 60 minutes is the
    * sweet spot — long enough for a slow user to read results before

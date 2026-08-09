@@ -771,7 +771,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,131 tests** across 129 test files (API 1150, Web 932, CLI 49). Run all three suites with one summary:
+**2,134 tests** across 130 test files (API 1152, Web 933, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -787,11 +787,11 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1150 passed (57 files)
-  ✔ Web      932 passed (66 files)
+  ✔ API      1152 passed (58 files)
+  ✔ Web      933 passed (66 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2131 tests passed across 129 files
+  ✔ 2134 tests passed across 130 files
 ════════════════════════════════════════════════════════════
 ```
 
@@ -1136,6 +1136,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.68.2 — 2026-08-09 · Documentation-truth pass: 27 verification findings fixed (not a security release)
+
+Two read-only agents adversarially re-checked the data-retention page, README, and technical-details surfaces against the v1.68.0 code (the same pass that caught v1.68.1's broken shared links). Headliners: the policy header claimed v1.4 while § 14 said v1.6 (now test-pinned to § 14's newest entry); § 9 still listed auth cookies + a per-user concurrency limit citing a nonexistent config key (replaced with the real controls); § 7 gains the host nginx access-log row (daily rotation, 52 kept) — the one identifier-bearing store with no listed retention; § 11's receipt URL shows the required token; §§ 2/3/6/8a cross-references and attributions corrected; technical pages fixed for transposed weights (Bookmarks 5% / Reading Order 10%), wrong PPTX/XLSX category lists, four "fully in-process" OOXML claims (it is a short-lived child process), the poll interval, and veraPDF's conditionality + temp copy. One code change: remediation outputs `chmod 0600` after landing, making § 9's stated file mode true (the JVM wrote under umask). Stale auth-era comments swept from config and services. Tests 2,133 → 2,134.
 
 ### v1.68.1 — 2026-08-09 · Emergency fix: shared-report links 500 after the identifier removal
 

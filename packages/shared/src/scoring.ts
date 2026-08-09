@@ -1,7 +1,7 @@
 /**
  * Scoring constants — moved verbatim from the root audit.config.ts so the
  * web UI can import them directly (the config file itself pulls in Node-side
- * sections like EMAIL/AUTH/DEPLOY that must never reach the browser bundle).
+ * sections like DEPLOY that must never reach the browser bundle).
  * audit.config.ts re-exports everything here, so `#config` consumers in the
  * API and CLI are unaffected. Edit values HERE.
  */
