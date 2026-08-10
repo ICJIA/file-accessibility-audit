@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.68.3] - 2026-08-10
+
+### Changed
+
+- **The landing-page announcement now says the sign-in system was never switched on, not merely that it was removed.** The v1.68.0 banner told visitors sign-in "has been removed" and stopped there, leaving the stronger — and fully checkable — fact unsaid: `AUTH.REQUIRE_LOGIN` was `false` in **every tagged release from v1.0.0 through v1.67.1** (verified tag by tag before this wording was written). `authMiddleware` returned the anonymous sentinel _before_ it ever verified a token, `remediate.ts` stored `null` where a job owner's email would have gone, and `audit_log.email` accordingly held `anon:<ip>` for everyone. Nobody ever needed an account here and no audit was ever tied to one. The banner now says that, and says why the unused machinery was deleted rather than left sitting in the code: the tool is in wide use and stays free and open, with nothing to register for.
+- **Deliberately not phrased "never implemented."** The OTP login was built and shipped — v1.0.0's own changelog lists "OTP authentication" as a feature, and the middleware demanded a JWT unconditionally for the ~1 day before the toggle existed (it landed 2026-03-07 defaulting to `false`, the date the changelog gives v1.0.0). What the repository can back is that it was never _enabled_ in a released version, so that is what the banner claims. The distinction is exactly the one an auditor would test.
+- The announcement `id` gains `-r2`, which re-shows the corrected wording to anyone who dismissed the weaker one — the banner is per-`id` permanently dismissible, so a silent edit would have reached only new visitors. This amendment is the release's banner step; no second `ANNOUNCEMENTS` entry was added, because the correction belongs to the announcement it corrects.
+
+### Notes
+
+Copy-only: one string and one id in `audit.config.ts`. No behavior, storage, retention, dependency, or schema change, and no new attack surface. Test count unchanged.
+
 ## [1.68.2] - 2026-08-09
 
 ### Fixed

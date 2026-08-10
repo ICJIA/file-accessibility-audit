@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.68.3",
+    meta: "Reviewed <strong>2026-08-10</strong> · scope: the wording of the home-page announcement about sign-in — a copy change, not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The home-page announcement said the sign-in system had been removed. It now also says the thing that matters more: it was never switched on.</strong> Sign-in code existed from the tool's first release, but the setting that would have required anyone to log in was off in every version ever published — the server treated every visitor as anonymous before it even looked for a login, and the space where an account holder's email address would have gone held a placeholder for everyone. Nobody ever needed an account here, and no audit was ever tied to one. That was checked release by release, against every published version, before the sentence was written.",
+      },
+      {
+        kind: "p",
+        html: "<strong>The wording is deliberately careful.</strong> The sign-in feature <em>was</em> built and shipped, so this record does not claim it was never written — only that it was never turned on, which is what the code history shows for every released version. It was deleted outright in v1.68.0 rather than left sitting unused in a tool this widely used, along with the columns that could have held an email address, IP address, or browser identifier. <strong>Nothing about what is stored, how it is used, or how long it is kept changed in this release</strong>, and no part of the service gained new exposure: one sentence of text on the home page is the whole of it.",
+      },
+    ],
+  },
+  {
     version: "v1.68.2",
     meta: "Reviewed <strong>2026-08-09</strong> · scope: every claim on this page, the README, and the technical pages re-checked against the code after the identifier removal — not a security release.",
     body: [

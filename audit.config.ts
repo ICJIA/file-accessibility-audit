@@ -188,9 +188,12 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
-    id: "no-accounts-no-identifiers-2026-08-09",
+    // `-r2` re-shows this announcement to anyone who dismissed the first
+    // wording: it stated the sign-in system was removed without saying it had
+    // never been switched on, which understates the guarantee.
+    id: "no-accounts-no-identifiers-2026-08-09-r2",
     badge: "Privacy",
-    text: "The sign-in system has been removed — this tool is free and open, with no accounts and nothing to register for. The service also no longer stores who uses it: the database columns for email address, IP address, and browser identifier were deleted outright, along with the data they held. What an audit leaves behind is metadata about the file — its name, score, grade, and date — never the file, and now about nobody. The full accounting is in the data-retention policy, updated to v1.6 today.",
+    text: "The sign-in system has been removed — and it was never actually in use: login was never switched on, so nobody ever needed an account and no audit was ever tied to one. With the tool now in wide use, that unused machinery was deleted outright rather than left sitting in the code — it stays free and open, with nothing to register for. The service also no longer stores who uses it: the database columns for email address, IP address, and browser identifier were deleted, along with the data they held. What an audit leaves behind is metadata about the file — its name, score, grade, and date — never the file, and now about nobody. The full accounting is in the data-retention policy, at v1.6.",
     linkText: "Read the data-retention policy",
     linkTo: "/data-retention",
     /** Shown under the text so visitors can see the tool is actively maintained. */
