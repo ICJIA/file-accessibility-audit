@@ -115,3 +115,19 @@ describe("outstanding issues are visible without a click", () => {
     expect(src).toContain("Hide outstanding issues");
   });
 });
+
+describe("outstanding-issues cards carry the version note", () => {
+  // Wiring rule: this page shows its own per-category Acrobat steps, so it
+  // must also say which app versions those steps are written for and that a
+  // reader who can't find the menus should contact IDS. Source-scanned like
+  // the rest of this file.
+  it("imports the shared note and renders it in the outstanding block", () => {
+    expect(src).toContain('import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions"');
+    expect(src).toContain("{{ FIX_STEPS_VERSION_NOTE }}");
+  });
+
+  it("tells the reader to re-run the checker by its current menu path, not the classic one", () => {
+    expect(src).toContain("All tools → Prepare for accessibility → Check for accessibility");
+    expect(src).not.toContain("Tools → Accessibility → Accessibility Checker</strong>");
+  });
+});

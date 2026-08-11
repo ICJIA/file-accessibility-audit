@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.69.0] - 2026-08-11
+
+### Fixed
+
+- **Every Word and Acrobat menu path in the fix steps was re-verified against current vendor documentation, and the stale ones corrected — prompted by a user who followed the steps and couldn't find the menus.** Root cause: Adobe replaced Acrobat's entire menu system in the "new experience" rolled out through 2023 (☰ menu + an **All tools** panel; `Tools → Accessibility` no longer exists), and pockets of the app still described the old interface. Worst was the remediation page's per-category Acrobat dictionary — classic-only paths throughout (`Tools → Accessibility → Set Alternate Text`, `Tools → Prepare Form`, `Tools → Print Production → Preflight`, plus one hint that was actually a **Word** menu). Every Acrobat step app-wide now leads with the current path and gives the classic path in parentheses where the two differ sharply — the same both-audiences convention the printable plan already uses for fix routes, chosen deliberately over a current/classic toggle (stored reports carry frozen Detailed-view steps a toggle can't rewrite, a printout can't toggle, and readers can't reliably name their Acrobat generation).
+- **Word steps corrected where Microsoft's current docs disagree with our copy:** the hyperlink menu item is **Edit Hyperlink** (one string said "Edit Link"); the ribbon tab in Microsoft's own repeat-header article is **Table Layout** (one step said "Layout", and the older **Table Tools** location is now noted); and the right-click alt-text command is **View Alt Text** in Microsoft 365 but **Edit Alt Text** in perpetual Word 2019–2024 — both wordings now appear wherever the command is named (analyzer findings included, so Detailed-view guidance matches whichever Word the reader has). The Acrobat checker's rename is also reflected where the app describes it (Accessibility Check, formerly Full Check), and the source-document notice's Mac export tip now matches the current Word for Mac dialog (newer builds tag PDFs on plain Save As; the "Best for electronic distribution and accessibility" radio belongs to older builds).
+
+### Added
+
+- **A version-and-support note on every fix-step card, on all six surfaces** (Visual-view plan cards, Detailed-view "How to Fix in Adobe Acrobat" blocks, Issues-to-fix rows, the printable plan, the HTML export, and the remediation page): which app versions the steps were verified against (Microsoft 365 Word — Windows Version 2607, Mac 16.111 — and Acrobat Pro 26, August 2026), a one-line "which Acrobat am I looking at?" test (☰ + All tools = current; a Tools tab with an Accessibility toolset = classic → use the parenthesized paths), and the agency support line: contact IDS at ICJIA to make sure you have the most recent versions installed. The note lives in one place (`apps/web/app/utils/fixStepVersions.ts`); eleven new wiring tests pin it to each surface so no view can silently drop it.
+- `docs/fix-step-accuracy-2026-08.md` — the verification record: the canonical current-vs-classic path table, exact versions and dates verified against, perpetual-license notes for IT (Acrobat 2020 support ended 2025-11-30; Acrobat Pro 2024 ships the *new* UI despite the "Classic" branding; the "Disable new Acrobat" toggle still exists), and the vendor-doc ambiguities already litigated so the next accuracy pass doesn't start from zero.
+
+### Notes
+
+Guidance-copy release plus one new UI element (the per-card note); no scoring, storage, retention, schema, or dependency change. Menu paths verified 2026-08-11 against live Adobe helpx and Microsoft support pages (Adobe's fetched via a real browser — helpx blocks plain HTTP clients). Old stored reports keep their frozen findings text; the note renders from the web layer, so they get it too. Tests 2,134 → 2,145 (web 933 → 944).
+
 ## [1.68.3] - 2026-08-10
 
 ### Changed

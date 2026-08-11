@@ -306,6 +306,12 @@
               <span>{{ step }}</span>
             </li>
           </ol>
+          <p
+            role="note"
+            class="px-4 py-2.5 text-xs text-[var(--text-muted)] leading-relaxed border-t border-amber-500/20"
+          >
+            {{ FIX_STEPS_VERSION_NOTE }}
+          </p>
         </div>
 
         <div
@@ -508,6 +514,7 @@ import {
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { partitionCardFindings, isGuidanceFinding } from "~/utils/findings";
 import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
+import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { useWcag } from "~/composables/useWcag";
 
 /**

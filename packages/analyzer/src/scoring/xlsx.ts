@@ -305,7 +305,7 @@ function scoreXlsxAltText(a: XlsxAnalysis): CategoryResult {
     // convention shared with DOCX so one barrier has one grade consequence.
     score = Math.min(score, 85);
     findings.push(
-      `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → Edit Alt Text and add a description.`,
+      `${missingAlt.length} image(s) are missing alt text. In Excel: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
     const titleOnly = nonDec.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {

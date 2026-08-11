@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import ActionPlan from "../components/ActionPlan.vue";
 import type { PlanStep } from "../utils/actionPlan";
+import { FIX_STEPS_VERSION_NOTE } from "../utils/fixStepVersions";
 
 const step = (rank: number, categoryId: string, severity: PlanStep["severity"]): PlanStep => ({
   rank,
@@ -152,5 +153,20 @@ describe("ActionPlan", () => {
     expect(w.text()).not.toContain("1.4.3");
     expect(w.text()).toContain("Still worth checking by hand");
     expect(w.text()).toContain("not the same as being accessible");
+  });
+
+  // Wiring rule: every surface that shows fix steps must also say which
+  // Word/Acrobat versions the steps are written for, and who to call when
+  // the menus don't match (a real user on an older Acrobat couldn't find
+  // the menu items and had no way to know why).
+  it("renders the version note + IDS support line inside each step card", () => {
+    const w = mount(ActionPlan, { props: { steps: [step(1, "alt_text", "Critical")] } });
+    expect(w.text()).toContain(FIX_STEPS_VERSION_NOTE);
+    expect(w.text()).toContain("contact IDS at ICJIA");
+  });
+
+  it("does not render the version note on the nothing-to-fix pass card", () => {
+    const w = mount(ActionPlan, { props: { steps: [] } });
+    expect(w.text()).not.toContain("contact IDS at ICJIA");
   });
 });

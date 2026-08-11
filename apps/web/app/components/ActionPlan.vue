@@ -82,6 +82,10 @@
                 </div>
               </div>
 
+              <p class="text-[11px] leading-relaxed text-[var(--text-muted)] mt-2 mb-0" role="note">
+                {{ FIX_STEPS_VERSION_NOTE }}
+              </p>
+
               <div class="mt-2 flex items-center gap-2 flex-wrap">
                 <span
                   v-for="wcagRef in step.wcagRefs"
@@ -134,6 +138,7 @@ import { computed, ref, watch } from "vue";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
 const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
+import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
 const props = defineProps<{

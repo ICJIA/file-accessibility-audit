@@ -182,10 +182,12 @@ const isXlsx = computed(() => props.fileType === "xlsx");
               headings and add image descriptions in the Image inspector.
             </li>
             <li>
-              <strong class="text-[var(--text)]">When exporting:</strong> always choose the "Best
-              for electronic distribution / accessibility" option (Word, Pages) or "Create Tagged
-              PDF" (InDesign). Skipping this on export is the #1 cause of remediable PDFs we see
-              here.
+              <strong class="text-[var(--text)]">When exporting:</strong> in Word for Windows, check
+              <em>"Document structure tags for accessibility"</em> under Save As → PDF → Options
+              (older Word for Mac offers a "Best for electronic distribution and accessibility"
+              choice — pick it; current Mac versions tag the PDF automatically). In InDesign, check
+              <em>"Create Tagged PDF"</em>. Skipping this on export is the #1 cause of remediable
+              PDFs we see here.
             </li>
           </ul>
         </details>

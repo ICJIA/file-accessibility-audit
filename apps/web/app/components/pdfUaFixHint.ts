@@ -69,12 +69,12 @@ export function pdfUaFixHint(f: PdfUaFailureLike): string {
 
   // 7. Document / passage language.
   if (d.includes("lang")) {
-    return "Set the document language (Acrobat: File → Properties → Advanced → Reading Language), plus per-passage language where the language changes.";
+    return "Set the document language (Acrobat: Document properties → Advanced tab → Reading Options → Language; classic UI: File → Properties), plus per-passage language where the language changes.";
   }
 
   // 8. Document title.
   if (d.includes("title")) {
-    return "Set a document Title (File → Properties → Description) and enable Initial View → Show → Document Title.";
+    return "Set a document Title (Acrobat: Document properties → Description tab; classic UI: File → Properties) and enable Initial View → Show → Document Title.";
   }
 
   // 9. XMP metadata / PDF/UA identifier.

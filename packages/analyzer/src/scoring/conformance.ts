@@ -260,7 +260,7 @@ export function evaluateConformance(
       "Info and Relationships",
       "A",
       "text_extractability",
-      "The document has a tag structure (StructTreeRoot), but it references no content — no paragraphs, headings, figures, tables, lists, or marked content are inside it. Every character of the text sits outside the structure tree, so assistive technology receives no headings, relationships, or reading order, exactly as if the document were untagged. Re-tag the document (Acrobat: All tools → Prepare for accessibility → Automatically tag PDF), then verify in the Tags panel that the body content appears under the tags.",
+      "The document has a tag structure (StructTreeRoot), but it references no content — no paragraphs, headings, figures, tables, lists, or marked content are inside it. Every character of the text sits outside the structure tree, so assistive technology receives no headings, relationships, or reading order, exactly as if the document were untagged. Re-tag the document (Acrobat: All tools → Prepare for accessibility → Automatically tag PDF; classic UI: Tools → Accessibility → Autotag Document), then verify in the Tags panel that the body content appears under the tags.",
     );
   }
 
@@ -591,7 +591,7 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       "Non-text Content",
       "A",
       "alt_text",
-      `${imagesMissingAlt} image(s) have no alternative text. In Word, right-click each image → View Alt Text and add a description (or mark it decorative).`,
+      `${imagesMissingAlt} image(s) have no alternative text. In Word, right-click each image → View Alt Text (some Word versions call it Edit Alt Text) and add a description (or mark it decorative).`,
     );
   }
 
@@ -710,7 +710,7 @@ export function evaluatePptxConformance(analysis: PptxAnalysis): ConformanceVerd
       "Non-text Content",
       "A",
       "alt_text",
-      `${imagesMissingAlt} image(s) have no alternative text. In PowerPoint: right-click each image → View Alt Text and add a description (or mark it decorative).`,
+      `${imagesMissingAlt} image(s) have no alternative text. In PowerPoint: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description (or mark it decorative).`,
     );
   }
 
@@ -844,7 +844,7 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       "Non-text Content",
       "A",
       "alt_text",
-      `${imagesMissingAlt} image(s) have no alternative text. In Excel: right-click the image → View Alt Text and add a description (or mark it decorative).`,
+      `${imagesMissingAlt} image(s) have no alternative text. In Excel: right-click the image → View Alt Text (some versions call it Edit Alt Text) and add a description (or mark it decorative).`,
     );
   }
 

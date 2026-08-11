@@ -188,6 +188,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "fix-steps-verified-2026-08-11",
+    badge: "Improved",
+    text: "Every fix step in every report has been re-checked, word for word, against the current versions of Microsoft Word and Adobe Acrobat (verified August 2026). Adobe redesigned Acrobat's entire menu system in 2023, so each Acrobat step now shows the current path first with the older “classic” path in parentheses — whichever version you're on, the step matches your screen. Each card of fix steps also names the exact app versions it was written for and tells you how to recognize which Acrobat you have. And if a menu item still doesn't match what you see, the card says who to contact — IDS at ICJIA — to get your software brought current.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 11, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     // `-r2` re-shows this announcement to anyone who dismissed the first
     // wording: it stated the sign-in system was removed without saying it had
     // never been switched on, which understates the guarantee.

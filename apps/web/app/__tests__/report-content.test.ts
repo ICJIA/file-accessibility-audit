@@ -14,6 +14,7 @@ vi.mock("~/composables/useWcag", () => ({
 
 import { mount } from "@vue/test-utils";
 import ReportContent from "../components/ReportContent.vue";
+import { FIX_STEPS_VERSION_NOTE } from "../utils/fixStepVersions";
 import { GRADE_COLORS, SEVERITY_COLORS } from "@file-audit/shared";
 
 // Behavioral coverage for the shared report subtree (Score Table, Document
@@ -108,6 +109,30 @@ describe("ReportContent — score table a11y (Task F6)", () => {
     expect(caption.exists()).toBe(true);
     expect(caption.classes()).toContain("sr-only");
     expect(caption.text().length).toBeGreaterThan(0);
+  });
+});
+
+describe("ReportContent — Acrobat guide version note", () => {
+  // Wiring rule: the Detailed view's "How to Fix in Adobe Acrobat" card must
+  // carry the note saying which app versions the steps target, and who to
+  // call (IDS) when the menus on screen don't match.
+  it("renders the version note + IDS support line inside the Acrobat block", () => {
+    const w = mountReport([
+      cat({
+        findings: [
+          "3 images with no alt text",
+          "--- Adobe Acrobat: How to Fix ---",
+          "Open the Tags panel",
+        ],
+      }),
+    ]);
+    expect(w.text()).toContain(FIX_STEPS_VERSION_NOTE);
+    expect(w.text()).toContain("contact IDS at ICJIA");
+  });
+
+  it("omits the note when a category has no Acrobat guide block", () => {
+    const w = mountReport([cat()]);
+    expect(w.text()).not.toContain("contact IDS at ICJIA");
   });
 });
 

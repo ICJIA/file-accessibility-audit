@@ -49,6 +49,20 @@ describe("buildPrintablePlan", () => {
     expect(html).toContain("File → Properties");
   });
 
+  it("prints the version note + IDS support line with the steps, not just on screen", () => {
+    // The printout is read next to Word/Acrobat — exactly where a menu
+    // mismatch is discovered — and the holder of the paper may not be the
+    // person who generated it.
+    const html = buildPrintablePlan({ filename: "a.pdf", steps: [step()], generatedAt: AT });
+    expect(html).toContain("contact IDS at ICJIA");
+    expect(html).toContain("August 2026");
+  });
+
+  it("omits the version note when there is nothing to fix", () => {
+    const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
+    expect(html).not.toContain("contact IDS at ICJIA");
+  });
+
   it("is a complete standalone document with no external requests", () => {
     // A printout that needed the network would be useless on paper, and this
     // opens as a blob URL where a relative asset path resolves to nothing.

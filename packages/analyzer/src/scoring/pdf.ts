@@ -154,7 +154,7 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
       "Screen readers in conforming viewers cannot read ANY content of this document, regardless of tagging or text quality.",
     );
     findings.push(
-      "How to fix: In Adobe Acrobat, open File → Properties → Security and either remove security or enable 'Enable text access for screen reader devices for the visually impaired', then re-save. Modern AES-256 encryption always permits accessibility.",
+      "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Security tab and either remove security or enable 'Enable text access for screen reader devices for the visually impaired', then re-save. Modern AES-256 encryption always permits accessibility.",
     );
   } else if (pdfjs.hasText && qpdf.hasStructTree && structTreeIsContentFree(qpdf, pdfjs)) {
     // The root object exists but the tree references nothing — the same
@@ -171,7 +171,7 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
         `All ${pdfjs.textLength.toLocaleString()} characters of text sit outside the structure tree, so a screen reader following the tags receives nothing — the same result as an untagged document.`,
       );
     findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF, then open the Tags panel and confirm the body content now appears beneath the tags.",
+      "How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document), then open the Tags panel and confirm the body content now appears beneath the tags.",
     );
   } else if (pdfjs.hasText && qpdf.hasStructTree) {
     score = 100;
@@ -203,7 +203,7 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
         "This may be a partially tagged scanned document. The images need OCR (Optical Character Recognition) to convert them to real text.",
       );
       findings.push(
-        "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In This File.",
+        "How to fix: In Adobe Acrobat, open All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR → Recognize Text → In This File).",
       );
     }
   } else {
@@ -266,7 +266,7 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
         `${notEmbedded.length} non-embedded font(s) may cause garbled text on systems without ${notEmbedded.length === 1 ? "this font" : "these fonts"}: ${fontNames}${notEmbedded.length > 5 ? ` (+${notEmbedded.length - 5} more)` : ""}`,
       );
       findings.push(
-        "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: File → Properties → Fonts tab shows embedding status.",
+        "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status.",
       );
     } else {
       findings.push(
@@ -316,7 +316,7 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
         "The title looks like a filename or tool-generated string rather than a descriptive title — screen readers announce it as the document name, so partial credit only.",
       );
       findings.push(
-        'How to fix: In Adobe Acrobat, go to File → Properties → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
+        'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
       );
     } else if (qpdf.displayDocTitle !== true) {
       // Title present but /ViewerPreferences /DisplayDocTitle is unset or
@@ -329,7 +329,7 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
         "The title is set, but the DisplayDocTitle viewer preference is not — viewers will show the filename in the title bar instead of this title.",
       );
       findings.push(
-        "How to fix: In Adobe Acrobat, go to File → Properties → Initial View tab → set Show: Document Title, then save.",
+        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
       );
     } else {
       score += 50;
@@ -338,7 +338,7 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
   } else {
     findings.push("No document title found in metadata");
     findings.push(
-      "How to fix: In Adobe Acrobat, go to File → Properties → Description tab → enter a descriptive Title.",
+      "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → enter a descriptive Title.",
     );
     findings.push(
       'The title is what screen readers announce when a user first opens the document. Without it, they hear the filename instead (e.g., "report_v3_final.pdf").',
@@ -353,7 +353,7 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
   } else {
     findings.push("No language declaration found");
     findings.push(
-      "How to fix: In Adobe Acrobat, go to File → Properties → Advanced tab → set the Language dropdown.",
+      "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → set the Language dropdown.",
     );
     findings.push(
       "The language tag tells screen readers which pronunciation rules to use. Without it, a French document might be read with English pronunciation.",
@@ -458,7 +458,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     }
 
     findings.push(
-      "How to fix: In Adobe Acrobat, open the Tags panel (classic UI: View → Show/Hide → Navigation Panes → Tags; new UI: the Accessibility tags panel in the left rail). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.",
+      "How to fix: In Adobe Acrobat, open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags). Select text that serves as a heading, right-click the corresponding tag, and change its type to H1, H2, etc.",
     );
     return {
       id: "heading_structure",
@@ -878,7 +878,7 @@ function scoreColorContrast(): CategoryResult {
       url: wcagUnderstandingUrl("contrast-minimum"),
     },
     {
-      label: "Adobe: Check accessibility (Full Check)",
+      label: "Adobe: Check for accessibility (classic: Full Check)",
       url: "https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html",
     },
   ];
@@ -971,7 +971,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       severity: getSeverity(40),
       findings: [
         "Outline structure present but contains no entries",
-        "How to fix: In Adobe Acrobat, go to the Bookmarks panel (View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks from Structure).",
+        "How to fix: In Adobe Acrobat, go to the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks). You can create bookmarks manually or auto-generate them from headings (Options menu → New Bookmarks From Structure).",
       ],
       explanation: bookmarkExplanation,
       helpLinks: bookmarkLinks,
@@ -992,7 +992,7 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
       // inside a single document. The honest precedent is Acrobat's own
       // checker, which flags long documents without them.
       "No WCAG criterion strictly requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages, and W3C's PDF2 technique lists bookmarks as one way to satisfy it). But Adobe Acrobat's own accessibility checker flags long documents without them, and they remain the fastest way for every reader — screen-reader users included — to move around a long PDF, so their absence is treated as a moderate readiness issue.",
-      "How to fix: In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks from Structure).",
+      "How to fix: In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks From Structure).",
     ],
     explanation: bookmarkExplanation,
     helpLinks: bookmarkLinks,
@@ -1201,7 +1201,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       }
     }
     findings.push(
-      'Fix: In Adobe Acrobat, open the Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to "Column" or "Row"',
+      'Fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to "Column" or "Row"',
     );
   }
 
@@ -1415,7 +1415,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
         "Note: WCAG 2.4.4 is judged in context — a vague phrase can be acceptable when the surrounding sentence makes the destination clear. Review the flagged links in place; where possible, give them self-describing text.",
       );
       findings.push(
-        "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit link properties via the Edit PDF tool.",
+        "How to fix: In the original document (Word, InDesign, etc.), change the visible link text to something descriptive before re-exporting to PDF. In Adobe Acrobat, you can edit the text via the Edit tool (All tools → Edit a PDF; classic UI: Tools → Edit PDF).",
       );
     }
   }
@@ -1509,7 +1509,7 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
       }
     }
     findings.push(
-      "How to fix: In Adobe Acrobat, open All tools → Prepare a form, then right-click each field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.",
+      "How to fix: In Adobe Acrobat, open All tools → Prepare a form (classic UI: Tools → Prepare Form), then right-click each field → Properties → General tab → enter a descriptive Tooltip. The tooltip becomes the accessible label that screen readers announce.",
     );
   }
 
@@ -1555,7 +1555,7 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       findings: [
         "No structure tree present — reading order cannot be determined",
         "Without a tag structure, screen readers fall back to the raw drawing order, which may not match the visual layout at all.",
-        "How to fix: First add tags (All tools → Prepare for accessibility → Automatically tag PDF), then use Fix reading order (classic UI: Accessibility → Reading Order) to verify and correct the sequence.",
+        "How to fix: First add tags (All tools → Prepare for accessibility → Automatically tag PDF), then use Fix reading order (classic UI: Tools → Accessibility → Reading Order) to verify and correct the sequence.",
       ],
       explanation: readingExplanation,
       helpLinks: readingLinks,
@@ -1575,7 +1575,7 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       "Structure tree is flat (no meaningful nesting) — the document has tags but they don't define a nested hierarchy.",
     );
     findings.push(
-      "How to fix: Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
+      "How to fix: Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
     );
     return {
       id: "reading_order",

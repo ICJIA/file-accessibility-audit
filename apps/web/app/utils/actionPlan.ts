@@ -77,8 +77,8 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       ],
     },
     acrobat: [
-      "All tools → Scan & OCR → Recognize Text → In This File (runs OCR, which turns a picture of text into real, readable text)",
-      "Then: All tools → Prepare for accessibility → Automatically tag PDF",
+      "All tools → Scan & OCR → Recognize Text → In this file (runs OCR, which turns a picture of text into real, readable text; classic UI: Tools → Scan & OCR)",
+      "Then: All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document)",
     ],
   },
   title_language: {
@@ -91,9 +91,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       xlsx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
     },
     acrobat: [
-      "File → Properties → Description tab → enter a descriptive Title",
-      "File → Properties → Advanced tab → set the Language dropdown",
-      "File → Properties → Initial View tab → set Show: Document Title",
+      "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties)",
+      "Description tab → enter a descriptive Title",
+      "Advanced tab → Reading Options → set the Language dropdown",
+      "Initial View tab → set Show: Document Title",
     ],
   },
   heading_structure: {
@@ -111,7 +112,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       ],
     },
     acrobat: [
-      "Open the Tags panel (View → Show/Hide → Navigation Panes → Tags)",
+      "Open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags)",
       "Change each heading's tag to the matching level (H1, H2, H3…) so the visual hierarchy is in the tags",
     ],
   },
@@ -120,20 +121,22 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     why: 'People who can\'t see an image rely on its description; without one they hear only "graphic".',
     source: {
       pdf: [
-        "In Word: right-click each image → View Alt Text → write a short description (or mark it decorative)",
+        "In Word: right-click each image → View Alt Text (some Word versions call it Edit Alt Text) → write a short description (or mark it decorative)",
         "Re-export the PDF",
       ],
       docx: [
-        "Right-click each image → View Alt Text → write a short description (or mark it decorative)",
+        "Right-click each image → View Alt Text (some Word versions call it Edit Alt Text) → write a short description (or mark it decorative)",
       ],
       pptx: [
-        "Right-click each picture → View Alt Text → write a short description (or mark it decorative)",
+        "Right-click each picture → View Alt Text (some versions call it Edit Alt Text) → write a short description (or mark it decorative)",
       ],
-      xlsx: ["Right-click each chart/image → View Alt Text → write a short description"],
+      xlsx: [
+        "Right-click each chart/image → View Alt Text (some versions call it Edit Alt Text) → write a short description",
+      ],
     },
     acrobat: [
-      "All tools → Prepare for accessibility → Fix reading order",
-      "Select each figure → Edit alternate text → write a short description",
+      "All tools → Prepare for accessibility → Add alternate text — Acrobat finds every figure and walks you through describing them (classic UI: Tools → Accessibility → Set Alternate Text)",
+      "Or one image at a time: Fix reading order → right-click the figure → Edit Alternate Text",
     ],
   },
   color_contrast: {
@@ -172,8 +175,8 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       ],
     },
     acrobat: [
-      "View → Show/Hide → Navigation Panes → Bookmarks",
-      "Add a bookmark for each major section (with a tagged PDF, use the options menu → New Bookmarks from Structure)",
+      "Open the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks)",
+      "Add a bookmark for each major section (with a tagged PDF, use the panel's Options menu → New Bookmarks From Structure)",
     ],
   },
   table_markup: {
@@ -182,19 +185,19 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
     source: {
       pdf: [
         "In Word: build tables with Insert → Table (never tabs or spaces)",
-        "Select the header row → Table Design → check Header Row, and Layout → Repeat Header Rows",
+        "Select the header row → Table Design → check Header Row, and Table Layout → Repeat Header Rows (in older Word these two tabs sit under Table Tools)",
         "Re-export the PDF",
       ],
       docx: [
         "Build tables with Insert → Table (never tabs or spaces)",
-        "Select the header row → Table Design → check Header Row, and Layout → Repeat Header Rows",
+        "Select the header row → Table Design → check Header Row, and Table Layout → Repeat Header Rows (in older Word these two tabs sit under Table Tools)",
       ],
       pptx: ["Use Insert → Table on the slide", "Table Design → check Header Row"],
       xlsx: ['Select the data → Insert → Table → check "My table has headers"'],
     },
     acrobat: [
       "Open the Tags panel and confirm each table uses <Table>/<TR>/<TH>/<TD> (TH = header cell, TD = data cell)",
-      "Use Fix reading order → Table Editor to mark the header cells as header cells",
+      "Use All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor to mark the header cells as header cells (classic UI: Tools → Accessibility → Reading Order)",
     ],
   },
   link_quality: {
@@ -228,7 +231,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       xlsx: ["Put a clear label in the cell next to every input area"],
     },
     acrobat: [
-      "All tools → Prepare a form",
+      "All tools → Prepare a form (classic UI: Tools → Prepare Form)",
       "Right-click each field → Properties → General → Tooltip: enter the field's visible label",
     ],
   },
@@ -248,7 +251,7 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       ],
     },
     acrobat: [
-      "All tools → Prepare for accessibility → Fix reading order",
+      "All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order)",
       "Drag the numbered regions into the order the page should be read",
     ],
   },

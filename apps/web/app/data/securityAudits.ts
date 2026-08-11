@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.69.0",
+    meta: "Reviewed <strong>2026-08-11</strong> · scope: the accuracy of the fix instructions shown on reports — a guidance-copy release, not a security release.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>A user followed a report's fix steps and couldn't find the menu items in Adobe Acrobat — because Adobe redesigned Acrobat's entire menu system in 2023, and parts of this tool still described the old one.</strong> Every Word and Acrobat instruction in every report was re-checked, word for word, against the vendors' current official documentation on 2026-08-11. Acrobat steps now show the current menu path first with the older “classic” path in parentheses wherever the two differ, so the instructions match the screen whichever version a reader has — important here, since machines across the agency run a mix of both.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Every card of fix steps now also says what it was written for and who to call.</strong> Each card names the exact versions the steps were verified against (Microsoft 365 Word and Adobe Acrobat Pro version 26, August 2026), explains how to recognize which Acrobat interface you are looking at, and — when the menus still don't match — says to contact IDS at ICJIA to have the software brought current. <strong>Nothing about what is stored, how it is used, or how long it is kept changed in this release</strong>, and no part of the service gained new exposure: instruction text and one small note on the report pages are the whole of it.",
+      },
+    ],
+  },
+  {
     version: "v1.68.3",
     meta: "Reviewed <strong>2026-08-10</strong> · scope: the wording of the home-page announcement about sign-in — a copy change, not a security release.",
     body: [

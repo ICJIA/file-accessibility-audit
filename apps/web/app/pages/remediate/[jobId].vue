@@ -8,6 +8,7 @@ import {
   isPublishReady as isPublishReadyFor,
   publishVerdictFor,
 } from "~/utils/publishReadiness";
+import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
 // v1.21+: single Strict (WCAG + IITAA §E205.4) score. The historical
@@ -113,30 +114,35 @@ const outstandingCount = computed(
     outstandingMinor.value.length,
 );
 
-// Acrobat next-steps hints per category id. Drawn from the actual
-// Acrobat menu paths so users know where to click. Generic fallback
-// at the end for categories not specifically mapped.
+// Acrobat next-steps hints per category id. Written for the CURRENT
+// Acrobat interface (the 2023+ "All tools" design), with the classic
+// pre-redesign path in parentheses wherever the two differ sharply —
+// the agency runs a mix of both, and steps for one read as wrong on the
+// other (a real user couldn't find "Tools → Accessibility" on the new
+// UI). Verified against Adobe's own tool docs 2026-08-11; see
+// docs/fix-step-accuracy-2026-08.md. Generic fallback at the end for
+// categories not specifically mapped.
 const acrobatStepsByCategory: Record<string, string> = {
   alt_text:
-    "Tools → Accessibility → Set Alternate Text. Walk through each figure and add a description, or mark decorative images as artifacts.",
+    "All tools → Prepare for accessibility → Add alternate text — Acrobat finds every figure and walks you through describing them (classic UI: Tools → Accessibility → Set Alternate Text). Mark decorative images as artifacts.",
   reading_order:
-    "Tools → Accessibility → Reading Order. Verify the order matches how a sighted user would read; reorder blocks if needed.",
+    "All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order). Verify the order matches how a sighted user would read; reorder blocks if needed.",
   heading_structure:
-    "Open the Tags panel (View → Show/Hide → Navigation Panes → Tags). Verify <H1>, <H2>, etc. are present and nested correctly.",
+    "Open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags). Verify <H1>, <H2>, etc. are present and nested correctly.",
   table_markup:
     "In the Tags panel, expand each <Table> and confirm <TH> cells have a Scope attribute (Row or Column). Add via right-click → Properties → Tag.",
   title_language:
-    "File → Properties → Description tab (Title field). For language: File → Properties → Advanced → Language.",
+    "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac) → Description tab (Title field). For language: the Advanced tab → Reading Options → Language.",
   bookmarks:
-    'View → Show/Hide → Navigation Panes → Bookmarks. Add bookmarks via the menu or by right-clicking text and choosing "Add Bookmark".',
+    "Open the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks) and add a bookmark for each major section — or generate them from headings via the panel's Options menu → New Bookmarks From Structure.",
   form_accessibility:
-    "Tools → Prepare Form. Right-click each field → Properties → set Tooltip and Tab Order.",
+    "All tools → Prepare a form (classic UI: Tools → Prepare Form). Right-click each field → Properties → set Tooltip and Tab Order.",
   pdf_ua_compliance:
-    'Run Tools → Print Production → Preflight → "Verify compliance with PDF/UA-1." Fix any reported issues.',
+    'Run Preflight (All tools → Use print production → Preflight; classic UI: Tools → Print Production → Preflight) → "Verify compliance with PDF/UA-1." Fix any reported issues.',
   link_quality:
-    'Right-click links → Edit Hyperlink. Use descriptive text in the tag (Tags panel) rather than "click here".',
+    'Fix the visible text in the source document and re-export, or retype it with Acrobat\'s Edit tool (All tools → Edit a PDF). Use text that says where the link goes rather than "click here".',
   text_extractability:
-    "If the file is scanned: Tools → Scan & OCR → Recognize Text → In This File. Otherwise verify selectable text is correct.",
+    "If the file is scanned: All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR). Otherwise verify selectable text is correct.",
   color_contrast:
     "Adobe Acrobat does not enforce contrast directly. Use the original authoring tool (Word, InDesign) to adjust colors, or fix via a third-party color contrast checker.",
 };
@@ -144,7 +150,7 @@ const acrobatStepsByCategory: Record<string, string> = {
 function acrobatStepFor(catId: string): string {
   return (
     acrobatStepsByCategory[catId] ??
-    "Open the Tags panel and verify the structure is meaningful; re-run Tools → Accessibility → Accessibility Checker."
+    "Open the Tags panel and verify the structure is meaningful; re-run the checker (All tools → Prepare for accessibility → Check for accessibility; classic UI: Tools → Accessibility → Full Check)."
   );
 }
 
@@ -890,9 +896,12 @@ function labelForEvent(name: string): string {
                   v-if="outstandingCount > 0"
                   class="text-xs text-[var(--text-muted)] border-t border-emerald-700/20 pt-4"
                 >
-                  After your manual fixes in Adobe Acrobat, re-run
-                  <strong>Tools → Accessibility → Accessibility Checker</strong>
-                  to verify, then re-upload the file here to confirm the score moved.
+                  <p class="mb-2">
+                    After your manual fixes in Adobe Acrobat, re-run the checker (<strong
+                      >All tools → Prepare for accessibility → Check for accessibility</strong
+                    >) to verify, then re-upload the file here to confirm the score moved.
+                  </p>
+                  <p role="note">{{ FIX_STEPS_VERSION_NOTE }}</p>
                 </div>
               </div>
             </details>
@@ -1426,8 +1435,9 @@ function labelForEvent(name: string): string {
             <strong>alt text is meaningful</strong>, whether
             <strong>reading order makes sense to a sighted reader</strong>, or whether
             <strong>table semantics</strong> correctly model the data. Those require a human pass —
-            typically in Adobe Acrobat (Tools → Accessibility → Accessibility Checker, plus the
-            Reading Order and Tags panels) or with a screen reader. Conformance with the
+            typically in Adobe Acrobat (All tools → Prepare for accessibility → Check for
+            accessibility, plus the Fix reading order tool and the Tags panel) or with a screen
+            reader. Conformance with the
             <a
               v-if="iitaaUrl"
               :href="iitaaUrl"
@@ -1468,8 +1478,9 @@ function labelForEvent(name: string): string {
       </p>
       <p class="text-sm mb-2 font-medium">Recommended next step:</p>
       <p class="text-sm text-[var(--text-muted)] mb-4">
-        Open the original in Adobe Acrobat Pro → Accessibility → Autotag, then run the Accessibility
-        Checker.
+        Open the original in Adobe Acrobat Pro: All tools → Prepare for accessibility →
+        Automatically tag PDF, then Check for accessibility (classic UI: Tools → Accessibility →
+        Autotag Document, then Full Check).
       </p>
       <p class="text-sm mb-2 font-medium">Common reasons this happens:</p>
       <ul class="text-sm text-[var(--text-muted)] list-disc list-inside space-y-1 mb-4">

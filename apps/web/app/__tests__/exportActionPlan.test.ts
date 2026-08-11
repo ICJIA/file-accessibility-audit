@@ -67,6 +67,14 @@ function result(): ReportResult {
 }
 
 describe("buildHtml — action plan section", () => {
+  it("carries the version note + IDS support line into the exported plan", () => {
+    // Wiring rule: the exported HTML is read away from the app (often by a
+    // different person than the one who exported it), so the note about
+    // which Word/Acrobat versions the steps target must travel with it.
+    const html = buildHtml(result(), branding);
+    expect(html).toContain("contact IDS at ICJIA");
+  });
+
   it("renders the plan between the hero and the category table, ordered Critical first", () => {
     // Both text_extractability and future_check are Critical; Array.sort is
     // stable and text_extractability is listed first in the fixture, so it

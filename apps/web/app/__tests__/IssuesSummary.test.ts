@@ -2,6 +2,7 @@ import "./test-helpers";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import IssuesSummary from "../components/IssuesSummary.vue";
+import { FIX_STEPS_VERSION_NOTE } from "../utils/fixStepVersions";
 
 const mkCat = (id: string, label: string, severity: string | null, findings: string[] = []) => ({
   id,
@@ -79,5 +80,33 @@ describe("IssuesSummary", () => {
       },
     });
     expect(wrapper.findAll("li").length).toBe(1);
+  });
+
+  // Wiring rule: any expanded row that shows Acrobat fix steps must also say
+  // which app versions the steps are written for and who to call when the
+  // menus don't match.
+  it("renders the version note + IDS support line under expanded Acrobat steps", async () => {
+    const wrapper = mount(IssuesSummary, {
+      props: {
+        categories: [
+          mkCat("alt_text", "Alt Text", "Critical", [
+            "5 images with no alt text",
+            "--- Adobe Acrobat: How to Fix ---",
+            "Open the Tags panel",
+          ]),
+        ],
+      },
+    });
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.text()).toContain(FIX_STEPS_VERSION_NOTE);
+    expect(wrapper.text()).toContain("contact IDS at ICJIA");
+  });
+
+  it("omits the version note when a row has no Acrobat steps", async () => {
+    const wrapper = mount(IssuesSummary, {
+      props: { categories: [mkCat("c", "C", "Critical", ["a finding, no acrobat block"])] },
+    });
+    await wrapper.find("button").trigger("click");
+    expect(wrapper.text()).not.toContain("contact IDS at ICJIA");
   });
 });

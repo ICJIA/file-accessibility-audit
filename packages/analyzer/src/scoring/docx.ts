@@ -225,7 +225,7 @@ function scoreDocxAltText(a: DocxAnalysis): CategoryResult {
   if (withAlt < nonDecorative.length) {
     score = Math.min(score, 85);
     findings.push(
-      `${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text and add a description.`,
+      `${nonDecorative.length - withAlt} image(s) are missing alt text. In Word, right-click each image → View Alt Text (some Word versions call it Edit Alt Text) and add a description.`,
     );
     const titleOnly = nonDecorative.filter((i) => i.titleOnly && !i.altText).length;
     if (titleOnly > 0) {

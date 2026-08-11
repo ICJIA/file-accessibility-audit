@@ -228,7 +228,7 @@ function scorePptxAltText(a: PptxAnalysis): CategoryResult {
   ];
   if (missing.length > 0) {
     findings.push(
-      `${missing.length} image(s) are missing alt text. In PowerPoint: right-click each image → Edit Alt Text and add a description.`,
+      `${missing.length} image(s) are missing alt text. In PowerPoint: right-click each image → View Alt Text (some versions call it Edit Alt Text) and add a description.`,
     );
   }
   return pptxCategory(

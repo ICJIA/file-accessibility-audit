@@ -32,7 +32,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "Run OCR on scanned pages (Adobe Acrobat: Scan & OCR → Recognize Text), then add tags (Accessibility → Add Tags to Document). Verify the tag structure covers all content. This applies to scanned PDFs; Word, PowerPoint, and Excel files always store real, extractable text, so this category does not apply to them.",
+      "Run OCR on scanned pages (Adobe Acrobat: All tools → Scan & OCR → Recognize Text → In this file), then add tags (All tools → Prepare for accessibility → Automatically tag PDF; classic UI: Tools → Accessibility → Autotag Document). Verify the tag structure covers all content. This applies to scanned PDFs; Word, PowerPoint, and Excel files always store real, extractable text, so this category does not apply to them.",
   },
   title_language: {
     criteria: [
@@ -46,7 +46,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable / Understandable",
     remediation:
-      "In Acrobat: set the document title in File → Properties → Description, and the language in File → Properties → Advanced → Language dropdown. In Word, PowerPoint, or Excel: set the title in File → Info → Properties → Title. In Word, set the language via Review → Language → Set Proofing Language; PowerPoint uses its presentation-wide default language setting. Excel workbooks do not store a document language.",
+      "In Acrobat: open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties), set the title on the Description tab and the language on the Advanced tab under Reading Options. In Word, PowerPoint, or Excel: set the title in File → Info → Properties → Title. In Word, set the language via Review → Language → Set Proofing Language; PowerPoint uses its presentation-wide default language setting. Excel workbooks do not store a document language.",
   },
   heading_structure: {
     criteria: [
@@ -65,7 +65,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable / Operable",
     remediation:
-      "In Acrobat: open the Tags panel, identify text that serves as section headings, and change their tag type to H1–H6 in a logical hierarchy. Do not skip levels (e.g., H1 → H3). In Word: apply the built-in Heading 1–6 styles (Home tab → Styles gallery) instead of manually bolding or enlarging text, and keep the same no-skipping rule. (PowerPoint and Excel do not use this heading-hierarchy category — they are checked on slide titles and sheet names instead.)",
+      "In Acrobat: open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags), identify text that serves as section headings, and change their tag type to H1–H6 in a logical hierarchy. Do not skip levels (e.g., H1 → H3). In Word: apply the built-in Heading 1–6 styles (Home tab → Styles gallery) instead of manually bolding or enlarging text, and keep the same no-skipping rule. (PowerPoint and Excel do not use this heading-hierarchy category — they are checked on slide titles and sheet names instead.)",
   },
   alt_text: {
     criteria: [
@@ -143,7 +143,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Operable",
     remediation:
-      'Replace raw URLs and vague phrases like "click here" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click → Edit Link). For a PDF, fix the link text in the source document before export, or edit link properties directly in Acrobat (Edit PDF → Links).',
+      'Replace raw URLs and vague phrases like "click here" with descriptive link text. In Word, PowerPoint, or Excel, edit the link text directly in the source file (Insert → Link, or right-click the link → Edit Hyperlink). For a PDF, fix the link text in the source document before export, or edit the text directly in Acrobat (All tools → Edit a PDF).',
   },
   form_accessibility: {
     criteria: [
@@ -162,7 +162,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable / Robust",
     remediation:
-      "In Acrobat: right-click each form field → Properties → General tab → enter a descriptive Tooltip; the tooltip becomes the accessible label announced by screen readers. Interactive form fields are uncommon in Word, PowerPoint, and Excel and are not automatically assessed there — if present (e.g. Word/Excel Developer-tab content controls), give each one a descriptive title or accessible name.",
+      "In Acrobat: open All tools → Prepare a form (classic UI: Tools → Prepare Form), then right-click each form field → Properties → General tab → enter a descriptive Tooltip; the tooltip becomes the accessible label announced by screen readers. Interactive form fields are uncommon in Word, PowerPoint, and Excel and are not automatically assessed there — if present (e.g. Word/Excel Developer-tab content controls), give each one a descriptive title or accessible name.",
     wcag22Note:
       "New in WCAG 2.2: interactive forms may also implicate Target Size (2.5.8), Redundant Entry (3.3.7), and Accessible Authentication (3.3.8). These are not automatically assessed — confirm by manual review.",
   },
@@ -177,7 +177,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable",
     remediation:
-      "In Acrobat: use the Reading Order tool (Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow. In PowerPoint: use the Selection Pane (Home → Arrange → Selection Pane) to reorder shapes so each slide's title reads first. In Word, reading order generally follows the document's linear flow — check floating objects, text boxes, and wrapped images manually.",
+      "In Acrobat: use the Reading Order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to verify and reorder elements so the tag sequence matches the intended reading flow. In PowerPoint: use the Selection Pane (Home → Arrange → Selection Pane) to reorder shapes so each slide's title reads first. In Word, reading order generally follows the document's linear flow — check floating objects, text boxes, and wrapped images manually.",
   },
 };
 

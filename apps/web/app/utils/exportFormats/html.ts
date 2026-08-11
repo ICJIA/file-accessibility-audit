@@ -9,6 +9,7 @@ import { escapeHtml } from "~/utils/escapeHtml";
 import { naReason } from "~/utils/modeDivergence";
 import { BANNER_EYEBROW, bannerMetaLine, fileTypeLabel } from "~/utils/reportBanner";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
+import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { tallySeverity } from "~/utils/severityTally";
 import { gradeColor, severityColor, safeHttpUrl } from "@file-audit/shared";
 import {
@@ -233,7 +234,8 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
     ? "" // page-audit shape: no plan section at all, never a false pass card
     : plan.length
       ? `<h2 style="font-size:18px;margin-bottom:4px">Your Action Plan</h2>
-       <p style="font-size:12px;color:#888;margin:0 0 12px">Fix these in order, then re-upload to verify.</p>
+       <p style="font-size:12px;color:#888;margin:0 0 6px">Fix these in order, then re-upload to verify.</p>
+       <p style="font-size:11px;color:#888;margin:0 0 12px">${escapeHtml(FIX_STEPS_VERSION_NOTE)}</p>
        <ol style="list-style:none;margin:0 0 30px;padding:0">
        ${plan
          .map((s) => {

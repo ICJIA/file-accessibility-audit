@@ -1180,10 +1180,11 @@
                 <td class="px-4 py-2">Acrobat remediation guide</td>
                 <td class="px-4 py-2">All PDF categories</td>
                 <td class="px-4 py-2">
-                  When a PDF category scores below "Pass", appends the exact Adobe Acrobat Full
-                  Check rule names, menu paths, and step-by-step fix instructions specific to that
-                  category. Word/PowerPoint/Excel findings link to the relevant Microsoft
-                  accessibility help article instead.
+                  When a PDF category scores below "Pass", appends the exact Adobe Acrobat
+                  Accessibility Check rule names (called Full Check in older Acrobat versions), menu
+                  paths, and step-by-step fix instructions specific to that category.
+                  Word/PowerPoint/Excel findings link to the relevant Microsoft accessibility help
+                  article instead.
                 </td>
               </tr>
             </tbody>

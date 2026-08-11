@@ -63,6 +63,10 @@
             No detailed fix steps are available for this category. Run the full audit report for
             technical signals.
           </p>
+
+          <p v-if="row.findings.acrobat.length" class="version-note" role="note">
+            {{ FIX_STEPS_VERSION_NOTE }}
+          </p>
         </div>
       </li>
     </ul>
@@ -72,6 +76,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { firstActionableFinding, partitionCardFindings } from "~/utils/findings";
+import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 
 const props = defineProps<{
   categories: Array<{
@@ -291,5 +296,11 @@ function toggle(id: string) {
   font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
+}
+.version-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 </style>

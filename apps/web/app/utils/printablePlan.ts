@@ -24,6 +24,7 @@
  * document-derived strings (findings quote alt text, link labels, titles).
  */
 import { escapeHtml } from "~/utils/escapeHtml";
+import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
 
@@ -148,8 +149,13 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
         ? `<span class="grade">Grade ${escapeHtml(o.grade)}</span>`
         : "";
 
+  // The version note prints WITH the steps (not in the footer): the printout
+  // is read next to Word/Acrobat, which is exactly where a menu mismatch is
+  // discovered, and the holder of the paper may not be the person who
+  // generated it.
   const steps = o.steps.length
     ? `<h2>What to fix${o.steps.length > 1 ? ` — ${o.steps.length} items, in order` : ""}</h2>` +
+      `<p class="sub">${escapeHtml(FIX_STEPS_VERSION_NOTE)}</p>` +
       `<ol class="steps">${o.steps.map(renderStep).join("")}</ol>`
     : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
 

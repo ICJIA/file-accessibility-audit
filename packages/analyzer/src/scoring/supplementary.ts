@@ -8,26 +8,27 @@ import type { CategoryResult } from "../scorer.js";
 const acrobatGuide: Record<string, string[]> = {
   text_extractability: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Tagged PDF"',
-    'If Tagged PDF fails: File → Properties → Description shows "Tagged PDF: Yes/No" (status only) — to add tags, run All tools → Prepare for accessibility → Automatically tag PDF',
-    "If text is unreadable (scanned): Recognize Text → In This File (runs OCR)",
-    "Then: Accessibility → Reading Order tool → verify content tags are correct",
-    'Check font embedding: File → Properties → Fonts tab — all fonts should say "(Embedded)" or "(Embedded Subset)"',
-    "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight → Fix → Embed missing fonts",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Document" → "Tagged PDF"',
+    'If Tagged PDF fails: Document properties → Description shows "Tagged PDF: Yes/No" (status only) — to add tags, run All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document)',
+    "If text is unreadable (scanned): All tools → Scan & OCR → Recognize Text → In this file (runs OCR)",
+    "Then: All tools → Prepare for accessibility → Fix reading order → verify content tags are correct (classic UI: Tools → Accessibility → Reading Order)",
+    'Check font embedding: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab — all fonts should say "(Embedded)" or "(Embedded Subset)"',
+    "To fix non-embedded fonts: re-export from the source application with font embedding enabled, or use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts",
     "Menu path: Acrobat Pro → All tools → Prepare for accessibility",
   ],
   title_language: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Title" and "Primary Language"',
-    "Set title: File → Properties → Description tab → Title field (enter a meaningful document title)",
-    'Set title display: File → Properties → Initial View tab → Window Options → Show → "Document Title"',
-    "Set language: File → Properties → Advanced tab → Reading Options → Language dropdown",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Document" → "Title" and "Primary Language"',
+    "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties)",
+    "Set title: Description tab → Title field (enter a meaningful document title)",
+    'Set title display: Initial View tab → Window Options → Show → "Document Title"',
+    "Set language: Advanced tab → Reading Options → Language dropdown",
     'Common languages: English = "English", Spanish = "Spanish", French = "French"',
   ],
   heading_structure: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Page Content" → "Tagged Content" and "Document" → "Logical Reading Order"',
-    "Open the Tags panel: View → Show/Hide → Navigation Panes → Tags (new UI: Accessibility tags panel in the left rail)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Page Content" → "Tagged Content" and "Document" → "Logical Reading Order"',
+    "Open the Tags panel: ☰ Menu (Windows) or View menu (Mac) → Show/Hide → Side panels → Accessibility tags (classic UI: View → Show/Hide → Navigation Panes → Tags)",
     "To tag a heading: select text with Reading Order tool → click H1, H2, H3, etc.",
     "To fix heading level: right-click the tag in Tags panel → Properties → Type → select correct heading level (H1–H6)",
     "Multiple H1s: keep only the document title as H1 — right-click each extra H1 tag → Properties → change Type to H2 (or appropriate level)",
@@ -35,52 +36,53 @@ const acrobatGuide: Record<string, string[]> = {
   ],
   alt_text: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Alternate Text" → "Figures alternate text"',
-    "To add alt text: open Tags panel → find the <Figure> tag → right-click → Properties → Alternate Text field",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Alternate Text" → "Figures alternate text"',
+    "To fix every image in one pass: All tools → Prepare for accessibility → Add alternate text — Acrobat detects all figures and walks through them (classic UI: Tools → Accessibility → Set Alternate Text)",
+    "To add alt text to one image: open Tags panel → find the <Figure> tag → right-click → Properties → Alternate Text field",
     "Or: All tools → Prepare for accessibility → Fix reading order → select the image → right-click → Edit Alternate Text",
     'Good alt text: describes the purpose/content ("Bar chart showing 2024 crime rates"), not appearance ("colorful chart")',
     'Decorative images: select with the Reading Order tool → click "Background/Artifact", or in the Accessibility tags panel right-click the tag → Change Tag to Artifact (removes it from the reading order)',
   ],
   bookmarks: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Bookmarks"',
-    "Auto-generate from headings: open the Bookmarks panel → Options menu (⋮) → New Bookmarks from Structure → select the heading tags (requires a tagged PDF)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Document" → "Bookmarks"',
+    "Open the Bookmarks panel: the bookmark icon in the right-side panel (classic UI: View → Show/Hide → Navigation Panes → Bookmarks)",
+    "Auto-generate from headings: Bookmarks panel → Options menu (⋮) → New Bookmarks From Structure → select the heading tags (requires a tagged PDF)",
     "Or manually: navigate to each section → Ctrl/Cmd+B → name the bookmark",
     "Organize: drag bookmarks in the Bookmarks panel to create parent/child nesting",
-    "Verify: open Bookmarks panel (View → Show/Hide → Navigation Panes → Bookmarks)",
   ],
   table_markup: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Tables" → "Rows", "TH and TD", "Headers"',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Tables" → "Rows", "TH and TD", "Headers"',
     "Open Tags panel and expand the <Table> tag to see structure",
     'To add header cells: right-click a <TD> tag → Properties → Type → change to "Table Header Cell (TH)"',
-    'To set scope: Reading Order tool → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type "Header Cell" + Scope "Column" or "Row"',
+    'To set scope: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type "Header Cell" + Scope "Column" or "Row"',
     "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
     "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)",
   ],
   link_quality: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Alternate Text" → "Other elements alternate text"',
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Alternate Text" → "Other elements alternate text"',
     "To fix link text: open Tags panel → find the <Link> tag → expand to see the text",
     "If link text is a raw URL: edit the visible text in the source document (Word, InDesign) before re-exporting to PDF",
-    "In Acrobat: Edit PDF tool → select the link text → retype with descriptive text",
+    "In Acrobat: All tools → Edit a PDF (classic UI: Tools → Edit PDF) → select the link text → retype with descriptive text",
     "Best practice: fix link text in the source document, then re-export — Acrobat edits are fragile",
   ],
   form_accessibility: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Forms" → "Tagged form fields" and "Field descriptions"',
-    "To add a label: open All tools → Prepare a form → right-click the field → Properties → General tab → Tooltip field (this is the accessible label)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Forms" → "Tagged form fields" and "Field descriptions"',
+    "To add a label: open All tools → Prepare a form (classic UI: Tools → Prepare Form) → right-click the field → Properties → General tab → Tooltip field (this is the accessible label)",
     "The Tooltip (/TU attribute) is what screen readers announce — make it match the visible label",
     'For checkboxes/radios: Tooltip should describe the option (e.g., "Agree to terms")',
     "Verify: Tab through the form with a screen reader to confirm each field is announced correctly",
   ],
   reading_order: [
     "--- Adobe Acrobat: How to Fix ---",
-    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Accessibility → Full Check) → look under "Document" → "Tab order" and "Logical Reading Order"',
-    "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Accessibility → Reading Order)",
+    'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Document" → "Tab order" and "Logical Reading Order"',
+    "Open the tool: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order)",
     "The Reading Order tool shows numbered regions — verify the sequence matches how a human would read the page",
-    "To reorder: drag items in the Tags panel, or use the Order panel (View → Show/Hide → Navigation Panes → Order)",
-    'Set tab order on all pages: open the Page Thumbnails panel → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+    "To reorder: drag items in the Tags panel, or use the Order panel (open it from the Reading Order dialog via Show Order Panel)",
+    'Set tab order on all pages: open the Pages panel (View → Show/Hide → Side panels → Page; classic UI: Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
   ],
 };
 
@@ -156,7 +158,7 @@ export function appendSupplementaryFindings(
         "  No MarkInfo dictionary found — artifacts (headers, footers, page numbers, watermarks) may be read aloud by screen readers",
       );
       textCat.findings.push(
-        '  Fix: In Adobe Acrobat, use Accessibility → Reading Order tool → select decorative elements → click "Background/Artifact"',
+        '  Fix: In Adobe Acrobat, use All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select decorative elements → click "Background/Artifact"',
       );
     }
 
@@ -226,7 +228,7 @@ export function appendSupplementaryFindings(
           "  No tab order (/Tabs) set on any page — keyboard users may tab through elements in visual order instead of logical order",
         );
         readingCat.findings.push(
-          '  Fix: In Adobe Acrobat, select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+          '  Fix: In Adobe Acrobat, open the Pages panel (View → Show/Hide → Side panels → Page; classic UI: Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
         );
       }
     }
