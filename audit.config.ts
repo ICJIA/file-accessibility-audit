@@ -553,6 +553,43 @@ export const DEPLOY = {
 
   /** Frontend server port (Nuxt dev / production) */
   WEB_PORT: 5102,
+
+  /**
+   * The `client_max_body_size` that nginx's `location /api/` block MUST carry,
+   * in megabytes.
+   *
+   * THIS VALUE LIVES OUTSIDE THIS REPOSITORY. nginx is configured through
+   * Forge, so nothing here can enforce it at runtime — this constant records
+   * the contract, and deployLimits.test.ts fails the build if the caps below
+   * ever outgrow it. Changing the number here does NOT change the server.
+   *
+   * Why it is not derived from ANALYSIS.MAX_FILE_SIZE_MB: the binding
+   * constraint is REMEDIATION.MAX_FILE_SIZE_MB (50), which is deliberately
+   * DOUBLE the 25 MB audit cap because remediation handles annual reports and
+   * multi-section dossiers. Sizing the proxy to the audit cap alone silently
+   * breaks remediation for every file between the two.
+   *
+   * That is not hypothetical. On 2026-08-13 this location block was narrowed
+   * to 35 MB on the reasoning that 25 MB uploads + headroom was all that was
+   * needed. Remediation uploads between 35 and 50 MB immediately began failing
+   * with a 413 from nginx, before the request reached the app — invisible to
+   * every test, because no test can see the proxy. Restored to 60 MB the same
+   * day; this constant and its test exist so the reasoning cannot be repeated.
+   *
+   * SAFE TO CHANGE: Only together with the real nginx config. Raise nginx
+   * FIRST, then this constant — never the other way round.
+   */
+  NGINX_CLIENT_MAX_BODY_SIZE_MB: 60,
+
+  /**
+   * Slack between the largest accepted upload and the proxy limit, covering
+   * multipart boundaries, headers, and transfer encoding — the request is
+   * always somewhat larger than the file inside it.
+   *
+   * SAFE TO CHANGE: Yes, upward. Lowering it below ~2 MB risks rejecting a
+   * file that is legally sized but whose envelope pushes it over.
+   */
+  UPLOAD_HEADROOM_MB: 10,
 } as const;
 
 // ---------------------------------------------------------------------------

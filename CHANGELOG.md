@@ -37,7 +37,9 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
   Updated in every place the value is asserted or displayed: `audit.config.ts`, the hardcoded `MAX_FILE_BYTES` in `bulk-from-inventory.ts`, `DropZone.vue` (client check + copy), `technical-details.vue`, the data-retention sections (02, 09), `llms.txt` / `llms-full.txt`, the README limit tables and memory-exhaustion calculation, and three `components.test.ts` assertions (including the oversized-file fixture, which was a 16 MB file and would have passed under the new cap).
 
-  **Deploy note:** nginx `client_max_body_size` lives in the Forge config, outside this repo, and must be raised to 35 MB (cap + 10 MB header headroom) or the proxy will reject a 25 MB upload before it reaches the API.
+  **Deploy note:** nginx `client_max_body_size` lives in the Forge config, outside this repo, and must be at least **60 MB** on the `location /api/` block, or the proxy will reject uploads before they reach the API.
+
+  > **Corrected 2026-08-13 — this note originally said 35 MB, and that figure is wrong.** It was derived from the 25 MB audit cap plus 10 MB of headroom, overlooking `REMEDIATION.MAX_FILE_SIZE_MB`, which is **50 MB** — deliberately double the audit cap, because remediation handles annual reports and multi-section dossiers. Acting on the 35 MB figure narrowed the proxy the same day and broke every remediation upload between 35 and 50 MB with a 413 from nginx: a live feature failing in production, with a green test suite and nothing in the application logs, because a request the proxy rejects never reaches the app. The binding constraint is remediation, not the audit cap: **50 + 10 = 60 MB.** The value is now recorded as `DEPLOY.NGINX_CLIENT_MAX_BODY_SIZE_MB` and pinned by `deployLimits.test.ts`, which fails the build if either cap outgrows it.
 
 ### Notes
 
