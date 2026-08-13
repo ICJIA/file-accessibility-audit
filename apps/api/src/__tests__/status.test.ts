@@ -11,7 +11,7 @@
  * The clock is injected everywhere, so the two independent cache TTLs are
  * exercised by advancing a number rather than by sleeping.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -36,6 +36,18 @@ import {
 } from "../services/status.js";
 
 type DB = InstanceType<typeof Database>;
+
+// The privileged rate-limit tier reads process.env at call time. Production
+// always has a token set (/etc/environment), so that is the baseline these
+// tests assert against; the tests that care about it being ABSENT clear it
+// explicitly. Without this, every "healthy service" assertion would see a
+// degraded privileged_tier and fail for an unrelated reason.
+beforeEach(() => {
+  process.env.API_PRIVILEGED_TOKEN = "status-test-token";
+});
+afterEach(() => {
+  delete process.env.API_PRIVILEGED_TOKEN;
+});
 
 const T0 = Date.UTC(2026, 7, 3, 14, 22, 10); // 2026-08-03T14:22:10Z
 const HOUR = 60 * 60 * 1000;
@@ -889,6 +901,95 @@ describe("getHealthSummary — the header's verdict, without the cost", () => {
   });
 });
 
+describe("privileged tier — the misconfiguration nothing else on /status can see", () => {
+  // The token reaches the API only through the process environment. If PM2 ever
+  // resurrects from a non-login shell (reboot, bare `pm2 start`), the API comes
+  // up with no token, every caller is forced anonymous, and the weekly fleet
+  // audit silently drops from 5000/hour to 500/hour. Nothing else on this page
+  // moves — engines, database, disk and backup all stay green — which is
+  // exactly why the 2026-08-12 throttle looked like an outage of unknown cause.
+
+  it("reports 'on' when a token is configured, and does not degrade", async () => {
+    const payload = await makeService(freshDb()).getStatus();
+    expect(payload.privileged_tier).toBe("on");
+    expect(payload.status).toBe("ok");
+    expect(payload.degraded).toBeUndefined();
+  });
+
+  it("reports 'off' and DEGRADES when the token is missing", async () => {
+    delete process.env.API_PRIVILEGED_TOKEN;
+    const payload = await makeService(freshDb()).getStatus();
+    expect(payload.privileged_tier).toBe("off");
+    expect(payload.status).toBe("degraded");
+    expect(payload.degraded).toContain("privileged_tier");
+  });
+
+  it("treats an empty-string token as off (the fail-safe the limiter uses)", async () => {
+    process.env.API_PRIVILEGED_TOKEN = "";
+    const payload = await makeService(freshDb()).getStatus();
+    expect(payload.privileged_tier).toBe("off");
+    expect(payload.degraded).toContain("privileged_tier");
+  });
+
+  it("degrades WITHOUT becoming an outage — the service can still audit", async () => {
+    delete process.env.API_PRIVILEGED_TOKEN;
+    const payload = await makeService(freshDb()).getStatus();
+    // A 503 would take the whole tool down over a fleet-integration problem.
+    expect(payloadIsCoreFailure(payload)).toBe(false);
+  });
+
+  it("NEVER discloses the token itself, only the on/off verdict", async () => {
+    const token = "super-secret-fleet-credential";
+    process.env.API_PRIVILEGED_TOKEN = token;
+    const payload = await makeService(freshDb()).getStatus();
+    const serialized = JSON.stringify(payload);
+
+    expect(serialized).not.toContain(token);
+    // Nor any prefix long enough to be worth brute-forcing.
+    expect(serialized).not.toContain(token.slice(0, 8));
+    // The field is exactly the two-state verdict and nothing else.
+    expect(payload.privileged_tier).toBe("on");
+    expect(["on", "off"]).toContain(payload.privileged_tier);
+  });
+
+  // Both surfaces compute `degraded` by different routes. A card wired into
+  // only one of them has shipped before — assert they agree.
+  it("the header summary and /status agree that a missing token degrades", async () => {
+    delete process.env.API_PRIVILEGED_TOKEN;
+    const svc = makeService(freshDb());
+    const payload = await svc.getStatus();
+    const summary = svc.getHealthSummary();
+
+    expect(payload.degraded).toContain("privileged_tier");
+    expect(summary.degraded).toContain("privileged_tier");
+    expect(summary.status).toBe("degraded");
+    expect(summary.systems.find((s) => s.id === "privileged_tier")).toMatchObject({
+      ok: false,
+      state: "off",
+    });
+  });
+
+  it("the header summary reports it armed when the token is present", () => {
+    const summary = makeService(freshDb()).getHealthSummary();
+    expect(summary.systems.find((s) => s.id === "privileged_tier")).toMatchObject({
+      ok: true,
+      state: "armed",
+    });
+    expect(summary.status).toBe("ok");
+  });
+
+  it("degradedList defaults to 'on' so existing callers cannot accidentally page", () => {
+    const engines: EngineSnapshot = {
+      checked_at: "2026-08-03T14:22:10Z",
+      qpdf: { ok: true, version: "11.9.0" },
+      verapdf: { ok: true, version: "1.30.1" },
+      chromium: { ok: true },
+    };
+    expect(degradedList(engines, "ok", "ok", "ok")).toEqual([]);
+    expect(degradedList(engines, "ok", "ok", "ok", "off")).toEqual(["privileged_tier"]);
+  });
+});
+
 describe("getHealthSummary systems — what the header's tooltip names", () => {
   // The header indicator is now a link to /status with a tooltip naming the
   // systems its "online" is actually claiming. Three states per system, and
@@ -907,6 +1008,7 @@ describe("getHealthSummary systems — what the header's tooltip names", () => {
       "chromium",
       "backup",
       "disk",
+      "privileged_tier",
     ]);
     for (const s of summary.systems) {
       expect(s.label.length).toBeGreaterThan(0);

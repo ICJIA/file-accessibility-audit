@@ -147,6 +147,16 @@ describe("readBackupStatus", () => {
 });
 
 describe("status payload backup section", () => {
+  // Production always sets the privileged token. Without it the payload gains a
+  // `degraded: ["privileged_tier"]` entry, which would make these backup
+  // assertions fail for a reason that has nothing to do with backups.
+  beforeEach(() => {
+    process.env.API_PRIVILEGED_TOKEN = "backup-test-token";
+  });
+  afterEach(() => {
+    delete process.env.API_PRIVILEGED_TOKEN;
+  });
+
   const OK_ENGINES: EngineProbes = {
     qpdf: async () => ({ ok: true, version: "12.3.2" }),
     verapdf: async () => ({ ok: true, version: "1.26.1" }),

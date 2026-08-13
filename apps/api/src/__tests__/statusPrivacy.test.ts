@@ -15,7 +15,7 @@
  * identifying values, build the real payload, serialize it, and assert none
  * of them appear anywhere in the JSON.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { runMigrations } from "../db/migrations.js";
 import { createStatusService, type EngineProbes, type StatusDb } from "../services/status.js";
@@ -68,6 +68,16 @@ function build(probes: EngineProbes = OK_ENGINES, db: DB = seededDb()) {
     diskPath: ".",
   }).getStatus();
 }
+
+// Match production, where the privileged token is always set. Without it the
+// payload would carry a `degraded` key too, and the allow-list below would be
+// asserting the shape of an unhealthy service rather than a healthy one.
+beforeEach(() => {
+  process.env.API_PRIVILEGED_TOKEN = "privacy-test-token";
+});
+afterEach(() => {
+  delete process.env.API_PRIVILEGED_TOKEN;
+});
 
 describe("/status never discloses identifying data", () => {
   it("counts the seeded row without revealing anything about it", async () => {
@@ -189,6 +199,8 @@ describe("/status never discloses identifying data", () => {
         "engines",
         "last_audit_at",
         "last_audit_at_chicago",
+        // on/off only — never the token, its length, or a hash of it.
+        "privileged_tier",
         "remediation",
         "status",
         "uptime",

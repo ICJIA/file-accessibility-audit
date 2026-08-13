@@ -156,7 +156,15 @@ export interface StatusPayload {
    *  page); "unavailable" still does not — a deployment before its first
    *  scheduled run must not alarm. Never part of isCoreFailure/503. */
   backup: BackupStatus;
+  /** Whether the privileged rate-limit tier is armed — i.e. whether
+   *  API_PRIVILEGED_TOKEN is set on the running process. NEVER the token, its
+   *  length, or any hash of it; only on/off. See privilegedTierStatus. */
+  privileged_tier: PrivilegedTierStatus;
 }
+
+/** "on"  — a token is configured; fleet clients can reach the generous tier.
+ *  "off" — no token; EVERY caller is anonymous, including the fleet audit. */
+export type PrivilegedTierStatus = "on" | "off";
 
 export interface DiskStatus {
   /** "low" is a degradation, never an outage — see STATUS.DISK_LOW_FREE_PCT.
@@ -702,6 +710,27 @@ export async function collectEngines(probes: EngineProbes, nowMs: number): Promi
   return { checked_at: isoSeconds(nowMs), qpdf, verapdf, chromium };
 }
 
+/**
+ * Is the privileged rate-limit tier armed?
+ *
+ * Why this is worth reporting: the token reaches the API only through the
+ * process environment (ecosystem.config.cjs reads
+ * `process.env.API_PRIVILEGED_TOKEN || ""`, sourced from /etc/environment,
+ * which PAM loads for LOGIN shells). If PM2 ever resurrects the app from a
+ * non-login shell — a reboot, a manual `pm2 start` from a bare context — the
+ * API comes up with an empty token and `isPrivilegedRequest` fails closed.
+ * Every caller is then anonymous, the fleet audit silently drops from 5000/hour
+ * to 500/hour, and the only external symptom is that a weekly run appears to
+ * take the service "offline" (2026-08-12). Nothing else on this page would move.
+ *
+ * PRIVACY: returns on/off ONLY. The token, its length, and any hash of it stay
+ * out of this public document — statusPrivacy.test.ts enforces the shape.
+ */
+export function privilegedTierStatus(env: NodeJS.ProcessEnv = process.env): PrivilegedTierStatus {
+  const token = env.API_PRIVILEGED_TOKEN;
+  return typeof token === "string" && token.length > 0 ? "on" : "off";
+}
+
 /** Names of everything currently unhealthy, core first. Drives the
  *  `degraded` array (and, for core entries only, the 503 the Nitro tier
  *  selects via isCoreFailure — which never considers the backup).
@@ -719,6 +748,7 @@ export function degradedList(
   database: "ok" | "down",
   backupStatus: BackupStatus["status"],
   diskStatus: DiskStatus["status"] = "ok",
+  privilegedTier: PrivilegedTierStatus = "on",
 ): string[] {
   const out: string[] = [];
   if (database === "down") out.push("database");
@@ -734,6 +764,15 @@ export function degradedList(
   // problem, and alarming on it would fire on any platform where statfs
   // behaves differently.
   if (diskStatus === "low") out.push("disk");
+  // Same class as a stale backup or a low disk: it degrades (so the existing
+  // "degraded" keyword alert fires with no new monitor) but is never a core
+  // failure, because the service can still audit perfectly well — it is the
+  // FLEET integration that quietly loses its 10x headroom.
+  //
+  // Accepted trade-off: a deployment that never uses the fleet integration and
+  // deliberately runs without a token would degrade continuously. This one
+  // always sets it (/etc/environment), so "off" here means something broke.
+  if (privilegedTier === "off") out.push("privileged_tier");
   return out;
 }
 
@@ -806,7 +845,8 @@ export function createStatusService(deps: StatusDeps) {
     const backup = readBackupStatus(deps.backupStatusFile, nowMs);
     const disk = readDiskStatus(deps.diskPath);
 
-    const degraded = degradedList(eng, agg.database, backup.status, disk.status);
+    const privilegedTier = privilegedTierStatus();
+    const degraded = degradedList(eng, agg.database, backup.status, disk.status, privilegedTier);
     const uptimeSeconds = Math.max(0, Math.floor((nowMs - deps.startedAtMs) / 1000));
 
     const payload: StatusPayload = {
@@ -831,6 +871,7 @@ export function createStatusService(deps: StatusDeps) {
         jobs_24h: agg.remediation_jobs_24h,
       },
       backup,
+      privileged_tier: privilegedTier,
     };
     // Omitted rather than empty on the happy path, so a reader scanning the
     // JSON sees no failure vocabulary at all when nothing is wrong.
@@ -909,6 +950,15 @@ export function createStatusService(deps: StatusDeps) {
         label: "Disk space",
         ok: disk.status === "ok" ? true : disk.status === "low" ? false : null,
         state: disk.status === "ok" ? "ok" : disk.status === "low" ? "low" : "not measured",
+      },
+      // Carried here as well as in the payload so the header verdict and
+      // /status can never disagree — the two compute `degraded` by different
+      // routes, and a card wired into only one of them has shipped before.
+      {
+        id: "privileged_tier",
+        label: "Privileged API tier",
+        ok: privilegedTierStatus() === "on",
+        state: privilegedTierStatus() === "on" ? "armed" : "off",
       },
     ];
 
