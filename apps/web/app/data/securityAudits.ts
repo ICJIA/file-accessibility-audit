@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.71.0",
+    meta: "Reviewed <strong>2026-08-13</strong> · scope: record-keeping about the service's own behaviour, after a false alarm. No new findings; nothing about what is stored, how it is used, or how long it is kept changed.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The service was reported as being offline on August 12. It was not, and the reason it took so long to establish that has now been fixed.</strong> The tool had been running continuously for days, nothing had crashed, and it answered a real document check three minutes before anyone looked into it. What had actually happened is that a large automated run — the periodic check of documents across agency websites — was making requests far faster than the tool allows unidentified callers to, so the tool slowed it down, exactly as designed. From the other end that looks the same as a server that has stopped answering. The awkward part was that the tool kept no record of having slowed anything down, so the one fact that would have answered the question in seconds had to be pieced together from indirect evidence.",
+      },
+      {
+        kind: "p",
+        html: "<strong>The tool now writes a note to its own log whenever it slows a caller down, and says plainly when a caller's access key was not recognised.</strong> That second point is the one that mattered: a run using a wrong key and a run using no key at all behaved identically — both were quietly treated as anonymous and slowed — and now they are told apart and named. <strong>These notes deliberately record no information about who was calling.</strong> No network address, no access key, no browser identifier. This service keeps no record of the people who use it, and its speed limits are tracked only in memory and forgotten when it restarts; writing that information into a log file would put it on disk and contradict the retention rules described on this page. What gets written is the kind of request, the limit that applied, and whether a key was recognised — enough to explain a slowdown, and nothing about the person who experienced it.",
+      },
+      {
+        kind: "p",
+        html: "<strong>The service-status page now also reports whether the access key for trusted automated systems is in place.</strong> If that key is ever lost — a server restart in the wrong conditions is enough to lose it — every caller, including the agency's own document sweep, is silently limited to the slow lane, while every other indicator on the status page continues to look perfectly healthy. That state now shows on the status page and triggers the same automatic alert already used for other problems, so it is noticed rather than discovered weeks later. The page reports only whether the key is present or absent — never the key itself, nor any part of it. <strong>Nothing about what is stored, how it is used, or how long it is kept changed in this release</strong>, and no part of the service gained new exposure: no new address to visit, no new information to submit, and no change to the speed limits themselves.",
+      },
+    ],
+  },
+  {
     version: "v1.70.0",
     meta: "Reviewed <strong>2026-08-13</strong> · scope: one numeric raise to the file-size limit. No new findings; nothing about what is stored, how it is used, or how long it is kept changed.",
     body: [

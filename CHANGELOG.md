@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.71.0] - 2026-08-13
+
+### Added
+
+- **Every rate-limit rejection is now logged, and a rejected privileged token says so on the caller's first request.** On 2026-08-12 a fleet-audit run was reported as the audit server being "offline". It was not: the host had been up four days, both PM2 processes 29 hours with zero unstable restarts, no OOM kills in seven days, and nginx had logged no 5xx or upstream error all day. The run was simply calling `/api/audit-url` with no privileged token, sat in the anonymous tier (500/hour, 100/min), and spent its wall-clock honoring `Retry-After` — which from the client side is indistinguishable from a dead server.
+
+  What made it expensive to diagnose is that nothing recorded it. This site's nginx vhost sets `access_log off`, and the limiters rejected silently, so the single most useful fact had to be reconstructed from process uptime and an absence of errors. `rateLimiter.ts` now emits one line per 429 — `[rate-limit] 429 limiter=… tier=… auth=… path=… limit=N/Ns` — wired into all five limiters (`analyze`, `global`, `reports`, `remediationStatus`, `status`) through a shared `loggedHandler`. `authOutcome()` distinguishes a **wrong** token from an **unconfigured server**: both silently degrade to the anonymous tier and were previously indistinguishable. `tokenAuditMiddleware` is mounted ahead of `globalLimiter` so a misconfigured client is named on its first request rather than only once it has been throttled, rate-limited to one warning a minute so it cannot flood the log.
+
+  **No identifiers are logged** — no IP, no `Authorization` value, no user agent. The service stores no identity (v1.68.0) and the limiter buckets hold IPs in memory only; a log file is disk, and writing them there would contradict § 14. A test named _"NEVER writes the caller's IP or the token value to the log"_ guards it.
+
+- **`/status` reports whether the privileged rate-limit tier is armed, so losing the token pages instead of going unnoticed.** New payload field `privileged_tier: "on" | "off"`. When `off`, `"privileged_tier"` joins the `degraded` array and the top-level status becomes `degraded` — so the **existing** UptimeRobot keyword alert on `degraded` fires with no new monitor and no new keyword.
+
+  The failure it catches is real and silent: the token reaches the API only through the process environment (`ecosystem.config.cjs` reads `process.env.API_PRIVILEGED_TOKEN || ""`, sourced from `/etc/environment`, which PAM loads for **login** shells). A PM2 resurrect from a non-login shell after a reboot is enough to lose it, at which point `isPrivilegedRequest` fails closed, every caller is forced anonymous, and the weekly fleet audit quietly drops from 5,000/hour to 500/hour. Nothing else on the page moves — engines, database, disk and backup all stay green.
+
+  Deliberately **not** a core failure: it stays HTTP 200, matching `disk` and `backup`. The service can still audit perfectly well; it is the fleet integration that loses its headroom, and a 503 would take the public tool down over it. Wired into **both** verdict paths (`getStatus` and `getHealthSummary`) with a test asserting the two agree — a card wired into only one surface has shipped here before. Privacy: on/off only, never the token, a prefix of it, its length, or a hash; added to the `statusPrivacy.test.ts` top-level allow-list deliberately.
+
+### Notes
+
+- **The rate limiter itself is unchanged.** No limit, window, or tier was altered. v1.70.0 already recorded that the two-tier system was correct and simply had no token configured; this release makes that state visible rather than adjusting it.
+- **Companion change in the fleet client** (`icjia-fleet-audit` v1.41.0, separate repository): `AUDIT_ICJIA_TOKEN` is read from the environment, falling back to `~/.filecap/secrets.json`; the tier is announced at run start; and the retry layer now tallies 429s and total wait, reporting them at end of run so a throttled run reads as throttled rather than as a broken server.
+- Three existing test files now set `API_PRIVILEGED_TOKEN` in setup. Without it they would assert the shape of an unhealthy service, and unrelated backup and disk assertions would fail for a reason that has nothing to do with backups or disks.
+- Tests 2,145 → 2,163 (API 1,170 / web 944 / CLI 49).
+
 ## [1.70.0] - 2026-08-13
 
 ### Changed
