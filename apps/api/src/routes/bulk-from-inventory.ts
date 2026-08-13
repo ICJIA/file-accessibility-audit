@@ -16,7 +16,7 @@ const router: IRouter = Router();
 // ---------------------------------------------------------------------------
 
 const MAX_INVENTORY_BYTES = 5 * 1024 * 1024; // 5 MB NDJSON cap
-const MAX_FILE_BYTES = 15 * 1024 * 1024; // match ANALYSIS.MAX_FILE_SIZE_MB; applies to any of the four supported formats, not just PDF
+const MAX_FILE_BYTES = 25 * 1024 * 1024; // match ANALYSIS.MAX_FILE_SIZE_MB; applies to any of the four supported formats, not just PDF
 const MAX_FILES_PER_REQUEST = 100; // cap to keep requests reasonable
 const FETCH_TIMEOUT_MS = 30_000; // matches SCHEDULED_CHECKS.FETCH_TIMEOUT_MS
 

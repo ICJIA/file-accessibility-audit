@@ -256,7 +256,7 @@ There are no accounts, no sign-in, and no user credentials: every endpoint is pu
 ### POST /api/analyze
 Upload a document for accessibility analysis.
 - Content-Type: multipart/form-data
-- Field: `file` — PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx), max 15 MB. The format is detected from file content, not the filename or declared MIME type.
+- Field: `file` — PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx), max 25 MB. The format is detected from file content, not the filename or declared MIME type.
 - Auth: none — public, rate-limited per IP
 - Returns the raw analysis result — a flatter object than the JSON Export Schema above: `{ filename, pageCount, fileType, pdfMetadata|docxMetadata|pptxMetadata|xlsxMetadata, overallScore, grade, isScanned, executiveSummary, categories, warnings, scoringMode, scoreProfiles, conformance, pdfUa?, adobeParity? }`. `pdfUa` and `adobeParity` are present only for PDF. `scoreProfiles` here is the same single-entry (`strict`) object described above.
 - Errors: 400 no file / unsupported file type; 415 format disabled on this server; 422 corrupt or unparseable file, or password-protected PDF; 503 server busy (concurrency limit reached); 504 analysis timed out.
@@ -267,7 +267,7 @@ Audit a document by URL instead of upload. Returns the same result shape as `POS
 - Body: `{ "url": "https://..." }`
 - Auth: none — public, rate-limited per IP
 - The URL must resolve to a public host. Anonymous callers are restricted to an ICJIA / Illinois state government allowlist (extendable via the `ANALYZE_URL_ALLOWED_HOSTS` environment variable); a request bearing a valid privileged bearer token bypasses the allowlist and may fetch any public URL. Either way, a private/reserved-IP SSRF block (localhost, `*.local`/`*.internal`, RFC1918 ranges, link-local addresses) is enforced unconditionally, re-checked on every redirect hop.
-- Limits: 15 MB fetched content, 30 s fetch timeout, same rate limit as `/api/analyze`.
+- Limits: 25 MB fetched content, 30 s fetch timeout, same rate limit as `/api/analyze`.
 
 ### POST /api/audit-url
 Audit a document by URL **and** persist a shareable report in one call — built for fleet-inventory automation that needs both a score and a stable link to the full report, in a response shape that flattens directly into a CSV row.
@@ -282,7 +282,7 @@ Audit a document by URL **and** persist a shareable report in one call — built
 Accepts a [filecap](https://github.com/ICJIA/filecap-cli) NDJSON inventory and scores every file in it (any of the four formats, dispatched by detected content type) server-side in one request.
 - Content-Type: `text/plain` (raw NDJSON, max 5 MB) or `application/json` (`{ "inventory": "<NDJSON string>" }`)
 - Auth: none — public, rate-limited per IP
-- Limits: 100 files per request (additional entries are silently skipped), 15 MB per file, 30 s fetch timeout per file — files are processed serially through the same 2-at-a-time concurrency semaphore shared with every other audit endpoint, so large inventories can take several minutes in one HTTP request.
+- Limits: 100 files per request (additional entries are silently skipped), 25 MB per file, 30 s fetch timeout per file — files are processed serially through the same 2-at-a-time concurrency semaphore shared with every other audit endpoint, so large inventories can take several minutes in one HTTP request.
 - Returns: `{ "summary": { "total": n, "analyzed": n, "failed": n, "skipped": n }, "results": [ { "sha256", "path", "publicUrl", "overallScore", "grade", "reportId", "reportUrl", "error" } ] }` — one result entry per inventory line, `error` present instead of the score fields when that file failed.
 
 ### POST /api/reports

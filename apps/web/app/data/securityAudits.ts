@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.70.0",
+    meta: "Reviewed <strong>2026-08-13</strong> · scope: one numeric raise to the file-size limit. No new findings; nothing about what is stored, how it is used, or how long it is kept changed.",
+    body: [
+      {
+        kind: "p",
+        html: "<strong>The largest file the tool will accept goes from 15 MB to 25 MB.</strong> A large audit of agency documents ran on August 12–13 and checked 1,966 PDFs. Six were turned away for being too big — and all six were ordinary published documents, including a budget-committee packet and an HR newsletter. The limit exists to protect the server's memory, not to judge documents, so it has been raised to let those through. Two very large reports (roughly 50 MB and 60 MB) are still refused on purpose: accepting files that size would risk the server running out of memory when two people upload at once, and a 60 MB document has an accessibility problem of its own worth fixing at the source.",
+      },
+      {
+        kind: "p",
+        html: "<strong>Nothing else about the service changed, and no part of it gained new exposure.</strong> The number of documents checked at the same time is unchanged (two), so the most memory the tool can use for uploads is still bounded — now 50 MB instead of 30 MB. Every other protection is exactly as it was: the checks on where a file may be fetched from, the limits on how many requests one caller may make, the guards against oversized or malformed documents, and the scheduled deletion of stored data. The same audit run also produced two findings that were referred elsewhere rather than changed here: eight files on an agency website are web pages saved with a <code>.pdf</code> name, which this tool correctly refuses to grade, and a slow run was traced to a missing access token rather than to any fault in the service.",
+      },
+    ],
+  },
+  {
     version: "v1.69.0",
     meta: "Reviewed <strong>2026-08-11</strong> · scope: the accuracy of the fix instructions shown on reports — a guidance-copy release, not a security release.",
     body: [

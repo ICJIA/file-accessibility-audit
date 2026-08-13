@@ -656,7 +656,7 @@ export const DOCX = {
 
   /**
    * Max UNCOMPRESSED bytes for any single part read out of the .docx ZIP
-   * (document.xml, styles.xml, etc.). The 15 MB upload cap only limits the
+   * (document.xml, styles.xml, etc.). The 25 MB upload cap only limits the
    * COMPRESSED size — a decompression ("zip") bomb can inflate a <1 MB upload
    * to multiple GB and OOM the process. The reader checks the ZIP's declared
    * uncompressed size AND streams with a hard byte cap (declared size can be
@@ -962,8 +962,23 @@ export const ANALYSIS = {
    * SAFE TO CHANGE: Yes — but increasing above 50MB on a 4GB droplet risks
    * OOM kills during concurrent uploads. If you increase this, also increase
    * the nginx `client_max_body_size` in the Forge nginx config.
+   *
+   * 2026-08-13: raised 15 -> 25. The first complete fleet audit since
+   * 2026-07-02 graded 1,966 PDFs and hit this cap on six of them — legitimate
+   * published agency documents (a 17.3 MB budget packet, a 20.9 MB HR
+   * newsletter, two ILFVCC protocol documents) that the 15 MB cap refused with
+   * HTTP 413. The measured boundary was exact: the largest successfully graded
+   * file was 14.3 MB, the smallest rejection 17.3 MB.
+   *
+   * Why 25 and not 64: two of the six are 49.4 MB and 59.7 MB drone reports.
+   * Admitting those means 2 x ~60 MB buffers under MAX_CONCURRENT_ANALYSES,
+   * which is past the 50 MB this note already warns about on a 4 GB droplet.
+   * 25 MB clears four of the six and keeps worst-case buffer memory at
+   * 2 x 25 = 50 MB. The two outsized reports stay rejected on purpose — a
+   * 60 MB PDF is its own accessibility problem, and raising a shared server
+   * limit is the wrong lever for it.
    */
-  MAX_FILE_SIZE_MB: 15,
+  MAX_FILE_SIZE_MB: 25,
 
   /**
    * QPDF subprocess timeout in milliseconds.

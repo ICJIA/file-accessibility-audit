@@ -158,7 +158,7 @@ Client → HTTPS upload (multipart/form-data)
   │
   ▼
 <span class="text-sky-300">[validate]</span> content-based type check ('%PDF-' signature, or an OOXML ZIP
-           confirmed as Word / PowerPoint / Excel) + 15 MB size cap
+           confirmed as Word / PowerPoint / Excel) + 25 MB size cap
   │
   ▼
 <span class="text-sky-300">[analyzeDocument]</span> — detects format, dispatches:

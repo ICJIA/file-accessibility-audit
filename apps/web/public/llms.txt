@@ -6,7 +6,7 @@ This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and 
 
 ## What it does
 
-- Accepts a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file upload (up to 15 MB) — the format is detected from file content, not the extension
+- Accepts a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file upload (up to 25 MB) — the format is detected from file content, not the extension
 - Analyzes the document across the WCAG-aligned categories that apply to its format — up to 9, depending on format (PDF 9, PowerPoint 9, Word 8, Excel 7 scored categories; each format also shows a couple of always-"Not Assessed" placeholder categories for checks it doesn't yet automate)
 - Returns one overall score (0-100), letter grade (A-F), and per-category findings — plus a separate binary WCAG 2.2 conformance verdict (confirmed automated failures with links to the W3C standard, or "no automated WCAG failures detected" — never a blanket "conformant")
 - Color contrast is machine-checked directly for Word, PowerPoint, and Excel (wherever the document specifies explicit colors); PDF contrast analysis is not yet implemented and always shows as "Not Assessed"
@@ -46,7 +46,7 @@ Approximate category weights by format:
 
 The application exposes a REST API. There are no accounts and no sign-in: every endpoint is public and rate-limited per IP, so no credential is required. (Deployments may configure a single privileged fleet service token — `Authorization: Bearer <API_PRIVILEGED_TOKEN>` — which unlocks a generous rate tier and the URL-allowlist bypass on the URL-audit endpoints; it is a service credential for fleet automation, not a user account.)
 
-- POST /api/analyze - Upload a PDF, Word, PowerPoint, or Excel file for analysis (multipart/form-data, field: "file", max 15 MB)
+- POST /api/analyze - Upload a PDF, Word, PowerPoint, or Excel file for analysis (multipart/form-data, field: "file", max 25 MB)
 - POST /api/analyze-url - Audit a document (any of the four formats) by URL instead of upload (JSON body: `{ "url": "..." }`); returns the same result shape as /api/analyze
 - POST /api/audit-url - Audit a document by URL and persist a shareable report in one call, for fleet-inventory automation (returns score, grade, and a reportUrl)
 - POST /api/bulk-from-inventory - Score every file (any of the four formats) in a filecap NDJSON inventory in one request; returns a summary + per-file results manifest

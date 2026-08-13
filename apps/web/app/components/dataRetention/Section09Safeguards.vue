@@ -37,7 +37,7 @@
         the three it is. Anything else is rejected immediately.
       </li>
       <li>
-        <strong>File size cap</strong>: 15 MB for the audit pipeline, 50 MB for the remediation
+        <strong>File size cap</strong>: 25 MB for the audit pipeline, 50 MB for the remediation
         pipeline (configurable).
       </li>
       <li>

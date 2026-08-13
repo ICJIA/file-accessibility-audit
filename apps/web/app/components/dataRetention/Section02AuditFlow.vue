@@ -23,7 +23,7 @@ Client → HTTPS upload (multipart/form-data)
   - Content-based type check: PDF ('%PDF-' signature) or a ZIP package
     confirmed as Word / PowerPoint / Excel (OOXML) — never the filename
     or declared MIME type
-  - File size limit: 15 MB (configurable; rejected if exceeded)
+  - File size limit: 25 MB (configurable; rejected if exceeded)
   │
   ▼
 [analyzeDocument(buffer, filename)] — detects format, dispatches:

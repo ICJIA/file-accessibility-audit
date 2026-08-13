@@ -109,7 +109,7 @@
             {{ dragging ? dropLabelActive : dropLabelIdle }}
           </p>
           <p class="text-sm text-[var(--text-muted)] mt-1">
-            or click to browse — up to 5 files, max 15 MB each
+            or click to browse — up to 5 files, max 25 MB each
           </p>
         </div>
       </div>
@@ -136,7 +136,7 @@ import {
 } from "~/utils/uploadFormats";
 
 const MAX_FILES = 3;
-const MAX_SIZE = 15 * 1024 * 1024;
+const MAX_SIZE = 25 * 1024 * 1024;
 
 const config = useRuntimeConfig();
 // Word / PowerPoint / Excel support can each be turned off server-side
@@ -222,7 +222,7 @@ function processFiles(files: File[]) {
 
   const oversized = accepted.filter((f) => f.size > MAX_SIZE);
   if (oversized.length) {
-    validationError.value = `${oversized.map((f) => f.name).join(", ")} exceed${oversized.length === 1 ? "s" : ""} the 15 MB limit`;
+    validationError.value = `${oversized.map((f) => f.name).join(", ")} exceed${oversized.length === 1 ? "s" : ""} the 25 MB limit`;
     return;
   }
 

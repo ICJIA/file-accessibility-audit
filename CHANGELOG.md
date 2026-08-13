@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.70.0] - 2026-08-13
+
+### Changed
+
+- **The upload / fetched-file size cap rises from 15 MB to 25 MB** (`ANALYSIS.MAX_FILE_SIZE_MB`). The ICJIA fleet audit graded 1,966 PDFs on 2026-08-12/13 — its first complete pass since 2026-07-02 — and this cap refused six of them with HTTP 413. All six are legitimate published agency documents: a 17.3 MB budget-committee packet, a 20.9 MB HR newsletter, two ILFVCC protocol documents (17.5 / 18.5 MB), and two drone reports (49.4 / 59.7 MB). The boundary the run measured was exact — largest file graded 14.3 MB, smallest refused 17.3 MB.
+
+  25 MB clears four of the six and holds worst-case buffer memory at `2 × 25 = 50 MB` under the unchanged `MAX_CONCURRENT_ANALYSES: 2`. It deliberately stops short of the 49.4 / 59.7 MB reports: admitting those needs a ~64 MB cap, which is past the 50 MB `audit.config.ts` already warns about on a 4 GB droplet, and a 60 MB PDF is its own accessibility problem rather than a reason to raise a shared server limit.
+
+  Updated in every place the value is asserted or displayed: `audit.config.ts`, the hardcoded `MAX_FILE_BYTES` in `bulk-from-inventory.ts`, `DropZone.vue` (client check + copy), `technical-details.vue`, the data-retention sections (02, 09), `llms.txt` / `llms-full.txt`, the README limit tables and memory-exhaustion calculation, and three `components.test.ts` assertions (including the oversized-file fixture, which was a 16 MB file and would have passed under the new cap).
+
+  **Deploy note:** nginx `client_max_body_size` lives in the Forge config, outside this repo, and must be raised to 35 MB (cap + 10 MB header headroom) or the proxy will reject a 25 MB upload before it reaches the API.
+
+### Notes
+
+- **No change to the rate limiter.** The 2026-08-12 fleet run spent eight hours throttled, but the two-tier system was already correct and complete — it simply had no token configured. Setting `API_PRIVILEGED_TOKEN` here and the matching client token in the fleet-audit pipeline moves that caller from 500/hour + 100/min to 5,000/hour + 1,000/min, which is what `RATE_LIMITS` was sized for.
+- **No change to the 422 path.** Eight agency "PDFs" were refused with 422 during the same run. `urlAuditPipeline.ts` was right: those files are HTML — saved GitHub file-view pages uploaded into Strapi with a `.pdf` extension, served with `content-type: application/pdf` and HTTP 200. Loosening `detectFileType` to accept them would have masked eight broken documents on the agency site. Reported upstream instead.
+
 ## [1.69.0] - 2026-08-11
 
 ### Fixed

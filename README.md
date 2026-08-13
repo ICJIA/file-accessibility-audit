@@ -246,7 +246,7 @@ Upload up to **3 files** (PDF, Word, PowerPoint, or Excel) at once. Files are an
 | Constraint          | Value            | Enforced by                           |
 | ------------------- | ---------------- | ------------------------------------- |
 | Max files per batch | 3                | Frontend (`DropZone.vue`)             |
-| Max file size       | 15 MB each       | Frontend + multer + nginx             |
+| Max file size       | 25 MB each       | Frontend + multer + nginx             |
 | Concurrent uploads  | 2                | Frontend semaphore + server semaphore |
 | Rate limit          | 500/hour per IP (5000/hour with a privileged token) | Server (`analyzeLimiter`) |
 
@@ -302,7 +302,7 @@ Even if a hostname passes the allowlist, the endpoint hard-rejects:
 
 | Constraint | Value | Note |
 | --- | --- | --- |
-| Max file size | 15 MB | Fetched content (matches the direct-upload cap as of v1.27.0) |
+| Max file size | 25 MB | Fetched content (matches the direct-upload cap as of v1.27.0) |
 | Fetch timeout | 30 s | Same as bulk-from-inventory |
 | Rate limit | shared with `/api/analyze` (`analyzeLimiter`) | |
 
@@ -373,7 +373,7 @@ url,filename,pageCount,strictScore,strictGrade,practicalScore,practicalGrade,rep
 
 ### Limits
 
-Same as `/api/analyze-url` (15 MB file cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
+Same as `/api/analyze-url` (25 MB file cap, 30-second fetch timeout, `analyzeLimiter` rate limit). Same SSRF allowlist applies — extend via `ANALYZE_URL_ALLOWED_HOSTS` env var when adding sites to the fleet inventory.
 
 ## Bulk Inventory Scoring
 
@@ -410,7 +410,7 @@ curl -X POST \
 | ----------------------- | -------- | -------------------------------------------------------- |
 | Max inventory size      | 5 MB     | Total NDJSON payload                                     |
 | Max files per request   | 100      | Additional entries beyond 100 are silently skipped       |
-| Max file size           | 15 MB    | Per-file limit, matches `ANALYSIS.MAX_FILE_SIZE_MB`      |
+| Max file size           | 25 MB    | Per-file limit, matches `ANALYSIS.MAX_FILE_SIZE_MB`      |
 | Fetch timeout           | 30 s     | Per file; timed-out entries are recorded as errors        |
 | Rate limit              | shared with `/api/reports` (10/hour per IP)              |
 
@@ -1126,7 +1126,7 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 | Threat                         | Mitigation                                                                                                                                                       |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bypassing the 3-file limit** | The limit is UX (frontend). The real server-side gates are the per-caller analyze rate limit (`RATE_LIMITS.analyze`) and the global per-IP catch-all (`RATE_LIMITS.global`); a client sending more requests just hits those faster, and the 2-slot analysis semaphore caps actual concurrent work regardless. |
-| **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 15 MB = 30 MB (unchanged from single-file mode).   |
+| **Memory exhaustion**          | Server semaphore caps concurrent analyses at 2 regardless of how many requests arrive. Max server memory: 2 × 25 MB = 50 MB (unchanged from single-file mode).   |
 | **Filename / document-text XSS** | Filenames and all PDF-, Word-, PowerPoint-, and Excel-derived text (title, alt text, link text, headings) render via Vue `{{ }}` interpolation (auto-escaped). The few `v-html` sinks are fed only by escaped or non-document data, and HTML exports run every string **and** numeric/grade field through a shared `escapeHtml` helper (verified in the 2026-06-10 and 2026-07-01 audits). Server also sanitizes filenames before storage. |
 | **Race conditions**            | JavaScript is single-threaded; the batch worker's `nextIndex++` cannot race. Server semaphore uses a FIFO queue.                                                 |
 | **Concurrent upload flood**    | Frontend limits to 2 concurrent requests. Even if bypassed, server semaphore queues extras. Rate limiter applies per-IP.                                         |
@@ -1136,6 +1136,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.70.0 — 2026-08-13 · `ANALYSIS.MAX_FILE_SIZE_MB` 15 → 25 (resource-limit change, not a security release)
+
+Driven by evidence, not preference: the ICJIA fleet audit's first complete pass since 2026-07-02 graded 1,966 PDFs on 2026-08-12/13 and hit the 15 MB cap on six legitimate published documents (17.3 MB budget packet, 20.9 MB HR newsletter, two ILFVCC protocols at 17.5/18.5 MB, two drone reports at 49.4/59.7 MB). The run measured the boundary exactly — largest graded 14.3 MB, smallest refused 17.3 MB. 25 MB clears four of six while holding worst-case upload memory at `2 × 25 = 50 MB` under the **unchanged** `MAX_CONCURRENT_ANALYSES: 2`; the ~64 MB cap needed for the two drone reports would exceed the 50 MB `audit.config.ts` warns about on a 4 GB droplet, so they stay refused. Synchronized across every assertion and display of the value: `audit.config.ts`, `bulk-from-inventory.ts`'s hardcoded `MAX_FILE_BYTES`, `DropZone.vue` (client check + copy), `technical-details.vue`, data-retention §§ 02/09, `llms.txt`/`llms-full.txt`, README limit tables + memory-exhaustion calc, and three `components.test.ts` assertions — including the oversized-file fixture, a 16 MB file that would have silently started passing under the new cap. **Deploy dependency:** nginx `client_max_body_size` (Forge config, outside this repo) must go to 35 MB or the proxy rejects a 25 MB upload before the API sees it. **No new attack surface**: one numeric limit and the strings that quote it; no change to the SSRF allowlist, rate limiters, concurrency semaphore, zip-bomb guards, storage, retention, or dependencies. Two findings from the same run were referred out rather than changed here — eight agency "PDFs" that are saved HTML pages (the 422 refusal is correct) and an eight-hour throttled run caused by an unset `API_PRIVILEGED_TOKEN`, not by the limiter. Tests 2,145 → 2,145 (three assertions retargeted).
 
 ### v1.69.0 — 2026-08-11 · Fix-step accuracy pass: every Word/Acrobat menu path re-verified against current vendor docs (not a security release)
 
