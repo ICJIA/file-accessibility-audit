@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   isPrivilegedRequest,
   tierLimit,
@@ -9,6 +9,9 @@ import {
   isGlobalLimitExempt,
   globalLimiter,
   remediationStatusLimiter,
+  authOutcome,
+  warnIfTokenRejected,
+  resetBadTokenWarnThrottle,
 } from "../middleware/rateLimiter.js";
 import { RATE_LIMITS } from "#config";
 
@@ -175,6 +178,7 @@ describe("tieredLimiter (integration)", () => {
   it("caps anonymous callers at the anon limit, but lets a token exceed it on the same IP", async () => {
     process.env.API_PRIVILEGED_TOKEN = TOKEN;
     const limiter = tieredLimiter({
+      name: "test",
       windowMs: 60_000,
       anon: 2,
       privileged: 6,
@@ -279,6 +283,7 @@ describe("tieredLimiter (integration)", () => {
 
   it("tieredLimiter skip: skipped requests are never limited and do not drain the bucket", async () => {
     const limiter = tieredLimiter({
+      name: "test",
       windowMs: 60_000,
       anon: 2,
       privileged: 6,
@@ -335,5 +340,155 @@ describe("tieredLimiter (integration)", () => {
     // several concurrent tabs/jobs from one office IP.
     expect(RATE_LIMITS.remediationStatus.windowMs).toBe(60_000);
     expect(RATE_LIMITS.remediationStatus.max).toBeGreaterThanOrEqual(300);
+  });
+
+  // -------------------------------------------------------------------------
+  // Observability (added after the 2026-08-12 "server is offline" incident,
+  // which was an unlogged anonymous-tier throttle of a fleet-audit run).
+  // -------------------------------------------------------------------------
+  describe("authOutcome", () => {
+    it("reports 'none' when no Bearer credential is presented", () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      expect(authOutcome(makeReq())).toBe("none");
+      expect(authOutcome(makeReq({ headers: { authorization: `Basic ${TOKEN}` } }))).toBe("none");
+    });
+
+    it("reports 'valid' for the configured token", () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      expect(authOutcome(makeReq({ headers: { authorization: `Bearer ${TOKEN}` } }))).toBe("valid");
+    });
+
+    it("distinguishes a WRONG token from an UNCONFIGURED server", () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      expect(authOutcome(makeReq({ headers: { authorization: "Bearer nope" } }))).toBe("invalid");
+
+      delete process.env.API_PRIVILEGED_TOKEN;
+      expect(authOutcome(makeReq({ headers: { authorization: "Bearer nope" } }))).toBe(
+        "unconfigured",
+      );
+    });
+  });
+
+  describe("warnIfTokenRejected", () => {
+    let warn: any;
+    beforeEach(() => {
+      resetBadTokenWarnThrottle();
+      warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => warn.mockRestore());
+
+    it("warns when a presented token does not match", () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      expect(warnIfTokenRejected(makeReq({ headers: { authorization: "Bearer nope" } }))).toBe(
+        true,
+      );
+      expect(warn.mock.calls[0][0]).toContain("did NOT match");
+      expect(warn.mock.calls[0][0]).toContain("ANONYMOUS");
+    });
+
+    it("warns when a token is presented but the server has none configured", () => {
+      expect(warnIfTokenRejected(makeReq({ headers: { authorization: "Bearer nope" } }))).toBe(
+        true,
+      );
+      expect(warn.mock.calls[0][0]).toContain("unset");
+    });
+
+    it("stays silent for a valid token and for ordinary anonymous traffic", () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      expect(warnIfTokenRejected(makeReq({ headers: { authorization: `Bearer ${TOKEN}` } }))).toBe(
+        false,
+      );
+      expect(warnIfTokenRejected(makeReq())).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("throttles to once a minute so a bad client cannot flood the log", () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      const bad = () => makeReq({ headers: { authorization: "Bearer nope" } });
+      const t0 = 1_000_000;
+
+      expect(warnIfTokenRejected(bad(), t0)).toBe(true);
+      expect(warnIfTokenRejected(bad(), t0 + 1)).toBe(false);
+      expect(warnIfTokenRejected(bad(), t0 + 59_999)).toBe(false);
+      expect(warnIfTokenRejected(bad(), t0 + 60_000)).toBe(true);
+      expect(warn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("429 logging", () => {
+    let warn: any;
+    beforeEach(() => {
+      warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => warn.mockRestore());
+
+    it("logs the limiter, tier, path and resolved limit when it rejects", async () => {
+      const limiter = tieredLimiter({
+        name: "analyze",
+        windowMs: 60_000,
+        anon: 1,
+        privileged: 9,
+        message: { error: "x" },
+      });
+      const req = () => makeReq({ ip: "198.51.100.90", path: "/api/audit-url" });
+
+      expect((await hit(limiter, req())).limited).toBe(false);
+      expect((await hit(limiter, req())).limited).toBe(true);
+
+      const line = warn.mock.calls.map((c: any[]) => c[0]).find((l: string) => l.includes("429"));
+      expect(line).toContain("limiter=analyze");
+      expect(line).toContain("tier=anon");
+      expect(line).toContain("auth=none");
+      expect(line).toContain("path=/api/audit-url");
+      expect(line).toContain("limit=1/60s");
+    });
+
+    it("names the privileged tier when a valid token is throttled", async () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      const limiter = tieredLimiter({
+        name: "analyze",
+        windowMs: 60_000,
+        anon: 5,
+        privileged: 1,
+        message: { error: "x" },
+      });
+      const req = () =>
+        makeReq({
+          ip: "198.51.100.91",
+          path: "/api/audit-url",
+          headers: { authorization: `Bearer ${TOKEN}` },
+        });
+
+      expect((await hit(limiter, req())).limited).toBe(false);
+      expect((await hit(limiter, req())).limited).toBe(true);
+
+      const line = warn.mock.calls.map((c: any[]) => c[0]).find((l: string) => l.includes("429"));
+      expect(line).toContain("tier=privileged");
+      expect(line).toContain("auth=valid");
+    });
+
+    // The service stores no identity (v1.68.0) and the published retention
+    // policy says so. A log line is disk. This test is the guard.
+    it("NEVER writes the caller's IP or the token value to the log", async () => {
+      process.env.API_PRIVILEGED_TOKEN = TOKEN;
+      const limiter = tieredLimiter({
+        name: "analyze",
+        windowMs: 60_000,
+        anon: 1,
+        privileged: 1,
+        message: { error: "x" },
+      });
+      const ip = "198.51.100.92";
+      const req = () =>
+        makeReq({ ip, path: "/api/audit-url", headers: { authorization: "Bearer leaky-token" } });
+
+      await hit(limiter, req());
+      await hit(limiter, req());
+
+      const all = warn.mock.calls.map((c: any[]) => String(c[0])).join("\n");
+      expect(all).not.toContain(ip);
+      expect(all).not.toContain("leaky-token");
+      expect(all).not.toContain(TOKEN);
+    });
   });
 });

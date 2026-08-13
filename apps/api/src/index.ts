@@ -1,7 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
-import { globalLimiter } from "./middleware/rateLimiter.js";
+import { globalLimiter, tokenAuditMiddleware } from "./middleware/rateLimiter.js";
 import analyzeRoutes from "./routes/analyze.js";
 import reportsRoutes from "./routes/reports.js";
 import bulkInventoryRoutes from "./routes/bulk-from-inventory.js";
@@ -47,6 +47,13 @@ app.use(express.text({ limit: "5mb", type: "text/plain" }));
 // exactly when someone is checking whether the service is healthy.
 // (globalLimiter also skips this path, so the ordering is belt and braces.)
 app.use("/api", statusRoutes);
+
+// Surfaces a Bearer token the server rejects (or one presented when no
+// API_PRIVILEGED_TOKEN is configured). Mounted BEFORE globalLimiter so a
+// misconfigured automated client is named on its FIRST request, rather than
+// only once it has already been throttled in the anonymous tier. Logs at most
+// once a minute and records no identifiers.
+app.use(tokenAuditMiddleware);
 
 // Global rate limit
 app.use(globalLimiter);
