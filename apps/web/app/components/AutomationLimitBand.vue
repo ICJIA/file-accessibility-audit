@@ -3,10 +3,14 @@
        prose further down the page: a score — even 100 — is the AUTOMATED half
        of accessibility, not a guarantee the document works in a screen
        reader. It sits directly under the score in both heroes, because the
-       high score is exactly the moment a reader closes the tab satisfied —
-       and ONLY under scores that look done (grade over a 79: A and B, gated
-       by shouldShowAutomationLimit below). A C/D/F report already leads with
-       work to do; the ManualReviewCard covers the human half there.
+       high score is exactly the moment a reader closes the tab satisfied.
+
+       Two forms, composing two user rules. The FULL band renders only under
+       scores that look done (grade over a 79: A and B, gated by
+       shouldShowAutomationLimit) — a C/D/F report already leads with work to
+       do. But "always remind, no matter the grade, that humans have to be in
+       the loop": every other grade gets the compact one-line reminder below
+       instead, so no score display is ever silent about the human half.
 
        Hard rule (v1.58.1, gradeCapNote.test.ts): no figure that could be
        read as the grade — no percentages, nothing out of 100. The only
@@ -86,6 +90,27 @@
       </p>
     </div>
   </section>
+
+  <!-- Every grade that doesn't get the full band gets this line instead —
+       humans stay in the loop at every score, including unknown or junk
+       grades on forged shared reports. -->
+  <p
+    v-else
+    data-testid="human-loop-reminder"
+    class="rounded-lg border border-amber-500/30 bg-amber-500/[0.05] px-4 py-2.5 text-left text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed"
+  >
+    <span aria-hidden="true" class="text-amber-400">⚠</span>
+    Whatever the grade, automated checks are only part of the job — a person still has to review
+    this document.<template v-if="linkManualReview">
+      See
+      <a
+        href="#manual-review-h"
+        class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+        >Still worth checking by hand</a
+      >
+      below.</template
+    >
+  </p>
 </template>
 
 <script setup lang="ts">

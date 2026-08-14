@@ -74,11 +74,11 @@ export function generateAssessment(dist: Record<string, number>, total: number):
   if (passingPct >= 80) {
     return {
       level: "good",
-      headline: `Strong accessibility compliance — ${passingPct}% of publications meet standards.`,
+      headline: `High accessibility compliance — ${passingPct}% of publications meet standards.`,
       detail: `${passing} of ${total} publications earned a grade of A or B. ${needsWork > 0 ? `${needsWork} file${needsWork === 1 ? "" : "s"} could still benefit from improvement.` : "All files meet accessibility standards."}`,
       action:
         needsWork > 0
-          ? "Consider reviewing the remaining C/D/F files to maintain this strong position."
+          ? "Consider reviewing the remaining C/D/F files to maintain this high standing."
           : "Continue monitoring new publications as they are added.",
     };
   }

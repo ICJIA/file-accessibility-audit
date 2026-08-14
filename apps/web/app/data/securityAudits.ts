@@ -54,12 +54,26 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
-    version: "v1.73.0",
-    meta: "Reviewed <strong>2026-08-14</strong> · scope: a new warning shown beside strong scores. Nothing about audits, uploads, storage, or the database changed.",
+    version: "v1.73.1",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: a follow-up to the notice below, plus a small wording pass. No storage or security control changed.",
     body: [
       {
         kind: "p",
-        html: "Reports with a strong grade (A or B) now show a prominent amber notice directly under the score: <strong>even a perfect score is not a guarantee</strong>. Automated checking can verify that accessibility structure is <em>present</em> — a title, a document language, tags, text descriptions on images, table headers — but it cannot judge whether any of it is right, and it cannot tell you the document actually works with a screen reader. Only a person can. The notice splits the work into the half software finished (which is what the score measures) and the half a person still has to do, says how many accessibility criteria were never machine-checked at all for that document, and points to the report's “Still worth checking by hand” checklist.",
+        html: "A follow-up to the v1.73.0 notice described just below. That notice appears with high grades (A or B) — the reports most likely to be read as finished. This release completes the rule for every other grade: reports graded C, D, or F now carry a compact one-line reminder in the same place — <em>whatever the grade, automated checks are only part of the job; a person still has to review the document</em>. So no report, at any grade, is silent about the human half of accessibility. The same reminder rides the downloadable report file, and the share-by-email text now includes its one-line caveat at every grade rather than only high ones.",
+      },
+      {
+        kind: "p",
+        html: "Also on the record for completeness: a few phrases across the site and reports that described a good result as “strong” now say “high” (a high score, a high grade, a high mark). That rewording also reached the v1.73.0 entry just below — it was corrected before that version ever went live, so no visitor or auditor saw the earlier phrasing; this entry is the disclosure of that correction. Earlier dated entries in this history keep their original wording, as always. Nothing about what the tool does, collects, or stores changed in any way.",
+      },
+    ],
+  },
+  {
+    version: "v1.73.0",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: a new warning shown beside high scores. Nothing about audits, uploads, storage, or the database changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Reports with a high grade (A or B) now show a prominent amber notice directly under the score: <strong>even a perfect score is not a guarantee</strong>. Automated checking can verify that accessibility structure is <em>present</em> — a title, a document language, tags, text descriptions on images, table headers — but it cannot judge whether any of it is right, and it cannot tell you the document actually works with a screen reader. Only a person can. The notice splits the work into the half software finished (which is what the score measures) and the half a person still has to do, says how many accessibility criteria were never machine-checked at all for that document, and points to the report's “Still worth checking by hand” checklist.",
       },
       {
         kind: "findings",

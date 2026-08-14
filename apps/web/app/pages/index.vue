@@ -814,7 +814,6 @@ import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import ReportVisualView from "~/components/ReportVisualView.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
-import { shouldShowAutomationLimit } from "~/utils/automationLimit";
 import { type AnalysisResult } from "@file-audit/shared";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
 const { gradeColor, withAlpha } = useTokenColors();
@@ -1175,12 +1174,10 @@ function emailShareUrl() {
   const body = encodeURIComponent(
     `Here is the accessibility report for "${result.value.filename}":\n\n` +
       `Score: ${result.value.overallScore}/100 (Grade ${result.value.grade})\n` +
-      // For most recipients this email IS the report — a good-looking quoted
-      // score must not read as a certification. Same predicate as the
-      // AutomationLimitBand, so the email and the page cannot drift.
-      (shouldShowAutomationLimit(result.value.grade)
-        ? `(The score covers automated checks only — a person still needs to confirm the document works with a screen reader.)\n\n`
-        : `\n`) +
+      // For most recipients this email IS the report. Deliberately
+      // unconditional — humans stay in the loop at every grade, and a test
+      // asserts no grade gate creeps back in here.
+      `(The score covers automated checks only — a person still needs to confirm the document works with a screen reader.)\n\n` +
       `View the full report:\n${shareUrl.value}\n\n` +
       `This link expires in 365 days.`,
   );

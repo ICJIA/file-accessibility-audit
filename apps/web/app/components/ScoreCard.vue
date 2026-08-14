@@ -507,7 +507,7 @@ const conformanceBody = computed(() => {
     if (conformanceHasFailures.value) {
       const n = c.failures.length;
       const items = n === 1 ? "the 1 item" : `the ${n} items`;
-      return `This file earned a grade of ${grade} — a strong result overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
+      return `This file earned a grade of ${grade} — a high mark overall. WCAG conformance is stricter than a letter grade, though: it is assessed criterion by criterion with no partial credit, so even a single image missing alternative text causes a strict reading of WCAG ${wcag.version} to flag the whole document. Fixing ${items} below is what is left to reach full Level AA conformance — worth addressing, but the ${grade} grade already reflects a document in good shape.`;
     }
     return `No automated WCAG failures were detected, and this file earned a grade of ${grade}. This is still not a determination of full conformance — ${manualReviewNote.value}`;
   }
@@ -561,7 +561,7 @@ const verdictExplanation = computed(() => {
   }
 
   if (parts.length === 0) {
-    return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. Every scored category passed with no critical or moderate issues — a strong structural signal, though not a final legal determination.`;
+    return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. Every scored category passed with no critical or moderate issues — a good structural signal, though not a final legal determination.`;
   }
   return `Scored against WCAG ${wcag.version} AA and IITAA §E205.4. The scored categories below show ${joinParts(parts)} — review the detailed findings before treating the file as publication-ready.`;
 });

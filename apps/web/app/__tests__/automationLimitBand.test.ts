@@ -106,32 +106,57 @@ describe("AutomationLimitBand — the score is not a guarantee", () => {
   });
 });
 
-describe("the threshold — only grades that look done get the warning", () => {
-  // "Over a 79": A and B. Those are the reports whose score reads as
-  // finished; C, D, and F already lead with work to do, where a celebration
-  // puncture would be noise on top of the action plan.
-  it.each(["A", "B"])("shows for grade %s", (grade) => {
+describe("the two forms — full band over a 79, one-line reminder for every other grade", () => {
+  // Two user rules compose here. (1) The unmissable celebration puncture is
+  // for grades that LOOK done — over a 79, A and B. (2) "Always remind, no
+  // matter the grade, that humans have to be in the loop": every other score
+  // display still carries a compact one-line reminder in the same spot, so
+  // no grade is ever silent about the human half.
+  it.each(["A", "B"])("shows the full band for grade %s", (grade) => {
     const w = mount(AutomationLimitBand, { props: { grade } });
     expect(w.find('[data-testid="automation-limit"]').exists()).toBe(true);
+    expect(w.find('[data-testid="human-loop-reminder"]').exists()).toBe(false);
   });
 
-  it.each(["C", "D", "F"])("renders nothing for grade %s", (grade) => {
+  it.each(["C", "D", "F"])("shows the one-line reminder, not the band, for grade %s", (grade) => {
     const w = mount(AutomationLimitBand, { props: { grade } });
     expect(w.find('[data-testid="automation-limit"]').exists()).toBe(false);
+    const line = w.find('[data-testid="human-loop-reminder"]');
+    expect(line.exists()).toBe(true);
+    expect(line.text()).toContain("a person");
+    expect(line.text()).not.toContain("Even a perfect score");
   });
 
-  it("renders nothing when the grade is unknown", () => {
-    // No grade = nothing on screen reads as finished, and a forged shared
-    // report with a junk grade should not summon the band either.
+  it("falls back to the reminder when the grade is unknown or junk", () => {
+    // A forged shared report with a junk grade must not summon the full
+    // band — but "always remind" means it still gets the one-liner.
     const missing = mount(AutomationLimitBand);
     expect(missing.find('[data-testid="automation-limit"]').exists()).toBe(false);
+    expect(missing.find('[data-testid="human-loop-reminder"]').exists()).toBe(true);
     const junk = mount(AutomationLimitBand, { props: { grade: "b" } });
     expect(junk.find('[data-testid="automation-limit"]').exists()).toBe(false);
+    expect(junk.find('[data-testid="human-loop-reminder"]').exists()).toBe(true);
+  });
+
+  it("the reminder links to the checklist only where the checklist exists", () => {
+    const linked = mount(AutomationLimitBand, {
+      props: { grade: "C", linkManualReview: true },
+    });
+    expect(linked.find('a[href="#manual-review-h"]').exists()).toBe(true);
+    const bare = mount(AutomationLimitBand, { props: { grade: "C" } });
+    expect(bare.find('a[href="#manual-review-h"]').exists()).toBe(false);
+  });
+
+  it("the reminder carries no figure that could be read as the grade either", () => {
+    const w = mount(AutomationLimitBand, { props: { grade: "F", notAssessedCount: 7 } });
+    const text = w.text();
+    expect(text).not.toContain("%");
+    expect(text).not.toContain("/100");
   });
 });
 
 describe("wiring — every score display carries the band", () => {
-  it("ReportGradeHero hides it below the threshold, from the same grade it displays", () => {
+  it("ReportGradeHero swaps to the reminder below the threshold, from the grade it displays", () => {
     const w = mount(ReportGradeHero, {
       props: {
         grade: "C",
@@ -143,9 +168,10 @@ describe("wiring — every score display carries the band", () => {
       },
     });
     expect(w.find('[data-testid="automation-limit"]').exists()).toBe(false);
+    expect(w.find('[data-testid="human-loop-reminder"]').exists()).toBe(true);
   });
 
-  it("ScoreCard hides it below the threshold, from the same grade it displays", () => {
+  it("ScoreCard swaps to the reminder below the threshold, from the grade it displays", () => {
     const w = mount(ScoreCard, {
       props: {
         result: {
@@ -167,6 +193,7 @@ describe("wiring — every score display carries the band", () => {
       },
     });
     expect(w.find('[data-testid="automation-limit"]').exists()).toBe(false);
+    expect(w.find('[data-testid="human-loop-reminder"]').exists()).toBe(true);
   });
 
   it("ReportGradeHero (Visual view) renders it, with the count threaded through", () => {
@@ -292,19 +319,21 @@ describe("the message travels with the score wherever the score is quoted", () =
     expect(band).toBeGreaterThan(html.indexOf("/100"));
     expect(band).toBeLessThan(html.indexOf("Executive Summary"));
 
-    // Below the threshold the export drops it too — same rule as on screen.
+    // Below the threshold the export swaps to the one-line reminder — same
+    // two-form rule as on screen.
     const lowGrade = buildHtml({ ...result, overallScore: 62, grade: "D" }, branding);
     expect(lowGrade).not.toContain("Even a perfect score is not a guarantee");
+    expect(lowGrade).toContain("only part of the job");
   });
 
-  it("the share email qualifies the score it quotes, gated on the same threshold", () => {
-    // "Score: 100/100 (Grade A)" in an email IS the report for most
-    // recipients; unqualified, it reads as a certification. The qualifier
-    // follows the band's own predicate so the two rules cannot drift.
+  it("the share email always qualifies the score it quotes, at every grade", () => {
+    // "Score: 62/100 (Grade D)" in an email IS the report for most
+    // recipients. "Always remind, no matter the grade": the qualifier is
+    // deliberately unconditional — no grade gate may creep back in.
     const fn = read("pages/index.vue");
     const body = fn.slice(fn.indexOf("function emailShareUrl"));
     const beforeSend = body.slice(0, body.indexOf("window.open"));
     expect(beforeSend).toContain("automated checks only");
-    expect(beforeSend).toContain("shouldShowAutomationLimit");
+    expect(beforeSend).not.toContain("shouldShowAutomationLimit");
   });
 });

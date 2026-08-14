@@ -262,7 +262,7 @@ function fmt(n: number): string {
           <p class="text-xs sm:text-sm leading-relaxed text-[var(--text-secondary)]">
             <template v-if="gradeIsGood"
               ><strong class="text-[var(--text-heading)]">You're in good shape.</strong> Your WCAG
-              grade is the measure that matters most for real-world use, and it's strong — the extra
+              grade is the measure that matters most for real-world use, and it's high — the extra
               machine-check items here don't undo that. They just show where there's room to
               improve.</template
             ><template v-else-if="gradeKnown"

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.73.1] - 2026-08-14
+
+### Added
+
+- **Humans stay in the loop at every grade: the score display is never silent about the human half.** v1.73.0 scoped the full "Even a perfect score is not a guarantee" band to the grades that look done (A/B). This release adds the other half of the rule — *always remind, no matter the grade*: every C/D/F (or unknown/junk) grade now shows a compact one-line reminder in the same spot instead — "Whatever the grade, automated checks are only part of the job — a person still has to review this document" — linking to "Still worth checking by hand" where the checklist exists. The two forms live in the same self-gating component, so no score display can render without one of them. The HTML export gains the same one-liner below the threshold, and the share email's qualifier is now deliberately unconditional (a test asserts no grade gate can creep back in). The printable plan already reminded at every grade via its footer.
+
+### Changed
+
+- **The word "strong" is retired from every live surface, per the operator's voice preference.** Seven strings, no logic: the v1.73.0 landing banner and § 10 entry now say "high score" / "high grade (A or B)"; ScoreCard's conformance body says "a high mark overall" and its verdict line "a good structural signal"; the PDF/UA verdict's reassurance reads "and it's high"; and the CLI fleet summary reads "High accessibility compliance" / "maintain this high standing". Dated audit-history records keep their original wording — they are append-only compliance records — and `<strong>` HTML emphasis tags are unaffected (markup, not voice).
+- README accuracy: the score description said "nine WCAG-aligned categories"; the count varies by file type (ten for PDF and Word, nine for PowerPoint), so it now reads "up to ten … depending on file type".
+
+### Notes
+
+- v1.73.0's banner and § 10 wording were corrected in place rather than annotated: v1.73.0 was tagged but never deployed, so no visitor or auditor ever saw the original phrasing — this entry is the disclosure.
+- Verified on request: the automation-limit band's "N WCAG criteria on this document were never machine-checked at all" count is computed per document from the audit's own conformance verdict (`notAssessed.length`), and no surface — band, banner, § 10, README — hardcodes a number. The 9 shown in the release screenshots was the live value for the control PDF (contrast + five universally-unassessed criteria + three WCAG 2.2 form criteria, since that document contains a form); other documents correctly show their own counts.
+- No route, storage, retention, or dependency change. Tests 2,201 → 2,203 (API 1,177 / web 977 / CLI 49).
+
 ## [1.73.0] - 2026-08-14
 
 ### Added
