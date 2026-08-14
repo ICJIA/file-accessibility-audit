@@ -123,7 +123,7 @@
               before the row is deleted)
             </td>
           </tr>
-          <tr>
+          <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-medium">
               Host web-server access log (nginx — outside this application; IP address, timestamp,
               URL path, status, browser user-agent; see § 8a)
@@ -134,6 +134,30 @@
             </td>
             <td class="py-2.5 pr-4">Rotated daily, 52 rotations kept (≈52 days)</td>
             <td class="py-2.5">Yes — host logrotate config (not this application)</td>
+          </tr>
+          <tr>
+            <td class="py-2.5 pr-4 font-medium">
+              Page-view analytics (self-hosted Plausible — outside this application; per view: page
+              URL, referrer, browser and operating-system family, device type, country/region. Never
+              a cookie, never a stored IP address or user-agent, never anything about an uploaded
+              document; see § 8, § 9)
+            </td>
+            <td class="py-2.5 pr-4">
+              ICJIA's own Plausible server (<code class="font-mono">plausible.icjia.cloud</code>, a
+              DigitalOcean droplet ICJIA runs itself). The visitor's browser reports directly to it;
+              this application's server never receives or forwards the data, and no commercial
+              analytics provider is involved
+            </td>
+            <td class="py-2.5 pr-4">
+              Kept as anonymous visit statistics with no automatic purge; the salted hash Plausible
+              uses to link one day's page views rotates every 24 hours, so activity can never be
+              connected across days or across sites
+            </td>
+            <td class="py-2.5">
+              Yes — <code class="font-mono">ANALYTICS</code> in
+              <code class="font-mono">audit.config.ts</code> (an empty
+              <code class="font-mono">PLAUSIBLE_HOST</code> removes the counting script entirely)
+            </td>
           </tr>
         </tbody>
       </table>

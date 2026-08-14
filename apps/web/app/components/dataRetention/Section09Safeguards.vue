@@ -16,6 +16,22 @@
         optional fleet service token.
       </li>
       <li>
+        <strong>Cookie-free, self-hosted page-view analytics</strong> — the site counts visits with
+        <a
+          href="https://plausible.io/privacy-focused-web-analytics"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-[var(--link)] hover:text-[var(--link-hover)]"
+          >Plausible, a privacy-first, open-source analytics tool</a
+        >, running on ICJIA's own server (<code class="text-xs font-mono"
+          >plausible.icjia.cloud</code
+        >, a DigitalOcean droplet ICJIA manages itself) rather than at any commercial analytics
+        provider. It sets no cookie and stores no IP address or browser user-agent; the visitor's
+        browser reports the page URL directly to that server, and nothing about an uploaded document
+        is ever included. The browser's Content-Security-Policy allows that single external origin
+        and no other (§ 7, § 8).
+      </li>
+      <li>
         <strong>Restrictive filesystem permissions</strong> on remediation data:
         <code class="text-xs font-mono">0700</code> on directories,
         <code class="text-xs font-mono">0600</code> on output files. Only the process owner can read

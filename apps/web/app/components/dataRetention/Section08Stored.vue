@@ -55,8 +55,24 @@
           <li>Images extracted from uploaded documents (none are stored)</li>
           <li>Form-field values from PDFs</li>
           <li>Any data transmitted to AI services (there are none — see § 4)</li>
-          <li>Any data shared with third-party analytics, ad networks, or tracking services</li>
-          <li>Browser fingerprints or cross-site tracking identifiers</li>
+          <li>
+            Any data shared with commercial analytics, ad networks, or tracking services — page
+            views are counted by ICJIA's own self-hosted, cookie-free
+            <a
+              href="https://plausible.io/privacy-focused-web-analytics"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-[var(--link)] hover:text-[var(--link-hover)]"
+              >Plausible</a
+            >
+            instance, which runs on ICJIA's own server, stores no IP address, and never sees
+            anything about an uploaded document (§ 7, § 9)
+          </li>
+          <li>
+            Browser fingerprints or cross-site tracking identifiers — the analytics counter links
+            one day's page views with a salted hash that rotates every 24 hours and can never
+            connect two days or two sites (§ 7)
+          </li>
           <li>Raw file paths in lifecycle events (paths are hashed before storage)</li>
           <li>
             Raw download tokens (tokens are hashed; the original 32-byte random token is held in the

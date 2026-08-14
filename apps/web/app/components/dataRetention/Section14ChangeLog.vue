@@ -6,6 +6,22 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.7 · 2026-08-14</strong> — Documents the addition of privacy-friendly page-view
+        analytics. The site's web pages now count visits with Plausible, an open-source, cookie-free
+        analytics tool, self-hosted by ICJIA on its own server (plausible.icjia.cloud, a
+        DigitalOcean droplet ICJIA manages itself) — no commercial analytics provider, ad network,
+        or tracker receives anything. Recorded per page view: the page URL, referrer, browser and
+        operating-system family, device type, and country/region — never a cookie, never a stored IP
+        address or user-agent, and never anything about an uploaded document. The visitor's browser
+        reports directly to the analytics server; the audit application never receives or forwards
+        that data, and audits themselves do not pass through analytics at all. Page views within a
+        single day are linked by a salted hash that rotates every 24 hours, so activity can never be
+        connected across days or across sites. Adds the analytics store to § 7, reworks the
+        analytics bullets in § 8, qualifies the analytics row in § 8a, and describes the safeguard
+        in § 9.
+        <strong>Nothing about what the audit tool itself stores changed.</strong>
+      </li>
+      <li>
         <strong>v1.6 · 2026-08-09</strong> — Documents the identifier-removal release (tool
         v1.68.0): the sign-in system is removed entirely — no accounts, no login codes, no sessions,
         no API tokens tied to a person — and the service

@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.72.0",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: the addition of page-view analytics — what the counter can see, where it reports, and what the browser is now allowed to talk to. Nothing about audits, uploads, or the database changed.",
+    body: [
+      {
+        kind: "p",
+        html: 'The site now counts page views with <a href="https://plausible.io/privacy-focused-web-analytics" target="_blank" rel="noopener noreferrer">Plausible</a>, an open-source, cookie-free analytics tool — self-hosted by ICJIA on its own server (<code>plausible.icjia.cloud</code>), so no commercial analytics provider, ad network, or tracker receives anything. This review covers the two things that change: what is recorded about a visit, and the one new network destination the browser is permitted.',
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "New",
+            html: "<strong>What the counter records — and what it cannot do</strong> — per page view: the page address, where the visitor came from, browser and operating-system family, device type, and country/region. No cookie is set and no IP address or browser signature is stored; views within one day are linked by a code that is scrambled afresh every 24 hours, so the counter cannot recognize a returning visitor tomorrow and cannot follow anyone to another website. Nothing about an uploaded document is ever included — audits do not pass through analytics at all.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>The browser's allow-list grew by exactly one name, and a test holds it there</strong> — the Content-Security-Policy, which previously let the site talk only to itself, now additionally allows the analytics server, in the two narrow permissions the counter needs (loading the script, and reporting a view). An automated test asserts this is the <em>only</em> outside address in the entire policy, so a second one cannot appear without a test failing. The protection against injected scripts is unchanged.",
+          },
+          {
+            badge: "Note",
+            html: 'The audit application never touches the data — the visitor\'s browser reports straight to the analytics server; nothing is routed through, stored on, or forwarded by this tool\'s own server. The <a href="/data-retention">data-retention policy</a> moves to v1.7 and documents the new store in §§ 7, 8, 8a and 9 — including re-marking § 8a\'s "no analytics" verification row as qualified rather than leaving it to overclaim.',
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.71.0",
     meta: "Reviewed <strong>2026-08-13</strong> · scope: record-keeping about the service's own behaviour, after a false alarm. No new findings; nothing about what is stored, how it is used, or how long it is kept changed.",
     body: [

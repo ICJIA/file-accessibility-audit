@@ -285,8 +285,14 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4">No AI services, analytics, or trackers receive data</td>
-            <td class="py-2.5 pr-4 text-emerald-300 font-semibold">Verified</td>
-            <td class="py-2.5">no such dependency or outbound call exists (§ 4)</td>
+            <td class="py-2.5 pr-4 text-amber-300 font-semibold">Qualified 2026-08-14</td>
+            <td class="py-2.5">
+              true for AI services and for everything read from an uploaded document — the server
+              makes no such outbound call (§ 4). Since 2026-08-14 the web <em>pages</em> count
+              visits with ICJIA's self-hosted, cookie-free Plausible (§ 7): the visitor's browser
+              reports the page URL directly to ICJIA's own analytics server — never audit data,
+              never document content — and no commercial provider receives anything
+            </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4">

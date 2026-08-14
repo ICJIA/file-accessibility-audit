@@ -43,7 +43,7 @@ useHead({
   ],
 });
 
-const POLICY_VERSION = "1.6";
+const POLICY_VERSION = "1.7";
 const POLICY_EFFECTIVE = "2026-08-09";
 const TOOL_VERSION = runtimeConfig.public.appVersion;
 

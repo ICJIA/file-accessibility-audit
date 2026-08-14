@@ -75,6 +75,50 @@ export const BRANDING = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// ANALYTICS (self-hosted Plausible)
+// ---------------------------------------------------------------------------
+// Privacy-friendly, cookie-free page-view counting via ICJIA's own Plausible
+// instance (self-hosted on a DigitalOcean droplet, not the commercial
+// plausible.io service): https://plausible.io/privacy-focused-web-analytics
+//
+// The snippet runs in the VISITOR'S BROWSER and reports page views straight to
+// PLAUSIBLE_HOST; the audit application's server never receives or forwards
+// that data, and nothing about an uploaded document is ever included.
+//
+// TWO CONSUMERS read these values, so they cannot drift apart:
+//   - apps/web/nuxt.config.ts injects the <script defer data-domain=…> tag
+//     into every page head.
+//   - apps/web/server/utils/csp.ts allows PLAUSIBLE_HOST in BOTH script-src
+//     (the script itself) and connect-src (the page-view POST to /api/event).
+//     Missing either directive breaks it silently: without script-src the
+//     script never loads; without connect-src it loads but every event is
+//     refused by the browser. Pinned by csp.test.ts.
+// ---------------------------------------------------------------------------
+
+export const ANALYTICS = {
+  /**
+   * Origin of the self-hosted Plausible instance. Builds the script URL
+   * (`${PLAUSIBLE_HOST}/js/script.js`) and is allowed by the production CSP
+   * in script-src + connect-src.
+   *
+   * SAFE TO CHANGE: Yes — update if the instance moves. Setting it to ""
+   * removes the snippet and its CSP allowances entirely (analytics off).
+   */
+  PLAUSIBLE_HOST: "https://plausible.icjia.cloud" as string,
+
+  /**
+   * The `data-domain` the snippet reports under. Must equal BOTH the
+   * production hostname (DEPLOY.PRODUCTION_URL's host — enforced by
+   * plausibleAnalytics.test.ts) and the site name configured in the Plausible
+   * dashboard, or the instance silently discards every event.
+   *
+   * SAFE TO CHANGE: Only together with DEPLOY.PRODUCTION_URL and the
+   * Plausible dashboard's site settings.
+   */
+  PLAUSIBLE_DOMAIN: "audit.icjia.app",
+} as const;
+
+// ---------------------------------------------------------------------------
 // WCAG STANDARD VERSION
 // ---------------------------------------------------------------------------
 // The operative reference standard the whole app displays and links to.
@@ -187,6 +231,17 @@ export const WCAG_22_NEW_AA = [
 // ---------------------------------------------------------------------------
 
 export const ANNOUNCEMENTS = [
+  {
+    id: "privacy-friendly-analytics-2026-08-14",
+    badge: "Privacy",
+    text: "The site now counts page views with Plausible, a privacy-friendly, open-source analytics tool that ICJIA runs on its own server — no commercial analytics provider, no ad network, no tracker. It sets no cookie and stores no IP address, and it cannot recognize you tomorrow or follow you to another site: visits are linked only within a single day, by a code that is scrambled every 24 hours. It sees which pages are visited — never anything about the documents you check, because audits don't pass through it at all. Exactly what is recorded, where it lives, and for how long is documented in the data-retention policy, now at v1.7.",
+    linkText: "Read the data-retention policy",
+    linkTo: "/data-retention",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 14, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
   {
     id: "fix-steps-verified-2026-08-11",
     badge: "Improved",

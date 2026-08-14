@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import {
+  ANALYTICS,
   BRANDING,
   DEPLOY,
   REMEDIATION,
@@ -142,6 +143,20 @@ export default defineNuxtConfig({
         { rel: "canonical", href: siteUrl },
         { rel: "manifest", href: "/site.webmanifest" },
       ],
+      // Self-hosted, cookie-free Plausible analytics (see ANALYTICS in
+      // audit.config.ts). Included in dev too: the script ignores localhost
+      // by itself, and dev runs no CSP. The production CSP allows this origin
+      // in script-src + connect-src (server/utils/csp.ts) — both read the
+      // same constant, so the snippet and the policy cannot drift apart.
+      script: ANALYTICS.PLAUSIBLE_HOST
+        ? [
+            {
+              src: `${ANALYTICS.PLAUSIBLE_HOST}/js/script.js`,
+              defer: true,
+              "data-domain": ANALYTICS.PLAUSIBLE_DOMAIN,
+            },
+          ]
+        : [],
     },
   },
 

@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.72.0] - 2026-08-14
+
+### Added
+
+- **Privacy-friendly page-view analytics: self-hosted Plausible, and the CSP's first — and only — external origin.** Every page now carries the standard Plausible snippet (`<script defer data-domain="audit.icjia.app" src="https://plausible.icjia.cloud/js/script.js">`), injected from `nuxt.config.ts`. The instance is Plausible running on ICJIA's own DigitalOcean droplet (`plausible.icjia.cloud`) — no commercial analytics provider, ad network, or tracker is involved, and the visitor's browser reports directly to that server; the audit application never receives or forwards the data. Plausible is cookie-free by design: per view it records the page URL, referrer, browser and OS family, device type, and country/region — never a stored IP address or user-agent — and it links one day's views with a salted hash that rotates every 24 hours, so activity cannot be connected across days or sites ([how Plausible approaches privacy](https://plausible.io/privacy-focused-web-analytics)).
+
+  The wiring is centralized in a new `ANALYTICS` block in `audit.config.ts`, read by both consumers so they cannot drift: `nuxt.config.ts` builds the script tag from it, and `buildCspHeader` allows the origin in **both** `script-src` and `connect-src`. The two-directive contract matters because missing either fails silently — without `script-src` the script never loads; without `connect-src` it loads but the browser refuses every `/api/event` POST. Setting `ANALYTICS.PLAUSIBLE_HOST` to `""` removes the snippet and the CSP allowances together. The nonce-based `script-src` discipline is unchanged: still no `'unsafe-inline'`, and a new assertion pins the Plausible origin as the only `scheme://host` source in the entire policy, so a second external origin cannot ride in quietly.
+
+  Because this is the first time anything about a *visit* leaves the page, the data-retention policy moves to **v1.7**: § 7 gains a retention row for the analytics store, § 8's "never stored" analytics and fingerprint bullets are reworked to name what the counter does collect, § 8a's "No AI services, analytics, or trackers receive data" verification row is qualified (dated 2026-08-14) rather than silently left overclaiming, § 9 describes the safeguard with a link to Plausible's privacy page, and § 14 records the change. A landing-page announcement discloses it to visitors, and the README documents it in the Tech Stack and Security sections.
+
+### Notes
+
+- New `plausibleAnalytics.test.ts` pins the three silent failure modes: the snippet is built from `ANALYTICS` rather than a hardcoded copy that could drift from the CSP; `data-domain` equals `DEPLOY.PRODUCTION_URL`'s hostname (the self-hosted instance discards events for any site it doesn't know); and the origin is https with no trailing slash, since it is used verbatim in both the CSP and the script URL.
+- `/status` remains JavaScript-free — the snippet rides the Nuxt app head, and `/status` is rendered by its own Nitro route that never loads it (its existing no-`<script>` test still passes) — so uptime-monitor traffic is not counted.
+- No server or nginx change is needed to deploy this: the beacon goes browser → `plausible.icjia.cloud` directly and never transits this application or its proxy.
+- **Deliberately no `integrity=` (SRI) attribute on the snippet, on the record:** the self-hosted `script.js` is a rolling file that changes whenever the Plausible server is upgraded, so an SRI hash would silently kill analytics at the next upgrade — precisely the failure mode the new tests exist to prevent. SRI is for immutable, versioned URLs on infrastructure you don't control; this origin is ICJIA's own droplet, in the same trust domain as the site, and the CSP still confines what any loaded script may contact. If that trade-off is ever revisited, the right alternative is Plausible's same-origin proxy pattern (serving the script through this site's own nginx), which removes the external origin entirely.
+- First release to ship the 2026-08-13 `DEPLOY.NGINX_CLIENT_MAX_BODY_SIZE_MB` contract pin and `deployLimits.test.ts` (`b52e84c`, documented under v1.70.0's corrected deploy note below).
+- Tests 2,163 → 2,175 (API 1,177 / web 949 / CLI 49).
+
 ## [1.71.0] - 2026-08-13
 
 ### Added
