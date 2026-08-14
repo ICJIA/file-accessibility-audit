@@ -4,6 +4,7 @@
       :grade="displayedGrade"
       :overall-score="displayedScore"
       :categories="displayedCategories"
+      :not-assessed-count="notAssessedCount"
       class="mb-5"
     />
 
@@ -142,6 +143,14 @@ const displayedScore = computed(
 );
 
 const planSteps = computed(() => buildActionPlan(displayedCategories.value, props.result.fileType));
+
+// For the hero's automation-limit band. Array.isArray, not ?.length: on the
+// shared page `result` is raw stored JSON, and a forged conformance block
+// could carry a non-array notAssessed. null = unknown, never a claimed zero.
+const notAssessedCount = computed(() => {
+  const list = props.result.conformance?.notAssessed;
+  return Array.isArray(list) ? list.length : null;
+});
 
 function revealEvidence(categoryId: string): void {
   techOpen.value = true;

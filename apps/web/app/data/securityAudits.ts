@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.73.0",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: a new warning shown beside strong scores. Nothing about audits, uploads, storage, or the database changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Reports with a strong grade (A or B) now show a prominent amber notice directly under the score: <strong>even a perfect score is not a guarantee</strong>. Automated checking can verify that accessibility structure is <em>present</em> — a title, a document language, tags, text descriptions on images, table headers — but it cannot judge whether any of it is right, and it cannot tell you the document actually works with a screen reader. Only a person can. The notice splits the work into the half software finished (which is what the score measures) and the half a person still has to do, says how many accessibility criteria were never machine-checked at all for that document, and points to the report's “Still worth checking by hand” checklist.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "New",
+            html: "<strong>The warning follows the score wherever the score goes</strong> — both report views, the before/after cards on the automatic-fix page, the printer-friendly action plan, the downloadable report file, and the share-by-email text all carry it, and one shared rule decides when it appears, so the surfaces cannot fall out of step.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Deliberately no percentage</strong> — the notice never says “automated tools catch a third of issues”. A figure beside a letter grade tends to be read as the grade (a lesson this tool has already paid for), and a borrowed statistic would be someone else's number about someone else's tool. The only number shown is this audit's own count of criteria it never machine-checked, and an automated test keeps any percentage from appearing there.",
+          },
+          {
+            badge: "Note",
+            html: "No new information is collected and nothing new is stored — the notice is assembled entirely from the audit result the report already contains, and its text is written in this repository, never taken from the document or from any visitor.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.72.0",
     meta: "Reviewed <strong>2026-08-14</strong> · scope: the addition of page-view analytics — what the counter can see, where it reports, and what the browser is now allowed to talk to. Nothing about audits, uploads, or the database changed.",
     body: [

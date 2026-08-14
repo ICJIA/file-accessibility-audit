@@ -60,8 +60,12 @@ describe("ReportGradeHero", () => {
 
   it("NO publication clause when categories are absent (URL page-audit reports)", () => {
     const w = mount(ReportGradeHero, { props: { grade: "B", overallScore: 88, categories: [] } });
-    expect(w.text()).toContain("Good");
-    expect(w.text()).not.toContain("—");
+    // Scoped to the label element: a page audit's label is the bare grade
+    // adjective, never "— ready to publish" (that clause claims
+    // document-level knowledge a page audit doesn't have). The whole-text
+    // em-dash scan this used to be broke when the automation-limit band —
+    // which legitimately uses em-dashes — joined the hero.
+    expect(w.find('[data-testid="grade-label"]').text()).toBe("Good");
     expect(w.text()).not.toContain("publish");
   });
 });

@@ -54,6 +54,18 @@
       </p>
     </div>
 
+    <!-- Same automation-limit band as the Visual view's hero — both score
+         displays must carry it or switching views contradicts itself. Gated
+         on the SAME grade displayed above (the strict profile's), so the
+         band can never appear beside a grade it wouldn't appear beside in
+         the other view. -->
+    <AutomationLimitBand
+      :grade="displayedProfile.grade"
+      :not-assessed-count="notAssessedCount"
+      :link-manual-review="linkManualReview"
+      class="mx-auto max-w-lg"
+    />
+
     <!-- WCAG conformance verdict — deliberately independent of the score
          above. Colour follows the grade (green for A/B, red for C/D/F) so a
          strong file is not alarmed by a single flagged criterion, while the
@@ -211,6 +223,7 @@ import {
 import { escapeHtml } from "~/utils/escapeHtml";
 import { GRADE_THRESHOLDS, safeHttpUrl, scoreCapReason, withAlpha } from "@file-audit/shared";
 import PdfUaSignalsCard from "~/components/PdfUaSignalsCard.vue";
+import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 
 const wcag = useWcag();
 
@@ -290,8 +303,13 @@ const props = withDefaults(
     // verdict. Defaults true so the remediation before/after cards are
     // unchanged.
     showPdfUaSignals?: boolean;
+    // The automation-limit band's in-page link to ManualReviewCard. Off by
+    // default: the remediation page mounts this card twice with no
+    // ManualReviewCard anywhere, so the anchor would jump nowhere. The audit
+    // and shared-report pages opt in.
+    linkManualReview?: boolean;
   }>(),
-  { showFilename: true, showPdfUaSignals: true },
+  { showFilename: true, showPdfUaSignals: true, linkManualReview: false },
 );
 
 /**
@@ -405,6 +423,13 @@ const conformance = computed(() => {
     notAssessed: Array.isArray(c.notAssessed) ? c.notAssessed : [],
   };
 });
+
+// null (not 0) when the report carries no conformance block — a forged or
+// legacy shared report must not produce a "0 criteria were never
+// machine-checked" overclaim in the band.
+const notAssessedCount = computed(() =>
+  conformance.value ? conformance.value.notAssessed.length : null,
+);
 
 const conformanceTone = computed<"positive" | "warning" | "neutral">(() => {
   const status = conformance.value?.status;

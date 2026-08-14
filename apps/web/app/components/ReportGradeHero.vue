@@ -15,7 +15,11 @@
     <p class="text-4xl sm:text-5xl font-bold mt-5">
       {{ overallScore }}<span class="text-xl sm:text-2xl text-[var(--text-secondary)]">/100</span>
     </p>
-    <p class="text-base sm:text-lg font-semibold mt-2" :style="{ color: labelColor }">
+    <p
+      data-testid="grade-label"
+      class="text-base sm:text-lg font-semibold mt-2"
+      :style="{ color: labelColor }"
+    >
       {{ label }}
     </p>
 
@@ -47,6 +51,18 @@
         {{ progressNote }}
       </p>
     </div>
+
+    <!-- Directly under the score, wider than the panel above it: the one
+         thing remediators keep repeating — a high score is the automated
+         half of the job, not a guarantee — placed where the celebration
+         happens. The band gates itself on the same grade shown above it
+         (A/B only; a C/D/F report already leads with work to do). -->
+    <AutomationLimitBand
+      :grade="grade"
+      :not-assessed-count="notAssessedCount"
+      :link-manual-review="hasCategories"
+      class="mt-4 mx-auto max-w-2xl"
+    />
   </div>
 </template>
 
@@ -54,6 +70,7 @@
 import { useTokenColors } from "~/composables/useTokenColors";
 import { computed } from "vue";
 import { scoreCapReason } from "@file-audit/shared";
+import AutomationLimitBand from "~/components/AutomationLimitBand.vue";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
 const { gradeColor, severityColor, withAlpha } = useTokenColors();
 import { gradeLabel } from "~/utils/exportFormats/shared";
@@ -63,6 +80,9 @@ const props = defineProps<{
   grade: string;
   overallScore: number;
   categories: Array<{ severity?: string | null; score?: number | null; notAssessed?: boolean }>;
+  /** Count of WCAG criteria the audit never machine-checked, for the
+   *  automation-limit band. null/absent = unknown, the band omits the claim. */
+  notAssessedCount?: number | null;
 }>();
 
 const color = computed(() => gradeColor(props.grade));

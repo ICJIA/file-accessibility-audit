@@ -25,6 +25,7 @@
  */
 import { escapeHtml } from "~/utils/escapeHtml";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
+import { shouldShowAutomationLimit } from "~/utils/automationLimit";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
 
@@ -87,6 +88,11 @@ ul.checks li{border-left:3px solid #bbb;padding:0 0 0 12px;margin:0 0 14px;
 .caution{color:#9a6700;font-size:13px;margin:2px 0 4px;font-weight:600}
 .confirm{color:#333;margin:0}
 .note{border:1px solid #111;border-left-width:5px;border-radius:6px;padding:12px 14px;margin:0 0 18px}
+/* Dashed on purpose: the same open-work border the on-screen band gives the
+   human half. It qualifies the grade line directly above it. */
+.limit{margin:10px 0 0;padding:12px 14px;border:2px dashed #666;border-radius:6px}
+.limit-h{font-weight:700;font-size:14px;margin:0 0 4px}
+.limit-body{margin:0;color:#333;font-size:13px}
 .na li{margin:0 0 4px}
 footer{margin:36px 0 0;padding-top:12px;border-top:1px solid #bbb;color:#666;font-size:12px}
 .none{color:#1a7f37;font-weight:600}
@@ -214,6 +220,19 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
     o.reportUrl ? ` · <a href="${escapeHtml(o.reportUrl)}">${escapeHtml(o.reportUrl)}</a>` : ""
   }</p>
 ${gradeBit ? `<p class="verdict">${gradeBit}${o.verdict ? ` — ${escapeHtml(o.verdict)}` : ""}</p>` : ""}
+${
+  // Anchored to the grade line it qualifies; with no grade printed, "the
+  // grade above" would dangle (the footer's human-in-the-loop line still
+  // prints on every plan). Same threshold as the on-screen band: only a
+  // grade that looks done (A/B) gets the celebration puncture.
+  gradeBit && shouldShowAutomationLimit(o.grade)
+    ? `<div class="limit"><p class="limit-h">&#9888; Even a perfect score is not a guarantee</p>` +
+      `<p class="limit-body">The grade above covers the signals automated tests can measure — the automated half of the job. ` +
+      `Whether the document actually works with a screen reader — alt text that describes each image, headings that match ` +
+      `their sections, a reading order that makes sense — can only be confirmed by a person.` +
+      `${o.manualChecks?.length ? " The &ldquo;Still worth checking by hand&rdquo; section below is that half of the job." : ""}</p></div>`
+    : ""
+}
 ${o.intro ? `<p class="note">${escapeHtml(o.intro)}</p>` : ""}
 ${steps}
 ${checks}

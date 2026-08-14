@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.73.0] - 2026-08-14
+
+### Added
+
+- **The score now states its own limits, visually: an unmissable "Even a perfect score is not a guarantee" band under every good-looking grade.** Accessibility remediators keep having to explain the same thing about automated checkers: a 100 does not mean the document is accessible — it means the document handles the signals automated tests can measure, and it is in good shape; whether it actually works with a screen reader is a judgment only a person can make. The report already said this in prose ("Still worth checking by hand", the caveat box), but nothing said it *at the score*, which is exactly where a reader decides they are done. A new amber band (`AutomationLimitBand.vue`) sits directly under the score in both report views, splitting the job into two halves: **Automated checks — ✓ Done, this score** beside **Human review — ◯ Always still required**, the second drawn with an open dashed border (work that never closes automatically). It names what only a person can confirm — alt text that describes each image, headings that match their sections, a reading order that makes sense, a screen-reader pass — and reports the document's own count of WCAG criteria never machine-checked at all, linking to "Still worth checking by hand" where that list lives.
+
+- **Shown only where the grade looks done: any grade over a 79 (A and B).** Under the severity caps, 80+ means the worst automated finding was Minor or nothing — exactly when a reader closes the tab satisfied. A C/D/F report already leads with an action plan full of work, so the band would be noise there; the ManualReviewCard still covers the human half on every report at every score. One predicate (`shouldShowAutomationLimit` in `utils/automationLimit.ts`) gates every surface, and the band gates *itself* on the same displayed grade shown above it, so no mount can forget the rule and the two report views can never disagree.
+
+- **The message travels with the score.** The same warning appears on the remediation before/after score cards, as a dashed box directly under the `Grade A · 100/100` line of the printable action plan, as a band under the downloaded HTML report's hero, and as a one-line qualifier after `Score: N/100` in the share email — each gated by the same predicate.
+
+### Notes
+
+- **Deliberately no percentage.** The band never quotes an "automated tools catch ~30% of issues" industry statistic: any figure out of 100 beside a letter grade is read AS the grade no matter its label (the v1.58.1 lesson), and a canned statistic would be someone else's number about someone else's tool. The band's only number is this audit's own count of never-machine-checked criteria, and a test asserts no `%`, `/100`, or "of 100" can ever appear in it.
+- A report without a conformance block (forged or legacy shared JSON) gets no count claim rather than a fabricated "0 criteria" — null and zero are different statements. Junk grades in forged reports fail closed to hidden.
+- ReportGradeHero's grade label now carries `data-testid="grade-label"`; the page-audit "no publication clause" test asserts on that element (its old whole-hero em-dash scan tripped on the band's legitimate em-dashes).
+- Tests 2,175 → 2,201 (API 1,177 / web 975 / CLI 49).
+
 ## [1.72.0] - 2026-08-14
 
 ### Added

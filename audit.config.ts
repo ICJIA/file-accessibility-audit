@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "score-not-a-guarantee-2026-08-14",
+    badge: "Improved",
+    text: "Reports with a strong score now say, right under the grade, what accessibility professionals keep having to explain: even a perfect score is not a guarantee. Automated checks can confirm accessibility structure is present — they cannot tell you the document truly works with a screen reader, because that is a judgment only a person can make. The new notice shows the two halves of the job side by side — the half software finished, and the half that always needs a person — along with how many accessibility criteria were never machine-checked at all for your document. It appears wherever the score does: on the report, the printout, the downloaded file, and the shared link.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 14, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "privacy-friendly-analytics-2026-08-14",
     badge: "Privacy",
     text: "The site now counts page views with Plausible, a privacy-friendly, open-source analytics tool that ICJIA runs on its own server — no commercial analytics provider, no ad network, no tracker. It sets no cookie and stores no IP address, and it cannot recognize you tomorrow or follow you to another site: visits are linked only within a single day, by a code that is scrambled every 24 hours. It sees which pages are visited — never anything about the documents you check, because audits don't pass through it at all. Exactly what is recorded, where it lives, and for how long is documented in the data-retention policy, now at v1.7.",

@@ -240,6 +240,45 @@ describe("the print button reaches every surface that shows a report", () => {
   });
 });
 
+describe("the automation-limit warning prints beside the grade", () => {
+  // The printout is the version most likely to be read as a verdict — it gets
+  // filed, forwarded, stapled to a review. The on-screen band under the score
+  // (AutomationLimitBand) must survive onto paper, anchored to the same
+  // grade line it qualifies.
+  it("prints the not-a-guarantee box when a grade is printed", () => {
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      grade: "A",
+      score: 100,
+      steps: [],
+      generatedAt: AT,
+    });
+    expect(html).toContain("Even a perfect score is not a guarantee");
+    expect(html).toContain("screen reader");
+  });
+
+  it("omits the box when no grade line is printed", () => {
+    // With no grade above it, "the score above" would dangle; the footer's
+    // human-in-the-loop sentence still prints on every plan.
+    const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
+    expect(html).not.toContain("Even a perfect score is not a guarantee");
+    expect(html).toContain("can tell you a document is accessible");
+  });
+
+  it("omits the box below the threshold — a C printout already leads with work to do", () => {
+    // Same rule as on screen: the warning exists to puncture a score that
+    // LOOKS done (over 79 — A and B), not to pile onto a failing one.
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      grade: "C",
+      score: 79,
+      steps: [step()],
+      generatedAt: AT,
+    });
+    expect(html).not.toContain("Even a perfect score is not a guarantee");
+  });
+});
+
 describe("the printed header link", () => {
   it("is omitted entirely when no URL is given", () => {
     const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
