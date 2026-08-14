@@ -1192,23 +1192,29 @@
         </div>
       </div>
 
-      <!-- Weight renormalization -->
+      <!-- How a category that doesn't apply is counted. This section used to
+           describe weight renormalization — the pre-v1.58.3 model, removed
+           because it penalized simple documents (a one-page notice scored
+           WORSE than a longer agenda with the identical fault). Keep this in
+           sync with aggregateScore in packages/analyzer/src/scoring/common.ts. -->
       <div>
-        <h3 class="font-semibold text-[var(--text-heading)] mb-2">Weight Renormalization</h3>
+        <h3 class="font-semibold text-[var(--text-heading)] mb-2">Categories That Don't Apply</h3>
         <p class="text-[var(--text-muted)]">
-          When a category scores N/A (e.g., a text-only document has no images, tables, links, or
-          forms), its weight is redistributed proportionally to the remaining categories. For
-          example, if Alt Text (15%), Table Markup (10%), and Form Fields (5%) are all N/A, the
-          remaining 70% of weights are renormalized to sum to 100%. This ensures documents are only
-          scored on criteria that actually apply to them.
+          A category that doesn't apply to a document (a text-only file has no images, tables,
+          links, or forms) counts as <strong>passing</strong> and keeps its weight in the score's
+          base: a document with no tables does not have a table problem. Only a category the tool
+          <em>could not assess</em> — color contrast on PDFs, where inherited colors can't be
+          resolved — sits outside the weighted score, because "we don't know" must not be scored as
+          a pass. Through v1.58.2 the tool instead dropped non-applicable categories and
+          renormalized the remaining weights; that magnified a simple document's single fault (a
+          one-page notice scored <em>worse</em> than a longer agenda carrying the identical
+          missing-title defect) and was removed.
         </p>
         <p class="text-[var(--text-muted)] mt-3">
-          This renormalization is useful because it prevents a text-only file from being unfairly
-          penalized for lacking tables, images, links, or forms that are not present. But it does
-          <strong>not</strong> make the remaining categories less important. A higher normalized
-          score can still coexist with unresolved semantic issues that matter for ADA/WCAG/IITAA
-          review. For Illinois agency publication decisions, normalization is best treated as a
-          scoring convenience, not as a substitute for the per-category findings.
+          Counting a non-applicable category as passing does <strong>not</strong> make the remaining
+          categories less important. A high score can still coexist with unresolved semantic issues
+          that matter for ADA/WCAG/IITAA review. For Illinois agency publication decisions, the
+          score is a prioritization aid, not a substitute for the per-category findings.
         </p>
       </div>
 

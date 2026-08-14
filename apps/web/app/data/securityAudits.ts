@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.73.2",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: a truth pass over the pages that explain scoring. Wording only — the scoring itself did not change today.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader asked whether the front page's claims were still accurate, and the check widened into every page that explains how scores work. The scoring engine was improved in early August so that a category that doesn't apply to a document (no tables, no images) counts in the document's favor instead of being dropped — but four explanatory pages still described the old dropped-and-rebalanced arithmetic. Those pages (the technical explainer, the scoring-rubric panel, the methodology note on every report, and the machine-readable summaries) now describe the arithmetic the engine actually performs, and say plainly that the old method was removed because it made simple documents look worse than they were.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>The explanation now matches the engine</strong> — every page that describes scoring states the current rule: a check that doesn't apply counts as passing; only checks the tool genuinely could not run sit outside the score; and the score is capped by the worst open finding, with the letter grade following the score.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>The front page's operational claims were verified against the code, and held</strong> — the repair pipeline and its no-lower-score guarantee, uploads processed in memory, repaired files deleted on first download or after 30 minutes with the deletion then verified, and a usage history that names no person. One tile was extended rather than corrected: the no-AI tile now also mentions the self-hosted page-view counter added in v1.72.0, so it cannot be read as denying it.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.73.1",
     meta: "Reviewed <strong>2026-08-14</strong> · scope: a follow-up to the notice below, plus a small wording pass. No storage or security control changed.",
     body: [

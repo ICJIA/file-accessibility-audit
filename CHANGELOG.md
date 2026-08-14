@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.73.2] - 2026-08-14
+
+### Fixed
+
+- **Documentation-accuracy pass for auditors: every surface describing the scoring model now describes the CURRENT model.** Prompted by an operator review of the landing-page stat tiles. Four surfaces still described the pre-v1.58.3 renormalization — "categories that don't apply are excluded and the remaining weights renormalized" — which the scorer has not done since v1.58.3 (a non-applicable category counts as passing and keeps its weight; only not-assessed checks sit outside the score). Corrected in the technical-details explainer (section retitled "Categories That Don't Apply", with the removal's history stated), the site-wide scoring-rubric panel (two sentences), the report-page MethodologyCard (all four per-format paragraphs, which now also distinguish "no equivalent for this format" / "always Not Assessed" / "doesn't apply to this document"), and `llms.txt`/`llms-full.txt`.
+- **The v1.58.x cap is now described by its actual mechanism** on /technical-details: the SCORE is capped by the worst open finding (Minor 89 / Moderate 79 / Critical 69, since v1.58.2) and the letter follows the score — the old text said "the letter is capped" (the interim v1.58.0 model whose correction cost three releases).
+- **v1.73.1's README category recount is reverted as itself miscounted.** It changed "nine WCAG-aligned categories" to "up to ten", counting displayed category rows; the product's established basis (llms.txt, MethodologyCard, the landing tile) counts SCORED categories — 9 for PDF and PowerPoint, 8 for Word, 7 for Excel — with always-"Not Assessed" placeholder rows shown on top (which is where PDF's 10 rows come from). The README now states the scored basis with per-format numbers, and the landing tile's "9" carries a source comment so the same recount cannot happen a third time.
+
+### Verified (no change needed)
+
+- The landing stat tiles' operational claims were verified against code, all accurate: the remediation pipeline is qpdf → OpenDataLoader → veraPDF with a job-failing no-regression guard (`remediate.ts` fails the job if the overall or strict score drops); uploads use multer memory storage; remediated outputs are deleted on first download or the 30-minute `OUTPUT_TTL_MS`, with `deleteAndVerify`/`verifyAbsent` recording `output_deleted` and fs.stat-backed `verified_absent` lifecycle events; the audit trail (audit_log + remediation_events) has held no identity columns since v1.68.0.
+- One tile updated for completeness rather than error: the "No AI, no third-party APIs" tile (last touched at v1.18.0, before analytics existed) now scopes itself to "every audit step" and discloses the self-hosted Plausible page-view counter, matching § 8a's qualified claim from v1.72.0.
+
+### Notes
+
+- No behavior change anywhere: prose, one tile link, versions, and this paperwork. No announcement banner — nothing changes for a visitor's use of the tool; the corrected pages are themselves the record.
+- Tests 2,203 → 2,203.
+
 ## [1.73.1] - 2026-08-14
 
 ### Added

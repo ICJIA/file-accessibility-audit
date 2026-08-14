@@ -17,7 +17,7 @@ This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and 
 
 ## Scoring model
 
-Every audit produces one weighted 0-100 score (A-F grade) — a single scoring methodology, not a choice between multiple profiles. Categories that don't apply to a document (e.g., no tables) are excluded and the remaining weights renormalized. Separately, a binary WCAG 2.2 Level AA conformance verdict reports confirmed automated failures, each linked to its W3C "Understanding" page. Cite the score for tracking remediation progress; cite the conformance verdict for the pass/fail compliance question. Neither replaces review by a human accessibility specialist.
+Every audit produces one weighted 0-100 score (A-F grade) — a single scoring methodology, not a choice between multiple profiles. A category that doesn't apply to a document (e.g., no tables) counts as passing and keeps its weight — a document is never penalized for content it doesn't have; only checks the tool could not assess (the always-"Not Assessed" placeholders below) sit outside the weighted score. Separately, a binary WCAG 2.2 Level AA conformance verdict reports confirmed automated failures, each linked to its W3C "Understanding" page. Cite the score for tracking remediation progress; cite the conformance verdict for the pass/fail compliance question. Neither replaces review by a human accessibility specialist.
 
 Approximate category weights by format:
 

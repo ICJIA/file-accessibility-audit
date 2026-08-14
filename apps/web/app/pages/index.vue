@@ -689,6 +689,12 @@
     <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
       <!-- Audit -->
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
+        <!-- "9" counts SCORED (weighed) categories — the basis llms.txt and
+             MethodologyCard use: PDF 9, PowerPoint 9, Word 8, Excel 7. The
+             report additionally shows always-"Not Assessed" placeholder rows
+             (PDF displays 10 in total), so do NOT "correct" this to 10 —
+             that recount happened once (v1.73.1's README) and was itself the
+             error, reverted in v1.73.2. -->
         <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
           9
         </div>
@@ -773,9 +779,14 @@
           No AI, no third-party APIs
         </div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Every step runs on this server. No data is sent to vision models, hosted AI services, or
-          commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader, veraPDF) is
-          entirely open source — no per-document fees, no SDK licensing.
+          Every audit step runs on this server. No data is sent to vision models, hosted AI
+          services, or commercial PDF/Office SDKs. The toolchain (qpdf, pdfjs, OpenDataLoader,
+          veraPDF) is entirely open source — no per-document fees, no SDK licensing. Page views are
+          counted by ICJIA's own self-hosted, cookie-free
+          <NuxtLink to="/data-retention" class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >Plausible</NuxtLink
+          >
+          — never document data.
         </p>
       </div>
 

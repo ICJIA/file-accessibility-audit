@@ -228,9 +228,10 @@
                       class="text-[var(--link)] hover:text-[var(--link-hover)]"
                       >IITAA 2.1</a
                     >
-                    requirements. Categories that don't apply to a document (e.g., tables in a
-                    document with no tables) are excluded and the remaining weights are
-                    renormalized.
+                    requirements. A category that doesn't apply to a document (e.g., tables in a
+                    document with no tables) counts as passing and keeps its weight — a document is
+                    never penalized for content it doesn't have. Only a category the tool could not
+                    assess (color contrast on PDFs) sits outside the weighted score.
                   </p>
 
                   <div class="rounded-lg border border-[var(--border)] overflow-x-auto">
@@ -287,8 +288,9 @@
                     "Sheet1" tabs), weights <strong>Table Markup</strong> heaviest (real table
                     objects with header rows; merged cells are advisories), scores Title &amp;
                     Language on the title alone (Excel stores no document language), and omits
-                    reading order, lists, bookmarks, and forms. Weights are renormalized across
-                    whichever categories apply to the document.
+                    reading order, lists, bookmarks, and forms. Each format's rubric is its own
+                    weight table; within it, a category that doesn't apply to a given document
+                    counts as passing rather than being dropped from the base.
                   </p>
 
                   <div>

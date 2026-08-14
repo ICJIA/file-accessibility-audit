@@ -154,8 +154,12 @@ describe("Responsive — Index Page", () => {
     expect(combined).toContain("PDF/UA-1");
   });
 
-  it("technical details explains normalization tradeoffs", () => {
-    expect(sourceWithExplainer).toContain("scoring convenience");
+  it("technical details caveats the score against the per-category findings", () => {
+    // Reworded in v1.73.2, when the surrounding section stopped describing
+    // the removed pre-v1.58.3 renormalization model. The load-bearing claim
+    // is the caveat itself: the score must never read as a substitute for
+    // the findings.
+    expect(sourceWithExplainer).toContain("prioritization aid");
     expect(sourceWithExplainer).toContain("substitute for the");
     expect(sourceWithExplainer).toContain("per-category findings");
   });
