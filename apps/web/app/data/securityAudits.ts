@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.74.0",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: links added to the printer-friendly action plan. No storage, retention, or behavior change beyond the printed page itself.",
+    body: [
+      {
+        kind: "p",
+        html: "The printer-friendly action plan now links every accessibility rule it cites to the exact page of the W3C standard that explains it — and because a link on paper can't be clicked, printing writes each web address out in full next to the rule, so a reader can type it in. The list of rules the tool never machine-checks links out the same way, and the page's footer names the address of the full standard.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Hardened",
+            html: "<strong>Addresses from stored reports are checked before they print</strong> — on a shared report page, the rule addresses arrive from stored data, so each one is verified to be an ordinary web address before it is rendered; anything else is dropped rather than linked or printed. An automated test pins this.",
+          },
+          {
+            badge: "Note",
+            html: "The printed page stays completely self-contained: it runs no scripts and loads nothing from the network — a link on it is text until a reader chooses to follow it from their browser.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.73.2",
     meta: "Reviewed <strong>2026-08-14</strong> · scope: a truth pass over the pages that explain scoring. Wording only — the scoring itself did not change today.",
     body: [

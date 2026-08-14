@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.74.0] - 2026-08-14
+
+### Added
+
+- **The printable action plan now links every WCAG rule — with the address written out for paper.** On the operator's request: a printout can't click, so each criterion's W3C address should be printed for someone to type out. Every criterion in the plan is now a real link — the "Meets: WCAG 2.4.2 Page Titled" references on each fix step link to their W3C "Understanding" pages, the "Not checked by this tool at all" list links each criterion from the server's own per-criterion URL, and the footer adds "The full standard: WCAG 2.2 Level AA quick reference". In the browser-tab preview the links are clickable; on paper, the print stylesheet's existing `a[href^="http"]::after` rule writes each address out in full parentheses after the link text — no new print machinery.
+- **The criterion→slug table moved to `@file-audit/shared`** (`WCAG_UNDERSTANDING_SLUGS` + `wcagSlugFor`), and the analyzer's conformance gate now imports it instead of holding its own private copy — one source, so the printed links and the API's conformance links can never drift apart. A criterion with no known slug falls back to the version's quick-reference page, exactly as the gate always has.
+
+### Notes
+
+- The address on a stored report's "not assessed" entry is attacker-controlled JSON on the shared page, so it passes `safeHttpUrl` before rendering — a non-http(s) address is dropped, not linked or printed (test-pinned, alongside a test that old callers passing no link options keep producing a link-free plan).
+- The printable page remains fully standalone: `href` attributes load nothing, and the no-scripts/no-network tests still pass.
+- No announcement banner — the "not a guarantee" banner from v1.73.0 stays up; this improvement is visible the next time anyone prints a plan.
+- Tests 2,203 → 2,210 (API 1,177 / web 984 / CLI 49).
+
 ## [1.73.2] - 2026-08-14
 
 ### Fixed

@@ -46,6 +46,9 @@ import { computed } from "vue";
 import { buildPrintablePlan, openPrintablePlan } from "~/utils/printablePlan";
 import { manualChecks } from "~/utils/manualReview";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
+import { useWcag } from "~/composables/useWcag";
+
+const wcag = useWcag();
 
 // The workflow this tool serves is: drop a file, get a grade, get fixes. That
 // last step meant keeping a browser tab open while working in Word or
@@ -67,7 +70,9 @@ const props = defineProps<{
       score?: number | null;
       severity?: string | null;
     }>;
-    conformance?: { notAssessed?: Array<{ sc: string; name: string; level: string }> } | null;
+    conformance?: {
+      notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
+    } | null;
   } | null;
   /** Overrides for the remediation page, which is printing a different thing:
    *  what is STILL wrong after the automatic fixes ran. */
@@ -114,6 +119,11 @@ function openPlan(): void {
         props.showUrl !== false && typeof window !== "undefined" ? window.location.href : null,
       heading: props.heading,
       intro: props.intro,
+      // Real links to the W3C rules: clickable in the tab, and the print
+      // stylesheet writes each address out in full for typing from paper.
+      understandingUrl: wcag.understandingUrl,
+      wcagQuickref: wcag.quickref,
+      wcagLabel: wcag.label,
     }),
   );
 }

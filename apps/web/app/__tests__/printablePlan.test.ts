@@ -279,6 +279,98 @@ describe("the automation-limit warning prints beside the grade", () => {
   });
 });
 
+describe("WCAG links print with the plan, typeable from paper", () => {
+  // On paper a link isn't clickable — but the print stylesheet appends every
+  // external href in parentheses after its link text, so giving each
+  // criterion a real <a> both links the browser-tab preview AND prints the
+  // W3C address for someone to type out (user request, 2026-08-14).
+  const understandingUrl = (slug: string) =>
+    `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`;
+
+  it("links each fix step's criteria to their Understanding pages", () => {
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      steps: [step()],
+      generatedAt: AT,
+      understandingUrl,
+    });
+    expect(html).toContain('href="https://www.w3.org/WAI/WCAG22/Understanding/page-titled.html"');
+    expect(html).toContain("WCAG 2.4.2");
+  });
+
+  it("falls back to the quick reference for a criterion with no known slug", () => {
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      steps: [step({ wcagRefs: [{ sc: "9.9.9", name: "Future Criterion" }] })],
+      generatedAt: AT,
+      understandingUrl,
+      wcagQuickref: "https://www.w3.org/WAI/WCAG22/quickref/",
+    });
+    const before = html.slice(
+      Math.max(0, html.indexOf("Future Criterion") - 200),
+      html.indexOf("Future Criterion"),
+    );
+    expect(before).toContain('href="https://www.w3.org/WAI/WCAG22/quickref/"');
+  });
+
+  it("links the unexamined criteria from their server-provided addresses", () => {
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      steps: [],
+      generatedAt: AT,
+      notAssessed: [
+        {
+          sc: "1.4.3",
+          name: "Contrast (Minimum)",
+          level: "AA",
+          url: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+        },
+      ],
+    });
+    expect(html).toContain(
+      'href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"',
+    );
+  });
+
+  it("refuses a non-http address from a stored report rather than printing it", () => {
+    // The shared page's conformance block is attacker-controlled stored
+    // JSON; a javascript: URL must be dropped, not linked or printed.
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      steps: [],
+      generatedAt: AT,
+      notAssessed: [
+        { sc: "1.4.3", name: "Contrast (Minimum)", level: "AA", url: "javascript:alert(1)" },
+      ],
+    });
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain("1.4.3");
+  });
+
+  it("prints the full quick-reference address in the footer", () => {
+    const html = buildPrintablePlan({
+      filename: "a.pdf",
+      steps: [],
+      generatedAt: AT,
+      wcagQuickref: "https://www.w3.org/WAI/WCAG22/quickref/",
+      wcagLabel: "WCAG 2.2 Level AA",
+    });
+    expect(html).toContain("WCAG 2.2 Level AA quick reference");
+    expect(html).toContain('href="https://www.w3.org/WAI/WCAG22/quickref/"');
+  });
+
+  it("renders no links at all when no resolver is given (old callers unchanged)", () => {
+    const html = buildPrintablePlan({ filename: "a.pdf", steps: [step()], generatedAt: AT });
+    expect(html).not.toContain("<a href=");
+  });
+
+  it("the print button passes the WCAG link wiring", () => {
+    const src = readFileSync(resolve(__dirname, "..", "components/PrintPlanButton.vue"), "utf8");
+    expect(src).toContain("understandingUrl");
+    expect(src).toContain("wcagQuickref");
+  });
+});
+
 describe("the printed header link", () => {
   it("is omitted entirely when no URL is given", () => {
     const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });

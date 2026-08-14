@@ -26,6 +26,7 @@
 import { escapeHtml } from "~/utils/escapeHtml";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { shouldShowAutomationLimit } from "~/utils/automationLimit";
+import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
 
@@ -37,8 +38,20 @@ export interface PrintablePlanOptions {
   verdict?: string | null;
   steps: PlanStep[];
   manualChecks?: Array<ManualCheck & { label: string }>;
-  /** WCAG criteria the tool does not evaluate at all. */
-  notAssessed?: Array<{ sc: string; name: string; level: string }>;
+  /** WCAG criteria the tool does not evaluate at all. `url` is the server's
+   *  Understanding-page address; it is safeHttpUrl-guarded before rendering
+   *  (on the shared page this arrives from attacker-controlled stored JSON). */
+  notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
+  /** Understanding-page URL builder (useWcag().understandingUrl). When given,
+   *  every criterion in the fix steps links to its W3C page — clickable in
+   *  the browser tab, and printed in full by the print stylesheet's
+   *  a[href]::after rule so it can be typed out from paper. */
+  understandingUrl?: (slug: string) => string;
+  /** The version's quick-reference URL — fallback for unknown criteria and
+   *  the footer's "full standard" line. */
+  wcagQuickref?: string;
+  /** "WCAG 2.2 Level AA" — names the quick reference in the footer. */
+  wcagLabel?: string;
   /** "Accessibility Audit" — passed in so it follows a rebrand. */
   appName?: string;
   /** Absolute URL of the report this was generated from, if there is one. */
@@ -110,7 +123,7 @@ function severityWord(s: string): string {
   return s === "Critical" ? "Critical — fix first" : s;
 }
 
-function renderStep(step: PlanStep): string {
+function renderStep(step: PlanStep, criterionHref: (sc: string) => string | null): string {
   const routes = step.routes
     .map(
       (r) =>
@@ -122,7 +135,11 @@ function renderStep(step: PlanStep): string {
   const wcag = step.wcagRefs.length
     ? `<p class="wcag">Meets: ` +
       step.wcagRefs
-        .map((w) => `<code>WCAG ${escapeHtml(w.sc)}</code> ${escapeHtml(w.name)}`)
+        .map((w) => {
+          const inner = `<code>WCAG ${escapeHtml(w.sc)}</code> ${escapeHtml(w.name)}`;
+          const href = criterionHref(w.sc);
+          return href ? `<a href="${escapeHtml(href)}">${inner}</a>` : inner;
+        })
         .join(" · ") +
       `</p>`
     : "";
@@ -148,6 +165,16 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
   });
   const heading = o.heading || "Accessibility fix plan";
 
+  // Understanding-page link for a criterion number; quickref when the slug
+  // is unknown; null (render plain text) when the caller wired no links.
+  const criterionHref = (sc: string): string | null => {
+    if (o.understandingUrl) {
+      const slug = wcagSlugFor(sc);
+      if (slug) return o.understandingUrl(slug);
+    }
+    return o.wcagQuickref ?? null;
+  };
+
   const gradeBit =
     o.grade && typeof o.score === "number"
       ? `<span class="grade">Grade ${escapeHtml(o.grade)}</span> · ${o.score}/100`
@@ -162,7 +189,7 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
   const steps = o.steps.length
     ? `<h2>What to fix${o.steps.length > 1 ? ` — ${o.steps.length} items, in order` : ""}</h2>` +
       `<p class="sub">${escapeHtml(FIX_STEPS_VERSION_NOTE)}</p>` +
-      `<ol class="steps">${o.steps.map(renderStep).join("")}</ol>`
+      `<ol class="steps">${o.steps.map((s) => renderStep(s, criterionHref)).join("")}</ol>`
     : `<h2>What to fix</h2><p class="none">Nothing — this document passed every automated check.</p>`;
 
   const hasCaution = (o.manualChecks ?? []).some((c) => c.tone === "caution");
@@ -197,10 +224,14 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
       `reports on them. They are not failures — they are simply unexamined.</p>` +
       `<ul class="na">` +
       (o.notAssessed ?? [])
-        .map(
-          (n) =>
-            `<li><code>WCAG ${escapeHtml(n.sc)}</code> ${escapeHtml(n.name)} (Level ${escapeHtml(n.level)})</li>`,
-        )
+        .map((n) => {
+          const inner = `<code>WCAG ${escapeHtml(n.sc)}</code> ${escapeHtml(n.name)} (Level ${escapeHtml(n.level)})`;
+          // The server sends each criterion's Understanding URL; on the
+          // shared page it arrives from attacker-controlled stored JSON, so
+          // a non-http(s) address is dropped rather than linked or printed.
+          const safe = safeHttpUrl(n.url);
+          return `<li>${safe ? `<a href="${escapeHtml(safe)}">${inner}</a>` : inner}</li>`;
+        })
         .join("") +
       `</ul>`
     : "";
@@ -239,7 +270,11 @@ ${checks}
 ${na}
 <footer>
 No automated audit can tell you a document is accessible — it can only tell you where it definitely
-is not. Whatever the score, a person should look at the document before it is published.
+is not. Whatever the score, a person should look at the document before it is published.${
+    o.wcagQuickref
+      ? ` The full standard: <a href="${escapeHtml(o.wcagQuickref)}">${escapeHtml(o.wcagLabel ?? "WCAG")} quick reference</a>.`
+      : ""
+  }
 </footer>
 </body>
 </html>`;

@@ -31,6 +31,7 @@ import type { XlsxAnalysis } from "../xlsxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
 import { structTreeIsContentFree, untaggedContentImageCount } from "./common.js";
+import { WCAG_UNDERSTANDING_SLUGS } from "@file-audit/shared";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
 
 export interface ConformanceFinding {
@@ -73,35 +74,9 @@ export interface ConformanceVerdict {
   headline: string;
 }
 
-// WCAG "Understanding" page slugs, so every criterion the gate reports
-// links to the exact, authoritative W3C explanation of the rule.
-// Slugs are identical across WCAG 2.1 and 2.2 for carried-forward criteria;
-// the new 2.2 criteria are appended at the bottom.
-const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
-  "1.1.1": "non-text-content",
-  "1.2.2": "captions-prerecorded",
-  "1.3.1": "info-and-relationships",
-  "1.3.2": "meaningful-sequence",
-  "1.4.3": "contrast-minimum",
-  "2.4.2": "page-titled",
-  "2.4.4": "link-purpose-in-context",
-  "2.4.5": "multiple-ways",
-  "2.4.6": "headings-and-labels",
-  "3.1.1": "language-of-page",
-  "3.1.2": "language-of-parts",
-  "1.3.3": "sensory-characteristics",
-  "1.4.1": "use-of-color",
-  "1.4.5": "images-of-text",
-  "1.4.11": "non-text-contrast",
-  "3.3.2": "labels-or-instructions",
-  "4.1.2": "name-role-value",
-  // New in WCAG 2.2 (form-relevant):
-  "2.5.8": "target-size-minimum",
-  "3.3.7": "redundant-entry",
-  "3.3.8": "accessible-authentication-minimum",
-};
-
-/** URL of the W3C "Understanding" page for a WCAG success criterion. */
+/** URL of the W3C "Understanding" page for a WCAG success criterion. The
+ *  slug table lives in @file-audit/shared (moved v1.74.0) so the web app's
+ *  printable plan builds identical links without a second copy. */
 function wcagUrl(sc: string): string {
   const slug = WCAG_UNDERSTANDING_SLUGS[sc];
   const base = WCAG.UNDERSTANDING_BASE[WCAG.VERSION];

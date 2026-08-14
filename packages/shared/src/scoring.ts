@@ -167,6 +167,45 @@ export const SEVERITY_THRESHOLDS = [
 // credibility problem. Keys MUST match the SCORING category IDs above.
 // ---------------------------------------------------------------------------
 
+/**
+ * WCAG "Understanding" page slugs, so every criterion the product mentions
+ * can link to the exact, authoritative W3C explanation of the rule.
+ *
+ * Moved here from the analyzer's conformance module (v1.74.0) so the web
+ * app's printable plan can build the same links without a second copy that
+ * could drift. Slugs are identical across WCAG 2.1 and 2.2 for
+ * carried-forward criteria; the new 2.2 criteria sit at the bottom.
+ */
+export const WCAG_UNDERSTANDING_SLUGS: Record<string, string> = {
+  "1.1.1": "non-text-content",
+  "1.2.2": "captions-prerecorded",
+  "1.3.1": "info-and-relationships",
+  "1.3.2": "meaningful-sequence",
+  "1.4.3": "contrast-minimum",
+  "2.4.2": "page-titled",
+  "2.4.4": "link-purpose-in-context",
+  "2.4.5": "multiple-ways",
+  "2.4.6": "headings-and-labels",
+  "3.1.1": "language-of-page",
+  "3.1.2": "language-of-parts",
+  "1.3.3": "sensory-characteristics",
+  "1.4.1": "use-of-color",
+  "1.4.5": "images-of-text",
+  "1.4.11": "non-text-contrast",
+  "3.3.2": "labels-or-instructions",
+  "4.1.2": "name-role-value",
+  // New in WCAG 2.2 (form-relevant):
+  "2.5.8": "target-size-minimum",
+  "3.3.7": "redundant-entry",
+  "3.3.8": "accessible-authentication-minimum",
+};
+
+/** Slug for a criterion number, or null when unknown — callers fall back to
+ *  the version's quick-reference page, exactly as the conformance gate does. */
+export function wcagSlugFor(sc: string): string | null {
+  return WCAG_UNDERSTANDING_SLUGS[sc] ?? null;
+}
+
 export const WCAG_CATEGORY_MAP: Record<
   string,
   ReadonlyArray<{ sc: string; name: string; level: "A" | "AA" }>
