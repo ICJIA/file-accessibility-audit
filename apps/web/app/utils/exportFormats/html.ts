@@ -274,13 +274,13 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   .file-banner .eyebrow { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin:0 }
   .file-banner .fname { font-size:20px; font-weight:700; color:#fff; margin:2px 0; word-break:break-word }
   .file-banner .meta { font-size:13px; color:#888; margin:0 }
-  .limit-band { max-width:640px; margin:0 auto 30px; text-align:left; border:1px solid rgba(245,158,11,.55); background:rgba(245,158,11,.07); border-radius:12px; padding:16px 20px }
-  .limit-band .lb-h { font-size:15px; font-weight:700; color:#fff; margin:0 }
-  .limit-band .lb-b { font-size:13px; color:#ccc; margin:8px 0 0; line-height:1.55 }
+  .limit-band { max-width:640px; margin:0 auto 30px; text-align:left; border:1px solid rgba(245,158,11,.6); border-radius:12px; overflow:hidden }
+  .lb-head { background:#fbbf24; color:#111; font-weight:800; font-size:15px; margin:0; padding:10px 20px }
+  .limit-band .lb-b { font-size:13px; color:#ccc; margin:0; padding:12px 20px 16px; background:rgba(245,158,11,.07); line-height:1.55 }
   .limit-line { max-width:640px; margin:0 auto 30px; text-align:left; border:1px solid rgba(245,158,11,.4); background:rgba(245,158,11,.05); border-radius:10px; padding:10px 16px; font-size:13px; color:#ccc; line-height:1.55 }
   @media print { body { background:#fff; color:#000 } .container { max-width:100% }
     .file-banner { border-color:#bbb } .file-banner .fname { color:#000 } .file-banner .eyebrow, .file-banner .meta { color:#333 }
-    .limit-band { border-color:#946300; background:#fff } .limit-band .lb-h { color:#000 } .limit-band .lb-b { color:#333 }
+    .limit-band { border-color:#946300; background:#fff } .lb-head { color:#000 } .limit-band .lb-b { color:#333; background:#fff }
     .limit-line { border-color:#946300; background:#fff; color:#333 } }
 </style>
 </head>
@@ -310,7 +310,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   ${
     shouldShowAutomationLimit(result.grade)
       ? `<div class="limit-band">
-    <p class="lb-h">&#9888; Even a perfect score is not a guarantee</p>
+    <p class="lb-head">&#9888; Even a perfect score is not a guarantee</p>
     <p class="lb-b">This score means the document handles the signals automated tests can measure — it is in good shape. It does not mean the document is guaranteed to work with a screen reader: whether the alt text describes each image, headings match their sections, and the reading order makes sense can only be confirmed by a person. No automated tool can do that half of the job.</p>
   </div>`
       : `<div class="limit-line">&#9888; Whatever the grade, automated checks are only part of the job — a person still has to review this document.</div>`

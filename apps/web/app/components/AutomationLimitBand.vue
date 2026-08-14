@@ -22,72 +22,82 @@
   <section
     v-if="shouldShowAutomationLimit(grade)"
     data-testid="automation-limit"
-    class="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4 sm:p-5 text-left"
+    class="rounded-xl border border-amber-500/60 overflow-hidden text-left"
     aria-labelledby="automation-limit-h"
   >
+    <!-- Solid amber, dark text: the loudest element on the page after the
+         grade itself (v1.74.1). Non-technical managers stopped reading at
+         the green verdict; a tinted panel below the fold of their attention
+         wasn't enough. Filled amber-400 with black text holds ~10:1 in both
+         themes. -->
     <p
       id="automation-limit-h"
-      class="text-base sm:text-lg font-bold text-[var(--text-heading)] flex items-start gap-2"
+      data-testid="automation-limit-head"
+      class="bg-amber-400 text-black px-4 sm:px-5 py-2.5 text-sm sm:text-base font-extrabold flex items-center gap-2"
     >
-      <span aria-hidden="true" class="text-amber-400 shrink-0">⚠</span>
+      <span aria-hidden="true" class="shrink-0">⚠</span>
       <span>Even a perfect score is not a guarantee</span>
     </p>
-    <p class="text-xs sm:text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed">
-      A high score means this document handles the signals automated tests can measure — it is in
-      good shape. It does not mean the document is guaranteed to work with a screen reader.
-      Accessibility is two half-jobs, and software can only ever finish the first:
-    </p>
-
-    <div class="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-      <div class="rounded-lg border border-[var(--border-alt)] bg-[var(--surface-deep)] p-3.5">
-        <p class="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          Automated checks
-        </p>
-        <p class="text-sm font-semibold text-[var(--text-heading)] mt-1">
-          <span aria-hidden="true" :style="{ color: 'var(--icon-pass)' }">✓</span>
-          Done — this score
-        </p>
-        <p class="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
-          Software measured what a machine can see: a title and language set, tags present, alt text
-          present, table headers marked.
-        </p>
-      </div>
-      <div class="rounded-lg border-2 border-dashed border-amber-500/50 p-3.5">
-        <p class="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          Human review
-        </p>
-        <p class="text-sm font-semibold text-[var(--text-heading)] mt-1">
-          <span aria-hidden="true" class="text-amber-400">◯</span>
-          Always still required
-        </p>
-        <p class="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
-          Open the document with a screen reader — or hand it to someone who uses one. Confirm the
-          alt text describes each image, headings match their sections, and the reading order makes
-          sense. No tool can do this half.
-        </p>
-      </div>
-    </div>
-
-    <div class="mt-3 space-y-1">
-      <p
-        v-if="typeof notAssessedCount === 'number' && notAssessedCount > 0"
-        class="text-xs text-[var(--text-secondary)] leading-relaxed"
-      >
-        {{ notAssessedCount }} WCAG criteri{{ notAssessedCount === 1 ? "on" : "a" }} on this
-        document {{ notAssessedCount === 1 ? "was" : "were" }} never machine-checked at all.
+    <div class="bg-amber-500/[0.06] p-4 sm:p-5">
+      <p class="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+        A high score means this document handles the signals automated tests can measure — it is in
+        good shape. It does not mean the document is guaranteed to work with a screen reader.
+        Accessibility is two half-jobs, and software can only ever finish the first:
       </p>
-      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
-        <template v-if="linkManualReview"
-          >Start the human half at
-          <a
-            href="#manual-review-h"
-            class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >Still worth checking by hand</a
-          >
-          below.</template
+
+      <div class="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div class="rounded-lg border border-[var(--border-alt)] bg-[var(--surface-deep)] p-3.5">
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Automated checks
+          </p>
+          <p class="text-sm font-semibold text-[var(--text-heading)] mt-1">
+            <span aria-hidden="true" :style="{ color: 'var(--icon-pass)' }">✓</span>
+            Done — this score
+          </p>
+          <p class="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
+            Software measured what a machine can see: a title and language set, tags present, alt
+            text present, table headers marked.
+          </p>
+        </div>
+        <div class="rounded-lg border-2 border-dashed border-amber-500/50 p-3.5">
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Human review
+          </p>
+          <p class="text-sm font-semibold text-[var(--text-heading)] mt-1">
+            <span aria-hidden="true" class="text-amber-400">◯</span>
+            Always still required
+          </p>
+          <p class="text-xs text-[var(--text-secondary)] mt-1.5 leading-relaxed">
+            Open the document with a screen reader — or hand it to someone who uses one. Confirm the
+            alt text describes each image, headings match their sections, and the reading order
+            makes sense. No tool can do this half.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-3 space-y-1">
+        <p
+          v-if="typeof notAssessedCount === 'number' && notAssessedCount > 0"
+          class="text-xs text-[var(--text-secondary)] leading-relaxed"
         >
-        <template v-else>Have a person confirm the human half before this document ships.</template>
-      </p>
+          {{ notAssessedCount }} WCAG criteri{{ notAssessedCount === 1 ? "on" : "a" }} on this
+          document {{ notAssessedCount === 1 ? "was" : "were" }} never machine-checked at all.
+        </p>
+        <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+          <template v-if="linkManualReview"
+            >Start the human half at
+            <a
+              href="#manual-review-h"
+              class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+              >Still worth checking by hand</a
+            >
+            below.</template
+          >
+          <template v-else
+            >Have a person confirm the human half before this document ships.</template
+          >
+        </p>
+      </div>
     </div>
   </section>
 

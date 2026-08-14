@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.74.1",
+    meta: "Reviewed <strong>2026-08-14</strong> · scope: the not-a-guarantee notice was made more prominent. Presentation only — its words, and everything else, are unchanged.",
+    body: [
+      {
+        kind: "p",
+        html: "Feedback from use: readers were stopping at the green “ready to publish” line and missing the notice below it — and that notice carries the single most important caveat on the page: a high automated score is not the end of the accessibility work. So the notice now leads with a solid amber banner (dark text on amber, readable in both themes) and sits directly under the verdict line, <em>above</em> the progress meter, on both report views, the before/after cards, and the downloadable report — the reassuring parts of the page can no longer be reached without passing it. Not a word of it changed, and nothing about what the tool does, collects, or stores changed either.",
+      },
+    ],
+  },
+  {
     version: "v1.74.0",
     meta: "Reviewed <strong>2026-08-14</strong> · scope: links added to the printer-friendly action plan. No storage, retention, or behavior change beyond the printed page itself.",
     body: [

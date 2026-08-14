@@ -27,6 +27,17 @@
       {{ gradeLabel }}
     </p>
 
+    <!-- Directly under the verdict, BEFORE the fix-progress meter — same
+         interrupt-the-celebration placement as the Visual view's hero
+         (v1.74.1); both must match or switching views contradicts itself.
+         Gated on the SAME grade displayed above (the strict profile's). -->
+    <AutomationLimitBand
+      :grade="displayedProfile.grade"
+      :not-assessed-count="notAssessedCount"
+      :link-manual-review="linkManualReview"
+      class="mx-auto max-w-lg"
+    />
+
     <!-- Score and letter are a matched pair: the score is capped by the worst
          finding, the letter derived from it through the published scale. The
          panel explains the NUMBER — why it stalls below the raw average until
@@ -53,18 +64,6 @@
         {{ progressNote }}
       </p>
     </div>
-
-    <!-- Same automation-limit band as the Visual view's hero — both score
-         displays must carry it or switching views contradicts itself. Gated
-         on the SAME grade displayed above (the strict profile's), so the
-         band can never appear beside a grade it wouldn't appear beside in
-         the other view. -->
-    <AutomationLimitBand
-      :grade="displayedProfile.grade"
-      :not-assessed-count="notAssessedCount"
-      :link-manual-review="linkManualReview"
-      class="mx-auto max-w-lg"
-    />
 
     <!-- WCAG conformance verdict — deliberately independent of the score
          above. Colour follows the grade (green for A/B, red for C/D/F) so a

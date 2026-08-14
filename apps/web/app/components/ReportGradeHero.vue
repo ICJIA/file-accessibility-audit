@@ -23,6 +23,18 @@
       {{ label }}
     </p>
 
+    <!-- Directly under the verdict, BEFORE the fix-progress meter (v1.74.1):
+         non-technical managers stopped reading at "ready to publish", so the
+         warning now interrupts the celebration rather than trailing it. The
+         band gates itself on the same grade shown above it (full band on
+         A/B, one-line reminder otherwise). -->
+    <AutomationLimitBand
+      :grade="grade"
+      :not-assessed-count="notAssessedCount"
+      :link-manual-review="hasCategories"
+      class="mt-5 mx-auto max-w-2xl"
+    />
+
     <!-- Score and letter are a matched pair again: the score is capped by the
          worst finding and the letter is derived from it through the published
          scale, so 69 is a D and always will be. v1.58.0 capped the LETTER
@@ -51,18 +63,6 @@
         {{ progressNote }}
       </p>
     </div>
-
-    <!-- Directly under the score, wider than the panel above it: the one
-         thing remediators keep repeating — a high score is the automated
-         half of the job, not a guarantee — placed where the celebration
-         happens. The band gates itself on the same grade shown above it
-         (A/B only; a C/D/F report already leads with work to do). -->
-    <AutomationLimitBand
-      :grade="grade"
-      :not-assessed-count="notAssessedCount"
-      :link-manual-review="hasCategories"
-      class="mt-4 mx-auto max-w-2xl"
-    />
   </div>
 </template>
 

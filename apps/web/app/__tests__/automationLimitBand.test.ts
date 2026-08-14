@@ -155,6 +155,101 @@ describe("the two forms — full band over a 79, one-line reminder for every oth
   });
 });
 
+describe("visibility — the warning interrupts the celebration, loudly (v1.74.1)", () => {
+  // Operator feedback: the band "works, the wording is fine", but
+  // non-technical managers stopped reading at the green verdict and never
+  // reached it. Two escalations, copy untouched: a SOLID amber header bar
+  // (filled amber, dark text — the highest-contrast element on the page),
+  // and the band moves ABOVE the fix-progress panel, so the reassuring
+  // meter cannot be reached without passing the warning.
+  it("the headline sits in a solid amber header strip", () => {
+    const w = mount(AutomationLimitBand, { props: { grade: "A" } });
+    const head = w.find('[data-testid="automation-limit-head"]');
+    expect(head.exists()).toBe(true);
+    expect(head.text()).toContain("Even a perfect score is not a guarantee");
+    expect(head.classes()).toContain("bg-amber-400");
+    expect(head.classes()).toContain("text-black");
+  });
+
+  it("ReportGradeHero places the band ABOVE the fix-progress panel", () => {
+    const w = mount(ReportGradeHero, {
+      props: {
+        grade: "A",
+        overallScore: 100,
+        categories: [
+          {
+            id: "alt_text",
+            label: "Alt Text",
+            score: 100,
+            grade: "A",
+            severity: "No issues found",
+          },
+        ],
+      },
+    });
+    const html = w.html();
+    const band = html.indexOf('data-testid="automation-limit"');
+    const progress = html.indexOf("Fix progress");
+    expect(band).toBeGreaterThan(-1);
+    expect(progress).toBeGreaterThan(-1);
+    expect(band).toBeLessThan(progress);
+  });
+
+  it("ScoreCard places the band ABOVE the fix-progress panel too", () => {
+    const w = mount(ScoreCard, {
+      props: {
+        result: {
+          filename: "a.pdf",
+          pageCount: 1,
+          overallScore: 100,
+          grade: "A",
+          executiveSummary: "sum",
+          categories: [
+            { id: "alt_text", label: "Alt Text", score: 100, grade: "A", severity: null },
+          ],
+        },
+      },
+    });
+    const html = w.html();
+    const band = html.indexOf('data-testid="automation-limit"');
+    const progress = html.indexOf("Fix progress");
+    expect(band).toBeGreaterThan(-1);
+    expect(progress).toBeGreaterThan(-1);
+    expect(band).toBeLessThan(progress);
+  });
+
+  it("the HTML export's band leads with the same filled header", () => {
+    const branding: BrandingInfo = {
+      appName: "File Audit",
+      siteUrl: "https://audit.example",
+      wcagVersion: "2.2",
+      wcagUnderstandingBase: "https://www.w3.org/WAI/WCAG22/Understanding/",
+    };
+    const result: ReportResult = {
+      filename: "report.pdf",
+      pageCount: 1,
+      overallScore: 100,
+      grade: "A",
+      isScanned: false,
+      executiveSummary: "Summary",
+      fileType: "pdf",
+      categories: [
+        {
+          id: "title_language",
+          label: "Document Title & Language",
+          score: 100,
+          grade: "A",
+          severity: "Pass",
+          findings: [],
+        },
+      ],
+    };
+    const html = buildHtml(result, branding);
+    expect(html).toContain('class="lb-head"');
+    expect(html).toContain(".lb-head { background:#fbbf24");
+  });
+});
+
 describe("wiring — every score display carries the band", () => {
   it("ReportGradeHero swaps to the reminder below the threshold, from the grade it displays", () => {
     const w = mount(ReportGradeHero, {

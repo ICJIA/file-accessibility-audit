@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.74.1] - 2026-08-14
+
+### Changed
+
+- **The "Even a perfect score is not a guarantee" warning got louder and moved up — the words are unchanged.** Operator feedback: the band works and the wording is fine, but non-technical managers stopped reading at the green "Excellent — ready to publish" line and never reached it — and this warning "is probably the most critical thing we can add". Two escalations: the band's headline now sits in a **solid amber header bar** (filled amber-400 with black text, ~10:1 contrast in both themes — the loudest element on the page after the grade itself), and the band moved **above the fix-progress meter**, directly under the verdict line, in both report views and the remediation cards — so the reassuring parts of the page cannot be reached without passing the warning. The downloaded HTML report's band leads with the same filled header. The compact lower-grade reminder, the printable plan's box, and all copy are unchanged.
+
+### Notes
+
+- Position and the filled header are test-pinned in both heroes (`automationLimitBand.test.ts` — band index precedes "Fix progress" in the rendered output).
+- No behavior, threshold, storage, or dependency change. Tests 2,210 → 2,214 (API 1,177 / web 988 / CLI 49).
+
 ## [1.74.0] - 2026-08-14
 
 ### Added
