@@ -253,7 +253,7 @@ describe("the automation-limit warning prints beside the grade", () => {
       steps: [],
       generatedAt: AT,
     });
-    expect(html).toContain("Even a perfect score is not a guarantee");
+    expect(html).toContain("Even a high score is not a guarantee");
     expect(html).toContain("screen reader");
   });
 
@@ -261,7 +261,7 @@ describe("the automation-limit warning prints beside the grade", () => {
     // With no grade above it, "the score above" would dangle; the footer's
     // human-in-the-loop sentence still prints on every plan.
     const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
-    expect(html).not.toContain("Even a perfect score is not a guarantee");
+    expect(html).not.toContain("Even a high score is not a guarantee");
     expect(html).toContain("can tell you a document is accessible");
   });
 
@@ -275,7 +275,7 @@ describe("the automation-limit warning prints beside the grade", () => {
       steps: [step()],
       generatedAt: AT,
     });
-    expect(html).not.toContain("Even a perfect score is not a guarantee");
+    expect(html).not.toContain("Even a high score is not a guarantee");
   });
 });
 

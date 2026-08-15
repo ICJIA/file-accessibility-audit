@@ -310,7 +310,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   ${
     shouldShowAutomationLimit(result.grade)
       ? `<div class="limit-band">
-    <p class="lb-head">&#9888; Even a perfect score is not a guarantee</p>
+    <p class="lb-head">&#9888; Even a high score is not a guarantee</p>
     <p class="lb-b">This score means the document handles the signals automated tests can measure — it is in good shape. It does not mean the document is guaranteed to work with a screen reader: whether the alt text describes each image, headings match their sections, and the reading order makes sense can only be confirmed by a person. No automated tool can do that half of the job.</p>
   </div>`
       : `<div class="limit-line">&#9888; Whatever the grade, automated checks are only part of the job — a person still has to review this document.</div>`

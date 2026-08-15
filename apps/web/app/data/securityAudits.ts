@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.75.2",
+    meta: "Reviewed <strong>2026-08-15</strong> · scope: one word in the score notice. Nothing about what the tool does, collects, or stores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The amber notice under good-looking scores said “Even a <em>perfect</em> score is not a guarantee.” It appears for A and B grades alike, so “perfect” overstated its own trigger; it now says “Even a <strong>high</strong> score is not a guarantee” everywhere it appears — the report, the downloaded copy, the printout, and the landing-page announcement, which was corrected in place rather than re-shown to people who had already dismissed it. This entry is the on-the-record note of that in-place correction; dated entries below keep their original wording.",
+      },
+    ],
+  },
+  {
     version: "v1.75.1",
     meta: "Reviewed <strong>2026-08-15</strong> · scope: a display fix on two pages. Nothing about what the tool does, collects, or stores changed.",
     body: [

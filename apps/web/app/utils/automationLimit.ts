@@ -1,5 +1,5 @@
 /**
- * The one predicate for whether the "Even a perfect score is not a guarantee"
+ * The one predicate for whether the "Even a high score is not a guarantee"
  * warning appears beside a score — the AutomationLimitBand on both report
  * heroes, its box on the printable plan, its band in the HTML export, and the
  * qualifier line in the share email all call this, so the rule cannot drift

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.75.2] - 2026-08-15
+
+### Changed
+
+- **The automation-limit band's headline now says "Even a high score is not a guarantee" (was "perfect score").** Operator wording call: the band appears for A *and* B grades, so "high" states the actual trigger where "perfect" overclaimed it. Swapped on every live surface the headline renders — the band component (both report views and the remediation cards), the downloaded HTML report, the printable plan, and the landing-page announcement (edited in place, same id — a one-word tightening shouldn't re-show a dismissed banner) — plus the README feature description. Dated records (CHANGELOG, §10 audit history, README §Security history) keep their original wording, append-only as always.
+
+### Notes
+
+- Copy only; the `shouldShowAutomationLimit` predicate, thresholds, and layout are untouched. Test pins updated to the new phrase across both suites that quote it. Tests unchanged at 2,245.
+
 ## [1.75.1] - 2026-08-15
 
 ### Fixed

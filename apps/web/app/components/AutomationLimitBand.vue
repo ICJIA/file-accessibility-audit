@@ -36,7 +36,7 @@
       class="bg-amber-400 text-black px-4 sm:px-5 py-2.5 text-sm sm:text-base font-extrabold flex items-center gap-2"
     >
       <span aria-hidden="true" class="shrink-0">⚠</span>
-      <span>Even a perfect score is not a guarantee</span>
+      <span>Even a high score is not a guarantee</span>
     </p>
     <div class="bg-amber-500/[0.06] p-4 sm:p-5">
       <p class="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">

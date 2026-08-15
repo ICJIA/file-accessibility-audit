@@ -257,7 +257,7 @@ ${
   // prints on every plan). Same threshold as the on-screen band: only a
   // grade that looks done (A/B) gets the celebration puncture.
   gradeBit && shouldShowAutomationLimit(o.grade)
-    ? `<div class="limit"><p class="limit-h">&#9888; Even a perfect score is not a guarantee</p>` +
+    ? `<div class="limit"><p class="limit-h">&#9888; Even a high score is not a guarantee</p>` +
       `<p class="limit-body">The grade above covers the signals automated tests can measure — the automated half of the job. ` +
       `Whether the document actually works with a screen reader — alt text that describes each image, headings that match ` +
       `their sections, a reading order that makes sense — can only be confirmed by a person.` +

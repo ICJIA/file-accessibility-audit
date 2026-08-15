@@ -47,10 +47,10 @@ const NOT_ASSESSED: Array<{
 ];
 
 describe("AutomationLimitBand — the score is not a guarantee", () => {
-  it("says even a perfect score is not a guarantee, and names the screen reader", () => {
+  it("says even a high score is not a guarantee, and names the screen reader", () => {
     const w = mount(AutomationLimitBand, { props: { grade: "A" } });
     const text = w.text();
-    expect(text).toContain("Even a perfect score is not a guarantee");
+    expect(text).toContain("Even a high score is not a guarantee");
     expect(text).toContain("signals automated tests can measure");
     expect(text).toContain("screen reader");
   });
@@ -124,7 +124,7 @@ describe("the two forms — full band over a 79, one-line reminder for every oth
     const line = w.find('[data-testid="human-loop-reminder"]');
     expect(line.exists()).toBe(true);
     expect(line.text()).toContain("a person");
-    expect(line.text()).not.toContain("Even a perfect score");
+    expect(line.text()).not.toContain("Even a high score");
   });
 
   it("falls back to the reminder when the grade is unknown or junk", () => {
@@ -166,7 +166,7 @@ describe("visibility — the warning interrupts the celebration, loudly (v1.74.1
     const w = mount(AutomationLimitBand, { props: { grade: "A" } });
     const head = w.find('[data-testid="automation-limit-head"]');
     expect(head.exists()).toBe(true);
-    expect(head.text()).toContain("Even a perfect score is not a guarantee");
+    expect(head.text()).toContain("Even a high score is not a guarantee");
     expect(head.classes()).toContain("bg-amber-400");
     expect(head.classes()).toContain("text-black");
   });
@@ -310,7 +310,7 @@ describe("wiring — every score display carries the band", () => {
     });
     const band = w.find('[data-testid="automation-limit"]');
     expect(band.exists()).toBe(true);
-    expect(band.text()).toContain("Even a perfect score is not a guarantee");
+    expect(band.text()).toContain("Even a high score is not a guarantee");
     expect(band.text()).toContain("3 WCAG criteria");
   });
 
@@ -407,7 +407,7 @@ describe("the message travels with the score wherever the score is quoted", () =
       ],
     };
     const html = buildHtml(result, branding);
-    const band = html.indexOf("Even a perfect score is not a guarantee");
+    const band = html.indexOf("Even a high score is not a guarantee");
     expect(band).toBeGreaterThan(-1);
     expect(html).toContain("screen reader");
     // Under the hero, before the report body.
@@ -417,7 +417,7 @@ describe("the message travels with the score wherever the score is quoted", () =
     // Below the threshold the export swaps to the one-line reminder — same
     // two-form rule as on screen.
     const lowGrade = buildHtml({ ...result, overallScore: 62, grade: "D" }, branding);
-    expect(lowGrade).not.toContain("Even a perfect score is not a guarantee");
+    expect(lowGrade).not.toContain("Even a high score is not a guarantee");
     expect(lowGrade).toContain("only part of the job");
   });
 
