@@ -11,6 +11,32 @@ describe("SourceDocumentNotice", () => {
     expect(wrapper.text()).toContain("Adobe InDesign");
   });
 
+  it("hedges the inherits-structure claim — 'in most cases', never an absolute promise", () => {
+    // User call (2026-08-15): "no remediation is needed" promised too much —
+    // a well-structured source usually exports clean, but not always.
+    const wrapper = mount(SourceDocumentNotice);
+    expect(wrapper.text()).toContain("in most cases");
+    expect(wrapper.text()).not.toContain("and no remediation is needed");
+  });
+
+  it("makes no absolute or unverifiable claims in any variant", () => {
+    // Same pass, whole component: (1) a PDF inherits source structure only
+    // when exported WITH tagging on — "any PDF you export … automatically"
+    // overpromised; (2) Office's own checker does not find-and-fix "most"
+    // issues — this product's whole automation-limit stance says otherwise;
+    // (3) "#1 cause … we see here" asserts observed data this tool does not
+    // collect.
+    for (const fileType of ["pdf", "docx", "pptx", "xlsx"] as const) {
+      const text = mount(SourceDocumentNotice, { props: { fileType } }).text();
+      expect(text, fileType).not.toContain("inherits that structure automatically. There's no");
+      expect(text, fileType).not.toContain("finds and fixes most issues");
+      expect(text, fileType).not.toContain("#1 cause");
+    }
+    // The tagging condition is stated where the inherit claim is made.
+    const docx = mount(SourceDocumentNotice, { props: { fileType: "docx" } }).text();
+    expect(docx).toMatch(/tagging turned on/);
+  });
+
   it("keeps the Word source framing for docx", () => {
     const wrapper = mount(SourceDocumentNotice, {
       props: { fileType: "docx" },

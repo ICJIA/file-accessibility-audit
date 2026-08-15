@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.75.4",
+    meta: "Reviewed <strong>2026-08-15</strong> · scope: the wording of the source-document advice. Nothing about what the tool does, collects, or stores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The card that recommends fixing the original document made a few promises stronger than the truth, and they were softened to match it. “The PDF inherits that structure automatically and no remediation is needed” now says a PDF <em>exported with tagging turned on</em> carries the structure with it, and that <strong>in most cases</strong> no further remediation is needed — with a reminder to re-check the exported PDF here to confirm. The tips about Microsoft Office's built-in accessibility checker no longer say it “finds and fixes most issues” (it finds many common ones and offers fixes — no automated checker covers most of the job, which is this tool's own standing caveat about itself). And a line claiming the “#1 cause” of PDFs needing repair, a statistic this tool does not measure, now calls it the classic cause instead.",
+      },
+    ],
+  },
+  {
     version: "v1.75.3",
     meta: "Reviewed <strong>2026-08-15</strong> · scope: the advice shown when an automatic repair fails. Nothing about what the tool does, collects, or stores changed.",
     body: [

@@ -1253,7 +1253,7 @@ function labelForEvent(name: string): string {
                 <strong>"Best for electronic distribution / accessibility"</strong>
                 (Word, Pages) or
                 <strong>"Create Tagged PDF"</strong> (InDesign) selected. Skipping this step is the
-                #1 cause of remediable PDFs.
+                classic cause of PDFs that need remediation.
               </li>
               <li>Re-upload here to verify the fixes landed.</li>
             </ol>

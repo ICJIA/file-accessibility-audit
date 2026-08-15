@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.75.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2253%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.75.4-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2255%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -776,7 +776,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,253 tests** across 137 test files (API 1177, Web 1027, CLI 49). Run all three suites with one summary:
+**2,255 tests** across 137 test files (API 1177, Web 1029, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -918,7 +918,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `escapeHtml.test.ts` | 5 | `escapeHtml`: escapes all five HTML-significant characters, neutralizes `<script>` and quote-breakout payloads, leaves benign text untouched, and escapes `&` first so entities aren't double-encoded |
 | `IssuesSummary.test.ts` | 7 | The IssuesSummary component - issue-count summary, plus the fix-step version note (which app versions the Acrobat steps target + the IDS support line) rendering under expanded Acrobat steps and only there |
 | `shared-urls.test.ts` | 5 | `isSafeHttpUrl`/`safeHttpUrl`, the shared URL-scheme guard used across report components: accepts absolute http/https, rejects `javascript:` and other script-bearing schemes plus relative/empty/non-string input, and `safeHttpUrl` returns `undefined` (not an empty string) for unsafe input so a template's `:href` binding omits the attribute entirely |
-| `SourceDocumentNotice.test.ts` | 5 | The SourceDocumentNotice component: format-specific remediation framing — the original PDF fallback text by default, Word-specific tips for docx, PowerPoint slide-title/checker steps for pptx, and Excel Format-as-Table/sheet-rename steps for xlsx (not one generic multi-app PDF list for every format) |
+| `SourceDocumentNotice.test.ts` | 7 | The SourceDocumentNotice component: format-specific remediation framing — the PDF fallback text by default with its inherits-structure claim conditioned on tagged export and hedged ("in most cases"), no absolute/unverifiable claims in any variant (no "finds and fixes most issues", no "#1 cause"), Word-specific tips for docx, PowerPoint slide-title/checker steps for pptx, and Excel Format-as-Table/sheet-rename steps for xlsx (not one generic multi-app PDF list for every format) |
 | `MethodologyCard.test.ts` | 4 | The MethodologyCard component: names the correct per-format toolchain description (PDF by default, Word for docx, PowerPoint for pptx, Excel for xlsx) |
 | `indexA11y.test.ts` | 3 | index.vue's error and results a11y (Task F6): the analysis-failed banner carries `role="alert"`, and a successful single-file analysis produces a focusable results heading and moves DOM focus to it |
 | `na-cell.test.ts` | 3 | The NaCell component - accessible "Not applicable" vs "Not assessed" rendering |
@@ -1146,6 +1146,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.75.4 — 2026-08-15 · Source-document guidance loses its absolutes (copy accuracy pass, not a security release)
+
+Operator direction on `SourceDocumentNotice`, applied to the whole component: "the PDF inherits that structure automatically and no remediation is needed" is now conditioned ("exported with tagging turned on…") and hedged ("in most cases no further remediation is needed — re-check the exported PDF here to confirm"); the Word/PowerPoint/Excel variants state the tagging condition instead of promising *any* export inherits structure *automatically*; the Office-checker tips say it "finds many common issues and offers fixes" rather than "finds and fixes most issues" (the product's own automation-limit stance); and "the #1 cause of remediable PDFs we see here" — data the tool does not collect — became "the classic cause of PDFs that need remediation" here and in the remediation page's source-first explainer. Copy only, menu paths untouched, pinned in `SourceDocumentNotice.test.ts`. **No behavior, storage, or dependency change.** Tests 2,253 → 2,255.
 
 ### v1.75.3 — 2026-08-15 · Failed remediation points to the source document first (guidance + accuracy fix, not a security release)
 

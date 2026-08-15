@@ -45,30 +45,31 @@ const isXlsx = computed(() => props.fileType === "xlsx");
         <p v-if="isDocx" class="text-sm text-[var(--text)] leading-relaxed mb-3">
           A Word document is the <strong>source document</strong> — the best place to fix
           accessibility. Correcting issues here (heading styles, alt text, table header rows, real
-          list formatting) fixes them at the root, and any PDF you export from this file inherits
-          that structure automatically. There's no separate remediation step: fix it in Word, then
-          re-check.
+          list formatting) fixes them at the root, and a PDF exported from this file with tagging
+          turned on carries that structure with it. There's no separate remediation step: fix it in
+          Word, then re-check.
         </p>
         <p v-else-if="isPptx" class="text-sm text-[var(--text)] leading-relaxed mb-3">
           A PowerPoint deck is the <strong>source document</strong> — the best place to fix
           accessibility. Correcting issues here (slide titles from the built-in layouts, alt text,
-          table header rows, real bulleted lists) fixes them at the root, and any PDF you export
-          from this deck inherits that structure automatically. There's no separate remediation
-          step: fix it in PowerPoint, then re-check.
+          table header rows, real bulleted lists) fixes them at the root, and a PDF exported from
+          this deck with tagging turned on carries that structure with it. There's no separate
+          remediation step: fix it in PowerPoint, then re-check.
         </p>
         <p v-else-if="isXlsx" class="text-sm text-[var(--text)] leading-relaxed mb-3">
           An Excel workbook is the <strong>source document</strong> — the best place to fix
           accessibility. Correcting issues here (descriptive sheet tab names, real table objects
-          with header rows, alt text on charts and images) fixes them at the root, and any PDF you
-          export from this workbook inherits that structure automatically. There's no separate
-          remediation step: fix it in Excel, then re-check.
+          with header rows, alt text on charts and images) fixes them at the root, and a PDF
+          exported from this workbook with tagging turned on carries that structure with it. There's
+          no separate remediation step: fix it in Excel, then re-check.
         </p>
         <p v-else class="text-sm text-[var(--text)] leading-relaxed mb-3">
           PDF remediation — including this tool and Adobe Acrobat — is a fallback for finished
           documents. The most reliable accessibility comes from fixing issues in the
           <strong>source document</strong> (Word, InDesign, Pages, Google Docs, etc.) and
-          re-exporting. When the source is structured well, the PDF inherits that structure
-          automatically and no remediation is needed.
+          re-exporting. When the source is structured well and exported with tagging turned on, the
+          PDF carries that structure with it, and in most cases no further remediation is needed —
+          re-check the exported PDF here to confirm.
         </p>
         <details class="text-sm">
           <summary class="cursor-pointer text-blue-300 hover:text-blue-200 select-none font-medium">
@@ -77,8 +78,8 @@ const isXlsx = computed(() => props.fileType === "xlsx");
           <ul v-if="isPptx" class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed">
             <li>
               <strong class="text-[var(--text)]">Run the checker:</strong>
-              <em>Review → Check Accessibility</em> finds and fixes most issues before you share or
-              export the deck.
+              <em>Review → Check Accessibility</em> finds many common issues and offers fixes before
+              you share or export the deck.
             </li>
             <li>
               <strong class="text-[var(--text)]">Slide titles:</strong> give every slide a unique
@@ -108,8 +109,8 @@ const isXlsx = computed(() => props.fileType === "xlsx");
           >
             <li>
               <strong class="text-[var(--text)]">Run the checker:</strong>
-              <em>Review → Check Accessibility</em> finds and fixes most issues before you share or
-              export the workbook.
+              <em>Review → Check Accessibility</em> finds many common issues and offers fixes before
+              you share or export the workbook.
             </li>
             <li>
               <strong class="text-[var(--text)]">Sheet names:</strong> rename every tab
@@ -136,8 +137,8 @@ const isXlsx = computed(() => props.fileType === "xlsx");
           >
             <li>
               <strong class="text-[var(--text)]">Run the checker:</strong>
-              <em>Review → Check Accessibility</em> finds and fixes most issues before you share or
-              export the document.
+              <em>Review → Check Accessibility</em> finds many common issues and offers fixes before
+              you share or export the document.
             </li>
             <li>
               <strong class="text-[var(--text)]">Heading styles:</strong> use Word's built-in
@@ -162,9 +163,9 @@ const isXlsx = computed(() => props.fileType === "xlsx");
           <ul v-else class="mt-3 space-y-2 text-[var(--text-muted)] text-xs leading-relaxed">
             <li>
               <strong class="text-[var(--text)]">Microsoft Word:</strong>
-              <em>Review → Check Accessibility</em> finds and fixes most issues before export. Use
-              built-in heading styles (Heading 1, 2, 3 — not just bold larger text), set alt text on
-              every image, and use Word's table tools (not tabs) for tables.
+              <em>Review → Check Accessibility</em> finds many common issues and offers fixes before
+              export. Use built-in heading styles (Heading 1, 2, 3 — not just bold larger text), set
+              alt text on every image, and use Word's table tools (not tabs) for tables.
             </li>
             <li>
               <strong class="text-[var(--text)]">Adobe InDesign:</strong> set the document title in
@@ -186,8 +187,8 @@ const isXlsx = computed(() => props.fileType === "xlsx");
               <em>"Document structure tags for accessibility"</em> under Save As → PDF → Options
               (older Word for Mac offers a "Best for electronic distribution and accessibility"
               choice — pick it; current Mac versions tag the PDF automatically). In InDesign, check
-              <em>"Create Tagged PDF"</em>. Skipping this on export is the #1 cause of remediable
-              PDFs we see here.
+              <em>"Create Tagged PDF"</em>. Skipping this on export is the classic cause of PDFs
+              that need remediation.
             </li>
           </ul>
         </details>

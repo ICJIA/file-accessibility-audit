@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.75.4] - 2026-08-15
+
+### Changed
+
+- **Accuracy-and-absoluteness pass over the source-document guidance.** Operator direction, starting from one sentence and applied to the whole `SourceDocumentNotice` component: "the PDF inherits that structure automatically and no remediation is needed" promised too much — it now reads "…exported with tagging turned on, the PDF carries that structure with it, and **in most cases** no further remediation is needed — re-check the exported PDF here to confirm." The same standard applied to the component's other claims: the Word/PowerPoint/Excel variants no longer say *any* exported PDF inherits structure *automatically* (only an export with tagging on does, and they now say so); the Office accessibility-checker tips no longer claim it "finds and fixes **most** issues" (it "finds many common issues and offers fixes" — this product's own automation-limit stance is precisely that automated checkers don't catch most of the job); and "the **#1 cause** of remediable PDFs **we see here**" — a statistic this tool does not collect — became "the classic cause of PDFs that need remediation," here and in the remediation page's source-first explainer.
+
+### Notes
+
+- Copy only; menu paths unchanged. Pinned by two new assertions blocks in `SourceDocumentNotice.test.ts` (the hedge is present, the absolute inherit/most-issues/#1-cause claims are absent in all four variants). Tests 2,253 → 2,255 (API 1,177 / web 1,029 / CLI 49).
+
 ## [1.75.3] - 2026-08-15
 
 ### Changed
