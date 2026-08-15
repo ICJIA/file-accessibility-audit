@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.75.0",
+    meta: "Reviewed <strong>2026-08-15</strong> · scope: the fix steps and the repair results were made to tell the same story as the audit. Wording and reporting only — scoring, storage, and retention are unchanged.",
+    body: [
+      {
+        kind: "p",
+        html: "A user's fact sheet surfaced two honesty gaps. Its text was perfectly readable by screen readers — the only text-layer flag was three fonts not packed into the file, a minor finish item — yet the fix list showed the step written for scanned documents (“…a picture of text”), advice that was both alarming and wrong to follow. One check covers several different text problems, and the fix step now describes the one the audit actually found: embed the fonts, add the missing hidden tags, change the security setting that locks screen readers out, or run text recognition on a scan — whichever it saw.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>Repair results now account for every finding.</strong> After an automatic repair, each issue the audit flagged is listed with exactly one outcome — fixed, improved but not fully fixed, <strong>no change</strong>, got worse, or newly visible — with its before-and-after score. A finding the repair could not touch now says so in plain words instead of sitting silently in a list; previously the same item could even appear as both “fully fixed” and “still outstanding” at once.",
+          },
+          {
+            badge: "Note",
+            html: "Nothing about scoring changed. A document whose text genuinely cannot be read still receives the lowest possible score — the change is that a small finish item is no longer described as that catastrophe, and the audit report and the repair results now use the same plain-language names for each finding.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.74.1",
     meta: "Reviewed <strong>2026-08-14</strong> · scope: the not-a-guarantee notice was made more prominent. Presentation only — its words, and everything else, are unchanged.",
     body: [

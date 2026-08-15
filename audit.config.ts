@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "remediation-results-match-findings-2026-08-15",
+    badge: "Improved",
+    text: "After an automatic repair, the results now account for every issue the audit found: each one is marked fixed, improved, or — stated plainly — no change, with its before-and-after score, so nothing the repair couldn't touch quietly disappears. Fix steps also now describe the problem that was actually found: a document whose only text issue is unembedded fonts is told to embed the fonts, not to run scanned-document recovery on perfectly readable text. And the audit report and the repair results use the same plain-language name for each finding, so the two pages can be read side by side.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 15, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "score-not-a-guarantee-2026-08-14",
     badge: "Improved",
     text: "Reports with a high score now say, right under the grade, what accessibility professionals keep having to explain: even a perfect score is not a guarantee. Automated checks can confirm accessibility structure is present — they cannot tell you the document truly works with a screen reader, because that is a judgment only a person can make. The new notice shows the two halves of the job side by side — the half software finished, and the half that always needs a person — along with how many accessibility criteria were never machine-checked at all for your document. It appears wherever the score does: on the report, the printout, the downloaded file, and the shared link. Lower grades carry a one-line version of the same reminder, so a person is in the loop at every grade.",

@@ -292,6 +292,106 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
   },
 };
 
+/**
+ * text_extractability is one category id covering four different problems:
+ * a scanned picture-of-text, a security setting that locks assistive
+ * technology out, real text with no (or an empty) tag structure, and —
+ * mildest of all — non-embedded fonts on an otherwise clean text layer.
+ * PLAN_COPY's single entry describes only the scanned case, which turned a
+ * Minor font advisory into "some or all of this document is a picture of
+ * text" (user report 2026-08-15, ARI fact sheet: 5,447 chars extracted,
+ * fully tagged, 85/Minor for three unembedded fonts).
+ *
+ * Detection keys on finding strings the analyzer has emitted verbatim for
+ * every stored report. Menu paths below reuse strings already verified in
+ * docs/fix-step-accuracy-2026-08.md and the analyzer's own findings
+ * (packages/analyzer/src/scoring/pdf.ts, supplementary.ts). Anything
+ * unrecognized — old reports, other formats — keeps the PLAN_COPY default,
+ * so a failed match can only ever reproduce today's behavior.
+ */
+const TEXT_EXTRACTABILITY_VARIANTS: Array<{
+  matches: (findings: string[]) => boolean;
+  entry: PlanCopyEntry;
+}> = [
+  {
+    // AT access denied by security settings — nothing else matters until
+    // this is lifted, and OCR/tagging advice would be actively wrong.
+    matches: (f) => f.some((s) => s.includes("deny assistive-technology access")),
+    entry: {
+      title: "Allow screen readers in the document's security settings",
+      why: "This PDF's security settings switch off assistive-technology access — screen readers in conforming viewers can't read any of it, no matter how good the content is.",
+      source: {
+        pdf: [
+          "Re-export or re-save the PDF without security restrictions, or with security that permits accessibility (modern AES-256 encryption always does)",
+        ],
+      },
+      acrobat: [
+        "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Security tab",
+        'Either remove security or enable "Enable text access for screen reader devices for the visually impaired", then re-save',
+      ],
+    },
+  },
+  {
+    // Real text, but no usable tag structure (missing or empty tree).
+    // Checked before the fonts variant: a file can carry both problems, and
+    // tagging is the more fundamental barrier.
+    matches: (f) =>
+      f.some((s) => s.includes("Document is NOT tagged") || s.includes("is present but EMPTY")),
+    entry: {
+      title: "Add the hidden accessibility tags to the PDF",
+      why: "The text itself is real and readable — but the document has no working tag structure, the hidden layer that tells a screen reader the reading order, headings, and other elements.",
+      source: {
+        pdf: [
+          "Open the original Word (or Google Docs) file",
+          'In Word: File → Save As → PDF → Options → check "Document structure tags for accessibility" (the hidden labels that tell a screen reader what\'s a heading, a list, a table), then save',
+        ],
+      },
+      acrobat: [
+        "All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document)",
+        "Then open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags) and confirm the body content appears beneath the tags",
+      ],
+    },
+  },
+  {
+    // Non-embedded fonts on an otherwise clean text layer. "Document is
+    // tagged (StructTreeRoot present)" is emitted only on the no-deduction
+    // path, so if this category is flagged at all alongside it, fonts are
+    // the reason.
+    matches: (f) =>
+      f.some((s) => s.includes("Document is tagged (StructTreeRoot present)")) &&
+      f.some((s) => /non-embedded font/i.test(s)),
+    entry: {
+      title: "Embed the fonts so the text stays correct everywhere",
+      why: "The text itself is readable by screen readers — this is a smaller finish item. Some fonts aren't embedded in the file, and on a computer without them the text can display, print, or be read back with wrong or garbled characters.",
+      source: {
+        pdf: [
+          "In the source application (Word, InDesign), enable font embedding before exporting to PDF",
+          'Re-export, then confirm in Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab — every font should say "(Embedded)" or "(Embedded Subset)"',
+        ],
+      },
+      acrobat: [
+        "Check which fonts are affected: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status",
+        "Use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts",
+      ],
+    },
+  },
+];
+
+/**
+ * The copy entry for a step, picked by what the analyzer actually found.
+ * Only text_extractability has findings-keyed variants today; every other
+ * id resolves straight from PLAN_COPY.
+ */
+function planCopyFor(id: string, findings: string[]): PlanCopyEntry | undefined {
+  if (id === "text_extractability") {
+    const strs = findings.filter((f): f is string => typeof f === "string");
+    for (const variant of TEXT_EXTRACTABILITY_VARIANTS) {
+      if (variant.matches(strs)) return variant.entry;
+    }
+  }
+  return PLAN_COPY[id];
+}
+
 const SEVERITY_ORDER: Record<PlanSeverity, number> = { Critical: 0, Moderate: 1, Minor: 2 };
 
 function isPlanSeverity(s: unknown): s is PlanSeverity {
@@ -355,7 +455,7 @@ export function buildActionPlan(categories: unknown, fileType?: string | null): 
     const id = String(c.id ?? "");
     const label = String(c.label ?? id);
     const findings = Array.isArray(c.findings) ? (c.findings as string[]) : [];
-    const entry = PLAN_COPY[id];
+    const entry = planCopyFor(id, findings);
 
     // Per-document Acrobat steps beat the dictionary default — they're
     // specific to what the analyzer actually saw in this file.

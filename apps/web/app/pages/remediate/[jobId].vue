@@ -8,6 +8,12 @@ import {
   isPublishReady as isPublishReadyFor,
   publishVerdictFor,
 } from "~/utils/publishReadiness";
+import {
+  buildRemediationOutcome,
+  type CategoryOutcome,
+  type RemediationDisposition,
+} from "~/utils/remediationOutcome";
+import { buildActionPlan } from "~/utils/actionPlan";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
@@ -41,15 +47,6 @@ const { status, receipt, error, loading, isTerminal } = useRemediationJob(jobId,
 // Category comparison (drives "What we fixed" / "Still needs review")
 // ------------------------------------------------------------------
 
-interface CategoryPair {
-  id: string;
-  label: string;
-  before: number | null;
-  after: number | null;
-  delta: number | null;
-  findings: string[];
-}
-
 // Mode-aware categories: when the user toggles the After ScoreCard's
 // scoring profile, the lists below use the matching profile's
 // categories so severities/scores stay consistent with what they're
@@ -72,47 +69,61 @@ const beforeCategories = computed<CategoryResult[]>(() => {
   return profile?.categories ?? inp.categories ?? [];
 });
 
-const categoryPairs = computed<CategoryPair[]>(() => {
-  const input = beforeCategories.value;
-  const output = afterCategories.value;
-  const byId = new Map<string, CategoryResult>();
-  for (const c of input) byId.set(c.id, c);
-  return output.map((after) => {
-    const before = byId.get(after.id);
-    const beforeScore = before?.score ?? null;
-    const afterScore = after.score ?? null;
-    return {
-      id: after.id,
-      label: after.label,
-      before: beforeScore,
-      after: afterScore,
-      delta: beforeScore !== null && afterScore !== null ? afterScore - beforeScore : null,
-      findings: after.findings ?? [],
-    };
-  });
-});
+// Every category the audit flagged (before or after) gets exactly ONE
+// disposition — fixed / improved / unchanged / declined / new — computed in
+// ~/utils/remediationOutcome.ts (pure and unit-tested; this page can only
+// be source-scanned in tests). This replaced three inline score buckets
+// that could render one category twice ("fully fixed" AND "outstanding")
+// and an unchanged category with no statement that nothing changed — the
+// 2026-08-15 user report: a file flagged for unembedded fonts came out of
+// remediation 85→85 and the results never said so.
+const outcome = computed(() =>
+  buildRemediationOutcome(beforeCategories.value, afterCategories.value),
+);
+const fixedCategories = computed(() => outcome.value.fixed);
+const stillFlagged = computed(() => outcome.value.stillFlagged);
+const outstandingCount = computed(() => outcome.value.stillFlagged.length);
 
-// Outstanding issues by severity (after remediation). Severity comes
-// from the audit's getSeverity() and lives on each CategoryResult. The
-// severity taxonomy (packages/shared/src/scoring.ts SEVERITY_THRESHOLDS) is
-// exactly "Critical" | "Moderate" | "Minor" | "No issues found" — there has
-// never been a "Serious" value. Declared most-severe-first to match the
-// render order below.
+// Severity tallies for the summary sentence. The taxonomy
+// (packages/shared/src/scoring.ts SEVERITY_THRESHOLDS) is exactly
+// "Critical" | "Moderate" | "Minor" | "No issues found" — there has never
+// been a "Serious" value.
 const outstandingCritical = computed(() =>
-  afterCategories.value.filter((c) => c.severity === "Critical"),
+  stillFlagged.value.filter((o) => o.severity === "Critical"),
 );
 const outstandingModerate = computed(() =>
-  afterCategories.value.filter((c) => c.severity === "Moderate"),
+  stillFlagged.value.filter((o) => o.severity === "Moderate"),
 );
-const outstandingMinor = computed(() =>
-  afterCategories.value.filter((c) => c.severity === "Minor"),
-);
-const outstandingCount = computed(
-  () =>
-    outstandingCritical.value.length +
-    outstandingModerate.value.length +
-    outstandingMinor.value.length,
-);
+const outstandingMinor = computed(() => stillFlagged.value.filter((o) => o.severity === "Minor"));
+
+// The audit report's action-plan copy for each still-flagged row — the
+// same builder and the same failure-mode-aware wording the Visual view
+// shows ("Embed the fonts…", not a bare category label), so a reader can
+// line these rows up one-to-one against the audit's fix list.
+const planStepById = computed(() => {
+  const map = new Map<string, { title: string; why: string }>();
+  for (const s of buildActionPlan(afterCategories.value, "pdf")) {
+    map.set(s.categoryId, { title: s.title, why: s.why });
+  }
+  return map;
+});
+function planTitleFor(o: CategoryOutcome): string {
+  return planStepById.value.get(o.id)?.title ?? o.label;
+}
+function planWhyFor(o: CategoryOutcome): string {
+  return planStepById.value.get(o.id)?.why ?? "";
+}
+
+const DISPOSITION_LABEL: Record<RemediationDisposition, string> = {
+  fixed: "Fixed",
+  improved: "Improved — not fully fixed",
+  unchanged: "No change",
+  declined: "Got worse",
+  new: "Newly flagged after tagging",
+};
+function dispositionLabel(o: CategoryOutcome): string {
+  return DISPOSITION_LABEL[o.disposition];
+}
 
 // Acrobat next-steps hints per category id. Written for the CURRENT
 // Acrobat interface (the 2023+ "All tools" design), with the classic
@@ -142,7 +153,7 @@ const acrobatStepsByCategory: Record<string, string> = {
   link_quality:
     'Fix the visible text in the source document and re-export, or retype it with Acrobat\'s Edit tool (All tools → Edit a PDF). Use text that says where the link goes rather than "click here".',
   text_extractability:
-    "If the file is scanned: All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR). Otherwise verify selectable text is correct.",
+    "If the file is scanned: All tools → Scan & OCR → Recognize Text → In this file (classic UI: Tools → Scan & OCR). If fonts are flagged as not embedded: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows which — re-export from the source application with font embedding enabled, or use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts. Otherwise verify selectable text is correct.",
   color_contrast:
     "Adobe Acrobat does not enforce contrast directly. Use the original authoring tool (Word, InDesign) to adjust colors, or fix via a third-party color contrast checker.",
 };
@@ -153,27 +164,6 @@ function acrobatStepFor(catId: string): string {
     "Open the Tags panel and verify the structure is meaningful; re-run the checker (All tools → Prepare for accessibility → Check for accessibility; classic UI: Tools → Accessibility → Full Check)."
   );
 }
-
-const fixedCategories = computed(() =>
-  categoryPairs.value.filter(
-    (p) =>
-      p.after !== null &&
-      p.after >= 80 &&
-      ((p.before ?? -1) < p.after || (p.before === null && p.after >= 80)),
-  ),
-);
-
-const improvedButLowCategories = computed(() =>
-  categoryPairs.value.filter(
-    (p) => p.after !== null && p.after < 80 && p.delta !== null && p.delta > 0,
-  ),
-);
-
-const needsManualCategories = computed(() =>
-  categoryPairs.value.filter(
-    (p) => p.after !== null && p.after < 80 && (p.delta === null || p.delta <= 0),
-  ),
-);
 
 // "Low-improvement" detection: the remediated output is still below a
 // passing threshold AND the delta from input is small. This is the
@@ -192,14 +182,14 @@ const lowImprovement = computed(() => {
   return output < 70 && delta < 15;
 });
 
-// Items that auto-remediation typically CAN fix (used to seed the
-// "what we were able to do automatically" list). Pulled from the
-// fixedCategories + improvedButLowCategories that actually moved this
-// run; falls back to a generic list if neither has anything.
+// Items that auto-remediation actually moved this run (used to seed the
+// "what we were able to do automatically" list): everything fixed plus
+// everything improved-but-still-flagged, biggest gain first.
 const automatedFixesThisRun = computed(() =>
-  [...fixedCategories.value, ...improvedButLowCategories.value].sort(
-    (a, b) => (b.delta ?? 0) - (a.delta ?? 0),
-  ),
+  [
+    ...outcome.value.fixed,
+    ...outcome.value.stillFlagged.filter((o) => o.disposition === "improved"),
+  ].sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0)),
 );
 
 // ------------------------------------------------------------------
@@ -712,7 +702,9 @@ function labelForEvent(name: string): string {
             </div>
           </div>
 
-          <!-- Fully fixed (visible by default — celebrate the wins) -->
+          <!-- Fully fixed: flagged by the input audit, clean in the output
+               audit. Categories that merely improved stay in the
+               still-flagged list below — one category, one verdict. -->
           <div v-if="fixedCategories.length > 0" class="mt-6 pt-6 border-t border-emerald-700/30">
             <h3 class="text-sm font-semibold uppercase tracking-wider text-emerald-300 mb-2">
               ✓ Fully fixed ({{ fixedCategories.length }})
@@ -734,38 +726,6 @@ function labelForEvent(name: string): string {
             </ul>
           </div>
 
-          <!-- Improved but still low (visible by default) -->
-          <div
-            v-if="improvedButLowCategories.length > 0"
-            class="mt-6 pt-6 border-t border-emerald-700/30"
-          >
-            <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">
-              ↑ Improved but still needs a closer look ({{ improvedButLowCategories.length }})
-            </h3>
-            <ul class="space-y-3 text-sm">
-              <li v-for="cat in improvedButLowCategories" :key="cat.id">
-                <div class="flex items-baseline gap-3">
-                  <span class="flex-1">{{ cat.label }}</span>
-                  <span class="font-mono text-[var(--text-muted)] text-xs">
-                    {{ cat.before === null ? "N/A" : cat.before.toFixed(0) }} →
-                    {{ cat.after?.toFixed(0) }}
-                  </span>
-                  <span class="font-mono text-amber-400 text-xs w-12 text-right">
-                    +{{ cat.delta?.toFixed(0) }}
-                  </span>
-                </div>
-                <ul
-                  v-if="cat.findings.length > 0"
-                  class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
-                >
-                  <li v-for="f in cat.findings.slice(0, 2)" :key="f">
-                    {{ f }}
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </div>
-
           <!-- Outstanding-issues callout + expandable severity detail -->
           <div class="mt-6 pt-6 border-t border-emerald-700/30">
             <!-- Inline summary -->
@@ -780,7 +740,8 @@ function labelForEvent(name: string): string {
                   : "issues still need attention"
               }}
               ({{ outstandingCritical.length }} critical, {{ outstandingModerate.length }} moderate,
-              {{ outstandingMinor.length }} minor).
+              {{ outstandingMinor.length }} minor). Each is listed below with what the automatic
+              pass did — or could not do.
             </p>
 
             <!-- Expandable detail with Adobe Acrobat next steps.
@@ -804,92 +765,69 @@ function labelForEvent(name: string): string {
               </summary>
 
               <div class="mt-6 space-y-6">
-                <!-- Critical outstanding -->
-                <div v-if="outstandingCritical.length > 0">
-                  <h3 class="text-sm font-semibold uppercase tracking-wider text-red-400 mb-2">
-                    Critical issues still outstanding
-                  </h3>
-                  <ul class="space-y-4 text-sm">
-                    <li v-for="cat in outstandingCritical" :key="cat.id">
-                      <div class="flex items-baseline gap-3">
-                        <span class="font-medium flex-1">{{ cat.label }}</span>
-                        <span class="font-mono text-[var(--text-muted)] text-xs">
-                          {{ cat.score?.toFixed(0) ?? "N/A" }}/100
-                        </span>
-                      </div>
-                      <ul
-                        v-if="cat.findings && cat.findings.length > 0"
-                        class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+                <!-- One row per still-flagged category, severest first.
+                     Every row answers the reader's real question — what did
+                     auto-remediation DO to this finding? — with an explicit
+                     disposition ("No change" / "Improved — not fully fixed"
+                     / "Got worse" / "Newly flagged after tagging"), the
+                     before → after score, and the SAME plain-language step
+                     copy the audit report's action plan used for it. The
+                     old severity-grouped lists showed the first three raw
+                     findings, which for a fonts-only Text Extractability
+                     flag were three positive statements — the actual
+                     problem never appeared (user report 2026-08-15). -->
+                <ul class="space-y-5 text-sm" data-testid="still-flagged-list">
+                  <li v-for="o in stillFlagged" :key="o.id" :data-disposition="o.disposition">
+                    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span
+                        class="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                        :class="{
+                          'bg-red-500/15 text-red-400': o.severity === 'Critical',
+                          'bg-amber-500/15 text-amber-400': o.severity === 'Moderate',
+                          'bg-blue-500/15 text-blue-400': o.severity === 'Minor',
+                        }"
                       >
-                        <li v-for="f in cat.findings.slice(0, 3)" :key="f">
-                          {{ f }}
-                        </li>
-                      </ul>
-                      <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
-                        <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
-                        {{ acrobatStepFor(cat.id) }}
-                      </p>
-                    </li>
-                  </ul>
-                </div>
-
-                <!-- Moderate outstanding -->
-                <div v-if="outstandingModerate.length > 0">
-                  <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-400 mb-2">
-                    Moderate issues still outstanding
-                  </h3>
-                  <ul class="space-y-4 text-sm">
-                    <li v-for="cat in outstandingModerate" :key="cat.id">
-                      <div class="flex items-baseline gap-3">
-                        <span class="font-medium flex-1">{{ cat.label }}</span>
-                        <span class="font-mono text-[var(--text-muted)] text-xs">
-                          {{ cat.score?.toFixed(0) ?? "N/A" }}/100
-                        </span>
-                      </div>
-                      <ul
-                        v-if="cat.findings && cat.findings.length > 0"
-                        class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
+                        {{ o.severity }}
+                      </span>
+                      <span class="font-medium flex-1">{{ o.label }}</span>
+                      <span class="font-mono text-[var(--text-muted)] text-xs">
+                        {{ o.before === null ? "N/A" : o.before.toFixed(0) }} →
+                        {{ o.after === null ? "—" : o.after.toFixed(0) }}
+                      </span>
+                      <span
+                        class="inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                        :class="{
+                          'border-amber-500/50 text-amber-300': o.disposition === 'unchanged',
+                          'border-emerald-500/40 text-emerald-300': o.disposition === 'improved',
+                          'border-red-500/50 text-red-300':
+                            o.disposition === 'declined' || o.disposition === 'new',
+                        }"
                       >
-                        <li v-for="f in cat.findings.slice(0, 3)" :key="f">
-                          {{ f }}
-                        </li>
-                      </ul>
-                      <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
-                        <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
-                        {{ acrobatStepFor(cat.id) }}
-                      </p>
-                    </li>
-                  </ul>
-                </div>
-
-                <!-- Minor outstanding -->
-                <div v-if="outstandingMinor.length > 0">
-                  <h3 class="text-sm font-semibold uppercase tracking-wider text-blue-400 mb-2">
-                    Minor issues still outstanding
-                  </h3>
-                  <ul class="space-y-4 text-sm">
-                    <li v-for="cat in outstandingMinor" :key="cat.id">
-                      <div class="flex items-baseline gap-3">
-                        <span class="font-medium flex-1">{{ cat.label }}</span>
-                        <span class="font-mono text-[var(--text-muted)] text-xs">
-                          {{ cat.score?.toFixed(0) ?? "N/A" }}/100
-                        </span>
-                      </div>
-                      <ul
-                        v-if="cat.findings && cat.findings.length > 0"
-                        class="mt-1 list-disc list-inside text-xs text-[var(--text-muted)] space-y-0.5"
-                      >
-                        <li v-for="f in cat.findings.slice(0, 3)" :key="f">
-                          {{ f }}
-                        </li>
-                      </ul>
-                      <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
-                        <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
-                        {{ acrobatStepFor(cat.id) }}
-                      </p>
-                    </li>
-                  </ul>
-                </div>
+                        {{ dispositionLabel(o)
+                        }}<template v-if="o.disposition === 'improved' && o.delta">
+                          (+{{ o.delta.toFixed(0) }})</template
+                        ><template v-else-if="o.disposition === 'declined' && o.delta">
+                          ({{ o.delta.toFixed(0) }})</template
+                        >
+                      </span>
+                    </div>
+                    <p class="mt-1.5 text-xs text-[var(--text-secondary)] leading-relaxed">
+                      <strong>{{ planTitleFor(o) }}.</strong>
+                      <template v-if="planWhyFor(o)"> {{ planWhyFor(o) }}</template>
+                    </p>
+                    <p
+                      v-if="o.disposition === 'unchanged'"
+                      class="mt-1 text-xs text-amber-300/90 leading-relaxed"
+                    >
+                      The automatic pass could not improve this — it stands exactly as the audit
+                      found it.
+                    </p>
+                    <p class="mt-2 text-xs text-blue-300/90 leading-relaxed">
+                      <span class="font-semibold uppercase tracking-wider">Adobe Acrobat:</span>
+                      {{ acrobatStepFor(o.id) }}
+                    </p>
+                  </li>
+                </ul>
 
                 <!-- General Adobe wrap-up tip -->
                 <div
@@ -1171,12 +1109,7 @@ function labelForEvent(name: string): string {
 
           <!-- What we COULDN'T fix automatically -->
           <div
-            v-if="
-              needsManualCategories.length > 0 ||
-              outstandingCritical.length > 0 ||
-              outstandingModerate.length > 0 ||
-              outstandingMinor.length > 0
-            "
+            v-if="outstandingCount > 0"
             class="rounded-lg border border-amber-700/30 bg-amber-950/10 p-4 sm:p-5"
           >
             <h3 class="text-sm font-semibold uppercase tracking-wider text-amber-300 mb-3">

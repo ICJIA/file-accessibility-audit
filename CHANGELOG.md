@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.75.0] - 2026-08-15
+
+### Fixed
+
+- **The "Make the text readable by screen readers" step no longer catastrophizes a font-embedding advisory.** A user-reported fact sheet (`controls/ARIFactSheet-SFY26-20260427T20572257.pdf`, 60/D) has fully extractable text (5,447 characters) and a proper tag structure — its only text-layer flag was three non-embedded fonts, a Minor 15-point cap — yet the action plan presented the scanned-document copy ("some or all of this document is a picture of text") with OCR steps that would have been wrong to follow. One category id (`text_extractability`) covers four distinct problems; the plan step now picks its copy by the failure mode the analyzer actually found: non-embedded fonts on a clean text layer get a font-embedding step ("Embed the fonts so the text stays correct everywhere", with a why that says outright the text itself is readable), a missing or empty tag tree gets a tagging step, a security setting that denies assistive-technology access gets a security-settings step, and a genuinely scanned document keeps the original OCR copy. Detection keys on finding strings the analyzer has emitted verbatim into every stored report; unrecognized findings (old reports, other formats) keep today's copy, so a failed match can only reproduce previous behavior. Menu paths reuse strings already verified in the 2026-08 fix-step accuracy pass. **Scoring is untouched** — Minor is correct for a fonts-only advisory, and a document whose text truly cannot be read still scores 0 overall.
+
+### Changed
+
+- **Remediation results now match the audit findings: every flagged category states what the automatic pass did — or could not do.** Reproduced on the same fact sheet (60/D → 77/C after remediation): a category the pass could not improve (text extractability, 85→85) appeared only inside a severity list whose three visible findings were all positive statements — the actual font problem never rendered and nothing said "unchanged" — while reading order (65→85) was listed under BOTH "Fully fixed" and "Minor issues still outstanding". Every category flagged before or after remediation now gets exactly one disposition — *fixed*, *improved — not fully fixed*, **no change**, *got worse*, or *newly flagged after tagging* — with its before → after scores; unchanged rows state in words that the automatic pass could not improve them. Still-flagged rows carry the same plain-language step copy as the audit report's action plan (same builder, including the new failure-mode variants), so the two surfaces name each finding identically. "Fully fixed" now means the severity actually cleared, not "scored ≥ 80". The dispositions live in a pure, unit-tested module (`apps/web/app/utils/remediationOutcome.ts`) whose fixtures are the real remediation pipeline run on the reported file.
+
+### Notes
+
+- The remediation page's per-category Acrobat hint for text extractability now also covers the non-embedded-fonts case (Fonts tab + Preflight → Fix → Embed missing fonts).
+- Preserved and re-verified: outstanding issues stay open by default, the download block's placement, the fix-step version note, and the shared publish verdict.
+- Full writeup: `docs/remediation-results-and-text-extractability-copy-fix.md`.
+- Tests 2,214 → 2,239 (API 1,177 / web 1,013 / CLI 49).
+
 ## [1.74.1] - 2026-08-14
 
 ### Changed

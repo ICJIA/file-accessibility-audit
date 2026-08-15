@@ -88,6 +88,33 @@ describe("ReportVisualView", () => {
     expect(w.text()).toContain("2 fixes, in order.");
   });
 
+  it("wires failure-mode plan copy through: unembedded fonts on a tagged PDF get the font step", () => {
+    // The ARI-fact-sheet shape (2026-08-15): text extracts, tags present,
+    // fonts unembedded → Minor. The step must NOT read as the scanned-
+    // document catastrophe.
+    const fontsResult = {
+      ...result,
+      categories: [
+        {
+          id: "text_extractability",
+          label: "Text Extractability",
+          score: 85,
+          grade: "B",
+          severity: "Minor",
+          findings: [
+            "PDF contains extractable text",
+            "Document is tagged (StructTreeRoot present)",
+            "3 non-embedded font(s) may cause garbled text on systems without these fonts: ArialMT",
+          ],
+        },
+      ],
+    };
+    const w = mount(ReportVisualView, { props: { result: fontsResult } });
+    expect(w.text()).toContain("Embed the fonts");
+    expect(w.text()).not.toContain("Make the text readable by screen readers");
+    expect(w.text()).not.toContain("picture of text");
+  });
+
   it("shows warnings and renders the notice slot", () => {
     const w = mount(ReportVisualView, {
       props: { result },
