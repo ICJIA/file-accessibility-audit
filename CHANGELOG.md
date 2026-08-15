@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.75.3] - 2026-08-15
+
+### Changed
+
+- **The failed-remediation card now leads with the source-document route.** Operator direction: remediating a finished PDF — with this tool or any other — is always the last resort, and the easiest path to an accessible document is fixing the original Word/PowerPoint/InDesign/Google Docs file, re-exporting to PDF with tagging on, and re-auditing. The card's "Recommended next step" became two ordered steps — source first, Acrobat Pro as the no-source fallback (verified current + classic menu paths unchanged) — and the failed state now also renders the `SourceDocumentNotice` card with its per-app source-document steps, previously shown only on success. The card also gains the fix-step version note, per the standing rule that every card showing Acrobat menu paths carries it.
+
+### Fixed
+
+- **The "common reasons" list no longer claims scanned content is a common failure cause.** A scanned PDF scores 0 before and after tagging, and a 0→0 delta passes the worker's net-gains-only regression guard — so scanned files normally *complete* with a low score rather than fail. The list now names the real failure paths: an already-tagged PDF the re-tagging would have made worse (the attempt is discarded rather than serve a worse file), layouts the automatic tagger mis-reads, files the preparation/validation steps can't safely process, and the processing time limit.
+
+### Notes
+
+- Pinned by `remediationFailedCard.test.ts` (source route ordered before the Acrobat route, the scanned claim's absence, the version note, and the notice rendering on failure). Tests 2,245 → 2,253 (API 1,177 / web 1,027 / CLI 49).
+
 ## [1.75.2] - 2026-08-15
 
 ### Changed

@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.75.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2245%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.75.3-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2253%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -776,7 +776,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,245 tests** across 136 test files (API 1177, Web 1019, CLI 49). Run all three suites with one summary:
+**2,253 tests** across 137 test files (API 1177, Web 1027, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -893,6 +893,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `categoryBars.test.ts` | 4 | CategoryBars score-table parity: one row per scored category with label, grade-colored bar, numeric score, grade letter, and severity chip; full-sentence `aria-label` per row; N/A rows distinguishing not-assessed from not-applicable with their `naReason`; malformed categories rendering empty rather than throwing |
 | `remediateDownloadPlacement.test.ts` | 12 | The remediation results page, source-inspected: the remediated-file download controls (filename options + button) render inside the "After Remediation" card after the ScoreCard, the old standalone download section is gone, and the readiness banner is grade-gated — a fix-before-publishing warning for anything below an A (strict-profile grade, matching the card's own ScoreCard), a ready-to-publish note on exactly A |
 | `backNavSpacing.test.ts` | 6 | The "← Back" nav on /technical-details and /data-retention keeps an explicit positive gap (`mb-6`) and never a negative margin — the Tailwind v3 `-mb-4`-against-`space-y` idiom inverted under Tailwind v4 (space-y sets the element's own margin via zero-specificity `:where()`, so a real negative class replaces it) and drew the Back button over the page eyebrow |
+| `remediationFailedCard.test.ts` | 8 | The failed-remediation card, source-inspected: the source-document route ("last resort" stated in words, fix → re-export → re-audit) renders before the Acrobat fallback, "Scanned / image-based content" is gone from the common-reasons list (0→0 passes the regression guard, so scanned files complete rather than fail), the fix-step version note is present, and `SourceDocumentNotice` renders on the failed state |
 | `remediationOutcome.test.ts` | 9 | `buildRemediationOutcome`, the per-category dispositions behind the remediation results: a flagged category that comes out clean is fixed, every still-flagged one is exactly one of improved / unchanged / declined / new (numbers from the real ARI fact-sheet run), improved-but-still-flagged never doubles as fixed, never-flagged and not-applicable categories are excluded, Critical→Moderate→Minor ordering, a flagged category missing from the after-audit stays visible as unchanged, and forged-receipt input guards |
 | `remediationResultsMatchFindings.test.ts` | 7 | The remediation results page matches the audit findings, source-inspected: dispositions come from `utils/remediationOutcome` (no inline score buckets), "No change" is stated in so many words, every disposition renders a distinct label, still-flagged rows show before → after scores and the action plan's own step copy via `buildActionPlan`, the fixed list derives from the outcome (no double-listing), and the outstanding count is wired to the same list the rows render from |
 | `exportSnapshotAccordion.test.ts` | 2 | The snapshot HTML export vs the exclusive accordion: plan-step toggles are never clicked during export (live accordion state untouched) and the exported document force-shows every `.plan-step-body` and the technical-report body regardless of captured inline styles |
@@ -1145,6 +1146,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.75.3 — 2026-08-15 · Failed remediation points to the source document first (guidance + accuracy fix, not a security release)
+
+The "Auto-remediation didn't help this time" card now leads with the route that actually works best: fix the original source document (Word, PowerPoint, InDesign, Google Docs) if it still exists, re-export to PDF with tagging on, and re-audit — PDF remediation, by this tool or any other, is stated plainly as the last resort. Acrobat Pro stays as the no-source fallback (verified menu paths unchanged), the failed state now renders the per-app `SourceDocumentNotice` (previously success-only), and the card gains the fix-step version note. Accuracy fix in the same pass: "Scanned / image-based content" was listed as a common failure cause, but a scanned PDF scores 0→0 through the pipeline and *passes* the net-gains-only guard — the reasons list now names the real failure paths (regression on already-tagged input, mis-read layouts, unprocessable files, the time limit). **No behavior, storage, or dependency change.** Tests 2,245 → 2,253.
 
 ### v1.75.2 — 2026-08-15 · Band headline says "high score", not "perfect score" (copy fix, not a security release)
 

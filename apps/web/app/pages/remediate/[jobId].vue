@@ -1409,22 +1409,55 @@ function labelForEvent(name: string): string {
       <p class="text-sm mb-4">
         We tried but couldn't reliably improve this PDF without risking damage to its content.
       </p>
-      <p class="text-sm mb-2 font-medium">Recommended next step:</p>
-      <p class="text-sm text-[var(--text-muted)] mb-4">
-        Open the original in Adobe Acrobat Pro: All tools → Prepare for accessibility →
-        Automatically tag PDF, then Check for accessibility (classic UI: Tools → Accessibility →
-        Autotag Document, then Full Check).
-      </p>
+      <p class="text-sm mb-2 font-medium">Recommended next steps, in order:</p>
+      <ol class="text-sm text-[var(--text-muted)] list-decimal list-inside space-y-3 mb-4">
+        <li>
+          <strong class="text-[var(--text)]"
+            >Best path — go back to the source document, if it still exists.</strong
+          >
+          Remediating a finished PDF — with this tool, Acrobat, or any other — is always the
+          <strong class="text-[var(--text)]">last resort</strong>. If the original Word, PowerPoint,
+          InDesign, or Google Docs file is available, fix accessibility there, re-export to PDF with
+          tagging turned on, and run the new PDF through the audit here to confirm. The card below
+          has the source-document steps, app by app.
+        </li>
+        <li>
+          <strong class="text-[var(--text)]">No source file? Fix the PDF in Acrobat Pro.</strong>
+          All tools → Prepare for accessibility → Automatically tag PDF, then Check for
+          accessibility (classic UI: Tools → Accessibility → Autotag Document, then Full Check).
+        </li>
+      </ol>
       <p class="text-sm mb-2 font-medium">Common reasons this happens:</p>
+      <!-- Accuracy note: these mirror the worker's real failure paths
+           (jobs/remediate.ts): the net-gains-only regression guard (most
+           often on already-tagged input), qpdf prepare/validate failures,
+           and the wall-clock cap. Scanned PDFs are deliberately NOT listed —
+           they score 0 before AND after tagging, and 0→0 passes the guard,
+           so they normally complete with a low score instead of failing. -->
       <ul class="text-sm text-[var(--text-muted)] list-disc list-inside space-y-1 mb-4">
-        <li>PDF already has structure tags from another tool</li>
-        <li>Complex multi-column layout</li>
-        <li>Scanned / image-based content</li>
+        <li>
+          The PDF already has structure tags (often from another tool) — automatic re-tagging would
+          have made its score worse, so the attempt was discarded rather than give you a worse file
+        </li>
+        <li>A complex layout (multiple columns, floating boxes) the automatic tagger mis-read</li>
+        <li>
+          Damage or an unusual internal structure the preparation and validation steps could not
+          safely process
+        </li>
+        <li>A very large document that exceeded the processing time limit</li>
       </ul>
+      <p class="text-xs text-[var(--text-muted)] mb-4" role="note">{{ FIX_STEPS_VERSION_NOTE }}</p>
       <details v-if="status.failureReason" class="text-xs text-[var(--text-muted)]">
         <summary class="cursor-pointer">Technical detail</summary>
         <pre class="whitespace-pre-wrap mt-2">{{ status.failureReason }}</pre>
       </details>
+    </section>
+
+    <!-- Source-first guidance on failure too: a failed auto-remediation is
+         exactly when the source-document route matters most, and this card's
+         per-app steps are the already-verified copy the success state shows. -->
+    <section v-if="status && status.status === 'failed'" class="mb-6">
+      <SourceDocumentNotice variant="result" />
     </section>
 
     <!-- Expired -->

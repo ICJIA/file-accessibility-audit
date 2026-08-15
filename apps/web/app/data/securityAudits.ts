@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.75.3",
+    meta: "Reviewed <strong>2026-08-15</strong> · scope: the advice shown when an automatic repair fails. Nothing about what the tool does, collects, or stores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "When the automatic repair can't improve a PDF, the page now says what accessibility practitioners consider the honest first answer: go back to the <strong>source document</strong> if it still exists — fix accessibility in Word (or PowerPoint, InDesign, Google Docs), re-export to PDF with tagging turned on, and re-check here. Repairing a finished PDF, with this tool or any other, is the last resort, and the page now says so in those words, with the step-by-step source-document guidance shown on this failure page too (it previously appeared only after a successful repair). One inaccuracy was corrected in the same pass: scanned documents were listed as a common reason repairs fail, but in fact they normally complete with a very low score rather than fail — the list now names the real reasons, including the safeguard that discards a repair attempt entirely rather than hand back a file that scored worse.",
+      },
+    ],
+  },
+  {
     version: "v1.75.2",
     meta: "Reviewed <strong>2026-08-15</strong> · scope: one word in the score notice. Nothing about what the tool does, collects, or stores changed.",
     body: [
