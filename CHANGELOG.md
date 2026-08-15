@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.76.0] - 2026-08-15
+
+### Changed
+
+- **Analytics now count routes, not files: `/remediate/<jobId>` and `/report/<id>` report to Plausible as `/remediate` and `/report`.** Operator report (dashboard screenshot): every remediation job registered its own single-visit page, so Top Pages was filling with per-file UUID rows — "the /remediate route is all that matters, not each individual file." The snippet switched from Plausible's stock auto-tracking `script.js` to `script.manual.js`, and a new client plugin (`plugins/plausible.client.ts`) sends one pageview per route change built as origin + `analyticsPagePath(route.path)` — a pure normalizer that collapses the two per-file routes and passes everything else through.
+
+### Security
+
+- **Query strings no longer reach the analytics server at all.** The stock script includes the full `location.href` in its event payload — on a remediation result page that meant the one-time download token (`?t=…`) was being sent to the (ICJIA-owned, but separate) analytics server. The reported URL is now built from the route *path* only, so no query parameter of any page can leave with the beacon. Data-retention policy **v1.7 → v1.8** (§ 14 entry; § 8a and § 9 now state the generalization).
+
+### Notes
+
+- The `/report/<id>` collapse follows the same rationale (shared-report links are per-file hashes); per-report visit counts are no longer distinguishable in the dashboard — say the word to revert that half if per-report visibility was wanted.
+- CSP, `ANALYTICS` config contract, data-domain, and the no-SRI decision are all unchanged; `script.manual.js` keeps Plausible's own localhost exclusion, so the dev snippet stays unconditional.
+- Pinned by `analyticsUrl.test.ts` (new) and a strengthened `plausibleAnalytics.test.ts` (manual script pinned, plugin sends normalized paths and never `location.href`/query). Tests 2,255 → 2,260 (API 1,177 / web 1,034 / CLI 49).
+
 ## [1.75.4] - 2026-08-15
 
 ### Changed

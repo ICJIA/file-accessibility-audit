@@ -148,10 +148,14 @@ export default defineNuxtConfig({
       // by itself, and dev runs no CSP. The production CSP allows this origin
       // in script-src + connect-src (server/utils/csp.ts) — both read the
       // same constant, so the snippet and the policy cannot drift apart.
+      // script.MANUAL.js: pageviews are sent by plugins/plausible.client.ts
+      // with normalized, path-only URLs — /remediate/<jobId> and
+      // /report/<id> report as their base routes, and query strings (the
+      // remediation download token) never leave the page.
       script: ANALYTICS.PLAUSIBLE_HOST
         ? [
             {
-              src: `${ANALYTICS.PLAUSIBLE_HOST}/js/script.js`,
+              src: `${ANALYTICS.PLAUSIBLE_HOST}/js/script.manual.js`,
               defer: true,
               "data-domain": ANALYTICS.PLAUSIBLE_DOMAIN,
             },

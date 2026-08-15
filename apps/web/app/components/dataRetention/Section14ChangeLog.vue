@@ -6,6 +6,16 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.8 · 2026-08-15</strong> — Narrows what the analytics beacon reports. Page
+        addresses are now generalized before they leave the visitor's browser: a repair-job page
+        (/remediate/…) or a shared-report page (/report/…) counts only as its base route, so
+        per-file addresses never reach the analytics server, and query strings — including the
+        one-time repair download token, which the previous stock analytics script included in its
+        payload URL — are never sent at all. What is recorded per page view is otherwise unchanged
+        (§ 7); § 8a and § 9 state the generalization.
+        <strong>Nothing about what the audit tool itself stores changed.</strong>
+      </li>
+      <li>
         <strong>v1.7 · 2026-08-14</strong> — Documents the addition of privacy-friendly page-view
         analytics. The site's web pages now count visits with Plausible, an open-source, cookie-free
         analytics tool, self-hosted by ICJIA on its own server (plausible.icjia.cloud, a

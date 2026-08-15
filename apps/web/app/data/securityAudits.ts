@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.76.0",
+    meta: "Reviewed <strong>2026-08-15</strong> · scope: what the page-view counter is told. Less is now sent; nothing new is collected anywhere.",
+    body: [
+      {
+        kind: "p",
+        html: "The self-hosted page-view counter added in v1.72.0 was being told more than it needs. Two reductions, both applied before anything leaves the visitor's browser:",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Hardened",
+            html: "<strong>Web addresses are generalized before they are counted.</strong> Every repair job and every shared report has its own web address containing a long per-file code; the counter now records only the base page — <code>/remediate</code>, <code>/report</code> — so per-file addresses never reach the analytics server, and the dashboard counts how much each <em>feature</em> is used rather than accumulating one-visit rows per file.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>Query strings are no longer sent at all.</strong> The stock counting script includes the page's full address in its report — on a repair-result page that full address contains the one-time download code for the repaired file. Both servers involved belong to ICJIA, but the analytics server has no business holding download codes; the reported address is now built from the page path alone, so no query string of any page can leave with the count.",
+          },
+        ],
+      },
+      {
+        kind: "p",
+        html: "The data-retention policy moved to <strong>v1.8</strong> to record this: § 14 has the dated entry, and §§ 8a and 9 now describe the generalized address. What is recorded per page view is otherwise unchanged, and audits themselves still do not pass through analytics at all.",
+      },
+    ],
+  },
+  {
     version: "v1.75.4",
     meta: "Reviewed <strong>2026-08-15</strong> · scope: the wording of the source-document advice. Nothing about what the tool does, collects, or stores changed.",
     body: [
