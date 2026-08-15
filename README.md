@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.75.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2239%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.75.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2245%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -776,7 +776,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,239 tests** across 135 test files (API 1177, Web 1013, CLI 49). Run all three suites with one summary:
+**2,245 tests** across 136 test files (API 1177, Web 1019, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -892,6 +892,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `technicalReport.test.ts` | 6 | The Full-technical-report expander: collapsed by default behind a real `aria-expanded` button, expanding to reveal the conformance detail (failing criteria, not-assessed list, standards basis), executive summary + audit-scope caveat, embedded ReportContent without its score table, and `v-model:open` for evidence links — plus ReportContent's `showScoreTable` prop defaulting to today's behavior |
 | `categoryBars.test.ts` | 4 | CategoryBars score-table parity: one row per scored category with label, grade-colored bar, numeric score, grade letter, and severity chip; full-sentence `aria-label` per row; N/A rows distinguishing not-assessed from not-applicable with their `naReason`; malformed categories rendering empty rather than throwing |
 | `remediateDownloadPlacement.test.ts` | 12 | The remediation results page, source-inspected: the remediated-file download controls (filename options + button) render inside the "After Remediation" card after the ScoreCard, the old standalone download section is gone, and the readiness banner is grade-gated — a fix-before-publishing warning for anything below an A (strict-profile grade, matching the card's own ScoreCard), a ready-to-publish note on exactly A |
+| `backNavSpacing.test.ts` | 6 | The "← Back" nav on /technical-details and /data-retention keeps an explicit positive gap (`mb-6`) and never a negative margin — the Tailwind v3 `-mb-4`-against-`space-y` idiom inverted under Tailwind v4 (space-y sets the element's own margin via zero-specificity `:where()`, so a real negative class replaces it) and drew the Back button over the page eyebrow |
 | `remediationOutcome.test.ts` | 9 | `buildRemediationOutcome`, the per-category dispositions behind the remediation results: a flagged category that comes out clean is fixed, every still-flagged one is exactly one of improved / unchanged / declined / new (numbers from the real ARI fact-sheet run), improved-but-still-flagged never doubles as fixed, never-flagged and not-applicable categories are excluded, Critical→Moderate→Minor ordering, a flagged category missing from the after-audit stays visible as unchanged, and forged-receipt input guards |
 | `remediationResultsMatchFindings.test.ts` | 7 | The remediation results page matches the audit findings, source-inspected: dispositions come from `utils/remediationOutcome` (no inline score buckets), "No change" is stated in so many words, every disposition renders a distinct label, still-flagged rows show before → after scores and the action plan's own step copy via `buildActionPlan`, the fixed list derives from the outcome (no double-listing), and the outstanding count is wired to the same list the rows render from |
 | `exportSnapshotAccordion.test.ts` | 2 | The snapshot HTML export vs the exclusive accordion: plan-step toggles are never clicked during export (live accordion state untouched) and the exported document force-shows every `.plan-step-body` and the technical-report body regardless of captured inline styles |
@@ -1144,6 +1145,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.75.1 — 2026-08-15 · Back-button overlap on the standalone pages (layout fix, not a security release)
+
+User-reported: the "← Back" button rendered on top of the page eyebrow on /technical-details and /data-retention. Root cause: a Tailwind v3 idiom (`-mb-4` on the nav collapsing against `space-y-10`'s next-sibling `margin-top` for a net 1.5rem gap) silently inverted under Tailwind v4, where `space-y-*` sets the margin on the element itself via zero-specificity `:where()` — the negative class replaces it outright, pulling the header up over the button. Both navs now state the intended `mb-6` gap directly; a sweep found no other negative vertical margins under `space-y` containers. Pinned by `backNavSpacing.test.ts` with the mechanism documented. **No behavior, storage, or dependency change.** Tests 2,239 → 2,245.
 
 ### v1.75.0 — 2026-08-15 · Remediation results match the findings; fix steps name the real text-layer problem (accuracy pass, not a security release)
 

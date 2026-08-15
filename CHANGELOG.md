@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.75.1] - 2026-08-15
+
+### Fixed
+
+- **The "← Back" button no longer overlaps the page eyebrow on /technical-details and /data-retention.** User-reported (screenshot): the Back link rendered on top of "TECHNICAL DETAILS" / "POLICY · V1.7". A Tailwind v3 idiom broke silently in the Tailwind v4 upgrade: the back nav used `-mb-4` to tighten the `space-y-10` section gap to 1.5rem, which worked in v3 (space-y set `margin-top` on the *next* sibling and the negative margin collapsed against it) but not in v4 (space-y sets the margin on the nav *itself* through a zero-specificity `:where()` selector, so the real `-mb-4` class replaces it outright — net −1rem, pulling the header up over the button). Both navs now state the intended gap directly (`mb-6`); a repo sweep found no other negative vertical margins under `space-y` containers.
+
+### Notes
+
+- Pinned by `backNavSpacing.test.ts` (both pages, with the v3→v4 mechanism documented in the test). Verified visually on both pages before and after.
+- No behavior, storage, or dependency change. Tests 2,239 → 2,245 (API 1,177 / web 1,019 / CLI 49).
+
 ## [1.75.0] - 2026-08-15
 
 ### Fixed

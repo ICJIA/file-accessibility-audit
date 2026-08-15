@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.75.1",
+    meta: "Reviewed <strong>2026-08-15</strong> · scope: a display fix on two pages. Nothing about what the tool does, collects, or stores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "On this page and the technical-details page, the “← Back” button was drawn on top of the small heading line beneath it — a layout slip introduced by a styling-framework upgrade earlier this year, reported by a reader with a screenshot. The spacing is now stated explicitly, the same gap is verified by an automated test on both pages so the upgrade path can't re-break it silently, and a sweep confirmed no other page uses the pattern that broke.",
+      },
+    ],
+  },
+  {
     version: "v1.75.0",
     meta: "Reviewed <strong>2026-08-15</strong> · scope: the fix steps and the repair results were made to tell the same story as the audit. Wording and reporting only — scoring, storage, and retention are unchanged.",
     body: [

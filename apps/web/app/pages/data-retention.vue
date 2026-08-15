@@ -58,7 +58,12 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
          the footer, navigated here directly, or arrived via a shared
          link). When history exists we use it; otherwise we land them
          on the home page. -->
-    <nav class="-mb-4">
+    <!-- mb-6, not -mb-4: under Tailwind v4, space-y-* sets this element's
+         own margin-bottom via a zero-specificity :where(), so a negative
+         margin class replaces it (pulling the header over the button)
+         instead of collapsing against the next sibling as in v3. Pinned by
+         backNavSpacing.test.ts. -->
+    <nav class="mb-6">
       <button
         type="button"
         class="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
