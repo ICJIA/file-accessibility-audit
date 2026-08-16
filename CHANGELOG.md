@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.78.1] - 2026-08-16
+
+### Fixed
+
+- **`POST /api/audit-url` dedup hits now regrade the stored report before answering — a cached score can no longer disagree with the report page it links to.** Operator report (fleet-inventory screenshots): the fleet table said F/30 while the linked report page said 47/100 — and F/19 beside a page saying 38/100. Cause: the endpoint's content-hash dedup branch returned `strict.score` exactly as stored on the original audit date, while the `reportUrl` in the **same response** serves through `/report/:id`, which has regraded stored reports to the current scoring model on read since v1.58.4 — one response, two eras of scoring. Every consumer that re-checked an unchanged file — the fleet-audit tool's re-runs above all — republished pre-rework scores beside links showing current ones. The dedup branch now applies the same `regradeStoredReport` before extracting the scalar pair, so fresh audits, cached answers, and report pages state one number.
+
+### Notes
+
+- Pinned by a wiring test that invokes the real route handler against the real stored payload of the report that exposed it ("2006 Annual Report.pdf", stored 30/F on 2026-05-21 → 47/F under the current model, matching production's served value). Stored rows stay byte-identical — the regrade remains a read-time derivation. Fleet inventories keep their own local score caches: after deploying, clear the fleet tool's cache (`~/.filecap/audit-cache.json`) and re-run its score refresh (without `force` — every re-check is a cheap dedup hit) to republish corrected numbers. Tests 2,287 → 2,288 (API 1,178 / web 1,061 / CLI 49).
+
 ## [1.78.0] - 2026-08-16
 
 ### Added

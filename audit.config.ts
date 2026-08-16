@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "cached-scores-current-model-2026-08-16",
+    badge: "Improved",
+    text: "Scores from saved audit results now always match their report page. When a document that was audited before is checked again — usually by an automated inventory — the tool answers from its saved copy, and that answer used to carry the score computed on the day of the first audit, even though scoring has been refined since. Those saved answers are now re-scored under the current rules before they're returned, exactly as report pages already do, so a score in an inventory or spreadsheet and the report it links to can no longer disagree. If an older exported list still shows a different number, the report page's score is the one to trust — re-running the check refreshes the list.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 16, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "about-document-and-indesign-2026-08-16",
     badge: "New",
     text: "Fix instructions now match the program your PDF was made with — and every report shows what that program was. If a PDF records that it was laid out in Adobe InDesign, as many annual reports are, the action plan now gives real InDesign steps instead of Word menus, verified against Adobe's current documentation. A new “About this document” card above the plan shows everything the file records about itself — the program that made it, the author, when it was created and last changed, the page count — with “Not set” where the file is silent. The card ends with a plain sentence naming which program the fix steps are written for and why.",

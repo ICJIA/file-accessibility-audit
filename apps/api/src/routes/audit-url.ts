@@ -1,5 +1,6 @@
 import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
+import { regradeStoredReport } from "@file-audit/analyzer";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
 import { recordAudit } from "../services/auditLog.js";
@@ -129,7 +130,12 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
         .get(contentHash, new Date().toISOString()) as DedupRow | undefined;
 
       if (existing) {
-        const cached = JSON.parse(existing.report_json);
+        // Regrade to the current scoring model before extracting scores —
+        // the same regrade /report/:id applies (reports.ts). Without it this
+        // branch serves the score frozen on the original audit date while
+        // the reportUrl in the SAME response leads to a page showing the
+        // regraded one; the fleet inventory published those stale pairs.
+        const cached = regradeStoredReport(JSON.parse(existing.report_json));
         res.json({
           filename: existing.filename,
           pageCount: cached.pageCount ?? null,

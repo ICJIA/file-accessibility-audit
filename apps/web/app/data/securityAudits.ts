@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.78.1",
+    meta: "Reviewed <strong>2026-08-16</strong> · scope: making saved audit answers agree with their report pages. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "When the same document is checked again — typically by an agency's automated document inventory — the tool answers from its saved copy instead of re-auditing. Those saved answers carried the score computed on the day the document was first audited, even though the scoring rules have been refined since, while the report link in the very same answer already showed the up-to-date number. An inventory could therefore print one score beside a report page saying another.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Saved answers are re-scored under the current rules before they are returned</strong> — the same re-scoring report pages have applied on read since v1.58.4 — so an inventory cell and the report it links to can no longer disagree.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Stored records are not rewritten.</strong> The saved report stays exactly as computed on its audit date; the corrected score is derived at answer time. Nothing new is collected, stored, or transmitted, and no route or parameter was added.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.78.0",
     meta: "Reviewed <strong>2026-08-16</strong> · scope: showing already-recorded document information beside the fix steps. Nothing new is collected or sent.",
     body: [

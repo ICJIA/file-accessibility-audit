@@ -434,6 +434,159 @@ describe("audit-url: error-code → HTTP-status mapping", () => {
 // reimplementation, so it pins the actual source.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Dedup hits serve the CURRENT scoring model, not the score frozen at
+// store time. The live failure (2026-08-16): the fleet-audit tool re-checked
+// its inventory through this endpoint and every dedup hit returned the score
+// as stored on the original audit date — pre-rework numbers — while the
+// reportUrl in the SAME response leads to /report/:id, which regrades on
+// read (reports.ts). One response, two eras of scoring: the fleet published
+// F/30 beside a link whose page says 47/100. regradeStoredReport's contract
+// is "applied wherever a stored audit is served"; this branch was the missed
+// serving site. Invokes the REAL route handler against the REAL stored
+// payload of "2006 Annual Report.pdf" (mvtpc) as read from production on
+// 2026-08-16, reduced to its score-bearing fields — a stub would recompute
+// to a different number (see severityGradeCap.test.ts's fixture note).
+// ---------------------------------------------------------------------------
+
+describe("audit-url: dedup hit regrades the stored report before extracting scores", () => {
+  // Stored 2026-05-21 under the pre-2026-08-07 model as 30/F. The current
+  // model recomputes 47/F: alt_text and color_contrast are notAssessed
+  // (excluded), the three null-score categories count as passing, and the
+  // Critical findings cap at 69 — pinned by the tsx spot-check against
+  // production's served value before this test was written.
+  const storedMvtpcReport = () => ({
+    fileType: "pdf",
+    filename: "2006%20Annual%20Report.pdf",
+    pageCount: 20,
+    audited: "2026-05-21T15:53:36.201Z",
+    overallScore: 30,
+    grade: "F",
+    isScanned: false,
+    executiveSummary:
+      "This PDF has 2 critical issues (Heading Structure, Reading Order) and 3 moderate issues.",
+    conformance: { status: "fail" },
+    categories: [
+      {
+        id: "text_extractability",
+        score: 50,
+        weight: 0.2,
+        notAssessed: null,
+        severity: "Moderate",
+      },
+      { id: "title_language", score: 50, weight: 0.15, notAssessed: null, severity: "Moderate" },
+      { id: "heading_structure", score: 0, weight: 0.15, notAssessed: null, severity: "Critical" },
+      { id: "alt_text", score: null, weight: 0.15, notAssessed: true, severity: null },
+      { id: "bookmarks", score: 45, weight: 0.05, notAssessed: null, severity: "Moderate" },
+      { id: "table_markup", score: null, weight: 0.1, notAssessed: null, severity: null },
+      { id: "color_contrast", score: null, weight: 0, notAssessed: true, severity: null },
+      { id: "link_quality", score: null, weight: 0.05, notAssessed: null, severity: null },
+      { id: "reading_order", score: 0, weight: 0.1, notAssessed: null, severity: "Critical" },
+      { id: "form_accessibility", score: null, weight: 0.05, notAssessed: null, severity: null },
+    ],
+    scoreProfiles: {
+      strict: {
+        overallScore: 30,
+        grade: "F",
+        categories: [
+          {
+            id: "text_extractability",
+            score: 50,
+            weight: 0.2,
+            notAssessed: null,
+            severity: "Moderate",
+          },
+          {
+            id: "title_language",
+            score: 50,
+            weight: 0.15,
+            notAssessed: null,
+            severity: "Moderate",
+          },
+          {
+            id: "heading_structure",
+            score: 0,
+            weight: 0.15,
+            notAssessed: null,
+            severity: "Critical",
+          },
+          { id: "alt_text", score: null, weight: 0.15, notAssessed: true, severity: null },
+          { id: "bookmarks", score: 45, weight: 0.05, notAssessed: null, severity: "Moderate" },
+          { id: "table_markup", score: null, weight: 0.1, notAssessed: null, severity: null },
+          { id: "color_contrast", score: null, weight: 0, notAssessed: true, severity: null },
+          { id: "link_quality", score: null, weight: 0.05, notAssessed: null, severity: null },
+          { id: "reading_order", score: 0, weight: 0.1, notAssessed: null, severity: "Critical" },
+          {
+            id: "form_accessibility",
+            score: null,
+            weight: 0.05,
+            notAssessed: null,
+            severity: null,
+          },
+        ],
+      },
+    },
+  });
+
+  it("returns the regraded strict score on a dedup hit, not the score frozen at store time", async () => {
+    vi.resetModules();
+    const dedupRow = {
+      id: "a412e64aeccc2325baf799706231f901",
+      report_json: JSON.stringify(storedMvtpcReport()),
+      filename: "2006 Annual Report.pdf",
+      expires_at: "2027-05-21T15:53:36.201Z",
+    };
+    vi.doMock("../db/sqlite.js", () => ({
+      default: { prepare: vi.fn(() => ({ get: vi.fn(() => dedupRow), run: vi.fn() })) },
+    }));
+    vi.doMock("../services/analyzer.js", () => ({
+      detectFileType: vi.fn().mockResolvedValue("pdf"),
+      // A dedup hit must never re-analyze; throwing here pins that this
+      // test exercised the cached branch and not the fresh-audit path.
+      analyzeDocument: vi.fn().mockRejectedValue(new Error("dedup hit must not analyze")),
+    }));
+    vi.doMock("../services/safeFetch.js", () => ({
+      safeFetch: vi.fn().mockResolvedValue({
+        ok: true,
+        buffer: Buffer.from("%PDF-1.4 minimal"),
+        finalUrl: "https://icjia.illinois.gov/files/2006%20Annual%20Report.pdf",
+      }),
+      SafeFetchError: class SafeFetchError extends Error {},
+    }));
+    vi.doMock("../services/urlPolicy.js", () => ({
+      isAllowedUrl: vi.fn(() => ({ ok: true })),
+      sendSafeFetchError: vi.fn(),
+      validateUrlForFetch: vi.fn(),
+      validateUrlPublic: vi.fn(),
+      FETCH_TIMEOUT_MS: 30_000,
+      MAX_PDF_BYTES: 15 * 1024 * 1024,
+    }));
+    try {
+      const { default: router } = await import("../routes/audit-url.js");
+      const handler = extractHandler(router, "/audit-url");
+      const req = makeReq({
+        body: { url: "https://icjia.illinois.gov/files/2006%20Annual%20Report.pdf" },
+      });
+      const res = makeRes();
+
+      await handler(req, res);
+
+      expect(res._json?.cached).toBe(true);
+      expect(res._json?.reportId).toBe(dedupRow.id);
+      // The pinned regraded pair — what /report/:id serves for this same row.
+      // Serving the stored 30 here is the bug.
+      expect(res._json?.strict).toEqual({ score: 47, grade: "F" });
+      expect(res._json?.practical).toEqual({ score: 47, grade: "F" });
+    } finally {
+      vi.doUnmock("../db/sqlite.js");
+      vi.doUnmock("../services/analyzer.js");
+      vi.doUnmock("../services/safeFetch.js");
+      vi.doUnmock("../services/urlPolicy.js");
+      vi.resetModules();
+    }
+  });
+});
+
 describe("audit-url: sanitizeStoredReport applied before shared_reports insert (F3, store-boundary hardening)", () => {
   it("neutralizes an unsafe helpLinks URL in the analysis result before it is persisted", async () => {
     vi.resetModules();
