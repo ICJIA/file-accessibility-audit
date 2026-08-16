@@ -73,6 +73,9 @@ const props = defineProps<{
     conformance?: {
       notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
     } | null;
+    /** Stored PDF document info; `creator` picks the InDesign-aware source
+     *  steps. Absent on OOXML reports and old stored PDFs. */
+    pdfMetadata?: { creator?: string | null } | null;
   } | null;
   /** Overrides for the remediation page, which is printing a different thing:
    *  what is STILL wrong after the automatic fixes ran. */
