@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.78.0",
+    meta: "Reviewed <strong>2026-08-16</strong> · scope: showing already-recorded document information beside the fix steps. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "Readers of an audit report may not know what program made the document or when it was created — information the audit has always recorded and shown in its technical section. The report's plain-language view now shows it up front: an “About this document” card lists everything the file records about itself (the program that made it, author, created and last-modified dates, page count, and so on), says <em>Not set</em> where the file is silent, and closes with a sentence naming which program the fix steps are written for and why. The detailed view's existing metadata panel carries the same closing sentence.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "UX",
+            html: "<strong>Same information, more visible.</strong> Every field shown was already extracted, stored, and displayed by the audit; the new card re-presents it where the fix steps are read, so the steps' choice of program is explained rather than implied.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>No new information is collected, stored, or transmitted.</strong> The card renders in the reader's own browser from the stored report. Records keep the same fields as before; nothing about retention changes.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.77.0",
     meta: "Reviewed <strong>2026-08-16</strong> · scope: fix-step instructions that adapt to the program a PDF was made with. Nothing new is collected or sent.",
     body: [

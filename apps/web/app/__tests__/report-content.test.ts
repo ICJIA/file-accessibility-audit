@@ -232,6 +232,30 @@ describe("ReportContent — document metadata", () => {
     expect(wrapper.html()).toContain("Acrobat Distiller");
   });
 
+  it("explains which app the fix steps target, from the recorded creator", () => {
+    // The Detailed view's metadata panel carries the same tie-in line the
+    // Visual view's About-this-document card does — the reader of either
+    // view can see WHY the steps name the app they name.
+    const wrapper = mountReport([cat()], {
+      fileType: "pdf",
+      pdfMetadata: {
+        creator: "Adobe InDesign 21.4 (Macintosh)",
+        producer: "Adobe PDF Library",
+        pdfVersion: "1.7",
+        pageCount: 12,
+        author: null,
+        subject: null,
+        keywords: null,
+        creationDate: null,
+        modDate: null,
+        isEncrypted: false,
+      },
+    });
+    const panel = wrapper.find('[data-testid="document-metadata"]');
+    expect(panel.text()).toContain("fix steps");
+    expect(panel.text()).toContain("Adobe InDesign");
+  });
+
   it("omits the metadata card without pdfMetadata", () => {
     const wrapper = mountReport([cat()]);
     expect(wrapper.html()).not.toContain("Document Metadata");

@@ -460,6 +460,13 @@ function planCopyFor(id: string, findings: string[]): PlanCopyEntry | undefined 
   return PLAN_COPY[id];
 }
 
+/** The one definition of "this PDF says InDesign made it" — used by the
+ *  plan's route swap AND the metadata card's tie-in line, exported so the
+ *  two surfaces can never disagree. */
+export function isInDesignCreator(creator?: string | null): boolean {
+  return typeof creator === "string" && /indesign/i.test(creator);
+}
+
 const SEVERITY_ORDER: Record<PlanSeverity, number> = { Critical: 0, Moderate: 1, Minor: 2 };
 
 function isPlanSeverity(s: unknown): s is PlanSeverity {
@@ -517,7 +524,7 @@ export function buildActionPlan(
 ): PlanStep[] {
   if (!Array.isArray(categories)) return [];
   const ft = normalizeFileType(fileType);
-  const fromInDesign = ft === "pdf" && typeof creator === "string" && /indesign/i.test(creator);
+  const fromInDesign = ft === "pdf" && isInDesignCreator(creator);
 
   const issues = categories.filter(
     (c): c is { id: string; label: string; severity: PlanSeverity; findings?: unknown } =>

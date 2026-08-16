@@ -147,6 +147,12 @@
           </span>
         </div>
       </div>
+      <p
+        class="px-3 sm:px-5 py-2.5 text-xs leading-relaxed text-[var(--text-muted)] border-t border-[var(--border)] m-0"
+        role="note"
+      >
+        {{ metadataTieIn }}
+      </p>
     </div>
 
     <!-- Detailed Findings -->
@@ -512,6 +518,7 @@ import {
   withAlpha,
 } from "@file-audit/shared";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
+import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
 import { partitionCardFindings, isGuidanceFinding } from "~/utils/findings";
 import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
@@ -604,79 +611,11 @@ function toggleAdvanced(catId: string): void {
   advancedCards[catId] = !isAdvanced(catId);
 }
 
-function formatMetaDate(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-const metadataItems = computed(() => {
-  // PDF takes priority whenever present, unconditionally — matches the
-  // panel's original (pre-multi-format) behavior exactly, regardless of
-  // what `fileType` says.
-  const pdf = props.result.pdfMetadata;
-  if (pdf) {
-    return [
-      { label: "Source Application", value: pdf.creator },
-      { label: "PDF Producer", value: pdf.producer },
-      { label: "PDF Version", value: pdf.pdfVersion },
-      { label: "Page Count", value: pdf.pageCount?.toString() },
-      { label: "Author", value: pdf.author },
-      { label: "Subject", value: pdf.subject },
-      { label: "Keywords", value: pdf.keywords },
-      { label: "Created", value: formatMetaDate(pdf.creationDate) },
-      { label: "Last Modified", value: formatMetaDate(pdf.modDate) },
-      { label: "Encrypted", value: pdf.isEncrypted ? "Yes" : "No" },
-    ];
-  }
-
-  const { docxMetadata, pptxMetadata, xlsxMetadata, fileType } = props.result;
-
-  // Discriminate by fileType; when it's missing/unrecognized (older stored
-  // reports), fall back to whichever of the three objects is actually set.
-  // Only one of the four metadata objects is ever populated per report.
-  const docx = docxMetadata && (fileType === "docx" || !fileType) ? docxMetadata : null;
-  if (docx) {
-    return [
-      { label: "Title", value: docx.title },
-      { label: "Creator", value: docx.creator },
-      { label: "Language", value: docx.language },
-      { label: "Pages", value: docx.pageCount?.toString() },
-      { label: "Words", value: docx.wordCount?.toString() },
-    ];
-  }
-
-  const pptx = pptxMetadata && (fileType === "pptx" || !fileType) ? pptxMetadata : null;
-  if (pptx) {
-    return [
-      { label: "Title", value: pptx.title },
-      { label: "Creator", value: pptx.creator },
-      { label: "Language", value: pptx.language },
-      { label: "Slides", value: pptx.slideCount?.toString() },
-    ];
-  }
-
-  const xlsx = xlsxMetadata && (fileType === "xlsx" || !fileType) ? xlsxMetadata : null;
-  if (xlsx) {
-    return [
-      { label: "Title", value: xlsx.title },
-      { label: "Creator", value: xlsx.creator },
-      { label: "Sheets", value: xlsx.sheetCount?.toString() },
-    ];
-  }
-
-  return [];
-});
+// Extracted to utils/documentMetadata.ts (2026-08-16), where the Visual
+// view's About-this-document card shares the same field inventory and the
+// same date formatting — one builder, so the two views cannot drift.
+const metadataItems = computed(() => metadataItemsFor(props.result));
+const metadataTieIn = computed(() => sourceTieInLine(props.result));
 
 function catColor(cat: { grade?: string | null }): string {
   // Keep the lookup INSIDE the function. A top-level <script setup> const

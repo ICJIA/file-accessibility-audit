@@ -70,6 +70,10 @@ describe("ReportVisualView", () => {
       html.indexOf("Fix progress"), // hero
       html.indexOf("severity-tile-critical"),
       html.indexOf("verdict-strip"),
+      // The About-this-document card sits directly above the plan so the
+      // reader sees what made the document (and when) before the steps that
+      // depend on it (user request 2026-08-16).
+      html.indexOf("about-document"),
       html.indexOf("Your action plan"),
       html.indexOf("Where the score comes from"),
       // NOT html.indexOf("technical-report") — VerdictStrip's fail-branch
@@ -113,6 +117,36 @@ describe("ReportVisualView", () => {
     expect(w.text()).toContain("Embed the fonts");
     expect(w.text()).not.toContain("Make the text readable by screen readers");
     expect(w.text()).not.toContain("picture of text");
+  });
+
+  it("shows the document metadata above the plan, with the fix-step tie-in", () => {
+    // Readers may not know what program made a document or when — the
+    // metadata must be visible where the plan is read, not only inside the
+    // collapsed technical expander.
+    const w = mount(ReportVisualView, {
+      props: {
+        result: {
+          ...result,
+          pdfMetadata: {
+            creator: "Adobe InDesign 21.4 (Macintosh)",
+            producer: "Adobe PDF Library",
+            pdfVersion: "1.7",
+            pageCount: 18,
+            author: null,
+            subject: null,
+            keywords: null,
+            creationDate: "2024-03-15T10:30:00Z",
+            modDate: null,
+            isEncrypted: false,
+          },
+        },
+      },
+    });
+    const card = w.find('[data-testid="about-document"]');
+    expect(card.exists()).toBe(true);
+    expect(card.text()).toContain("Adobe InDesign 21.4 (Macintosh)");
+    expect(card.text()).toContain("March 15, 2024");
+    expect(card.text()).toContain("fix steps");
   });
 
   it("wires the stored Creator through: an InDesign-made PDF gets InDesign source steps", () => {

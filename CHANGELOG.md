@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.78.0] - 2026-08-16
+
+### Added
+
+- **"About this document" card: the stored document metadata now shows where the fix steps are read.** Operator request (with screenshot): show the document metadata — source file type (Word, InDesign, etc.), date authored, "everything in the metadata so the fix steps make sense," in both views. The Visual view gains an About-this-document card between the WCAG verdict strip and the action plan showing every field the file records about itself — Source Application, PDF Producer, PDF Version, Page Count, Author, Subject, Keywords, Created, Last Modified, Encrypted (Title / Creator / Language / counts for Word, PowerPoint, and Excel uploads) — with an italic "Not set" where the file is silent, and a plain "This file doesn't record which program made it or when it was created" when there is no metadata at all.
+- **A tie-in line names which app the fix steps target, and why — in both views.** An InDesign-made PDF reads "The fix steps in this report are written for Adobe InDesign because this document records it as its source application"; a Word-made PDF gets the Word equivalent; an unknown or missing creator gets the honest fallback ("…the most common source — if you know this document was made in a different program, make the same fixes there"); Word/PowerPoint/Excel uploads are told the uploaded file itself is the source. The Detailed view's existing Document Metadata panel carries the same line.
+
+### Changed
+
+- The metadata field inventory and date formatting moved to a shared util (`apps/web/app/utils/documentMetadata.ts`) consumed by both views, so the two surfaces cannot drift. The plan's InDesign detection is now exported as `isInDesignCreator` and shared with the tie-in line — a test pins that the card and the plan can never name different apps.
+
+### Notes
+
+- The Visual view's zone order is now hero → tiles → verdict → about-document → plan (pinned by the DOM-order test). Tests 2,271 → 2,287 (API 1,177 / web 1,061 / CLI 49).
+
 ## [1.77.0] - 2026-08-16
 
 ### Added

@@ -37,6 +37,10 @@
          → no plan, no tiles, no bars, no expander. Rendering the green pass
          card for a page with axe violations would be actively misleading. -->
     <template v-if="hasCategories">
+      <!-- What made this document, and when — read this BEFORE the plan,
+           because the plan's source route targets whatever app made it. -->
+      <DocumentMetadataCard :result="result" class="mb-6" />
+
       <ActionPlan
         :steps="planSteps"
         :conformance="result.conformance"
@@ -79,6 +83,7 @@ import ReportGradeHero from "~/components/ReportGradeHero.vue";
 import SeverityTiles from "~/components/SeverityTiles.vue";
 import VerdictStrip from "~/components/VerdictStrip.vue";
 import ActionPlan from "~/components/ActionPlan.vue";
+import DocumentMetadataCard from "~/components/DocumentMetadataCard.vue";
 import PrintPlanButton from "~/components/PrintPlanButton.vue";
 import CategoryBars from "~/components/CategoryBars.vue";
 import TechnicalReport from "~/components/TechnicalReport.vue";

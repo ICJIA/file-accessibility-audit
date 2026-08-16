@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "about-document-and-indesign-2026-08-16",
+    badge: "New",
+    text: "Fix instructions now match the program your PDF was made with — and every report shows what that program was. If a PDF records that it was laid out in Adobe InDesign, as many annual reports are, the action plan now gives real InDesign steps instead of Word menus, verified against Adobe's current documentation. A new “About this document” card above the plan shows everything the file records about itself — the program that made it, the author, when it was created and last changed, the page count — with “Not set” where the file is silent. The card ends with a plain sentence naming which program the fix steps are written for and why.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 16, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "indesign-fix-steps-2026-08-16",
     badge: "New",
     text: "Fix instructions now match the program your PDF was made with. Many documents — annual reports especially — are laid out in Adobe InDesign rather than Word, and until now the report's “fix the source document” steps assumed Word menus. When a PDF records that it came from InDesign, its action plan now walks through the real InDesign workflow — tagged export, heading styles, image descriptions, reading order — verified against Adobe's current documentation. Everything else, and every older report, reads exactly as before.",
