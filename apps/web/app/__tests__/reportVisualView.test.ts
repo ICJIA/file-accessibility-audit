@@ -115,6 +115,19 @@ describe("ReportVisualView", () => {
     expect(w.text()).not.toContain("picture of text");
   });
 
+  it("wires the stored Creator through: an InDesign-made PDF gets InDesign source steps", () => {
+    // Annual reports are laid out in InDesign; the plan's source route must
+    // not send their authors into Word menus. Creator comes from the stored
+    // pdfMetadata — if this surface stops passing it, the plan silently
+    // reverts to Word-only copy.
+    const inDesignResult = {
+      ...result,
+      pdfMetadata: { creator: "Adobe InDesign 21.4 (Macintosh)" },
+    };
+    const w = mount(ReportVisualView, { props: { result: inDesignResult } });
+    expect(w.text()).toContain("Easiest — fix the InDesign file, then re-export");
+  });
+
   it("shows warnings and renders the notice slot", () => {
     const w = mount(ReportVisualView, {
       props: { result },

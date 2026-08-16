@@ -86,7 +86,9 @@ const props = defineProps<{
 }>();
 
 const categories = computed(() => props.result?.categories ?? []);
-const steps = computed(() => buildActionPlan(categories.value, props.result?.fileType));
+const steps = computed(() =>
+  buildActionPlan(categories.value, props.result?.fileType, props.result?.pdfMetadata?.creator),
+);
 const checks = computed(() => manualChecks(categories.value));
 const notAssessed = computed(() => props.result?.conformance?.notAssessed ?? []);
 

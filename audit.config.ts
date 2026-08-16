@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "indesign-fix-steps-2026-08-16",
+    badge: "New",
+    text: "Fix instructions now match the program your PDF was made with. Many documents — annual reports especially — are laid out in Adobe InDesign rather than Word, and until now the report's “fix the source document” steps assumed Word menus. When a PDF records that it came from InDesign, its action plan now walks through the real InDesign workflow — tagged export, heading styles, image descriptions, reading order — verified against Adobe's current documentation. Everything else, and every older report, reads exactly as before.",
+    linkText: "How the audit works",
+    linkTo: "/technical-details",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 16, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "remediation-results-match-findings-2026-08-15",
     badge: "Improved",
     text: "After an automatic repair, the results now account for every issue the audit found: each one is marked fixed, improved, or — stated plainly — no change, with its before-and-after score, so nothing the repair couldn't touch quietly disappears. Fix steps also now describe the problem that was actually found: a document whose only text issue is unembedded fonts is told to embed the fonts, not to run scanned-document recovery on perfectly readable text. And the audit report and the repair results use the same plain-language name for each finding, so the two pages can be read side by side.",

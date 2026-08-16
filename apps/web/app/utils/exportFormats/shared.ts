@@ -84,6 +84,9 @@ export interface ReportResult {
   scoreProfiles?: Partial<Record<ScoringMode, ScoreProfile>>;
   conformance?: ConformanceVerdict;
   fileType?: "pdf" | "docx" | "pptx" | "xlsx";
+  /** Stored PDF document info; `creator` drives the plan's InDesign-aware
+   *  source steps. Optional — OOXML reports and old stored PDFs lack it. */
+  pdfMetadata?: { creator?: string | null } | null;
 }
 
 export interface BrandingInfo {

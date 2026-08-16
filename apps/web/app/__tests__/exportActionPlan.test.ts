@@ -75,6 +75,14 @@ describe("buildHtml — action plan section", () => {
     expect(html).toContain("contact IDS at ICJIA");
   });
 
+  it("swaps the source route to InDesign steps when the stored Creator says InDesign", () => {
+    // The exported HTML travels to whoever has to make the fixes; for an
+    // annual report laid out in InDesign, Word menu paths are a dead end.
+    const r = { ...result(), pdfMetadata: { creator: "Adobe InDesign 21.4 (Macintosh)" } };
+    const html = buildHtml(r, branding);
+    expect(html).toContain("Easiest — fix the InDesign file, then re-export");
+  });
+
   it("renders the plan between the hero and the category table, ordered Critical first", () => {
     // Both text_extractability and future_check are Critical; Array.sort is
     // stable and text_extractability is listed first in the fixture, so it

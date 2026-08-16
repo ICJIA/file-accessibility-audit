@@ -39,6 +39,11 @@ interface PlanCopyEntry {
   /** Steps for fixing the ORIGINAL document, keyed by uploaded file type.
    *  For "pdf" these describe the source app the PDF usually came from. */
   source: Partial<Record<PlanFileType, string[]>>;
+  /** Steps for a PDF whose stored Creator metadata says Adobe InDesign made
+   *  it (annual reports usually do) — `source.pdf`'s Word menus don't exist
+   *  there. Only consulted when the report's creator matches; required
+   *  whenever `source.pdf` exists (pinned by the completeness test). */
+  sourceInDesign?: string[];
   /** Dictionary default when the report carries no per-document Acrobat block. */
   acrobat?: string[];
   /** True when `acrobat` has no real PDF-only fix — the steps just explain
@@ -56,6 +61,10 @@ const SOURCE_LABEL: Record<PlanFileType, string> = {
   pptx: "Fix it in PowerPoint",
   xlsx: "Fix it in Excel",
 };
+/** Replaces SOURCE_LABEL.pdf when the report's Creator metadata says the PDF
+ *  came from InDesign — the label names the app so the reader knows why these
+ *  steps differ from a colleague's Word-centric card. */
+const SOURCE_LABEL_INDESIGN = "Easiest — fix the InDesign file, then re-export";
 const ACROBAT_LABEL = "No source file? Fix the PDF in Acrobat Pro";
 /** Swapped in for ACROBAT_LABEL when a category has no PDF-only remedy — the
  *  dictionary's "acrobat" steps just explain that this one has to go back to
@@ -76,6 +85,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         'In Word: File → Save As → PDF → Options → check "Document structure tags for accessibility" (the hidden labels that tell a screen reader what\'s a heading, a list, a table), then save',
       ],
     },
+    sourceInDesign: [
+      "Open the original InDesign file and make sure the text is live, selectable text — not outlined letters or a placed image of a page",
+      'File → Export → Adobe PDF (Print) → General tab → check "Create Tagged PDF" (the hidden labels that tell a screen reader what\'s a heading, a list, a table), then export',
+    ],
     acrobat: [
       "All tools → Scan & OCR → Recognize Text → In this file (runs OCR, which turns a picture of text into real, readable text; classic UI: Tools → Scan & OCR)",
       "Then: All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document)",
@@ -90,6 +103,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       pptx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
       xlsx: ["File → Info → set Title", "Review → Language → Set Proofing Language"],
     },
+    sourceInDesign: [
+      "In InDesign: File → File Info → enter a descriptive Document Title",
+      'When exporting (File → Export → Adobe PDF (Print)): on the Advanced tab, set the document\'s Language and set Display Title to "Document Title"',
+    ],
     acrobat: [
       "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties)",
       "Description tab → enter a descriptive Title",
@@ -111,6 +128,11 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Keep levels in order — don't skip from Heading 1 to Heading 3",
       ],
     },
+    sourceInDesign: [
+      "Map each heading paragraph style to a real heading tag: Paragraph Styles panel menu → Edit All Export Tags → Show: PDF → set the style to H1, H2, H3…",
+      "Keep levels in order — don't skip from H1 to H3",
+      'Re-export with "Create Tagged PDF" checked (File → Export → Adobe PDF (Print) → General tab)',
+    ],
     acrobat: [
       "Open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags; classic UI: View → Show/Hide → Navigation Panes → Tags)",
       "Change each heading's tag to the matching level (H1, H2, H3…) so the visual hierarchy is in the tags",
@@ -134,6 +156,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Right-click each chart/image → View Alt Text (some versions call it Edit Alt Text) → write a short description",
       ],
     },
+    sourceInDesign: [
+      "Select each image → Object → Object Export Options → Alt Text tab → set Alt Text Source to Custom and write a short description",
+      'Re-export with "Create Tagged PDF" checked',
+    ],
     acrobat: [
       "All tools → Prepare for accessibility → Add alternate text — Acrobat finds every figure and walks you through describing them (classic UI: Tools → Accessibility → Set Alternate Text)",
       "Or one image at a time: Fix reading order → right-click the figure → Edit Alternate Text",
@@ -161,6 +187,11 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "Check pairs with the WebAIM Contrast Checker",
       ],
     },
+    sourceInDesign: [
+      "In the InDesign file, darken the text color or lighten the background",
+      "Check each color pair with the WebAIM Contrast Checker (webaim.org/resources/contrastchecker)",
+      "Re-export the PDF",
+    ],
     acrobat: [
       "Color is a design property — Acrobat can't restyle text reliably. This one has to be fixed in the original document and re-exported.",
     ],
@@ -174,6 +205,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         'Use Heading styles in Word, then File → Save As → PDF → Options → check "Create bookmarks using: Headings"',
       ],
     },
+    sourceInDesign: [
+      'Add a table of contents (Layout → Table of Contents) with "Create PDF Bookmarks" checked — or add entries by hand in the Bookmarks panel (Window → Interactive → Bookmarks)',
+      "When exporting (File → Export → Adobe PDF (Print) → General tab), check Include → Bookmarks",
+    ],
     acrobat: [
       "Open the Bookmarks panel (the bookmark icon in the right-side panel; classic UI: View → Show/Hide → Navigation Panes → Bookmarks)",
       "Add a bookmark for each major section (with a tagged PDF, use the panel's Options menu → New Bookmarks From Structure)",
@@ -195,6 +230,11 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       pptx: ["Use Insert → Table on the slide", "Table Design → check Header Row"],
       xlsx: ['Select the data → Insert → Table → check "My table has headers"'],
     },
+    sourceInDesign: [
+      "Build tables with InDesign's table tool (Table → Insert Table), never tabs or spaces",
+      "Click in the header row → Table → Convert Rows → To Header",
+      'Re-export with "Create Tagged PDF" checked',
+    ],
     acrobat: [
       "Open the Tags panel and confirm each table uses <Table>/<TR>/<TH>/<TD> (TH = header cell, TD = data cell)",
       "Use All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor to mark the header cells as header cells (classic UI: Tools → Accessibility → Reading Order)",
@@ -214,6 +254,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       pptx: ["Rewrite each link's visible text to describe the destination"],
       xlsx: ["Rewrite each link's cell text to describe the destination"],
     },
+    sourceInDesign: [
+      'Rewrite each link\'s visible text in the InDesign file to describe the destination (e.g., "2024 crime statistics report")',
+      "Re-export the PDF",
+    ],
     acrobat: [
       "Link text lives in the document itself — Acrobat can't rewrite it for you. This one has to be fixed in the original document and re-exported.",
     ],
@@ -230,6 +274,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       pptx: ["Put a clear text label next to every interactive element"],
       xlsx: ["Put a clear label in the cell next to every input area"],
     },
+    sourceInDesign: [
+      "Select each form field → Window → Interactive → Buttons and Forms → fill in Description with the field's visible label (it becomes the tooltip screen readers announce)",
+      "Export with File → Export → Adobe PDF (Interactive) so the fields stay fillable",
+    ],
     acrobat: [
       "All tools → Prepare a form (classic UI: Tools → Prepare Form)",
       "Right-click each field → Properties → General → Tooltip: enter the field's visible label",
@@ -250,6 +298,11 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
         "On each slide: Home → Arrange → Selection Pane, and order objects bottom-to-top in reading order",
       ],
     },
+    sourceInDesign: [
+      'Open the Articles panel (Window → Articles), drag the stories and images in — in reading order — and check "Use for Reading Order in Tagged PDF" in the panel menu',
+      "Anchor images into the text flow (drag the small square on a frame's top edge into the text) so each one is read at the right point",
+      'Re-export with "Create Tagged PDF" checked',
+    ],
     acrobat: [
       "All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order)",
       "Drag the numbered regions into the order the page should be read",
@@ -268,6 +321,10 @@ export const PLAN_COPY: Record<string, PlanCopyEntry> = {
       ],
       pptx: ["Use the layout's content placeholder bullets instead of typing dashes"],
     },
+    sourceInDesign: [
+      "Format lists with real Bullets and Numbering (in the paragraph style or the Paragraph panel) — delete any hand-typed dashes or numbers first",
+      'Re-export with "Create Tagged PDF" checked — InDesign tags real lists automatically',
+    ],
     acrobat: [
       "In the Tags panel, ensure each list uses <L> with <LI> items, each containing an <LBody> (L = list, LI = list item, LBody = item text)",
     ],
@@ -325,6 +382,9 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
           "Re-export or re-save the PDF without security restrictions, or with security that permits accessibility (modern AES-256 encryption always does)",
         ],
       },
+      sourceInDesign: [
+        "Re-export from InDesign without security restrictions: in the Export Adobe PDF dialog's Security panel, clear the permissions settings, then export",
+      ],
       acrobat: [
         "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Security tab",
         'Either remove security or enable "Enable text access for screen reader devices for the visually impaired", then re-save',
@@ -346,6 +406,10 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
           'In Word: File → Save As → PDF → Options → check "Document structure tags for accessibility" (the hidden labels that tell a screen reader what\'s a heading, a list, a table), then save',
         ],
       },
+      sourceInDesign: [
+        "Open the original InDesign file",
+        'File → Export → Adobe PDF (Print) → General tab → check "Create Tagged PDF" (the hidden labels that tell a screen reader what\'s a heading, a list, a table), then export',
+      ],
       acrobat: [
         "All tools → Prepare for accessibility → Automatically tag PDF (classic UI: Tools → Accessibility → Autotag Document)",
         "Then open the Tags panel (☰ Menu on Windows or View menu on Mac → Show/Hide → Side panels → Accessibility tags) and confirm the body content appears beneath the tags",
@@ -369,6 +433,10 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
           'Re-export, then confirm in Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab — every font should say "(Embedded)" or "(Embedded Subset)"',
         ],
       },
+      sourceInDesign: [
+        "InDesign embeds fonts automatically when exporting to PDF — a font that ends up unembedded almost always has a license that forbids embedding; replace it with a font that allows embedding",
+        'Re-export, then confirm in Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab — every font should say "(Embedded)" or "(Embedded Subset)"',
+      ],
       acrobat: [
         "Check which fonts are affected: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status",
         "Use Preflight (All tools → Use print production; classic UI: Tools → Print Production) → Fix → Embed missing fonts",
@@ -437,9 +505,19 @@ export function publicationVerdict(
   return { text: "ready to publish", tone: "ok" };
 }
 
-export function buildActionPlan(categories: unknown, fileType?: string | null): PlanStep[] {
+export function buildActionPlan(
+  categories: unknown,
+  fileType?: string | null,
+  /** The report's stored PDF Creator metadata (`pdfMetadata.creator`).
+   *  InDesign stamps "Adobe InDesign <version>" on every direct export;
+   *  when it matches, the source route swaps to InDesign steps. Any other
+   *  value — Word, a scanner, null, old reports — leaves today's copy
+   *  untouched, so a missed match can only reproduce the status quo. */
+  creator?: string | null,
+): PlanStep[] {
   if (!Array.isArray(categories)) return [];
   const ft = normalizeFileType(fileType);
+  const fromInDesign = ft === "pdf" && typeof creator === "string" && /indesign/i.test(creator);
 
   const issues = categories.filter(
     (c): c is { id: string; label: string; severity: PlanSeverity; findings?: unknown } =>
@@ -471,9 +549,14 @@ export function buildActionPlan(categories: unknown, fileType?: string | null): 
 
     const routes: FixRoute[] = [];
     if (ft === "pdf") {
-      const sourceSteps = entry?.source.pdf ?? [];
+      const inDesignSteps = fromInDesign ? entry?.sourceInDesign : undefined;
+      const sourceSteps = inDesignSteps ?? entry?.source.pdf ?? [];
       if (sourceSteps.length)
-        routes.push({ tool: "source", label: SOURCE_LABEL.pdf, steps: sourceSteps });
+        routes.push({
+          tool: "source",
+          label: inDesignSteps ? SOURCE_LABEL_INDESIGN : SOURCE_LABEL.pdf,
+          steps: sourceSteps,
+        });
       if (acrobatSteps.length)
         routes.push({ tool: "acrobat", label: acrobatLabel, steps: acrobatSteps });
     } else {

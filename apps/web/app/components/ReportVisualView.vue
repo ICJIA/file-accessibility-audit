@@ -142,7 +142,13 @@ const displayedScore = computed(
     props.result.score,
 );
 
-const planSteps = computed(() => buildActionPlan(displayedCategories.value, props.result.fileType));
+const planSteps = computed(() =>
+  buildActionPlan(
+    displayedCategories.value,
+    props.result.fileType,
+    props.result.pdfMetadata?.creator,
+  ),
+);
 
 // For the hero's automation-limit band. Array.isArray, not ?.length: on the
 // shared page `result` is raw stored JSON, and a forged conformance block

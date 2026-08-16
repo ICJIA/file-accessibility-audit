@@ -19,6 +19,7 @@ plain HTTP fetchers, so pages were loaded in a real browser):
 | Adobe Acrobat Pro (Continuous) | **26.001.21789** (Aug 11, 2026; planned release 26.001.21771, Aug 1, 2026) | The "new experience" UI — ☰ Menu + All tools panel. Rolled out progressively mid-2022 → 2023; Adobe's docs state "The new Acrobat is now available to all users." |
 | Microsoft Word for Microsoft 365 (Windows) | **Version 2607, Build 20228.20158** (Aug 4, 2026, Current Channel) | |
 | Microsoft Word for Microsoft 365 (Mac) | **16.111.3** (Aug 4, 2026) | |
+| Adobe InDesign 2026 | **21.4.x** (21.4.1 shipped June 2026); paths verified 2026-08-16 | Added when the plan gained InDesign-aware source steps. Verified against Adobe's "Accessible PDFs" help page (helpx, last updated Jun 2, 2026) plus the linked per-task pages; the export dialogs are unchanged across recent majors, so the paths hold for CC 2019+ documents too. |
 
 Perpetual-license context for IT:
 
@@ -83,6 +84,30 @@ Home → Styles / Bullets / Numbering; right-click a link → **Edit Hyperlink**
 strings previously said "Edit Link"); Save As → PDF → Options → "Document structure tags
 for accessibility" and "Create bookmarks using: Headings".
 
+## InDesign paths (added 2026-08-16)
+
+The action plan's source route swaps to these when the report's stored PDF Creator
+metadata matches `/indesign/i` (`buildActionPlan`'s `creator` argument; anything else —
+Word, a scanner, missing metadata, old reports — keeps the Word-centric copy unchanged).
+Verified against Adobe's current InDesign help ("Accessible PDFs", updated Jun 2, 2026,
+and its linked task pages), cross-checked against state-government InDesign guides
+(Illinois DoIT, Oregon Health Authority):
+
+| Task | InDesign 2026 (21.x) path |
+| --- | --- |
+| Tagged export | File → Export → Adobe PDF (Print) → General tab → check "Create Tagged PDF" |
+| Headings | Paragraph Styles panel menu → Edit All Export Tags → Show: PDF → map styles to H1–H6 (per style: Paragraph Style Options → Export Tagging) |
+| Alt text | select image → Object → Object Export Options → Alt Text tab → Alt Text Source: Custom |
+| Reading order | Window → Articles → drag content in → panel menu → "Use for Reading Order in Tagged PDF"; anchor images into the text flow |
+| Title | File → File Info → Document Title |
+| Language + shown title | Export Adobe PDF (Print) → Advanced tab → Language dropdown + Display Title: "Document Title" |
+| Table headers | click in header row → Table → Convert Rows → To Header |
+| Bookmarks | Layout → Table of Contents → check "Create PDF Bookmarks" (or Window → Interactive → Bookmarks); export with Include → Bookmarks |
+| Lists | real Bullets and Numbering (paragraph style / Paragraph panel) — auto-tagged as `<L>` on tagged export |
+| Form fields | Window → Interactive → Buttons and Forms → Description (exports as the tooltip); File → Export → Adobe PDF (Interactive) keeps fields live |
+| Fonts | embedding is automatic on PDF export; a font that stays unembedded has a license forbidding it — replace the font |
+| Security | Export Adobe PDF dialog → Security panel → clear permissions restrictions |
+
 ## Known vendor-doc ambiguities (recorded so the next pass doesn't re-litigate)
 
 - Adobe's own pages name the Tags panel three ways in the new UI ("Side panels →
@@ -102,7 +127,8 @@ for accessibility" and "Create bookmarks using: Headings".
 ## Where the strings live (for the next accuracy pass)
 
 - `apps/web/app/utils/actionPlan.ts` — Visual-view PLAN_COPY dictionary (also feeds the
-  printable plan and HTML export)
+  printable plan and HTML export); each PDF entry's `sourceInDesign` carries the
+  InDesign steps, chosen by the stored Creator metadata
 - `apps/web/app/utils/wcag.ts` — per-category remediation guidance
 - `apps/web/app/utils/fixStepVersions.ts` — the version note (update its "verified" date
   and versions on each re-verification)

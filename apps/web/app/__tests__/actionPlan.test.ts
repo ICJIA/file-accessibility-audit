@@ -280,6 +280,127 @@ describe("text_extractability failure-mode variants", () => {
   });
 });
 
+describe("InDesign-authored PDFs (creator detection)", () => {
+  // Annual reports at ICJIA are frequently laid out in Adobe InDesign, not
+  // Word — a reader holding an .indd file can't follow "File → Save As →
+  // PDF" because InDesign has no such menu. The analyzer already stores the
+  // PDF's Creator (InDesign stamps "Adobe InDesign <version>" on every
+  // direct export), so the source route swaps to InDesign steps when the
+  // report says InDesign made the file. Anything else — Word, missing,
+  // unrecognized, old reports — keeps today's copy exactly (fail-safe =
+  // status quo, same posture as the text_extractability variants).
+
+  const INDESIGN = "Adobe InDesign 21.4 (Macintosh)";
+  const INDESIGN_LABEL = "Easiest — fix the InDesign file, then re-export";
+
+  it("swaps the source route to InDesign steps and says so in the label", () => {
+    const steps = buildActionPlan(
+      [cat("heading_structure", "Heading Structure", "Moderate")],
+      "pdf",
+      INDESIGN,
+    );
+    const source = steps[0]!.routes.find((r) => r.tool === "source")!;
+    expect(source.label).toBe(INDESIGN_LABEL);
+    expect(source.steps.join(" ")).toContain("Edit All Export Tags");
+    expect(source.steps.join(" ")).not.toMatch(/\bWord\b/);
+    // The Acrobat route is untouched — no-source-file readers keep their path.
+    const acrobat = steps[0]!.routes.find((r) => r.tool === "acrobat")!;
+    expect(acrobat.steps.length).toBeGreaterThan(0);
+  });
+
+  it("recognizes real-world Creator strings from any InDesign era, any case", () => {
+    for (const creator of ["Adobe InDesign CC 2019 (Windows)", "adobe indesign 16.0"]) {
+      const steps = buildActionPlan(
+        [cat("alt_text", "Alt Text on Images", "Critical")],
+        "pdf",
+        creator,
+      );
+      expect(steps[0]!.routes[0]!.steps.join(" ")).toContain("Object Export Options");
+    }
+  });
+
+  it("keeps today's routes byte-for-byte for Word, unknown, and missing creators", () => {
+    const today = buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf");
+    for (const creator of ["Microsoft® Word for Microsoft 365", "Canon iR-ADV", null, undefined]) {
+      expect(
+        buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf", creator)[0]!
+          .routes,
+      ).toEqual(today[0]!.routes);
+    }
+  });
+
+  it("ignores the creator for OOXML uploads — the upload IS the source", () => {
+    const steps = buildActionPlan(
+      [cat("heading_structure", "Heading Structure", "Critical")],
+      "docx",
+      INDESIGN,
+    );
+    expect(steps[0]!.routes.map((r) => r.tool)).toEqual(["source"]);
+    expect(steps[0]!.routes[0]!.steps.join(" ")).not.toContain("InDesign");
+  });
+
+  it("every PLAN_COPY entry with PDF source steps carries InDesign steps", () => {
+    for (const [id, entry] of Object.entries(PLAN_COPY)) {
+      if (entry.source.pdf?.length) {
+        expect(entry.sourceInDesign?.length, `${id} lacks sourceInDesign`).toBeGreaterThan(0);
+      } else {
+        expect(
+          entry.sourceInDesign,
+          `${id} has InDesign steps but no PDF source steps`,
+        ).toBeUndefined();
+      }
+    }
+  });
+
+  it("InDesign steps send no one into Word menus", () => {
+    for (const [id, entry] of Object.entries(PLAN_COPY)) {
+      for (const step of entry.sourceInDesign ?? []) {
+        expect(step, `${id}`).not.toMatch(/\bWord\b/);
+      }
+    }
+  });
+
+  it("text_extractability variants are InDesign-aware too", () => {
+    const fonts = buildActionPlan(
+      [
+        cat("text_extractability", "Text Extractability", "Minor", [
+          "PDF contains extractable text",
+          "Document is tagged (StructTreeRoot present)",
+          "3 non-embedded font(s) may cause garbled text on systems without these fonts: ArialMT",
+        ]),
+      ],
+      "pdf",
+      INDESIGN,
+    )[0]!;
+    const fontsSource = fonts.routes.find((r) => r.tool === "source")!;
+    expect(fontsSource.label).toBe(INDESIGN_LABEL);
+    expect(fontsSource.steps.join(" ")).toMatch(/embeds fonts automatically/i);
+
+    const untagged = buildActionPlan(
+      [
+        cat("text_extractability", "Text Extractability", "Moderate", [
+          "PDF contains extractable text",
+          "Document is NOT tagged — no StructTreeRoot found",
+        ]),
+      ],
+      "pdf",
+      INDESIGN,
+    )[0]!;
+    const untaggedSource = untagged.routes.find((r) => r.tool === "source")!;
+    expect(untaggedSource.steps.join(" ")).toContain("Create Tagged PDF");
+    expect(untaggedSource.steps.join(" ")).not.toMatch(/\bWord\b/);
+  });
+
+  it("unknown category ids still fall back safely under an InDesign creator", () => {
+    const steps = buildActionPlan(
+      [cat("future_check", "Future Check", "Critical", ["3 widgets are broken"])],
+      "pdf",
+      INDESIGN,
+    );
+    expect(steps[0]!.routes.length).toBeGreaterThan(0);
+  });
+});
+
 describe("publicationVerdict", () => {
   it("leads with the blocker, counted, and carries the critical tone", () => {
     expect(publicationVerdict([cat("a", "A", "Critical"), cat("b", "B", "Minor")])).toEqual({

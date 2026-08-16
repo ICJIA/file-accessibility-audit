@@ -230,7 +230,7 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
 
   const tilesOrEmpty = planCats.length ? tilesHtml : "";
 
-  const plan = buildActionPlan(planCats, result.fileType);
+  const plan = buildActionPlan(planCats, result.fileType, result.pdfMetadata?.creator);
   const planHtml = !planCats.length
     ? "" // page-audit shape: no plan section at all, never a false pass card
     : plan.length

@@ -1,6 +1,6 @@
 /**
- * The one place that says WHICH versions of Word and Acrobat the fix steps
- * are written for, and who to call when the menus don't match.
+ * The one place that says WHICH versions of Word, Acrobat, and InDesign the
+ * fix steps are written for, and who to call when the menus don't match.
  *
  * WHY THIS EXISTS. A user followed a fix card and couldn't find the menu
  * items — they were on an older Acrobat, whose interface (the pre-2023
@@ -26,9 +26,10 @@
 
 /** Which app versions the fix steps target. */
 export const FIX_STEPS_WRITTEN_FOR =
-  "Fix steps were verified in August 2026 against the current versions of both apps: " +
-  "Microsoft Word for Microsoft 365 (Windows Version 2607; Mac 16.111) and Adobe Acrobat Pro " +
-  "(version 26 — the redesigned interface with an “All tools” panel that Adobe rolled out through 2023). " +
+  "Fix steps were verified in August 2026 against the current versions of these apps: " +
+  "Microsoft Word for Microsoft 365 (Windows Version 2607; Mac 16.111), Adobe Acrobat Pro " +
+  "(version 26 — the redesigned interface with an “All tools” panel that Adobe rolled out through 2023), " +
+  "and — for PDFs that were laid out in it — Adobe InDesign 2026 (version 21). " +
   "Not sure which Acrobat you have? If it shows a ☰ menu button and an “All tools” panel on the left, " +
   "follow the main steps; if it has a Tools tab with an Accessibility toolset instead, you're on the " +
   "older “classic” design — use the classic paths given in parentheses.";

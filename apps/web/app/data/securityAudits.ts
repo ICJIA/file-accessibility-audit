@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.77.0",
+    meta: "Reviewed <strong>2026-08-16</strong> · scope: fix-step instructions that adapt to the program a PDF was made with. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "The audit report's step-by-step fix instructions were written for Microsoft Word, but many agency documents — annual reports especially — are laid out in Adobe InDesign, whose menus are entirely different. The report now checks a piece of information the audit has always recorded and shown (the “Source Application” stored inside the PDF by the program that made it) and, when it names InDesign, shows InDesign instructions instead.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "New",
+            html: "<strong>Instructions for InDesign-made PDFs.</strong> Each fix now carries the InDesign menu path, verified against Adobe's current documentation on 2026-08-16. If the stored information is missing or names any other program, the report shows exactly what it showed before.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>No new information is collected, stored, or transmitted.</strong> The choice of instructions happens in the reader's own browser, using a field the audit already stored and already displayed. Records keep the same fields as before; nothing about retention changes.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.76.0",
     meta: "Reviewed <strong>2026-08-15</strong> · scope: what the page-view counter is told. Less is now sent; nothing new is collected anywhere.",
     body: [

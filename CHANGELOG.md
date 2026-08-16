@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.77.0] - 2026-08-16
+
+### Added
+
+- **InDesign-aware fix steps: a PDF that says it was made with Adobe InDesign now gets InDesign instructions on the action plan's source route.** Operator report: "Many of the annual reports were made with InDesign — not Word," and every source-document route was written for Word menus (`File → Save As → PDF → Options…`) that an `.indd` author cannot follow. The analyzer has always stored each PDF's Creator metadata (shown as "Source Application" in the Detailed view); `buildActionPlan` now takes that creator, and when it matches InDesign the source route renders as "Easiest — fix the InDesign file, then re-export" with the real InDesign workflow per category: "Create Tagged PDF" on export, Paragraph Styles → Edit All Export Tags for headings (H1–H6), Object → Object Export Options → Alt Text, the Articles panel (plus anchored objects) for reading order, Table → Convert Rows → To Header, TOC-generated PDF bookmarks, File → File Info title with the export dialog's Language / Display Title settings, Buttons and Forms descriptions for form fields, and font-license guidance for embedding. All 11 PDF plan entries and all three `text_extractability` failure-mode variants carry the InDesign steps.
+- **Detection fails safe.** Only a PDF whose stored Creator matches InDesign (any era, any case — "Adobe InDesign CC 2019" included) swaps the route. Word-made PDFs, scans, missing metadata, and old stored reports keep today's copy byte-for-byte — pinned by a routes-deep-equality test. OOXML uploads ignore the creator entirely (the upload IS the source). The Acrobat route is untouched.
+
+### Changed
+
+- **The fix-step version note now names InDesign.** Every InDesign menu path was verified 2026-08-16 against Adobe's current InDesign help ("Accessible PDFs", last updated June 2, 2026, and its linked task pages; current version InDesign 2026 / 21.4.x); `FIX_STEPS_WRITTEN_FOR` says so, and `docs/fix-step-accuracy-2026-08.md` gained the full InDesign path table for the next accuracy pass.
+
+### Notes
+
+- Wired and pinned on all three surfaces that render fix routes — the Visual action plan, the printable plan (source-scan: its `window.open` flow can't run in tests), and the HTML export (whose `ReportResult` type gained the optional `pdfMetadata`). The remediation receipt consumes only step titles/whys, so it needed no wiring. Completeness is enforced: every plan entry with PDF source steps must carry InDesign steps, and none of them may mention Word menus. Tests 2,260 → 2,271 (API 1,177 / web 1,045 / CLI 49).
+
 ## [1.76.0] - 2026-08-15
 
 ### Changed

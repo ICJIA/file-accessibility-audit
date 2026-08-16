@@ -215,6 +215,15 @@ describe("PrintPlanButton", () => {
   it("survives a null result rather than throwing on a shared report", () => {
     expect(() => mount(PrintPlanButton, { props: { result: null } })).not.toThrow();
   });
+
+  it("passes the stored Creator into the plan builder (InDesign-authored PDFs)", () => {
+    // The printable page is built inside openPlan()'s window.open flow, which
+    // tests can't execute — so pin the wiring at the source, the same way the
+    // remediation page's plan wiring is pinned. Without the third argument,
+    // an InDesign annual report prints Word-only steps.
+    const src = readFileSync(resolve(__dirname, "..", "components/PrintPlanButton.vue"), "utf8");
+    expect(src).toMatch(/buildActionPlan\([^)]*pdfMetadata\?\.creator/);
+  });
 });
 
 describe("the print button reaches every surface that shows a report", () => {
