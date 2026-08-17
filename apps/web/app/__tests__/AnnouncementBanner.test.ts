@@ -47,6 +47,12 @@ describe("AnnouncementBanner", () => {
     expect(wrapper.text()).toContain("New");
   });
 
+  it("renders a standing “What's New” heading so the banner reads as new changes", async () => {
+    const wrapper = mount(AnnouncementBanner);
+    await nextTick();
+    expect(wrapper.text()).toContain("What's New");
+  });
+
   it("permanently dismisses: banner gone after dismiss + never shown on fresh mount", async () => {
     // --- First mount: banner visible ---
     const wrapper = mount(AnnouncementBanner);

@@ -10,6 +10,12 @@
       >{{ current.badge }}</span
     >
     <p class="flex-1 text-sm text-[var(--text-secondary)] leading-relaxed">
+      <!-- Standing label (user request, matching the fleet site's banner): the
+           entry text alone read as static site copy — visitors didn't realize
+           it described a recent change. -->
+      <span class="block text-xs font-bold uppercase tracking-wide text-[var(--text-heading)] mb-1"
+        >What's New</span
+      >
       {{ current.text }}
       <!-- `external` forces a real document navigation instead of a client-side
            route change. Required for targets that are Nitro SERVER routes

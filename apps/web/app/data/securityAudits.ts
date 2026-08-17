@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.79.0",
+    meta: "Reviewed <strong>2026-08-17</strong> · scope: a scoring-accuracy fix inside the document analyzers. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "Two documents that Adobe's own preflight tools pass were being marked down here for “fonts not embedded.” Both flags were false alarms: in one file the un-embedded font is only ever used to draw single space characters (a space paints nothing and cannot be garbled); in the other, the flagged fonts are leftover bookkeeping from Acrobat's own repair process — no page actually uses them. The check now looks at what the document really displays: a font is only flagged when it is both un-embedded <em>and</em> used to show visible text, which is how Adobe's tools evaluate it.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Fewer false alarms, same protection.</strong> A font that genuinely displays text without being embedded is still flagged exactly as before. When the tool cannot tell how a font is used — including on reports saved before this release — it keeps the cautious old behavior and flags it.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Analysis-time change only.</strong> The fix lives in the two read-only parsers that examine an uploaded document. Nothing new is collected, stored, or transmitted; no route, parameter, or dependency was added. Previously saved reports keep their stored contents unchanged — a fresh audit of the same file is what picks up the corrected evaluation.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.78.1",
     meta: "Reviewed <strong>2026-08-16</strong> · scope: making saved audit answers agree with their report pages. Nothing new is collected or sent.",
     body: [

@@ -46,6 +46,46 @@ export interface PdfUaSignals {
   hasTitle: boolean;
 }
 
+/** One entry of QpdfResult.fonts — kept structural so this module needs no
+ *  qpdfService import. */
+export interface FontCensusEntry {
+  name: string;
+  embedded: boolean;
+  baseFonts?: string[];
+}
+
+// Subset-embedding prefix ("UEMGVF+Calibri" → "Calibri"), stripped when
+// correlating qpdf's descriptor census with pdfjs's usage census.
+const SUBSET_PREFIX = /^[A-Z]{6}\+/;
+
+/**
+ * Split a document's non-embedded fonts into those that actually paint
+ * visible, non-whitespace text (flagged — a real garbling risk) and those
+ * that never do (exempt). Word processors emit inter-run whitespace in the
+ * paragraph's default font, and OCR layers paint in invisible mode 3; a font
+ * that never shows a glyph cannot garble anything — a space extracts from
+ * the encoding, not the font program — and Adobe Preflight passes such files
+ * because it evaluates fonts *used for rendering*. Exemption requires the
+ * pdfjs usage census: when `visibleTextFontNames` is absent (pre-v1.79.0
+ * stored reports, or a text run whose font pdfjs could not resolve) every
+ * non-embedded font stays flagged — the legacy behavior. A font entry whose
+ * names cannot be matched errs toward flagged, never toward exempt.
+ */
+export function splitNonEmbeddedFonts(
+  fonts: FontCensusEntry[],
+  visibleTextFontNames: string[] | undefined,
+): { flagged: FontCensusEntry[]; exempt: FontCensusEntry[] } {
+  const notEmbedded = fonts.filter((f) => !f.embedded);
+  if (!visibleTextFontNames) return { flagged: notEmbedded, exempt: [] };
+  const visible = new Set(visibleTextFontNames.map((n) => n.replace(SUBSET_PREFIX, "")));
+  const paintsVisibleText = (f: FontCensusEntry): boolean =>
+    [f.name, ...(f.baseFonts ?? [])].some((n) => visible.has(n.replace(SUBSET_PREFIX, "")));
+  return {
+    flagged: notEmbedded.filter(paintsVisibleText),
+    exempt: notEmbedded.filter((f) => !paintsVisibleText(f)),
+  };
+}
+
 export interface ScoringResult {
   overallScore: number;
   grade: string;

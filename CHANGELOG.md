@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.79.0] - 2026-08-17
+
+### Fixed
+
+- **The font-embedding check now flags only fonts actually used to display text — resolving two classes of false positive where Adobe's preflight passes a file this tool marked down.** User reports (two files, both "Adobe gives this a thumbs up"): a newsletter scored 89 for a non-embedded ArialMT whose every use in the content stream paints exactly one space character — word processors emit inter-run whitespace in the paragraph's default font, and a space paints no glyph and extracts from the document's encoding tables, not the font program, so it cannot garble anything. A set of meeting minutes was flagged for three non-embedded fonts that exist only as styling metadata in the structure tree (`/ADBE_FT-Style` attribute entries) — leftovers of Acrobat's **own** remediation, which had re-embedded every font the pages actually use; no content stream can select them. The check previously counted every `/FontDescriptor` object in the raw file; it now runs a two-stage census matching how Adobe Preflight (and the PDF/A / PDF/UA embedding rules) evaluate "fonts used for rendering":
+  - **Reachability (qpdf):** a descriptor counts only when a font in a `/Font` resource dictionary — pages, form XObjects, annotation appearances, AcroForm `/DR`, with Type0 `/DescendantFonts` chains and indirect dictionaries resolved — references it. Orphaned descriptors and structure-tree-metadata leftovers are excluded, and the reported font census now matches `pdffonts`.
+  - **Usage (pdfjs):** a new content-stream signal records which fonts paint at least one visible, non-whitespace glyph (text in invisible render mode 3 — the OCR text layer, which the PDF/A rules also exempt — doesn't count). A reachable non-embedded font that never displays visible text no longer caps the score; the report says so honestly, per font ("NOT embedded (never displays visible text — no impact)") and in the summary, while the font census stays factual. The Adobe-parity character-encoding rule applies the same evaluation.
+
+### Added
+
+- **The landing-page announcement banner now carries a standing "What's New" heading** (user request, matching the fleet site's banner) — the entry text alone read as static site copy, so visitors didn't realize it described a recent change.
+
+### Notes
+
+- Fail-safe by construction: the exemption applies only when the usage census is present and complete — stored reports from before this release (which lack the new signals) regrade under the legacy behavior, and a text run whose font pdfjs cannot resolve disables the exemption entirely, so an unknown font errs toward flagged, never toward silently passing. The exempt-path wording deliberately never contains the phrase "non-embedded font", which the action plan uses to select its "Embed the fonts" step — an exempt file can no longer be told to embed harmless fonts (pinned by test). Because the fix changes the analyzer's extracted signals rather than the scoring model, **previously stored reports keep their old finding until the file is re-analyzed** (`POST /api/audit-url` with `force=true`); read-time regrading alone cannot apply it. Verified against both reported files: the meeting minutes rise from 89/B to 100/A; the newsletter's Text Extractability rises from 85/Minor to 100/A (its overall score stays 89 due to an unrelated table-markup finding). Tests 2,288 → 2,307 (API 1,196 / web 1,062 / CLI 49).
+
 ## [1.78.1] - 2026-08-16
 
 ### Fixed

@@ -16,6 +16,7 @@
 
 import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
+import { splitNonEmbeddedFonts } from "./common.js";
 
 export type AdobeStatus = "passed" | "failed" | "manual" | "skipped" | "not_computed";
 
@@ -259,20 +260,29 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
 
   // Character encoding: approximate via font embedding — non-embedded fonts
   // often mean unreliable encoding when rendered on systems lacking them.
-  const allFontsEmbedded = qpdf.fonts.length === 0 || qpdf.fonts.every((f) => f.embedded);
+  // Non-embedded fonts that never paint visible text (whitespace-only runs,
+  // invisible OCR layers) are exempt, matching Acrobat's evaluation of fonts
+  // actually used for rendering (see splitNonEmbeddedFonts).
+  const { flagged: encodingRisks, exempt: whitespaceOnlyFonts } = splitNonEmbeddedFonts(
+    qpdf.fonts,
+    pdfjs.visibleTextFontNames,
+  );
+  const allRenderingFontsEmbedded = encodingRisks.length === 0;
   rules.push(
     rule(
       "character_encoding",
       "Page Content",
       "Character encoding",
       "Reliable character encoding is provided",
-      allFontsEmbedded ? "passed" : "not_computed",
+      allRenderingFontsEmbedded ? "passed" : "not_computed",
       qpdf.fonts.length === 0,
       qpdf.fonts.length === 0
         ? "No font entries found."
-        : allFontsEmbedded
-          ? `All ${qpdf.fonts.length} font(s) are embedded.`
-          : `${qpdf.fonts.filter((f) => !f.embedded).length} of ${qpdf.fonts.length} font(s) are not embedded. Acrobat may still pass this rule — it checks ToUnicode/CMap presence directly, which this tool approximates via embedding.`,
+        : allRenderingFontsEmbedded
+          ? whitespaceOnlyFonts.length === 0
+            ? `All ${qpdf.fonts.length} font(s) are embedded.`
+            : `All fonts that display visible text are embedded (${whitespaceOnlyFonts.length} non-embedded font(s) are used only for whitespace and cannot affect encoding).`
+          : `${encodingRisks.length} of ${qpdf.fonts.length} font(s) are not embedded. Acrobat may still pass this rule — it checks ToUnicode/CMap presence directly, which this tool approximates via embedding.`,
     ),
   );
 

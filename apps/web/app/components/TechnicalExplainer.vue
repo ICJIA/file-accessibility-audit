@@ -497,7 +497,9 @@
                   <code>/FontFile3</code>
                 </td>
                 <td class="px-4 py-2">
-                  Whether fonts are embedded (non-embedded fonts can cause garbled text)
+                  Whether the fonts used to display text are embedded (non-embedded fonts can cause
+                  garbled text; fonts no content stream can select, or that never display visible
+                  text, are exempt)
                 </td>
               </tr>
               <tr class="border-b border-[var(--border-subtle)]">
@@ -915,13 +917,14 @@
             </p>
             <p class="text-xs text-[var(--text-muted)]">
               <em>How it's scored:</em> <strong>100</strong> = extractable text + structure tags +
-              all fonts embedded. <strong>85 (cap)</strong> = any non-embedded fonts detected
-              (prevents Pass — non-embedded fonts can cause garbled screen reader output).
-              <strong>50</strong> = text is present but no tags (an untagged PDF).
-              <strong>25</strong> = tags are present but no extractable text (partially remediated
-              scan). <strong>0</strong> = no text and no tags (unremediated scanned image). This
-              category carries the highest weight because if text can't be extracted, nothing else
-              matters.
+              every font that displays text embedded. <strong>85 (cap)</strong> = a non-embedded
+              font is used for visible text (prevents Pass — non-embedded fonts can cause garbled
+              screen reader output; fonts that never display visible text, such as remediation
+              leftovers or whitespace-only runs, are exempt). <strong>50</strong> = text is present
+              but no tags (an untagged PDF). <strong>25</strong> = tags are present but no
+              extractable text (partially remediated scan). <strong>0</strong> = no text and no tags
+              (unremediated scanned image). This category carries the highest weight because if text
+              can't be extracted, nothing else matters.
             </p>
           </div>
           <div
@@ -1127,7 +1130,8 @@
                 <td class="px-4 py-2">Text Extractability</td>
                 <td class="px-4 py-2">
                   Per-font embedded/not-embedded listing —
-                  <strong>scored:</strong> non-embedded fonts cap the category at 85 (Minor)
+                  <strong>scored:</strong> non-embedded fonts that display visible text cap the
+                  category at 85 (Minor); fonts that never display visible text are exempt
                 </td>
               </tr>
               <tr class="border-b border-[var(--border-subtle)]">

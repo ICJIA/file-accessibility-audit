@@ -76,7 +76,14 @@ export interface QpdfResult {
   tabOrderPages: number;
   totalPageCount: number;
   langSpans: Array<{ lang: string; tag: string }>;
-  fonts: Array<{ name: string; embedded: boolean }>;
+  /** Rendering-reachable fonts only (see the reachability census in
+   *  parseQpdfJson): one entry per /FontDescriptor referenced by a font that
+   *  a content stream could actually select. `name` is the descriptor's
+   *  /FontName; `baseFonts` lists the /BaseFont names of the font dict(s)
+   *  using the descriptor — the names pdfjs and pdffonts report, which the
+   *  scorer correlates with content-stream usage. Absent on stored reports
+   *  from before v1.79.0. */
+  fonts: Array<{ name: string; embedded: boolean; baseFonts?: string[] }>;
   hasPdfUaIdentifier: boolean;
   pdfUaPart: string | null;
   artifactCount: number;
@@ -405,6 +412,69 @@ function parseQpdfJson(json: any): QpdfResult {
       }
     }
 
+    // Rendering-reachability census for fonts (v1.79.0). Acrobat's own
+    // remediation fixups re-embed the fonts a page actually uses but leave the
+    // ORIGINAL non-embedded font objects behind in the file — orphaned
+    // entirely, or referenced only from structure-tree /ADBE_FT-Style
+    // attribute dicts (styling metadata, key "/font-family"). A content stream
+    // can only select fonts named in a /Font RESOURCE dictionary (pages, form
+    // XObjects, annotation appearance streams, AcroForm /DR), so only
+    // descriptors reachable through one belong in the embedding census.
+    // Adobe Preflight evaluates exactly that set; counting the leftovers
+    // produced false "font not embedded" findings on documents Acrobat passes.
+    // Alongside reachability, record each live descriptor's /BaseFont name(s):
+    // the descriptor's /FontName ("Arial") and the font dict's /BaseFont
+    // ("ArialMT") frequently differ, and pdfjs/pdffonts report the BaseFont,
+    // so the scorer needs it to correlate content-stream usage.
+    const cleanFontName = (raw: unknown): string | null =>
+      typeof raw === "string" && raw.length > 0 ? raw.replace(/^\//, "").replace(/^u:/, "") : null;
+    const liveDescriptorBaseFonts = new Map<string, Set<string>>();
+    const recordFontChain = (fontObj: any): void => {
+      if (!fontObj || typeof fontObj !== "object") return;
+      const topBase = cleanFontName(fontObj["/BaseFont"]);
+      // A Type0 (composite) font's descriptor lives on its descendant CIDFont.
+      const chain: any[] = [fontObj];
+      if (fontObj["/Subtype"] === "/Type0") {
+        let df = fontObj["/DescendantFonts"];
+        if (typeof df === "string") df = resolveRef(df, objects);
+        if (Array.isArray(df)) {
+          for (const d of df) {
+            const descendant = typeof d === "string" ? resolveRef(d, objects) : d;
+            if (descendant && typeof descendant === "object") chain.push(descendant);
+          }
+        }
+      }
+      for (const f of chain) {
+        const fdRef = f["/FontDescriptor"];
+        if (typeof fdRef !== "string") continue;
+        const key = normRef(fdRef);
+        let names = liveDescriptorBaseFonts.get(key);
+        if (!names) liveDescriptorBaseFonts.set(key, (names = new Set()));
+        for (const n of [topBase, cleanFontName(f["/BaseFont"])]) {
+          if (n) names.add(n);
+        }
+      }
+    };
+    const collectFontResourceDict = (dictOrRef: any): void => {
+      const dict = typeof dictOrRef === "string" ? resolveRef(dictOrRef, objects) : dictOrRef;
+      if (!dict || typeof dict !== "object" || Array.isArray(dict)) return;
+      for (const v of Object.values(dict)) {
+        recordFontChain(typeof v === "string" ? resolveRef(v, objects) : v);
+      }
+    };
+    const scanForFontResources = (node: any, depth: number): void => {
+      if (!node || typeof node !== "object" || depth > 12) return;
+      if (Array.isArray(node)) {
+        for (const el of node) scanForFontResources(el, depth + 1);
+        return;
+      }
+      for (const [k, v] of Object.entries(node)) {
+        if (k === "/Font") collectFontResourceDict(v);
+        else scanForFontResources(v, depth + 1);
+      }
+    };
+    for (const obj of Object.values(objects)) scanForFontResources(obj, 0);
+
     // Image XObjects, collected as refs so mask streams can be subtracted
     // after the walk: /SMask (soft masks) and stream-form /Mask entries are
     // themselves Image XObjects, but they are channels OF a visible image,
@@ -518,16 +588,21 @@ function parseQpdfJson(json: any): QpdfResult {
         }
       }
 
-      // Font descriptors — check embedding
+      // Font descriptors — check embedding. Only descriptors the reachability
+      // census marked live are counted; the rest are remediation leftovers no
+      // content stream can select (see the census above for why).
       if (o["/Type"] === "/FontDescriptor") {
-        const fontName =
-          typeof o["/FontName"] === "string"
-            ? o["/FontName"].replace(/^\//, "").replace(/^u:/, "")
-            : "Unknown";
-        const embedded =
-          !!(o["/FontFile"] || o["/FontFile2"] || o["/FontFile3"]) ||
-          type3DescriptorRefs.has(normRef(ref));
-        result.fonts.push({ name: fontName, embedded });
+        const liveNames = liveDescriptorBaseFonts.get(normRef(ref));
+        if (liveNames) {
+          const fontName =
+            typeof o["/FontName"] === "string"
+              ? o["/FontName"].replace(/^\//, "").replace(/^u:/, "")
+              : "Unknown";
+          const embedded =
+            !!(o["/FontFile"] || o["/FontFile2"] || o["/FontFile3"]) ||
+            type3DescriptorRefs.has(normRef(ref));
+          result.fonts.push({ name: fontName, embedded, baseFonts: [...liveNames].sort() });
+        }
       }
 
       // Count outline entries and collect titles

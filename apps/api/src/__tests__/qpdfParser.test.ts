@@ -750,7 +750,17 @@ describe("font embedding detection", () => {
       qpdf: [
         null,
         {
-          "1 0 R": { "/Type": "/Catalog" },
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/TT0": "4 0 R" } },
+          },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/Arial",
+            "/FontDescriptor": "2 0 R",
+          },
           "2 0 R": {
             "/Type": "/FontDescriptor",
             "/FontName": "/Arial",
@@ -769,7 +779,17 @@ describe("font embedding detection", () => {
       qpdf: [
         null,
         {
-          "1 0 R": { "/Type": "/Catalog" },
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/TT0": "4 0 R" } },
+          },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/ComicSans",
+            "/FontDescriptor": "2 0 R",
+          },
           "2 0 R": { "/Type": "/FontDescriptor", "/FontName": "/ComicSans" },
         },
       ],
@@ -787,7 +807,11 @@ describe("font embedding detection", () => {
       qpdf: [
         null,
         {
-          "1 0 R": { "/Type": "/Catalog" },
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/T3": "2 0 R" } },
+          },
           "2 0 R": {
             "/Type": "/Font",
             "/Subtype": "/Type3",
@@ -807,10 +831,15 @@ describe("font embedding detection", () => {
       qpdf: [
         null,
         {
-          "1 0 R": { "/Type": "/Catalog" },
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/TT1": "2 0 R" } },
+          },
           "2 0 R": {
             "/Type": "/Font",
             "/Subtype": "/TrueType",
+            "/BaseFont": "/ArialMT",
             "/FontDescriptor": "3 0 R",
           },
           "3 0 R": { "/Type": "/FontDescriptor", "/FontName": "/ArialMT" },
@@ -819,6 +848,199 @@ describe("font embedding detection", () => {
     });
     const font = result.fonts.find((f) => f.name === "ArialMT");
     expect(font!.embedded).toBe(false);
+  });
+
+  // ---- Rendering-reachability (v1.79.0) -----------------------------------
+  // Only fonts a content stream could actually select — those referenced from
+  // a /Font resource dictionary (pages, XObjects, annotation appearances,
+  // AcroForm /DR) — belong in the census. Acrobat's remediation fixups leave
+  // the ORIGINAL non-embedded font objects behind, referenced only from
+  // structure-tree /ADBE_FT-Style attribute dicts (or from nothing at all);
+  // Adobe Preflight rightly ignores those, and so must we.
+
+  it("excludes a font referenced only from structure-tree style attributes (Acrobat remediation leftover)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "2 0 R", "/StructTreeRoot": "6 0 R" },
+          "2 0 R": { "/Type": "/Pages", "/Kids": ["3 0 R"] },
+          "3 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/TT0": "4 0 R" } },
+          },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/GoodFont",
+            "/FontDescriptor": "5 0 R",
+          },
+          "5 0 R": {
+            "/Type": "/FontDescriptor",
+            "/FontName": "/GoodFont",
+            "/FontFile2": "9 0 R",
+          },
+          "6 0 R": { "/Type": "/StructTreeRoot", "/ClassMap": "7 0 R" },
+          "7 0 R": { "/adbe_style_000000": "8 0 R" },
+          "8 0 R": { "/O": "/ADBE_FT-Style", "/font-family": "10 0 R", "/font-weight": 400 },
+          "10 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/ArialMT",
+            "/FontDescriptor": "11 0 R",
+          },
+          "11 0 R": { "/Type": "/FontDescriptor", "/FontName": "/ArialMT" },
+        },
+      ],
+    });
+    expect(result.fonts).toHaveLength(1);
+    expect(result.fonts[0].name).toBe("GoodFont");
+    expect(result.fonts[0].embedded).toBe(true);
+  });
+
+  it("excludes a FontDescriptor referenced by nothing at all (orphaned by incremental save)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/TT0": "4 0 R" } },
+          },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/GoodFont",
+            "/FontDescriptor": "2 0 R",
+          },
+          "2 0 R": {
+            "/Type": "/FontDescriptor",
+            "/FontName": "/GoodFont",
+            "/FontFile2": "3 0 R",
+          },
+          "6 0 R": { "/Type": "/FontDescriptor", "/FontName": "/DeadFont" },
+        },
+      ],
+    });
+    expect(result.fonts.map((f) => f.name)).toEqual(["GoodFont"]);
+  });
+
+  it("records the font's /BaseFont names alongside the descriptor's /FontName", () => {
+    // The descriptor's /FontName ("Arial") and the font's /BaseFont
+    // ("ArialMT") frequently differ; pdfjs and pdffonts report the BaseFont,
+    // so the scorer needs it to correlate usage.
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/TT3": "4 0 R" } },
+          },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/ArialMT",
+            "/FontDescriptor": "2 0 R",
+          },
+          "2 0 R": { "/Type": "/FontDescriptor", "/FontName": "/Arial" },
+        },
+      ],
+    });
+    expect(result.fonts).toHaveLength(1);
+    expect(result.fonts[0].name).toBe("Arial");
+    expect(result.fonts[0].embedded).toBe(false);
+    expect(result.fonts[0].baseFonts).toContain("ArialMT");
+  });
+
+  it("follows a Type0 font's /DescendantFonts chain to its descriptor", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": { "/C2_0": "4 0 R" } },
+          },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/Type0",
+            "/BaseFont": "/ABCDEF+SymbolMT",
+            "/DescendantFonts": ["6 0 R"],
+          },
+          "6 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/CIDFontType2",
+            "/BaseFont": "/ABCDEF+SymbolMT",
+            "/FontDescriptor": "7 0 R",
+          },
+          "7 0 R": {
+            "/Type": "/FontDescriptor",
+            "/FontName": "/ABCDEF+SymbolMT",
+            "/FontFile2": "8 0 R",
+          },
+        },
+      ],
+    });
+    expect(result.fonts).toHaveLength(1);
+    expect(result.fonts[0].name).toBe("ABCDEF+SymbolMT");
+    expect(result.fonts[0].embedded).toBe(true);
+  });
+
+  it("counts fonts in the AcroForm /DR resource dict as reachable (field text renders with them)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R", "/AcroForm": "6 0 R" },
+          "5 0 R": { "/Type": "/Page" },
+          "6 0 R": { "/DR": { "/Font": { "/Helv": "4 0 R" } }, "/Fields": [] },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/FormFont",
+            "/FontDescriptor": "2 0 R",
+          },
+          "2 0 R": { "/Type": "/FontDescriptor", "/FontName": "/FormFont" },
+        },
+      ],
+    });
+    expect(result.fonts).toHaveLength(1);
+    expect(result.fonts[0].name).toBe("FormFont");
+    expect(result.fonts[0].embedded).toBe(false);
+  });
+
+  it("resolves an indirect /Font resource dictionary", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/Page",
+            "/Resources": { "/Font": "9 0 R" },
+          },
+          "9 0 R": { "/F1": "4 0 R" },
+          "4 0 R": {
+            "/Type": "/Font",
+            "/Subtype": "/TrueType",
+            "/BaseFont": "/IndirectFont",
+            "/FontDescriptor": "2 0 R",
+          },
+          "2 0 R": {
+            "/Type": "/FontDescriptor",
+            "/FontName": "/IndirectFont",
+            "/FontFile2": "3 0 R",
+          },
+        },
+      ],
+    });
+    expect(result.fonts).toHaveLength(1);
+    expect(result.fonts[0].name).toBe("IndirectFont");
+    expect(result.fonts[0].embedded).toBe(true);
   });
 });
 

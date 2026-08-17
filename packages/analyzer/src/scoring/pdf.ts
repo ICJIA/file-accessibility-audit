@@ -17,6 +17,7 @@ import {
   structTreeIsContentFree,
   untaggedContentImageCount,
   headingOutlineLines,
+  splitNonEmbeddedFonts,
   type ScoringResult,
   type PdfUaSignals,
 } from "./common.js";
@@ -240,33 +241,58 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     );
   }
 
-  // Font embedding check — non-embedded fonts can cause garbled text for screen readers
+  // Font embedding check — non-embedded fonts can cause garbled text for
+  // screen readers. Only fonts that actually PAINT visible text are flagged:
+  // word processors emit inter-run whitespace in the paragraph default font,
+  // and OCR layers paint in invisible mode 3 — a font that never shows a
+  // glyph cannot garble anything, and Adobe Preflight passes such files
+  // (it evaluates fonts "used for rendering"). See splitNonEmbeddedFonts.
   if (qpdf.fonts.length > 0) {
     const embedded = qpdf.fonts.filter((f) => f.embedded).length;
-    const notEmbedded = qpdf.fonts.filter((f) => !f.embedded);
+    const { flagged, exempt } = splitNonEmbeddedFonts(qpdf.fonts, pdfjs.visibleTextFontNames);
+    const exemptEntries = new Set(exempt);
 
     findings.push("--- Font Embedding ---");
     findings.push(
-      `  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${notEmbedded.length} not embedded`,
+      `  ${qpdf.fonts.length} font(s) found: ${embedded} embedded, ${flagged.length + exempt.length} not embedded`,
     );
     for (const font of qpdf.fonts.slice(0, 25)) {
-      findings.push(`  ${font.name} — ${font.embedded ? "embedded" : "NOT embedded"}`);
+      findings.push(
+        `  ${font.name} — ${
+          font.embedded
+            ? "embedded"
+            : exemptEntries.has(font)
+              ? "NOT embedded (never displays visible text — no impact)"
+              : "NOT embedded"
+        }`,
+      );
     }
     if (qpdf.fonts.length > 25) {
       findings.push(`  ... and ${qpdf.fonts.length - 25} more font(s)`);
     }
 
-    if (notEmbedded.length > 0) {
+    if (flagged.length > 0) {
       score = Math.min(score, 85); // cap at 85 (Minor) — never Pass with non-embedded fonts
-      const fontNames = notEmbedded
+      const fontNames = flagged
         .slice(0, 5)
         .map((f) => f.name)
         .join(", ");
       findings.push(
-        `${notEmbedded.length} non-embedded font(s) may cause garbled text on systems without ${notEmbedded.length === 1 ? "this font" : "these fonts"}: ${fontNames}${notEmbedded.length > 5 ? ` (+${notEmbedded.length - 5} more)` : ""}`,
+        `${flagged.length} non-embedded font(s) may cause garbled text on systems without ${flagged.length === 1 ? "this font" : "these fonts"}: ${fontNames}${flagged.length > 5 ? ` (+${flagged.length - 5} more)` : ""}`,
       );
       findings.push(
         "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status.",
+      );
+    } else if (exempt.length > 0) {
+      const exemptNames = exempt
+        .slice(0, 5)
+        .map((f) => f.name)
+        .join(", ");
+      // Wording contract: must NOT contain the phrase "non-embedded font" —
+      // apps/web's actionPlan.ts uses /non-embedded font/i to select the
+      // "Embed the fonts" fix step, and exempt fonts must never trigger it.
+      findings.push(
+        `All fonts used to display text are embedded. ${exempt.length} font ${exempt.length === 1 ? "entry" : "entries"} (${exemptNames}) ${exempt.length === 1 ? "is" : "are"} not embedded but never ${exempt.length === 1 ? "displays" : "display"} visible text — typically leftover whitespace runs from the source word processor — so ${exempt.length === 1 ? "it" : "they"} cannot affect how the document renders or reads.`,
       );
     } else {
       findings.push(

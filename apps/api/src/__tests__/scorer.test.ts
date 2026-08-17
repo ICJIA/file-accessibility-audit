@@ -1629,6 +1629,145 @@ describe("supplementary findings — font embedding", () => {
     expect(textCat.findings.some((f) => f.includes("Comic Sans"))).toBe(true);
     expect(textCat.score).toBeLessThan(100);
   });
+
+  // ---- Usage-based exemption (v1.79.0) ------------------------------------
+  // A non-embedded font that never paints visible, non-whitespace text
+  // (word processors emit inter-run SPACES in the paragraph default font;
+  // OCR layers paint in invisible mode 3) cannot garble anything — a space
+  // has no glyph marks and extraction comes from the encoding, not the font
+  // program. Adobe Preflight evaluates fonts "used for rendering" and passes
+  // such files; flagging them was a false positive.
+
+  const taggedDoc = {
+    hasStructTree: true,
+    structTreeDepth: 3,
+    contentOrder: [0, 1],
+  };
+
+  it("exempts a non-embedded font that never paints visible text", () => {
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [
+        { name: "UEMGVF+Calibri", embedded: true, baseFonts: ["UEMGVF+Calibri"] },
+        { name: "Arial", embedded: false, baseFonts: ["ArialMT"] },
+      ],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      visibleTextFontNames: ["UEMGVF+Calibri"],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.score).toBe(100);
+    expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(false);
+    expect(textCat.findings.some((f) => f.includes("never displays visible text"))).toBe(true);
+  });
+
+  it("still flags a non-embedded font that paints visible text", () => {
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [{ name: "Arial", embedded: false, baseFonts: ["ArialMT"] }],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      visibleTextFontNames: ["ArialMT"],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.score).toBeLessThanOrEqual(85);
+    expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(true);
+  });
+
+  it("correlates usage across differing subset prefixes", () => {
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [{ name: "Arial", embedded: false, baseFonts: ["XXXXXX+ArialMT"] }],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      visibleTextFontNames: ["YYYYYY+ArialMT"],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.score).toBeLessThanOrEqual(85);
+    expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(true);
+  });
+
+  it("keeps flagging every non-embedded font when the usage signal is absent (legacy stored reports)", () => {
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [{ name: "Arial", embedded: false, baseFonts: ["ArialMT"] }],
+    });
+    // makePdfjs default has NO visibleTextFontNames — the pre-v1.79.0 shape.
+    const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.score).toBeLessThanOrEqual(85);
+    expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(true);
+  });
+
+  it("uses honest wording when the only non-embedded fonts are exempt", () => {
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [
+        { name: "UEMGVF+Calibri", embedded: true, baseFonts: ["UEMGVF+Calibri"] },
+        { name: "Arial", embedded: false, baseFonts: ["ArialMT"] },
+      ],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      visibleTextFontNames: ["UEMGVF+Calibri"],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    // NOT the unconditional "All fonts are embedded" — one of them isn't.
+    expect(textCat.findings.some((f) => f.includes("All fonts are embedded"))).toBe(false);
+    expect(
+      textCat.findings.some((f) => f.includes("All fonts used to display text are embedded")),
+    ).toBe(true);
+  });
+
+  it("emits no finding matching the action plan's fonts-variant trigger when all non-embedded fonts are exempt", () => {
+    // apps/web's actionPlan.ts picks the "Embed the fonts" step when any
+    // text_extractability finding matches /non-embedded font/i. A document
+    // whose non-embedded fonts are ALL exempt must not trip that trigger —
+    // recommending font embedding for harmless whitespace runs would be
+    // actively wrong advice.
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [{ name: "Arial", embedded: false, baseFonts: ["ArialMT"] }],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      visibleTextFontNames: [],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const textCat = findCategory(result, "text_extractability");
+    expect(textCat.findings.some((f) => /non-embedded font/i.test(f))).toBe(false);
+  });
+
+  it("passes the Adobe-parity character-encoding rule when non-embedded fonts are all exempt", () => {
+    const qpdf = makeQpdf({
+      ...taggedDoc,
+      fonts: [
+        { name: "UEMGVF+Calibri", embedded: true, baseFonts: ["UEMGVF+Calibri"] },
+        { name: "Arial", embedded: false, baseFonts: ["ArialMT"] },
+      ],
+    });
+    const pdfjs = makePdfjs({
+      hasText: true,
+      textLength: 500,
+      visibleTextFontNames: ["UEMGVF+Calibri"],
+    });
+    const result = scoreDocument(qpdf, pdfjs);
+    const encodingRule = result.adobeParity?.rules.find((r) => r.id === "character_encoding");
+    expect(encodingRule?.status).toBe("passed");
+  });
 });
 
 describe("supplementary findings — empty pages", () => {

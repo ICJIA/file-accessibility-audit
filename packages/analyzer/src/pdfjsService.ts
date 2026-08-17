@@ -45,6 +45,18 @@ export interface PdfjsResult {
   // artifact signal — qpdf's struct-tree /S=/Artifact count is almost always 0.
   artifactRunCount?: number;
   metadata: PdfMetadata;
+  // Fonts that paint VISIBLE, NON-WHITESPACE text somewhere in the document:
+  // BaseFont-style names (matching QpdfResult.fonts[].baseFonts) of every
+  // font that shows at least one glyph outside text rendering mode 3
+  // (invisible — the OCR-layer carve-out PDF/A and PDF/UA also make) whose
+  // unicode is not pure whitespace. Word processors emit inter-run spaces in
+  // the paragraph's default font; a space paints no glyph and extracts from
+  // the encoding, not the font program, so a non-embedded font used only for
+  // whitespace cannot garble anything — the scorer exempts it. An EMPTY array
+  // means "analyzed, nothing paints visible text"; ABSENT (undefined) means
+  // the signal is unavailable (pre-v1.79.0 stored reports, or a text run
+  // whose font pdfjs could not resolve) and no exemption may be applied.
+  visibleTextFontNames?: string[];
   // Per-page MCID sequence as encountered while walking each page's content
   // stream (i.e. visual draw order). Populated from pdfjs's operator list —
   // OPS.beginMarkedContentProps args include the MCID on the properties dict.
@@ -259,6 +271,27 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     const bdcOp = OPS.beginMarkedContentProps;
     const bmcOp = OPS.beginMarkedContent;
     const emcOp = OPS.endMarkedContent;
+    // Font-usage tracking (see visibleTextFontNames on PdfjsResult). setFont
+    // ops carry the loaded font's internal id; commonObjs resolves it to the
+    // translated font whose `.name` is the /BaseFont-style name qpdf's census
+    // records. Text state (current font, render mode) is saved/restored with
+    // q/Q like any other graphics state.
+    const setFontOp = OPS.setFont;
+    const setTextRenderingModeOp = OPS.setTextRenderingMode;
+    const saveOp = OPS.save;
+    const restoreOp = OPS.restore;
+    const showTextOps = new Set(
+      [
+        OPS.showText,
+        OPS.showSpacedText,
+        OPS.nextLineShowText,
+        OPS.nextLineSetSpacingShowText,
+      ].filter((v) => v !== undefined),
+    );
+    const visibleTextFonts = new Set<string>();
+    // A text run painted visible glyphs under a font pdfjs could not resolve:
+    // the usage signal is incomplete, so it must not be used for exemptions.
+    let fontResolutionFailed = false;
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
       const ops = await page.getOperatorList();
@@ -266,6 +299,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       const pageMcids: number[] = [];
       // Stack of "is this marked-content run inside an /Artifact?" flags.
       const artifactStack: boolean[] = [];
+      let currentFontName: string | null = null;
+      let renderMode = 0;
+      const textStateStack: Array<{ font: string | null; mode: number }> = [];
       for (let j = 0; j < ops.fnArray.length; j++) {
         const fn = ops.fnArray[j];
         // Marked-content tracking. BMC and BDC push onto the stack, EMC pops.
@@ -299,6 +335,46 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           artifactStack.pop();
         }
 
+        if (fn === setFontOp) {
+          const loadedName = ops.argsArray[j]?.[0];
+          currentFontName = null;
+          if (typeof loadedName === "string") {
+            try {
+              const fontObj = page.commonObjs.has(loadedName)
+                ? page.commonObjs.get(loadedName)
+                : null;
+              if (fontObj && typeof (fontObj as any).name === "string") {
+                currentFontName = (fontObj as any).name;
+              }
+            } catch {}
+          }
+          continue;
+        }
+        if (fn === setTextRenderingModeOp) {
+          const mode = ops.argsArray[j]?.[0];
+          if (typeof mode === "number") renderMode = mode;
+          continue;
+        }
+        if (fn === saveOp) {
+          textStateStack.push({ font: currentFontName, mode: renderMode });
+        } else if (fn === restoreOp) {
+          const prev = textStateStack.pop();
+          if (prev) {
+            currentFontName = prev.font;
+            renderMode = prev.mode;
+          }
+        } else if (showTextOps.has(fn)) {
+          // Mode 3 is invisible text — the OCR-layer carve-out. Every other
+          // mode paints (or clips with) real glyph shapes.
+          if (renderMode !== 3 && paintsNonWhitespace(ops.argsArray[j])) {
+            if (currentFontName) {
+              visibleTextFonts.add(currentFontName);
+            } else {
+              fontResolutionFailed = true;
+            }
+          }
+        }
+
         if (!imageOps.has(fn)) continue;
         const imgName = ops.argsArray[j]?.[0];
         if (typeof imgName !== "string") continue;
@@ -330,6 +406,11 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     result.imageCount = imageCount;
     result.nonArtifactImageCount = nonArtifactImageCount;
     result.artifactRunCount = artifactRunCount;
+    // Left ABSENT (never an empty array) when any visible run's font could not
+    // be resolved — an incomplete usage census must not drive exemptions.
+    if (!fontResolutionFailed) {
+      result.visibleTextFontNames = [...visibleTextFonts].sort();
+    }
 
     result.textLength = totalText.trim().length;
     result.hasText = result.textLength > 50; // Minimum meaningful text
@@ -472,6 +553,30 @@ export function collectStructTreeHeadings(
   };
   visit(tree);
   return out;
+}
+
+// Does a show-text op's args paint anything beyond whitespace? pdfjs glyph
+// arrays mix Glyph objects with bare numbers (TJ kerning adjustments — never
+// painted). A glyph whose unicode is pure whitespace paints no marks; a glyph
+// with NO unicode mapping might paint anything, so it counts as visible (the
+// conservative direction — an unmapped glyph in a non-embedded font is the
+// worst garbling case, and must keep the font flagged).
+function paintsNonWhitespace(args: unknown[]): boolean {
+  const glyphs = Array.isArray(args) ? args.find((a) => Array.isArray(a)) : undefined;
+  if (!Array.isArray(glyphs)) return false;
+  for (const g of glyphs) {
+    if (typeof g === "number") continue;
+    if (typeof g === "string") {
+      if (g.trim() !== "") return true;
+      continue;
+    }
+    if (g && typeof g === "object") {
+      const u = (g as any).unicode;
+      if (typeof u === "string" && u.length > 0 && u.trim() === "") continue;
+      return true;
+    }
+  }
+  return false;
 }
 
 // pdfjs-dist passes the tag on a marked-content op either as a plain string

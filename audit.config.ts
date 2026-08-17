@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "font-embedding-usage-census-2026-08-17",
+    badge: "Improved",
+    text: "The font-embedding check now agrees with Adobe's preflight tools. Some documents were losing points for “fonts not embedded” when the flagged fonts never actually display any text — one common case is a font used only to draw the spaces between words, another is leftover font entries that Acrobat's own repair process leaves behind without any page using them. Neither can affect how a document looks or reads aloud, so neither is flagged anymore. A font that genuinely displays text without being embedded is still flagged exactly as before. Saved reports keep their original evaluation until the document is checked again, so if a past report flagged fonts, re-running the audit is the way to see the corrected result.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 17, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "cached-scores-current-model-2026-08-16",
     badge: "Improved",
     text: "Scores from saved audit results now always match their report page. When a document that was audited before is checked again — usually by an automated inventory — the tool answers from its saved copy, and that answer used to carry the score computed on the day of the first audit, even though scoring has been refined since. Those saved answers are now re-scored under the current rules before they're returned, exactly as report pages already do, so a score in an inventory or spreadsheet and the report it links to can no longer disagree. If an older exported list still shows a different number, the report page's score is the one to trust — re-running the check refreshes the list.",
