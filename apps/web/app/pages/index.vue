@@ -19,106 +19,16 @@
 
     <!-- Results state (show only after all batch items finish, or single result) -->
     <div v-else-if="hasAnyResult && !batchProcessing">
-      <!-- Batch completion banner -->
-      <div
-        v-if="batchItems.length > 1 && showBatchBanner"
-        class="mb-4 rounded-xl bg-green-500/10 border border-green-500/25 px-5 py-3 flex items-center justify-between"
-      >
-        <p class="text-sm text-green-400 font-medium">
-          <svg
-            class="w-4 h-4 inline-block mr-1.5 -mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          All {{ batchItems.length }} files processed. Click any tab below to view its report.
-        </p>
-        <button
-          class="text-green-400/60 hover:text-green-400 text-sm ml-4 flex-shrink-0"
-          aria-label="Dismiss"
-          @click="showBatchBanner = false"
-        >
-          &times;
-        </button>
-      </div>
-
-      <!-- Batch tab bar -->
-      <div
+      <!-- Batch file switcher — the scoreboard of per-file report cards.
+           Owns the tablist semantics AND the completion message (there is no
+           separate banner: the element that announces "N reports" is the one
+           used to switch between them). -->
+      <BatchFileSwitcher
         v-if="batchItems.length > 1"
-        class="mb-6 grid gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-1.5"
-        role="tablist"
-        :aria-label="`${batchItems.length} file results`"
-        :style="`grid-template-columns: repeat(${batchItems.length}, minmax(0, 1fr))`"
-      >
-        <AppTooltip
-          v-for="(item, idx) in batchItems"
-          :key="item.id"
-          v-slot="{ tooltipId }"
-          :text="item.filename"
-        >
-          <button
-            role="tab"
-            :aria-selected="activeTabIndex === idx"
-            :aria-describedby="tooltipId"
-            class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-all w-full min-w-0 cursor-pointer"
-            :class="
-              activeTabIndex === idx
-                ? 'bg-gradient-to-b from-[var(--surface-hover)] to-[var(--surface-card)] text-[var(--text-heading)] font-medium shadow-sm border border-[var(--border)]'
-                : 'bg-gradient-to-b from-[var(--surface-deep)] to-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:from-[var(--surface-hover)] hover:to-[var(--surface-deep)] border border-transparent'
-            "
-            @click="switchTab(idx)"
-          >
-            <span class="truncate min-w-0" :aria-label="item.filename">{{ item.filename }}</span>
-            <span
-              v-if="item.status === 'done' && item.result?.grade"
-              class="flex-shrink-0 inline-flex w-5 h-5 rounded-full text-[10px] font-bold items-center justify-center"
-              :style="{
-                backgroundColor: withAlpha(gradeColor(item.result.grade), 12),
-                color: gradeColor(item.result.grade),
-              }"
-              :aria-label="`Grade ${item.result.grade}`"
-              >{{ item.result.grade }}</span
-            >
-            <svg
-              v-else-if="item.status === 'error'"
-              class="w-4 h-4 text-red-500 flex-shrink-0"
-              aria-label="Error"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-              />
-            </svg>
-            <svg
-              v-else-if="item.status === 'cancelled'"
-              class="w-4 h-4 text-[var(--text-muted)] flex-shrink-0"
-              aria-label="Cancelled"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-              />
-            </svg>
-          </button>
-        </AppTooltip>
-      </div>
+        :items="batchItems"
+        :active-index="activeTabIndex"
+        @switch="switchTab"
+      />
 
       <!-- Active tab error -->
       <div
@@ -815,7 +725,6 @@
 </template>
 
 <script setup lang="ts">
-import { useTokenColors } from "~/composables/useTokenColors";
 import ReportActionBanner from "~/components/ReportActionBanner.vue";
 import IssuesSummary from "~/components/IssuesSummary.vue";
 import ReportFileBanner from "~/components/ReportFileBanner.vue";
@@ -824,10 +733,9 @@ import ScrollToTop from "~/components/ScrollToTop.vue";
 import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import ReportVisualView from "~/components/ReportVisualView.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
+import BatchFileSwitcher from "~/components/BatchFileSwitcher.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
 import { type AnalysisResult } from "@file-audit/shared";
-// Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
-const { gradeColor, withAlpha } = useTokenColors();
 import type { PrefillError } from "~/composables/usePrefill";
 
 // Word / PowerPoint / Excel support can each be disabled server-side
@@ -914,7 +822,6 @@ function focusResultsHeading() {
 const batchItems = ref<BatchItem[]>([]);
 const activeTabIndex = ref(0);
 const batchProcessing = ref(false);
-const showBatchBanner = ref(false);
 const isBatchMode = computed(() => batchItems.value.length > 0);
 
 // The active result — from batch tab or single file
@@ -1119,7 +1026,6 @@ async function analyzeBatch(files: File[]) {
 
   batchProcessing.value = false;
   batchAbortController = null;
-  showBatchBanner.value = true;
 
   // Auto-select first successful result
   const firstDone = batchItems.value.findIndex((i) => i.status === "done");
@@ -1147,7 +1053,6 @@ function clearResults() {
   batchItems.value = [];
   activeTabIndex.value = 0;
   batchProcessing.value = false;
-  showBatchBanner.value = false;
   clearShare();
 }
 

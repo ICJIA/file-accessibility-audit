@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "batch-scoreboard-five-files-2026-08-17",
+    badge: "Improved",
+    text: "Checking several files at once is easier to follow. You can now upload up to five files together (the limit was three), and when they finish, each file gets its own clearly visible report card at the top of the page — grade, score, and filename — so switching between reports is one click. Previously the row for switching files was easy to miss, and some visitors thought only their first file had been checked. Nothing about the checks themselves changed.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 17, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "font-embedding-usage-census-2026-08-17",
     badge: "Improved",
     text: "The font-embedding check now agrees with Adobe's preflight tools. Some documents were losing points for “fonts not embedded” when the flagged fonts never actually display any text — one common case is a font used only to draw the spaces between words, another is leftover font entries that Acrobat's own repair process leaves behind without any page using them. Neither can affect how a document looks or reads aloud, so neither is flagged anymore. A font that genuinely displays text without being embedded is still flagged exactly as before. Saved reports keep their original evaluation until the document is checked again, so if a past report flagged fonts, re-running the audit is the way to see the corrected result.",

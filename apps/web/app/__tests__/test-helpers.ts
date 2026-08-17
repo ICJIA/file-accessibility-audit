@@ -16,6 +16,7 @@ import {
   onMounted,
   onUnmounted,
   onBeforeUnmount,
+  useId,
   type Ref,
 } from "vue";
 
@@ -33,6 +34,9 @@ _global.nextTick = nextTick;
 _global.onMounted = onMounted;
 _global.onUnmounted = onUnmounted;
 _global.onBeforeUnmount = onBeforeUnmount;
+// Vue 3.5's own useId — Nuxt auto-imports it (AppTooltip uses it for
+// aria-describedby ids), so tests need it on the global like the rest.
+_global.useId = useId;
 _global.definePageMeta = () => {};
 _global.navigateTo = () => {};
 _global.$fetch = async () => ({});

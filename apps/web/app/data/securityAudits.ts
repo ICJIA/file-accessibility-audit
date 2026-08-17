@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.80.0",
+    meta: "Reviewed <strong>2026-08-17</strong> · scope: making multi-file results visible, in the browser only. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "When several files were checked at once, each file's report was there — but the row for switching between them was so faint that a person who uploaded two files reported seeing only the first. The switcher is now a row of clearly visible report cards, one per file, each showing the file's grade and score. The upload area also now accepts the five files its label has always promised (the enforced limit was three).",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "UX",
+            html: "<strong>Same results, actually findable.</strong> Nothing about the analysis changed — each file is still checked by the same server endpoint under the same limits; only the way finished reports are presented in the browser changed.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>No new information is collected, stored, or transmitted.</strong> The change is entirely in the page's own display code. No route, parameter, or dependency was added, and rate limits and file-size caps are unchanged.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.79.0",
     meta: "Reviewed <strong>2026-08-17</strong> · scope: a scoring-accuracy fix inside the document analyzers. Nothing new is collected or sent.",
     body: [

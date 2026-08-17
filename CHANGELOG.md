@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.80.0] - 2026-08-17
+
+### Fixed
+
+- **Multi-file results are now a visible scoreboard — resolving "I don't see the second tab."** User report: dropping two files appeared to show only the first file's report. Both results were in fact rendering; the inactive tab was styled as small muted text on a transparent gradient, visually indistinguishable from disabled chrome, while the Reset/Export cards and the giant grade circle below pulled the eye. The batch tab bar is now a **scoreboard of per-file report cards** (`BatchFileSwitcher.vue`): each card shows a grade ring in the grade's own color — a miniature of the report hero — plus the score out of 100 and the filename, with honest labels for errored ("Couldn't analyze") and cancelled files. Every card, active or not, carries full card chrome; the active card is raised. The "All N files processed" message is the scoreboard's own header now, replacing the separate dismissible green banner — the element that announces the reports is the element that switches between them.
+- **The dropzone enforces the five-file limit its copy has always advertised.** The label said "up to 5 files, max 25 MB each"; the code capped at 3, so dropping four or five files hit "Maximum 3 files allowed" under a label promising five. The limit is now 5. Client-side batch concurrency stays at 2, matching the server's analysis semaphore — more files queue, they don't run hotter.
+
+### Notes
+
+- Frontend-only: the same per-file calls to the existing `/api/analyze` endpoint; no new routes, parameters, or dependencies. Pinned by 13 new tests including a page-wiring pin (the index page renders the switcher; the old inline tablist and banner are gone) and a copy-matches-limit pin on the dropzone. Verified in a real browser with five files, light and dark themes, including card switching. Tests 2,307 → 2,319 (API 1,196 / web 1,074 / CLI 49).
+
 ## [1.79.0] - 2026-08-17
 
 ### Fixed

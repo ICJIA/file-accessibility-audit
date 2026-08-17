@@ -135,7 +135,10 @@ import {
   unsupportedFormatHint,
 } from "~/utils/uploadFormats";
 
-const MAX_FILES = 3;
+// Must match the advertised copy below ("up to 5 files") — they drifted once
+// (copy said 5, limit was 3) and users hit "Maximum 3 files allowed" under a
+// label promising five. dropZoneLimits.test.ts pins both sides.
+const MAX_FILES = 5;
 const MAX_SIZE = 25 * 1024 * 1024;
 
 const config = useRuntimeConfig();
