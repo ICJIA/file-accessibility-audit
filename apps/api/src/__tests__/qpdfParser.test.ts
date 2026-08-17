@@ -1044,6 +1044,74 @@ describe("font embedding detection", () => {
   });
 });
 
+describe("figure MCID census (reading-order exclusion)", () => {
+  // Image paint order is a z-order concern, not reading order — Office
+  // exporters paint images last regardless of where they are tagged. The
+  // fidelity metric excludes figure MCIDs, so the parser must report which
+  // MCIDs belong to /Figure elements (role-mapped figures included).
+  it("collects the direct MCIDs of /Figure elements per page", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "2 0 R", "/StructTreeRoot": "4 0 R" },
+          "2 0 R": { "/Type": "/Pages", "/Kids": ["3 0 R"] },
+          "3 0 R": { "/Type": "/Page" },
+          "4 0 R": { "/Type": "/StructTreeRoot", "/K": "5 0 R" },
+          "5 0 R": { "/Type": "/StructElem", "/S": "/Document", "/K": ["6 0 R", "7 0 R"] },
+          "6 0 R": { "/Type": "/StructElem", "/S": "/Figure", "/Pg": "3 0 R", "/K": [41] },
+          "7 0 R": { "/Type": "/StructElem", "/S": "/P", "/Pg": "3 0 R", "/K": [1, 2] },
+        },
+      ],
+    });
+    expect(result.figureMcidsByPage).toEqual({ 1: [41] });
+    expect(result.structTreeMcidsByPage).toEqual({ 1: [41, 1, 2] });
+  });
+
+  it("includes role-mapped figures (e.g. Excel's Diagram → Figure)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "2 0 R", "/StructTreeRoot": "4 0 R" },
+          "2 0 R": { "/Type": "/Pages", "/Kids": ["3 0 R"] },
+          "3 0 R": { "/Type": "/Page" },
+          "4 0 R": {
+            "/Type": "/StructTreeRoot",
+            "/K": "5 0 R",
+            "/RoleMap": { "/Diagram": "/Figure" },
+          },
+          "5 0 R": { "/Type": "/StructElem", "/S": "/Document", "/K": ["6 0 R"] },
+          "6 0 R": { "/Type": "/StructElem", "/S": "/Diagram", "/Pg": "3 0 R", "/K": [7] },
+        },
+      ],
+    });
+    expect(result.figureMcidsByPage).toEqual({ 1: [7] });
+  });
+
+  it("does not mark MCIDs of elements NESTED inside a figure (captions stay text)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/Pages": "2 0 R", "/StructTreeRoot": "4 0 R" },
+          "2 0 R": { "/Type": "/Pages", "/Kids": ["3 0 R"] },
+          "3 0 R": { "/Type": "/Page" },
+          "4 0 R": { "/Type": "/StructTreeRoot", "/K": "5 0 R" },
+          "5 0 R": {
+            "/Type": "/StructElem",
+            "/S": "/Figure",
+            "/Pg": "3 0 R",
+            "/K": [9, "6 0 R"],
+          },
+          "6 0 R": { "/Type": "/StructElem", "/S": "/Caption", "/Pg": "3 0 R", "/K": [10] },
+        },
+      ],
+    });
+    expect(result.figureMcidsByPage).toEqual({ 1: [9] });
+  });
+});
+
 describe("paragraph and language span detection", () => {
   it("counts paragraph tags", () => {
     const result = parseJson({

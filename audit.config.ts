@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "reading-order-ignores-image-paint-2026-08-17",
+    badge: "Improved",
+    text: "The reading-order check is fairer to documents with images. Programs like Excel and Word draw a page's images last, no matter where the image belongs on the page — and the check was counting that drawing order against otherwise perfectly organized documents (a logo at the top of the page, for example). The comparison now judges only the order of the text, which is what a screen reader actually reads; genuinely out-of-order text is still flagged exactly as before. Saved reports keep their original evaluation until the document is checked again — if a past report docked reading-order points and the document has images, re-running the audit shows the corrected result.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 17, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "batch-scoreboard-five-files-2026-08-17",
     badge: "Improved",
     text: "Checking several files at once is easier to follow. You can now upload up to five files together (the limit was three), and when they finish, each file gets its own clearly visible report card at the top of the page — grade, score, and filename — so switching between reports is one click. Previously the row for switching files was easy to miss, and some visitors thought only their first file had been checked. Nothing about the checks themselves changed.",

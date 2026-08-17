@@ -48,9 +48,18 @@ export function computeReadingOrderFidelity(
   let pagesAnalyzed = 0;
   let pagesWithDrift = 0;
 
+  // Figure MCIDs are excluded from the comparison: image paint order is a
+  // z-order concern — Office exporters paint images LAST regardless of where
+  // they are tagged (real case: a top-of-page logo, correctly tagged first,
+  // painted last, cost an otherwise perfectly ordered one-page document 10
+  // points) — and carries no reading-order information. Absent on stored
+  // payloads from before v1.81.0, which keep the legacy all-MCIDs comparison.
+  const figuresByPage = qpdf.figureMcidsByPage ?? {};
+
   for (const pageNum of pageNumbers) {
-    const struct = structByPage[pageNum] ?? [];
-    const stream = streamByPage[pageNum] ?? [];
+    const figureMcids = new Set<number>(figuresByPage[pageNum] ?? []);
+    const struct = (structByPage[pageNum] ?? []).filter((m) => !figureMcids.has(m));
+    const stream = (streamByPage[pageNum] ?? []).filter((m) => !figureMcids.has(m));
     if (struct.length === 0 || stream.length === 0) continue;
 
     const streamSet = new Set<number>(stream);

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.81.0] - 2026-08-17
+
+### Fixed
+
+- **The reading-order check no longer penalizes images painted out of sequence — image paint order is not reading order.** User report (an "accessible" Excel-exported order form scoring 89): the only reading-order divergence was the company logo — a `/Figure` correctly tagged FIRST because it sits in the top inch of the page — which Excel painted LAST, as Office exporters do with images. 27 of 28 marked-content runs agreed (96.4%), just under the metric's 97% "perfect" band, so a correctly ordered one-page document lost 10 points and took a Minor. The fidelity comparison (tag order vs content-stream draw order, longest-common-subsequence) now **excludes Figure MCIDs** — role-mapped figures included (Excel's `Diagram → Figure`), captions nested inside figures still compared as text — because exporters paint images by z-order, which carries no reading-order information, while text paint order at least correlates. Displaced TEXT deducts exactly as before (test-pinned), and stored reports from before this release lack the new figure census and keep the legacy all-MCIDs comparison until re-analyzed.
+
+### Notes
+
+- The same order form's Table Markup finding was verified TRUE and stands: its 8 `<TH>` cells (a two-way header table — header row plus row headers) genuinely carry no `/Scope` and no `/Headers`, the one configuration where header association is ambiguous for assistive technology. Acrobat's built-in checker doesn't test Scope, which is why files like this arrive believed to be "100% accessible". The technical explainer's reading-order scoring description was also rewritten — it still described a pre-fidelity 20%-band model that no longer exists. Verified against the reported file (Reading Order 90 → 100; overall stays 89 on the genuine table finding) with no change to the other two 2026-08-17 incident files. Tests 2,319 → 2,325 (API 1,202 / web 1,074 / CLI 49).
+
 ## [1.80.0] - 2026-08-17
 
 ### Fixed

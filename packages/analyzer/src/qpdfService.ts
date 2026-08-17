@@ -120,6 +120,15 @@ export interface QpdfResult {
   // pdfjs's content-stream MCID sequence to verify logical reading order.
   // Empty when the document has no struct tree or no MCIDs.
   structTreeMcidsByPage: Record<number, number[]>;
+  /** MCIDs that are DIRECT content of /Figure elements (role-mapped figures
+   *  included), per page. The reading-order fidelity metric excludes these:
+   *  image paint order is a z-order concern — Office exporters paint images
+   *  last regardless of where they are tagged — and carries no reading-order
+   *  information. MCIDs of elements NESTED inside a figure (captions) are
+   *  not included; their text order remains comparable. Absent on stored
+   *  reports from before v1.81.0 (fidelity then treats every MCID as text —
+   *  the legacy behavior). */
+  figureMcidsByPage?: Record<number, number[]>;
   error: string | null;
 }
 
@@ -277,6 +286,7 @@ function emptyQpdfResult(error: string | null): QpdfResult {
     structTreeDepth: 0,
     contentOrder: [],
     structTreeMcidsByPage: {},
+    figureMcidsByPage: {},
     error,
   };
 }
@@ -886,7 +896,9 @@ function parseQpdfJson(json: any): QpdfResult {
     // exists — otherwise returns an empty map.
     if (result.hasStructTree) {
       const pageRefToNum = buildPageRefToNum(json, objects);
-      result.structTreeMcidsByPage = collectStructTreeMcidsByPage(objects, pageRefToNum);
+      const collected = collectStructTreeMcidsByPage(objects, pageRefToNum, roleMap);
+      result.structTreeMcidsByPage = collected.byPage;
+      result.figureMcidsByPage = collected.figureByPage;
     }
   } catch (err) {
     console.error("QPDF JSON parse error:", err);
@@ -1173,11 +1185,16 @@ function buildPageRefToNum(json: any, objects: Record<string, any>): Map<string,
 function collectStructTreeMcidsByPage(
   objects: Record<string, any>,
   pageRefToNum: Map<string, number>,
-): Record<number, number[]> {
+  roleMap: Record<string, string>,
+): { byPage: Record<number, number[]>; figureByPage: Record<number, number[]> } {
   const out: Record<number, number[]> = {};
+  // MCIDs that are DIRECT content of /Figure elements (role-mapped figures
+  // included). The fidelity metric excludes these — image paint order is a
+  // z-order concern, not reading order (see QpdfResult.figureMcidsByPage).
+  const figureOut: Record<number, number[]> = {};
 
   const root = findStructTreeRoot(objects);
-  if (!root) return out;
+  if (!root) return { byPage: out, figureByPage: figureOut };
 
   const pageStack: Array<number | null> = [];
   const visited = new Set<any>();
@@ -1190,10 +1207,11 @@ function collectStructTreeMcidsByPage(
     return false;
   };
 
-  const emit = (pageNum: number | null, mcid: number): void => {
+  const emit = (pageNum: number | null, mcid: number, isFigureContent: boolean): void => {
     if (pageNum === null) return;
     if (!Number.isInteger(mcid)) return;
     (out[pageNum] ??= []).push(mcid);
+    if (isFigureContent) (figureOut[pageNum] ??= []).push(mcid);
   };
 
   const walk = (node: any, depth: number): void => {
@@ -1204,12 +1222,16 @@ function collectStructTreeMcidsByPage(
 
     const pushed = pushPg(node);
     const currentPage = pageStack.length ? pageStack[pageStack.length - 1] : null;
+    // Only the CURRENT element's role decides figure-ness — elements nested
+    // inside a figure (captions) recurse with their own role, so their text
+    // stays comparable in the fidelity metric.
+    const isFigure = mapToStandardTag(node["/S"], roleMap) === "/Figure";
 
     const kids = node["/K"];
 
     const processKid = (kid: any): void => {
       if (typeof kid === "number") {
-        emit(currentPage, kid);
+        emit(currentPage, kid, isFigure);
         return;
       }
       if (typeof kid === "string") {
@@ -1224,7 +1246,7 @@ function collectStructTreeMcidsByPage(
           const mcid = kid["/MCID"];
           const pgRef = typeof kid["/Pg"] === "string" ? kid["/Pg"] : null;
           const pgNum = pgRef ? (pageRefToNum.get(pgRef) ?? null) : currentPage;
-          if (typeof mcid === "number") emit(pgNum, mcid);
+          if (typeof mcid === "number") emit(pgNum, mcid, isFigure);
           return;
         }
         // OBJR: object reference (annotation, form field) — not content.
@@ -1244,5 +1266,5 @@ function collectStructTreeMcidsByPage(
   };
 
   walk(root, 0);
-  return out;
+  return { byPage: out, figureByPage: figureOut };
 }

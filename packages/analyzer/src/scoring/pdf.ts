@@ -1628,7 +1628,7 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       `Reading-order fidelity: ${rigorous.similarityPct}% (${rigorous.pagesAnalyzed} of ${qpdf.totalPageCount} page(s) compared)`,
     );
     findings.push(
-      `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong.`,
+      `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong. Image (Figure) runs are excluded from the comparison — exporters paint images by z-order (typically last), which says nothing about reading order.`,
     );
     if (rigorous.pagesWithDrift > 0) {
       findings.push(

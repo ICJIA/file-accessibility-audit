@@ -1074,13 +1074,18 @@
               document becomes a jumble of unrelated sentences.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> <strong>100</strong> = structure tree has depth &gt;1 and
-              fewer than 20% of Marked Content IDs (MCIDs) are out of sequence.
-              <strong>50</strong> = more than 20% of MCIDs are out of order. <strong>30</strong> =
-              structure tree is flat (depth ≤1, indicating minimal structure). <strong>0</strong> =
-              no structure tree at all. MCIDs are numeric identifiers that link content on each page
-              to its position in the tag tree; when they're out of order relative to the page
-              content stream, it indicates a reading order problem.
+              <em>How it's scored:</em> the tagged reading order (structure-tree MCID sequence) is
+              compared against the order the page's content is painted (content-stream MCID
+              sequence) using a longest-common-subsequence match. <strong>100</strong> = ≥97%
+              agreement. <strong>90</strong> / <strong>85</strong> = 90–96% / 80–89% — a Minor note,
+              because divergence means the two orders disagree, not that the tags are wrong
+              (remediated documents re-order tags away from a bad draw order on purpose).
+              <strong>65</strong> = 50–79%. <strong>30</strong> = heavier divergence.
+              <strong>0</strong> = no structure tree. Image (Figure) runs are excluded from the
+              comparison — exporters paint images by z-order (typically last), which says nothing
+              about reading order. A flat structure tree (depth ≤1) scores <strong>30</strong> and
+              no tree at all scores <strong>0</strong>; when a tree exists but the sequences are too
+              short to compare, the category reports no score rather than guessing.
             </p>
           </div>
         </div>

@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.81.0",
+    meta: "Reviewed <strong>2026-08-17</strong> · scope: a scoring-accuracy fix inside the document analyzer. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "A document could lose reading-order points for something no reader ever experiences: where in the drawing sequence its images were painted. Programs like Excel paint images last no matter where they belong on the page, so a correctly organized document with a logo at the top was marked down. The reading-order comparison now ignores images' paint position and judges only the order of the text — which is what a screen reader actually follows.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Same detection for real problems.</strong> Text that is genuinely tagged out of order is flagged exactly as before; only the meaningless image-paint signal was removed. The same reported document's other finding — table header cells missing their scope — was verified genuine and still stands.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Analysis-time change only.</strong> The fix lives in the read-only parser that examines an uploaded document. Nothing new is collected, stored, or transmitted; no route, parameter, or dependency was added. Previously saved reports keep their stored evaluation — a fresh audit of the same file picks up the corrected scoring.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.80.0",
     meta: "Reviewed <strong>2026-08-17</strong> · scope: making multi-file results visible, in the browser only. Nothing new is collected or sent.",
     body: [

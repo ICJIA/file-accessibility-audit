@@ -2443,6 +2443,43 @@ describe("reading_order — noise tolerance & deduction transparency", () => {
       cat.findings.some((f) => f.includes("does not yet compare per-page marked-content order")),
     ).toBe(false);
   });
+
+  // ---- Figure paint order is not reading order (v1.81.0) ------------------
+  // Real case (orderform-accessible.pdf, 2026-08-17): the company logo —
+  // a /Figure, correctly tagged FIRST because it sits at the top of the
+  // page — was painted LAST by Excel's exporter. 27/28 = 96.4% missed the
+  // 97% band and a correctly ordered document lost 10 points. Image paint
+  // order is a z-order concern with zero reading-order information, so
+  // figure MCIDs are excluded from the fidelity comparison.
+
+  it("does not penalize a figure painted out of sequence (the Excel logo case)", () => {
+    // Tag order: figure first (top of page). Draw order: figure painted last.
+    const text = range(27);
+    const struct = [41, ...text];
+    const stream = [...text, 41];
+    const { qpdf, pdfjs } = build(struct, stream);
+    qpdf.figureMcidsByPage = { 1: [41] };
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(100);
+  });
+
+  it("keeps the legacy deduction when the figure census is absent (old stored payloads)", () => {
+    const text = range(27);
+    const struct = [41, ...text];
+    const stream = [...text, 41];
+    const { qpdf, pdfjs } = build(struct, stream);
+    // No figureMcidsByPage — the pre-v1.81.0 stored-payload shape.
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(90);
+  });
+
+  it("still deducts for displaced TEXT even when figures are excluded", () => {
+    const text = range(20);
+    const struct = [41, ...text];
+    const stream = [...withSwaps(text, [[10, 11]]), 41]; // real text swap + moved figure
+    const { qpdf, pdfjs } = build(struct, stream);
+    qpdf.figureMcidsByPage = { 1: [41] };
+    // Figure excluded; the text swap alone is 19/20 = 95% → below the band.
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(90);
+  });
 });
 
 describe("supplementary findings — Acrobat fix guide", () => {
