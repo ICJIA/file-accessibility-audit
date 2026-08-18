@@ -4,6 +4,32 @@ set -e
 cd "$(dirname "$0")"
 
 # ---------------------------------------------------------------------
+# Deploy log.
+#
+# 2026-08-18: a deploy died inside `nuxt build` and the only copy of the
+# error scrolled away in the operator's terminal — this script logged
+# nothing, so the root cause is unknowable. Every run now tees its full
+# output to a timestamped file OUTSIDE the checkout (a log inside it
+# would dirty the working tree that `git checkout -- .` resets).
+#
+# The tee starts ONLY in the process that created the log file. The
+# re-exec below preserves open fds, so the second half's output already
+# flows through the first half's tee — starting another would chain two
+# tees onto the same file and double-write every line (verified in a
+# harness before this shipped). The path rides the same env-var pattern
+# as REBUILD_PRE_PULL_SHA so the guard survives the re-exec.
+# ---------------------------------------------------------------------
+if [ -z "${REBUILD_LOG_FILE:-}" ]; then
+  _log_dir="${REBUILD_LOG_DIR:-$HOME/deploy-logs}"
+  mkdir -p "$_log_dir"
+  export REBUILD_LOG_FILE="$_log_dir/rebuild-$(date +%Y%m%dT%H%M%S).log"
+  # Keep the newest 30 logs; prune older ones so the directory stays small.
+  ls -1t "$_log_dir"/rebuild-*.log 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
+  exec > >(tee -a "$REBUILD_LOG_FILE") 2>&1
+  echo "Full deploy log: $REBUILD_LOG_FILE"
+fi
+
+# ---------------------------------------------------------------------
 # Failure banner.
 #
 # set -e above aborts this script on the first failed command, so a
@@ -50,6 +76,10 @@ _on_exit() {
       fi
       ;;
   esac
+  if [ -n "${REBUILD_LOG_FILE:-}" ]; then
+    echo ""
+    echo "  Full output of this run: $REBUILD_LOG_FILE"
+  fi
   echo "======================================================================"
   exit "$_status"
 }
@@ -273,6 +303,11 @@ pnpm install --frozen-lockfile
 
 echo "Building..."
 _stage="build"
+# Nuxt's persistent build cache corrupted on 2026-08-17 (two concurrent
+# builds → ENOENT .cache/nuxt/.nuxt/manifest.json on every later build,
+# 41 PM2 crash-loops). The cache only speeds up incremental rebuilds; a
+# deploy wants a cold, reproducible build. Drop it first, every time.
+rm -rf apps/web/node_modules/.cache/nuxt
 pnpm build
 
 # Load app secrets persisted in /etc/environment so PM2 inherits them even when
