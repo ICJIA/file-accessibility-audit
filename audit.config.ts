@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "page-report-links-work-2026-08-18",
+    badge: "New",
+    text: "Web-page audit reports have their own report page now. Alongside documents, this service also audits web pages (for example, the pages that link to a PDF) and hands back a shareable report link — but those links opened a “Page not found” error, because the report page itself had never been built. It exists now: score and grade, every issue found with the exact elements affected and how to fix each one, plus the checks that still need a human eye. Links shared before today work too — including ones generated months ago — with nothing to re-run.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 18, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "reading-order-ignores-image-paint-2026-08-17",
     badge: "Improved",
     text: "The reading-order check is fairer to documents with images. Programs like Excel and Word draw a page's images last, no matter where the image belongs on the page — and the check was counting that drawing order against otherwise perfectly organized documents (a logo at the top of the page, for example). The comparison now judges only the order of the text, which is what a screen reader actually reads; genuinely out-of-order text is still flagged exactly as before. Saved reports keep their original evaluation until the document is checked again — if a past report docked reading-order points and the document has images, re-running the audit shows the corrected result.",

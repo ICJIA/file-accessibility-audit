@@ -776,7 +776,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,325 tests** across 142 test files (API 1202, Web 1074, CLI 49). Run all three suites with one summary:
+**2,339 tests** across 143 test files (API 1202, Web 1088, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -858,7 +858,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (977 tests)
+### Web Tests (1088 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -934,6 +934,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `dataRetentionVersion.test.ts` | 2 | The data-retention page no longer hardcodes the stale `1.18.0` version literal — `TOOL_VERSION` now derives from `runtimeConfig.public.appVersion`, the same source the footer uses |
 | `ProcessingOverlay.test.ts` | 2 | The ProcessingOverlay component's live region (Task F6): the stage text is wrapped in `role="status" aria-live="polite"`, and an updated stage is announced when the prop changes |
 | `remediationGuard.test.ts` | 2 | index.vue's remediation-button guard: gates `RemediateButton` on `fileType === 'pdf'` (a positive allowlist), replacing the old negative `!== 'docx'` check that would have wrongly offered PDF-only remediation for pptx/xlsx |
+| `pageReportWiring.test.ts` | 14 | The `/page-report/:id` share page behind every `reportUrl` that `POST /api/audit-url-page` hands out — built after the discovery that the API had emitted that link since v1.26 while the page never existed, so every fleet-audit click-through 404'd. A route **contract test** derives the path segment from the API route's own source and requires the matching page file to exist, so either side renaming without the other fails the suite instead of silently 404ing prod. Real-mount tests (Suspense host, like `reportPageWiring.test.ts`) pin the fetch URL, score/grade, page identity (title, linked URL, audit date), all four axe severity buckets pairing count with label, violation cards (description, element count, selectors, help link), the manual-review section open by default, the no-violations state, link-expiry copy, 404/410 error messages — and the stored-XSS discipline: a `javascript:` audited-page URL or helpUrl renders as inert text, never an href |
 
 ### CLI Tests (49 tests)
 
@@ -1151,6 +1152,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.82.0 — 2026-08-18 · The web-page audit report page exists now — every fleet reportUrl had pointed at a 404 (availability fix, not a security change)
+
+User report: a fleet-audit report's link `audit.icjia.app/page-report/<id>` answered "Page not found" while `GET /api/reports/:id` served the stored report perfectly. `POST /api/audit-url-page` had emitted `reportUrl: /page-report/<id>` since the day it shipped (v1.26-era), but the web page was never built — 5,854 unexpired page-audit reports carried dead links, and nothing caught it because the fleet pipeline consumes the JSON without following the link while the API suite asserts the response shape, not that the URL resolves. The page now exists (grade ring, severity buckets, violations with selectors and fix links, manual-review section, expiry footer, the same 404/410 messaging as document reports), and since the URL scheme is unchanged every already-published link heals retroactively. A route contract test derives the path segment from the API source and requires the matching page file to exist, so the seam cannot silently reopen. Trust boundary reviewed: the payload's `url`/`pageTitle`/selectors originate in the audited page; nothing becomes an href unless it parses as plain http(s); no `v-html`; Vue default escaping throughout; link colors use the themed tokens that keep AA contrast in both themes. A read-path web page over an existing public endpoint — nothing new is collected, stored, or transmitted; no server route, parameter, or dependency was added. **No storage or dependency change; no new attack surface.** Tests 2,325 → 2,339.
 
 ### v1.81.0 — 2026-08-17 · Reading-order check excludes image paint order (scoring-accuracy fix, not a security change)
 

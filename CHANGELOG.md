@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.82.0] - 2026-08-18
+
+### Fixed
+
+- **Web-page audit report links open a report now instead of a 404 — the page they pointed at never existed.** User report: a fleet-audit report linked `https://audit.icjia.app/page-report/<id>` and got "Page not found," while the stored report behind it served perfectly from the API. `POST /api/audit-url-page` (the fleet pipeline's endpoint for auditing the HTML pages that link to documents) has returned `reportUrl: <base>/page-report/<id>` since the day it shipped (v1.26-era), but the web app never had a `/page-report/[id]` page — every link it ever emitted was dead: 5,854 unexpired page-audit reports in production at fix time, their links baked into published fleet bundles. The page exists now: a standalone share view in the mold of `/report/[id]`, fetching the same `GET /api/reports/:id` and rendering the axe page audit — grade ring and score, all four severity buckets (zeros included), violation cards with impact badges, affected-element selectors and "How to fix" links, incomplete checks as a "Needs manual review" section open by default, link-expiry footer, and the same 404/410 messaging. Because the URL scheme is unchanged, every previously published link starts working on deploy — no fleet-side regeneration needed.
+
+### Notes
+
+- Why nothing caught it: the fleet pipeline consumes the JSON (score/grade into CSV cells) and never follows the link, and the API suite asserts the response shape, not that the URL resolves. A new route **contract test** derives the reportUrl path segment from the API route's own source and requires the matching web page file to exist, so either side renaming without the other fails the suite instead of prod silently 404ing. Rendering trust boundary: `url`, `pageTitle`, and element selectors originate in the audited page; nothing from the payload becomes a link unless it parses as plain http(s), and links use the themed `--link` tokens (AA contrast in both themes) with persistent underlines. Full story: `docs/page-report-missing-page-fix.md`. Tests 2,325 → 2,339 (API 1,202 / web 1,088 / CLI 49).
+
 ## [1.81.0] - 2026-08-17
 
 ### Fixed

@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.82.0",
+    meta: "Reviewed <strong>2026-08-18</strong> · scope: a new report page for web-page audits. Nothing new is collected or sent.",
+    body: [
+      {
+        kind: "p",
+        html: "Reports about web pages (produced for the fleet accessibility service, which checks both documents and the web pages that link to them) are stored with a shareable link. Those links pointed at a page of this site that had never been built, so every one of them showed &ldquo;Page not found&rdquo; while the report itself sat safely in storage. The page now exists, and because the link format did not change, every previously shared link began working the moment this release deployed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fix",
+            html: "<strong>Old links work retroactively.</strong> Nothing needed regenerating: the stored reports and their addresses were always valid — only the page that displays them was missing. Links keep their original 365-day expiry, and an expired link says so rather than pretending the report never existed.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>Displayed content is treated as untrusted.</strong> A page audit records the audited page's address, title, and the locations of problem elements — text that originates in someone else's website. The new report page renders all of it as inert text, and only ever turns an address into a clickable link when it is a plain http(s) URL. An automated test also fails the build if the link format and the page ever go out of step again.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Read-only addition.</strong> The page displays reports through the same public report-lookup endpoint that document reports already use. Nothing new is collected, stored, or transmitted, and no server route, parameter, or dependency was added.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.81.0",
     meta: "Reviewed <strong>2026-08-17</strong> · scope: a scoring-accuracy fix inside the document analyzer. Nothing new is collected or sent.",
     body: [
