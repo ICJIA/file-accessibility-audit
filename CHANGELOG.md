@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.82.1] - 2026-08-18
+
+### Fixed
+
+- **Analytics count web-page audit report views as `/page-report`, never as individual reports.** User report (Plausible dashboard screenshot): each visit to a page-audit report registered its own Top Pages row — `/page-report/<id>`, one visit apiece — the same per-file noise the v1.76.0 generalization eliminated for `/remediate/<uuid>` and `/report/<id>`. Cause: `analyticsPagePath` collapses the per-id routes it is taught, and nobody taught it `/page-report/[id]` when v1.82.0 shipped the page — so for part of one day, individual report addresses reached the analytics server against the data-retention policy's stated rule that per-file addresses never leave the visitor's browser. The route now collapses to its base, and a new contract test walks the real `pages/` directory and fails on any dynamic `[param]` route the normalizer does not collapse — the next per-id page type gets caught by CI, not by the dashboard.
+
+### Notes
+
+- The leaked path segment is the report's random identifier — the same one in the shareable link; it names a stored report, not a visitor, and query strings were never affected (reporting has been path-only since v1.76.0). Plausible never rewrites stored rows, so the handful recorded before the fix remain in the dashboard's historical date ranges (on ICJIA's self-hosted instance) while every later visit counts as the base route. Data-retention policy v1.8 → v1.9 (§ 8a and § 9 name the third collapsed route; § 14 discloses the gap). Tests 2,339 → 2,341 (API 1,202 / web 1,090 / CLI 49).
+
 ## [1.82.0] - 2026-08-18
 
 ### Fixed

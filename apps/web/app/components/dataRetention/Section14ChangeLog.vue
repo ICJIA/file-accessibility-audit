@@ -6,6 +6,18 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.9 · 2026-08-18</strong> — Extends the v1.8 address generalization to a third
+        per-file page type and discloses a short gap. The report page for web-page audits
+        (/page-report/…) shipped on 2026-08-18 without being covered by the generalization, so for
+        part of that day each visit to such a report reached the analytics server with the report's
+        individual address — contrary to what v1.8 states. Fixed the same day: those pages now count
+        only as their base route (/page-report), an automated check fails the build for any future
+        per-file page type left out of the generalization, and the few individual addresses already
+        recorded remain only in the analytics tool's historical data on ICJIA's own server. What is
+        recorded per page view is otherwise unchanged (§ 7).
+        <strong>Nothing about what the audit tool itself stores changed.</strong>
+      </li>
+      <li>
         <strong>v1.8 · 2026-08-15</strong> — Narrows what the analytics beacon reports. Page
         addresses are now generalized before they leave the visitor's browser: a repair-job page
         (/remediate/…) or a shared-report page (/report/…) counts only as its base route, so

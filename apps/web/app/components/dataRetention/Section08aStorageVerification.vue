@@ -290,10 +290,10 @@ findings.push(`  "${link.text.trim()}" → ${link.url}`);</pre>
               true for AI services and for everything read from an uploaded document — the server
               makes no such outbound call (§ 4). Since 2026-08-14 the web <em>pages</em> count
               visits with ICJIA's self-hosted, cookie-free Plausible (§ 7): the visitor's browser
-              reports the page address (generalized since 2026-08-15 — per-file repair and
-              shared-report pages count only as their base routes, and query strings are never sent)
-              directly to ICJIA's own analytics server — never audit data, never document content —
-              and no commercial provider receives anything
+              reports the page address (generalized since 2026-08-15 — per-file repair,
+              shared-report, and web-page-audit report pages count only as their base routes, and
+              query strings are never sent) directly to ICJIA's own analytics server — never audit
+              data, never document content — and no commercial provider receives anything
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">

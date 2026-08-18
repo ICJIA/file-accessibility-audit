@@ -776,7 +776,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,339 tests** across 143 test files (API 1202, Web 1088, CLI 49). Run all three suites with one summary:
+**2,341 tests** across 143 test files (API 1202, Web 1090, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -858,7 +858,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `xlsxIntegration.test.ts` | 2 | End-to-end Excel `.xlsx` analysis: an accessible workbook scores ≥ 90 with a clean conformance gate, and a hostile workbook scores ≤ 35 citing 1.1.1/2.4.2/1.3.1/1.4.3 |
 | `remediate-spawn-env.test.ts` | 1 | The remediation worker's spawn environment excludes API secrets (`JWT_SECRET`/`API_PRIVILEGED_TOKEN`/`SMTP_PASS`) while preserving what the Java-based worker needs to run (`PATH`/`HOME`/`JAVA_HOME`/`NODE_ENV`) |
 
-### Web Tests (1088 tests)
+### Web Tests (1090 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -894,7 +894,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `technicalReport.test.ts` | 6 | The Full-technical-report expander: collapsed by default behind a real `aria-expanded` button, expanding to reveal the conformance detail (failing criteria, not-assessed list, standards basis), executive summary + audit-scope caveat, embedded ReportContent without its score table, and `v-model:open` for evidence links — plus ReportContent's `showScoreTable` prop defaulting to today's behavior |
 | `categoryBars.test.ts` | 4 | CategoryBars score-table parity: one row per scored category with label, grade-colored bar, numeric score, grade letter, and severity chip; full-sentence `aria-label` per row; N/A rows distinguishing not-assessed from not-applicable with their `naReason`; malformed categories rendering empty rather than throwing |
 | `remediateDownloadPlacement.test.ts` | 12 | The remediation results page, source-inspected: the remediated-file download controls (filename options + button) render inside the "After Remediation" card after the ScoreCard, the old standalone download section is gone, and the readiness banner is grade-gated — a fix-before-publishing warning for anything below an A (strict-profile grade, matching the card's own ScoreCard), a ready-to-publish note on exactly A |
-| `analyticsUrl.test.ts` | 4 | `analyticsPagePath`, the URL that leaves the site for the analytics server: per-job `/remediate/<uuid>` and per-file `/report/<id>` collapse to their base routes (the dashboard was filling with single-visit rows per file hash), every other route passes through untouched, and look-alike prefixes (`/remediation-guide`) are not collapsed |
+| `analyticsUrl.test.ts` | 6 | `analyticsPagePath`, the URL that leaves the site for the analytics server: per-job `/remediate/<uuid>`, per-file `/report/<id>`, and per-audit `/page-report/<id>` collapse to their base routes (the dashboard was filling with single-visit rows per file hash), every other route passes through untouched, look-alike prefixes (`/remediation-guide`) are not collapsed, and a contract walks the real `pages/` directory so any dynamic `[param]` route the normalizer doesn't collapse fails the suite |
 | `backNavSpacing.test.ts` | 6 | The "← Back" nav on /technical-details and /data-retention keeps an explicit positive gap (`mb-6`) and never a negative margin — the Tailwind v3 `-mb-4`-against-`space-y` idiom inverted under Tailwind v4 (space-y sets the element's own margin via zero-specificity `:where()`, so a real negative class replaces it) and drew the Back button over the page eyebrow |
 | `remediationFailedCard.test.ts` | 8 | The failed-remediation card, source-inspected: the source-document route ("last resort" stated in words, fix → re-export → re-audit) renders before the Acrobat fallback, "Scanned / image-based content" is gone from the common-reasons list (0→0 passes the regression guard, so scanned files complete rather than fail), the fix-step version note is present, and `SourceDocumentNotice` renders on the failed state |
 | `remediationOutcome.test.ts` | 9 | `buildRemediationOutcome`, the per-category dispositions behind the remediation results: a flagged category that comes out clean is fixed, every still-flagged one is exactly one of improved / unchanged / declined / new (numbers from the real ARI fact-sheet run), improved-but-still-flagged never doubles as fixed, never-flagged and not-applicable categories are excluded, Critical→Moderate→Minor ordering, a flagged category missing from the after-audit stays visible as unchanged, and forged-receipt input guards |
@@ -1152,6 +1152,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.82.1 — 2026-08-18 · Analytics count the page-report route, not individual reports (privacy correction)
+
+User report (Plausible dashboard screenshot): every web-page audit report visit registered its own Top Pages row, `/page-report/<id>`. `analyticsPagePath` — the v1.76.0 normalizer that collapses `/remediate/<uuid>` and `/report/<id>` before the manual pageview beacon leaves the browser — was never taught `/page-report/[id]` when v1.82.0 shipped it, so individual report addresses reached the self-hosted analytics server for part of one day, against the policy's stated rule that per-file addresses never leave the visitor's browser. The route now collapses to `/page-report`, and a contract test walks the real `pages/` directory and fails on any dynamic `[param]` route the normalizer does not collapse, so the next per-id page type is caught by CI rather than the dashboard. The leaked segment is the report's random identifier (the same one in the shareable link) — it names a stored report, not a visitor; query strings were never affected (path-only reporting since v1.76.0); rows already recorded stay in Plausible's history, as stored analytics are never rewritten. Policy v1.8 → v1.9 (§ 8a, § 9, § 14). **No storage or dependency change; no new attack surface.** Tests 2,339 → 2,341.
 
 ### v1.82.0 — 2026-08-18 · The web-page audit report page exists now — every fleet reportUrl had pointed at a 404 (availability fix, not a security change)
 

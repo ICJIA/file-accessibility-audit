@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.82.1",
+    meta: "Reviewed <strong>2026-08-18</strong> · scope: an analytics privacy correction. Less now leaves the browser; nothing new is collected.",
+    body: [
+      {
+        kind: "p",
+        html: "Since 2026-08-15 this site's analytics deliberately count <em>pages, not files</em>: visiting an individual repair job or shared report is reported to ICJIA's self-hosted analytics server as the base page address only. The report page for web-page audits, added in v1.82.0, was left out of that rule — for part of one day, each visit reported the report's individual address, and the analytics dashboard showed one-visit rows per report.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>Web-page audit reports now count only as <code>/page-report</code>.</strong> The address generalization covers the new page type, so a report's individual address no longer leaves the visitor's browser. What briefly leaked was the report's random identifier — the same one that appears in the shareable link; it names a stored report, not the person viewing it — and it was recorded only on ICJIA's own analytics server.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>The gap cannot quietly reopen.</strong> An automated test now discovers every per-file page type in the site's own source and fails the build unless the analytics generalization covers it, so a future page type added without the rule is caught before release rather than noticed on the dashboard.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Rows already recorded.</strong> Analytics history is never rewritten, so the few individual addresses recorded during the gap remain in past date ranges of ICJIA's own dashboard; every visit after this release counts as the base route. Data-retention policy v1.8 → v1.9 (§ 8a and § 9 name the third generalized route; § 14 discloses the gap).",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.82.0",
     meta: "Reviewed <strong>2026-08-18</strong> · scope: a new report page for web-page audits. Nothing new is collected or sent.",
     body: [

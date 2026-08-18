@@ -5,8 +5,9 @@
  * own; this plugin reports one pageview per route change, built from the
  * route path through analyticsPagePath(). Two things that must stay true:
  *
- * - Per-file routes (/remediate/<jobId>, /report/<id>) report as their
- *   base route, so the dashboard counts the feature, not the file.
+ * - Per-id routes (/remediate/<jobId>, /report/<id>, /page-report/<id>)
+ *   report as their base route, so the dashboard counts the feature, not
+ *   the file.
  * - The reported URL is origin + path, never the raw location — query
  *   strings (including the remediation download token that the stock
  *   script.js used to ship in its payload) never reach the analytics
