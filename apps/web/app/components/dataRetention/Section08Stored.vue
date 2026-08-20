@@ -25,8 +25,10 @@
           </li>
           <li>
             For a shared report or remediation job only: document metadata (title, author, subject,
-            keywords), image alt-text values, link text and destinations, bookmark titles, and
-            form-field names, quoted inside the findings (§ 8a)
+            keywords), image alt-text values, link text and destinations (with page numbers),
+            heading text, bookmark titles, form-field names, and — for a box of text that the
+            document tags as an image — an excerpt of up to 80 characters of that text, quoted
+            inside the findings (§ 8a)
           </li>
           <li>Server-side timestamps for every lifecycle event</li>
           <li>Job status, step name, progress percentage</li>

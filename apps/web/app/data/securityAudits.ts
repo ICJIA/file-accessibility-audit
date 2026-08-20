@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.83.0",
+    meta: "Reviewed <strong>2026-08-20</strong> · scope: accuracy fixes to what a PDF report says about links, reading order, and images. Nothing new is collected or sent; one more kind of document text appears in stored reports.",
+    body: [
+      {
+        kind: "p",
+        html: "A shared report was re-verified against its document by an independent method, and every count in it held up. What did not hold up was some of the report's <em>wording</em>: the text it showed for each link had been read from the line around the link rather than from the link itself, links that carry no tag at all (a real barrier — screen readers never reach them) went unmentioned outside the technical PDF/UA panel, the reading-order card counted problem pages without naming them, and the image advice would have told an author to describe boxes of text as pictures, which hides that text from screen readers. All four are corrected.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>Link text comes from the link's own tag.</strong> Vague links (&ldquo;here&rdquo;) are caught even when the surrounding sentence is descriptive, a link split across two lines is no longer judged by its first word, and each flagged link names its page. Links with no tag are now a finding in their own right, in the score, in the conformance verdict, and in the fix steps.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>One more kind of document text in stored reports.</strong> To point an author at the right text box, a report now keeps a short excerpt (up to 80 characters) from each image-tagged box of text, alongside the link text, image descriptions, and heading text it already kept. Like those, it is text from the document itself and can therefore contain whatever the document contains; it is shown only through the same escaping every other document-derived string passes through. Data-retention policy v1.9 → v1.10 (§ 8a).",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>Proved on a real file, pinned by tests.</strong> The case that exposed the problem — a link whose rectangle also covers the start of the next sentence — is now a permanent test, along with the untagged-link census and the retag-not-describe guidance. Reports saved before this release are unchanged and behave exactly as they did; checking the document again produces the corrected report.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.82.1",
     meta: "Reviewed <strong>2026-08-18</strong> · scope: an analytics privacy correction. Less now leaves the browser; nothing new is collected.",
     body: [

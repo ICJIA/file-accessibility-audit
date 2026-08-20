@@ -121,7 +121,7 @@ function buildCategories(
   categories.push(scoreBookmarks(qpdf, pdfjs));
   categories.push(scoreTableMarkup(qpdf));
   categories.push(scoreColorContrast());
-  categories.push(scoreLinkQuality(pdfjs));
+  categories.push(scoreLinkQuality(qpdf, pdfjs));
   categories.push(scoreReadingOrder(qpdf, pdfjs));
   categories.push(scoreFormAccessibility(qpdf));
 
@@ -847,6 +847,28 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     findings.push(
       'Tip: Good alt text is concise and describes the purpose of the image, not just its appearance. For example, "Bar chart showing 2024 crime rates by county" rather than "chart".',
     );
+
+    // Figures that are really text. Word exports text boxes, sidebars,
+    // SmartArt and chart title bars as <Figure> with the text nested inside;
+    // a Figure's /Alt REPLACES its contents for a screen reader, so "describe
+    // it" would hide the very text the box holds. Those need retagging, and
+    // the author must be told so before they follow the step above.
+    const textFigures = (pdfjs.textBearingFigures ?? []).filter((f) => !f.hasAlt);
+    if (textFigures.length > 0) {
+      findings.push(`--- Figures That Contain Text ---`);
+      findings.push(
+        `${textFigures.length} <Figure> tag(s) without alt text contain readable text — typically Word text boxes, sidebars, SmartArt, or chart title bars exported as figures:`,
+      );
+      for (const f of textFigures.slice(0, 10)) {
+        findings.push(`  Page ${f.page}: "${f.preview}"`);
+      }
+      if (textFigures.length > 10) {
+        findings.push(`  ... and ${textFigures.length - 10} more`);
+      }
+      findings.push(
+        'Do not add alt text to these. A <Figure>\'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it. Instead change the tag so the text is read directly: Tags panel → right-click the <Figure> → Properties → Type → "Section" (or "Paragraph" for a single block of text). In Word, keep body content out of text boxes and shapes — use ordinary paragraphs, headings, and lists. Pictures and charts still need alt text.',
+      );
+    }
   }
 
   if (untaggedInDenominator > 0) {
@@ -1344,7 +1366,12 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
 // The classifier itself lives in scoring/common.ts (imported at the top of
 // this file) so docx/pptx/xlsx apply the identical doctrine.
 
-function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
+// "(page N)" after a link's text, when the analysis recorded the page.
+function linkPageSuffix(link: { page?: number }): string {
+  return typeof link.page === "number" ? ` (page ${link.page})` : "";
+}
+
+function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const linkLinks: CategoryResult["helpLinks"] = [
     {
       label: "Adobe: Create and Edit Links",
@@ -1376,7 +1403,21 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
     };
   }
 
-  const classified = pdfjs.links.map((link) => ({
+  const total = pdfjs.links.length;
+
+  // An untagged link — an annotation no <Link> element claims — is a defect
+  // in its own right: a screen reader following the tags never meets it.
+  // Its text is only geometry (whatever sat under the rectangle), so it is
+  // NOT judged on wording; it fails for the tagging reason alone. Meaningful
+  // only in a tagged document (an untagged document's links are all
+  // "untagged" and already carry the document-level 1.3.1 failure), and only
+  // when the analysis recorded the flag (stored reports from before the
+  // census classify every link on its text, exactly as they always did).
+  const taggingKnown = qpdf.hasStructTree && pdfjs.links.some((l) => typeof l.tagged === "boolean");
+  const untagged = taggingKnown ? pdfjs.links.filter((l) => l.tagged === false) : [];
+  const assessable = taggingKnown ? pdfjs.links.filter((l) => l.tagged !== false) : pdfjs.links;
+
+  const classified = assessable.map((link) => ({
     link,
     cls: classifyLinkText(link.text),
   }));
@@ -1384,36 +1425,66 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
   const rawUrls = classified.filter((c) => c.cls === "rawUrl");
   const descriptive = classified.filter((c) => c.cls === "descriptive");
 
-  // Only genuinely non-descriptive text (empty / vague phrase / 1–2 chars) is
-  // penalized. A visible raw URL satisfies WCAG 2.4.4 (the destination is
-  // determinable) and is surfaced as advisory only — it does not lower the
-  // score. This keeps the verdict aligned with WCAG and with PAC.
-  const score = Math.floor(((pdfjs.links.length - needsFix.length) / pdfjs.links.length) * 100);
+  // Only genuinely non-descriptive text (empty / vague phrase / 1–2 chars)
+  // and untagged links are penalized. A visible raw URL satisfies WCAG 2.4.4
+  // (the destination is determinable) and is surfaced as advisory only — it
+  // does not lower the score. This keeps the verdict aligned with WCAG and
+  // with PAC.
+  const failing = needsFix.length + untagged.length;
+  const score = Math.floor(((total - failing) / total) * 100);
   const findings: string[] = [];
 
-  if (needsFix.length === 0 && rawUrls.length === 0) {
-    findings.push(`All ${pdfjs.links.length} link(s) use descriptive text`);
+  if (failing === 0 && rawUrls.length === 0) {
+    findings.push(`All ${total} link(s) use descriptive text`);
     findings.push(`--- Link Details ---`);
     for (const { link } of classified.slice(0, 20)) {
-      findings.push(`  "${link.text.trim()}" → ${link.url}`);
+      findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
     }
-    if (pdfjs.links.length > 20) {
-      findings.push(`  ... and ${pdfjs.links.length - 20} more link(s)`);
+    if (total > 20) {
+      findings.push(`  ... and ${total - 20} more link(s)`);
     }
   } else {
     if (needsFix.length > 0) {
       findings.push(
-        `${needsFix.length} of ${pdfjs.links.length} link(s) use non-descriptive text — empty, or a vague phrase such as "click here" / "read more"`,
+        `${needsFix.length} of ${total} link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything`,
       );
       findings.push(`--- Links With Non-Descriptive Text ---`);
       for (const { link } of needsFix.slice(0, 15)) {
         const t = link.text.trim();
-        const why = t.length === 0 ? "empty link text" : "vague phrase";
-        findings.push(`  "${t}" — ${why} → ${link.url}`);
+        const why =
+          t.length === 0
+            ? "empty link text"
+            : t.replace(/[^a-z0-9]/gi, "").length <= 2
+              ? "too short to describe a destination"
+              : "vague phrase";
+        findings.push(`  "${t}"${linkPageSuffix(link)} — ${why} → ${link.url}`);
       }
       if (needsFix.length > 15) {
         findings.push(`  ... and ${needsFix.length - 15} more`);
       }
+    }
+    if (untagged.length > 0) {
+      const census = pdfjs.untaggedLinkAnnotationCount ?? untagged.length;
+      const internalNote =
+        census > untagged.length
+          ? ` (${census} untagged link annotation(s) in all, counting links to other pages of this document.)`
+          : "";
+      findings.push(
+        `${untagged.length} of ${total} link(s) are not tagged — the link exists on the page, but no <Link> tag wraps it in the structure tree, so a screen reader following the tags never encounters it, and with the tab order set to follow the structure it cannot be tabbed to either.${internalNote}`,
+      );
+      findings.push(`--- Links Not Tagged ---`);
+      for (const link of untagged.slice(0, 10)) {
+        findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
+      }
+      if (untagged.length > 10) {
+        findings.push(`  ... and ${untagged.length - 10} more`);
+      }
+      findings.push(
+        "The text shown for an untagged link is read from the page around it and may include neighbouring words.",
+      );
+      findings.push(
+        'How to fix: In Word, links inside text boxes, shapes, and SmartArt are exported without tags — move that content into the main text flow (or a table) and re-export. In Acrobat: open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element, which wraps the link in a <Link> tag; repeat until no unmarked links remain, then confirm each link\'s text sits inside its <Link> tag.',
+      );
     }
     if (rawUrls.length > 0) {
       findings.push(`--- Raw URL Link Text (advisory — not penalized) ---`);
@@ -1421,7 +1492,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
         `${rawUrls.length} link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.`,
       );
       for (const { link } of rawUrls.slice(0, 10)) {
-        findings.push(`  "${link.text.trim()}" → ${link.url}`);
+        findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
       }
       if (rawUrls.length > 10) {
         findings.push(`  ... and ${rawUrls.length - 10} more`);
@@ -1430,7 +1501,7 @@ function scoreLinkQuality(pdfjs: PdfjsResult): CategoryResult {
     if (descriptive.length > 0) {
       findings.push(`--- Links With Descriptive Text ---`);
       for (const { link } of descriptive.slice(0, 10)) {
-        findings.push(`  "${link.text.trim()}" → ${link.url}`);
+        findings.push(`  "${link.text.trim()}"${linkPageSuffix(link)} → ${link.url}`);
       }
       if (descriptive.length > 10) {
         findings.push(`  ... and ${descriptive.length - 10} more descriptive link(s)`);
@@ -1631,8 +1702,13 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       `Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence (DRAW order — the order content is painted, which is not necessarily the visual reading order) on every page that had both. Higher = the two orders agree; a divergence means they disagree, not that the tags are wrong. Image (Figure) runs are excluded from the comparison — exporters paint images by z-order (typically last), which says nothing about reading order.`,
     );
     if (rigorous.pagesWithDrift > 0) {
+      // Name the pages: a count alone gives an author nothing to open.
+      const shown = rigorous.driftPages
+        .slice(0, 12)
+        .map((d) => `page ${d.page} (${d.similarityPct}%)`);
+      const more = rigorous.driftPages.length - shown.length;
       findings.push(
-        `${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match). Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
+        `${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match): ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}. Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
       );
     }
     if (rigorous.score < 100) {

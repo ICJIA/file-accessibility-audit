@@ -331,5 +331,23 @@ export function appendSupplementaryFindings(
     // need a "How to Fix" section — it is just noise to sift through.
     if (cat.score === null || cat.score === 100) continue;
     cat.findings.push(...guide);
+
+    // Per-document additions. The web action plan renders THIS block as the
+    // "Fix the PDF in Acrobat" route (it beats the dictionary default), so a
+    // finding that changes the right Acrobat move has to change it here.
+    if (cat.id === "alt_text" && (pdfjs.textBearingFigures ?? []).some((f) => !f.hasAlt)) {
+      cat.findings.push(
+        'Figures that are really text boxes (listed above under "Figures That Contain Text"): do not describe them — open the Tags panel → right-click the <Figure> tag → Properties → Type → "Section", so the text inside is read directly instead of being hidden behind a description',
+      );
+    }
+    if (
+      cat.id === "link_quality" &&
+      qpdf.hasStructTree &&
+      (pdfjs.untaggedLinkAnnotationCount ?? 0) > 0
+    ) {
+      cat.findings.push(
+        'Untagged links (listed above under "Links Not Tagged"): open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element; repeat until no unmarked links remain',
+      );
+    }
   }
 }

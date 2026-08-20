@@ -230,19 +230,65 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
     ),
   );
 
-  // Tagged annotations: we don't have a direct signal for whether every
-  // annotation has a structural parent. Report as not_computed.
-  rules.push(
-    rule(
-      "tagged_annotations",
-      "Page Content",
-      "Tagged annotations",
-      "All annotations are tagged",
-      "not_computed",
-      false,
-      "This tool does not currently verify that every annotation (link, comment, form field) is wrapped in a structural tag. Compare with Acrobat's Accessibility Checker for this rule specifically.",
-    ),
-  );
+  // Tagged annotations: computed from pdfjs's link-annotation census — every
+  // /Link annotation, and how many no structure element references. Only
+  // LINK annotations are checked (Acrobat's rule also covers comments and
+  // form widgets), which the note says. The census is absent on stored
+  // reports from before it existed; those stay not_computed.
+  const linkAnnots = pdfjs.linkAnnotationCount;
+  const untaggedLinkAnnots = pdfjs.untaggedLinkAnnotationCount;
+  const linkScope = "(Only link annotations are checked; comments and form widgets are not.)";
+  if (typeof linkAnnots !== "number" || typeof untaggedLinkAnnots !== "number") {
+    rules.push(
+      rule(
+        "tagged_annotations",
+        "Page Content",
+        "Tagged annotations",
+        "All annotations are tagged",
+        "not_computed",
+        false,
+        "This report predates the link-tagging census, so whether every annotation is wrapped in a structural tag was not verified. Compare with Acrobat's Accessibility Checker for this rule specifically.",
+      ),
+    );
+  } else if (linkAnnots === 0) {
+    rules.push(
+      rule(
+        "tagged_annotations",
+        "Page Content",
+        "Tagged annotations",
+        "All annotations are tagged",
+        "passed",
+        true,
+        `No link annotations in the document — the rule passes vacuously. ${linkScope}`,
+      ),
+    );
+  } else if (!qpdf.hasStructTree) {
+    rules.push(
+      rule(
+        "tagged_annotations",
+        "Page Content",
+        "Tagged annotations",
+        "All annotations are tagged",
+        "failed",
+        false,
+        `The document has no structure tree, so none of its ${linkAnnots} link annotation(s) can have a structural parent. ${linkScope}`,
+      ),
+    );
+  } else {
+    rules.push(
+      rule(
+        "tagged_annotations",
+        "Page Content",
+        "Tagged annotations",
+        "All annotations are tagged",
+        untaggedLinkAnnots === 0 ? "passed" : "failed",
+        false,
+        untaggedLinkAnnots === 0
+          ? `All ${linkAnnots} link annotation(s) are wrapped in a <Link> tag. ${linkScope}`
+          : `${untaggedLinkAnnots} of ${linkAnnots} link annotation(s) have no <Link> tag in the structure tree. ${linkScope}`,
+      ),
+    );
+  }
 
   rules.push(
     rule(

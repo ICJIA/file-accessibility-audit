@@ -6,6 +6,17 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.10 · 2026-08-20</strong> — Discloses one more kind of document text that a
+        <em>saved or shared</em> PDF report can quote. When a document tags a box of text as an
+        image (Word does this with text boxes, sidebars, and chart titles), the report now keeps an
+        excerpt of up to 80 characters of that text so it can point an author at the right box — and
+        tell them to change its tag rather than describe it, because a description would hide the
+        text from screen readers. The same section now also names heading text and the page number
+        beside each quoted link, both of which reports already carried. Nothing about who uploaded a
+        file, nothing about visitors, and no new table, column, or retention period: the excerpts
+        live inside the same stored report text, under the same 365-day expiry (§ 7, § 8, § 8a).
+      </li>
+      <li>
         <strong>v1.9 · 2026-08-18</strong> — Extends the v1.8 address generalization to a third
         per-file page type and discloses a short gap. The report page for web-page audits
         (/page-report/…) shipped on 2026-08-18 without being covered by the generalization, so for

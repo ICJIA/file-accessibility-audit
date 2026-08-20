@@ -344,6 +344,29 @@ export function evaluateConformance(
     );
   }
 
+  // 7b. Link annotations outside the structure tree — in a TAGGED document
+  //     with real content only (an untagged or content-free tree already
+  //     carries the document-level 1.3.1 failure from check 1, and every
+  //     link in it is "untagged" by definition). Each one is a link that
+  //     assistive technology following the tags cannot identify or reach
+  //     (W3C technique PDF11; PDF/UA 7.18.5). Mechanical and certain: the
+  //     annotation exists and no structure element references it. The
+  //     census is absent on stored reports from before it existed, so this
+  //     never fires on them.
+  const untaggedLinks =
+    qpdf.hasStructTree && !structTreeIsContentFree(qpdf, pdfjs)
+      ? (pdfjs.untaggedLinkAnnotationCount ?? 0)
+      : 0;
+  if (untaggedLinks > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "link_quality",
+      `${untaggedLinks} link(s) are not tagged — the link annotation is on the page, but no <Link> structure element wraps it, so assistive technology following the tag tree cannot identify it as a link or reach it. Wrap each one in a <Link> tag (Acrobat: Tags panel → Options → Find → Unmarked Links → Tag Element) or, in Word, move the link out of the text box or shape into the main text before re-exporting.`,
+    );
+  }
+
   // 8. Unlabeled form fields.
   if (qpdf.hasAcroForm) {
     const unlabeledFields = qpdf.formFields.filter((f) => !f.hasTU).length;

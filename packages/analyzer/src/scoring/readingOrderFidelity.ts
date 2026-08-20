@@ -21,6 +21,11 @@ export interface ReadingOrderFidelity {
   similarityPct: number;
   pagesAnalyzed: number;
   pagesWithDrift: number;
+  // The pages behind `pagesWithDrift` (< 80% agreement), ascending, each
+  // with its rounded per-page match — so the card can NAME the pages an
+  // author should open in Acrobat's Order panel instead of only counting
+  // them.
+  driftPages: Array<{ page: number; similarityPct: number }>;
 }
 
 export function computeReadingOrderFidelity(
@@ -32,6 +37,7 @@ export function computeReadingOrderFidelity(
     similarityPct: 0,
     pagesAnalyzed: 0,
     pagesWithDrift: 0,
+    driftPages: [],
   };
 
   const structByPage = qpdf.structTreeMcidsByPage;
@@ -47,6 +53,7 @@ export function computeReadingOrderFidelity(
   let weightedSum = 0;
   let pagesAnalyzed = 0;
   let pagesWithDrift = 0;
+  const driftPages: Array<{ page: number; similarityPct: number }> = [];
 
   // Figure MCIDs are excluded from the comparison: image paint order is a
   // z-order concern — Office exporters paint images LAST regardless of where
@@ -76,10 +83,14 @@ export function computeReadingOrderFidelity(
     totalShared += shared.size;
     weightedSum += pageSimilarity * shared.size;
     pagesAnalyzed++;
-    if (pageSimilarity < 0.8) pagesWithDrift++;
+    if (pageSimilarity < 0.8) {
+      pagesWithDrift++;
+      driftPages.push({ page: pageNum, similarityPct: Math.round(pageSimilarity * 100) });
+    }
   }
 
   if (pagesAnalyzed === 0 || totalShared === 0) return emptyResult;
+  driftPages.sort((a, b) => a.page - b.page);
 
   const similarity = weightedSum / totalShared;
   const similarityPct = Math.round(similarity * 100);
@@ -112,6 +123,7 @@ export function computeReadingOrderFidelity(
     similarityPct,
     pagesAnalyzed,
     pagesWithDrift,
+    driftPages,
   };
 }
 

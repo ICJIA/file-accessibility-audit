@@ -26,7 +26,33 @@ export interface PdfjsResult {
   lang: string | null;
   hasOutlines: boolean;
   outlineCount: number;
-  links: Array<{ url: string; text: string }>;
+  // One entry per LINK, not per annotation. A link claimed by a <Link>
+  // structure element reads its text from that element's marked-content runs
+  // (exact — the same id mapping the heading outline uses) and is `tagged:
+  // true`; a wrapped link that spans several annotations is still one entry.
+  // An annotation no element claims falls back to the text items whose origin
+  // lies inside its /Rect (approximate — it can include neighbouring words)
+  // and is `tagged: false`, which is its real defect. `tagged` and `page` are
+  // absent on stored reports from before this census existed.
+  links: Array<{ url: string; text: string; tagged?: boolean; page?: number }>;
+  // Link-annotation tagging census across all pages: visible /Link
+  // annotations (external AND internal), and how many of them no structure
+  // element references. Absent (undefined) on pre-census stored reports, so
+  // consumers can tell "analyzed, all tagged" (0) from "unknown".
+  linkAnnotationCount?: number;
+  untaggedLinkAnnotationCount?: number;
+  // <Figure> elements whose descendants carry real text — Word exports text
+  // boxes, sidebars, SmartArt and chart title bars this way. A Figure's /Alt
+  // REPLACES its contents for a screen reader, so "add alt text" is the wrong
+  // fix for these; the scorer tells the author to retag them instead. Only
+  // figures WITH text are recorded (capped), with a short preview to find
+  // them by. Absent on pre-census stored reports.
+  textBearingFigures?: Array<{
+    page: number;
+    hasAlt: boolean;
+    textLength: number;
+    preview: string;
+  }>;
   imageCount: number;
   // Painted images NOT enclosed by any /Artifact run — i.e. the content images
   // that actually participate in the reading order and require alt text. Lets
@@ -79,6 +105,8 @@ export interface PdfjsResult {
 // outline lines, so extraction stops well past that rather than carrying
 // thousands of entries through the report payload.
 const MAX_HEADING_OUTLINE_ENTRIES = 300;
+// Same idea for the text-bearing figure census: the scorer lists ten.
+const MAX_TEXT_BEARING_FIGURES = 200;
 
 export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
   // Dynamic import since pdfjs-dist is ESM-heavy
@@ -103,6 +131,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     artifactRunCount: 0,
     contentStreamMcidsByPage: {},
     headingOutline: [],
+    linkAnnotationCount: 0,
+    untaggedLinkAnnotationCount: 0,
+    textBearingFigures: [],
     metadata: {
       creator: null,
       producer: null,
@@ -216,29 +247,87 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         result.emptyPages.push(i);
       }
 
-      // Link annotations
+      // This page's struct tree, fetched once and shared by the link-text
+      // pass, the heading outline, and the figure census. Never fatal: a page
+      // with a broken or absent tree just contributes nothing to them.
+      let tree: any = null;
+      let textById: Map<string, string> | null = null;
+      try {
+        tree = await page.getStructTree();
+        if (tree) textById = buildMarkedContentTextMap(textContent.items);
+      } catch {}
+
+      // Link annotations. A link's text is what its <Link> element contains —
+      // exact marked-content runs, not "whatever text starts inside the
+      // rectangle" (which bled "here . FOID statistics are available" into a
+      // link on "here", and split a line-wrapped link into a fragment "PA").
+      // Geometry is kept only for annotations no element claims; those are
+      // reported as untagged, which is their actual defect.
       try {
         const annotations = await page.getAnnotations();
-        for (const annot of annotations) {
-          if (annot.subtype === "Link" && annot.url) {
-            // Find the text content near this link's position
-            const linkText = findLinkText(annot, textItems) || annot.url;
-            result.links.push({ url: annot.url, text: linkText });
+        const linkAnnots = annotations.filter(
+          (a: any) => a?.subtype === "Link" && !isHiddenAnnotation(a),
+        );
+        const annotById = new Map<string, any>();
+        for (const a of linkAnnots) {
+          const id = normalizeAnnotationId(a.id);
+          if (id) annotById.set(id, a);
+        }
+        const claimed = new Set<any>();
+        const structLinks = tree && textById ? collectStructTreeLinks(tree, textById) : [];
+        for (const sl of structLinks) {
+          const annots = sl.annotationIds.map((id) => annotById.get(id)).filter(Boolean);
+          for (const a of annots) claimed.add(a);
+          const urls = [
+            ...new Set(
+              annots
+                .map((a: any) => a.url)
+                .filter((u: unknown): u is string => typeof u === "string" && u.length > 0),
+            ),
+          ];
+          if (urls.length === 0) continue; // internal (GoTo) link, or no annotation at all
+          const text =
+            sl.text ||
+            annots
+              .map((a: any) => findLinkText(a, textItems))
+              .filter(Boolean)
+              .join(" ") ||
+            urls[0];
+          for (const url of urls) result.links.push({ url, text, tagged: true, page: i });
+        }
+        let untagged = 0;
+        for (const annot of linkAnnots) {
+          if (claimed.has(annot)) continue;
+          untagged++;
+          if (annot.url) {
+            result.links.push({
+              url: annot.url,
+              text: findLinkText(annot, textItems) || annot.url,
+              tagged: false,
+              page: i,
+            });
           }
+        }
+        result.linkAnnotationCount = (result.linkAnnotationCount ?? 0) + linkAnnots.length;
+        result.untaggedLinkAnnotationCount = (result.untaggedLinkAnnotationCount ?? 0) + untagged;
+      } catch {}
+
+      // Heading text.
+      try {
+        if (tree && textById && result.headingOutline!.length < MAX_HEADING_OUTLINE_ENTRIES) {
+          result.headingOutline!.push(...collectStructTreeHeadings(tree, textById));
         }
       } catch {}
 
-      // Heading text. Never fatal: a page with a broken struct tree just
-      // contributes no outline entries.
+      // Figures that contain text (see PdfjsResult.textBearingFigures).
       try {
-        if (result.headingOutline!.length < MAX_HEADING_OUTLINE_ENTRIES) {
-          const tree = await page.getStructTree();
-          if (tree) {
-            const textById = buildMarkedContentTextMap(textContent.items);
-            result.headingOutline!.push(...collectStructTreeHeadings(tree, textById));
-          }
+        if (tree && textById && result.textBearingFigures!.length < MAX_TEXT_BEARING_FIGURES) {
+          result.textBearingFigures!.push(...collectTextBearingFigures(tree, textById, i));
         }
       } catch {}
+    }
+    if (result.textBearingFigures!.length > MAX_TEXT_BEARING_FIGURES) {
+      result.textBearingFigures!.length = MAX_TEXT_BEARING_FIGURES;
     }
     if (result.headingOutline!.length > MAX_HEADING_OUTLINE_ENTRIES) {
       result.headingOutline!.length = MAX_HEADING_OUTLINE_ENTRIES;
@@ -499,11 +588,17 @@ export function buildMarkedContentTextMap(items: unknown[]): Map<string, string>
       stack.push(typeof item.id === "string" && item.id ? item.id : null);
     } else if (item?.type === "endMarkedContent") {
       stack.pop();
-    } else if (typeof item?.str === "string" && item.str) {
+    } else if (typeof item?.str === "string" && (item.str || item.hasEOL === true)) {
+      // A line end (hasEOL) is a word boundary pdf.js reports instead of a
+      // space glyph — on the last item of the line, or as a separate empty
+      // item ({str: "", hasEOL: true}) when the break falls between chunks.
+      // Without it a link wrapped across two lines reads
+      // "RevocationEnforcement". Consumers collapse whitespace anyway.
+      const piece = item.hasEOL === true ? `${item.str} ` : item.str;
       for (let i = stack.length - 1; i >= 0; i--) {
         const id = stack[i];
         if (id) {
-          map.set(id, (map.get(id) ?? "") + item.str);
+          map.set(id, (map.get(id) ?? "") + piece);
           break;
         }
       }
@@ -515,38 +610,135 @@ export function buildMarkedContentTextMap(items: unknown[]): Map<string, string>
 // Serialized getStructTree() heading roles: H1–H6, or generic H (no level).
 const HEADING_ROLE = /^H[1-6]?$/;
 
+const normalizeWhitespace = (s: string): string => s.replace(/\s+/g, " ").trim();
+
+// The concatenated text of a serialized struct node's content leaves,
+// including leaves nested under Spans and other child elements, with
+// whitespace collapsed. Exported for tests.
+export function structNodeText(node: unknown, textById: Map<string, string>): string {
+  const parts: string[] = [];
+  const walk = (n: any): void => {
+    if (!n || typeof n !== "object") return;
+    if (n.type === "content" && typeof n.id === "string") {
+      const t = textById.get(n.id);
+      if (t) parts.push(t);
+      return;
+    }
+    if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+  };
+  walk(node);
+  return normalizeWhitespace(parts.join(" "));
+}
+
 // Walk a serialized struct tree (page.getStructTree()) and resolve each
 // heading node's text: the node's /Alt or /ActualText when the author
-// provided one, else the concatenated text of its content leaves (including
-// leaves nested under Spans and other child elements). Headings whose text
-// cannot be resolved are skipped — an outline of blank lines helps nobody.
-// Exported for tests.
+// provided one, else the concatenated text of its content leaves. Headings
+// whose text cannot be resolved are skipped — an outline of blank lines
+// helps nobody. Exported for tests.
 export function collectStructTreeHeadings(
   tree: unknown,
   textById: Map<string, string>,
 ): Array<{ level: string; text: string }> {
   const out: Array<{ level: string; text: string }> = [];
-  const normalize = (s: string): string => s.replace(/\s+/g, " ").trim();
-  const contentText = (node: any): string => {
-    const parts: string[] = [];
-    const walk = (n: any): void => {
-      if (!n || typeof n !== "object") return;
-      if (n.type === "content" && typeof n.id === "string") {
-        const t = textById.get(n.id);
-        if (t) parts.push(t);
-        return;
-      }
-      if (Array.isArray(n.children)) for (const c of n.children) walk(c);
-    };
-    walk(node);
-    return normalize(parts.join(" "));
-  };
   const visit = (node: any): void => {
     if (!node || typeof node !== "object") return;
     if (typeof node.role === "string" && HEADING_ROLE.test(node.role)) {
-      const alt = typeof node.alt === "string" ? normalize(node.alt) : "";
-      const text = alt || contentText(node);
+      const alt = typeof node.alt === "string" ? normalizeWhitespace(node.alt) : "";
+      const text = alt || structNodeText(node, textById);
       if (text) out.push({ level: node.role, text });
+      return;
+    }
+    if (Array.isArray(node.children)) for (const c of node.children) visit(c);
+  };
+  visit(tree);
+  return out;
+}
+
+// pdf.js serializes an OBJR kid as {type:"object", id:"<ref>"} — or, when
+// the OBJR is the element's only kid and the annotation carries a
+// /StructParent, as {type:"annotation", id:"pdfjs_internal_id_<ref>"}.
+// getAnnotations() reports the same ref as the annotation's `id`. Normalize
+// both to the bare ref so they can be matched.
+const ANNOTATION_ID_PREFIX = "pdfjs_internal_id_";
+function normalizeAnnotationId(id: unknown): string | null {
+  if (typeof id !== "string" || id.length === 0) return null;
+  return id.startsWith(ANNOTATION_ID_PREFIX) ? id.slice(ANNOTATION_ID_PREFIX.length) : id;
+}
+
+// Annotation flag bits (ISO 32000-1 §12.5.3): Hidden (bit 2) and NoView
+// (bit 6) annotations are never presented, so they are outside the tagging
+// census — PDF/UA 7.18.1 exempts them too.
+function isHiddenAnnotation(annot: any): boolean {
+  const flags = annot?.annotationFlags;
+  return typeof flags === "number" && (flags & (2 | 32)) !== 0;
+}
+
+// Every <Link> element in a serialized struct tree, with its resolved text
+// and the (normalized) ids of the annotations it references. Text is the
+// element's content runs; a content-less Link falls back to its /Alt (the
+// accessible name an author gave an image link). Exported for tests.
+export function collectStructTreeLinks(
+  tree: unknown,
+  textById: Map<string, string>,
+): Array<{ text: string; annotationIds: string[] }> {
+  const out: Array<{ text: string; annotationIds: string[] }> = [];
+  const annotationIds = (node: any): string[] => {
+    const ids: string[] = [];
+    const walk = (n: any): void => {
+      if (!n || typeof n !== "object" || !Array.isArray(n.children)) return;
+      for (const c of n.children) {
+        if (c?.type === "object" || c?.type === "annotation") {
+          const id = normalizeAnnotationId(c.id);
+          if (id) ids.push(id);
+        } else if (c && typeof c === "object" && typeof c.role === "string") {
+          walk(c);
+        }
+      }
+    };
+    walk(node);
+    return ids;
+  };
+  const visit = (node: any): void => {
+    if (!node || typeof node !== "object") return;
+    if (node.role === "Link") {
+      const alt = typeof node.alt === "string" ? normalizeWhitespace(node.alt) : "";
+      out.push({ text: structNodeText(node, textById) || alt, annotationIds: annotationIds(node) });
+      return;
+    }
+    if (Array.isArray(node.children)) for (const c of node.children) visit(c);
+  };
+  visit(tree);
+  return out;
+}
+
+const FIGURE_PREVIEW_CHARS = 80;
+
+// Every <Figure> element on a page whose descendants carry text — a Word
+// text box, sidebar, SmartArt, or chart title bar exported as a figure.
+// Figures with no text (pictures, vector drawings) are not reported; they
+// are ordinary alt-text candidates. `hasAlt` mirrors qpdf's definition
+// (pdf.js puts /Alt or /ActualText in `alt`). Exported for tests.
+export function collectTextBearingFigures(
+  tree: unknown,
+  textById: Map<string, string>,
+  page: number,
+): Array<{ page: number; hasAlt: boolean; textLength: number; preview: string }> {
+  const out: Array<{ page: number; hasAlt: boolean; textLength: number; preview: string }> = [];
+  const visit = (node: any): void => {
+    if (!node || typeof node !== "object") return;
+    if (node.role === "Figure") {
+      const text = structNodeText(node, textById);
+      if (text) {
+        out.push({
+          page,
+          hasAlt: typeof node.alt === "string" && node.alt.trim().length > 0,
+          textLength: text.length,
+          preview:
+            text.length > FIGURE_PREVIEW_CHARS
+              ? `${text.slice(0, FIGURE_PREVIEW_CHARS - 1)}…`
+              : text,
+        });
+      }
       return;
     }
     if (Array.isArray(node.children)) for (const c of node.children) visit(c);

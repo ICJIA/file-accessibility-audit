@@ -232,6 +232,17 @@ export const WCAG_22_NEW_AA = [
 
 export const ANNOUNCEMENTS = [
   {
+    id: "link-text-from-tags-2026-08-20",
+    badge: "Improved",
+    text: "PDF reports describe links and images more accurately. A link's text is now read from the link itself rather than from the line of text around it, so a vague link such as “here” is caught even when the rest of the sentence is descriptive — and a link split across two lines is no longer flagged by its first word. Links that have no tag at all (common for links inside Word text boxes — screen readers simply never reach them) are reported as a finding of their own, with the page number. The reading-order check names the pages that read out of sequence. And when an “image” missing alt text is really a box of text — a sidebar, a timeline, a chart title — the report now says so and tells you to change its tag instead of describing it, because alt text on a box of text would hide the text from screen readers. Saved reports keep their original wording until the document is checked again.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 20, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "page-report-links-work-2026-08-18",
     badge: "New",
     text: "Web-page audit reports have their own report page now. Alongside documents, this service also audits web pages (for example, the pages that link to a PDF) and hands back a shareable report link — but those links opened a “Page not found” error, because the report page itself had never been built. It exists now: score and grade, every issue found with the exact elements affected and how to fix each one, plus the checks that still need a human eye. Links shared before today work too — including ones generated months ago — with nothing to re-run.",

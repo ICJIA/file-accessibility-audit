@@ -1,6 +1,6 @@
 {
   "name": "@icjia/a11y-audit",
-  "version": "1.82.1",
+  "version": "1.83.0",
   "private": true,
   "type": "module",
   "imports": {

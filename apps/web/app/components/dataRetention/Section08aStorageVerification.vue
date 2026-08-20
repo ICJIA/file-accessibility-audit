@@ -178,9 +178,11 @@ try {
         <strong>findings can quote short strings copied from inside the document</strong>, because
         naming the problem requires showing it. Specifically: the document's own metadata (title,
         author, subject, keywords, creator/producer), image alt-text values, link text and link
-        destinations, bookmark titles, form-field <em>names</em>, and font names. For example, the
-        alt-text check quotes each image's alt text so a reader can judge it (<code
-          class="text-xs font-mono"
+        destinations with their page numbers, heading text, bookmark titles, form-field
+        <em>names</em>, font names, and — since v1.83.0 — an excerpt of up to 80 characters from
+        each box of text the document tags as an image, so the report can point at the right box
+        instead of telling an author to describe it. For example, the alt-text check quotes each
+        image's alt text so a reader can judge it (<code class="text-xs font-mono"
           >packages/analyzer/src/scoring/pdf.ts</code
         >):
       </p>

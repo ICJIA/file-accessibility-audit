@@ -75,6 +75,8 @@ Perpetual-license context for IT:
 | Document properties | ☰ Menu (Win) / File menu (Mac) → Document properties | File → Properties |
 | Preflight | All tools → Use print production → Preflight | Tools → Print Production → Preflight |
 | Edit text | All tools → Edit a PDF | Tools → Edit PDF |
+| Tag an untagged link (added 2026-08-20) | Tags panel → Options menu (⋮) → Find → "Unmarked Links" → Find → Tag Element | Tags panel → Options → Find → Unmarked Links → Tag Element |
+| Change a tag's type, e.g. a text-box `<Figure>` to Section (added 2026-08-20) | Tags panel → right-click the tag → Properties → Type | same |
 
 Word paths verified verbatim against Microsoft's current articles: Review → Check
 Accessibility (pane is "Accessibility Assistant" in Word for Microsoft 365 on Windows);

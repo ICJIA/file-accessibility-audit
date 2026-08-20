@@ -327,10 +327,12 @@
         >
         the <em>file name</em> as uploaded — so a file named after a person stores that person's
         name — and, for a report someone chose to <em>save or share</em>, short quoted labels from
-        inside the document: image alt text, link wording, bookmark titles, the document's own title
-        and author fields — because the findings have to point at what to fix (§ 8a). Never the
-        pages themselves, and never who uploaded anything: there is no account to record, and the
-        schema has no email, IP-address, or browser column to fill. The complete accounting is in
+        inside the document: image alt text, link wording, heading text, bookmark titles, the
+        document's own title and author fields, and a short excerpt (up to 80 characters) from any
+        box of text the document tags as an image — because the findings have to point at what to
+        fix (§ 8a). Never the pages themselves, and never who uploaded anything: there is no account
+        to record, and the schema has no email, IP-address, or browser column to fill. The complete
+        accounting is in
         <a href="#stored" class="text-[var(--link)] hover:text-[var(--link-hover)]"
           >§ 8, What is and isn't stored</a
         >.

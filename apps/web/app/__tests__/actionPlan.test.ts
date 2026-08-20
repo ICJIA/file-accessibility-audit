@@ -401,6 +401,137 @@ describe("InDesign-authored PDFs (creator detection)", () => {
   });
 });
 
+describe("alt_text variant — figures that are really text boxes", () => {
+  // Word exports text boxes, sidebars, SmartArt and chart title bars as
+  // <Figure>. A Figure's alt text REPLACES its contents for a screen reader,
+  // so the stock "describe every image" step would have the author hide the
+  // text those boxes hold (FFY24 SCIP Plan, 2026-08-20: 16 of 26 alt-less
+  // figures were text). When the analyzer reports such figures, the plan's
+  // step must say so — and must keep describing the real pictures.
+  const TEXT_FIGURE_FINDINGS = [
+    "1 of 27 image(s) have alternative text",
+    "--- Images Missing Alt Text ---",
+    "  Image 1: <Figure> tag — no /Alt attribute",
+    "--- Figures That Contain Text ---",
+    "16 <Figure> tag(s) without alt text contain readable text — typically Word text boxes, sidebars, SmartArt, or chart title bars exported as figures:",
+    '  Page 22: "LEGISLATIVE TIMELINE"',
+    "Do not add alt text to these. A <Figure>'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it.",
+  ];
+
+  it("tells the author to retag the text boxes and still describe the real pictures", () => {
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", TEXT_FIGURE_FINDINGS)],
+      "pdf",
+    )[0]!;
+    expect(step.title).toMatch(/text box/i);
+    expect(step.why).toMatch(/text box/i);
+    expect(step.why).toMatch(/hide/i);
+    const source = step.routes.find((r) => r.tool === "source")!;
+    const joined = source.steps.join(" ");
+    expect(joined).toMatch(/Alt Text/);
+    expect(joined).toMatch(/text box/i);
+    expect(joined).toMatch(/ordinary paragraphs|main text/i);
+    // No per-document Acrobat block in this fixture → dictionary route, which
+    // must carry the retag path.
+    const acrobat = step.routes.find((r) => r.tool === "acrobat")!;
+    expect(acrobat.steps.join(" ")).toMatch(/Properties → Type/);
+  });
+
+  it("keeps today's copy when no figure contains text", () => {
+    const today = buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf")[0]!;
+    const plain = buildActionPlan(
+      [
+        cat("alt_text", "Alt Text on Images", "Critical", [
+          "0 of 3 image(s) have alternative text",
+          "  Image 1: <Figure> tag — no /Alt attribute",
+        ]),
+      ],
+      "pdf",
+    )[0]!;
+    expect(plain.title).toBe(today.title);
+    expect(plain.why).toBe(today.why);
+  });
+
+  it("is InDesign-aware and obeys the plain-language rule", () => {
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", TEXT_FIGURE_FINDINGS)],
+      "pdf",
+      "Adobe InDesign 21.4 (Macintosh)",
+    )[0]!;
+    const source = step.routes.find((r) => r.tool === "source")!;
+    expect(source.label).toBe("Easiest — fix the InDesign file, then re-export");
+    expect(source.steps.join(" ")).not.toMatch(/Word|File → Save As/);
+    expect(step.title).not.toMatch(/WCAG|ISO|14289|StructTreeRoot|MCID/);
+    expect(step.why).not.toMatch(/WCAG|ISO|14289|StructTreeRoot|MCID/);
+  });
+});
+
+describe("link_quality variant — untagged links", () => {
+  // Six links inside a Word text box had no <Link> tag (FFY24 SCIP Plan,
+  // 2026-08-20). The stock link step says Acrobat cannot help — true for
+  // link WORDING, false for tagging, which Acrobat's "Unmarked Links" finder
+  // handles — and sends the author to rewrite text that is fine.
+  const UNTAGGED_FINDINGS = [
+    "6 of 83 link(s) are not tagged — the link exists on the page, but no <Link> tag wraps it in the structure tree, so a screen reader following the tags never encounters it.",
+    "--- Links Not Tagged ---",
+    '  "PA" (page 22) → https://www.ilga.gov/legislation/publicacts/102/102-1116.htm',
+  ];
+
+  it("explains the tagging problem and gives a real Acrobat route", () => {
+    const step = buildActionPlan(
+      [cat("link_quality", "Link & URL Quality", "Minor", UNTAGGED_FINDINGS)],
+      "pdf",
+    )[0]!;
+    expect(step.title).toMatch(/tag/i);
+    expect(step.why).toMatch(/no tag|not tagged|without a tag/i);
+    const source = step.routes.find((r) => r.tool === "source")!;
+    expect(source.steps.join(" ")).toMatch(/text box/i);
+    const acrobat = step.routes.find((r) => r.tool === "acrobat")!;
+    expect(acrobat.label).toBe("No source file? Fix the PDF in Acrobat Pro");
+    expect(acrobat.steps.join(" ")).toMatch(/Unmarked Links/);
+  });
+
+  it("still covers link wording, since both problems usually travel together", () => {
+    const step = buildActionPlan(
+      [cat("link_quality", "Link & URL Quality", "Minor", UNTAGGED_FINDINGS)],
+      "pdf",
+    )[0]!;
+    const source = step.routes.find((r) => r.tool === "source")!;
+    expect(source.steps.join(" ")).toMatch(/describe the destination/i);
+  });
+
+  it("keeps today's source-only copy when every link is tagged", () => {
+    const today = buildActionPlan([cat("link_quality", "Link & URL Quality", "Minor")], "pdf")[0]!;
+    const vagueOnly = buildActionPlan(
+      [
+        cat("link_quality", "Link & URL Quality", "Minor", [
+          '1 of 9 link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything',
+          "--- Links With Non-Descriptive Text ---",
+          '  "here" (page 21) — vague phrase → https://example.org',
+        ]),
+      ],
+      "pdf",
+    )[0]!;
+    expect(vagueOnly.title).toBe(today.title);
+    expect(vagueOnly.routes.find((r) => r.tool === "acrobat")!.label).toBe(
+      "Only fixable in the source document",
+    );
+  });
+
+  it("is InDesign-aware and obeys the plain-language rule", () => {
+    const step = buildActionPlan(
+      [cat("link_quality", "Link & URL Quality", "Minor", UNTAGGED_FINDINGS)],
+      "pdf",
+      "Adobe InDesign 21.4 (Macintosh)",
+    )[0]!;
+    const source = step.routes.find((r) => r.tool === "source")!;
+    expect(source.label).toBe("Easiest — fix the InDesign file, then re-export");
+    expect(source.steps.join(" ")).not.toMatch(/Word|File → Save As/);
+    expect(step.title).not.toMatch(/WCAG|ISO|14289|StructTreeRoot|MCID/);
+    expect(step.why).not.toMatch(/WCAG|ISO|14289|StructTreeRoot|MCID/);
+  });
+});
+
 describe("publicationVerdict", () => {
   it("leads with the blocker, counted, and carries the critical tone", () => {
     expect(publicationVerdict([cat("a", "A", "Critical"), cat("b", "B", "Minor")])).toEqual({

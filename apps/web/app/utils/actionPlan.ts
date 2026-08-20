@@ -446,14 +446,106 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
 ];
 
 /**
+ * alt_text has one findings-keyed variant: figures that are really text.
+ * Word exports text boxes, sidebars, SmartArt and chart title bars as
+ * <Figure> with the text nested inside, and a Figure's alt text REPLACES its
+ * contents for a screen reader — so the stock "describe every image" step
+ * would have the author hide the very text those boxes hold (FFY24 SCIP
+ * Plan, 2026-08-20: 16 of 26 alt-less figures were text). Keyed on the
+ * analyzer's "--- Figures That Contain Text ---" block (pdf.ts), which is
+ * emitted only when such figures lack alt text. Anything else keeps the
+ * default copy.
+ */
+const ALT_TEXT_VARIANTS: Array<{
+  matches: (findings: string[]) => boolean;
+  entry: PlanCopyEntry;
+}> = [
+  {
+    matches: (f) => f.some((s) => s.includes("--- Figures That Contain Text ---")),
+    entry: {
+      title: "Describe the pictures — and turn the text boxes back into text",
+      why: "People who can't see an image rely on its description. But some of this file's \"images\" are really boxes of text (Word exports text boxes, sidebars, and chart titles that way), and describing those would hide the text inside them — they need their tag changed, not a description.",
+      source: {
+        pdf: [
+          "In Word: right-click each real picture or chart → View Alt Text (some Word versions call it Edit Alt Text) → write a short description (or mark it decorative)",
+          "Move the text that sits in text boxes, shapes, or SmartArt into ordinary paragraphs, headings, and lists — Word exports those boxes as images, so the text inside is read as a picture",
+          "Re-export the PDF",
+        ],
+      },
+      sourceInDesign: [
+        "Select each real image → Object → Object Export Options → Alt Text tab → set Alt Text Source to Custom and write a short description",
+        "Keep body text in ordinary text frames — a text frame that is grouped with a graphic, or anchored as an image, exports as a figure and its text is read as a picture",
+        'Re-export with "Create Tagged PDF" checked',
+      ],
+      acrobat: [
+        "All tools → Prepare for accessibility → Add alternate text — describe the real pictures and charts (classic UI: Tools → Accessibility → Set Alternate Text)",
+        'For a figure that is really a text box (the report lists them under "Figures That Contain Text"): open the Tags panel → right-click the <Figure> tag → Properties → Type → "Section", so the text inside is read directly instead of being hidden behind a description',
+      ],
+    },
+  },
+];
+
+/**
+ * link_quality has one findings-keyed variant: links with no <Link> tag.
+ * A screen reader following the tags never meets them, and with the tab
+ * order following the tags they can't be tabbed to either (FFY24 SCIP Plan,
+ * 2026-08-20: six links inside a Word text box). The stock entry says
+ * Acrobat can't help — true for link WORDING, false for tagging, which the
+ * Tags panel's "Unmarked Links" finder handles — so this variant restores a
+ * real Acrobat route and keeps the wording advice, since the two problems
+ * usually travel together. Keyed on the analyzer's "--- Links Not Tagged ---"
+ * block (pdf.ts).
+ */
+const LINK_QUALITY_VARIANTS: Array<{
+  matches: (findings: string[]) => boolean;
+  entry: PlanCopyEntry;
+}> = [
+  {
+    matches: (f) => f.some((s) => s.includes("--- Links Not Tagged ---")),
+    entry: {
+      title: "Tag the links so screen readers can find them",
+      why: "Some links in this file have no tag, so a screen reader following the document's tags never meets them — and with the tab order following the tags, they can't be tabbed to either. Links whose text doesn't say where they go need rewording as well.",
+      source: {
+        pdf: [
+          "In Word, move links out of text boxes, shapes, and SmartArt into the main text (or a table) — links inside those export without tags",
+          'Rewrite each link\'s visible text to describe the destination (e.g., "2024 crime statistics report")',
+          "Re-export the PDF",
+        ],
+      },
+      sourceInDesign: [
+        "Keep hyperlinks in the main story text — a link inside a grouped or anchored graphic frame can export without a tag",
+        'Rewrite each link\'s visible text in the InDesign file to describe the destination (e.g., "2024 crime statistics report")',
+        "Re-export the PDF",
+      ],
+      acrobat: [
+        'Open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element; repeat until no unmarked links remain',
+        "Link wording itself has to be fixed in the source document and re-exported — Acrobat can't rewrite it for you",
+      ],
+    },
+  },
+];
+
+const FINDINGS_VARIANTS: Record<
+  string,
+  Array<{ matches: (findings: string[]) => boolean; entry: PlanCopyEntry }>
+> = {
+  text_extractability: TEXT_EXTRACTABILITY_VARIANTS,
+  alt_text: ALT_TEXT_VARIANTS,
+  link_quality: LINK_QUALITY_VARIANTS,
+};
+
+/**
  * The copy entry for a step, picked by what the analyzer actually found.
- * Only text_extractability has findings-keyed variants today; every other
- * id resolves straight from PLAN_COPY.
+ * text_extractability, alt_text and link_quality have findings-keyed
+ * variants; every other id resolves straight from PLAN_COPY. A variant
+ * that does not match keeps the default, so an unrecognized report can only
+ * ever reproduce today's copy.
  */
 function planCopyFor(id: string, findings: string[]): PlanCopyEntry | undefined {
-  if (id === "text_extractability") {
+  const variants = FINDINGS_VARIANTS[id];
+  if (variants) {
     const strs = findings.filter((f): f is string => typeof f === "string");
-    for (const variant of TEXT_EXTRACTABILITY_VARIANTS) {
+    for (const variant of variants) {
       if (variant.matches(strs)) return variant.entry;
     }
   }
