@@ -99,6 +99,17 @@ describe("announcement archive: consistency with the banner", () => {
     expect(banner).toContain("requiresWcagVersion");
   });
 
+  it("shows entries in FULL, while the banner shows only their opening", () => {
+    // The banner cuts long entries and links here for the rest. That link is
+    // only worth following if this page has more text than the banner did —
+    // so the archive must render `item.text` raw and must never reach for the
+    // summarizer. If it ever did, "Read the full update" would lead to the
+    // same truncated paragraph the visitor just read.
+    expect(page).toContain("{{ item.text }}");
+    expect(page).not.toContain("summarizeAnnouncement");
+    expect(banner).toContain("summarizeAnnouncement");
+  });
+
   it("honours linkExternal, so a server-route link does not 404", () => {
     // Same trap the banner hit in v1.39.0: /status is a Nitro server route,
     // and a client-side NuxtLink renders the SPA 404 without ever reaching

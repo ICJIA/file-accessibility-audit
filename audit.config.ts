@@ -228,9 +228,40 @@ export const WCAG_22_NEW_AA = [
 // A reusable slot for "what's new" on the landing page. To announce a future
 // improvement, PREPEND a new entry (index 0 is rendered). Dismissal is
 // permanent per `id` (stored client-side); bump the `id` to re-show.
+//
+// Entries are written at full length for the /announcements archive; the
+// landing-page banner shows only the first ANNOUNCEMENT_BANNER_SENTENCES of
+// them and links through for the rest (see below).
 // ---------------------------------------------------------------------------
 
+/**
+ * How many sentences of an announcement the landing-page banner shows before
+ * it cuts off and offers "Read the full update".
+ *
+ * Entries run long — the newest is nearly 900 characters, twelve lines above
+ * the drop zone — and the banner is the first thing on the page, so the full
+ * text pushed the actual tool down. The cut is always at a SENTENCE boundary:
+ * a half-sentence reads as a rendering bug, and the archive is one click away.
+ *
+ * SAFE TO CHANGE: Yes — any integer ≥ 1. Purely how much of the newest entry
+ * the banner shows; the /announcements archive always shows every entry in
+ * full and is unaffected. A single very long sentence still shows in full,
+ * because there is no earlier boundary to cut at.
+ */
+export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
+
 export const ANNOUNCEMENTS = [
+  {
+    id: "banner-shows-opening-sentences-2026-08-20",
+    badge: "Improved",
+    text: "Long updates in this notice are now shortened. This box used to print an entire update — sometimes a dozen lines — directly above the upload area, which pushed the tool itself down the page. It now shows the opening few sentences and offers a link to read the rest. Nothing is lost: the What's New page still carries every update in full, word for word, and it is linked from the header and the footer of every page. Updates short enough to fit are shown whole, with no link.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 20, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
   {
     id: "link-text-from-tags-2026-08-20",
     badge: "Improved",

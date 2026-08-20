@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.84.0] - 2026-08-20
+
+### Changed
+
+- **The landing-page "What's New" banner shows an update's first four sentences and links through for the rest.** User request, matching the fleet site's banner. Announcement copy has been *editorially* capped at "four or five sentences" since v1.61.0, but the entries outgrew the rule: the newest ran to 892 characters — about ten lines sitting directly above the drop zone — so the tool itself started below what a visitor sees first. The banner now renders only the opening `ANNOUNCEMENT_BANNER_SENTENCES` (4) sentences of the newest entry, followed by a **Read the full update** link to `/announcements`. That link appears **only** when something was actually cut, so it never promises text that does not exist, and short entries still render whole with no link at all.
+- **`/announcements` is unchanged and remains the full record** — every entry, word for word, linked from the header and the footer of every page. Deliberately **not** an in-place expander: the archive already holds the full text, so a second way to read the same string would be a second thing to keep true, and the one that drifts is always the copy nobody re-reads. A test pins the asymmetry in both directions — the archive must render the raw entry and must never reach for the summarizer, while the banner must always use it. Without that, "Read the full update" could quietly start leading to the same truncated paragraph the visitor had just read.
+
+### Notes
+
+- **The cut is always at a sentence boundary**, never at a character count: a half-sentence reads as a rendering fault rather than an editorial choice, and there is nowhere to put an ellipsis that does not collide with the entry's own punctuation. The documented consequence is that a single very long sentence is shown whole, because there is no earlier boundary to stop at — the fix for that is a shorter opening sentence, not cutting words. Sentence detection is built against the copy actually shipped rather than against an idealized English: a terminator must be followed by whitespace, so `WCAG 2.2` and `PDF/UA-1 (ISO 14289-1)` are never boundaries; closing curly quotes and parentheses stay with the sentence they end; and a period followed by a lowercase word is read as an abbreviation rather than a break. All three cases are pinned by tests, and every one of the 38 shipped entries is run through the summarizer and asserted to yield a non-empty prefix of its own text.
+- **One rendering defect was found and fixed before release.** An entry that is both cut *and* carries its own link rendered as `Read the full updateHow the audit works` — two underlined links touching — because Vue's condense mode drops whitespace-only text between two elements when it contains a newline. Fixed with an explicit space and pinned by a test. It was latent (no shipped entry currently sets `linkTo`) and would have appeared on the first release that used one.
+- Presentation only: the change is confined to how much of an already-published, repository-authored string the home page renders. No route, parameter, payload, stored field, retention window, or dependency changed, and the data-retention policy is unaffected (stays at v1.10). Tests 2,387 → 2,415 (API 1,241 / web 1,125 / CLI 49).
+
 ## [1.83.0] - 2026-08-20
 
 ### Fixed

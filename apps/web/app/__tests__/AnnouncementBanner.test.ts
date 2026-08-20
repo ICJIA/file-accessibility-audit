@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import AnnouncementBanner from "../components/AnnouncementBanner.vue";
+import { ANNOUNCEMENTS, ANNOUNCEMENT_BANNER_SENTENCES } from "../../../../audit.config";
+import { splitSentences, summarizeAnnouncement } from "../utils/announcementSummary";
 
 const STORAGE_KEY = "a11y-audit:dismissed-announcements";
 
@@ -135,6 +137,133 @@ describe("AnnouncementBanner", () => {
       .findAll("a")
       .find((a) => a.attributes("href") === "/announcements" || a.text().includes("See all"));
     expect(archive).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------
+  // Long entries are cut to their opening sentences. The banner sits directly
+  // above the drop zone, so a ~900-character entry (the real ones reach that)
+  // pushed the tool itself off the first screen. The archive holds the whole
+  // entry; the banner links to it.
+  //
+  // These test the WIRING — that the component actually calls the summarizer
+  // and renders the link. The cutting rules themselves are covered in
+  // announcementSummary.test.ts.
+  // ---------------------------------------------------------------------
+  describe("long entries are cut to their opening sentences", () => {
+    const LONG = "One. Two. Three. Four. Five. Six.";
+    const SHORT = "One. Two.";
+
+    function mountWith(text: string) {
+      vi.stubGlobal(
+        "useRuntimeConfig",
+        vi.fn(() => ({
+          public: {
+            wcagVersion: "2.2",
+            announcements: [{ id: "long-x", badge: "Improved", text }],
+          },
+        })),
+      );
+      return mount(AnnouncementBanner);
+    }
+
+    function fullUpdateLink(wrapper: ReturnType<typeof mount>) {
+      return wrapper.findAll("a").find((a) => a.text().includes("Read the full update"));
+    }
+
+    it("shows only the opening sentences of a long entry", async () => {
+      const wrapper = mountWith(LONG);
+      await nextTick();
+      expect(wrapper.text()).toContain("Four.");
+      expect(wrapper.text()).not.toContain("Five.");
+      expect(wrapper.text()).not.toContain("Six.");
+    });
+
+    it("offers a click-through to the full entry when it cut something", async () => {
+      const wrapper = mountWith(LONG);
+      await nextTick();
+      const link = fullUpdateLink(wrapper);
+      expect(link).toBeTruthy();
+      // `to`, not `href`: the NuxtLink stub is a bare <a>, so props fall
+      // through as raw attributes (same reason linkExternal reads `external`).
+      expect(link!.attributes("to")).toBe("/announcements");
+    });
+
+    it("separates the cut text from the link with a space", async () => {
+      // Without it the rendered line reads "…Four.Read the full update".
+      const wrapper = mountWith(LONG);
+      await nextTick();
+      expect(wrapper.text()).toContain("Four. Read the full update");
+    });
+
+    it("separates the link from an entry's own link, when the entry has one", async () => {
+      // Vue's condense mode drops whitespace-only text between two elements
+      // when it contains a newline, so these two underlined links rendered
+      // touching: "Read the full updateHow the audit works".
+      vi.stubGlobal(
+        "useRuntimeConfig",
+        vi.fn(() => ({
+          public: {
+            wcagVersion: "2.2",
+            announcements: [
+              {
+                id: "both-x",
+                badge: "New",
+                text: LONG,
+                linkText: "How the audit works",
+                linkTo: "/technical-details",
+              },
+            ],
+          },
+        })),
+      );
+      const wrapper = mount(AnnouncementBanner);
+      await nextTick();
+      expect(wrapper.text()).toContain("Read the full update How the audit works");
+    });
+
+    it("shows a short entry whole, with no click-through link", async () => {
+      // The link must never promise text that does not exist.
+      const wrapper = mountWith(SHORT);
+      await nextTick();
+      expect(wrapper.text()).toContain("One. Two.");
+      expect(fullUpdateLink(wrapper)).toBeUndefined();
+    });
+
+    it("keeps the archive link either way, because dismissal must not hide it", async () => {
+      for (const text of [LONG, SHORT]) {
+        const wrapper = mountWith(text);
+        await nextTick();
+        expect(wrapper.text()).toContain("See all updates");
+      }
+    });
+
+    it("renders the real newest announcement through the summarizer", async () => {
+      // End-to-end against shipped copy: a summarizer wired to the wrong
+      // field shows up here and nowhere else.
+      //
+      // Deliberately NOT asserting the newest entry is long enough to be cut
+      // — that would turn a short release announcement into a failing build.
+      // The property is that the banner agrees with the summarizer either
+      // way: it shows what the summarizer returned, offers the link exactly
+      // when something was cut, and never leaks a sentence that was cut.
+      const newest = ANNOUNCEMENTS[0] as { text: string };
+      const { text: expected, truncated } = summarizeAnnouncement(newest.text);
+      vi.stubGlobal(
+        "useRuntimeConfig",
+        vi.fn(() => ({
+          public: { wcagVersion: "2.2", announcements: [{ ...newest }] },
+        })),
+      );
+      const wrapper = mount(AnnouncementBanner);
+      await nextTick();
+      const rendered = wrapper.text();
+
+      expect(rendered).toContain(expected);
+      expect(Boolean(fullUpdateLink(wrapper))).toBe(truncated);
+      for (const cut of splitSentences(newest.text).slice(ANNOUNCEMENT_BANNER_SENTENCES)) {
+        expect(rendered).not.toContain(cut);
+      }
+    });
   });
 
   // ---------------------------------------------------------------------

@@ -16,7 +16,27 @@
       <span class="block text-xs font-bold uppercase tracking-wide text-[var(--text-heading)] mb-1"
         >What's New</span
       >
-      {{ current.text }}
+      <!-- The OPENING of the entry, not all of it. Entries run to ~900
+           characters and this banner sits directly above the drop zone, so
+           the full text pushed the tool itself off the first screen. The cut
+           is at a sentence boundary and /announcements has the whole thing —
+           see summarizeAnnouncement. -->
+      {{ summary.text }}
+      <template v-if="summary.truncated">
+        <!-- Rendered only when something was actually cut, so the link never
+             promises more text than exists. Deliberately NOT an in-place
+             expander: the archive already holds the full entry, and a second
+             way to read it is a second thing to keep true. -->
+        <NuxtLink
+          to="/announcements"
+          class="font-semibold underline text-[var(--link)] hover:text-[var(--link-hover)]"
+          >Read the full update</NuxtLink
+        ><!-- An EXPLICIT space, not template whitespace. Vue's condense mode
+             drops whitespace-only text between two elements when it contains a
+             newline, so an entry that is both cut AND carries its own link
+             rendered "Read the full updateHow the audit works" — two
+             underlined links touching. -->{{ " " }}
+      </template>
       <!-- `external` forces a real document navigation instead of a client-side
            route change. Required for targets that are Nitro SERVER routes
            (e.g. /status) rather than Vue pages: the Vue router has no match
@@ -61,6 +81,11 @@
 </template>
 
 <script setup lang="ts">
+// Explicit import rather than Nuxt's app/utils auto-import: this component is
+// mounted in plain vitest, which applies the `~` alias but not Nuxt's
+// auto-imports, so an auto-imported helper would be undefined under test.
+import { summarizeAnnouncement } from "~/utils/announcementSummary";
+
 const STORAGE_KEY = "a11y-audit:dismissed-announcements";
 
 const pub = useRuntimeConfig().public;
@@ -83,6 +108,11 @@ const wcagVersion = String(pub.wcagVersion ?? "2.2");
 const current = announcements.find(
   (a) => !a.requiresWcagVersion || a.requiresWcagVersion === wcagVersion,
 );
+
+// Computed once alongside `current`, for the same reason: runtimeConfig.public
+// is static after hydration. Falls back to an untruncated empty summary when
+// there is no announcement, so the template can read it without a guard.
+const summary = summarizeAnnouncement(current?.text ?? "");
 
 // Rendered during SSR by DEFAULT, then hidden on mount if this visitor has
 // dismissed it.

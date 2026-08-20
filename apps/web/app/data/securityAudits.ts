@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.84.0",
+    meta: "Reviewed <strong>2026-08-20</strong> · scope: how much of a site update the home page shows. Nothing is collected, stored, sent, or deleted differently.",
+    body: [
+      {
+        kind: "p",
+        html: "The notice at the top of the home page used to print a whole update &mdash; the most recent one ran to about ten lines &mdash; directly above the upload area, pushing the tool itself down the page. It now shows the opening few sentences and offers a link to read the rest. The <strong>What&rsquo;s New</strong> page is unchanged: it still carries every update word for word, and it is linked from the header and the footer of every page.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "UX",
+            html: "<strong>Shorter notice, same words.</strong> The shortening happens when the page is drawn; the update text itself is written once, in full, by the maintainers and is not edited or rewritten anywhere. The cut is always at the end of a sentence, and the link to the full text appears only when there is more to read.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Nothing about this touches your documents or your data.</strong> The text being shortened is site copy written in the project&rsquo;s own source code before release. It is never anything you upload, anything read out of a document, or anything from your request &mdash; and this release adds no page, no setting, no stored information, and no outside service. The data-retention policy is unaffected and stays at v1.10.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>Checked for the two ways this kind of change goes wrong.</strong> Shortening text can accidentally create markup out of a half-finished tag, or leave the notice empty; neither is possible here &mdash; the shortener only cuts a sentence off the end of the maintainers&rsquo; own text and always leaves at least one sentence, both pinned by tests. A display fault was also caught before release, in which two links could render touching each other with no space between.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.83.0",
     meta: "Reviewed <strong>2026-08-20</strong> · scope: accuracy fixes to what a PDF report says about links, reading order, and images. Nothing new is collected or sent; one more kind of document text appears in stored reports.",
     body: [
