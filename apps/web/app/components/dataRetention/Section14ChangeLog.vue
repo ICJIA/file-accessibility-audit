@@ -6,6 +6,16 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.11 · 2026-08-21</strong> — Adds one column to the usage-metadata table (<code
+          class="text-xs font-mono"
+          >audit_log.privileged</code
+        >) recording which request tier an audit came through: the internal trusted-tool tier used
+        by the automated fleet, or the public tier. It lets the status page report privileged-tier
+        volume so the shared service token's use can be watched. It is a property of that token,
+        <strong>not</strong> an identity — nothing about who made the request — and no new table, no
+        document content, and no change to any retention period (§ 8a shows the updated schema).
+      </li>
+      <li>
         <strong>v1.10 · 2026-08-20</strong> — Discloses one more kind of document text that a
         <em>saved or shared</em> PDF report can quote. When a document tags a box of text as an
         image (Word does this with text boxes, sidebars, and chart titles), the report now keeps an

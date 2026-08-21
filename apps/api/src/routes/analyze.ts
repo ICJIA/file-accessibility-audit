@@ -1,5 +1,5 @@
 import { Router, Request, Response, type IRouter } from "express";
-import { analyzeLimiter } from "../middleware/rateLimiter.js";
+import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { analyzeDocument, detectFileType, detectLegacyFormat } from "../services/analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
@@ -23,6 +23,10 @@ router.post(
   analyzeLimiter,
   uploadMiddleware.single("file"),
   async (req: Request, res: Response) => {
+    // Which rate-limit tier this upload came through, recorded on the audit
+    // row so /status can report privileged (fleet) volume vs public volume.
+    // Declared before the try so the catch block's rejection log sees it too.
+    const privileged = isPrivilegedRequest(req);
     try {
       const file = req.file;
 
@@ -57,6 +61,7 @@ router.post(
       // grade, content hash. No identity (v1.68.0).
       recordAudit({
         eventType: "analyze",
+        privileged,
         filename,
         score: result.overallScore,
         grade: result.grade,
@@ -88,6 +93,7 @@ router.post(
         if (req.file) {
           recordRejectedUpload({
             filename: sanitizeFilename(req.file.originalname),
+            privileged,
           });
         }
         const legacy = req.file ? detectLegacyFormat(req.file.buffer) : null;

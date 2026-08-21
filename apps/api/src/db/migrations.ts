@@ -325,6 +325,26 @@ export const MIGRATIONS: Migration[] = [
       db.exec(`DROP TABLE IF EXISTS access_tokens;`);
     },
   },
+  {
+    version: 12,
+    // Records which rate-limit TIER each audit came through: the privileged
+    // (API_PRIVILEGED_TOKEN) tier vs the public tier. Lets /status report
+    // trusted-tool volume, so misuse of the single shared token is visible.
+    //
+    // This is a property of the SHARED SERVICE TOKEN, never identity — it says
+    // "a trusted tool did this" vs "the public did this", not who. Consistent
+    // with v11's "metadata about the event, nothing about who".
+    //
+    // Nullable ON PURPOSE: rows written before this migration have no recorded
+    // tier and must read NULL (unknown). Writing 0 would falsely claim they
+    // were anonymous. Probe-before-ALTER so a crashed re-run is safe.
+    name: "add audit_log.privileged (request tier: trusted-tool vs public)",
+    up(db) {
+      if (!hasColumn(db, "audit_log", "privileged")) {
+        db.exec(`ALTER TABLE audit_log ADD COLUMN privileged INTEGER;`);
+      }
+    },
+  },
 ];
 
 /**

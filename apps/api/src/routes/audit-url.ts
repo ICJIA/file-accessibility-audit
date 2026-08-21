@@ -195,6 +195,8 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
     // is the durable / shareable record; audit_log is the gate
     // metadata. Both intentionally exist.
     recordAudit({
+      // Tier recorded so /status can report privileged (fleet) volume.
+      privileged,
       eventType: "audit-url",
       filename,
       score: result.overallScore,

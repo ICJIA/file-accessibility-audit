@@ -195,6 +195,9 @@ describe("/status never discloses identifying data", () => {
         "database",
         "disk",
         "documents_audited",
+        // Aggregate privileged-tier audit counts (24h/30d/total). A property
+        // of the shared service token, never identity — deliberate addition.
+        "privileged_audits",
         "documents_rejected",
         "engines",
         "last_audit_at",

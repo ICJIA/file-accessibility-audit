@@ -70,13 +70,23 @@ function seedAudit(
     /** Defaults to "B". Pass null explicitly to write a NULL grade, which is
      *  what a failed audit (and any row predating the column) looks like. */
     grade?: string | null;
+    /** Request tier: 1 = privileged (trusted-tool), 0 = public. Omit to write
+     *  NULL — the shape of a row predating the privileged column. */
+    privileged?: 0 | 1;
   },
 ): void {
   const at = new Date(T0 - (opts.agoMs ?? 0)).toISOString().replace("T", " ").slice(0, 19);
   db.prepare(
-    `INSERT INTO audit_log (event_type, filename, score, grade, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(opts.eventType, opts.filename, 80, opts.grade === undefined ? "B" : opts.grade, at);
+    `INSERT INTO audit_log (event_type, filename, score, grade, privileged, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(
+    opts.eventType,
+    opts.filename,
+    80,
+    opts.grade === undefined ? "B" : opts.grade,
+    opts.privileged ?? null,
+    at,
+  );
 }
 
 /** Inserts a refused-upload row the way recordRejectedUpload does: the
@@ -1108,5 +1118,35 @@ describe("getHealthSummary systems — what the header's tooltip names", () => {
       expect(`${s.label} ${s.state}`).not.toMatch(/(\/[\w.-]+){2,}/);
       expect(`${s.label} ${s.state}`).not.toMatch(/[A-Za-z]:\\/);
     }
+  });
+});
+
+describe("privileged-tier audit counting", () => {
+  // The reason this exists: after rotating the single shared privileged token,
+  // an operator needs to see privileged-tier volume to confirm it matches the
+  // fleet's activity and nothing else is using the token. It counts only
+  // privileged=1 rows, in the same three windows as documents_audited.
+  it("counts only privileged audits, windowed 24h / 30d / total", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "audit-url", filename: "a.pdf", privileged: 1 });
+    seedAudit(db, { eventType: "audit-url", filename: "b.pdf", privileged: 1, agoMs: 2 * DAY });
+    seedAudit(db, { eventType: "audit-url", filename: "c.pdf", privileged: 1, agoMs: 40 * DAY });
+    // anonymous — must never be counted as privileged
+    seedAudit(db, { eventType: "analyze", filename: "d.pdf", privileged: 0 });
+    // pre-migration row (NULL tier = unknown) — must never be counted as privileged
+    seedAudit(db, { eventType: "analyze", filename: "e.pdf" });
+
+    const payload = await makeService(db).getStatus();
+    expect(payload.privileged_audits.last_24h).toBe(1);
+    expect(payload.privileged_audits.last_30d).toBe(2);
+    expect(payload.privileged_audits.total).toBe(3);
+  });
+
+  it("reports zero when no audit has carried the privileged tier yet", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "only-anon.pdf", privileged: 0 });
+    seedAudit(db, { eventType: "analyze", filename: "legacy.pdf" }); // NULL
+    const payload = await makeService(db).getStatus();
+    expect(payload.privileged_audits).toEqual({ last_24h: 0, last_30d: 0, total: 0 });
   });
 });

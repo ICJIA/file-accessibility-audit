@@ -54,6 +54,54 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.86.0",
+    meta: "Reviewed <strong>2026-08-21</strong> · scope: a new status-page measure of trusted-tool request volume, plus the routine server maintenance carried out the same day. Nothing new is collected about people; no data-handling or retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The service now reports how much of its audit volume came through its own internal trusted-tool tier &mdash; the automated fleet inventory &mdash; versus the public. This lets the internal access credential be watched: after it is renewed, its usage can be confirmed to match the fleet and nothing else. The measure records a property of the shared credential, <strong>not</strong> who made a request.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "New",
+            html: "<strong>Trusted-tool request volume on the status page.</strong> One column was added to the usage-metadata table recording which tier each audit came through (trusted-tool or public), and the public status page now shows the trusted-tool totals. It is a tier flag on the shared service credential &mdash; never an identity, and there is still nowhere in that table for document content or for who made a request. Rows recorded before the change carry no tier and are simply not counted, rather than being guessed at.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Data-retention policy updated to v1.11.</strong> Section 8a documents the new column and names the request tier among the things the table can hold; section 14 records the change. No new table, no document content, and no change to any retention period.",
+          },
+        ],
+      },
+      {
+        kind: "h",
+        text: "Server maintenance carried out the same day",
+      },
+      {
+        kind: "p",
+        html: "Alongside the change above, the server the service runs on received routine security maintenance. None of it changed how documents are checked, what is stored, or how long it is kept. It is recorded here to keep this log complete.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "OPS",
+            html: "<strong>Internal access credential renewed.</strong> The service uses one internal token so its own trusted tools can request audits at a higher rate. That token was replaced with a fresh one. It is tied to no person or account, and grants only a higher request rate &mdash; never access to a stored document, nor any bypass of the service&rsquo;s other protections.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Database and backup files restricted further.</strong> The database and its nightly backups were already limited to the account that runs the service; their permissions were tightened so no other account on the server can read them.",
+          },
+          {
+            badge: "OPS",
+            html: "<strong>Unused software removed, system patched.</strong> A print service that was installed but never used was removed, and the host operating system was brought to its current security-patch level.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.85.0",
     meta: "Reviewed <strong>2026-08-20</strong> · scope: the web framework this site is built on, and other third-party code it depends on. Nothing about how documents are checked, stored, or deleted changed.",
     body: [

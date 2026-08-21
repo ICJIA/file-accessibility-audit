@@ -502,6 +502,45 @@ function renderRejectedWindow(title: string, total: number, raw: Record<string, 
 }
 
 /**
+ * Privileged-tier audit volume, or "" when the payload has no such field (an
+ * older cached build — omit rather than render fabricated zeros).
+ *
+ * Publishing it answers a question the plain audited totals cannot: how much
+ * of the volume came through the internal trusted-tool tier (the automated
+ * fleet) versus the public. After the shared token is rotated it is the signal
+ * that the token is being used only by the fleet. It is aggregate counts of a
+ * token property, never identity.
+ */
+export function renderPrivilegedAudits(body: Record<string, unknown>): string {
+  const priv = asRecord(body.privileged_audits);
+  if (!priv) return "";
+
+  const windows: Array<[string, number]> = [
+    ["Last 24 hours", asCount(priv.last_24h)],
+    ["Last 30 days", asCount(priv.last_30d)],
+    ["All time", asCount(priv.total)],
+  ];
+  const total = asCount(priv.total);
+  return fold({
+    id: "priv-h",
+    title: "Trusted-tool (privileged) audits",
+    peek: total > 0 ? `${total.toLocaleString("en-US")} all-time` : "none yet",
+    body:
+      `<p class="caveat">Audits requested through the internal trusted-tool tier ` +
+      `— the automated fleet inventory — separated from public uploads. It counts a ` +
+      `property of the shared service token, <strong>not</strong> who made the request. ` +
+      `Counting began when this measure was added, so the 30-day and all-time figures ` +
+      `climb from that date rather than showing earlier history.</p>` +
+      `<div class="windows">${windows
+        .map(
+          ([t, n]) =>
+            `<div class="win"><h3>${escapeHtml(t)} <span class="wt">${n.toLocaleString("en-US")} audit${n === 1 ? "" : "s"}</span></h3></div>`,
+        )
+        .join("")}</div>`,
+  });
+}
+
+/**
  * The refused-uploads block, or "" when the payload has no rejection data
  * (an older API build).
  *
@@ -1062,6 +1101,7 @@ ${renderStatusStrip(body)}
 ${renderEngines(body)}
 ${renderGradeDistribution(body)}
 ${renderFormatSplit(body)}
+${renderPrivilegedAudits(body)}
 ${renderRejectedUploads(body)}
 ${renderBackup(body)}
 ${fold({

@@ -45,6 +45,8 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
     // ensures we only record successful audits — a 503 or parse
     // failure leaves no audit_log row. Metadata only (v1.68.0).
     recordAudit({
+      // Tier recorded so /status can report privileged (fleet) volume.
+      privileged,
       eventType: "analyze-url",
       filename,
       score: result.overallScore,

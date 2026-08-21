@@ -118,6 +118,7 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
     // rejection figures — that is where legacy formats arrive in bulk.
     recordRejectedUpload({
       filename: new URL(fetched.finalUrl).pathname.split("/").pop()?.slice(0, 200) || "remote",
+      privileged,
     });
 
     const legacy = detectLegacyFormat(buf);

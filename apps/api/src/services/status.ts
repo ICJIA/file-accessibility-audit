@@ -89,6 +89,19 @@ export interface DocumentCounts {
   by_grade_total: GradeCounts;
 }
 
+/** Privileged-tier audit volume: audits that came through the
+ *  API_PRIVILEGED_TOKEN tier rather than the public tier. Same three windows
+ *  as documents_audited. Only rows with `privileged = 1` count — rows written
+ *  before the tier column existed are NULL (unknown) and are excluded, so
+ *  `total` and `last_30d` climb from the migration date rather than showing
+ *  fabricated history. It records a property of the shared service token, not
+ *  identity. */
+export interface PrivilegedCounts {
+  last_24h: number;
+  last_30d: number;
+  total: number;
+}
+
 /** Refused uploads, split by what was offered.
  *
  *  `other` is the catch-all and, unlike FormatCounts.unknown_extension, it is
@@ -133,6 +146,10 @@ export interface StatusPayload {
     chromium: EngineResult;
   };
   documents_audited: DocumentCounts;
+  /** Privileged-tier audit volume (API_PRIVILEGED_TOKEN tier). Lets an
+   *  operator confirm privileged usage matches the fleet and spot misuse of
+   *  the shared token. */
+  privileged_audits: PrivilegedCounts;
   /** Uploads the tool refused. Deliberately a sibling of documents_audited
    *  rather than a bucket inside it — a refusal has no score and no grade, so
    *  folding it in would inflate the audit count and dump every refusal into
@@ -353,6 +370,24 @@ function countDocuments(db: StatusDb, sinceMs: number | null): number {
   return row?.n ?? 0;
 }
 
+/** Counts privileged-tier audits (privileged = 1) in the window. Mirrors
+ *  countDocuments exactly, plus the tier filter. NULL-tier rows (pre-migration)
+ *  are excluded by `= 1`, which is the intended semantics. */
+function countPrivilegedDocuments(db: StatusDb, sinceMs: number | null): number {
+  const inClause = placeholders(DOCUMENT_TYPES.length);
+  const sql =
+    sinceMs === null
+      ? `SELECT COUNT(*) AS n FROM audit_log
+           WHERE event_type IN (${inClause}) AND privileged = 1`
+      : `SELECT COUNT(*) AS n FROM audit_log
+           WHERE event_type IN (${inClause}) AND privileged = 1
+             AND created_at > datetime(?, 'unixepoch')`;
+  const params =
+    sinceMs === null ? [...DOCUMENT_TYPES] : [...DOCUMENT_TYPES, Math.floor(sinceMs / 1000)];
+  const row = db.prepare(sql).get(...params) as { n?: number } | undefined;
+  return row?.n ?? 0;
+}
+
 function countDocumentsByFormat(db: StatusDb, sinceMs: number | null): FormatCounts {
   const inClause = placeholders(DOCUMENT_TYPES.length);
   const sql =
@@ -499,6 +534,7 @@ function remediationJobs24h(db: StatusDb, nowMs: number): { complete: number; fa
 export interface AggregateSnapshot {
   database: "ok" | "down";
   documents_audited: DocumentCounts;
+  privileged_audits: PrivilegedCounts;
   documents_rejected: RejectedCounts;
   last_audit_at: string | null;
   remediation_jobs_24h: { complete: number; failed: number };
@@ -520,6 +556,11 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         by_grade_24h: countDocumentsByGrade(db, nowMs - DAY_MS),
         by_grade_30d: countDocumentsByGrade(db, nowMs - THIRTY_DAYS_MS),
         by_grade_total: countDocumentsByGrade(db, null),
+      },
+      privileged_audits: {
+        last_24h: countPrivilegedDocuments(db, nowMs - DAY_MS),
+        last_30d: countPrivilegedDocuments(db, nowMs - THIRTY_DAYS_MS),
+        total: countPrivilegedDocuments(db, null),
       },
       documents_rejected: {
         last_24h: countRejected(db, nowMs - DAY_MS),
@@ -545,6 +586,7 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         by_grade_30d: emptyGradeCounts(),
         by_grade_total: emptyGradeCounts(),
       },
+      privileged_audits: { last_24h: 0, last_30d: 0, total: 0 },
       documents_rejected: {
         last_24h: 0,
         last_30d: 0,
@@ -859,6 +901,7 @@ export function createStatusService(deps: StatusDeps) {
       database: agg.database,
       engines: eng,
       documents_audited: agg.documents_audited,
+      privileged_audits: agg.privileged_audits,
       documents_rejected: agg.documents_rejected,
       disk,
       last_audit_at: agg.last_audit_at,

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.86.0] - 2026-08-21
+
+### Added
+
+- **The status page reports privileged-tier audit volume.** `/status` gains a "Trusted-tool (privileged) audits" card and a `privileged_audits` field (`last_24h` / `last_30d` / `total`), counting audits that came through the `API_PRIVILEGED_TOKEN` tier — the automated fleet inventory — separately from public uploads. After the shared token is rotated, this is the signal that confirms privileged volume matches the fleet's activity and nothing else is using the token. It counts a property of the shared service token, **never identity** — nothing about who made a request.
+
+### Changed
+
+- **`audit_log` gains a `privileged` column (migration → user_version 12).** Nullable on purpose: rows written before the migration have no recorded tier and read NULL (unknown), because writing `0` would falsely claim they were anonymous. `recordAudit` now requires the tier as an explicit field, so a new call site is caught by the compiler rather than silently mis-recording — the same enforce-at-the-writer discipline the filename clamp uses. Every one of the eight call sites (uploads, URL audits, page audits, bulk-from-inventory, refused uploads) was threaded with its real tier.
+- **Data-retention policy → v1.11.** §8a documents the new column and names the request tier as one more thing `audit_log` can hold — flagged explicitly as a property of the shared service token, not an identity. §14 carries the change-log entry.
+
+### Notes
+
+- **Counting starts at the migration.** The 24-hour figure is accurate immediately; the 30-day and all-time figures climb from the deploy date, because pre-migration rows are NULL and are excluded by design (they are not fabricated as either tier). The status card and the policy both say so.
+- It counts privileged **audits** (audit_log rows), not raw requests — a privileged request that is refused, errors, or is a dedup cache hit is not an audit and does not appear. That is the right measure for "does privileged volume match the fleet's activity."
+- **Also recorded in this release:** the operational server hardening performed 2026-08-21 (privileged-token rotation, database/backup permission tightening, removal of an unused print service, OS patch) is disclosed in §10 of the data-retention policy — it rode this release rather than forcing a deploy of its own, as planned.
+- No new external surface; no change to rate limits, SSRF controls, size caps, or dependencies. Tests 2,415 → 2,425 (API 1,249 / web 1,127 / CLI 49).
+
 ## [1.85.0] - 2026-08-20
 
 ### Security

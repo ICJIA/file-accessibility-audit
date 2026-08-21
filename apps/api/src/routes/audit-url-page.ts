@@ -204,6 +204,8 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
 
     // Audit-log metadata for the remediation-gate / usage accounting.
     recordAudit({
+      // Tier recorded so /status can report privileged (fleet) volume.
+      privileged,
       eventType: "audit-url-page",
       filename: result.url,
       score: result.score,

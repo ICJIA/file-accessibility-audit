@@ -945,3 +945,26 @@ describe("formatBytes — scales past the backup row's megabytes", () => {
     expect(render(3_298_534_883_328)).toContain("TB");
   });
 });
+
+describe("renderPrivilegedAudits — trusted-tool (privileged) tier volume", () => {
+  // After rotating the single shared privileged token, an operator watches
+  // this to confirm privileged volume matches the fleet and nothing else is
+  // using the token.
+  const WITH_PRIV = {
+    ...PAYLOAD,
+    privileged_audits: { last_24h: 4, last_30d: 8306, total: 8306 },
+  };
+
+  it("renders the privileged counts inside the full status page", () => {
+    const html = renderStatusHtml(WITH_PRIV);
+    expect(html).toContain("Trusted-tool");
+    expect(html).toMatch(/8,306/);
+  });
+
+  it("omits the section entirely when the payload carries no privileged_audits", () => {
+    // Old cached payloads (pre-deploy) have no such field — the section must
+    // simply not appear rather than render zeros or throw.
+    const html = renderStatusHtml(PAYLOAD);
+    expect(html).not.toContain("Trusted-tool");
+  });
+});

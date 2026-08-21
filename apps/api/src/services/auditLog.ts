@@ -24,6 +24,14 @@ export interface RecordAuditInput {
   contentHash?: string | null;
   /** Event type label. Default: 'analyze'. */
   eventType?: string;
+  /**
+   * Which rate-limit tier the request came through: true = privileged
+   * (API_PRIVILEGED_TOKEN), false = public. REQUIRED, not defaulted, so a new
+   * call site cannot silently mis-record the tier by forgetting it — the same
+   * enforce-at-the-writer reasoning as the filename clamp below. It records a
+   * property of the shared service token, never identity.
+   */
+  privileged: boolean;
 }
 
 export function sha256Hex(buf: Buffer): string {
@@ -32,8 +40,8 @@ export function sha256Hex(buf: Buffer): string {
 
 const insertStmt = db.prepare(
   `INSERT INTO audit_log
-     (event_type, filename, score, grade, content_hash)
-   VALUES (?, ?, ?, ?, ?)`,
+     (event_type, filename, score, grade, content_hash, privileged)
+   VALUES (?, ?, ?, ?, ?, ?)`,
 );
 
 /**
@@ -96,6 +104,9 @@ export function recordAudit(input: RecordAuditInput): void {
       input.score,
       input.grade,
       input.contentHash ?? null,
+      // Stored as 1/0 (SQLite has no boolean). Never NULL from this writer —
+      // NULL is reserved for rows that predate the column (unknown tier).
+      input.privileged ? 1 : 0,
     );
   } catch (err) {
     // Don't block the response on a logging failure — the audit
@@ -121,9 +132,10 @@ export function recordAudit(input: RecordAuditInput): void {
  * Best-effort like recordAudit: a logging failure must never turn a clean 400
  * into a 500.
  */
-export function recordRejectedUpload(input: { filename: string }): void {
+export function recordRejectedUpload(input: { filename: string; privileged: boolean }): void {
   recordAudit({
     eventType: STATUS.REJECTION_EVENT_TYPES[0],
+    privileged: input.privileged,
     // Sanitised HERE rather than at the callers. The multer file filter had
     // been passing file.originalname straight through, so a 4 kB filename
     // carrying raw markup was persisted verbatim. Doing it in the writer

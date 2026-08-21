@@ -1,6 +1,6 @@
 import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
-import { reportsLimiter } from "../middleware/rateLimiter.js";
+import { reportsLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument, detectFileType } from "../services/analyzer.js";
 import { recordAudit, sha256Hex } from "../services/auditLog.js";
 import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
@@ -185,6 +185,9 @@ router.post(
   // `inventory` string field; see parsing logic below.
   async (req: Request, res: Response) => {
     try {
+      // Tier recorded on every bulk audit row so /status can attribute this
+      // fleet volume to the privileged tier.
+      const privileged = isPrivilegedRequest(req);
       // Support two intake modes:
       //   1. JSON body: { inventory: "<NDJSON>", filterCategory?: "pdf" | "docx" | "pptx" | "xlsx" }
       //   2. Raw text/plain body: the NDJSON content directly
@@ -339,6 +342,7 @@ router.post(
           // counts for the remediation gate (v1.20.1+). Metadata only.
           recordAudit({
             eventType: "bulk-from-inventory",
+            privileged,
             filename: entry.filename,
             score: analysis.overallScore,
             grade: analysis.grade,

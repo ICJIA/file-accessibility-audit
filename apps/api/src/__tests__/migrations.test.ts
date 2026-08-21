@@ -396,3 +396,34 @@ describe("migration 11: identity removal (no email / IP / user-agent anywhere)",
     ).not.toThrow();
   });
 });
+
+describe("migration 12: audit_log.privileged tier column", () => {
+  // Records the request TIER (trusted-tool vs public) for each audit, so
+  // /status can report privileged-tier volume. It is a property of the shared
+  // service token, NOT identity — consistent with the v11 "metadata about the
+  // event, nothing about who" stance.
+  it("adds a nullable privileged column to audit_log", () => {
+    const db = freshDb();
+    runMigrations(db);
+    expect(hasColumn(db, "audit_log", "privileged")).toBe(true);
+  });
+
+  it("lands the database at user_version 12", () => {
+    const db = freshDb();
+    runMigrations(db);
+    expect(db.pragma("user_version", { simple: true })).toBe(12);
+  });
+
+  it("leaves the new column nullable so pre-migration rows read as unknown tier", () => {
+    const db = freshDb();
+    runMigrations(db);
+    // A row inserted without a tier (the shape old rows have) must be allowed
+    // and read back NULL — we never recorded their tier and must not fabricate
+    // one. `0` would falsely claim "anonymous".
+    db.prepare(
+      `INSERT INTO audit_log (event_type, filename, score, grade) VALUES ('analyze', 'x.pdf', 90, 'A')`,
+    ).run();
+    const row = db.prepare("SELECT privileged FROM audit_log").get() as { privileged: unknown };
+    expect(row.privileged).toBeNull();
+  });
+});

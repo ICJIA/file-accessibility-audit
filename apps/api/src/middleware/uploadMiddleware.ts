@@ -1,6 +1,7 @@
 import multer from "multer";
 import { unsupportedFormatHint } from "@file-audit/shared";
 import { recordRejectedUpload } from "../services/auditLog.js";
+import { isPrivilegedRequest } from "./rateLimiter.js";
 import { ANALYSIS, DOCX, PPTX, XLSX } from "#config";
 
 const storage = multer.memoryStorage();
@@ -94,7 +95,7 @@ export const uploadMiddleware = multer({
       // multer's callback is overloaded — (error) or (null, accept) — so the
       // branches cannot be collapsed into one cb(error, accept) call.
       if (error) {
-        recordRejectedUpload({ filename: file.originalname });
+        recordRejectedUpload({ filename: file.originalname, privileged: isPrivilegedRequest(req) });
         cb(error);
         return;
       }

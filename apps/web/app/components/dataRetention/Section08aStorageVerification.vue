@@ -68,7 +68,10 @@
             <td class="py-2.5 pr-4">
               Usage metadata (audits + refused uploads); gates remediation
             </td>
-            <td class="py-2.5">filename (sanitized, 512-char clamp), content hash</td>
+            <td class="py-2.5">
+              filename (sanitized, 512-char clamp), content hash, request tier (trusted-tool vs
+              public — a property of the shared service token, not an identity)
+            </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-mono">shared_reports</td>
@@ -96,21 +99,25 @@
     <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
       The usage-metadata table's complete effective definition (baseline from
       <code class="text-xs font-mono">apps/api/src/db/migrations.ts</code>, plus migration 2's
-      <code class="text-xs font-mono">content_hash</code> and minus the identity columns migration
-      11 dropped) — note there is nowhere for document content, or for an identity, to go:
+      <code class="text-xs font-mono">content_hash</code>, minus the identity columns migration 11
+      dropped, plus migration 12's <code class="text-xs font-mono">privileged</code> tier flag) —
+      note there is nowhere for document content, or for an identity, to go:
     </p>
     <pre
       class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border)] px-4 py-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto mb-4"
       tabindex="0"
     >
-CREATE TABLE audit_log (          -- shape after migration 11 (v1.68.0)
+CREATE TABLE audit_log (          -- shape after migration 12
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   event_type TEXT NOT NULL,
   filename TEXT,
   score INTEGER,
   grade TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  content_hash TEXT
+  content_hash TEXT,
+  privileged INTEGER   -- request tier: 1 = trusted-tool (fleet), 0 = public,
+                       -- NULL = row predates the column. A property of the
+                       -- shared service token, never an identity.
 );</pre>
 
     <!-- Files -->
