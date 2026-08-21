@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "framework-security-update-2026-08-20",
+    badge: "Security",
+    text: "The software this site is built on has been updated to close published security flaws. These were in third-party code the service depends on rather than in the accessibility checks themselves, so nothing about how your documents are checked, stored, or deleted has changed — and no document was affected. One of the flaws was reachable on the live site rather than only possible in theory, which is why this update was made promptly and is recorded here. The full technical account is in the security log, and the plain-language version is in section 10 of the data-retention policy.",
+    linkText: "",
+    linkTo: "",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 20, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "banner-shows-opening-sentences-2026-08-20",
     badge: "Improved",
     text: "Long updates in this notice are now shortened. This box used to print an entire update — sometimes a dozen lines — directly above the upload area, which pushed the tool itself down the page. It now shows the opening few sentences and offers a link to read the rest. Nothing is lost: the What's New page still carries every update in full, word for word, and it is linked from the header and the footer of every page. Updates short enough to fit are shown whole, with no link.",

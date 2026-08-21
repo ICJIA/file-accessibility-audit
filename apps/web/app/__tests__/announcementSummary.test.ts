@@ -145,12 +145,16 @@ describe("the real announcements this runs against", () => {
     }
   });
 
-  it("actually shortens the newest entry — the one the banner shows", () => {
-    // If this ever fails, the banner is back to printing a wall of text on
-    // the landing page, which is the whole reason the summarizer exists.
-    const newest = entries[0]!;
-    const { text, truncated } = summarizeAnnouncement(newest.text);
-    expect(truncated).toBe(true);
-    expect(text.length).toBeLessThan(newest.text.length);
+  it("actually shortens the long entries — the reason the summarizer exists", () => {
+    // Deliberately NOT pinned to entries[0]. A release whose announcement is
+    // naturally four sentences or fewer is a GOOD announcement, and pinning
+    // the newest entry turns writing one into a failing build (it did, on
+    // v1.85.0). The regression this guards is that real shipped copy gets
+    // shortened at all — so assert it against the longest entry, whichever
+    // that is, and require that some entry is long enough to exercise it.
+    const longest = [...entries].sort((a, b) => b.text.length - a.text.length)[0]!;
+    const { text, truncated } = summarizeAnnouncement(longest.text);
+    expect(truncated, longest.id).toBe(true);
+    expect(text.length).toBeLessThan(longest.text.length);
   });
 });

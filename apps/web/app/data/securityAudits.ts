@@ -54,6 +54,37 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.85.0",
+    meta: "Reviewed <strong>2026-08-20</strong> · scope: the web framework this site is built on, and other third-party code it depends on. Nothing about how documents are checked, stored, or deleted changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Software this site is built from &mdash; not written here, but relied on here &mdash; had published security flaws. They were fixed by updating to the current versions. No page, setting, stored record, or retention period changed, and no document was affected. This entry exists because the update closed one flaw that was genuinely reachable on the live site rather than only possible in theory.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>A framework feature this site never uses was switched on anyway.</strong> The web framework ships an internal address for loading page fragments. This site does not use that feature, but the address was still answering on the live server &mdash; and in the version being run, it was the route through which a set of published flaws could be reached, the most serious allowing an attacker to run code on the server. The framework has been updated to the version that fixes it.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>One flaw could have shown one visitor another visitor&rsquo;s page data.</strong> The same framework version had a caching fault that could serve data prepared for one person to someone else. It is fixed by the same update. This was a fault in the framework&rsquo;s own caching, not in how this service stores reports; a shared report link has always been readable by anyone holding the link, and that is unchanged.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>A developer tool with a serious flaw was removed from the build.</strong> A tool used only while writing the software carried a flaw allowing commands to be run on a developer&rsquo;s own computer. It was confirmed never to have been included in the live site, so no visitor was ever exposed; it has been updated regardless.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Two known issues remain, deliberately and on the record.</strong> One is in a component with no fixed version published yet, and is only used when the software downloads a browser for its own internal testing. The other affects a sign-in form component this service does not contain &mdash; sign-in was removed entirely in v1.68.0. Neither is reachable here. They are listed rather than hidden so the count in this log matches what an outside scanner would report.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.84.0",
     meta: "Reviewed <strong>2026-08-20</strong> · scope: how much of a site update the home page shows. Nothing is collected, stored, sent, or deleted differently.",
     body: [
