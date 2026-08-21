@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.85.0] - 2026-08-20
+
+### Security
+
+- **Nuxt 4.4.7 → 4.5.2, closing six advisories — one of which was reachable in production.** The app defines no server islands, but the island endpoint was registered and answering anyway: `/__nuxt_island/<name>` returned 204 carrying this site's own CSP nonce and security headers, while sibling paths 404'd with a different, minimal CSP. That endpoint is the delivery path for **server-side RCE via runtime template injection in island props**, an unauthenticated out-of-memory crash via unbounded `v-for` expansion, and unauthenticated CPU exhaustion from parsing and hashing the island body before hash validation. Also fixed by the same bump: unauthorized component instantiation via island props, a runtime payload cache that could disclose one visitor's SSR data to another (`>=4.4.0 <=4.5.0`, which 4.4.7 was inside), and route rules being silently dropped for mixed-case paths. The last was tested directly before and after — this site's security headers were **not** affected on `/Announcements`, `/ANNOUNCEMENTS` or `/PubList` — but the version is no longer in range regardless.
+- **`@nuxt/devtools` pinned to ^3.4.0** (resolved 3.4.1), clearing a **critical** advisory in 3.2.4: an unauthenticated DevTools RPC allowing arbitrary command execution on a developer's host while `nuxt dev` runs. It never shipped — verified absent from `.output/` — so this is a workstation exposure, not a production one, but it was live for anyone running the dev server.
+- **`ip-address` pinned to ^10.5.0** (three advisories: octal/leading-zero octet confusion, CIDR-suffix suppression of special-use classification, and IPv4-mapped/NAT64 misclassification — all SSRF/trust-boundary bypasses) and **`nanoid@3` to ^3.3.18** (infinite loop on zero-size custom generators).
+- Production advisory count: **1 critical / 8 high / 5 moderate → 0 critical / 1 high / 1 moderate.**
+
+### Notes
+
+- **The two remaining advisories are deliberate, not overlooked.** `extract-zip` has no non-vulnerable release — 2.0.1 is both the latest version and the vulnerable one — and it is reached only when Puppeteer downloads a browser build. `@nuxt/ui` requires ≥4.8.1 for the `UAuthForm`/`UForm` SSR `method` advisory; this app is on 4.5.1 and uses **neither** component (the login page it once applied to was deleted in v1.68.0), so the fix is a five-minor UI jump to close a hole the app cannot open. Both stay on the record rather than being suppressed.
+- **Framework version bumps here have a history, and it was checked against it.** The 2026-08-03 attempt at this upgrade left `nuxt` at 4.4.7 precisely because 4.5.1 dragged in `unhead` 3 and `h3@2.0.1-rc.26`, giving two incompatible `H3Event` types and failing `pnpm typecheck` on every Nitro route. That does not reproduce on 4.5.2 with the `h3@1` and `unhead@2` overrides now in place. The upgrade was done as a **targeted** `pnpm --filter web update nuxt`, never `pnpm update -r`, and the declared range needed no widening — `^4.4.7` already admitted 4.5.2, only the lockfile pinned it.
+- `fast-xml-parser` did **not** move, so the four OOXML control documents did not need re-verification (the parser is the engine behind every DOCX/PPTX/XLSX check, and a behaviour change there moves scores silently rather than throwing).
+- No application code changed. Tests **2,415**, unchanged (API 1,241 / web 1,125 / CLI 49); lint, format, typecheck and build all clean on the new tree.
+
 ## [1.84.0] - 2026-08-20
 
 ### Changed

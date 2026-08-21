@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "1.84.0",
+  "version": "1.85.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,7 @@
     "@file-audit/shared": "workspace:*",
     "@nuxt/ui": "^4.5.1",
     "@tailwindcss/vite": "^4.2.1",
-    "nuxt": "^4.4.7",
+    "nuxt": "^4.5.2",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
