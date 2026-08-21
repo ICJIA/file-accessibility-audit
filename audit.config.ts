@@ -255,8 +255,8 @@ export const ANNOUNCEMENTS = [
     id: "framework-security-update-2026-08-20",
     badge: "Security",
     text: "The software this site is built on has been updated to close published security flaws. These were in third-party code the service depends on rather than in the accessibility checks themselves, so nothing about how your documents are checked, stored, or deleted has changed — and no document was affected. One of the flaws was reachable on the live site rather than only possible in theory, which is why this update was made promptly and is recorded here. The full technical account is in the security log, and the plain-language version is in section 10 of the data-retention policy.",
-    linkText: "",
-    linkTo: "",
+    linkText: "Read the security review log",
+    linkTo: "/data-retention#security-audits",
     /** Shown under the text so visitors can see the tool is actively maintained. */
     date: "August 20, 2026",
     /** Only shown while the app is on this WCAG version (null = always). */
@@ -583,8 +583,9 @@ export const ANNOUNCEMENTS = [
     id: "leave-warning-and-status-backlink-2026-08-04",
     badge: "Improved",
     text: "If you click a link while a document is still being checked, the page now asks first — leaving cancels the check and discards the report. You will only see this while a check is actually running; ordinary clicks are unaffected. The status page also has a link back to the audit tool now, so it is no longer a dead end, and the “Status” link in the header opens in this tab instead of a new one.",
-    linkText: "",
-    linkTo: "",
+    linkText: "View the status page",
+    linkTo: "/status?html",
+    linkExternal: true,
     /** Shown under the text so visitors can see the tool is actively maintained. */
     date: "August 4, 2026",
     /** Only shown while the app is on this WCAG version (null = always). */
@@ -607,8 +608,9 @@ export const ANNOUNCEMENTS = [
     id: "navbar-status-and-reset-2026-08-03",
     badge: "Improved",
     text: "The top of the page is simpler. There is now a “Status” link showing whether the audit service and each of its checking engines are running, and the “Analyze” link has been removed — click the site title on the left to clear your results and start a new file. The title works with the keyboard as well as the mouse, which the old version did not.",
-    linkText: "",
-    linkTo: "",
+    linkText: "View the status page",
+    linkTo: "/status?html",
+    linkExternal: true,
     /** Shown under the text so visitors can see the tool is actively maintained. */
     date: "August 3, 2026",
     /** Only shown while the app is on this WCAG version (null = always). */

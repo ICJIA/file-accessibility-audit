@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.87.1] - 2026-08-21
+
+### Changed
+
+- **"What's New" entries that mention a page now link to it.** The landing-page security announcement said its details were "recorded in the security log" and "section 10 of the data-retention policy" but gave no link; it now carries **"Read the security review log" → `/data-retention#security-audits`** (§10, the on-site security review history). Two older status-related announcements gained **"View the status page" → `/status?html`** links as well. New standing practice: any announcement referencing a reachable page — the data-retention policy, changelog, security log, status page, or a GitHub repo page — carries a working link rather than bare prose.
+- Conventions matched exactly: on-site Vue pages use a plain internal link (the §10 link deep-links via the `#security-audits` anchor); the status page is a Nitro server route, so those links keep `linkExternal: true` and the established `/status?html` form that avoids the SPA 404.
+
+### Notes
+
+- **Copy/navigation only — no new attack surface.** Three existing `ANNOUNCEMENTS` entries in `audit.config.ts` gained `linkText`/`linkTo` (and `linkExternal` for the two server-route links); no new announcement, no behavior, storage, retention, or dependency change. The security log is unchanged content — the announcement just points at it now. The on-site security log is §10 of the data-retention policy; the fuller technical version remains the README's Security section on GitHub. Tests 2,431 (unchanged); the announcement-archive and banner suites already cover link rendering, including the truncated-entry-plus-own-link spacing case.
+
 ## [1.87.0] - 2026-08-21
 
 ### Security

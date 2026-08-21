@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.87.1",
+    meta: "Reviewed <strong>2026-08-21</strong> · scope: wording and links on the landing-page &ldquo;What&rsquo;s New&rdquo; notices. Nothing about what is collected, stored, or handled changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The update notice on the home page mentioned this security log but did not link to it; it now does. A couple of older notices that mentioned the service&rsquo;s status page gained links to it as well. This is a navigation improvement only &mdash; no page, setting, stored record, or retention period changed, and the security log itself is unchanged content that the notice simply points to now.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "UX",
+            html: "<strong>Update notices now link to the pages they mention.</strong> An update that refers to this security log, the data-retention policy, the changelog, or the status page now carries a working link to it rather than leaving the reader to find it. Nothing about the notices&rsquo; content changed beyond adding the links.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.87.0",
     meta: "Reviewed <strong>2026-08-21</strong> · scope: which network interface the service listens on. No change to what is collected, stored, or how requests are handled.",
     body: [
