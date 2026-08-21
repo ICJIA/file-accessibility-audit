@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.87.0] - 2026-08-21
+
+### Security
+
+- **The app processes bind to loopback in production, closing the audit finding that they listened on `0.0.0.0`.** The 2026-08-20 review found the API (5103) and web (5102) reachable on every interface, with only the host firewall between them and the internet. Both now bind `127.0.0.1` in production — the API through a new `resolveBindHost` helper reading `DEPLOY.BIND_HOST`, the web (Nitro) through a `HOST` env var in `ecosystem.config.cjs`. nginx proxies to `127.0.0.1`, and nothing legitimate reaches the raw ports from off-host (the fleet uses `https://audit.icjia.app`), so this removes the exposure with no functional change. Verified at the socket level: a production start binds `127.0.0.1:5103`, a development start still binds all interfaces.
+- **Scoped to this app only.** The change touches `apps/api/src/index.ts` and this repo's `ecosystem.config.cjs`, which defines only `file-audit-api` and `file-audit-web`. Other processes on the shared host (e.g. Strapi) run from their own configs and are untouched — no server-wide, nginx, or `/etc/environment` change.
+
+### Notes
+
+- **Production only, by design.** Development binds all interfaces unchanged: the Nuxt dev proxy targets `localhost:5103`, which resolves to IPv6 `::1` first on some systems, so an IPv4-only bind would break the dev proxy intermittently. Dev runs on a laptop where binding all interfaces is a non-issue, and the audit finding is about the production droplet. `resolveBindHost(isProduction, host)` returns the loopback host in production and `undefined` (all interfaces) in development.
+- **Single source of truth.** `DEPLOY.BIND_HOST` (`"127.0.0.1"`) is what the API reads directly; the web reads the same value as the `HOST` env in `ecosystem.config.cjs`. `bindLoopback.test.ts` pins that the two agree and that the API binds through the helper, so neither can silently regress to `0.0.0.0`.
+- **Deploy:** `rebuild.sh` already restarts with `pm2 restart ecosystem.config.cjs --update-env`, so the new web `HOST` env is picked up on a normal deploy — no re-register needed. Verify afterward with `ss -lntp | grep -E '510[23]'`: both should show `127.0.0.1`, not `0.0.0.0`/`*`. The API binds loopback the moment its process restarts; the web binds loopback once the refreshed env reaches Nitro.
+- TDD throughout: the pure `resolveBindHost` helper (prod → loopback, dev → all-interfaces, passthrough of the configured value), the ecosystem/config agreement, the API wiring, plus a real socket-level check. No new external surface — it removes surface; no change to rate limits, SSRF controls, size caps, or dependencies. Tests 2,425 → 2,431 (API 1,255 / web 1,127 / CLI 49).
+
 ## [1.86.0] - 2026-08-21
 
 ### Added

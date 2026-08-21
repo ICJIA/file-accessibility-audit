@@ -16,6 +16,7 @@ import { formatUptime } from "./services/status.js";
 // Import db to trigger table creation on startup
 import "./db/sqlite.js";
 import { ANALYSIS, DEPLOY } from "#config";
+import { resolveBindHost } from "./bindHost.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5103;
@@ -124,10 +125,18 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`[API] Running on http://localhost:${PORT}`);
+// Bind loopback in production so the port is reachable only from the same host
+// (nginx proxies to 127.0.0.1); bind all interfaces in dev so the Nuxt proxy's
+// localhost/::1 target still resolves. See resolveBindHost + DEPLOY.BIND_HOST.
+const HOST = resolveBindHost(isProduction, DEPLOY.BIND_HOST);
+const onListen = () => {
+  console.log(`[API] Running on http://${HOST ?? "localhost"}:${PORT}`);
   console.log(`[API] Environment: ${process.env.NODE_ENV || "development"}`);
-});
+};
+// Conditional call rather than passing an undefined host, so the dev path is an
+// unambiguous listen(port, callback) with no reliance on how the overload
+// treats an explicit undefined in the host position.
+const server = HOST ? app.listen(PORT, HOST, onListen) : app.listen(PORT, onListen);
 
 // Process-level safety nets. Without these, an unhandled rejection anywhere
 // in the process (a stray promise in a route handler, a background job, a

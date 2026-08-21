@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.87.0",
+    meta: "Reviewed <strong>2026-08-21</strong> · scope: which network interface the service listens on. No change to what is collected, stored, or how requests are handled.",
+    body: [
+      {
+        kind: "p",
+        html: "The parts of the service that talk to the web server now accept connections only from the same machine, rather than from any network interface. The web server (nginx) already reaches them over the local loopback address, and no outside caller ever connects to them directly, so this removes an exposure without changing anything a visitor sees or does.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Hardened",
+            html: "<strong>The service listens on loopback only, in production.</strong> Both of the service&rsquo;s own processes previously accepted connections on every network interface, with only the host firewall in front of them. They now bind to the local loopback address in production, so they are reachable only from the same machine &mdash; the web server proxies to them locally, and the automated fleet reaches the service through its public address, not the raw ports. Development is unchanged.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Confined to this service.</strong> The change touches only this application&rsquo;s own two processes; other applications sharing the same server are configured separately and were not altered. There was no change to the web-server configuration, to any shared credential, or to any other machine-wide setting.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.86.0",
     meta: "Reviewed <strong>2026-08-21</strong> · scope: a new status-page measure of trusted-tool request volume, plus the routine server maintenance carried out the same day. Nothing new is collected about people; no data-handling or retention period changed.",
     body: [

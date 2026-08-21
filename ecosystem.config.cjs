@@ -92,6 +92,12 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: 5102,
+        // Bind Nitro to loopback so 5102 is reachable only from this host —
+        // nginx proxies to 127.0.0.1. Mirrors the API's DEPLOY.BIND_HOST
+        // (pinned equal by bindLoopback.test.ts). New env var: the first
+        // deploy must refresh the process env (pm2 restart --update-env) for
+        // it to take effect.
+        HOST: "127.0.0.1",
         // Web doesn't read the API-side paths but forwarding is harmless
         // and keeps both processes in sync if the flag ever moves.
         ...remediationEnv,

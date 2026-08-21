@@ -762,6 +762,25 @@ export const DEPLOY = {
   WEB_PORT: 5102,
 
   /**
+   * The network interface the app processes bind to IN PRODUCTION. Loopback by
+   * default, so the ports are reachable only from the same host — nginx
+   * proxies to 127.0.0.1, and no legitimate caller reaches the raw ports from
+   * off-host (the fleet uses https://audit.icjia.app). This closes the
+   * 2026-08-20 audit finding that the app listened on 0.0.0.0 behind only the
+   * host firewall. Development is unaffected: it binds all interfaces (see
+   * resolveBindHost) so the Nuxt dev proxy's localhost/::1 target still
+   * resolves.
+   *
+   * The API reads this directly; the web (Nitro) reads it as the HOST env var
+   * set in ecosystem.config.cjs — both must agree, pinned by a test.
+   *
+   * SAFE TO CHANGE: Set to "0.0.0.0" ONLY for a containerized deploy where the
+   * reverse proxy runs on a different host/interface. On the current
+   * single-droplet + nginx setup, keep it loopback.
+   */
+  BIND_HOST: "127.0.0.1",
+
+  /**
    * The `client_max_body_size` that nginx's `location /api/` block MUST carry,
    * in megabytes.
    *
