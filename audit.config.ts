@@ -783,6 +783,17 @@ export const DEPLOY = {
   BIND_HOST: "127.0.0.1",
 
   /**
+   * The IANA time zone used wherever the service renders an instant for a
+   * human reader — /status's *_chicago fields and the daily activity export's
+   * file boundaries and timestamp_chicago column. The database stays UTC.
+   *
+   * SAFE TO CHANGE: Yes, to the zone the service's readers live in. Changing
+   * it after activity files exist re-cuts future days on the new zone; the
+   * existing files keep their old boundaries (see docs/activity-export.md).
+   */
+  LOCAL_TIME_ZONE: "America/Chicago",
+
+  /**
    * The `client_max_body_size` that nginx's `location /api/` block MUST carry,
    * in megabytes.
    *
@@ -1518,6 +1529,46 @@ export const SHARED_REPORTS = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// DAILY ACTIVITY EXPORT (v1.88.0)
+// ---------------------------------------------------------------------------
+// One CSV per complete local calendar day, derived from audit_log by the
+// retention sweep (services/activityExport.ts). Design:
+// docs/superpowers/specs/2026-08-22-activity-export-design.md
+
+export const ACTIVITY_EXPORT = {
+  /**
+   * Subdirectory of the data directory (the directory holding the SQLite
+   * database — DB_PATH's parent, the same volume the /status disk probe
+   * watches) where the daily files are written.
+   *
+   * SAFE TO CHANGE: Yes. Existing files are not moved; delete the old
+   * directory by hand after changing this.
+   */
+  DIR_NAME: "activity",
+
+  /**
+   * File name prefix: `<prefix>YYYY-MM-DD.csv`. Pruning deletes ONLY names of
+   * exactly this shape, so nothing a human drops into the directory is ever
+   * touched.
+   *
+   * SAFE TO CHANGE: Yes, but files written under the old prefix will never
+   * be pruned — rename them by hand.
+   */
+  FILE_PREFIX: "activity-",
+
+  /**
+   * Minutes after local midnight before the previous day counts as complete
+   * and is written. Rows are insert-only with server-set timestamps, so the
+   * only thing this guards is a request that straddles midnight.
+   *
+   * Retention is deliberately NOT a setting here: the files reuse
+   * SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS so a file exists exactly when its
+   * rows do. SAFE TO CHANGE: Yes.
+   */
+  GRACE_MINUTES: 5,
+} as const;
+
+// ---------------------------------------------------------------------------
 // PUBLIC STATUS ENDPOINT
 // ---------------------------------------------------------------------------
 // Backing config for the public status document at https://audit.icjia.app/status
@@ -1628,6 +1679,33 @@ export const STATUS = {
    * SAFE TO CHANGE: Only alongside the counting helpers in services/status.ts.
    */
   REJECTION_EVENT_TYPES: ["rejected-upload"],
+
+  /**
+   * audit_log.event_type values for an audit the tool ATTEMPTED and could not
+   * complete (v1.88.0): one "-failed" twin per DOCUMENT_EVENT_TYPES and
+   * PAGE_EVENT_TYPES entry, pinned by failureEventTypes.test.ts.
+   *
+   * DO NOT add these to DOCUMENT_EVENT_TYPES or PAGE_EVENT_TYPES. A failed
+   * audit has no score and no grade, so counting it would inflate
+   * documents_audited and dump rows into the grade distribution's 'ungraded'
+   * bucket — the same reasoning as REJECTION_EVENT_TYPES. Every counting
+   * helper in services/status.ts is an allow-list, so these rows are
+   * excluded by construction; status.test.ts pins that anyway.
+   *
+   * Failure rows are written with content_hash NULL (recordAuditFailure), so
+   * a failure can never satisfy the remediation audit-gate — identical to the
+   * rejection reasoning above. Their one-word `reason` column is a closed set
+   * (services/auditFailure.ts), never error text.
+   *
+   * SAFE TO CHANGE: Only alongside recordAuditFailure's FailureEventBase type.
+   */
+  FAILURE_EVENT_TYPES: [
+    "analyze-failed",
+    "analyze-url-failed",
+    "audit-url-failed",
+    "audit-url-page-failed",
+    "bulk-from-inventory-failed",
+  ],
 
   /**
    * Hours after which the last successful backup is reported as "stale" on

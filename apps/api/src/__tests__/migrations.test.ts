@@ -408,10 +408,10 @@ describe("migration 12: audit_log.privileged tier column", () => {
     expect(hasColumn(db, "audit_log", "privileged")).toBe(true);
   });
 
-  it("lands the database at user_version 12", () => {
+  it("lands the database at the latest version after migration 12 runs", () => {
     const db = freshDb();
     runMigrations(db);
-    expect(db.pragma("user_version", { simple: true })).toBe(12);
+    expect(db.pragma("user_version", { simple: true })).toBe(LATEST_VERSION);
   });
 
   it("leaves the new column nullable so pre-migration rows read as unknown tier", () => {

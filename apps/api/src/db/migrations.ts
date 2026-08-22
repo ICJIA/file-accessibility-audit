@@ -345,6 +345,23 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 13,
+    // One-word reason on a FAILED audit (v1.88.0): an audit the tool attempted
+    // and could not complete now leaves a `<type>-failed` row — same fields as
+    // a successful audit, score/grade/content_hash NULL — plus this code.
+    // Closed set (services/auditFailure.ts): unreadable, timeout, fetch-failed,
+    // navigation-failed, internal. Never error text: messages can embed a file
+    // name, a URL, or a library path, and the data-retention page describes
+    // this column as a fixed code. NULL on every non-failure row.
+    // Probe-before-ALTER so a crashed re-run is safe.
+    name: "add audit_log.reason (one-word failure code on a failed audit)",
+    up(db) {
+      if (!hasColumn(db, "audit_log", "reason")) {
+        db.exec(`ALTER TABLE audit_log ADD COLUMN reason TEXT;`);
+      }
+    },
+  },
 ];
 
 /**
