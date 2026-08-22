@@ -35,11 +35,12 @@ const req: any = {
 afterEach(() => vi.restoreAllMocks());
 
 describe("statusOf", () => {
-  it("maps LIMIT_FILE_SIZE to 413, a 4xx/5xx status through, and everything else to 500", () => {
+  it("maps LIMIT_FILE_SIZE to 413, passes through any status value, defaults to 500", () => {
     expect(statusOf({ code: "LIMIT_FILE_SIZE" })).toBe(413);
     expect(statusOf({ status: 400 })).toBe(400);
     expect(statusOf({ status: 503 })).toBe(503);
-    expect(statusOf({ status: 200 })).toBe(500);
+    expect(statusOf({ status: 200 })).toBe(200);
+    expect(statusOf({ status: "404" })).toBe("404");
     expect(statusOf(new Error("boom"))).toBe(500);
     expect(statusOf(undefined)).toBe(500);
   });
@@ -60,6 +61,16 @@ describe("logHandledError", () => {
     expect(error).not.toHaveBeenCalled();
   });
 
+  it("a 2xx status logs one warn line; the response status and log classification agree", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    logHandledError({ status: 200, message: "odd" }, { method: "GET", path: "/x" });
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = warn.mock.calls[0].map(String).join(" ");
+    expect(line).toBe("[api] 200 error GET /x");
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it("a 5xx keeps the full error (with stack) on console.error", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -67,6 +78,15 @@ describe("logHandledError", () => {
     logHandledError(err, req);
     expect(warn).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(err);
+  });
+
+  it("the Error.name fallback labels a 400 error with its name", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    logHandledError(Object.assign(new Error("URL not allowed"), { status: 400 }), req);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = warn.mock.calls[0].map(String).join(" ");
+    expect(line).toBe("[api] 400 Error POST /api/analyze");
   });
 });
 

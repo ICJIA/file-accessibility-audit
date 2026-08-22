@@ -7,8 +7,8 @@
  * It used to log the full error with stack, so an over-sized upload filled
  * the error log exactly like a crash. A server fault (5xx) keeps the full
  * error. Neither line carries an IP, a token, a user agent or a body
- * (req.path has no query string), the same constraint the [rate-limit] lines
- * are tested for.
+ * (req.path has no query string), the same constraint the `[rate-limit]` log
+ * lines are tested for.
  */
 import type { NextFunction, Request, Response } from "express";
 import { ANALYSIS } from "#config";
@@ -24,17 +24,16 @@ function shape(err: unknown): ErrorShape {
   return typeof err === "object" && err !== null ? (err as ErrorShape) : {};
 }
 
-/** The HTTP status this error will be answered with. */
-export function statusOf(err: unknown): number {
+/** The HTTP status the response will be sent with. */
+export function statusOf(err: unknown): number | unknown {
   const e = shape(err);
   if (e.code === "LIMIT_FILE_SIZE") return 413;
-  const s = Number(e.status);
-  return Number.isInteger(s) && s >= 400 && s <= 599 ? s : 500;
+  return e.status ?? 500;
 }
 
 export function logHandledError(err: unknown, req: { method: string; path: string }): void {
   const status = statusOf(err);
-  if (status < 500) {
+  if (Number(status) < 500) {
     const e = shape(err);
     const label =
       typeof e.code === "string" ? e.code : typeof e.name === "string" ? e.name : "error";
@@ -47,8 +46,10 @@ export function logHandledError(err: unknown, req: { method: string; path: strin
 export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction): void {
   logHandledError(err, req);
 
+  const status = statusOf(err);
+
   // Multer file size error
-  if (err?.code === "LIMIT_FILE_SIZE") {
+  if (status === 413) {
     res.status(413).json({
       error: `This file is too large. The maximum upload size is ${ANALYSIS.MAX_FILE_SIZE_MB} MB.`,
       details:
@@ -57,8 +58,7 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
     return;
   }
 
-  const status = err?.status || 500;
-  res.status(status).json({
+  res.status(status as number).json({
     error: status === 500 ? "Internal server error" : err.message,
   });
 }
