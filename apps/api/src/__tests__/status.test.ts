@@ -1150,3 +1150,30 @@ describe("privileged-tier audit counting", () => {
     expect(payload.privileged_audits).toEqual({ last_24h: 0, last_30d: 0, total: 0 });
   });
 });
+
+describe("failed audits are invisible to every public count (v1.88.0)", () => {
+  it("seeding every failure event type changes nothing in the payload's aggregates", () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "ok.pdf", privileged: 0 });
+    seedAudit(db, { eventType: "rejected-upload", filename: "no.csv", grade: null, privileged: 0 });
+    const before = collectAggregates(db, T0);
+
+    for (const t of STATUS.FAILURE_EVENT_TYPES) {
+      seedAudit(db, {
+        eventType: t,
+        filename: `${t}.pdf`,
+        grade: null,
+        privileged: 1,
+        agoMs: 60_000,
+      });
+    }
+    const after = collectAggregates(db, T0);
+
+    expect(after.documents_audited).toEqual(before.documents_audited);
+    expect(after.privileged_audits).toEqual(before.privileged_audits);
+    expect(after.documents_rejected).toEqual(before.documents_rejected);
+    // A failure is not "the last audit".
+    expect(after.last_audit_at).toEqual(before.last_audit_at);
+    expect(after.database).toBe("ok");
+  });
+});

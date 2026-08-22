@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import db from "../db/sqlite.js";
 import { FILENAME, STATUS } from "#config";
+import { AUDIT_FAILURE_REASONS, type AuditFailureReason } from "./auditFailure.js";
 
 /**
  * Shared writer for the audit_log table.
@@ -40,8 +41,8 @@ export function sha256Hex(buf: Buffer): string {
 
 const insertStmt = db.prepare(
   `INSERT INTO audit_log
-     (event_type, filename, score, grade, content_hash, privileged)
-   VALUES (?, ?, ?, ?, ?, ?)`,
+     (event_type, filename, score, grade, content_hash, privileged, reason)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`,
 );
 
 /**
@@ -107,6 +108,8 @@ export function recordAudit(input: RecordAuditInput): void {
       // Stored as 1/0 (SQLite has no boolean). Never NULL from this writer —
       // NULL is reserved for rows that predate the column (unknown tier).
       input.privileged ? 1 : 0,
+      // reason belongs to failed audits only (recordAuditFailure); NULL here.
+      null,
     );
   } catch (err) {
     // Don't block the response on a logging failure — the audit
@@ -147,6 +150,64 @@ export function recordRejectedUpload(input: { filename: string; privileged: bool
     grade: null,
     contentHash: null,
   });
+}
+
+/** The audit paths that can fail. The writer appends "-failed" itself, so a
+ *  call site cannot misspell the twin; auditLogFailure.test.ts pins that every
+ *  result is in STATUS.FAILURE_EVENT_TYPES. */
+export type FailureEventBase =
+  "analyze" | "analyze-url" | "audit-url" | "audit-url-page" | "bulk-from-inventory";
+
+export interface RecordAuditFailureInput {
+  eventType: FailureEventBase;
+  privileged: boolean;
+  /** The uploaded file's name, or the URL for the URL / page audits. */
+  filename: string;
+  reason: AuditFailureReason;
+}
+
+/** Events whose `filename` is a real file name and gets the full sanitiser.
+ *  The others carry a URL, which sanitizeStoredFilename would mangle
+ *  (basename, `:` and `/` stripped) — they get single-line + clamp only. */
+const FILE_NAME_EVENTS: ReadonlySet<FailureEventBase> = new Set(["analyze", "bulk-from-inventory"]);
+
+/**
+ * Records an audit the tool ATTEMPTED and could not complete (v1.88.0) as a
+ * `<type>-failed` row: the same fields as a successful audit, score / grade /
+ * content_hash NULL, plus a one-word reason from the closed set in
+ * services/auditFailure.ts. Failure event types are outside every counting
+ * allow-list in services/status.ts, so they inflate nothing; the NULL hash
+ * means a failure can never satisfy the remediation audit-gate (same reasoning
+ * as recordRejectedUpload). Capacity (503) and refusals are not failures —
+ * classifyAuditFailure answers null for them and callers record nothing.
+ *
+ * Best-effort like the other writers: a logging failure never changes the
+ * HTTP response.
+ */
+export function recordAuditFailure(input: RecordAuditFailureInput): void {
+  // Belt and braces on top of the type: the column is described to readers as
+  // a fixed code, so an unexpected value degrades to "internal", never to text.
+  const reason: AuditFailureReason = (AUDIT_FAILURE_REASONS as readonly string[]).includes(
+    input.reason,
+  )
+    ? input.reason
+    : "internal";
+  const filename = FILE_NAME_EVENTS.has(input.eventType)
+    ? sanitizeStoredFilename(input.filename)
+    : input.filename.replace(/\s/g, " ");
+  try {
+    insertStmt.run(
+      `${input.eventType}-failed`,
+      clamp(filename, MAX_FILENAME_CHARS) ?? "",
+      null,
+      null,
+      null,
+      input.privileged ? 1 : 0,
+      reason,
+    );
+  } catch (err) {
+    console.error("audit_log failure write failed:", err);
+  }
 }
 
 /**
