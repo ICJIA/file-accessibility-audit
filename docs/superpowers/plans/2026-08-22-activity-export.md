@@ -40,7 +40,8 @@
 | `apps/api/src/services/activityDays.ts` (new) | local-date arithmetic, export window, file-name encode/parse |
 | `apps/api/src/services/activityCsv.ts` (new) | column allow-list, field quoting/injection guard, BOM, row formatting |
 | `apps/api/src/services/activityExport.ts` (new) | `runActivityExport()` — write missing complete days, prune by filename date |
-| `apps/api/src/services/remediationCleanup.ts` | step 8 + two result fields |
+| `apps/api/src/services/remediationCleanup.ts` | step 8 + two result fields (Task 10); error-log pruning + a third field (Task 14) |
+| `apps/api/src/services/errorLog.ts` (new, Task 14) | `installErrorLogTee()` — tees `console.error`/`console.warn` into `logs/errors-YYYY-MM-DD.log`; `pruneErrorLogs()` |
 | `apps/web/app/components/dataRetention/Section{07,08,08a,14}*.vue`, `apps/web/app/pages/data-retention.vue` | policy v1.12 |
 | `docs/activity-export.md` (new), `docs/process-supervision.md`, `README.md` | runbook, gzip correction, README |
 | `CHANGELOG.md`, 6× `package.json`, `apps/web/app/data/securityAudits.ts`, `audit.config.ts` (`ANNOUNCEMENTS`) | release v1.88.0 |
@@ -1798,12 +1799,14 @@ import { describe, it, expect } from "vitest";
 import {
   activityFileName,
   addDays,
+  datedFileName,
   dayBefore,
   daysAfter,
   exportWindow,
   localDate,
   localStamp,
   parseActivityFileName,
+  parseDatedFileName,
 } from "../services/activityDays.js";
 
 const TZ = "America/Chicago";
@@ -1879,6 +1882,13 @@ describe("file names", () => {
     expect(parseActivityFileName("notes.txt")).toBeNull();
     expect(parseActivityFileName("activity-2026-08-19.CSV")).toBeNull();
     expect(parseActivityFileName("old-activity-2026-08-19.csv")).toBeNull();
+  });
+  it("the generic codec serves any prefix/extension pair (the error log uses errors-*.log)", () => {
+    expect(datedFileName("errors-", "2026-08-19", ".log")).toBe("errors-2026-08-19.log");
+    expect(parseDatedFileName("errors-2026-08-19.log", "errors-", ".log")).toBe("2026-08-19");
+    expect(parseDatedFileName("errors-2026-08-19.log", "activity-", ".csv")).toBeNull();
+    expect(parseDatedFileName("errors-2026-08-19.log.1", "errors-", ".log")).toBeNull();
+    expect(parseDatedFileName("errors-2026-13-01.log", "errors-", ".log")).toBeNull();
   });
 });
 ```
@@ -1995,29 +2005,45 @@ export function exportWindow(
   };
 }
 
-export function activityFileName(day: string): string {
-  return `${ACTIVITY_EXPORT.FILE_PREFIX}${day}.csv`;
-}
-
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const FILE_RE = new RegExp(`^${escapeRegExp(ACTIVITY_EXPORT.FILE_PREFIX)}(\\d{4}-\\d{2}-\\d{2})\\.csv$`);
+/** `<prefix>YYYY-MM-DD<ext>` — the one shape every dated file in logs/ has. */
+export function datedFileName(prefix: string, day: string, ext: string): string {
+  return `${prefix}${day}${ext}`;
+}
 
-/** The day a file name encodes, or null for any name the export did not
- *  write — pruning deletes only what this recognises. */
-export function parseActivityFileName(name: string): string | null {
-  const m = FILE_RE.exec(name);
+const parsers = new Map<string, RegExp>();
+
+/** The day a dated file name encodes, or null for any other name — pruning
+ *  deletes only what this recognises (a real calendar day, exact prefix and
+ *  extension, nothing appended such as `.tmp`). */
+export function parseDatedFileName(name: string, prefix: string, ext: string): string | null {
+  const key = `${prefix}\u0000${ext}`;
+  let re = parsers.get(key);
+  if (!re) {
+    re = new RegExp(`^${escapeRegExp(prefix)}(\\d{4}-\\d{2}-\\d{2})${escapeRegExp(ext)}$`);
+    parsers.set(key, re);
+  }
+  const m = re.exec(name);
   if (!m) return null;
   return isCalendarDay(m[1]) ? m[1] : null;
+}
+
+export function activityFileName(day: string): string {
+  return datedFileName(ACTIVITY_EXPORT.FILE_PREFIX, day, ".csv");
+}
+
+export function parseActivityFileName(name: string): string | null {
+  return parseDatedFileName(name, ACTIVITY_EXPORT.FILE_PREFIX, ".csv");
 }
 ```
 
 - [ ] **Step 4: Run the test**
 
 Run: `pnpm --filter api exec vitest run src/__tests__/activityDays.test.ts`
-Expected: PASS (10 tests).
+Expected: PASS (11 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -2861,11 +2887,26 @@ describe("data-retention policy v1.12: failed audits + daily activity files", ()
     expect(entry).toMatch(/not part of the nightly backup/);
   });
 
+  it("§ 7 and § 8 describe the application error log: what it holds, 30 days, not backed up, never served", () => {
+    const row = visible(between(s07, "Application error log", "</tr>"));
+    expect(row).toMatch(/error message and stack trace/);
+    expect(row).toMatch(/30 days/);
+    expect(row).toMatch(/ACTIVITY_EXPORT\.ERROR_LOG_RETENTION_DAYS/);
+    expect(row).toMatch(/not part of the nightly backup; never served/);
+    const bullet = visible(between(s08, "Application error log", "</li>"));
+    expect(bullet).toMatch(/never writes an IP address, a token or a browser identifier/);
+    expect(bullet).toMatch(/Kept 30 days/);
+    expect(visible(between(s14, "v1.12 · 2026-08-22", "</li>"))).toMatch(/Application error log/);
+    expect(visible(s07)).toMatch(/error-log files past their 30-day window/);
+  });
+
   it("the new copy never overclaims", () => {
     const fresh = [
       between(s07, "Daily activity files", "</tr>"),
+      between(s07, "Application error log", "</tr>"),
       between(s08, "For a failed audit", "</li>"),
       between(s08, "Daily activity files", "</li>"),
+      between(s08, "Application error log", "</li>"),
       between(s14, "v1.12 · 2026-08-22", "</li>"),
     ].map(visible);
     for (const t of fresh) {
@@ -2914,13 +2955,34 @@ and insert this row directly after that row's closing `</tr>`:
           </tr>
 ```
 
+Directly after that new row, add the error-log row:
+
+```html
+          <tr class="border-b border-[var(--border)]/40">
+            <td class="py-2.5 pr-4 font-medium">
+              Application error log — what the service writes to its own error output: a
+              timestamp, the operation that failed, the error message and stack trace (no file
+              content)
+            </td>
+            <td class="py-2.5 pr-4">
+              On the same server, in <code class="font-mono">logs/</code> at the application's
+              root, one file per day; not part of the nightly backup; never served
+            </td>
+            <td class="py-2.5 pr-4">30 days</td>
+            <td class="py-2.5">
+              Yes — <code class="font-mono">ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS</code>
+            </td>
+          </tr>
+```
+
 In the sweep paragraph, change "It performs seven tasks idempotently:" to "It performs eight tasks idempotently:" and change the tail "…and delete `shared_reports` rows roughly 30 days after their link expires. Source:" to:
 
 ```
       <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; delete
       <code class="text-xs font-mono">shared_reports</code> rows roughly 30 days after their link
       expires; and write the previous day's activity file, deleting activity files past the same
-      365-day window (tool v1.88.0+). Source:
+      365-day window, and delete application error-log files past their 30-day window (tool
+      v1.88.0+). Source:
 ```
 
 `Section08Stored.vue` — after the refused-upload `<li>…</li>`, add:
@@ -2941,6 +3003,19 @@ In the sweep paragraph, change "It performs seven tasks idempotently:" to "It pe
             same fields as the rows above and nothing more. The file name is the one field that can
             carry personal information, if a person put it there. Deleted after 365 days; not part of
             the nightly backup; not downloadable from this site
+          </li>
+```
+
+After the daily-activity-files bullet, add:
+
+```html
+          <li>
+            Application error log (tool v1.88.0+): one text file per day in
+            <code class="font-mono">logs/</code> on the server holding what the service writes to
+            its own error output — a timestamp, which operation failed, and the error message and
+            stack trace. A message or stack can name a file, a page address or a library path; the
+            service never writes an IP address, a token or a browser identifier to it. Kept 30 days
+            for diagnosing faults; not part of the nightly backup; not downloadable
           </li>
 ```
 
@@ -2991,9 +3066,91 @@ CREATE TABLE audit_log (          -- shape after migration 13
         each night the server writes the previous day's usage-log rows to a CSV file so auditors and
         managers can review a day without querying the database. Derived from the table, same
         fields, deleted on the same 365-day schedule, kept on the server's disk only, not part of the
-        nightly backup, never served by the site (§ 7, § 8).
+        nightly backup, never served by the site (§ 7, § 8). <em>Application error log</em>: the
+        service's own error output — message and stack trace, for diagnosing faults — is also kept
+        as one file per day in the same place, for 30 days, not backed up, never served (§ 7, § 8).
       </li>
 ```
+
+- [ ] **Step 3c: The policy-conformance test (API suite — it needs the code's constants)**
+
+```ts
+// apps/api/src/__tests__/activityLogsPolicyConformance.test.ts
+/**
+ * "Verify that the logs abide by the data retention policy" (user, 2026-08-22):
+ * the policy page is prose, the code is constants, and the two drift silently.
+ * This reads the policy's own section sources (as the web suite's
+ * backupsExplained.test.ts does) and pins them to the constants the sweep and
+ * the writers actually use. A retention change in either place fails here.
+ */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, it, expect } from "vitest";
+import { ACTIVITY_EXPORT, SHARED_REPORTS } from "#config";
+import { AUDIT_FAILURE_REASONS } from "../services/auditFailure.js";
+
+const SECTIONS = resolve(__dirname, "../../../web/app/components/dataRetention");
+const read = (f: string) => readFileSync(resolve(SECTIONS, f), "utf8");
+const visible = (html: string) =>
+  html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z]+;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+const between = (text: string, start: string, end: string) => {
+  const i = text.indexOf(start);
+  expect(i, `marker "${start}"`).toBeGreaterThan(-1);
+  const j = text.indexOf(end, i + start.length);
+  expect(j, `end marker "${end}"`).toBeGreaterThan(-1);
+  return text.slice(i, j);
+};
+
+const s07 = read("Section07RetentionTable.vue");
+const s08 = read("Section08Stored.vue");
+
+describe("the data-retention policy states what the code enforces", () => {
+  it("§ 7: the activity files' window is the usage log's constant", () => {
+    const row = visible(between(s07, "Daily activity files", "</tr>"));
+    expect(row).toContain(`${SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS} days`);
+    expect(row).toContain("SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS");
+    expect(visible(between(s07, "Usage log", "</tr>"))).toContain(
+      `${SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS} days`,
+    );
+  });
+  it("§ 7: the error log's window is the config constant", () => {
+    const row = visible(between(s07, "Application error log", "</tr>"));
+    expect(row).toContain(`${ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS} days`);
+    expect(row).toContain("ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS");
+    expect(visible(s07)).toContain(`${ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS}-day window`);
+  });
+  it("§ 7 and § 8 name the directory the code writes to", () => {
+    for (const marker of ["Daily activity files", "Application error log"]) {
+      expect(visible(between(s07, marker, "</tr>"))).toContain(`${ACTIVITY_EXPORT.DIR_NAME}/`);
+      expect(visible(between(s08, marker, "</li>"))).toContain(`${ACTIVITY_EXPORT.DIR_NAME}/`);
+    }
+  });
+  it("§ 8 lists exactly the closed reason set the writer accepts", () => {
+    const bullet = visible(between(s08, "For a failed audit", "</li>"));
+    for (const r of AUDIT_FAILURE_REASONS) expect(bullet).toContain(r);
+    const listed = bullet.match(/[a-z]+(?:-[a-z]+)*/g)!.filter((w) =>
+      (AUDIT_FAILURE_REASONS as readonly string[]).includes(w),
+    );
+    expect(new Set(listed).size).toBe(AUDIT_FAILURE_REASONS.length);
+  });
+  it("§ 8 lists 30 days for the error log and 365 for the activity files, as the code does", () => {
+    expect(visible(between(s08, "Application error log", "</li>"))).toContain(
+      `Kept ${ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS} days`,
+    );
+    expect(visible(between(s08, "Daily activity files", "</li>"))).toContain(
+      `Deleted after ${SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS} days`,
+    );
+  });
+});
+```
+
+Run: `pnpm --filter api exec vitest run src/__tests__/activityLogsPolicyConformance.test.ts`
+Expected: PASS (5 tests) once Step 3's edits are in place (it fails before them — that is the point).
 
 - [ ] **Step 4: Format, then check for stale pins**
 
@@ -3009,8 +3166,8 @@ Expected: all green, including `dataRetentionVersion.test.ts` (header 1.12 == ne
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/web/app/pages/data-retention.vue apps/web/app/components/dataRetention apps/web/app/__tests__/activityExportPolicy.test.ts
-git commit -m "docs(policy): data-retention v1.12 — failed audits recorded with a reason; daily activity files"
+git add apps/web/app/pages/data-retention.vue apps/web/app/components/dataRetention apps/web/app/__tests__/activityExportPolicy.test.ts apps/api/src/__tests__/activityLogsPolicyConformance.test.ts
+git commit -m "docs(policy): data-retention v1.12 — failed audits with a reason; daily activity files; application error log; policy pinned to the code's constants"
 ```
 
 ---
@@ -3111,6 +3268,39 @@ rm logs/activity-2026-08-19.csv                       # then wait ≤ 5 min, or 
 This is also the upgrade path if the file format ever changes: delete the files, let the sweep
 rebuild them.
 
+## The error log — when the site misbehaves
+
+```
+<repo-root>/logs/errors-YYYY-MM-DD.log
+```
+
+Everything the API process writes to its error output, one plain-text file per Chicago day:
+each entry is `2026-08-19T14:03:22Z [error] …` or `[warn] …` followed by exactly what the
+terminal would show — for an Error, its message and stack. It is a tee of stderr, installed at
+startup, so `pm2 logs file-audit-api` shows the same lines; this file is just the copy that is
+easy to find and that outlives PM2's 14-day rotation.
+
+```bash
+less logs/errors-2026-08-19.log
+grep -n '\[error\]' logs/errors-2026-08-19.log | tail      # the failures, newest last
+grep -c 'net::ERR_ABORTED' logs/errors-2026-08-19.log       # how often a known condition fired
+```
+
+To go from a failed audit to its cause: take the row's `timestamp_utc` and `filename` from the
+day's activity CSV and grep the same day's error log for the URL or the file name — the failure
+row's one-word `reason` is the classification, the error log has the detail.
+
+- Kept **30 days** (`ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`), pruned by the sweep on the
+  file-name date. Not in backups. Never served.
+- A day's file stops growing at 50 MB (`ERROR_LOG_MAX_BYTES_PER_DAY`) after a final
+  `[error-log] daily size limit reached` line — a crash loop cannot fill the disk; stderr (PM2)
+  still gets everything.
+- If the directory cannot be written, the tee says so once on stderr and stays off for the day;
+  nothing else changes.
+- Privacy: the file holds what stderr holds. The service never writes an IP address, a token, a
+  user agent or a request body to stderr (tested); a message can name a file, a page address or
+  a library path, which the data-retention policy says (§ 7, § 8).
+
 ## What is deliberately not here
 
 - No download endpoint. The files stay on the server.
@@ -3161,7 +3351,9 @@ history to investigate an incident from a few days ago, bounded enough that
 logs can never be what fills the disk. In practice the whole directory was
 3.9 MB after two weeks. Application-level activity — what was audited, by
 which path, with what result — is not in these logs at all; it is the
-`audit_log` table and the daily activity export (`docs/activity-export.md`).
+`audit_log` table and the daily activity export (`docs/activity-export.md`). Since v1.88.0 the
+service also tees its own stderr into `logs/errors-YYYY-MM-DD.log` at the checkout root (30
+days, 50 MB/day cap), so a fault can be diagnosed without opening `~/.pm2/logs` at all.
 ````
 
 - [ ] **Step 3: README**
@@ -3183,7 +3375,9 @@ Since v1.88.0 the retention sweep writes **one CSV per calendar day** (America/C
 
 Columns: `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, content_hash, tier, reason` — the pinned allow-list in `apps/api/src/services/activityCsv.ts`. `tier` is `trusted-tool` / `public` / `unknown`; `reason` is set only on `*-failed` rows. RFC 4180 quoting, a formula-injection guard, a UTF-8 BOM, LF line endings.
 
-The first sweep after deploy materialises the whole window from the rows still in the database; a missed midnight heals itself; a complete day's file is never rewritten (delete it to regenerate). Runbook: [`docs/activity-export.md`](docs/activity-export.md). Design: [`docs/superpowers/specs/2026-08-22-activity-export-design.md`](docs/superpowers/specs/2026-08-22-activity-export-design.md).
+The first sweep after deploy materialises the whole window from the rows still in the database; a missed midnight heals itself; a complete day's file is never rewritten (delete it to regenerate).
+
+**Error log.** The same directory holds `errors-YYYY-MM-DD.log` — a tee of everything the API process writes to stderr (`console.error`/`console.warn`, formatted as the terminal shows it, stacks included), installed at startup so a fault can be diagnosed without PM2: kept **30 days** (`ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`), capped at 50 MB per day (a crash loop cannot fill the disk), not backed up, never served. The activity CSV gives the one-word `reason`; the error log gives the message and stack. Runbook: [`docs/activity-export.md`](docs/activity-export.md). Design: [`docs/superpowers/specs/2026-08-22-activity-export-design.md`](docs/superpowers/specs/2026-08-22-activity-export-design.md).
 ```
 
 Test tables — add rows (counts from the Task 10 / Task 11 runs; the descriptions are final):
@@ -3200,6 +3394,8 @@ API table:
 | `activityDays.test.ts` | N | Local-day arithmetic for the export: days cut at Chicago midnight in CDT and CST, both 2026 DST transitions, calendar math across month/year/leap boundaries, the export window (grace + cutoff), and the `activity-YYYY-MM-DD.csv` name codec that recognises nothing else. |
 | `activityCsv.test.ts` | N | The CSV: the ten-column allow-list, RFC 4180 quoting, the formula-injection guard for every trigger character, BOM + LF, the policy's tier vocabulary, a hostile filename round-tripping through a parser with exactly ten fields. |
 | `activityExport.test.ts` | N | The runner against a real DB + temp dir: writes every complete day in the window and nothing outside it, header-only empty days, idempotent, never rewrites, prunes only matching names at/before the cutoff, atomic tmp+rename with 0600/0700, stale tmp overwritten, fails loudly on a blocked directory or unknown zone. |
+| `errorLog.test.ts` | N | The stderr tee behind `logs/errors-YYYY-MM-DD.log`: entries carry the UTC timestamp, level and the `util.format` text (stacks included); the original console call still runs; a new local day opens a new file; the per-day byte cap writes one notice and stops; an unwritable directory never throws and notifies stderr once; `uninstall()` restores the console; pruning deletes only `errors-*.log` at/before the cutoff. |
+| `activityLogsPolicyConformance.test.ts` | N | The data-retention page pinned to the code: § 7's windows equal `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` and `ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`, § 7/§ 8 name `ACTIVITY_EXPORT.DIR_NAME`, § 8's reason list is exactly `AUDIT_FAILURE_REASONS`. |
 | `activityExportWiring.test.ts` | N | `runCleanup()` really runs step 8 against `<dataDir>/activity`, reports `activityFilesWritten`/`activityFilesPruned`, and captures a failing export under step `activityExport` without blocking the other steps. |
 ```
 
@@ -3253,6 +3449,9 @@ Insert after the intro paragraph (before `## [1.87.1]`):
 - **Failed audits are recorded.** An audit the tool attempted and could not complete now leaves an `audit_log` row of its own — `analyze-failed`, `analyze-url-failed`, `audit-url-failed`, `audit-url-page-failed` or `bulk-from-inventory-failed` — with the same fields as a successful audit, NULL score/grade/content hash, and a one-word `reason` from a closed set: `unreadable`, `timeout`, `fetch-failed`, `navigation-failed`, `internal` (migration 13 → `user_version` 13). Never the error text. Capacity (503) and refusals are not failures and record nothing. The new event types sit outside every counting allow-list, so `/status` figures are unchanged — pinned by test.
 - **Daily activity export.** The retention sweep (step 8) writes one CSV per complete America/Chicago calendar day of the `audit_log` table to `logs/activity-YYYY-MM-DD.csv` at the repository root on the server (`ACTIVITY_LOG_DIR` overrides), derived from the database, kept for the usage log's own 365 days (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` — no second setting), pruned by file-name date, not in backups, not served. Columns `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, content_hash, tier, reason`; RFC 4180 quoting, formula-injection guard, UTF-8 BOM, LF. The first sweep after deploy materialises the whole window; a missed midnight heals itself; a complete day's file is never rewritten. Runbook: `docs/activity-export.md`.
 
+- **Application error log.** The API process tees everything it writes to stderr (`console.error`/`console.warn`, `util.format`-ed, stacks included) into `logs/errors-YYYY-MM-DD.log` — installed at startup, PM2's stream unchanged — so an unexpected error can be diagnosed from the same directory the activity files live in, without `~/.pm2/logs` and its 14-day rotation. Kept 30 days (`ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`), pruned by the sweep; a day's file stops at 50 MB with a final notice so a crash loop cannot fill the disk; a write failure never throws. Holds what stderr holds — no IP, token, user agent or body is ever written there (tested for every app-written line).
+- **The policy is pinned to the code.** `activityLogsPolicyConformance.test.ts` reads the data-retention sections and fails if their retention windows, directory name or reason list differ from the constants the sweep and writers use.
+
 ### Changed
 
 - **Two log-noise trims.** A classified page-audit navigation failure or timeout (a fleet page URL that is really a download — 315 identical stack traces on 2026-08-19) now logs one line; the global error handler logs a 4xx (incl. the 413 "too large") as one line and keeps the stack for 5xx only. The handler moved to `middleware/errorHandler.ts` so it is tested. No response changed.
@@ -3274,7 +3473,7 @@ Insert above `### v1.87.1 — 2026-08-21 …`:
 ```markdown
 ### v1.88.0 — 2026-08-22 · Failed audits recorded; daily activity export on the server (feature + ops, not a vulnerability fix)
 
-Adds an auditor-facing record rather than fixing a flaw. An audit the tool attempted and could not complete now leaves its own `audit_log` row (`<type>-failed`, NULL score/grade/hash, a one-word reason from a closed set — never error text; migration 13), and the retention sweep writes one derived CSV per Chicago calendar day of that table to `logs/` at the application root on the server: the usage log's own fields and 365-day window, pruned by file-name date, not in backups, **not served by any route**. Reviewed for what it adds to the attack surface and to retention: no new route or parameter; the CSV writer quotes per RFC 4180 and neutralises formula injection (managers open these in Excel); files are `0600` in a `0700` directory owned by the service user; pruning deletes only names of the exact shape it writes. The new event types sit outside every `/status` counting allow-list, pinned by test. Two log-noise trims (page-audit navigation failures and 4xx responses log one line) write nothing that carries an IP, token, user agent or body — also pinned. Data-retention policy v1.12 describes both additions; the file name stays the one field that can carry personal information, and the policy says so. Also recorded: `pm2-logrotate` 3.0.0's compression setting is ineffective (documented, not worked around).
+Adds an auditor-facing record rather than fixing a flaw. An audit the tool attempted and could not complete now leaves its own `audit_log` row (`<type>-failed`, NULL score/grade/hash, a one-word reason from a closed set — never error text; migration 13), and the retention sweep writes one derived CSV per Chicago calendar day of that table to `logs/` at the application root on the server: the usage log's own fields and 365-day window, pruned by file-name date, not in backups, **not served by any route**. Reviewed for what it adds to the attack surface and to retention: no new route or parameter; the CSV writer quotes per RFC 4180 and neutralises formula injection (managers open these in Excel); files are `0600` in a `0700` directory owned by the service user; pruning deletes only names of the exact shape it writes. The new event types sit outside every `/status` counting allow-list, pinned by test. Two log-noise trims (page-audit navigation failures and 4xx responses log one line) write nothing that carries an IP, token, user agent or body — also pinned. Data-retention policy v1.12 describes both additions; the file name stays the one field that can carry personal information, and the policy says so. Also recorded: `pm2-logrotate` 3.0.0's compression setting is ineffective (documented, not worked around). The same release adds an application error log — a tee of the service's own stderr into `logs/errors-YYYY-MM-DD.log`, 30 days, 50 MB/day cap — reviewed on the same terms: it holds exactly what stderr already held (no IP, token, user agent or body; file names, page addresses and library paths can appear, as the policy states), on the same server, never served; and a conformance test pins the policy page's retention windows, directory and reason list to the code's constants.
 ```
 
 - [ ] **Step 4: § 10 entry**
@@ -3302,6 +3501,10 @@ Prepend to `SECURITY_AUDIT_ENTRIES` in `apps/web/app/data/securityAudits.ts`:
             html: "<strong>A daily activity file, on the server only.</strong> One CSV per calendar day, derived from the usage-metadata table, kept for the same 365 days and deleted on the same schedule &mdash; there is no separate setting to drift. Nothing on the site serves these files; they are readable only by the service&rsquo;s own account on the server, and they are not part of the nightly backup. The writer quotes every field and neutralises spreadsheet formula injection, because a file name is user-chosen and the files are meant to be opened in Excel.",
           },
           {
+            badge: "New",
+            html: "<strong>An application error log, on the server only.</strong> The service now keeps a copy of its own error output &mdash; the error message and stack trace for each fault &mdash; as one file per day beside the activity files, for 30 days, so an unexpected error can be diagnosed quickly. It holds exactly what the process already wrote to its error stream: never an address, a token or a browser identifier; a file name or page address can appear, and the policy says so. A day&rsquo;s file stops growing at a fixed size, so a malfunction cannot fill the disk.",
+          },
+          {
             badge: "Hardened",
             html: "<strong>Quieter, safer logs.</strong> Two expected conditions that used to log a full stack trace each time &mdash; a page audit whose address turns out to be a download, and an over-sized upload &mdash; now log one line. Neither line carries an address, a token, a browser identifier or a request body; a test fails the build if one ever does.",
           },
@@ -3323,7 +3526,7 @@ Prepend to `ANNOUNCEMENTS` in `audit.config.ts`:
   {
     id: "activity-export-and-failed-audits-2026-08-22",
     badge: "Improved",
-    text: "The service now keeps a daily record of what it did, on its own server, for the people who audit it. Each night the previous day's usage records — which documents and pages were checked, with what result — are written to one file, kept for the same 365 days as the records themselves and then deleted. Audits that could not be completed are now recorded too, with a one-word reason and never the error text. Nothing new is collected and nothing is downloadable from this site; the data-retention policy (now v1.12) describes exactly what the files hold.",
+    text: "The service now keeps a daily record of what it did, on its own server, for the people who audit it. Each night the previous day's usage records — which documents and pages were checked, with what result — are written to one file, kept for the same 365 days as the records themselves and then deleted. Audits that could not be completed are now recorded too, with a one-word reason and never the error text. The service also keeps its own error log for 30 days so a fault can be diagnosed quickly. Nothing new is collected and nothing is downloadable from this site; the data-retention policy (now v1.12) describes exactly what the files hold.",
     linkText: "Read the data-retention policy",
     linkTo: "/data-retention",
     /** Shown under the text so visitors can see the tool is actively maintained. */
@@ -3355,8 +3558,463 @@ Watch the CI run to green (`gh run watch <id>`), then hand over: the user deploy
 
 ---
 
+---
+
+### Task 14: Application error log — `logs/errors-YYYY-MM-DD.log` (spec § 2.6). **Execute after Task 10 and before Task 11.**
+
+**Files:**
+- Modify: `audit.config.ts` (`ACTIVITY_EXPORT` gains three constants)
+- Create: `apps/api/src/services/errorLog.ts`
+- Modify: `apps/api/src/index.ts` (install the tee first thing; imports)
+- Modify: `apps/api/src/services/remediationCleanup.ts` (step 8 also prunes error logs; `CleanupResult.errorLogFilesPruned`)
+- Test: `apps/api/src/__tests__/errorLog.test.ts`; extend `apps/api/src/__tests__/activityExportWiring.test.ts`
+
+**Interfaces:**
+- Consumes: `datedFileName`, `parseDatedFileName`, `localDate` (Task 7); `activityLogDir` (Task 6); `ACTIVITY_EXPORT`, `DEPLOY` (config).
+- Produces: `ACTIVITY_EXPORT.ERROR_FILE_PREFIX = "errors-"`, `ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS = 30`, `ACTIVITY_EXPORT.ERROR_LOG_MAX_BYTES_PER_DAY = 50 * 1024 * 1024`; `errorLogFileName(day)`, `parseErrorLogFileName(name)`, `formatErrorLogEntry(level, args, nowMs)`, `installErrorLogTee(opts): ErrorLogTee` (`{ uninstall(), currentFile() }`), `pruneErrorLogs(dir, nowMs, retentionDays, timeZone): number`; `CleanupResult.errorLogFilesPruned: number`.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// apps/api/src/__tests__/errorLog.test.ts
+/**
+ * The application error log (v1.88.0): a tee of console.error/console.warn into
+ * logs/errors-YYYY-MM-DD.log so a fault can be diagnosed from the same directory
+ * the activity files live in. The original console call must still run (PM2's
+ * stream is unchanged), nothing here may ever throw, a day's file is size-capped,
+ * and pruning touches only the files this module writes.
+ */
+import { describe, it, expect, afterEach } from "vitest";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  errorLogFileName,
+  formatErrorLogEntry,
+  installErrorLogTee,
+  parseErrorLogFileName,
+  pruneErrorLogs,
+  type ErrorLogTee,
+} from "../services/errorLog.js";
+
+const TZ = "America/Chicago";
+const T_AUG19 = Date.UTC(2026, 7, 19, 14, 3, 22); // 09:03:22 CDT Aug 19
+let dir: string;
+let tee: ErrorLogTee | null = null;
+const realError = console.error;
+const realWarn = console.warn;
+
+afterEach(() => {
+  tee?.uninstall();
+  tee = null;
+  console.error = realError;
+  console.warn = realWarn;
+  rmSync(join(dir, ".."), { recursive: true, force: true });
+});
+
+function fresh(opts: { now?: () => number; maxBytesPerDay?: number } = {}) {
+  dir = join(mkdtempSync(join(tmpdir(), "error-log-")), "logs");
+  const calls: unknown[][] = [];
+  console.error = (...a: unknown[]) => {
+    calls.push(["error", ...a]);
+  };
+  console.warn = (...a: unknown[]) => {
+    calls.push(["warn", ...a]);
+  };
+  tee = installErrorLogTee({
+    dir,
+    timeZone: TZ,
+    maxBytesPerDay: opts.maxBytesPerDay ?? 50 * 1024 * 1024,
+    now: opts.now ?? (() => T_AUG19),
+  });
+  return { calls };
+}
+
+describe("file names", () => {
+  it("encode and parse errors-YYYY-MM-DD.log and nothing else", () => {
+    expect(errorLogFileName("2026-08-19")).toBe("errors-2026-08-19.log");
+    expect(parseErrorLogFileName("errors-2026-08-19.log")).toBe("2026-08-19");
+    expect(parseErrorLogFileName("errors-2026-08-19.log.gz")).toBeNull();
+    expect(parseErrorLogFileName("activity-2026-08-19.csv")).toBeNull();
+  });
+});
+
+describe("formatErrorLogEntry", () => {
+  it("prefixes the UTC timestamp and level and prints an Error's stack like the console does", () => {
+    const entry = formatErrorLogEntry("error", ["audit-url error:", new Error("boom")], T_AUG19);
+    expect(entry.startsWith("2026-08-19T14:03:22Z [error] audit-url error: Error: boom\n    at ")).toBe(true);
+    expect(entry.endsWith("\n")).toBe(true);
+    expect(formatErrorLogEntry("warn", ["[rate-limit] 429 limiter=%s", "global"], T_AUG19)).toBe(
+      "2026-08-19T14:03:22Z [warn] [rate-limit] 429 limiter=global\n",
+    );
+  });
+});
+
+describe("installErrorLogTee", () => {
+  it("tees error and warn into the day's file and still calls the original console", () => {
+    const { calls } = fresh();
+    console.error("Analysis error:", new Error("PDF parsing failed"));
+    console.warn("[api] 413 LIMIT_FILE_SIZE POST /api/analyze");
+    const text = readFileSync(join(dir, "errors-2026-08-19.log"), "utf8");
+    expect(text).toContain("2026-08-19T14:03:22Z [error] Analysis error: Error: PDF parsing failed\n    at ");
+    expect(text).toContain("2026-08-19T14:03:22Z [warn] [api] 413 LIMIT_FILE_SIZE POST /api/analyze\n");
+    expect(calls).toHaveLength(2);
+    expect(calls[0][0]).toBe("error");
+    expect(calls[1][0]).toBe("warn");
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
+    expect(statSync(join(dir, "errors-2026-08-19.log")).mode & 0o777).toBe(0o600);
+  });
+
+  it("opens a new file when the LOCAL day changes", () => {
+    let now = Date.UTC(2026, 7, 20, 4, 59, 59); // 23:59:59 CDT Aug 19
+    fresh({ now: () => now });
+    console.error("late");
+    now = Date.UTC(2026, 7, 20, 5, 0, 0); // 00:00:00 CDT Aug 20
+    console.error("early");
+    expect(readFileSync(join(dir, "errors-2026-08-19.log"), "utf8")).toContain("[error] late");
+    expect(readFileSync(join(dir, "errors-2026-08-20.log"), "utf8")).toContain("[error] early");
+    expect(tee!.currentFile()).toBe(join(dir, "errors-2026-08-20.log"));
+  });
+
+  it("stops at the per-day byte cap after one notice, and resumes the next day", () => {
+    let now = T_AUG19;
+    const { calls } = fresh({ now: () => now, maxBytesPerDay: 120 });
+    console.error("one");
+    console.error("two");
+    console.error("three");
+    const text = readFileSync(join(dir, "errors-2026-08-19.log"), "utf8");
+    expect(text).toContain("[error] one");
+    expect(text).toContain("[error-log] daily size limit reached; further entries go to stderr only");
+    expect(text).not.toContain("[error] three");
+    expect(calls).toHaveLength(3); // stderr still got every call
+    now = Date.UTC(2026, 7, 20, 12, 0, 0);
+    console.error("next day");
+    expect(readFileSync(join(dir, "errors-2026-08-20.log"), "utf8")).toContain("[error] next day");
+  });
+
+  it("never throws when the directory cannot be written — it notifies stderr once and stays off for the day", () => {
+    const { calls } = fresh();
+    rmSync(dir, { recursive: true, force: true });
+    writeFileSync(dir, "a file where the directory should be");
+    expect(() => console.error("first")).not.toThrow();
+    expect(() => console.error("second")).not.toThrow();
+    const notices = calls.filter((c) => String(c[1]).startsWith("[error-log] cannot write"));
+    expect(notices).toHaveLength(1);
+    expect(calls.filter((c) => c[1] === "first" || c[1] === "second")).toHaveLength(2);
+  });
+
+  it("uninstall restores the console", () => {
+    fresh();
+    const wrapped = console.error;
+    tee!.uninstall();
+    expect(console.error).not.toBe(wrapped);
+    console.error("after");
+    expect(existsSync(join(dir, "errors-2026-08-19.log"))).toBe(false);
+    tee = null;
+  });
+});
+
+describe("pruneErrorLogs", () => {
+  it("deletes only errors-*.log dated at or before the cutoff day", () => {
+    dir = join(mkdtempSync(join(tmpdir(), "error-log-prune-")), "logs");
+    rmSync(dir, { recursive: true, force: true });
+    expect(pruneErrorLogs(dir, T_AUG19, 30, TZ)).toBe(0); // missing dir is fine
+    mkdirSync(dir, { recursive: true });
+    const mk = (name: string) => writeFileSync(join(dir, name), "x");
+    mk("errors-2026-07-19.log"); // 31 days before Aug 19 → pruned
+    mk("errors-2026-07-20.log"); // cutoff day itself → pruned
+    mk("errors-2026-07-21.log"); // inside the window → kept
+    mk("activity-2026-07-01.csv"); // another module's file → untouched
+    mk("errors-2026-07-19.log.gz"); // not our shape → untouched
+    expect(pruneErrorLogs(dir, T_AUG19, 30, TZ)).toBe(2);
+    expect(readdirSync(dir).sort()).toEqual([
+      "activity-2026-07-01.csv",
+      "errors-2026-07-19.log.gz",
+      "errors-2026-07-21.log",
+    ]);
+  });
+});
+```
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `pnpm --filter api exec vitest run src/__tests__/errorLog.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Config constants**
+
+In `audit.config.ts`, inside `ACTIVITY_EXPORT` after `GRACE_MINUTES: 5,`:
+
+```ts
+
+  /**
+   * The application error log (v1.88.0): `<prefix>YYYY-MM-DD.log` in the same
+   * directory — a tee of everything the API process writes to stderr, so an
+   * unexpected error can be diagnosed from logs/ without PM2. Same pruning
+   * mechanism as the activity files: exact shape only.
+   */
+  ERROR_FILE_PREFIX: "errors-",
+
+  /**
+   * Days of error-log files to keep. Diagnostics, not the auditor record — the
+   * activity CSV keeps each failure's one-word reason for the usage log's 365
+   * days. 30 covers "the site misbehaved last week" with room to spare.
+   * Coordinate with the data-retention page § 7 row (pinned by
+   * activityLogsPolicyConformance.test.ts). SAFE TO CHANGE: Yes.
+   */
+  ERROR_LOG_RETENTION_DAYS: 30,
+
+  /**
+   * Bytes after which a day's error-log file stops growing (one final notice
+   * is written). A crash loop writing the same stack thousands of times must
+   * not be what fills the disk; stderr (PM2, with its own rotation) still gets
+   * every line. SAFE TO CHANGE: Yes.
+   */
+  ERROR_LOG_MAX_BYTES_PER_DAY: 50 * 1024 * 1024,
+```
+
+- [ ] **Step 4: The module**
+
+```ts
+// apps/api/src/services/errorLog.ts
+/**
+ * Application error log (v1.88.0): logs/errors-YYYY-MM-DD.log.
+ *
+ * A TEE, not a logger. Every unexpected error the service knows about already
+ * reaches console.error — the route catch blocks, the global handler's 5xx
+ * path, the sweep's error list, the unhandledRejection / uncaughtException
+ * hooks, engine failures — so wrapping console.error and console.warn once at
+ * startup captures all of them with zero call-site changes and cannot miss a
+ * new one. The original call runs first: PM2's stderr stream and `pm2 logs`
+ * are unchanged; this file is the copy that is easy to find and outlives PM2's
+ * rotation.
+ *
+ * Contracts (errorLog.test.ts):
+ *   - entry = "<ISO UTC seconds> [error|warn] <util.format(args)>\n" — exactly
+ *     what the terminal shows, an Error's stack included;
+ *   - one file per LOCAL (DEPLOY.LOCAL_TIME_ZONE) day, 0600 in a 0700 dir;
+ *   - a day's file stops at maxBytesPerDay after one notice line;
+ *   - nothing here ever throws: a write failure notifies stderr once (via the
+ *     ORIGINAL console.error, never the wrapper) and disables the tee for the
+ *     rest of that day;
+ *   - pruneErrorLogs deletes only `errors-YYYY-MM-DD.log` at/before the cutoff.
+ *
+ * Privacy: the file holds what stderr holds. The service writes no IP, token,
+ * user agent or request body to stderr (rateLimiter.test.ts, errorHandler.test.ts,
+ * audit-url-page.test.ts pin the app-written lines).
+ */
+import { appendFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { format } from "node:util";
+import { ACTIVITY_EXPORT } from "#config";
+import { datedFileName, localDate, parseDatedFileName } from "./activityDays.js";
+
+export type ErrorLogLevel = "error" | "warn";
+
+export interface ErrorLogOptions {
+  /** Directory for the files; created 0700 if missing. */
+  dir: string;
+  timeZone: string;
+  maxBytesPerDay: number;
+  /** Injectable clock for tests. */
+  now?: () => number;
+}
+
+export interface ErrorLogTee {
+  /** Restore console.error / console.warn. */
+  uninstall(): void;
+  /** The file entries go to right now. */
+  currentFile(): string;
+}
+
+const LIMIT_NOTICE = "[error-log] daily size limit reached; further entries go to stderr only";
+
+export function errorLogFileName(day: string): string {
+  return datedFileName(ACTIVITY_EXPORT.ERROR_FILE_PREFIX, day, ".log");
+}
+
+export function parseErrorLogFileName(name: string): string | null {
+  return parseDatedFileName(name, ACTIVITY_EXPORT.ERROR_FILE_PREFIX, ".log");
+}
+
+function stamp(ms: number): string {
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+export function formatErrorLogEntry(level: ErrorLogLevel, args: unknown[], nowMs: number): string {
+  return `${stamp(nowMs)} [${level}] ${format(...(args as [unknown, ...unknown[]]))}\n`;
+}
+
+export function installErrorLogTee(opts: ErrorLogOptions): ErrorLogTee {
+  const now = opts.now ?? Date.now;
+  const original = { error: console.error, warn: console.warn };
+  let day = "";
+  let bytes = 0;
+  /** The local day on which the tee gave up (cap reached or write failed). */
+  let offForDay = "";
+
+  const fileFor = (d: string) => join(opts.dir, errorLogFileName(d));
+
+  function rollover(d: string): void {
+    day = d;
+    try {
+      bytes = statSync(fileFor(d)).size;
+    } catch {
+      bytes = 0;
+    }
+  }
+
+  /** Append, never throw. On failure: one notice via the ORIGINAL console.error
+   *  (the wrapper would recurse) and off for the rest of the day. */
+  function append(d: string, text: string): boolean {
+    try {
+      mkdirSync(opts.dir, { recursive: true, mode: 0o700 });
+      appendFileSync(fileFor(d), text, { encoding: "utf8", mode: 0o600 });
+      bytes += Buffer.byteLength(text);
+      return true;
+    } catch (e) {
+      offForDay = d;
+      original.error(
+        `[error-log] cannot write ${fileFor(d)}: ${(e as Error).message} — stderr only for the rest of the day`,
+      );
+      return false;
+    }
+  }
+
+  function tee(level: ErrorLogLevel, args: unknown[]): void {
+    try {
+      const ms = now();
+      const d = localDate(ms, opts.timeZone);
+      if (d !== day) rollover(d);
+      if (offForDay === d) return;
+      const entry = formatErrorLogEntry(level, args, ms);
+      if (bytes + Buffer.byteLength(entry) > opts.maxBytesPerDay) {
+        append(d, `${stamp(ms)} ${LIMIT_NOTICE}\n`);
+        offForDay = d;
+        return;
+      }
+      append(d, entry);
+    } catch {
+      // The original console call has already run; a tee failure is never a
+      // caller's problem.
+    }
+  }
+
+  console.error = (...args: unknown[]) => {
+    original.error(...args);
+    tee("error", args);
+  };
+  console.warn = (...args: unknown[]) => {
+    original.warn(...args);
+    tee("warn", args);
+  };
+
+  return {
+    uninstall() {
+      console.error = original.error;
+      console.warn = original.warn;
+    },
+    currentFile() {
+      return fileFor(day || localDate(now(), opts.timeZone));
+    },
+  };
+}
+
+/** Delete `errors-YYYY-MM-DD.log` files dated at or before the cutoff day.
+ *  Touches nothing else; a missing directory is simply nothing to prune. */
+export function pruneErrorLogs(
+  dir: string,
+  nowMs: number,
+  retentionDays: number,
+  timeZone: string,
+): number {
+  const cutoffDay = localDate(nowMs - retentionDays * 86_400_000, timeZone);
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return 0;
+  }
+  let pruned = 0;
+  for (const name of names) {
+    const d = parseErrorLogFileName(name);
+    if (d !== null && d <= cutoffDay) {
+      rmSync(join(dir, name), { force: true });
+      pruned++;
+    }
+  }
+  return pruned;
+}
+```
+
+- [ ] **Step 5: Install at startup and prune in the sweep**
+
+`apps/api/src/index.ts` — add, immediately after the imports and BEFORE `const app = express();` (nothing may log before the tee exists):
+
+```ts
+// First thing: tee stderr into logs/errors-YYYY-MM-DD.log (v1.88.0), so an
+// unexpected error can be diagnosed from the same directory as the activity
+// files. The original console call still runs — PM2's stream is unchanged.
+installErrorLogTee({
+  dir: activityLogDir(),
+  timeZone: DEPLOY.LOCAL_TIME_ZONE,
+  maxBytesPerDay: ACTIVITY_EXPORT.ERROR_LOG_MAX_BYTES_PER_DAY,
+});
+```
+
+with `import { installErrorLogTee } from "./services/errorLog.js";`, `import { activityLogDir } from "./services/dataDir.js";`, and `ACTIVITY_EXPORT` added to the `#config` import (keep `DEPLOY`, already imported).
+
+`apps/api/src/services/remediationCleanup.ts` — `CleanupResult` gains `/** v1.88.0: error-log files pruned by step 8. */ errorLogFilesPruned: number;` (init `0`); inside step 8's `try`, after `result.activityFilesPruned = r.pruned;`:
+
+```ts
+    result.errorLogFilesPruned = pruneErrorLogs(
+      activityLogDir(),
+      now,
+      ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS,
+      DEPLOY.LOCAL_TIME_ZONE,
+    );
+```
+
+with `import { pruneErrorLogs } from "./errorLog.js";`. Update the header comment's step 8 line to "…and prune activity files past AUDIT_LOG_RETENTION_DAYS and error-log files past ERROR_LOG_RETENTION_DAYS".
+
+Extend `apps/api/src/__tests__/activityExportWiring.test.ts` with one test in the same describe (before the failing-export test):
+
+```ts
+  it("prunes old error-log files in the same step and reports it", async () => {
+    writeFileSync(join(LOG_DIR, "errors-2025-01-01.log"), "ancient");
+    writeFileSync(join(LOG_DIR, "errors-2099-01-01.log"), "future — kept");
+    const result = await cleanup.runCleanup();
+    expect(result.errorLogFilesPruned).toBe(1);
+    expect(readdirSync(LOG_DIR)).toContain("errors-2099-01-01.log");
+    expect(readdirSync(LOG_DIR)).not.toContain("errors-2025-01-01.log");
+    rmSync(join(LOG_DIR, "errors-2099-01-01.log"), { force: true });
+  });
+```
+
+- [ ] **Step 6: Run the tests, typecheck, lint**
+
+Run: `pnpm --filter api exec vitest run src/__tests__/errorLog.test.ts src/__tests__/activityExportWiring.test.ts src/__tests__/activityDays.test.ts && pnpm --filter api exec tsc --noEmit && pnpm --filter api exec eslint src`
+Expected: PASS, zero type errors, lint clean. Then `pnpm --filter api test` once.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add audit.config.ts apps/api/src/services/errorLog.ts apps/api/src/index.ts apps/api/src/services/remediationCleanup.ts apps/api/src/__tests__/errorLog.test.ts apps/api/src/__tests__/activityExportWiring.test.ts
+git commit -m "feat(api): application error log — stderr teed into logs/errors-YYYY-MM-DD.log, 30-day prune, per-day size cap"
+```
+
 ## Self-review (done while writing)
 
-- **Spec coverage:** § 1.1 → T1/T3; § 1.2 → T1; § 1.3 → T3; § 1.4 → T2; § 1.5/§ 1.6 → T4; § 2.1 → T1/T6/T10; § 2.2 → T7; § 2.3/§ 3 → T8; § 2.4/§ 2.5 → T9/T10; § 4 → T4 (page route) + T5 (handler); § 5 → T11/T12/T13; § 6 → each task's tests; § 7 → T13; § 8/§ 9 → runbook (T12) and the thrown-error tests (T9/T10).
+- **Execution order:** 1–10, then 14, then 11–13 (the policy task cross-checks Task 14's constants).
+- **Spec coverage:** § 2.6 → T14 (+ T11/T12/T13 copy); § 1.1 → T1/T3; § 1.2 → T1; § 1.3 → T3; § 1.4 → T2; § 1.5/§ 1.6 → T4; § 2.1 → T1/T6/T10; § 2.2 → T7; § 2.3/§ 3 → T8; § 2.4/§ 2.5 → T9/T10; § 4 → T4 (page route) + T5 (handler); § 5 → T11/T12/T13; § 6 → each task's tests; § 7 → T13; § 8/§ 9 → runbook (T12) and the thrown-error tests (T9/T10).
 - **Placeholders:** the only open values are test COUNTS, which come from the suite runs in T10/T11/T13 by instruction.
 - **Type consistency:** `recordAuditFailure({ eventType, privileged, filename, reason })` is used identically in T3/T4 and its tests; `runActivityExport` options match between T9 and T10; `CleanupResult.activityFilesWritten/Pruned` match T10's test; `RunUrlAuditInput.eventType` matches T4's pipeline test; `ACTIVITY_CSV_COLUMNS`/`CSV_BOM` names match between T8 and T9's test.

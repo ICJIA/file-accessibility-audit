@@ -44,6 +44,8 @@ value to a boolean before the module reads it. Documentation fix only.
 | Capacity events | 503 busy and 429 rate-limited are **not** recorded — they are not audit outcomes. Refusals stay `rejected-upload` (already recorded). |
 | Archive vs delete | Delete at the policy boundary. The data-retention page is a published deletion promise; a gzipped archive of year-old rows on disk would contradict it. A manager who needs a year-end snapshot takes a copy *inside* the window. |
 | Backups | Not included. `backup-db.mjs` snapshots the database only; the files are derived from it. |
+| Debugging detail | The activity CSV is the auditor record: a closed reason code, never error text — so by itself it cannot diagnose an unexpected error. User request 2026-08-22 ("enough detail to debug and diagnose any unexpected errors"): the service also keeps its own **application error log** in `logs/` — everything the process writes to stderr (`console.error`/`console.warn`), teed to `logs/errors-YYYY-MM-DD.log`, **30 days**, size-capped per day. PM2's stderr copy is unchanged. (§ 2.6) |
+| Policy conformance | User request 2026-08-22 ("verify that the logs abide by the data retention policy"): a test cross-checks the policy page's text against the code's constants — retention days, directory name, the reason-code set — so the page and the code cannot drift. (§ 6) |
 | Scope held out | Download endpoint; remediation and share events (different tables, different retention — clean follow-up); a `documents_failed` card on `/status` (symmetric to `documents_rejected`, one-liner later if wanted). |
 
 ## 1. Failure record
@@ -259,6 +261,45 @@ contract — blocks nothing else.
 to the usage record's, so a reviewer who can see a file can find its rows, and a
 row that has been purged has no file. Not in backups (derived). Not served.
 
+### 2.6 Application error log (diagnostics)
+
+```
+<repo-root>/logs/errors-YYYY-MM-DD.log
+```
+
+One plain-text file per local (America/Chicago) day holding everything the API process
+writes to stderr: every `console.error` and `console.warn` call, formatted exactly as
+the terminal shows it (`util.format`, so an Error prints its stack), each entry
+prefixed `YYYY-MM-DDTHH:MM:SSZ [error|warn] `. Installed once at startup
+(`installErrorLogTee()` in `index.ts`, before any route or job can log) by wrapping
+`console.error`/`console.warn`; the original call still runs first, so PM2's stderr
+stream and `pm2 logs` are unchanged.
+
+**Why a tee and not a logger.** Every unexpected error the service knows about already
+reaches `console.error` — the five route catch blocks, the global handler's 5xx path,
+the sweep's error list, the `unhandledRejection`/`uncaughtException` hooks, engine
+failures (veraPDF, qpdf, Chromium). The tee captures all of them with zero call-site
+changes and cannot miss one added later. The remediation worker is a separate process;
+its stderr stays in PM2's stream only (its failures are already rows in
+`remediation_events`).
+
+**Retention:** `ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS` = 30 — diagnostics, not the
+auditor record (the activity CSV keeps the one-word reason for 365 days). Pruned by the
+sweep's step 8 on file-name date, the same mechanism as the activity files (prefix
+`errors-`, suffix `.log`; nothing else in the directory is ever touched).
+
+**Size:** a crash loop must not fill the disk. A day's file stops growing at
+`ACTIVITY_EXPORT.ERROR_LOG_MAX_BYTES_PER_DAY` (50 MB) after one final line,
+`[error-log] daily size limit reached; further entries go to stderr only`. A write
+failure (directory unwritable, disk full) never throws — the original console call has
+already run — and disables the tee for the rest of that day after one stderr notice.
+
+**Privacy:** the file holds what stderr holds today, no more. The service writes no IP
+address, token, user agent or request body to stderr (tested for the `[rate-limit]`
+lines, the 4xx line and the page-audit line); an error message or stack can name a
+file, a page address or a library path — the same exposure as the usage record and
+PM2's own log, on the same server — and the policy says so (§ 7, § 8).
+
 ## 3. CSV safety
 
 - RFC 4180: a field containing `,` `"` CR or LF is quoted, inner `"` doubled.
@@ -347,6 +388,8 @@ regenerate a day, the retention rule, what is deliberately not there.
 | Noise trim | classified page-audit failure → one `warn` line, no stack; unclassified → `error` with stack; handler: 4xx one line, 5xx stack; neither line contains a token or IP |
 | Policy page | reads the component files like `backupsExplained.test.ts` does: § 7 row present with "365" and "not part of the nightly backup"; § 8 failure + activity-file bullets present; § 8a block says "migration 13" and `reason TEXT`; § 14 has a v1.12 entry; `POLICY_VERSION` is 1.12; the new copy contains none of the banned phrases (incl. "anonymous") |
 | Config | `DEPLOY.LOCAL_TIME_ZONE` is what `chicagoTime()` uses |
+| Error log tee | entries carry the ISO timestamp and level and the `util.format` text (an Error's stack included); the original console call still runs; a new local day opens a new file; the per-day byte cap writes one final notice and then stops; an unwritable directory never throws and notifies stderr once; `uninstall()` restores the console; pruning deletes only `errors-YYYY-MM-DD.log` at/before the cutoff |
+| Policy conformance (API suite, reads the web components) | § 7's activity-files window == `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS`; § 7's error-log window == `ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`; both rows and § 8 name `ACTIVITY_EXPORT.DIR_NAME`; § 8's reason list == `AUDIT_FAILURE_REASONS` exactly |
 
 Then, from the repo root: `pnpm build`, `pnpm typecheck`, `pnpm lint`,
 `pnpm format:check`, all three test suites — before any push.
@@ -356,7 +399,9 @@ Then, from the repo root: `pnpm build`, `pnpm typecheck`, `pnpm lint`,
 v1.88.0 per `project_release_checklist`: CHANGELOG entry; versions ×6; README
 § Security entry and § 10 `SECURITY_AUDIT_ENTRIES` entry (the test fails the release
 without both); annotated tag; What's New entry. Deploy via Forge (the user
-deploys). After deploy, verify on the server: `ls -la logs | tail` from the checkout root,
+deploys). Execution order note: the error-log task (plan Task 14) runs after the sweep
+wiring and before the policy task, so the policy can be cross-checked against its
+constants. After deploy, verify on the server: `ls -la logs | tail` from the checkout root,
 `pm2 logs file-audit-api --lines 20` shows the sweep's counts, and one day's file
 opens cleanly.
 
