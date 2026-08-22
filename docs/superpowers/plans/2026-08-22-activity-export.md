@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Record failed audits in `audit_log` with a one-word reason, write one derived CSV of `audit_log` per complete Chicago day into `data/activity/` (365-day window, server disk only), trim two noisy log sites, and ship it as v1.88.0 with the data-retention policy at v1.12.
+**Goal:** Record failed audits in `audit_log` with a one-word reason, write one derived CSV of `audit_log` per complete Chicago day into `logs/` at the repository root (365-day window, server disk only), trim two noisy log sites, and ship it as v1.88.0 with the data-retention policy at v1.12.
 
 **Architecture:** A pure classifier (`services/auditFailure.ts`) maps the errors the five audit routes already catch onto a closed reason set; a new writer (`recordAuditFailure`) stores `<type>-failed` rows (migration 13 adds `audit_log.reason`). The export is three small modules — day arithmetic (`activityDays.ts`), CSV formatting (`activityCsv.ts`), and the file runner (`activityExport.ts`) — invoked as step 8 of the existing retention sweep (`runCleanup`). Nothing is served; the policy page, README and a runbook describe the new artifact.
 
@@ -3105,7 +3105,7 @@ A complete day's file is never rewritten. Delete it; the next sweep writes it ag
 database (within the window):
 
 ```bash
-rm apps/api/data/activity/activity-2026-08-19.csv     # then wait ≤ 5 min, or run the sweep by hand
+rm logs/activity-2026-08-19.csv                       # then wait ≤ 5 min, or run the sweep by hand
 ```
 
 This is also the upgrade path if the file format ever changes: delete the files, let the sweep
@@ -3351,7 +3351,7 @@ git push origin main --follow-tags
 gh run list --branch main --workflow CI --limit 3
 ```
 
-Watch the CI run to green (`gh run watch <id>`), then hand over: the user deploys from Forge. After deploy, the verification in spec § 7: `ls -la apps/api/data/activity | tail`, `pm2 logs file-audit-api --lines 20` (the sweep ran at startup), and open one day's file.
+Watch the CI run to green (`gh run watch <id>`), then hand over: the user deploys from Forge. After deploy, the verification in spec § 7: `ls -la logs | tail` (from the checkout root), `pm2 logs file-audit-api --lines 20` (the sweep ran at startup), and open one day's file.
 
 ---
 
