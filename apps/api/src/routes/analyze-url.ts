@@ -1,8 +1,9 @@
 import { Router, Request, Response, type IRouter } from "express";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
-import { recordAudit } from "../services/auditLog.js";
+import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { runUrlAudit } from "../services/urlAuditPipeline.js";
+import { classifyAuditFailure } from "../services/auditFailure.js";
 
 const router: IRouter = Router();
 
@@ -34,7 +35,7 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
     // The private/reserved-IP SSRF block inside safeFetch stays on either way.
     const privileged = isPrivilegedRequest(req);
 
-    const outcome = await runUrlAudit({ url, privileged, res });
+    const outcome = await runUrlAudit({ url, privileged, res, eventType: "analyze-url" });
     if (!outcome.ok) return;
     const { buf, filename, contentHash } = outcome;
 
@@ -56,6 +57,19 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
 
     res.json(result);
   } catch (err: any) {
+    // v1.88.0: record the failed audit. `url` and `privileged` are declared
+    // inside the try, so read them from the request again here; the classifier
+    // returns null for capacity (503), which records nothing.
+    const failure = classifyAuditFailure(err);
+    if (failure && typeof req.body?.url === "string") {
+      recordAuditFailure({
+        eventType: "analyze-url",
+        privileged: isPrivilegedRequest(req),
+        filename: req.body.url,
+        reason: failure,
+      });
+    }
+
     // Server busy (semaphore timeout)
     if (err?.status === 503) {
       res.status(503).json({

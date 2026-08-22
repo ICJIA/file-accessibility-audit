@@ -28,7 +28,7 @@
 import type { Response } from "express";
 import { detectFileType, detectLegacyFormat, type DetectedFileType } from "./analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
-import { sha256Hex, recordRejectedUpload } from "./auditLog.js";
+import { sha256Hex, recordRejectedUpload, recordAuditFailure } from "./auditLog.js";
 import { safeFetch, SafeFetchError } from "./safeFetch.js";
 import {
   MAX_PDF_BYTES,
@@ -43,6 +43,12 @@ export interface RunUrlAuditInput {
   url: string;
   /** Whether the caller presented a valid API_PRIVILEGED_TOKEN. */
   privileged: boolean;
+  /**
+   * Which route is calling (v1.88.0). A fetch that fails is recorded as
+   * `<eventType>-failed` / fetch-failed here — this is the only place fetch
+   * errors are caught, so the routes' own catch blocks never see them.
+   */
+  eventType: "analyze-url" | "audit-url";
   /**
    * Used to write the HTTP response directly on every early-exit failure
    * path (400/502/422, or whatever sendSafeFetchError maps a
@@ -72,7 +78,7 @@ export type UrlAuditOutcome =
  * propagates to the caller's own try/catch, unchanged from today.
  */
 export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutcome> {
-  const { url, privileged, res } = input;
+  const { url, privileged, res, eventType } = input;
 
   // SSRF-hardened fetch. safeFetch handles:
   //   - URL allowlist (re-checked on every redirect hop)
@@ -92,6 +98,7 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
     });
   } catch (err) {
     if (err instanceof SafeFetchError) {
+      recordAuditFailure({ eventType, privileged, filename: url, reason: "fetch-failed" });
       sendSafeFetchError(res, err);
       return { ok: false };
     }
@@ -99,6 +106,7 @@ export async function runUrlAudit(input: RunUrlAuditInput): Promise<UrlAuditOutc
   }
 
   if (!fetched.ok) {
+    recordAuditFailure({ eventType, privileged, filename: url, reason: "fetch-failed" });
     res.status(502).json({
       error: `fetch returned ${fetched.status} ${fetched.statusText}`,
     });

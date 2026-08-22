@@ -2,12 +2,13 @@ import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
 import { reportsLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument, detectFileType } from "../services/analyzer.js";
-import { recordAudit, sha256Hex } from "../services/auditLog.js";
+import { recordAudit, recordAuditFailure, sha256Hex } from "../services/auditLog.js";
 import { safeFetch, SafeFetchError } from "../services/safeFetch.js";
 import { validateUrlForFetch } from "../services/urlPolicy.js";
 import { SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
+import { classifyAuditFailure } from "../services/auditFailure.js";
 
 const router: IRouter = Router();
 
@@ -274,6 +275,14 @@ router.post(
                 `Bulk-from-inventory fetch error (${e.code}) for ${entry.publicUrl}:`,
                 e,
               );
+              // v1.88.0: a URL the tool could not fetch is a failed audit of
+              // that inventory entry.
+              recordAuditFailure({
+                eventType: "bulk-from-inventory",
+                privileged,
+                filename: entry.filename,
+                reason: "fetch-failed",
+              });
               result.error = `${e.code}: ${curateSafeFetchMessage(e.code)}`;
               results.push(result);
               continue;
@@ -352,6 +361,17 @@ router.post(
           result.reportId = id;
           result.reportUrl = `/api/reports/${id}`;
         } catch (err: any) {
+          // v1.88.0: record the failed audit before mapping the error to the
+          // per-entry message. null = capacity (503), recorded nowhere.
+          const failure = classifyAuditFailure(err);
+          if (failure) {
+            recordAuditFailure({
+              eventType: "bulk-from-inventory",
+              privileged,
+              filename: entry.filename,
+              reason: failure,
+            });
+          }
           // Distinguish specific error types for better diagnostics. The
           // *_DISABLED / *_PARSE_FAILED / ETIMEDOUT branches below are new
           // as of the four-format migration — analyzeDocument's docx/pptx/

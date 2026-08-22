@@ -3,12 +3,13 @@ import crypto from "node:crypto";
 import { regradeStoredReport } from "@file-audit/analyzer";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
-import { recordAudit } from "../services/auditLog.js";
+import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { DEPLOY, SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
 import { isAllowedUrl } from "../services/urlPolicy.js";
 import { runUrlAudit } from "../services/urlAuditPipeline.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
+import { classifyAuditFailure } from "../services/auditFailure.js";
 
 const router: IRouter = Router();
 
@@ -107,7 +108,7 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
     // mitigations and why analyzeDocument itself stays out of it (this
     // route's dedup cache below must be able to skip analysis entirely
     // on a cache hit).
-    const outcome = await runUrlAudit({ url, privileged, res });
+    const outcome = await runUrlAudit({ url, privileged, res, eventType: "audit-url" });
     if (!outcome.ok) return;
     const { buf, filename, contentHash } = outcome;
 
@@ -216,6 +217,19 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
       cached: false,
     });
   } catch (err: any) {
+    // v1.88.0: record the failed audit. `url` and `privileged` are declared
+    // inside the try, so read them from the request again here; the classifier
+    // returns null for capacity (503), which records nothing.
+    const failure = classifyAuditFailure(err);
+    if (failure && typeof req.body?.url === "string") {
+      recordAuditFailure({
+        eventType: "audit-url",
+        privileged: isPrivilegedRequest(req),
+        filename: req.body.url,
+        reason: failure,
+      });
+    }
+
     // Server busy (concurrency semaphore full/timeout)
     if (err?.status === 503) {
       res.status(503).json({

@@ -6,10 +6,12 @@ import { unsupportedFormatMessage } from "@file-audit/shared";
 import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
 import {
   recordAudit,
+  recordAuditFailure,
   recordRejectedUpload,
   sanitizeStoredFilename,
   sha256Hex,
 } from "../services/auditLog.js";
+import { classifyAuditFailure } from "../services/auditFailure.js";
 
 const router: IRouter = Router();
 
@@ -71,6 +73,21 @@ router.post(
       res.json(result);
     } catch (err: any) {
       console.error("Analysis error:", err);
+
+      // v1.88.0: an audit the tool attempted and could not complete leaves a
+      // row of its own — same fields as a successful one, no score/grade/hash,
+      // a one-word reason. The classifier answers null for capacity (503) and
+      // for refusals, which the UNSUPPORTED_FILE_TYPE branch below records as
+      // rejected-upload instead.
+      const failure = classifyAuditFailure(err);
+      if (failure && req.file) {
+        recordAuditFailure({
+          eventType: "analyze",
+          privileged,
+          filename: req.file.originalname,
+          reason: failure,
+        });
+      }
 
       // Server busy (semaphore timeout)
       if (err.status === 503) {

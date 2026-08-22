@@ -36,6 +36,7 @@ vi.mock("../db/sqlite.js", () => ({
 vi.mock("../services/auditLog.js", () => ({
   gateIdentity: vi.fn(() => "t@illinois.gov"),
   recordAudit: vi.fn(),
+  recordAuditFailure: vi.fn(),
   recordRejectedUpload: vi.fn(),
   // Real behaviour, not a stub: analyze.ts derives the stored filename with
   // this, and a mock returning undefined would hide a break in that path.

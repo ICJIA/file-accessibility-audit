@@ -264,3 +264,83 @@ describe("audit-url-page: sanitizeStoredReport applied before shared_reports ins
     expect(stored.score).toBe(100);
   });
 });
+
+describe("audit-url-page: failed page audits are recorded, and expected failures log one line (v1.88.0)", () => {
+  it("net::ERR_ABORTED → audit-url-page-failed / navigation-failed row, one warn line, no stack", async () => {
+    const dbRun = vi.fn();
+    const router = await loadRouterWith({
+      auditPageImpl: async () => {
+        throw new Error("net::ERR_ABORTED at https://example.gov/files/brief.pdf");
+      },
+      dbRunImpl: dbRun,
+    });
+    const handler = extractHandler(router, "/audit-url-page");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await handler(makeReq({ body: { url: "https://example.gov/files/brief.pdf" } }), makeRes());
+
+    expect(dbRun).toHaveBeenCalledWith(
+      "audit-url-page-failed",
+      "https://example.gov/files/brief.pdf",
+      null,
+      null,
+      null,
+      0,
+      "navigation-failed",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = warn.mock.calls[0].map(String).join(" ");
+    expect(line).toContain("navigation-failed");
+    expect(line).not.toMatch(/\n\s+at /);
+    expect(error.mock.calls.map((c) => c.map(String).join(" ")).join("\n")).not.toContain(
+      "net::ERR_ABORTED",
+    );
+    warn.mockRestore();
+    error.mockRestore();
+  });
+
+  it("an unclassified failure keeps the full error log and is recorded as internal", async () => {
+    const dbRun = vi.fn();
+    const router = await loadRouterWith({
+      auditPageImpl: async () => {
+        throw new Error("Protocol error (Page.navigate): Target closed");
+      },
+      dbRunImpl: dbRun,
+    });
+    const handler = extractHandler(router, "/audit-url-page");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await handler(makeReq({ body: { url: "https://example.gov/page" } }), makeRes());
+
+    expect(dbRun).toHaveBeenCalledWith(
+      "audit-url-page-failed",
+      "https://example.gov/page",
+      null,
+      null,
+      null,
+      0,
+      "internal",
+    );
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalled();
+    warn.mockRestore();
+    error.mockRestore();
+  });
+
+  it("server busy records nothing", async () => {
+    const dbRun = vi.fn();
+    const router = await loadRouterWith({
+      auditPageImpl: async () => {
+        const err: any = new Error("busy");
+        err.status = 503;
+        throw err;
+      },
+      dbRunImpl: dbRun,
+    });
+    const handler = extractHandler(router, "/audit-url-page");
+    await handler(makeReq({ body: { url: "https://example.gov/page" } }), makeRes());
+    expect(dbRun).not.toHaveBeenCalled();
+  });
+});

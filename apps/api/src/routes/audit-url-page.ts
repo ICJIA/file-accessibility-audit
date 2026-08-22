@@ -1,12 +1,13 @@
 import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
-import { recordAudit } from "../services/auditLog.js";
+import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
 import { DEPLOY, SHARED_REPORTS } from "#config";
 import db from "../db/sqlite.js";
 import { isAllowedUrl } from "../services/urlPolicy.js";
 import { auditPage, type PageAuditResult } from "../services/pageAuditor.js";
 import { sanitizeStoredReport } from "../services/reportSanitize.js";
+import { classifyAuditFailure } from "../services/auditFailure.js";
 
 const router: IRouter = Router();
 
@@ -143,13 +144,33 @@ router.post("/audit-url-page", analyzeLimiter, async (req: Request, res: Respons
         });
         return;
       }
+      // v1.88.0: record the failed page audit (null = capacity, recorded nowhere).
+      const failure = classifyAuditFailure(err);
+      if (failure) {
+        recordAuditFailure({
+          eventType: "audit-url-page",
+          privileged,
+          filename: url,
+          reason: failure,
+        });
+      }
       // Log the detail server-side only — never echo raw err.message to
       // the client (it can leak library internals / paths, e.g. a
       // Chromium profile path or an internal stack fragment). Mirrors
       // audit-url.ts's generic-500 pattern; `msg` is still used below to
       // classify the failure, just never returned verbatim.
-      console.error("audit-url-page: page audit failed:", err);
+      //
+      // v1.88.0: a classified navigation failure or timeout is an EXPECTED
+      // condition — a fleet page URL that turns out to be a download, a slow
+      // host — and used to fill the error log with identical stack traces
+      // (315 on 2026-08-19). One line, no stack. Anything else keeps the
+      // full error.
       const msg = err?.message ?? String(err);
+      if (failure === "navigation-failed" || failure === "timeout") {
+        console.warn(`[audit-url-page] page audit failed (${failure}): ${msg}`);
+      } else {
+        console.error("audit-url-page: page audit failed:", err);
+      }
       if (/timeout|Timeout|net::ERR_/i.test(msg)) {
         res.status(504).json({
           error: "Page navigation timed out",
