@@ -3608,7 +3608,7 @@ import {
 
 const TZ = "America/Chicago";
 const T_AUG19 = Date.UTC(2026, 7, 19, 14, 3, 22); // 09:03:22 CDT Aug 19
-let dir: string;
+let dir = ""; // set by fresh() / the prune test; empty for describes that never touch disk
 let tee: ErrorLogTee | null = null;
 const realError = console.error;
 const realWarn = console.warn;
@@ -3618,7 +3618,8 @@ afterEach(() => {
   tee = null;
   console.error = realError;
   console.warn = realWarn;
-  rmSync(join(dir, ".."), { recursive: true, force: true });
+  if (dir) rmSync(join(dir, ".."), { recursive: true, force: true });
+  dir = "";
 });
 
 function fresh(opts: { now?: () => number; maxBytesPerDay?: number } = {}) {
@@ -3687,13 +3688,17 @@ describe("installErrorLogTee", () => {
 
   it("stops at the per-day byte cap after one notice, and resumes the next day", () => {
     let now = T_AUG19;
-    const { calls } = fresh({ now: () => now, maxBytesPerDay: 120 });
+    // "one"/"two" entries are 33 bytes each: after "one" the file holds 33;
+    // "two" would make 66 > 60, so the notice is written and the tee goes off
+    // for the day; "three" is never written.
+    const { calls } = fresh({ now: () => now, maxBytesPerDay: 60 });
     console.error("one");
     console.error("two");
     console.error("three");
     const text = readFileSync(join(dir, "errors-2026-08-19.log"), "utf8");
     expect(text).toContain("[error] one");
     expect(text).toContain("[error-log] daily size limit reached; further entries go to stderr only");
+    expect(text).not.toContain("[error] two");
     expect(text).not.toContain("[error] three");
     expect(calls).toHaveLength(3); // stderr still got every call
     now = Date.UTC(2026, 7, 20, 12, 0, 0);
