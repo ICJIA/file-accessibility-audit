@@ -25,9 +25,14 @@ import { join } from "node:path";
 
 // DB_PATH and the flag must be set before the dynamic imports — db and the
 // prepared statements bind at import time; vitest gives each test file its
-// own module graph.
+// own module graph. ACTIVITY_LOG_DIR is set too: runCleanup()'s step 8
+// (v1.88.0) writes the daily activity export, and a first run materialises a
+// file for every day in the retention window (see activityExport.ts) —
+// without this override that would land ~365 files in the real
+// <repo-root>/logs on every test run.
 const tmpDir = mkdtempSync(join(tmpdir(), "shared-reports-purge-"));
 process.env.DB_PATH = join(tmpDir, "test.db");
+process.env.ACTIVITY_LOG_DIR = join(tmpDir, "logs");
 process.env.REMEDIATION_ENABLED = "false";
 
 let cleanup: typeof import("../services/remediationCleanup.js");

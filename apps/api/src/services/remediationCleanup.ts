@@ -3,7 +3,7 @@
  * — ALWAYS, regardless of REMEDIATION.ENABLED (since v1.51.0; the interval
  * previously early-returned when remediation was off, which silently
  * disabled steps 6–7 too — retention must not hang off a feature flag).
- * Does seven things, in order:
+ * Does eight things, in order:
  *
  *   1. Expire outputs past expires_at (delete file, mark row expired,
  *      record verified_absent for the auditor).
@@ -16,6 +16,10 @@
  *      (v1.51.0). The grace window keeps the read gate's 410 "link has
  *      expired" response alive for a while after expiry before the row —
  *      and its up-to-1MB report_json — is deleted for good.
+ *   8. Write the daily activity export — one CSV per complete local day of
+ *      audit_log rows, into <repo-root>/logs — and prune files past
+ *      AUDIT_LOG_RETENTION_DAYS, the same window step 6 purges (v1.88.0,
+ *      services/activityExport.ts). Runs after step 6 so both see one cutoff.
  *
  * Steps 1–4 are no-ops on a deployment that has never run remediation
  * (queries over empty tables; the orphan scan guards on the output dir
@@ -26,7 +30,9 @@
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import db from "../db/sqlite.js";
-import { REMEDIATION, SHARED_REPORTS } from "#config";
+import { ACTIVITY_EXPORT, DEPLOY, REMEDIATION, SHARED_REPORTS } from "#config";
+import { runActivityExport } from "./activityExport.js";
+import { activityLogDir } from "./dataDir.js";
 import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
 import { setExpired, setFailed } from "./remediationJobs.js";
 
@@ -81,6 +87,9 @@ export interface CleanupResult {
   purgedAuditLog: number;
   /** v1.51.0: shared_reports rows purged past EXPIRY_DAYS + PURGE_GRACE_DAYS. */
   purgedSharedReports: number;
+  /** v1.88.0: daily activity files written / pruned by step 8. */
+  activityFilesWritten: number;
+  activityFilesPruned: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -94,6 +103,8 @@ export async function runCleanup(): Promise<CleanupResult> {
     purgedEvents: 0,
     purgedAuditLog: 0,
     purgedSharedReports: 0,
+    activityFilesWritten: 0,
+    activityFilesPruned: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -238,6 +249,27 @@ export async function runCleanup(): Promise<CleanupResult> {
       step: "purge_shared_reports",
       message: (e as Error).message,
     });
+  }
+
+  /* 8. Daily activity export (v1.88.0): one CSV per complete local day,
+   *    derived from audit_log; pruned on the same 365-day window as step 6.
+   *    The directory is logs/ at the repository root (activityLogDir —
+   *    ACTIVITY_LOG_DIR overrides), which on the production host shares the
+   *    volume the /status disk probe watches. Any failure — including a
+   *    missing ICU zone — is recorded here rather than falling back silently. */
+  try {
+    const r = runActivityExport({
+      db,
+      dir: activityLogDir(),
+      nowMs: now,
+      retentionDays: SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS,
+      graceMinutes: ACTIVITY_EXPORT.GRACE_MINUTES,
+      timeZone: DEPLOY.LOCAL_TIME_ZONE,
+    });
+    result.activityFilesWritten = r.written;
+    result.activityFilesPruned = r.pruned;
+  } catch (e) {
+    result.errors.push({ step: "activityExport", message: (e as Error).message });
   }
 
   return result;
