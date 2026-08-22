@@ -2,6 +2,7 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { globalLimiter, tokenAuditMiddleware } from "./middleware/rateLimiter.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 import analyzeRoutes from "./routes/analyze.js";
 import reportsRoutes from "./routes/reports.js";
 import bulkInventoryRoutes from "./routes/bulk-from-inventory.js";
@@ -15,7 +16,7 @@ import { formatUptime } from "./services/status.js";
 
 // Import db to trigger table creation on startup
 import "./db/sqlite.js";
-import { ANALYSIS, DEPLOY } from "#config";
+import { DEPLOY } from "#config";
 import { resolveBindHost } from "./bindHost.js";
 
 const app = express();
@@ -105,25 +106,8 @@ app.get("/", (_req, res) => res.json(healthPayload()));
 app.get("/api", (_req, res) => res.json(healthPayload()));
 app.get("/api/health", (_req, res) => res.json(healthPayload()));
 
-// Global error handler — never leak internals
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
-
-  // Multer file size error
-  if (err.code === "LIMIT_FILE_SIZE") {
-    res.status(413).json({
-      error: `This file is too large. The maximum upload size is ${ANALYSIS.MAX_FILE_SIZE_MB} MB.`,
-      details:
-        "Large PDFs are often inflated by uncompressed images. To reduce file size: (1) In Adobe Acrobat, use File → Save As Other → Reduced Size PDF; (2) Use File → Save As Other → Optimized PDF to downsample images; (3) Split the document into smaller sections (File → Organize Pages → Split) and analyze each part separately.",
-    });
-    return;
-  }
-
-  const status = err.status || 500;
-  res.status(status).json({
-    error: status === 500 ? "Internal server error" : err.message,
-  });
-});
+// Global error handler — never leak internals (middleware/errorHandler.ts).
+app.use(errorHandler);
 
 // Bind loopback in production so the port is reachable only from the same host
 // (nginx proxies to 127.0.0.1); bind all interfaces in dev so the Nuxt proxy's
