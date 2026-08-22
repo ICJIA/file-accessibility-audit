@@ -52,7 +52,7 @@ describe("export configuration", () => {
       () => new Intl.DateTimeFormat("en-US", { timeZone: DEPLOY.LOCAL_TIME_ZONE }),
     ).not.toThrow();
     expect(DEPLOY.LOCAL_TIME_ZONE).toBe("America/Chicago");
-    expect(ACTIVITY_EXPORT.DIR_NAME).toBe("activity");
+    expect(ACTIVITY_EXPORT.DIR_NAME).toBe("logs");
     expect(ACTIVITY_EXPORT.FILE_PREFIX).toBe("activity-");
     expect(ACTIVITY_EXPORT.GRACE_MINUTES).toBeGreaterThan(0);
   });

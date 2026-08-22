@@ -26,8 +26,12 @@ import { readFileSync, statfsSync } from "node:fs";
 import { access, constants } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { REMEDIATION, STATUS } from "#config";
+import { DEPLOY, REMEDIATION, STATUS } from "#config";
 import { QPDF_BIN } from "./qpdfService.js";
+import { defaultDataDir } from "./dataDir.js";
+import { sqliteUtcToIso } from "./sqliteTime.js";
+
+export { defaultDataDir, sqliteUtcToIso };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -277,7 +281,7 @@ export function isoSeconds(ms: number): string {
 export function chicagoTime(ms: number): string | null {
   try {
     return new Date(ms).toLocaleString("en-US", {
-      timeZone: "America/Chicago",
+      timeZone: DEPLOY.LOCAL_TIME_ZONE,
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -289,15 +293,6 @@ export function chicagoTime(ms: number): string | null {
   } catch {
     return null;
   }
-}
-
-/** SQLite CURRENT_TIMESTAMP stores "YYYY-MM-DD HH:MM:SS" in UTC with no zone
- *  marker. Naively handing that to `new Date()` is parsed as LOCAL time by
- *  some engines, silently shifting every timestamp by the server's offset. */
-export function sqliteUtcToIso(value: unknown): string | null {
-  if (typeof value !== "string" || value.length === 0) return null;
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
-  return normalized.endsWith("Z") ? normalized : `${normalized}Z`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1073,19 +1068,6 @@ export function readDiskStatus(dirPath: string): DiskStatus {
   } catch {
     return { status: "unavailable", free_bytes: null, total_bytes: null, free_pct: null };
   }
-}
-
-/**
- * The directory whose free space matters to this service: where the SQLite
- * database lives and where a PDF's short-lived qpdf temp copy is written.
- *
- * Derived the same way db/sqlite.ts derives the database path (DB_PATH, else
- * ./data/audit.db) so the two cannot point at different volumes — measuring a
- * disk the service does not actually use would be worse than not measuring
- * one, because it would report reassuring numbers about the wrong thing.
- */
-export function defaultDataDir(): string {
-  return path.dirname(process.env.DB_PATH || "./data/audit.db");
 }
 
 export function defaultBackupStatusFile(): string {

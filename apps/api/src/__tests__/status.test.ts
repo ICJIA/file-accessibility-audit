@@ -29,6 +29,7 @@ import {
   formatUptime,
   isoSeconds,
   sqliteUtcToIso,
+  chicagoTime,
   type EngineProbes,
   type EngineSnapshot,
   type GradeCounts,
@@ -1175,5 +1176,19 @@ describe("failed audits are invisible to every public count (v1.88.0)", () => {
     // A failure is not "the last audit".
     expect(after.last_audit_at).toEqual(before.last_audit_at);
     expect(after.database).toBe("ok");
+  });
+});
+
+describe("local time comes from DEPLOY.LOCAL_TIME_ZONE (v1.88.0)", () => {
+  it("chicagoTime renders in the configured zone", async () => {
+    const { DEPLOY } = await import("#config");
+    expect(DEPLOY.LOCAL_TIME_ZONE).toBe("America/Chicago");
+    expect(chicagoTime(Date.UTC(2026, 0, 15, 18, 0, 0))).toBe("Jan 15, 2026, 12:00:00 PM CST");
+    expect(chicagoTime(Date.UTC(2026, 6, 15, 17, 0, 0))).toBe("Jul 15, 2026, 12:00:00 PM CDT");
+  });
+  it("status.ts no longer hard-codes the zone", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../services/status.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/timeZone:\s*"America\/Chicago"/);
   });
 });

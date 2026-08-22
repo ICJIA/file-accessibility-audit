@@ -1537,14 +1537,17 @@ export const SHARED_REPORTS = {
 
 export const ACTIVITY_EXPORT = {
   /**
-   * Subdirectory of the data directory (the directory holding the SQLite
-   * database — DB_PATH's parent, the same volume the /status disk probe
-   * watches) where the daily files are written.
+   * Directory, AT THE REPOSITORY ROOT, where the daily files are written —
+   * `<checkout>/logs/activity-YYYY-MM-DD.csv`, so they are one `ls` from the
+   * application root (services/dataDir.ts: activityLogDir(); the
+   * ACTIVITY_LOG_DIR env var overrides the whole path for tests and
+   * containerised deploys). Already git-ignored; rebuild.sh never `git clean`s,
+   * so deploys leave it alone. Nothing serves it.
    *
    * SAFE TO CHANGE: Yes. Existing files are not moved; delete the old
    * directory by hand after changing this.
    */
-  DIR_NAME: "activity",
+  DIR_NAME: "logs",
 
   /**
    * File name prefix: `<prefix>YYYY-MM-DD.csv`. Pruning deletes ONLY names of
