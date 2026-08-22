@@ -57,6 +57,16 @@ describe("retention sweep step 8: daily activity export", () => {
     expect(result.activityFilesWritten).toBe(0);
   });
 
+  it("prunes old error-log files in the same step and reports it", async () => {
+    writeFileSync(join(LOG_DIR, "errors-2025-01-01.log"), "ancient");
+    writeFileSync(join(LOG_DIR, "errors-2099-01-01.log"), "future — kept");
+    const result = await cleanup.runCleanup();
+    expect(result.errorLogFilesPruned).toBe(1);
+    expect(readdirSync(LOG_DIR)).toContain("errors-2099-01-01.log");
+    expect(readdirSync(LOG_DIR)).not.toContain("errors-2025-01-01.log");
+    rmSync(join(LOG_DIR, "errors-2099-01-01.log"), { force: true });
+  });
+
   it("a failing export is reported under step 'activityExport' and blocks nothing else", async () => {
     rmSync(LOG_DIR, { recursive: true, force: true });
     writeFileSync(LOG_DIR, "a file where the directory should be");

@@ -16,8 +16,19 @@ import { formatUptime } from "./services/status.js";
 
 // Import db to trigger table creation on startup
 import "./db/sqlite.js";
-import { DEPLOY } from "#config";
+import { ACTIVITY_EXPORT, DEPLOY } from "#config";
 import { resolveBindHost } from "./bindHost.js";
+import { installErrorLogTee } from "./services/errorLog.js";
+import { activityLogDir } from "./services/dataDir.js";
+
+// First thing: tee stderr into logs/errors-YYYY-MM-DD.log (v1.88.0), so an
+// unexpected error can be diagnosed from the same directory as the activity
+// files. The original console call still runs — PM2's stream is unchanged.
+installErrorLogTee({
+  dir: activityLogDir(),
+  timeZone: DEPLOY.LOCAL_TIME_ZONE,
+  maxBytesPerDay: ACTIVITY_EXPORT.ERROR_LOG_MAX_BYTES_PER_DAY,
+});
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5103;

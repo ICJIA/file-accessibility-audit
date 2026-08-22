@@ -1569,6 +1569,31 @@ export const ACTIVITY_EXPORT = {
    * rows do. SAFE TO CHANGE: Yes.
    */
   GRACE_MINUTES: 5,
+
+  /**
+   * The application error log (v1.88.0): `<prefix>YYYY-MM-DD.log` in the same
+   * directory — a tee of everything the API process writes to stderr, so an
+   * unexpected error can be diagnosed from logs/ without PM2. Same pruning
+   * mechanism as the activity files: exact shape only.
+   */
+  ERROR_FILE_PREFIX: "errors-",
+
+  /**
+   * Days of error-log files to keep. Diagnostics, not the auditor record — the
+   * activity CSV keeps each failure's one-word reason for the usage log's 365
+   * days. 30 covers "the site misbehaved last week" with room to spare.
+   * Coordinate with the data-retention page § 7 row (pinned by
+   * activityLogsPolicyConformance.test.ts). SAFE TO CHANGE: Yes.
+   */
+  ERROR_LOG_RETENTION_DAYS: 30,
+
+  /**
+   * Bytes after which a day's error-log file stops growing (one final notice
+   * is written). A crash loop writing the same stack thousands of times must
+   * not be what fills the disk; stderr (PM2, with its own rotation) still gets
+   * every line. SAFE TO CHANGE: Yes.
+   */
+  ERROR_LOG_MAX_BYTES_PER_DAY: 50 * 1024 * 1024,
 } as const;
 
 // ---------------------------------------------------------------------------

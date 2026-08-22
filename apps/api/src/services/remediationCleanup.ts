@@ -17,9 +17,10 @@
  *      expired" response alive for a while after expiry before the row —
  *      and its up-to-1MB report_json — is deleted for good.
  *   8. Write the daily activity export — one CSV per complete local day of
- *      audit_log rows, into <repo-root>/logs — and prune files past
- *      AUDIT_LOG_RETENTION_DAYS, the same window step 6 purges (v1.88.0,
- *      services/activityExport.ts). Runs after step 6 so both see one cutoff.
+ *      audit_log rows, into <repo-root>/logs — and prune activity files past
+ *      AUDIT_LOG_RETENTION_DAYS and error-log files past
+ *      ERROR_LOG_RETENTION_DAYS (v1.88.0, services/activityExport.ts). Runs
+ *      after step 6 so both see one cutoff.
  *
  * Steps 1–4 are no-ops on a deployment that has never run remediation
  * (queries over empty tables; the orphan scan guards on the output dir
@@ -33,6 +34,7 @@ import db from "../db/sqlite.js";
 import { ACTIVITY_EXPORT, DEPLOY, REMEDIATION, SHARED_REPORTS } from "#config";
 import { runActivityExport } from "./activityExport.js";
 import { activityLogDir } from "./dataDir.js";
+import { pruneErrorLogs } from "./errorLog.js";
 import { deleteAndVerify, recordEvent } from "./remediationEvents.js";
 import { setExpired, setFailed } from "./remediationJobs.js";
 
@@ -90,6 +92,8 @@ export interface CleanupResult {
   /** v1.88.0: daily activity files written / pruned by step 8. */
   activityFilesWritten: number;
   activityFilesPruned: number;
+  /** v1.88.0: error-log files pruned by step 8. */
+  errorLogFilesPruned: number;
   errors: Array<{ step: string; message: string }>;
 }
 
@@ -105,6 +109,7 @@ export async function runCleanup(): Promise<CleanupResult> {
     purgedSharedReports: 0,
     activityFilesWritten: 0,
     activityFilesPruned: 0,
+    errorLogFilesPruned: 0,
     errors: [],
   };
   const outputRoot = resolve(REMEDIATION.OUTPUT_DIR);
@@ -268,6 +273,12 @@ export async function runCleanup(): Promise<CleanupResult> {
     });
     result.activityFilesWritten = r.written;
     result.activityFilesPruned = r.pruned;
+    result.errorLogFilesPruned = pruneErrorLogs(
+      activityLogDir(),
+      now,
+      ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS,
+      DEPLOY.LOCAL_TIME_ZONE,
+    );
   } catch (e) {
     result.errors.push({ step: "activityExport", message: (e as Error).message });
   }
