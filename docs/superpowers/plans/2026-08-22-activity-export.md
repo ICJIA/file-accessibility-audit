@@ -35,7 +35,7 @@
 | `apps/api/src/services/urlAuditPipeline.ts` | records `fetch-failed` for URL audits (the only place fetch errors are caught) |
 | `apps/api/src/routes/{analyze,analyze-url,audit-url,audit-url-page,bulk-from-inventory}.ts` | call the classifier + writer in their catch blocks; page route's noise trim |
 | `apps/api/src/middleware/errorHandler.ts` (new) | the global error handler, extracted from `index.ts`; 4xx one-liner |
-| `apps/api/src/services/dataDir.ts` (new) | `defaultDataDir()` (moved out of status.ts, re-exported there) |
+| `apps/api/src/services/dataDir.ts` (new) | `defaultDataDir()` (moved out of status.ts, re-exported there), `repoRoot()`, `activityLogDir()` (`<repo-root>/logs`, `ACTIVITY_LOG_DIR` override) |
 | `apps/api/src/services/sqliteTime.ts` (new) | `sqliteUtcToIso()` (moved out of status.ts, re-exported there) |
 | `apps/api/src/services/activityDays.ts` (new) | local-date arithmetic, export window, file-name encode/parse |
 | `apps/api/src/services/activityCsv.ts` (new) | column allow-list, field quoting/injection guard, BOM, row formatting |
@@ -1580,29 +1580,39 @@ git commit -m "refactor(api): extract the global error handler; 4xx responses lo
 
 ---
 
-### Task 6: `dataDir.ts`, `sqliteTime.ts`, and the shared time zone (spec § 2.1, § 2.2)
+### Task 6: `dataDir.ts`, `sqliteTime.ts`, the shared time zone — and the export directory at `<repo-root>/logs/` (spec § 2.1, § 2.2)
+
+> **Ruling 2026-08-22 (user request, recorded in the SDD ledger):** the activity files live in **`logs/` at the repository root**, not in `<dataDir>/activity/`. Task 1 shipped `ACTIVITY_EXPORT.DIR_NAME: "activity"`; this task changes it to `"logs"` and adds the path helper. `logs/` is already in `.gitignore`; `rebuild.sh` never `git clean`s.
 
 **Files:**
 - Create: `apps/api/src/services/dataDir.ts`
 - Create: `apps/api/src/services/sqliteTime.ts`
 - Modify: `apps/api/src/services/status.ts` (imports ~L24–30; `chicagoTime` ~L277–293; `sqliteUtcToIso` ~L294–302; `defaultDataDir` ~L1077–1089)
+- Modify: `audit.config.ts` (`ACTIVITY_EXPORT.DIR_NAME` value + its doc comment)
+- Modify: `apps/api/src/__tests__/failureEventTypes.test.ts` (the `DIR_NAME` expectation)
 - Test: `apps/api/src/__tests__/dataDir.test.ts`; append to `apps/api/src/__tests__/status.test.ts`
 
 **Interfaces:**
-- Produces: `defaultDataDir(): string` (from `./dataDir.js`, still re-exported by `./status.js`), `sqliteUtcToIso(value: unknown): string | null` (from `./sqliteTime.js`, still re-exported by `./status.js`), `chicagoTime()` reading `DEPLOY.LOCAL_TIME_ZONE`.
+- Produces: `defaultDataDir(): string` (from `./dataDir.js`, still re-exported by `./status.js`), `repoRoot(): string` (the checkout root, derived from the module's own location), `activityLogDir(): string` (`process.env.ACTIVITY_LOG_DIR` if set, else `path.join(repoRoot(), ACTIVITY_EXPORT.DIR_NAME)`), `sqliteUtcToIso(value: unknown): string | null` (from `./sqliteTime.js`, still re-exported by `./status.js`), `chicagoTime()` reading `DEPLOY.LOCAL_TIME_ZONE`, `ACTIVITY_EXPORT.DIR_NAME === "logs"`.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
 // apps/api/src/__tests__/dataDir.test.ts
 import { describe, it, expect, afterEach } from "vitest";
-import { defaultDataDir } from "../services/dataDir.js";
+import { existsSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
+import { ACTIVITY_EXPORT } from "#config";
+import { activityLogDir, defaultDataDir, repoRoot } from "../services/dataDir.js";
 import { defaultDataDir as reExported } from "../services/status.js";
 
-const original = process.env.DB_PATH;
+const originalDb = process.env.DB_PATH;
+const originalLogDir = process.env.ACTIVITY_LOG_DIR;
 afterEach(() => {
-  if (original === undefined) delete process.env.DB_PATH;
-  else process.env.DB_PATH = original;
+  if (originalDb === undefined) delete process.env.DB_PATH;
+  else process.env.DB_PATH = originalDb;
+  if (originalLogDir === undefined) delete process.env.ACTIVITY_LOG_DIR;
+  else process.env.ACTIVITY_LOG_DIR = originalLogDir;
 });
 
 describe("defaultDataDir", () => {
@@ -1616,6 +1626,23 @@ describe("defaultDataDir", () => {
   });
   it("is the same function status.ts re-exports (the disk probe and the export agree)", () => {
     expect(reExported).toBe(defaultDataDir);
+  });
+});
+
+describe("repoRoot / activityLogDir", () => {
+  it("repoRoot is the checkout root, found from the module's own location, not the cwd", () => {
+    expect(isAbsolute(repoRoot())).toBe(true);
+    expect(existsSync(join(repoRoot(), "pnpm-workspace.yaml"))).toBe(true);
+    expect(existsSync(join(repoRoot(), "audit.config.ts"))).toBe(true);
+  });
+  it("the activity log directory defaults to <repo-root>/logs", () => {
+    delete process.env.ACTIVITY_LOG_DIR;
+    expect(ACTIVITY_EXPORT.DIR_NAME).toBe("logs");
+    expect(activityLogDir()).toBe(join(repoRoot(), "logs"));
+  });
+  it("ACTIVITY_LOG_DIR overrides it (tests, containers)", () => {
+    process.env.ACTIVITY_LOG_DIR = "/var/tmp/audit-logs";
+    expect(activityLogDir()).toBe("/var/tmp/audit-logs");
   });
 });
 ```
@@ -1650,11 +1677,12 @@ Expected: FAIL — `../services/dataDir.js` not found; the source-text assertion
 ```ts
 // apps/api/src/services/dataDir.ts
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { ACTIVITY_EXPORT } from "#config";
 
 /**
  * The directory whose free space matters to this service: where the SQLite
- * database lives, where a PDF's short-lived qpdf temp copy is written, and
- * (v1.88.0) where the daily activity export keeps its files.
+ * database lives and where a PDF's short-lived qpdf temp copy is written.
  *
  * Derived the same way db/sqlite.ts derives the database path (DB_PATH, else
  * ./data/audit.db) so the two cannot point at different volumes — measuring a
@@ -1663,6 +1691,28 @@ import path from "node:path";
  */
 export function defaultDataDir(): string {
   return path.dirname(process.env.DB_PATH || "./data/audit.db");
+}
+
+/**
+ * The root of the checkout, found from this module's own location (four
+ * levels up from apps/api/src/services) — the same derivation
+ * defaultBackupStatusFile() uses. Never the process cwd: PM2 starts the API
+ * with cwd apps/api, the dev server and the tests start it elsewhere.
+ */
+export function repoRoot(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(here, "../../../..");
+}
+
+/**
+ * Where the daily activity export writes its files (v1.88.0): `logs/` at the
+ * repository root — one `ls` from the application root, which is the
+ * requirement — unless ACTIVITY_LOG_DIR names another absolute path (tests,
+ * containerised deploys). `logs/` is git-ignored and the deploy script never
+ * `git clean`s, so the files survive deploys. Nothing serves this directory.
+ */
+export function activityLogDir(): string {
+  return process.env.ACTIVITY_LOG_DIR || path.join(repoRoot(), ACTIVITY_EXPORT.DIR_NAME);
 }
 ```
 
@@ -1680,6 +1730,27 @@ export function sqliteUtcToIso(value: unknown): string | null {
 }
 ```
 
+- [ ] **Step 3b: Point the config at the repo-root `logs/` directory**
+
+In `audit.config.ts`, inside `ACTIVITY_EXPORT`, replace the `DIR_NAME` entry and its doc comment with:
+
+```ts
+  /**
+   * Directory, AT THE REPOSITORY ROOT, where the daily files are written —
+   * `<checkout>/logs/activity-YYYY-MM-DD.csv`, so they are one `ls` from the
+   * application root (services/dataDir.ts: activityLogDir(); the
+   * ACTIVITY_LOG_DIR env var overrides the whole path for tests and
+   * containerised deploys). Already git-ignored; rebuild.sh never `git clean`s,
+   * so deploys leave it alone. Nothing serves it.
+   *
+   * SAFE TO CHANGE: Yes. Existing files are not moved; delete the old
+   * directory by hand after changing this.
+   */
+  DIR_NAME: "logs",
+```
+
+In `apps/api/src/__tests__/failureEventTypes.test.ts` change `expect(ACTIVITY_EXPORT.DIR_NAME).toBe("activity");` to `expect(ACTIVITY_EXPORT.DIR_NAME).toBe("logs");`.
+
 - [ ] **Step 4: Rewire status.ts**
 
 In `apps/api/src/services/status.ts`:
@@ -1691,14 +1762,14 @@ In `apps/api/src/services/status.ts`:
 
 - [ ] **Step 5: Run the tests and typecheck**
 
-Run: `pnpm --filter api exec vitest run src/__tests__/dataDir.test.ts src/__tests__/status.test.ts src/__tests__/statusPrivacy.test.ts src/__tests__/backupStatus.test.ts && pnpm --filter api exec tsc --noEmit`
+Run: `pnpm --filter api exec vitest run src/__tests__/dataDir.test.ts src/__tests__/status.test.ts src/__tests__/statusPrivacy.test.ts src/__tests__/backupStatus.test.ts src/__tests__/failureEventTypes.test.ts && pnpm --filter api exec tsc --noEmit`
 Expected: PASS, zero type errors (`routes/status.ts` still imports both names from `../services/status.js`).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/api/src/services/dataDir.ts apps/api/src/services/sqliteTime.ts apps/api/src/services/status.ts apps/api/src/__tests__/dataDir.test.ts apps/api/src/__tests__/status.test.ts
-git commit -m "refactor(api): defaultDataDir and sqliteUtcToIso in their own modules; local time zone from DEPLOY.LOCAL_TIME_ZONE"
+git add audit.config.ts apps/api/src/services/dataDir.ts apps/api/src/services/sqliteTime.ts apps/api/src/services/status.ts apps/api/src/__tests__/dataDir.test.ts apps/api/src/__tests__/status.test.ts apps/api/src/__tests__/failureEventTypes.test.ts
+git commit -m "refactor(api): dataDir (repo-root logs/ for the activity export), sqliteTime, local time zone from DEPLOY.LOCAL_TIME_ZONE"
 ```
 
 ---
@@ -2532,8 +2603,8 @@ git commit -m "feat(api): runActivityExport — write missing complete days, pru
 - Test: `apps/api/src/__tests__/activityExportWiring.test.ts`
 
 **Interfaces:**
-- Consumes: `runActivityExport` (Task 9), `defaultDataDir` (Task 6), `ACTIVITY_EXPORT`, `DEPLOY`, `SHARED_REPORTS` (Task 1 / existing).
-- Produces: `CleanupResult.activityFilesWritten: number`, `CleanupResult.activityFilesPruned: number`, error step name `"activityExport"`.
+- Consumes: `runActivityExport` (Task 9), `activityLogDir` (Task 6 — `<repo-root>/logs`, `ACTIVITY_LOG_DIR` override), `ACTIVITY_EXPORT`, `DEPLOY`, `SHARED_REPORTS` (Task 1 / existing).
+- Produces: `CleanupResult.activityFilesWritten: number`, `CleanupResult.activityFilesPruned: number`, error step name `"activityExport"`. (If `ACTIVITY_EXPORT` ends up unreferenced in `remediationCleanup.ts` after this change, drop it from the import — `tsc`/ESLint will say.)
 
 - [ ] **Step 1: Write the failing wiring test**
 
@@ -2552,16 +2623,19 @@ import { join } from "node:path";
 
 const tmpDir = mkdtempSync(join(tmpdir(), "activity-wiring-"));
 process.env.DB_PATH = join(tmpDir, "test.db");
+// The export writes to <repo-root>/logs by default; point it at the temp dir so
+// the test never touches the real checkout.
+process.env.ACTIVITY_LOG_DIR = join(tmpDir, "logs");
 process.env.REMEDIATION_ENABLED = "false";
 
 let cleanup: typeof import("../services/remediationCleanup.js");
 let db: (typeof import("../db/sqlite.js"))["default"];
 let days: typeof import("../services/activityDays.js");
 let DEPLOY: (typeof import("#config"))["DEPLOY"];
-let ACTIVITY_EXPORT: (typeof import("#config"))["ACTIVITY_EXPORT"];
+const LOG_DIR = process.env.ACTIVITY_LOG_DIR!;
 
 beforeAll(async () => {
-  ({ DEPLOY, ACTIVITY_EXPORT } = await import("#config"));
+  ({ DEPLOY } = await import("#config"));
   cleanup = await import("../services/remediationCleanup.js");
   db = (await import("../db/sqlite.js")).default;
   days = await import("../services/activityDays.js");
@@ -2583,12 +2657,11 @@ describe("retention sweep step 8: daily activity export", () => {
 
     const result = await cleanup.runCleanup();
 
-    const dir = join(tmpDir, ACTIVITY_EXPORT.DIR_NAME);
     const day = days.localDate(twoDaysAgo, DEPLOY.LOCAL_TIME_ZONE);
     expect(result.errors.filter((e) => e.step === "activityExport")).toEqual([]);
     expect(result.activityFilesWritten).toBeGreaterThanOrEqual(1);
     expect(result.activityFilesPruned).toBe(0);
-    expect(existsSync(join(dir, days.activityFileName(day)))).toBe(true);
+    expect(existsSync(join(LOG_DIR, days.activityFileName(day)))).toBe(true);
   });
 
   it("the next sweep writes nothing new", async () => {
@@ -2597,16 +2670,15 @@ describe("retention sweep step 8: daily activity export", () => {
   });
 
   it("a failing export is reported under step 'activityExport' and blocks nothing else", async () => {
-    const dir = join(tmpDir, ACTIVITY_EXPORT.DIR_NAME);
-    rmSync(dir, { recursive: true, force: true });
-    writeFileSync(dir, "a file where the directory should be");
+    rmSync(LOG_DIR, { recursive: true, force: true });
+    writeFileSync(LOG_DIR, "a file where the directory should be");
 
     const result = await cleanup.runCleanup();
 
     expect(result.errors.map((e) => e.step)).toEqual(["activityExport"]);
     expect(result.activityFilesWritten).toBe(0);
-    rmSync(dir, { force: true });
-    expect(readdirSync(tmpDir)).not.toContain(ACTIVITY_EXPORT.DIR_NAME);
+    rmSync(LOG_DIR, { force: true });
+    expect(readdirSync(tmpDir)).not.toContain("logs");
   });
 });
 ```
@@ -2624,7 +2696,7 @@ Header comment: change "Does seven things, in order:" to "Does eight things, in 
 
 ```
  *   8. Write the daily activity export — one CSV per complete local day of
- *      audit_log rows, into <dataDir>/activity — and prune files past
+ *      audit_log rows, into <repo-root>/logs — and prune files past
  *      AUDIT_LOG_RETENTION_DAYS, the same window step 6 purges (v1.88.0,
  *      services/activityExport.ts). Runs after step 6 so both see one cutoff.
 ```
@@ -2634,7 +2706,7 @@ Imports — replace `import { REMEDIATION, SHARED_REPORTS } from "#config";` wit
 ```ts
 import { ACTIVITY_EXPORT, DEPLOY, REMEDIATION, SHARED_REPORTS } from "#config";
 import { runActivityExport } from "./activityExport.js";
-import { defaultDataDir } from "./dataDir.js";
+import { activityLogDir } from "./dataDir.js";
 ```
 
 `CleanupResult` — add after `purgedSharedReports: number;`:
@@ -2652,13 +2724,14 @@ Before `return result;` at the end of `runCleanup`, add:
 ```ts
   /* 8. Daily activity export (v1.88.0): one CSV per complete local day,
    *    derived from audit_log; pruned on the same 365-day window as step 6.
-   *    The directory sits beside the database (defaultDataDir), on the volume
-   *    the /status disk probe watches. Any failure — including a missing ICU
-   *    zone — is recorded here rather than falling back silently. */
+   *    The directory is logs/ at the repository root (activityLogDir —
+   *    ACTIVITY_LOG_DIR overrides), which on the production host shares the
+   *    volume the /status disk probe watches. Any failure — including a
+   *    missing ICU zone — is recorded here rather than falling back silently. */
   try {
     const r = runActivityExport({
       db,
-      dir: resolve(join(defaultDataDir(), ACTIVITY_EXPORT.DIR_NAME)),
+      dir: activityLogDir(),
       nowMs: now,
       retentionDays: SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS,
       graceMinutes: ACTIVITY_EXPORT.GRACE_MINUTES,
@@ -2747,7 +2820,7 @@ const REASONS = ["unreadable", "timeout", "fetch-failed", "navigation-failed", "
 describe("data-retention policy v1.12: failed audits + daily activity files", () => {
   it("§ 7 lists the activity files: usage-log window, on-server, outside backups, one setting", () => {
     const row = visible(between(s07, "Daily activity files", "</tr>"));
-    expect(row).toMatch(/data\/activity\//);
+    expect(row).toMatch(/logs\/ at the application's root/);
     expect(row).toMatch(/365 days — the usage log's window/);
     expect(row).toMatch(/not part of the nightly backup/);
     expect(row).toMatch(/SHARED_REPORTS\.AUDIT_LOG_RETENTION_DAYS \(shared with the usage log/);
@@ -2829,8 +2902,9 @@ and insert this row directly after that row's closing `</tr>`:
               log and holding the same fields (no file content)
             </td>
             <td class="py-2.5 pr-4">
-              On the same server, in <code class="font-mono">data/activity/</code> beside the
-              database, unreachable from the web; not part of the nightly backup
+              On the same server, in <code class="font-mono">logs/</code> at the application's
+              root — beside the code, outside the web root, unreachable from the web; not part of
+              the nightly backup
             </td>
             <td class="py-2.5 pr-4">365 days — the usage log's window</td>
             <td class="py-2.5">
@@ -2963,17 +3037,21 @@ handed to a manager — without querying SQLite. Added in v1.88.0; design in
 ## Where
 
 ```
-apps/api/data/activity/activity-YYYY-MM-DD.csv
+<repo-root>/logs/activity-YYYY-MM-DD.csv        # /home/forge/audit.icjia.app/file-accessibility-audit/logs/ in production
 ```
 
-The directory sits beside the database (`DB_PATH`'s parent, the volume the `/status` disk probe
-watches). Directory `0700`, files `0600`, owned by the API process user (`forge` in production).
-Nothing serves these files; the only way to read one is on the server.
+`logs/` at the root of the checkout — one `ls` from the application root. The path is derived
+from the code's own location (`services/dataDir.ts: activityLogDir()`), never from the process
+cwd; set `ACTIVITY_LOG_DIR` (absolute) to put it elsewhere. `logs/` is git-ignored and
+`rebuild.sh` never `git clean`s, so deploys leave the files alone. Directory `0700`, files
+`0600`, owned by the API process user (`forge` in production). Nothing serves these files; the
+only way to read one is on the server.
 
 ```bash
-ls -lt apps/api/data/activity | head          # newest first
-less apps/api/data/activity/activity-2026-08-19.csv
-scp forge@audit.icjia.app:audit.icjia.app/file-accessibility-audit/apps/api/data/activity/activity-2026-08-19.csv .
+cd /home/forge/audit.icjia.app/file-accessibility-audit
+ls -lt logs | head                               # newest first
+less logs/activity-2026-08-19.csv
+scp forge@audit.icjia.app:audit.icjia.app/file-accessibility-audit/logs/activity-2026-08-19.csv .
 ```
 
 Each file opens directly in Excel or Numbers (UTF-8 BOM, LF line endings).
@@ -3101,7 +3179,7 @@ New section, inserted before `## Report Views`:
 ```markdown
 ## Activity Export
 
-Since v1.88.0 the retention sweep writes **one CSV per calendar day** (America/Chicago) of the `audit_log` table into `apps/api/data/activity/activity-YYYY-MM-DD.csv` on the server — a directory an operator can open with `less`, and a file a manager can open in Excel. It is **derived** from the database (never a second source of truth), kept for the usage log's own **365 days** (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` — there is no separate setting), pruned by file-name date, **not** included in the nightly backup, and **not served** by any route.
+Since v1.88.0 the retention sweep writes **one CSV per calendar day** (America/Chicago) of the `audit_log` table into **`logs/activity-YYYY-MM-DD.csv` at the repository root** on the server — one `ls` from the application root for an operator with `less`, and a file a manager can open in Excel (`ACTIVITY_LOG_DIR` overrides the location; `logs/` is git-ignored and survives deploys). It is **derived** from the database (never a second source of truth), kept for the usage log's own **365 days** (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` — there is no separate setting), pruned by file-name date, **not** included in the nightly backup, and **not served** by any route.
 
 Columns: `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, content_hash, tier, reason` — the pinned allow-list in `apps/api/src/services/activityCsv.ts`. `tier` is `trusted-tool` / `public` / `unknown`; `reason` is set only on `*-failed` rows. RFC 4180 quoting, a formula-injection guard, a UTF-8 BOM, LF line endings.
 
@@ -3173,7 +3251,7 @@ Insert after the intro paragraph (before `## [1.87.1]`):
 ### Added
 
 - **Failed audits are recorded.** An audit the tool attempted and could not complete now leaves an `audit_log` row of its own — `analyze-failed`, `analyze-url-failed`, `audit-url-failed`, `audit-url-page-failed` or `bulk-from-inventory-failed` — with the same fields as a successful audit, NULL score/grade/content hash, and a one-word `reason` from a closed set: `unreadable`, `timeout`, `fetch-failed`, `navigation-failed`, `internal` (migration 13 → `user_version` 13). Never the error text. Capacity (503) and refusals are not failures and record nothing. The new event types sit outside every counting allow-list, so `/status` figures are unchanged — pinned by test.
-- **Daily activity export.** The retention sweep (step 8) writes one CSV per complete America/Chicago calendar day of the `audit_log` table to `data/activity/activity-YYYY-MM-DD.csv` on the server, derived from the database, kept for the usage log's own 365 days (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` — no second setting), pruned by file-name date, not in backups, not served. Columns `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, content_hash, tier, reason`; RFC 4180 quoting, formula-injection guard, UTF-8 BOM, LF. The first sweep after deploy materialises the whole window; a missed midnight heals itself; a complete day's file is never rewritten. Runbook: `docs/activity-export.md`.
+- **Daily activity export.** The retention sweep (step 8) writes one CSV per complete America/Chicago calendar day of the `audit_log` table to `logs/activity-YYYY-MM-DD.csv` at the repository root on the server (`ACTIVITY_LOG_DIR` overrides), derived from the database, kept for the usage log's own 365 days (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` — no second setting), pruned by file-name date, not in backups, not served. Columns `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, content_hash, tier, reason`; RFC 4180 quoting, formula-injection guard, UTF-8 BOM, LF. The first sweep after deploy materialises the whole window; a missed midnight heals itself; a complete day's file is never rewritten. Runbook: `docs/activity-export.md`.
 
 ### Changed
 
@@ -3196,7 +3274,7 @@ Insert above `### v1.87.1 — 2026-08-21 …`:
 ```markdown
 ### v1.88.0 — 2026-08-22 · Failed audits recorded; daily activity export on the server (feature + ops, not a vulnerability fix)
 
-Adds an auditor-facing record rather than fixing a flaw. An audit the tool attempted and could not complete now leaves its own `audit_log` row (`<type>-failed`, NULL score/grade/hash, a one-word reason from a closed set — never error text; migration 13), and the retention sweep writes one derived CSV per Chicago calendar day of that table to `data/activity/` on the server: the usage log's own fields and 365-day window, pruned by file-name date, not in backups, **not served by any route**. Reviewed for what it adds to the attack surface and to retention: no new route or parameter; the CSV writer quotes per RFC 4180 and neutralises formula injection (managers open these in Excel); files are `0600` in a `0700` directory owned by the service user; pruning deletes only names of the exact shape it writes. The new event types sit outside every `/status` counting allow-list, pinned by test. Two log-noise trims (page-audit navigation failures and 4xx responses log one line) write nothing that carries an IP, token, user agent or body — also pinned. Data-retention policy v1.12 describes both additions; the file name stays the one field that can carry personal information, and the policy says so. Also recorded: `pm2-logrotate` 3.0.0's compression setting is ineffective (documented, not worked around).
+Adds an auditor-facing record rather than fixing a flaw. An audit the tool attempted and could not complete now leaves its own `audit_log` row (`<type>-failed`, NULL score/grade/hash, a one-word reason from a closed set — never error text; migration 13), and the retention sweep writes one derived CSV per Chicago calendar day of that table to `logs/` at the application root on the server: the usage log's own fields and 365-day window, pruned by file-name date, not in backups, **not served by any route**. Reviewed for what it adds to the attack surface and to retention: no new route or parameter; the CSV writer quotes per RFC 4180 and neutralises formula injection (managers open these in Excel); files are `0600` in a `0700` directory owned by the service user; pruning deletes only names of the exact shape it writes. The new event types sit outside every `/status` counting allow-list, pinned by test. Two log-noise trims (page-audit navigation failures and 4xx responses log one line) write nothing that carries an IP, token, user agent or body — also pinned. Data-retention policy v1.12 describes both additions; the file name stays the one field that can carry personal information, and the policy says so. Also recorded: `pm2-logrotate` 3.0.0's compression setting is ineffective (documented, not worked around).
 ```
 
 - [ ] **Step 4: § 10 entry**

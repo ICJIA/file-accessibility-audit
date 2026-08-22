@@ -34,6 +34,7 @@ value to a boolean before the module reads it. Documentation fix only.
 |---|---|
 | System of record | The database (`audit_log`). A text file would be a worse copy: unstructured, unqueryable, a second retention window to keep honest. |
 | What the directory holds | A **derived** export — one CSV per day, regenerable from the DB, never a second source of truth. |
+| Location | **`<repo-root>/logs/`** (user request 2026-08-22: "make sure the logs are easy to find in the app — a /logs in the root"), not `apps/api/data/activity/`. One `ls` from the checkout; already git-ignored (`logs/` in `.gitignore`); `rebuild.sh` never `git clean`s, so deploys leave it alone. `ACTIVITY_LOG_DIR` overrides (tests, containers). Still never served. |
 | Format | **CSV** (user choice 2026-08-22): opens in Excel/Numbers for managers, greppable for the operator. RFC 4180 quoting, formula-injection guard, UTF-8 BOM. |
 | Day boundaries | **America/Chicago** calendar days — the way the project already presents time to humans (`checked_at_chicago`) and the way a manager thinks about "yesterday". |
 | Retention | **365 days, the same constant as the usage record** (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS`). Never a second number. Files exist only for days fully inside the window. |
@@ -138,18 +139,25 @@ document to attribute them to, and the audit row may already exist).
 ### 2.1 Location and naming
 
 ```
-<dataDir>/activity/activity-YYYY-MM-DD.csv
+<repo-root>/logs/activity-YYYY-MM-DD.csv
 ```
 
-`dataDir` is `defaultDataDir()` — the directory holding the database, derived from
-`DB_PATH` exactly as the `/status` disk probe derives it, so the files sit on the
-volume that probe already watches. `defaultDataDir()` moves to its own module
-(`services/dataDir.ts`) and is re-exported from `services/status.ts` so existing
+The directory is `logs/` at the root of the checkout (on the production host,
+`/home/forge/audit.icjia.app/file-accessibility-audit/logs/`) — the user's requirement
+is that the logs are easy to find, one `ls` from the application root. The path is
+derived from the module's own location the way `defaultBackupStatusFile()` already
+derives the repo root (`services/dataDir.ts: repoRoot()`), never from the process cwd;
+`ACTIVITY_LOG_DIR` (absolute path) overrides it for tests and containerised deploys.
+`logs/` is already in `.gitignore`, and `rebuild.sh` runs `git checkout -- .` +
+`git pull` and never `git clean`, so the files survive every deploy. On the production
+host the checkout and `apps/api/data` share one volume, which is the volume the
+`/status` disk probe watches. `defaultDataDir()` (the database directory) moves to the
+same `services/dataDir.ts` and is re-exported from `services/status.ts` so existing
 imports are unchanged. Directory created `0700`, files written `0600`, owner is the
 API process user (`forge` in production) — mirrors `data/remediation`.
 
-Config: a new `ACTIVITY_EXPORT` block in `audit.config.ts` — `DIR_NAME: "activity"`,
-`FILE_PREFIX: "activity-"`, `GRACE_MINUTES: 5`. The time zone becomes
+Config: a new `ACTIVITY_EXPORT` block in `audit.config.ts` — `DIR_NAME: "logs"` (a
+directory name at the repo root), `FILE_PREFIX: "activity-"`, `GRACE_MINUTES: 5`. The time zone becomes
 `DEPLOY.LOCAL_TIME_ZONE: "America/Chicago"`, and `status.ts`'s `chicagoTime()` reads
 the same constant instead of its hard-coded string, so the two can never drift.
 Retention is **not** a new constant: the export reads
@@ -286,9 +294,9 @@ constraint the `[rate-limit]` lines are tested for.
   "failed audits" (it reads *audits and refused-upload attempts* today). New row
   in the same four columns: **Data category** *Daily activity files — one CSV per
   calendar day (Central time), derived from the usage log and holding the same
-  fields; no file content* · **Where stored** *On the same server, in
-  `data/activity/` beside the database, unreachable from the web; not part of the
-  nightly backup* · **Maximum retention** *365 days — the usage log's window* ·
+  fields; no file content* · **Where stored** *On the same server, in `logs/` at the
+  application's root — beside the code, outside the web root, unreachable from the
+  web; not part of the nightly backup* · **Maximum retention** *365 days — the usage log's window* ·
   **Configurable** *Yes — `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` (shared with
   the usage log; there is no separate setting)*. The sweep paragraph under the
   table (the one that lists what `remediationCleanup.ts` does) gains the export
@@ -348,7 +356,7 @@ Then, from the repo root: `pnpm build`, `pnpm typecheck`, `pnpm lint`,
 v1.88.0 per `project_release_checklist`: CHANGELOG entry; versions ×6; README
 § Security entry and § 10 `SECURITY_AUDIT_ENTRIES` entry (the test fails the release
 without both); annotated tag; What's New entry. Deploy via Forge (the user
-deploys). After deploy, verify on the server: `ls -la apps/api/data/activity | tail`,
+deploys). After deploy, verify on the server: `ls -la logs | tail` from the checkout root,
 `pm2 logs file-audit-api --lines 20` shows the sweep's counts, and one day's file
 opens cleanly.
 
