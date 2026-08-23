@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.88.0] - 2026-08-22
+
+### Added
+
+- **Failed audits are recorded.** An audit the tool attempted and could not complete now leaves an `audit_log` row of its own — `analyze-failed`, `analyze-url-failed`, `audit-url-failed`, `audit-url-page-failed` or `bulk-from-inventory-failed` — with the same fields as a successful audit, NULL score/grade/content hash, and a one-word `reason` from a closed set: `unreadable`, `timeout`, `fetch-failed`, `navigation-failed`, `internal` (migration 13 → `user_version` 13). Never the error text. Capacity (503) and refusals are not failures and record nothing. The new event types sit outside every counting allow-list, so `/status` figures are unchanged — pinned by test.
+- **Daily activity export.** The retention sweep (step 8) writes one CSV per complete America/Chicago calendar day of the `audit_log` table to `logs/activity-YYYY-MM-DD.csv` at the repository root on the server (`ACTIVITY_LOG_DIR` overrides), derived from the database, kept for the usage log's own 365 days (`SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` — no second setting), pruned by file-name date, not in backups, not served. Columns `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, content_hash, tier, reason`; RFC 4180 quoting, formula-injection guard, UTF-8 BOM, LF. The first sweep after deploy materialises the whole window; a missed midnight heals itself; a complete day's file is never rewritten. Runbook: `docs/activity-export.md`.
+
+- **Application error log.** The API process tees everything it writes to stderr (`console.error`/`console.warn`, `util.format`-ed, stacks included) into `logs/errors-YYYY-MM-DD.log` — installed at startup, PM2's stream unchanged — so an unexpected error can be diagnosed from the same directory the activity files live in, without `~/.pm2/logs` and its 14-day rotation. Kept 30 days (`ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`), pruned by the sweep; a day's file stops at 50 MB with a final notice so a crash loop cannot fill the disk; a write failure never throws. Holds what stderr holds — no IP, token, user agent or body is ever written there (tested for every app-written line).
+- **The policy is pinned to the code.** `activityLogsPolicyConformance.test.ts` reads the data-retention sections and fails if their retention windows, directory name or reason list differ from the constants the sweep and writers use.
+
+### Changed
+
+- **Two log-noise trims.** A classified page-audit navigation failure or timeout (a fleet page URL that is really a download — 315 identical stack traces on 2026-08-19) now logs one line; the global error handler logs a 4xx (incl. the 413 "too large") as one line and keeps the stack for 5xx only. The handler moved to `middleware/errorHandler.ts` so it is tested. No response changed.
+- `DEPLOY.LOCAL_TIME_ZONE` (`America/Chicago`) is now the one place the human-facing time zone lives; `/status`'s `*_chicago` fields read it. `defaultDataDir` and `sqliteUtcToIso` moved to their own modules (re-exported from `services/status.ts`).
+- Data-retention policy → **v1.12**: § 7 row + sweep paragraph, § 8 bullets, § 8a schema (migration 13), § 14 entry.
+- `docs/process-supervision.md` no longer promises gzipped PM2 logs: `pm2-logrotate` 3.0.0's `compress true` is ineffective (the module's `parseBool` accepts only the string `'true'`; pmx casts the stored value to a boolean). Rotated files are plain `.log`; the 14-file retention is what bounds the disk.
+
+### Notes
+
+- **No new surface.** No route was added or changed; nothing reads the activity files but the operator on the server.
+- **Privacy.** Failure rows and activity files carry exactly the usage log's fields. No IP, token, user agent or body is written anywhere new; the one-line log formats are tested for it. The file name remains the one field that can carry personal information, and the policy says so.
+- Tests: API +92 / web +7 → totals API 1,347 · web 1,134 · CLI 49 (2,530).
+
 ## [1.87.1] - 2026-08-21
 
 ### Changed

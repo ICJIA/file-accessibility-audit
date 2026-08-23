@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "activity-export-and-failed-audits-2026-08-22",
+    badge: "Improved",
+    text: "The service now keeps a daily record of what it did, on its own server, for the people who audit it. Each night the previous day's usage records — which documents and pages were checked, with what result — are written to one file, kept for the same 365 days as the records themselves and then deleted. Audits that could not be completed are now recorded too, with a one-word reason and never the error text. The service also keeps its own error log for 30 days so a fault can be diagnosed quickly. Nothing new is collected and nothing is downloadable from this site; the data-retention policy (now v1.12) describes exactly what the files hold.",
+    linkText: "Read the data-retention policy",
+    linkTo: "/data-retention",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 22, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "framework-security-update-2026-08-20",
     badge: "Security",
     text: "The software this site is built on has been updated to close published security flaws. These were in third-party code the service depends on rather than in the accessibility checks themselves, so nothing about how your documents are checked, stored, or deleted has changed — and no document was affected. One of the flaws was reachable on the live site rather than only possible in theory, which is why this update was made promptly and is recorded here. The full technical account is in the security log, and the plain-language version is in section 10 of the data-retention policy.",

@@ -54,6 +54,41 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.88.0",
+    meta: "Reviewed <strong>2026-08-22</strong> · scope: a new record of failed audits in the usage-metadata table, and a daily file of that table written on the server for auditors. No new way to reach the service; one new column; no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Two additions for the people who review this service rather than use it. An audit the tool attempted and could not complete is now recorded like any other audit &mdash; same fields, no score or grade, and a one-word reason that is never the error text. And each night the server writes the previous day&rsquo;s usage-metadata rows to a file on its own disk, so a day can be reviewed without querying the database. The data-retention policy is at v1.12 to describe both.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "New",
+            html: "<strong>Failed audits are recorded with a fixed reason.</strong> One column was added (<code>audit_log.reason</code>, migration 13) holding one of five codes: unreadable, timeout, fetch-failed, navigation-failed, internal. Error messages, which can embed a file name, an address or a library path, are never stored. Failure rows carry no content hash, so they can never satisfy the check that gates remediation behind a prior audit.",
+          },
+          {
+            badge: "New",
+            html: "<strong>A daily activity file, on the server only.</strong> One CSV per calendar day, derived from the usage-metadata table, kept for the same 365 days and deleted on the same schedule &mdash; there is no separate setting to drift. Nothing on the site serves these files; they are readable only by the service&rsquo;s own account on the server, and they are not part of the nightly backup. The writer quotes every field and neutralises spreadsheet formula injection, because a file name is user-chosen and the files are meant to be opened in Excel.",
+          },
+          {
+            badge: "New",
+            html: "<strong>An application error log, on the server only.</strong> The service now keeps a copy of its own error output &mdash; the error message and stack trace for each fault &mdash; as one file per day beside the activity files, for 30 days, so an unexpected error can be diagnosed quickly. It holds exactly what the process already wrote to its error stream: never an address, a token or a browser identifier; a file name or page address can appear, and the policy says so. A day&rsquo;s file stops growing at a fixed size, so a malfunction cannot fill the disk.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>Quieter, safer logs.</strong> Two expected conditions that used to log a full stack trace each time &mdash; a page audit whose address turns out to be a download, and an over-sized upload &mdash; now log one line. Neither line carries an address, a token, a browser identifier or a request body; a test fails the build if one ever does.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Data-retention policy updated to v1.12.</strong> Section 7 lists the activity files and their window; section 8 says what a failed-audit row holds; section 8a shows the new column; the file name remains the one field that can carry personal information, and the policy continues to say so rather than claim otherwise.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.87.1",
     meta: "Reviewed <strong>2026-08-21</strong> · scope: wording and links on the landing-page &ldquo;What&rsquo;s New&rdquo; notices. Nothing about what is collected, stored, or handled changed.",
     body: [
