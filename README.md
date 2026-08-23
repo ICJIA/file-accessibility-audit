@@ -788,7 +788,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,431 tests** across 151 test files (API 1255, Web 1127, CLI 49). Run all three suites with one summary:
+**2,530 tests** across 164 test files (API 1347, Web 1134, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
