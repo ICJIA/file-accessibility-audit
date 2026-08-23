@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.88.1] - 2026-08-23
+
+### Added
+
+- **`logs.sh` at the repository root — the quick way to the logs.** `./logs.sh` (newest files), `activity [DATE]`, `failed [DATE]`, `errors [DATE]`, `grep PATTERN [DATE]`, `tail`, `pull DATE`. The activity CSV is parsed properly (quoted commas, the BOM) and rendered as an aligned table on a terminal, raw CSV when piped, `--md` for a Markdown table, `--tsv` for spreadsheets, and `--copy` to the clipboard (pbcopy / wl-copy / xclip / xsel). Runs on the server from the checkout root, or from a laptop — where it runs the same command on the server over SSH and streams the result back, so the clipboard copy and `pull` happen locally. Needs `python3` for the table formats.
+- **The retention sweep reports itself.** Every startup sweep logs one `[sweep] activity files: N written, N pruned · error logs pruned: N · audit_log rows purged: N · …` line, and an interval sweep logs one whenever it did anything; every captured step error now goes to stderr (`[sweep] step … failed: …`), so it reaches `logs/errors-*.log` — previously those errors were visible only from the hand-run CLI, and `pm2 logs` could not answer "did the first materialisation run?". `runScheduledSweep()` is the single entry point `index.ts` and the interval share.
+- **Migration 14: `idx_audit_created_at`.** Every time-windowed read of `audit_log` — the activity export's per-day SELECT, the retention purge, `/status`'s 24 h / 30 d counts — was a full table scan (the first export run after v1.88.0 was 365 of them); they are index seeks now (`EXPLAIN QUERY PLAN` pinned). `user_version` 14; no column changes; `CREATE INDEX IF NOT EXISTS`, safe to re-run.
+
+### Changed
+
+- README test tables now list every test file in all three suites (8 rows added; the API and web tables had been curated subsets). CI actions bumped — `actions/checkout` v7, `actions/setup-node` v7, `pnpm/action-setup` v6 — to clear GitHub's Node 20 runtime deprecation notice.
+
+### Notes
+
+- **No new attack surface.** No route was added or changed; `logs.sh` reads files over the existing SSH credential and nothing is served by the site. The sweep's summary lines carry counts and step names only.
+- Tests: API +11 → totals API 1,362 · web 1,134 · CLI 49 (2,545).
+
 ## [1.88.0] - 2026-08-22
 
 ### Added

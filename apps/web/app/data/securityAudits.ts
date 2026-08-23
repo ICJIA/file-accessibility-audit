@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.88.1",
+    meta: "Reviewed <strong>2026-08-23</strong> · scope: operator conveniences that followed the v1.88.0 review — a script for reading the log files over SSH, a one-line self-report from the retention sweep, and a database index. No new way to reach the service, no new data collected, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Housekeeping on the record-keeping itself. The administrators can now read the daily activity files and the error log with one command, the nightly and five-minute clean-up sweep says what it did in the server&rsquo;s own log, and the usage-metadata table gained an index so date-range questions no longer read the whole table.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "OPS",
+            html: "<strong>A log-reading script, for administrators only.</strong> It reads the files already described in this policy (&sect; 7, &sect; 8) over the same SSH access the server has always required, and can lay them out as a table or copy them to the administrator&rsquo;s own clipboard. Nothing new is published by the site and no new credential exists.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>No new attack surface; posture re-verified.</strong> The sweep&rsquo;s new summary lines carry counts and step names only; the index changes how quickly the table is read, not what it holds.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.88.0",
     meta: "Reviewed <strong>2026-08-22</strong> · scope: a new record of failed audits in the usage-metadata table, and a daily file of that table written on the server for auditors. No new way to reach the service; one new column; no retention period changed.",
     body: [
