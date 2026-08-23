@@ -449,7 +449,7 @@ describe("migration 14: audit_log(created_at) index", () => {
     const cols = db.pragma("index_info(idx_audit_created_at)") as Array<{ name: string }>;
     expect(cols.map((c) => c.name)).toEqual(["created_at"]);
     expect(db.pragma("user_version", { simple: true })).toBe(LATEST_VERSION);
-    expect(MIGRATIONS[MIGRATIONS.length - 1].version).toBe(14);
+    expect(MIGRATIONS.some((m) => m.version === 14)).toBe(true);
   });
 
   it("the activity export's day-window query and the retention purge use the index", () => {
@@ -474,5 +474,103 @@ describe("migration 14: audit_log(created_at) index", () => {
     const db = freshDbWith14();
     const m14 = MIGRATIONS.find((m) => m.version === 14)!;
     expect(() => m14.up(db)).not.toThrow();
+  });
+});
+
+describe("migration 15: remediation_events no longer references remediation_jobs", () => {
+  // v1.88.2. The events are the standalone audit trail the policy describes
+  // (kept EVENT_LOG_RETENTION_DAYS, 7 years) and outlive their job row (kept
+  // JOB_ROW_RETENTION_DAYS, 30 days) by design — but a FOREIGN KEY on
+  // events.job_id made the job purge fail on every sweep once a job old
+  // enough to purge still had events (production, 2026-08-23). SQLite cannot
+  // drop a constraint, so the table is rebuilt without it.
+  const eventsSql = (db: DB): string =>
+    (
+      db
+        .prepare(
+          `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'remediation_events'`,
+        )
+        .get() as {
+        sql: string;
+      }
+    ).sql;
+
+  function dbAtVersion(v: number): DB {
+    const db = new Database(":memory:");
+    db.pragma("foreign_keys = ON");
+    runMigrationList(
+      db,
+      MIGRATIONS.filter((m) => m.version <= v),
+      0,
+    );
+    return db;
+  }
+
+  it("a fresh database has no foreign key on remediation_events and keeps both indexes", () => {
+    const db = new Database(":memory:");
+    db.pragma("foreign_keys = ON");
+    runMigrations(db);
+    expect(eventsSql(db)).not.toMatch(/REFERENCES/i);
+    const indexes = (db.pragma("index_list(remediation_events)") as Array<{ name: string }>).map(
+      (i) => i.name,
+    );
+    expect(indexes).toContain("idx_remediation_events_job");
+    expect(indexes).toContain("idx_remediation_events_event");
+    expect(MIGRATIONS.some((m) => m.version === 15)).toBe(true);
+    expect(db.pragma("user_version", { simple: true })).toBe(LATEST_VERSION);
+  });
+
+  it("rebuilds a populated v14 table in place: every event row, id and detail survives, and a job with events can now be deleted", () => {
+    const db = dbAtVersion(14);
+    expect(eventsSql(db)).toMatch(/REFERENCES\s+remediation_jobs/i);
+    db.prepare(
+      `INSERT INTO remediation_jobs (id, input_filename, status, created_at, expires_at) VALUES ('j1', 'a.pdf', 'expired', 1, 2)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO remediation_events (job_id, event, occurred_at, details) VALUES ('j1', 'received', 10, '{"n":1}')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO remediation_events (job_id, event, occurred_at, details) VALUES ('j1', 'verified_absent', 20, NULL)`,
+    ).run();
+    // Before: the constraint blocks the purge.
+    expect(() => db.prepare(`DELETE FROM remediation_jobs WHERE id = 'j1'`).run()).toThrow(
+      /FOREIGN KEY/,
+    );
+
+    runMigrationList(db, MIGRATIONS, 14);
+
+    expect(db.pragma("user_version", { simple: true })).toBe(LATEST_VERSION);
+    expect(eventsSql(db)).not.toMatch(/REFERENCES/i);
+    const rows = db
+      .prepare(`SELECT id, job_id, event, occurred_at, details FROM remediation_events ORDER BY id`)
+      .all();
+    expect(rows).toEqual([
+      { id: 1, job_id: "j1", event: "received", occurred_at: 10, details: '{"n":1}' },
+      { id: 2, job_id: "j1", event: "verified_absent", occurred_at: 20, details: null },
+    ]);
+    // After: the job goes, the trail stays, and new events keep counting up from the old ids.
+    expect(() => db.prepare(`DELETE FROM remediation_jobs WHERE id = 'j1'`).run()).not.toThrow();
+    db.prepare(
+      `INSERT INTO remediation_events (job_id, event, occurred_at) VALUES ('j1', 'late', 30)`,
+    ).run();
+    expect(
+      (db.prepare(`SELECT MAX(id) AS m FROM remediation_events`).get() as { m: number }).m,
+    ).toBe(3);
+    expect(
+      (
+        db.prepare(`SELECT COUNT(*) AS c FROM remediation_events WHERE job_id = 'j1'`).get() as {
+          c: number;
+        }
+      ).c,
+    ).toBe(3);
+  });
+
+  it("is safe to re-run on a database that has already been rebuilt", () => {
+    const db = new Database(":memory:");
+    runMigrations(db);
+    const before = eventsSql(db);
+    const m15 = MIGRATIONS.find((m) => m.version === 15)!;
+    expect(() => m15.up(db)).not.toThrow();
+    expect(eventsSql(db)).toBe(before);
   });
 });

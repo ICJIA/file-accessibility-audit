@@ -375,6 +375,50 @@ export const MIGRATIONS: Migration[] = [
       db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at);`);
     },
   },
+  {
+    version: 15,
+    // Drop the FOREIGN KEY from remediation_events to remediation_jobs
+    // (v1.88.2). The events are the standalone audit trail the data-retention
+    // policy describes: kept EVENT_LOG_RETENTION_DAYS (7 years), while the job
+    // row is purged after JOB_ROW_RETENTION_DAYS (30 days). With the constraint
+    // in place and foreign_keys = ON, step 4 of the retention sweep failed on
+    // EVERY run once a job old enough to purge still had events — "FOREIGN KEY
+    // constraint failed", reported for the first time by v1.88.1's sweep
+    // summary on 2026-08-23, with 62 finished jobs (oldest 97 days) never
+    // purged against the 30-day promise.
+    //
+    // SQLite cannot drop a constraint, so the table is rebuilt: same columns,
+    // same ids (the AUTOINCREMENT counter follows the copied ids), same two
+    // indexes. Probe-before-rebuild on the live schema text, so re-running is
+    // a no-op. Dropping the CHILD table is safe under foreign_keys = ON — only
+    // parent deletions are checked.
+    name: "rebuild remediation_events without the foreign key (events outlive their job by policy)",
+    up(db) {
+      const row = db
+        .prepare(
+          `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'remediation_events'`,
+        )
+        .get() as { sql?: string } | undefined;
+      if (!row || !/REFERENCES\s+remediation_jobs/i.test(row.sql ?? "")) return;
+      db.exec(`
+        CREATE TABLE remediation_events_v15 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id TEXT NOT NULL,
+          event TEXT NOT NULL,
+          occurred_at INTEGER NOT NULL,
+          details TEXT
+        );
+        INSERT INTO remediation_events_v15 (id, job_id, event, occurred_at, details)
+          SELECT id, job_id, event, occurred_at, details FROM remediation_events ORDER BY id;
+        DROP TABLE remediation_events;
+        ALTER TABLE remediation_events_v15 RENAME TO remediation_events;
+        CREATE INDEX IF NOT EXISTS idx_remediation_events_job
+          ON remediation_events(job_id, occurred_at);
+        CREATE INDEX IF NOT EXISTS idx_remediation_events_event
+          ON remediation_events(event);
+      `);
+    },
+  },
 ];
 
 /**
