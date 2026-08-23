@@ -6,6 +6,25 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.12 · 2026-08-22</strong> — Two additions, no change to any retention period.
+        <em>Failed audits are now recorded</em> in the usage-metadata table: an audit the tool
+        attempted and could not complete leaves a row with the same fields as a successful one, no
+        score or grade, no content hash, and a one-word reason code (<code class="text-xs font-mono"
+          >unreadable</code
+        >, <code class="text-xs font-mono">timeout</code>,
+        <code class="text-xs font-mono">fetch-failed</code>,
+        <code class="text-xs font-mono">navigation-failed</code>,
+        <code class="text-xs font-mono">internal</code>) — never the error text. § 8a shows the new
+        <code class="text-xs font-mono">audit_log.reason</code> column.
+        <em>Daily activity files</em>: each night the server writes the previous day's usage-log
+        rows to a CSV file so auditors and managers can review a day without querying the database.
+        Derived from the table, same fields, deleted on the same 365-day schedule, kept on the
+        server's disk only, not part of the nightly backup, never served by the site (§ 7, § 8).
+        <em>Application error log</em>: the service's own error output — message and stack trace,
+        for diagnosing faults — is also kept as one file per day in the same place, for 30 days, not
+        backed up, never served (§ 7, § 8).
+      </li>
+      <li>
         <strong>v1.11 · 2026-08-21</strong> — Adds one column to the usage-metadata table (<code
           class="text-xs font-mono"
           >audit_log.privileged</code

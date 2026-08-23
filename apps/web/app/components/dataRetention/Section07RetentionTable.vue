@@ -83,13 +83,43 @@
           </tr>
           <tr class="border-b border-[var(--border)]/40">
             <td class="py-2.5 pr-4 font-medium">
-              Usage log — audits and refused-upload attempts (no file content)
+              Usage log — audits, failed audits, and refused-upload attempts (no file content)
             </td>
             <td class="py-2.5 pr-4">SQLite, <code class="font-mono">audit_log</code> table</td>
             <td class="py-2.5 pr-4">365 days (default)</td>
             <td class="py-2.5">
               Yes —
               <code class="font-mono">SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS</code>
+            </td>
+          </tr>
+          <tr class="border-b border-[var(--border)]/40">
+            <td class="py-2.5 pr-4 font-medium">
+              Daily activity files — one CSV per calendar day (Central time), derived from the usage
+              log and holding the same fields (no file content)
+            </td>
+            <td class="py-2.5 pr-4">
+              On the same server, in <code class="font-mono">logs/</code> at the application's root
+              — beside the code, outside the web root, unreachable from the web; not part of the
+              nightly backup
+            </td>
+            <td class="py-2.5 pr-4">365 days — the usage log's window</td>
+            <td class="py-2.5">
+              Yes — <code class="font-mono">SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS</code> (shared
+              with the usage log; there is no separate setting)
+            </td>
+          </tr>
+          <tr class="border-b border-[var(--border)]/40">
+            <td class="py-2.5 pr-4 font-medium">
+              Application error log — what the service writes to its own error output: a timestamp,
+              the operation that failed, the error message and stack trace (no file content)
+            </td>
+            <td class="py-2.5 pr-4">
+              On the same server, in <code class="font-mono">logs/</code> at the application's root,
+              one file per day; not part of the nightly backup; never served
+            </td>
+            <td class="py-2.5 pr-4">30 days</td>
+            <td class="py-2.5">
+              Yes — <code class="font-mono">ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS</code>
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
@@ -171,13 +201,15 @@
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
       A <strong>periodic cleanup sweep</strong> runs every 5 minutes within the API process and on
       every API startup — regardless of whether the optional remediation feature is enabled (tool
-      v1.51.0+). It performs seven tasks idempotently: expire outputs past
+      v1.51.0+). It performs eight tasks idempotently: expire outputs past
       <code class="text-xs font-mono">expires_at</code>; mark stuck jobs as failed; remove orphan
       directories; purge old <code class="text-xs font-mono">remediation_jobs</code> rows; purge old
       <code class="text-xs font-mono">remediation_events</code> rows; purge
-      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; and delete
+      <code class="text-xs font-mono">audit_log</code> rows past their 365-day retention; delete
       <code class="text-xs font-mono">shared_reports</code> rows roughly 30 days after their link
-      expires. Source:
+      expires; and write the previous day's activity file, deleting activity files past the same
+      365-day window, and delete application error-log files past their 30-day window (tool
+      v1.88.0+). Source:
       <code class="text-xs font-mono">apps/api/src/services/remediationCleanup.ts</code>.
     </p>
     <p class="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">

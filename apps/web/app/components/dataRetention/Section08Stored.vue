@@ -14,6 +14,31 @@
             under (sanitized) and a timestamp — the file itself is never accepted, so no content and
             no content hash exist
           </li>
+          <li>
+            For a failed audit (tool v1.88.0+): the file name or page address it was attempted on
+            (sanitized), a timestamp, the request tier, and a one-word reason code —
+            <code class="font-mono">unreadable</code>, <code class="font-mono">timeout</code>,
+            <code class="font-mono">fetch-failed</code>,
+            <code class="font-mono">navigation-failed</code> or
+            <code class="font-mono">internal</code> — never the error text; no score, no grade, no
+            content hash
+          </li>
+          <li>
+            Daily activity files (tool v1.88.0+): the usage log's rows for one calendar day, written
+            to a CSV file in <code class="font-mono">logs/</code> on the server so a day can be
+            reviewed without querying the database — the same fields as the rows above and nothing
+            more. The file name is the one field that can carry personal information, if a person
+            put it there. Deleted after 365 days; not part of the nightly backup; not downloadable
+            from this site
+          </li>
+          <li>
+            Application error log (tool v1.88.0+): one text file per day in
+            <code class="font-mono">logs/</code> on the server holding what the service writes to
+            its own error output — a timestamp, which operation failed, and the error message and
+            stack trace. A message or stack can name a file, a page address or a library path; the
+            service never writes an IP address, a token or a browser identifier to it. Kept 30 days
+            for diagnosing faults; not part of the nightly backup; not downloadable
+          </li>
           <li>SHA-256 hash of file bytes (a 64-character hex digest)</li>
           <li>Page count (integer)</li>
           <li>Pre-flight audit score and grade (numbers + letter)</li>

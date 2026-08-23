@@ -70,7 +70,8 @@
             </td>
             <td class="py-2.5">
               filename (sanitized, 512-char clamp), content hash, request tier (trusted-tool vs
-              public — a property of the shared service token, not an identity)
+              public — a property of the shared service token, not an identity), and on a failed
+              audit a one-word reason code (never error text)
             </td>
           </tr>
           <tr class="border-b border-[var(--border)]/40">
@@ -107,7 +108,7 @@
       class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border)] px-4 py-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto mb-4"
       tabindex="0"
     >
-CREATE TABLE audit_log (          -- shape after migration 12
+CREATE TABLE audit_log (          -- shape after migration 13
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   event_type TEXT NOT NULL,
   filename TEXT,
@@ -115,9 +116,12 @@ CREATE TABLE audit_log (          -- shape after migration 12
   grade TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   content_hash TEXT,
-  privileged INTEGER   -- request tier: 1 = trusted-tool (fleet), 0 = public,
+  privileged INTEGER,  -- request tier: 1 = trusted-tool (fleet), 0 = public,
                        -- NULL = row predates the column. A property of the
                        -- shared service token, never an identity.
+  reason TEXT          -- failed audits only (v1.88.0): one of five fixed codes —
+                       -- unreadable, timeout, fetch-failed, navigation-failed,
+                       -- internal. NULL otherwise. Never error text.
 );</pre>
 
     <!-- Files -->
