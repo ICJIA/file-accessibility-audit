@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # pnpm major pinned to match this repo's pnpm-lock.yaml
       # (lockfileVersion: '9.0', produced by locally-installed pnpm 10.x).
@@ -19,12 +19,12 @@ jobs:
       # field changes local corepack behavior for every contributor, which
       # is a bigger change than this CI-only pin needs.
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
