@@ -80,14 +80,6 @@ app.use("/api", auditUrlRoutes);
 app.use("/api", auditUrlPageRoutes);
 app.use("/api", remediateRoutes);
 
-// Remediation cleanup: one-shot on startup to reconcile from any crash,
-// then a periodic sweep. Gated internally on REMEDIATION.ENABLED so it's
-// a no-op until the feature is turned on.
-void runCleanup().catch((e) => {
-  console.error("Initial remediation cleanup failed:", e);
-});
-startCleanupInterval();
-
 // Health check — also serves as the root API response
 const startedAt = new Date();
 
@@ -127,6 +119,16 @@ const HOST = resolveBindHost(isProduction, DEPLOY.BIND_HOST);
 const onListen = () => {
   console.log(`[API] Running on http://${HOST ?? "localhost"}:${PORT}`);
   console.log(`[API] Environment: ${process.env.NODE_ENV || "development"}`);
+
+  // Remediation cleanup: one-shot on startup to reconcile from any crash,
+  // then a periodic sweep. Gated internally on REMEDIATION.ENABLED so it's
+  // a no-op until the feature is turned on. Run after listen on purpose —
+  // the first sweep after a deploy can materialise a year of activity
+  // files and must not hold up readiness.
+  void runCleanup().catch((e) => {
+    console.error("Initial remediation cleanup failed:", e);
+  });
+  startCleanupInterval();
 };
 // Conditional call rather than passing an undefined host, so the dev path is an
 // unambiguous listen(port, callback) with no reliance on how the overload

@@ -19,7 +19,7 @@
 //      startCleanupInterval early-returned when the flag was off, which
 //      silently stopped the audit_log purge too (assessment finding #3).
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -49,6 +49,7 @@ beforeAll(async () => {
 afterAll(() => {
   cleanup.stopCleanupInterval();
   vi.useRealTimers();
+  rmSync(tmpDir, { recursive: true, force: true });
 });
 
 const DAY = 86_400_000;

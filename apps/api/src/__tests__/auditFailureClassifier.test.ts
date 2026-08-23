@@ -72,7 +72,7 @@ describe("classifyAuditFailure — the closed reason set", () => {
     expect(
       classifyAuditFailure(new Error("net::ERR_ABORTED at https://example.gov/files/brief.pdf")),
     ).toBe("navigation-failed");
-    // "TIMED_OUT" is not "timeout": the navigation rule wins over the fallback.
+    // "TIMED_OUT" does not contain "timeout", so the timeout rule does not match and the navigation rule classifies it.
     expect(classifyAuditFailure(new Error("net::ERR_CONNECTION_TIMED_OUT at https://x"))).toBe(
       "navigation-failed",
     );

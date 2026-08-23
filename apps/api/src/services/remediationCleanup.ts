@@ -261,7 +261,10 @@ export async function runCleanup(): Promise<CleanupResult> {
    *    The directory is logs/ at the repository root (activityLogDir —
    *    ACTIVITY_LOG_DIR overrides), which on the production host shares the
    *    volume the /status disk probe watches. Any failure — including a
-   *    missing ICU zone — is recorded here rather than falling back silently. */
+   *    missing ICU zone — is recorded here rather than falling back silently.
+   *    The export and the error-log prune run under their OWN try/catch
+   *    blocks: a failure in one (e.g. a bad time zone rejected by the export)
+   *    must never stop the other from running. */
   try {
     const r = runActivityExport({
       db,
@@ -273,6 +276,11 @@ export async function runCleanup(): Promise<CleanupResult> {
     });
     result.activityFilesWritten = r.written;
     result.activityFilesPruned = r.pruned;
+  } catch (e) {
+    result.errors.push({ step: "activityExport", message: (e as Error).message });
+  }
+
+  try {
     result.errorLogFilesPruned = pruneErrorLogs(
       activityLogDir(),
       now,
@@ -280,7 +288,7 @@ export async function runCleanup(): Promise<CleanupResult> {
       DEPLOY.LOCAL_TIME_ZONE,
     );
   } catch (e) {
-    result.errors.push({ step: "activityExport", message: (e as Error).message });
+    result.errors.push({ step: "errorLogPrune", message: (e as Error).message });
   }
 
   return result;

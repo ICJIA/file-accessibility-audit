@@ -117,6 +117,7 @@ describe("POST /api/analyze records analyze-failed", () => {
       filename: "broken.pdf",
       reason: "unreadable",
     });
+    expect(recordAuditFailure).toHaveBeenCalledTimes(1);
   });
 
   it("server busy (503) records nothing", async () => {
@@ -178,6 +179,7 @@ describe("POST /api/analyze-url and /api/audit-url record their own failed twin"
       filename: "https://example.gov/slow.pdf",
       reason: "timeout",
     });
+    expect(recordAuditFailure).toHaveBeenCalledTimes(1);
   });
 
   it("audit-url: a corrupt Word file → audit-url-failed / unreadable", async () => {
@@ -196,6 +198,7 @@ describe("POST /api/analyze-url and /api/audit-url record their own failed twin"
       filename: "https://example.gov/bad.docx",
       reason: "unreadable",
     });
+    expect(recordAuditFailure).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -232,6 +235,7 @@ describe("runUrlAudit records fetch-failed for the route that called it", () => 
       filename: "https://example.gov/missing.pdf",
       reason: "fetch-failed",
     });
+    expect(loaded.recordAuditFailure).toHaveBeenCalledTimes(1);
   });
 
   it("an upstream HTTP error status → fetch-failed too", async () => {
@@ -254,6 +258,7 @@ describe("runUrlAudit records fetch-failed for the route that called it", () => 
       filename: "https://example.gov/gone.pdf",
       reason: "fetch-failed",
     });
+    expect(loaded.recordAuditFailure).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -313,6 +318,7 @@ describe("POST /api/bulk-from-inventory records bulk-from-inventory-failed per e
       filename: "a.pdf",
       reason: "fetch-failed",
     });
+    expect(loaded.recordAuditFailure).toHaveBeenCalledTimes(1);
   });
 
   it("a per-entry analysis failure → the classified reason", async () => {
@@ -336,5 +342,46 @@ describe("POST /api/bulk-from-inventory records bulk-from-inventory-failed per e
       filename: "a.pdf",
       reason: "unreadable",
     });
+    expect(loaded.recordAuditFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it("an upstream HTTP error status (not a throw) → fetch-failed too, and the batch continues", async () => {
+    const loaded = await loadBulk({
+      safeFetch: async () => ({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        buffer: Buffer.alloc(0),
+        finalUrl: "https://example.com/a.pdf",
+        resolvedIp: "93.184.216.34",
+      }),
+    });
+    const res = makeRes();
+    await loaded.handler(bulkReq(inventory([ENTRY])), res);
+    expect(loaded.recordAuditFailure).toHaveBeenCalledWith({
+      eventType: "bulk-from-inventory",
+      privileged: true,
+      filename: "a.pdf",
+      reason: "fetch-failed",
+    });
+    expect(loaded.recordAuditFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it("a per-entry analysis failure with status 503 (capacity) records nothing", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const loaded = await loadBulk({
+      safeFetch: async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        buffer: Buffer.from("%PDF-1.4"),
+        finalUrl: "https://example.com/a.pdf",
+        resolvedIp: "93.184.216.34",
+      }),
+      analyzeError: Object.assign(new Error("busy"), { status: 503 }),
+    });
+    const res = makeRes();
+    await loaded.handler(bulkReq(inventory([ENTRY])), res);
+    expect(loaded.recordAuditFailure).not.toHaveBeenCalled();
   });
 });

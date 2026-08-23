@@ -110,9 +110,14 @@ row's one-word `reason` is the classification, the error log has the detail.
   still gets everything.
 - If the directory cannot be written, the tee says so once on stderr and stays off for the day;
   nothing else changes.
-- Privacy: the file holds what stderr holds. The service never writes an IP address, a token, a
-  user agent or a request body to stderr (tested); a message can name a file, a page address or
-  a library path, which the data-retention policy says (§ 7, § 8).
+- Privacy: the file holds what stderr holds. The service never writes the requester's address,
+  browser identifier, token or request body to stderr (tested); a message can name a file, a
+  page address, a library path, or the address of a server the tool tried to reach — the
+  data-retention policy says so (§ 7, § 8).
+- Note: the tee is installed as the first statement of `index.ts`, but ES module imports are
+  evaluated before it — anything a module logs while being imported (a failed migration at
+  startup, for example) reaches PM2's stderr only. For that one case,
+  `pm2 logs file-audit-api --lines 50`.
 
 ## What is deliberately not here
 

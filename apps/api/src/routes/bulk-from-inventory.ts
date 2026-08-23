@@ -291,6 +291,14 @@ router.post(
           }
 
           if (!fetched.ok) {
+            // v1.88.0: an upstream HTTP error status is a failed audit of
+            // that inventory entry too, same as a SafeFetchError above.
+            recordAuditFailure({
+              eventType: "bulk-from-inventory",
+              privileged,
+              filename: entry.filename,
+              reason: "fetch-failed",
+            });
             result.error = `fetch failed: ${fetched.status} ${fetched.statusText}`;
             results.push(result);
             continue;

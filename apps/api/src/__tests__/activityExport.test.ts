@@ -7,15 +7,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runMigrations } from "../db/migrations.js";
@@ -122,10 +114,10 @@ describe("runActivityExport", () => {
   it("overwrites a stale .tmp from a crashed run for a day that still has no file", () => {
     seed("2026-08-20 14:00:00", "aug20.pdf");
     runActivityExport({ db, dir, ...OPTS, nowMs: Date.UTC(2026, 7, 20, 12, 0, 0) }); // writes Aug 18–19 (both later pruned); Aug 20 not yet complete
-    writeFileSync(join(dir, "activity-2026-08-20.csv.tmp"), "half-written");
+    writeFileSync(join(dir, "activity-2026-08-20.csv.99999.tmp"), "half-written");
     const result = runActivityExport({ db, dir, ...OPTS });
     expect(result.days).toContain("2026-08-20");
-    expect(existsSync(join(dir, "activity-2026-08-20.csv.tmp"))).toBe(false);
+    expect(readdirSync(dir).some((n) => n.endsWith(".tmp"))).toBe(false);
     expect(dataLines("2026-08-20")).toHaveLength(1);
   });
 

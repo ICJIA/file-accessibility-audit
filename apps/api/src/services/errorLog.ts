@@ -20,8 +20,9 @@
  *     rest of that day;
  *   - pruneErrorLogs deletes only `errors-YYYY-MM-DD.log` at/before the cutoff.
  *
- * Privacy: the file holds what stderr holds. The service writes no IP, token,
- * user agent or request body to stderr (rateLimiter.test.ts, errorHandler.test.ts,
+ * Privacy: the file holds what stderr holds. The service writes no requester IP,
+ * token, user agent or request body to stderr (third-party error text can name a
+ * target server's address) (rateLimiter.test.ts, errorHandler.test.ts,
  * audit-url-page.test.ts pin the app-written lines).
  */
 import { appendFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";

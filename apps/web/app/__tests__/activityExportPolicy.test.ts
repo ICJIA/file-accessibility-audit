@@ -88,7 +88,9 @@ describe("data-retention policy v1.12: failed audits + daily activity files", ()
     expect(row).toMatch(/ACTIVITY_EXPORT\.ERROR_LOG_RETENTION_DAYS/);
     expect(row).toMatch(/not part of the nightly backup; never served/);
     const bullet = visible(between(s08, "Application error log", "</li>"));
-    expect(bullet).toMatch(/never writes an IP address, a token or a browser identifier/);
+    expect(bullet).toMatch(
+      /never writes the address of the person making the request, their browser identifier, or a token/,
+    );
     expect(bullet).toMatch(/Kept 30 days/);
     expect(visible(between(s14, "v1.12 · 2026-08-22", "</li>"))).toMatch(/Application error log/);
     expect(visible(s07)).toMatch(/error-log files past their 30-day window/);

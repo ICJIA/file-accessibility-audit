@@ -82,8 +82,24 @@ export function runActivityExport(opts: ActivityExportOptions): ActivityExportRe
   for (const day of daysAfter(cutoffDay, lastCompleteDay)) {
     const final = join(opts.dir, activityFileName(day));
     if (existsSync(final)) continue;
+
+    // A crashed run — this process's own earlier attempt, or another
+    // process's (the API's sweep and an operator's hand-run
+    // `pnpm tsx src/services/remediationCleanup.ts` can overlap) — can
+    // leave a per-pid .tmp file for this day behind. Clean those up before
+    // writing a fresh one so they never accumulate.
+    const staleTmpPrefix = `${activityFileName(day)}.`;
+    for (const name of readdirSync(opts.dir)) {
+      if (name.startsWith(staleTmpPrefix) && name.endsWith(".tmp")) {
+        rmSync(join(opts.dir, name), { force: true });
+      }
+    }
+
     const csv = formatActivityCsv(rowsForDay(opts.db, day, opts.timeZone), opts.timeZone);
-    const tmp = `${final}.tmp`;
+    // Per-process name so two concurrent runs never share a tmp file — a
+    // shared name could rename a partially written file into place, and a
+    // complete day's file is never rewritten to recover from that.
+    const tmp = `${final}.${process.pid}.tmp`;
     writeFileSync(tmp, csv, { encoding: "utf8", mode: 0o600 });
     renameSync(tmp, final);
     days.push(day);

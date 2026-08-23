@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -32,6 +32,8 @@ beforeAll(async () => {
   cleanup = await import("../services/remediationCleanup.js");
   db = (await import("../db/sqlite.js")).default;
 });
+
+afterAll(() => rmSync(tmpDir, { recursive: true, force: true }));
 
 function makeJob() {
   return jobs.createJob({

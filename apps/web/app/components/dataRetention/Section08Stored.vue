@@ -35,9 +35,10 @@
             Application error log (tool v1.88.0+): one text file per day in
             <code class="font-mono">logs/</code> on the server holding what the service writes to
             its own error output — a timestamp, which operation failed, and the error message and
-            stack trace. A message or stack can name a file, a page address or a library path; the
-            service never writes an IP address, a token or a browser identifier to it. Kept 30 days
-            for diagnosing faults; not part of the nightly backup; not downloadable
+            stack trace. A message or stack can name a file, a page address, a library path, or the
+            address of a server the tool tried to reach; the service never writes the address of the
+            person making the request, their browser identifier, or a token to it. Kept 30 days for
+            diagnosing faults; not part of the nightly backup; not downloadable
           </li>
           <li>SHA-256 hash of file bytes (a 64-character hex digest)</li>
           <li>Page count (integer)</li>

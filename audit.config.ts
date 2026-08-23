@@ -798,6 +798,12 @@ export const DEPLOY = {
    * human reader — /status's *_chicago fields and the daily activity export's
    * file boundaries and timestamp_chicago column. The database stays UTC.
    *
+   * A zone east of UTC would make the activity export's first written day
+   * start before the usage log's purge boundary (the purge is on a UTC
+   * instant; the export buckets local days and skips only the cutoff day) —
+   * if you move this east, skip two days instead of one in exportWindow or
+   * accept a partial first file.
+   *
    * SAFE TO CHANGE: Yes, to the zone the service's readers live in. Changing
    * it after activity files exist re-cuts future days on the new zone; the
    * existing files keep their old boundaries (see docs/activity-export.md).

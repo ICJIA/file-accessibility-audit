@@ -74,7 +74,7 @@ export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
           },
           {
             badge: "New",
-            html: "<strong>An application error log, on the server only.</strong> The service now keeps a copy of its own error output &mdash; the error message and stack trace for each fault &mdash; as one file per day beside the activity files, for 30 days, so an unexpected error can be diagnosed quickly. It holds exactly what the process already wrote to its error stream: never an address, a token or a browser identifier; a file name or page address can appear, and the policy says so. A day&rsquo;s file stops growing at a fixed size, so a malfunction cannot fill the disk.",
+            html: "<strong>An application error log, on the server only.</strong> The service now keeps a copy of its own error output &mdash; the error message and stack trace for each fault &mdash; as one file per day beside the activity files, for 30 days, so an unexpected error can be diagnosed quickly. It holds exactly what the process already wrote to its error stream: never the address of the person making a request, their browser identifier or a token; a file name, a page address, a library path or the address of a server the tool tried to reach can appear, and the policy says so. A day&rsquo;s file stops growing at a fixed size, so a malfunction cannot fill the disk.",
           },
           {
             badge: "Hardened",

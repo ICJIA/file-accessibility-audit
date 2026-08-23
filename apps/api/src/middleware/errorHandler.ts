@@ -25,10 +25,10 @@ function shape(err: unknown): ErrorShape {
 }
 
 /** The HTTP status the response will be sent with. */
-export function statusOf(err: unknown): number | unknown {
+export function statusOf(err: unknown): number {
   const e = shape(err);
   if (e.code === "LIMIT_FILE_SIZE") return 413;
-  return e.status ?? 500;
+  return (e.status as number) || 500;
 }
 
 export function logHandledError(err: unknown, req: { method: string; path: string }): void {
@@ -48,8 +48,10 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
 
   const status = statusOf(err);
 
-  // Multer file size error
-  if (status === 413) {
+  // Multer file size error — keyed on the cause (multer's code), not the
+  // status, so body-parser's own 413 ("request entity too large") keeps
+  // answering with its own message instead of the multer upload guidance.
+  if (shape(err).code === "LIMIT_FILE_SIZE") {
     res.status(413).json({
       error: `This file is too large. The maximum upload size is ${ANALYSIS.MAX_FILE_SIZE_MB} MB.`,
       details:
@@ -58,7 +60,7 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
     return;
   }
 
-  res.status(status as number).json({
+  res.status(status).json({
     error: status === 500 ? "Internal server error" : err.message,
   });
 }

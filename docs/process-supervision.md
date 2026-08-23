@@ -108,7 +108,8 @@ logs can never be what fills the disk. In practice the whole directory was
 which path, with what result — is not in these logs at all; it is the
 `audit_log` table and the daily activity export (`docs/activity-export.md`). Since v1.88.0 the
 service also tees its own stderr into `logs/errors-YYYY-MM-DD.log` at the checkout root (30
-days, 50 MB/day cap), so a fault can be diagnosed without opening `~/.pm2/logs` at all.
+days, 50 MB/day cap), so a fault can usually be diagnosed without opening `~/.pm2/logs`
+(import-time errors, such as a failed migration at startup, still reach PM2's stderr only).
 
 ## Related
 

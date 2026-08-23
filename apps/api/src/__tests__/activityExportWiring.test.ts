@@ -37,7 +37,7 @@ const DAY = 86_400_000;
 const sqliteStamp = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 
 describe("retention sweep step 8: daily activity export", () => {
-  it("writes the file for a complete day into <dataDir>/activity and reports it", async () => {
+  it("writes the file for a complete day into ACTIVITY_LOG_DIR and reports it", async () => {
     const twoDaysAgo = Date.now() - 2 * DAY;
     db.prepare(
       `INSERT INTO audit_log (event_type, filename, score, grade, privileged, created_at) VALUES (?, ?, ?, ?, ?, ?)`,

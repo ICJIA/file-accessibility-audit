@@ -289,6 +289,7 @@ describe("audit-url-page: failed page audits are recorded, and expected failures
       0,
       "navigation-failed",
     );
+    expect(dbRun.mock.calls.filter((c) => c[0] === "audit-url-page-failed")).toHaveLength(1);
     expect(warn).toHaveBeenCalledTimes(1);
     const line = warn.mock.calls[0].map(String).join(" ");
     expect(line).toContain("navigation-failed");
@@ -323,6 +324,7 @@ describe("audit-url-page: failed page audits are recorded, and expected failures
       0,
       "internal",
     );
+    expect(dbRun.mock.calls.filter((c) => c[0] === "audit-url-page-failed")).toHaveLength(1);
     expect(warn).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalled();
     warn.mockRestore();

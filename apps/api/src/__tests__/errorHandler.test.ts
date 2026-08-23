@@ -41,6 +41,7 @@ describe("statusOf", () => {
     expect(statusOf({ status: 503 })).toBe(503);
     expect(statusOf({ status: 200 })).toBe(200);
     expect(statusOf({ status: "404" })).toBe("404");
+    expect(statusOf({ status: 0 })).toBe(500);
     expect(statusOf(new Error("boom"))).toBe(500);
     expect(statusOf(undefined)).toBe(500);
   });
@@ -114,5 +115,23 @@ describe("errorHandler responses are unchanged", () => {
     errorHandler(new Error("disk on fire at /srv/secret"), req, r2, vi.fn());
     expect(r2._status).toBe(500);
     expect(r2._json).toEqual({ error: "Internal server error" });
+  });
+
+  it("body-parser's own 413 (no multer code) keeps its own message, not the multer upload guidance", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = makeRes();
+    const next = vi.fn();
+    errorHandler(
+      Object.assign(new Error("request entity too large"), { status: 413 }),
+      req,
+      res,
+      next,
+    );
+    expect(res._status).toBe(413);
+    expect(res._json).toEqual({ error: "request entity too large" });
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = warn.mock.calls[0].map(String).join(" ");
+    expect(line).toBe("[api] 413 Error POST /api/analyze");
   });
 });
