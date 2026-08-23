@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.88.2",
+    meta: "Reviewed <strong>2026-08-23</strong> · scope: a retention defect found by the previous release&rsquo;s own self-report — finished remediation job rows were being kept longer than the policy says. Fixed; no new way to reach the service, no new data collected, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The clean-up sweep&rsquo;s new summary line (v1.88.1) reported on its first run that one of its steps had been failing quietly: the step that deletes finished remediation job records after 30 days. A database rule tying each job&rsquo;s event history to the job record had blocked the deletion, so those records were never removed &mdash; the policy&rsquo;s 30-day window (&sect; 7) was being exceeded rather than cut short. This release removes that rule; the event history is kept for its own seven-year period, as the policy describes, and the job records now leave on schedule.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>Finished remediation job records now leave after 30 days, as &sect; 7 states.</strong> Previously none had ever been deleted; the oldest on the production server was 97 days old. Nothing about what a record holds changed, and the event history &mdash; the auditor&rsquo;s trail &mdash; is untouched.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Why it was invisible until now.</strong> The failure was recorded internally but never written anywhere a person would see. The previous release&rsquo;s one-line sweep report and error log surfaced it within a minute of deploying, which is what they were added for.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.88.1",
     meta: "Reviewed <strong>2026-08-23</strong> · scope: operator conveniences that followed the v1.88.0 review — a script for reading the log files over SSH, a one-line self-report from the retention sweep, and a database index. No new way to reach the service, no new data collected, no retention period changed.",
     body: [

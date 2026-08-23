@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.88.2] - 2026-08-23
+
+### Fixed
+
+- **Finished remediation jobs were never purged — the 30-day promise was not being kept.** Step 4 of the retention sweep (`DELETE FROM remediation_jobs … past JOB_ROW_RETENTION_DAYS`) had failed on every run since `remediation_events` gained rows: the events table carried a `FOREIGN KEY (job_id) REFERENCES remediation_jobs(id)`, the API runs with `foreign_keys = ON`, and events are kept for `EVENT_LOG_RETENTION_DAYS` (7 years) — so any job old enough to purge still had events and SQLite rejected the whole statement. Nothing reported it until v1.88.1's sweep summary did, on its first production run (`purge_jobs: FOREIGN KEY constraint failed`; 62 finished jobs, the oldest 97 days old). **Migration 15** rebuilds `remediation_events` without the constraint — the events are the standalone audit trail the data-retention policy describes and outlive their job by design; same columns, same ids, same indexes; re-run safe. Pinned end to end: a 40-day-old job with events purges, its events survive, and the `[sweep]` line comes back `errors: 0` (`jobPurgeWithEvents.test.ts`, plus three migration tests). `user_version` 15.
+
+### Notes
+
+- No route, no new data, no retention period changed — the policy's 30-day job-row window is now actually enforced (it had been silently exceeded). The error log will stop receiving the `[sweep] step purge_jobs failed` line after the deploy.
+- Tests: API +5 → totals API 1,367 · web 1,134 · CLI 49 (2,550).
+
 ## [1.88.1] - 2026-08-23
 
 ### Added
