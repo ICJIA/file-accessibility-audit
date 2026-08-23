@@ -2999,8 +2999,9 @@ In the sweep paragraph, change "It performs seven tasks idempotently:" to "It pe
           </li>
           <li>
             Daily activity files (tool v1.88.0+): the usage log's rows for one calendar day, written
-            to a CSV file on the server so a day can be reviewed without querying the database — the
-            same fields as the rows above and nothing more. The file name is the one field that can
+            to a CSV file in <code class="font-mono">logs/</code> on the server so a day can be
+            reviewed without querying the database — the same fields as the rows above and nothing
+            more. The file name is the one field that can
             carry personal information, if a person put it there. Deleted after 365 days; not part of
             the nightly backup; not downloadable from this site
           </li>
