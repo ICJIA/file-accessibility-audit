@@ -57,9 +57,34 @@ retention window that has no file yet (a day is complete 5 minutes after local m
 - a missed midnight (restart, reboot) heals itself on the next run;
 - an empty day gets a header-only file — "nothing happened", not "the export did not run".
 
-Check the sweep's own report: `pm2 logs file-audit-api --lines 50` after a restart, or run
-`cd apps/api && pnpm tsx src/services/remediationCleanup.ts` and read `activityFilesWritten` /
-`activityFilesPruned` / `errors`.
+Check the sweep's own report: since v1.88.1 every startup sweep logs one line —
+`[sweep] activity files: N written, N pruned · error logs pruned: N · audit_log rows purged: N · …` —
+and an interval sweep logs one whenever it did anything, so `pm2 logs file-audit-api --lines 50`
+after a restart shows it. Any step that failed is also logged on stderr (`[sweep] step … failed: …`),
+which lands in `logs/errors-*.log`. For the full JSON result, run
+`cd apps/api && pnpm tsx src/services/remediationCleanup.ts`.
+
+## The quick way: `./logs.sh`
+
+`logs.sh` at the repository root wraps everything on this page. Run it **from your laptop**
+(it notices there is no local `logs/`, runs the same command on the server over SSH, and streams
+the result back — so `--copy` fills *your* clipboard) **or on the server** from the checkout root.
+
+```bash
+./logs.sh                         # newest files
+./logs.sh activity 2026-08-19     # that day as an aligned table (raw CSV when piped)
+./logs.sh failed 2026-08-19 --md  # only the failed-audit rows, as a Markdown table
+./logs.sh activity 2026-08-19 --copy   # TSV on the clipboard — paste into Excel / Sheets as columns
+./logs.sh errors                  # today's error log
+./logs.sh grep ERR_ABORTED 2026-08-19
+./logs.sh tail                    # follow today's error log live
+./logs.sh pull 2026-08-19         # laptop only: download that day's CSV
+./logs.sh --help
+```
+
+Formats: `--table` (terminal default), `--csv` (piped default), `--tsv`, `--md`, `--copy`. The CSV
+is parsed properly (quoted commas, the BOM), so file names with commas stay in one cell. Needs
+`python3` for the table formats (present on the server and on macOS).
 
 ## Retention
 
