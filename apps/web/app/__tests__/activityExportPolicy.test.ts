@@ -70,6 +70,7 @@ describe("data-retention policy v1.12: failed audits + daily activity files", ()
     expect(s08a).not.toContain("shape after migration 12");
     expect(s08a).toMatch(/reason TEXT/);
     expect(visible(s08a)).toMatch(/one-word reason code/);
+    expect(visible(s08a)).toMatch(/migration 13's reason code/);
   });
 
   it("§ 14 has the v1.12 entry and the header constant agrees", () => {

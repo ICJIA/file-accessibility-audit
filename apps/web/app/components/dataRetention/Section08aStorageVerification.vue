@@ -101,8 +101,9 @@
       The usage-metadata table's complete effective definition (baseline from
       <code class="text-xs font-mono">apps/api/src/db/migrations.ts</code>, plus migration 2's
       <code class="text-xs font-mono">content_hash</code>, minus the identity columns migration 11
-      dropped, plus migration 12's <code class="text-xs font-mono">privileged</code> tier flag) —
-      note there is nowhere for document content, or for an identity, to go:
+      dropped, plus migration 12's <code class="text-xs font-mono">privileged</code> tier flag, plus
+      migration 13's <code class="text-xs font-mono">reason</code> code) — note there is nowhere for
+      document content, or for an identity, to go:
     </p>
     <pre
       class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border)] px-4 py-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto mb-4"
