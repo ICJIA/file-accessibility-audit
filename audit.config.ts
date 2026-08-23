@@ -254,7 +254,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "activity-export-and-failed-audits-2026-08-22",
     badge: "Improved",
-    text: "The service now keeps a daily record of what it did, on its own server, for the people who audit it. Each night the previous day's usage records — which documents and pages were checked, with what result — are written to one file, kept for the same 365 days as the records themselves and then deleted. Audits that could not be completed are now recorded too, with a one-word reason and never the error text. The service also keeps its own error log for 30 days so a fault can be diagnosed quickly. Nothing new is collected and nothing is downloadable from this site; the data-retention policy (now v1.12) describes exactly what the files hold.",
+    text: "The service now keeps a daily record of what it did, on its own server, for the people who audit it. Each night the previous day's usage records — which documents and pages were checked, with what result — are written to one file, kept for the same 365 days as the records themselves and then deleted. Audits that could not be completed are now recorded too, with a one-word reason and never the error text. The service also keeps its own error log for 30 days so a fault can be diagnosed quickly. These records hold the same fields the usage record always has — nothing about who made a request — and nothing is downloadable from this site; the data-retention policy (now v1.12) describes exactly what they hold.",
     linkText: "Read the data-retention policy",
     linkTo: "/data-retention",
     /** Shown under the text so visitors can see the tool is actively maintained. */
