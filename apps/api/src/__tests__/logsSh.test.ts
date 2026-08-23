@@ -114,6 +114,27 @@ describe("logs.sh — a bare ./logs.sh shows the most recent audits", () => {
     expect(r.out.split("\n")[0]).toMatch(/all 5 audits on file, newest first/);
   });
 
+  it("the bare-run default is 500 rows", () => {
+    // Own fixture dir: one day holding more rows than the default, so the cap
+    // itself is what this pins — the shared fixture (5 rows) passes at any
+    // default and would never notice the constant regressing.
+    const big = mkdtempSync(join(tmpdir(), "logs-sh-big-"));
+    try {
+      const rows = Array.from({ length: 505 }, (_, i) =>
+        line(i + 1, "2026-08-20", "12:00:00", "analyze", "doc.pdf"),
+      );
+      writeFileSync(join(big, "activity-2026-08-20.csv"), `${BOM}${HEADER}\n${rows.join("\n")}\n`);
+      const r = spawnSync("bash", [SCRIPT], {
+        env: { ...process.env, LOGS_DIR: big, PAGER: "cat" },
+        encoding: "utf-8",
+      });
+      expect(r.status).toBe(0);
+      expect(ids(r.stdout)).toEqual(Array.from({ length: 500 }, (_, i) => 505 - i));
+    } finally {
+      rmSync(big, { recursive: true, force: true });
+    }
+  });
+
   it("--md is a Markdown table; the caption goes to stderr so the paste is clean", () => {
     const r = run(["--md"]);
     expect(r.out.split("\n")[0]).toBe(`| ${HEADER.split(",").join(" | ")} |`);
@@ -271,6 +292,8 @@ describe("logs.sh — help and mistakes", () => {
     expect(r.out).toMatch(/yesterday\s+yes/);
     for (const f of ["--table", "--csv", "--tsv", "--md", "--copy"]) expect(r.out).toContain(f);
     expect(r.out).toContain("QUICK START");
+    // The header must state the real bare-run default (RECENT_DEFAULT).
+    expect(r.out).toContain("(default 500)");
   });
 
   it("-h and --help print the same text; it is the script's own header", () => {

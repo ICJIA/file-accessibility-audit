@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.88.4",
+    meta: "Reviewed <strong>2026-08-23</strong> · scope: one number in the staff log-reading script &mdash; its default view grew from the 50 most recent audits to the 500 most recent. No new way to reach the service, no new information collected, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Run with no instructions, the staff script that reads the daily activity files (v1.88.1) now shows the 500 most recent audits rather than 50 &mdash; more history per look. It draws on the same files, over the same staff-only SSH access, as before; nothing about what the site collects, keeps, or serves has changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>No new exposure.</strong> The larger view reads only the files staff could already read in full, and the site itself serves nothing new. An automated test now holds the default to exactly 500, so the number cannot drift unnoticed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.88.3",
     meta: "Reviewed <strong>2026-08-23</strong> · scope: the staff log-reading script only &mdash; made easier to use for someone new to it. No new way to reach the service, no new information collected, no retention period changed.",
     body: [

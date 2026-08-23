@@ -71,7 +71,7 @@ which lands in `logs/errors-*.log`. For the full JSON result, run
 the result back — so `--copy` fills *your* clipboard) **or on the server** from the checkout root.
 
 ```bash
-./logs.sh                         # the 50 most recent audits, newest first, across days as needed
+./logs.sh                         # the 500 most recent audits, newest first, across days as needed
 ./logs.sh 200                     # the 200 most recent (same as: ./logs.sh recent 200)
 ./logs.sh help                    # every command, the DATE shape with examples, every format
 ./logs.sh activity 2026-08-19     # that day as an aligned table (raw CSV when piped)

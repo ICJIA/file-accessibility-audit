@@ -2,7 +2,7 @@
 # logs.sh — read the audit app's logs in a hurry.
 #
 # QUICK START
-#   ./logs.sh                        the 50 most recent audits, newest first (spanning days as needed)
+#   ./logs.sh                        the 500 most recent audits, newest first (spanning days as needed)
 #   ./logs.sh 200                    the 200 most recent
 #   ./logs.sh 2026-08-19             every audit on that day
 #   ./logs.sh failed 2026-08-19      only the audits that could not complete, with the reason
@@ -31,7 +31,7 @@
 #                               the first error of the day — no file means nothing was logged.
 #
 # COMMANDS
-#   ./logs.sh [recent [N]] [FMT]      the N most recent audits (default 50), newest first,
+#   ./logs.sh [recent [N]] [FMT]      the N most recent audits (default 500), newest first,
 #                                     across as many days' files as it takes
 #   ./logs.sh activity [DATE] [FMT]   every audit on one day (default: yesterday)
 #   ./logs.sh failed [DATE] [FMT]     only that day's failed audits, with the reason
@@ -68,7 +68,7 @@
 #             (OSC 52 — iTerm2, Windows Terminal, kitty, WezTerm; not macOS Terminal.app),
 #             and the text is printed too, so select-and-copy always works.
 #   Examples:
-#     ./logs.sh --md                             the 50 most recent audits as a Markdown table
+#     ./logs.sh --md                             the 500 most recent audits as a Markdown table
 #     ./logs.sh recent 200 --copy                the 200 most recent, as TSV, on the clipboard
 #     ./logs.sh activity 2026-08-19 > day.csv    the raw file (piped, so --csv is the default)
 #
@@ -88,7 +88,7 @@ set -euo pipefail
 AUDIT_SSH="${AUDIT_SSH:-forge@audit.icjia.app}"
 AUDIT_REMOTE_DIR="${AUDIT_REMOTE_DIR:-audit.icjia.app/file-accessibility-audit}"
 TZ_LOCAL="America/Chicago"
-RECENT_DEFAULT=50   # rows shown by a bare ./logs.sh
+RECENT_DEFAULT=500  # rows shown by a bare ./logs.sh
 LIST_DEFAULT=15     # files shown by ./logs.sh list
 COMMANDS="recent activity failed errors grep tail list pull help"
 SELF="${BASH_SOURCE[0]:-$0}"

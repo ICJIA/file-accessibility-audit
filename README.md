@@ -91,7 +91,7 @@ pnpm dev        # Start API + Web dev servers
 pnpm build      # Type-check API + packages/analyzer, build Nuxt frontend
 pnpm start:all  # Start both production servers (kills stale ports, API :5103, Web :5102)
 pnpm rebrand    # Regenerate static files after changing BRANDING in audit.config.ts
-./logs.sh       # The 50 most recent audits; ./logs.sh help for the rest — on the server, or from here over SSH
+./logs.sh       # The 500 most recent audits; ./logs.sh help for the rest — on the server, or from here over SSH
 ```
 
 ## No Accounts, No Sign-In
@@ -451,7 +451,7 @@ Columns: `id, timestamp_utc, timestamp_chicago, event, filename, score, grade, c
 
 The first sweep after deploy materialises the whole window from the rows still in the database; a missed midnight heals itself; a complete day's file is never rewritten (delete it to regenerate).
 
-**`./logs.sh` — the quick way.** A script at the repo root reads both kinds of file with one set of commands, **from your laptop** (no local `logs/`, so it runs the command on the server over SSH and streams the result back — `--copy` fills *your* clipboard, `pull` downloads a CSV) **or on the server**. A bare `./logs.sh` shows the **50 most recent audits, newest first, across as many days' files as it takes** (`recent N` or just `./logs.sh 200` for more); then `activity [DATE]`, `failed [DATE]`, `errors [DATE]`, `grep PATTERN [DATE]`, `tail`, `list [N]` (the files), `pull DATE`, and `help` (the script's own header: every command, the DATE shape with accepted and rejected examples, every format). DATE is `YYYY-MM-DD` in America/Chicago, or the words `today` / `yesterday`; a bare date is a shortcut for `activity DATE`. Formats `--table` (terminal default, the CSV parsed properly), `--csv`, `--tsv`, `--md`, `--copy`. Because a day's file is written just after midnight, the newest audits on file are yesterday's — the table says so. `logsSh.test.ts` runs the real script against a fixture directory. Since v1.88.1 the sweep also logs one `[sweep] …` summary line at every startup (and whenever an interval sweep did anything), so `pm2 logs` answers "did it run?".
+**`./logs.sh` — the quick way.** A script at the repo root reads both kinds of file with one set of commands, **from your laptop** (no local `logs/`, so it runs the command on the server over SSH and streams the result back — `--copy` fills *your* clipboard, `pull` downloads a CSV) **or on the server**. A bare `./logs.sh` shows the **500 most recent audits, newest first, across as many days' files as it takes** (`recent N` or just `./logs.sh 200` for a different count); then `activity [DATE]`, `failed [DATE]`, `errors [DATE]`, `grep PATTERN [DATE]`, `tail`, `list [N]` (the files), `pull DATE`, and `help` (the script's own header: every command, the DATE shape with accepted and rejected examples, every format). DATE is `YYYY-MM-DD` in America/Chicago, or the words `today` / `yesterday`; a bare date is a shortcut for `activity DATE`. Formats `--table` (terminal default, the CSV parsed properly), `--csv`, `--tsv`, `--md`, `--copy`. Because a day's file is written just after midnight, the newest audits on file are yesterday's — the table says so. `logsSh.test.ts` runs the real script against a fixture directory. Since v1.88.1 the sweep also logs one `[sweep] …` summary line at every startup (and whenever an interval sweep did anything), so `pm2 logs` answers "did it run?".
 
 **Error log.** The same directory holds `errors-YYYY-MM-DD.log` — a tee of everything the API process writes to stderr (`console.error`/`console.warn`, formatted as the terminal shows it, stacks included), installed at startup so a fault can be diagnosed without PM2: kept **30 days** (`ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`), capped at 50 MB per day (a crash loop cannot fill the disk), not backed up, never served. The activity CSV gives the one-word `reason`; the error log gives the message and stack. Runbook: [`docs/activity-export.md`](docs/activity-export.md). Design: [`docs/superpowers/specs/2026-08-22-activity-export-design.md`](docs/superpowers/specs/2026-08-22-activity-export-design.md).
 
@@ -793,7 +793,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,574 tests** across 168 test files (API 1391, Web 1134, CLI 49). Run all three suites with one summary:
+**2,575 tests** across 168 test files (API 1392, Web 1134, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -817,7 +817,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1391 tests)
+### API Tests (1392 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -895,7 +895,7 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `errorLog.test.ts` | 8 | The stderr tee behind `logs/errors-YYYY-MM-DD.log`: entries carry the UTC timestamp, level and the `util.format` text (stacks included); the original console call still runs; a new local day opens a new file; the per-day byte cap writes one notice and stops; an unwritable directory never throws and notifies stderr once; `uninstall()` restores the console; pruning deletes only `errors-*.log` at/before the cutoff |
 | `activityLogsPolicyConformance.test.ts` | 5 | The data-retention page pinned to the code: § 7's windows equal `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` and `ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`, § 7/§ 8 name `ACTIVITY_EXPORT.DIR_NAME`, § 8's reason list is exactly `AUDIT_FAILURE_REASONS` |
 | `cleanupSummary.test.ts` | 8 | The retention sweep's one-line `[sweep] …` report (v1.88.1): every count on one line with failed steps named; silent for an idle interval sweep, always printed at startup; every captured step error goes to stderr; `runScheduledSweep` runs the real sweep and never rejects. |
-| `logsSh.test.ts` | 24 | The real `logs.sh` run against a fixture `logs/` directory (`LOGS_DIR`, never SSH): a bare `./logs.sh` is the most recent audits newest first across days, `recent N` takes the last N overall and steps over an empty day, the bare-number and bare-date shortcuts, the table caption (count, day span, "today's audits are not on file yet") and its stderr placement for the paste formats, a quoted comma staying one cell in `--tsv`, `activity`/`failed`/`errors`/`grep`/`list` unchanged, `today`/`yesterday` accepted as DATE, every other date shape rejected with the accepted form and a live example — as exactly one message and exit 1 for every command that takes a DATE (bash drops errexit inside `$(…)`), today's activity explained, a missing day pointing at `list`, `help`/`-h`/`--help` being the script's own header and naming every command, format and date example, and unknown commands/options failing loudly |
+| `logsSh.test.ts` | 25 | The real `logs.sh` run against a fixture `logs/` directory (`LOGS_DIR`, never SSH): a bare `./logs.sh` is the most recent audits newest first across days and caps at the 500-row default, `recent N` takes the last N overall and steps over an empty day, the bare-number and bare-date shortcuts, the table caption (count, day span, "today's audits are not on file yet") and its stderr placement for the paste formats, a quoted comma staying one cell in `--tsv`, `activity`/`failed`/`errors`/`grep`/`list` unchanged, `today`/`yesterday` accepted as DATE, every other date shape rejected with the accepted form and a live example — as exactly one message and exit 1 for every command that takes a DATE (bash drops errexit inside `$(…)`), today's activity explained, a missing day pointing at `list`, `help`/`-h`/`--help` being the script's own header and naming every command, format and date example, and unknown commands/options failing loudly |
 | `jobPurgeWithEvents.test.ts` | 2 | Step 4 of the retention sweep against a real file-backed database: a finished job past `JOB_ROW_RETENTION_DAYS` that still has events is purged, its events survive (the seven-year audit trail), no `purge_jobs` error is recorded and the `[sweep]` line reads `errors: 0`; the next sweep purges nothing new. |
 | `backup.test.ts` | 9 | The nightly backup script (`apps/api/scripts/backup-db.mjs`): SQLite's online backup API rather than a file copy (a WAL-mode `cp` misses committed rows), snapshot verification (`PRAGMA integrity_check` + `audit_log` row count), rotation, `last-backup.json`. |
 | `backupStatus.test.ts` | 13 | The `/status` payload's `backup` section from `last-backup.json`: never a filesystem path, the stale-after threshold, shape-complete when unavailable. |
@@ -1202,6 +1202,10 @@ Batch processing adds **no new server-side attack surface**. Each file in a batc
 Reviewed before every release, with periodic standalone comprehensive audits. Most recent first — the latest is shown in full; earlier per-release reviews are collapsed to cut visual noise. **Every release since v1.18.0 has an entry**, and `securityAudits.test.ts` fails if one is missing here or from § 10 of the data-retention page, which is the plain-language counterpart of this list.
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
+
+### v1.88.4 — 2026-08-23 · A bare `./logs.sh` shows 500 recent audits instead of 50 (operator tooling, no new attack surface)
+
+One number in the operator script: the default view a bare `./logs.sh` prints grew from the 50 most recent audits to the 500 most recent, for more history per look. Reviewed for what the change could expose: nothing — the larger view draws on the same files, read over the same `forge` SSH credential or directly on the server; no route, credential, column, or retention period changed, and nothing new is served by the site. The default itself is now pinned: `logsSh.test.ts` renders a 505-row fixture day and holds a bare run to exactly the 500 newest rows (the previous fixture was too small to notice the constant regressing), and holds the help header to naming the real default. Tests 2,574 → 2,575.
 
 ### v1.88.3 — 2026-08-23 · `logs.sh` usable out of the box: recent audits by default, a help command, date examples (operator tooling, no new attack surface)
 

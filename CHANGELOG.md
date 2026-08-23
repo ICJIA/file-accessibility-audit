@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.88.4] - 2026-08-23
+
+### Changed
+
+- **A bare `./logs.sh` now shows the 500 most recent audits instead of 50** — more history per look, same behavior otherwise: newest first, across as many days' files as it takes, empty days stepped over, the caption naming the span. `recent N` (or simply `./logs.sh 200`) still picks any other count.
+
+### Added
+
+- **The default is now pinned.** `logsSh.test.ts` (+1 → 25) runs a bare `./logs.sh` against a 505-row fixture day and holds the output to exactly the 500 newest rows — the shared 5-row fixture would have passed at any default — and holds the help header to naming the real default, so the constant and its documentation cannot drift apart.
+
+### Notes
+
+- Operator tooling only; no route, no data, no retention period changed; the script reads the same files over the same SSH credential. Not visitor-facing, so no What's New entry.
+- Tests: API +1 → totals API 1,392 · web 1,134 · CLI 49 (2,575).
+
 ## [1.88.3] - 2026-08-23
 
 ### Changed
