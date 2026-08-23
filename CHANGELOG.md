@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.88.3] - 2026-08-23
+
+### Changed
+
+- **`./logs.sh` with no arguments now shows the 50 most recent audits, newest first** — across as many days' files as it takes (an empty day is stepped over), under a caption naming the day span and stating that a day's file is written just after midnight Central, so today's audits are not on file yet. `recent N` (or simply `./logs.sh 200`) for more; the file listing moved to `list [N]`. The same `--table` / `--csv` / `--tsv` / `--md` / `--copy` formats apply; for the paste formats the caption goes to stderr so the pasted text stays clean.
+- **`./logs.sh help` is a listed command** (`-h` / `--help` too) and the header it prints was rewritten for someone new to the project: QUICK START, where to run it (server or laptop), what the two kinds of file are, every command, a DATE section with accepted and rejected examples (`2026-08-19` yes; `2026-8-19`, `08/19/2026`, `20260819` no — and why each), every format with examples, requirements, environment overrides. The help text is the script's own header comment, so the two cannot drift apart.
+- **DATE accepts `today` and `yesterday`.** Any other shape is rejected with the accepted form and a live example; a missing day points at `./logs.sh list`; asking for today's activity explains why it is not on file yet. Shortcuts: a bare date (`./logs.sh 2026-08-19`) is `activity DATE`, a bare number is `recent N`. Unknown options (`--markdown`) and commands fail with the list of valid ones instead of being silently ignored. Running from a laptop says on stderr that it is going to the server.
+
+### Fixed
+
+- **A malformed DATE could print two errors, and `./logs.sh errors 08/19/2026` exited 0.** Output is now collected before it is paged (so a failure leaves its message on the screen instead of an empty pager waiting for `q`) — and bash switches `errexit` off inside a command substitution, so a `die` nested in `$(resolve_date …)` no longer stopped the command, which carried on with an empty date. Every such assignment now carries an explicit `|| exit $?`: exactly one message and exit 1, pinned for every command that takes a DATE. `list` no longer dies of SIGPIPE under `pipefail` with a year of files (`sed -n` instead of `head`).
+
+### Added
+
+- **`logsSh.test.ts`** (24 tests) runs the real script against a fixture `logs/` directory — `LOGS_DIR`, never SSH: the bare run's ordering across days, `recent N` stepping over an empty day, the shortcuts, the caption and where it goes, a quoted comma staying one cell in `--tsv`, the date words, the single-message failures, and `help` naming every command, format and date example.
+
+### Notes
+
+- No route, no data, no retention period changed; `logs.sh` still reads the same files over the existing SSH credential. Not visitor-facing, so no What's New entry.
+- Tests: API +24 → totals API 1,391 · web 1,134 · CLI 49 (2,574).
+
 ## [1.88.2] - 2026-08-23
 
 ### Fixed

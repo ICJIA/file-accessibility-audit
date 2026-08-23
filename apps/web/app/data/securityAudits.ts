@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.88.3",
+    meta: "Reviewed <strong>2026-08-23</strong> · scope: the staff log-reading script only &mdash; made easier to use for someone new to it. No new way to reach the service, no new information collected, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The script staff use to read the daily activity files and the error log on the server (added in v1.88.1) now shows the most recent audits when run with no instructions, carries a built-in help page &mdash; including examples of how a date must be written &mdash; and accepts the words <em>today</em> and <em>yesterday</em>. It reads the same files, over the same staff-only SSH access, as before; nothing about what the site collects, keeps, or serves has changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>No new exposure.</strong> The files are still readable only by a staff member logged in to the server, and the site itself serves nothing new. The review checked that the script&rsquo;s new default view draws only on those same files.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>A mistyped date now stops the script with one clear message.</strong> Previously it could print a second, misleading error and in one case report success. An automated test now holds it to exactly one message.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.88.2",
     meta: "Reviewed <strong>2026-08-23</strong> · scope: a retention defect found by the previous release&rsquo;s own self-report — finished remediation job rows were being kept longer than the policy says. Fixed; no new way to reach the service, no new data collected, no retention period changed.",
     body: [

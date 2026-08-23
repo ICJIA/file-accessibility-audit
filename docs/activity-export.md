@@ -71,20 +71,27 @@ which lands in `logs/errors-*.log`. For the full JSON result, run
 the result back — so `--copy` fills *your* clipboard) **or on the server** from the checkout root.
 
 ```bash
-./logs.sh                         # newest files
+./logs.sh                         # the 50 most recent audits, newest first, across days as needed
+./logs.sh 200                     # the 200 most recent (same as: ./logs.sh recent 200)
+./logs.sh help                    # every command, the DATE shape with examples, every format
 ./logs.sh activity 2026-08-19     # that day as an aligned table (raw CSV when piped)
-./logs.sh failed 2026-08-19 --md  # only the failed-audit rows, as a Markdown table
+./logs.sh 2026-08-19              # shortcut for the same
+./logs.sh failed yesterday --md   # only the failed-audit rows, as a Markdown table
 ./logs.sh activity 2026-08-19 --copy   # TSV on the clipboard — paste into Excel / Sheets as columns
 ./logs.sh errors                  # today's error log
 ./logs.sh grep ERR_ABORTED 2026-08-19
 ./logs.sh tail                    # follow today's error log live
+./logs.sh list                    # the newest files: which days are on file
 ./logs.sh pull 2026-08-19         # laptop only: download that day's CSV
-./logs.sh --help
 ```
 
+DATE is `YYYY-MM-DD` (America/Chicago) or the word `today` / `yesterday`; anything else is
+rejected with the accepted form and a live example. Because a day's file is written just after
+midnight, the newest audits on file are yesterday's — a bare `./logs.sh` says so above its table.
 Formats: `--table` (terminal default), `--csv` (piped default), `--tsv`, `--md`, `--copy`. The CSV
 is parsed properly (quoted commas, the BOM), so file names with commas stay in one cell. Needs
-`python3` for the table formats (present on the server and on macOS).
+`python3` for the table formats (present on the server and on macOS). `logsSh.test.ts` runs the
+real script against a fixture directory.
 
 ## Retention
 
