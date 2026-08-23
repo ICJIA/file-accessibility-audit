@@ -106,8 +106,8 @@ Checks run in this order; the first match wins:
 | 1 | `err instanceof SafeFetchError` (its own `code` set includes a lowercase `"timeout"` and `"network_error"` — every one is a fetch outcome) | `fetch-failed` |
 | 2 | `err.status === 503` (analysis semaphore, `PageAuditBusyError`) | `null` — capacity, not an outcome |
 | 3 | `err.code` ∈ `UNSUPPORTED_FILE_TYPE`, `DOCX_DISABLED`, `PPTX_DISABLED`, `XLSX_DISABLED` | `null` — a refusal (`rejected-upload` already covers the first; the others are configuration, never on in production) |
-| 4 | `err.code` ∈ `PDF_PARSE_FAILED`, `DOCX_PARSE_FAILED`, `PPTX_PARSE_FAILED`, `XLSX_PARSE_FAILED` | `unreadable` |
-| 5 | `err.code === "ETIMEDOUT"` or `err.killed === true` or `err.name === "TimeoutError"` or `/timeout/i.test(err.message)` | `timeout` |
+| 4 | `err.code` ∈ `PDF_PARSE_FAILED`, `DOCX_PARSE_FAILED`, `PPTX_PARSE_FAILED`, `XLSX_PARSE_FAILED`; or `/encrypted|password/i` on the message (a password-protected document — analyze.ts already special-cases it) | `unreadable` |
+| 5 | `err.code === "ETIMEDOUT"` or `err.killed === true` or `err.name === "TimeoutError"` or `err.name === "AbortError"` (a fetch abort) or `/timeout/i.test(err.message)` | `timeout` |
 | 6 | `/net::ERR_/.test(err.message)` (puppeteer navigation) | `navigation-failed` |
 | 7 | anything else | `internal` |
 
@@ -233,7 +233,8 @@ Consequences, all deliberate:
 - **The first sweep after deploy materializes the whole retention window** from
   the rows the DB still holds (≈ 365 files, tens of MB at most — on 2026-08-22 the
   DB holds 11,839 document rows, ~8,300 of them from one fleet month). It runs at
-  startup, asynchronously, so it never delays the listen.
+  startup from the listen callback — after the server is accepting connections — so it
+  never delays readiness; it is synchronous once it runs (see § 9).
 - **A missed midnight self-heals.** Nothing tracks "last exported" in memory; the
   file's existence is the state.
 - **A complete day's file is never rewritten.** Rows are insert-only with
@@ -245,7 +246,9 @@ Consequences, all deliberate:
 - **The boundary day is excluded**, so a file exists only for days fully inside
   the window and a file and the DB can never disagree at the edge — including on
   first materialization.
-- Writes are atomic: `activity-d.csv.tmp` (overwritten if a crashed run left one)
+- Writes are atomic: `activity-d.csv.<pid>.tmp` (per process, so an operator's hand-run
+  sweep and the API's never share a temp file; leftovers from a crashed run are removed
+  before the day is written)
   then `rename`. Pruning deletes **only** names matching
   `activity-YYYY-MM-DD.csv` with a date ≤ cutoffDay; it never touches any other
   file in the directory, including `.tmp` files and anything a human put there.
@@ -294,10 +297,12 @@ sweep's step 8 on file-name date, the same mechanism as the activity files (pref
 failure (directory unwritable, disk full) never throws — the original console call has
 already run — and disables the tee for the rest of that day after one stderr notice.
 
-**Privacy:** the file holds what stderr holds today, no more. The service writes no IP
+**Privacy:** the file holds what stderr holds today, no more. The service writes no requester IP
 address, token, user agent or request body to stderr (tested for the `[rate-limit]`
 lines, the 4xx line and the page-audit line); an error message or stack can name a
-file, a page address or a library path — the same exposure as the usage record and
+file, a page address, a library path, or the address of a server the tool tried to reach
+(third-party error text: `connect ECONNREFUSED 93.184.216.34:443`, safeFetch's private-IP
+refusal) — so the policy names whose address is never written, rather than claiming none — the same exposure as the usage record and
 PM2's own log, on the same server — and the policy says so (§ 7, § 8).
 
 ## 3. CSV safety
@@ -419,7 +424,10 @@ opens cleanly.
 ## 9. Risks
 
 - **First-run burst:** up to ~366 files in one sweep. Bounded by the window; each
-  day is one indexed-range query; runs off the request path.
+  day is one range query — a table scan today (no index on `created_at`; measured ~2 s
+  for 365 days at 120 k rows, ~0.35 s at today's 12 k) — scheduled after listen; an index
+  on `audit_log(created_at)` is a follow-up release (it would also speed step 6's purge and
+  `/status`).
 - **ICU:** absent ICU makes the step error every sweep (visible in `errors` and the
   CLI output) rather than silently misfile rows. Node ≥ 22 ships full ICU.
 - **Second-resolution timestamps:** rows within the same second order by `id`.
