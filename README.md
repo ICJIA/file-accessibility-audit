@@ -788,7 +788,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,530 tests** across 164 test files (API 1347, Web 1134, CLI 49). Run all three suites with one summary:
+**2,534 tests** across 165 test files (API 1351, Web 1134, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -804,15 +804,15 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
   TEST SUMMARY
 ════════════════════════════════════════════════════════════
-  ✔ API      1347 passed (79 files)
+  ✔ API      1351 passed (80 files)
   ✔ Web      1134 passed (79 files)
   ✔ CLI      49 passed (6 files)
 ────────────────────────────────────────────────────────────
-  ✔ 2530 tests passed across 164 files
+  ✔ 2534 tests passed across 165 files
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1347 tests)
+### API Tests (1351 tests)
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -879,13 +879,14 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `failureEventTypes.test.ts` | 5 | `STATUS.FAILURE_EVENT_TYPES` is exactly the `-failed` twin of every document/page event type and overlaps no other list; migration 13 adds a nullable `audit_log.reason` and lands a fresh database at `user_version` 13, safely re-runnable; the export config names a real IANA zone |
 | `auditFailureClassifier.test.ts` | 8 | `classifyAuditFailure`: every rule of the spec's table — `SafeFetchError` → `fetch-failed` before anything else, 503 and refusal codes → `null`, parse codes / encrypted → `unreadable`, every timeout shape → `timeout`, `net::ERR_*` → `navigation-failed`, everything else (including non-Error throwables) → `internal`; never a substring of the message |
 | `auditLogFailure.test.ts` | 7 | `recordAuditFailure` against a real migrated `:memory:` DB: `<base>-failed` event, NULL score/grade/hash, tier and reason stored, file names sanitised but URLs left intact (clamped at 512), an out-of-set reason degrades to `internal`, the other writers leave `reason` NULL, and an insert failure never throws |
-| `auditFailureWiring.test.ts` | 8 | THE WIRING: `/analyze`, `/analyze-url`, `/audit-url`, `runUrlAudit` (fetch failures) and `/bulk-from-inventory` (per entry) each call `recordAuditFailure` with their own event type and the classified reason; 503 records nothing |
-| `errorHandler.test.ts` | 7 | The extracted global error handler: a 4xx (incl. multer's 413) logs one line with status/code/method/path and nothing about the caller; a 5xx keeps the full error; responses are unchanged |
+| `auditFailureWiring.test.ts` | 10 | THE WIRING: `/analyze`, `/analyze-url`, `/audit-url`, `runUrlAudit` (fetch failures) and `/bulk-from-inventory` (per entry) each call `recordAuditFailure` with their own event type and the classified reason; 503 records nothing; bulk's upstream-HTTP-error branch records `fetch-failed`; 503 records nothing; every site records exactly once |
+| `errorHandler.test.ts` | 8 | The extracted global error handler: a 4xx (incl. multer's 413) logs one line with status/code/method/path and nothing about the caller; a 5xx keeps the full error; responses are unchanged; body-parser's own 413 keeps its `request entity too large` body; `statusOf` normalises a falsy status to 500 |
 | `dataDir.test.ts` | 6 | `defaultDataDir` derives from `DB_PATH` exactly as `db/sqlite.ts` does, and `status.ts` re-exports the same function |
 | `activityDays.test.ts` | 11 | Local-day arithmetic for the export: days cut at Chicago midnight in CDT and CST, both 2026 DST transitions, calendar math across month/year/leap boundaries, the export window (grace + cutoff), and the `activity-YYYY-MM-DD.csv` name codec that recognises nothing else |
 | `activityCsv.test.ts` | 9 | The CSV: the ten-column allow-list, RFC 4180 quoting, the formula-injection guard for every trigger character, BOM + LF, the policy's tier vocabulary, a hostile filename round-tripping through a parser with exactly ten fields |
 | `activityExport.test.ts` | 8 | The runner against a real DB + temp dir: writes every complete day in the window and nothing outside it, header-only empty days, idempotent, never rewrites, prunes only matching names at/before the cutoff, atomic tmp+rename with 0600/0700, stale tmp overwritten, fails loudly on a blocked directory or unknown zone |
 | `activityExportWiring.test.ts` | 4 | `runCleanup()` really runs step 8 against the real activity log directory (`logs/` at the repo root; `ACTIVITY_LOG_DIR` in tests), reports `activityFilesWritten`/`activityFilesPruned`, prunes old error-log files in the same step, and captures a failing export under step `activityExport` without blocking the other steps |
+| `sweepStep8Isolation.test.ts` | 1 | The retention sweep's step 8 keeps its two halves independent: with the activity export mocked to throw, `runCleanup()` records exactly one `activityExport` error and still prunes an outdated `errors-*.log` (`errorLogFilesPruned` = 1). |
 | `errorLog.test.ts` | 8 | The stderr tee behind `logs/errors-YYYY-MM-DD.log`: entries carry the UTC timestamp, level and the `util.format` text (stacks included); the original console call still runs; a new local day opens a new file; the per-day byte cap writes one notice and stops; an unwritable directory never throws and notifies stderr once; `uninstall()` restores the console; pruning deletes only `errors-*.log` at/before the cutoff |
 | `activityLogsPolicyConformance.test.ts` | 5 | The data-retention page pinned to the code: § 7's windows equal `SHARED_REPORTS.AUDIT_LOG_RETENTION_DAYS` and `ACTIVITY_EXPORT.ERROR_LOG_RETENTION_DAYS`, § 7/§ 8 name `ACTIVITY_EXPORT.DIR_NAME`, § 8's reason list is exactly `AUDIT_FAILURE_REASONS` |
 
@@ -1188,7 +1189,7 @@ Entries marked **(entry recorded 2026-08-08)** were reconstructed from that rele
 
 ### v1.88.0 — 2026-08-22 · Failed audits recorded; daily activity export on the server (feature + ops, not a vulnerability fix)
 
-Adds an auditor-facing record rather than fixing a flaw. An audit the tool attempted and could not complete now leaves its own `audit_log` row (`<type>-failed`, NULL score/grade/hash, a one-word reason from a closed set — never error text; migration 13), and the retention sweep writes one derived CSV per Chicago calendar day of that table to `logs/` at the application root on the server: the usage log's own fields and 365-day window, pruned by file-name date, not in backups, **not served by any route**. Reviewed for what it adds to the attack surface and to retention: no new route or parameter; the CSV writer quotes per RFC 4180 and neutralises formula injection (managers open these in Excel); files are `0600` in a `0700` directory owned by the service user; pruning deletes only names of the exact shape it writes. The new event types sit outside every `/status` counting allow-list, pinned by test. Two log-noise trims (page-audit navigation failures and 4xx responses log one line) write nothing that carries an IP, token, user agent or body — also pinned. Data-retention policy v1.12 describes both additions; the file name stays the one field that can carry personal information, and the policy says so. Also recorded: `pm2-logrotate` 3.0.0's compression setting is ineffective (documented, not worked around). The same release adds an application error log — a tee of the service's own stderr into `logs/errors-YYYY-MM-DD.log`, 30 days, 50 MB/day cap — reviewed on the same terms: it holds exactly what stderr already held (never the requester's address, browser identifier, token or request body; file names, page addresses, library paths and the addresses of servers the tool tried to reach can appear, as the policy states), on the same server, never served; and a conformance test pins the policy page's retention windows, directory and reason list to the code's constants. Tests 2,431 → 2,530.
+Adds an auditor-facing record rather than fixing a flaw. An audit the tool attempted and could not complete now leaves its own `audit_log` row (`<type>-failed`, NULL score/grade/hash, a one-word reason from a closed set — never error text; migration 13), and the retention sweep writes one derived CSV per Chicago calendar day of that table to `logs/` at the application root on the server: the usage log's own fields and 365-day window, pruned by file-name date, not in backups, **not served by any route**. Reviewed for what it adds to the attack surface and to retention: no new route or parameter; the CSV writer quotes per RFC 4180 and neutralises formula injection (managers open these in Excel); files are `0600` in a `0700` directory owned by the service user; pruning deletes only names of the exact shape it writes. The new event types sit outside every `/status` counting allow-list, pinned by test. Two log-noise trims (page-audit navigation failures and 4xx responses log one line) write nothing that carries an IP, token, user agent or body — also pinned. Data-retention policy v1.12 describes both additions; the file name stays the one field that can carry personal information, and the policy says so. Also recorded: `pm2-logrotate` 3.0.0's compression setting is ineffective (documented, not worked around). The same release adds an application error log — a tee of the service's own stderr into `logs/errors-YYYY-MM-DD.log`, 30 days, 50 MB/day cap — reviewed on the same terms: it holds exactly what stderr already held (never the requester's address, browser identifier, token or request body; file names, page addresses, library paths and the addresses of servers the tool tried to reach can appear, as the policy states), on the same server, never served; and a conformance test pins the policy page's retention windows, directory and reason list to the code's constants. Tests 2,431 → 2,534.
 
 ### v1.87.1 — 2026-08-21 · "What's New" entries link to the pages they mention (copy/navigation, not a security change)
 

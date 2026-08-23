@@ -24,7 +24,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - **No new surface.** No route was added or changed; nothing reads the activity files but the operator on the server.
 - **Privacy.** Failure rows and activity files carry exactly the usage log's fields. Nothing about the requester — address, browser identifier, token or body — is written anywhere new; the one-line log formats are tested for it. The file name remains the one field that can carry personal information, and the policy says so.
-- Tests: API +92 / web +7 → totals API 1,347 · web 1,134 · CLI 49 (2,530).
+- Tests: API +96 / web +7 → totals API 1,351 · web 1,134 · CLI 49 (2,534).
 
 ## [1.87.1] - 2026-08-21
 
