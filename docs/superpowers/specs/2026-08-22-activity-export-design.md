@@ -347,7 +347,7 @@ constraint the `[rate-limit]` lines are tested for.
   timestamp, the request tier, and a one-word reason code — `unreadable`,
   `timeout`, `fetch-failed`, `navigation-failed`, `internal` — never the error
   text; no score, no grade, no content hash* and *Daily activity files: the usage
-  log's rows for one calendar day, written to a CSV file on the server so the
+  log's rows for one calendar day, written to a CSV file in `logs/` on the server so the
   day can be reviewed without querying the database — the same fields, nothing
   more; deleted after 365 days; not backed up; not downloadable from this site.*
   The file name is named as the field that can carry personal information if a
