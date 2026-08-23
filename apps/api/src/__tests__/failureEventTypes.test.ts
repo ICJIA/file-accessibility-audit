@@ -22,7 +22,7 @@ describe("STATUS.FAILURE_EVENT_TYPES", () => {
 });
 
 describe("migration 13: audit_log.reason", () => {
-  it("a fresh database has a nullable TEXT reason column and lands at version 13", () => {
+  it("a fresh database has a nullable TEXT reason column and lands at the latest version", () => {
     const db = new Database(":memory:");
     runMigrations(db);
     const cols = db.pragma("table_info(audit_log)") as Array<{
@@ -34,8 +34,10 @@ describe("migration 13: audit_log.reason", () => {
     expect(reason).toBeDefined();
     expect(reason!.type).toBe("TEXT");
     expect(reason!.notnull).toBe(0);
-    expect(db.pragma("user_version", { simple: true })).toBe(13);
-    expect(MIGRATIONS[MIGRATIONS.length - 1].version).toBe(13);
+    expect(db.pragma("user_version", { simple: true })).toBe(
+      MIGRATIONS[MIGRATIONS.length - 1].version,
+    );
+    expect(MIGRATIONS.some((m) => m.version === 13)).toBe(true);
   });
 
   it("is safe to re-run on a database that already has the column", () => {

@@ -11,7 +11,7 @@ import auditUrlRoutes from "./routes/audit-url.js";
 import auditUrlPageRoutes from "./routes/audit-url-page.js";
 import remediateRoutes from "./routes/remediate.js";
 import statusRoutes, { service as statusService } from "./routes/status.js";
-import { runCleanup, startCleanupInterval } from "./services/remediationCleanup.js";
+import { runScheduledSweep, startCleanupInterval } from "./services/remediationCleanup.js";
 import { formatUptime } from "./services/status.js";
 
 // Import db to trigger table creation on startup
@@ -125,9 +125,9 @@ const onListen = () => {
   // a no-op until the feature is turned on. Run after listen on purpose —
   // the first sweep after a deploy can materialise a year of activity
   // files and must not hold up readiness.
-  void runCleanup().catch((e) => {
-    console.error("Initial remediation cleanup failed:", e);
-  });
+  // Always logs one "[sweep] …" summary line (v1.88.1), so `pm2 logs` answers
+  // "did the sweep run, and what did it write?" after every restart.
+  void runScheduledSweep({ always: true });
   startCleanupInterval();
 };
 // Conditional call rather than passing an undefined host, so the dev path is an

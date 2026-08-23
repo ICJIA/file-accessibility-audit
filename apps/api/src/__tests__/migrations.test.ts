@@ -427,3 +427,52 @@ describe("migration 12: audit_log.privileged tier column", () => {
     expect(row.privileged).toBeNull();
   });
 });
+
+describe("migration 14: audit_log(created_at) index", () => {
+  // v1.88.1. Every time-windowed reader of audit_log — the daily activity
+  // export's per-day SELECT, step 6's retention purge, /status's 24h/30d
+  // counts — filtered on created_at with no index, so each was a full table
+  // scan (the first activity-export run after v1.88.0's deploy was 365 of
+  // them, back to back). An index makes them range seeks.
+  function freshDbWith14(): DB {
+    const db = new Database(":memory:");
+    runMigrations(db);
+    return db;
+  }
+
+  it("creates idx_audit_created_at on a fresh database and lands at the latest version", () => {
+    const db = freshDbWith14();
+    const indexes = (db.pragma("index_list(audit_log)") as Array<{ name: string }>).map(
+      (i) => i.name,
+    );
+    expect(indexes).toContain("idx_audit_created_at");
+    const cols = db.pragma("index_info(idx_audit_created_at)") as Array<{ name: string }>;
+    expect(cols.map((c) => c.name)).toEqual(["created_at"]);
+    expect(db.pragma("user_version", { simple: true })).toBe(LATEST_VERSION);
+    expect(MIGRATIONS[MIGRATIONS.length - 1].version).toBe(14);
+  });
+
+  it("the activity export's day-window query and the retention purge use the index", () => {
+    const db = freshDbWith14();
+    const windowPlan = db
+      .prepare(
+        `EXPLAIN QUERY PLAN SELECT id FROM audit_log WHERE created_at >= ? AND created_at < ? ORDER BY id`,
+      )
+      .all("2026-08-18 00:00:00", "2026-08-21 00:00:00") as Array<{ detail: string }>;
+    expect(windowPlan.map((r) => r.detail).join(" | ")).toMatch(
+      /USING (COVERING )?INDEX idx_audit_created_at/,
+    );
+    const purgePlan = db
+      .prepare(`EXPLAIN QUERY PLAN DELETE FROM audit_log WHERE created_at < ?`)
+      .all("2025-08-23T00:00:00.000Z") as Array<{ detail: string }>;
+    expect(purgePlan.map((r) => r.detail).join(" | ")).toMatch(
+      /USING (COVERING )?INDEX idx_audit_created_at/,
+    );
+  });
+
+  it("is safe to re-run (CREATE INDEX IF NOT EXISTS)", () => {
+    const db = freshDbWith14();
+    const m14 = MIGRATIONS.find((m) => m.version === 14)!;
+    expect(() => m14.up(db)).not.toThrow();
+  });
+});

@@ -362,6 +362,19 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 14,
+    // Index for every time-windowed reader of audit_log (v1.88.1): the daily
+    // activity export's per-day SELECT, step 6's retention purge, and the
+    // /status 24h / 30d counts all filter on created_at, and until now every
+    // one was a full table scan — the first activity-export run after the
+    // v1.88.0 deploy was 365 of them back to back. No column changes; CREATE
+    // INDEX IF NOT EXISTS is safe to re-run.
+    name: "add idx_audit_created_at (time-windowed reads stop scanning audit_log)",
+    up(db) {
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at);`);
+    },
+  },
 ];
 
 /**

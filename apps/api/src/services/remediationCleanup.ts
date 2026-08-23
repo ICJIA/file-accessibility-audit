@@ -294,6 +294,69 @@ export async function runCleanup(): Promise<CleanupResult> {
   return result;
 }
 
+/**
+ * One line describing what a sweep did (v1.88.1). Activity files first: "did
+ * the first materialisation after a deploy run?" is the question an operator
+ * reading `pm2 logs` actually has.
+ */
+export function summarizeCleanup(r: CleanupResult): string {
+  const errors =
+    r.errors.length === 0
+      ? "0"
+      : `${r.errors.length} (${r.errors.map((e) => `${e.step}: ${e.message}`).join("; ")})`;
+  return (
+    `[sweep] activity files: ${r.activityFilesWritten} written, ${r.activityFilesPruned} pruned` +
+    ` · error logs pruned: ${r.errorLogFilesPruned}` +
+    ` · audit_log rows purged: ${r.purgedAuditLog}` +
+    ` · shared reports purged: ${r.purgedSharedReports}` +
+    ` · remediation: ${r.expiredOutputs} expired, ${r.stuckJobs} stuck, ${r.orphanDirs} orphans,` +
+    ` ${r.purgedJobs} jobs purged, ${r.purgedEvents} events purged` +
+    ` · errors: ${errors}`
+  );
+}
+
+function didSomething(r: CleanupResult): boolean {
+  return (
+    r.expiredOutputs +
+      r.stuckJobs +
+      r.orphanDirs +
+      r.purgedJobs +
+      r.purgedEvents +
+      r.purgedAuditLog +
+      r.purgedSharedReports +
+      r.activityFilesWritten +
+      r.activityFilesPruned +
+      r.errorLogFilesPruned >
+      0 || r.errors.length > 0
+  );
+}
+
+/**
+ * Report a sweep's result (v1.88.1). Every captured step error goes to
+ * stderr — so it reaches logs/errors-*.log and PM2 — and the summary line to
+ * stdout when the sweep did anything, or always (the startup sweep, so a
+ * restart's `pm2 logs` always shows one). An idle 5-minute sweep stays silent.
+ */
+export function logCleanupResult(r: CleanupResult, opts: { always: boolean }): void {
+  for (const e of r.errors) console.error(`[sweep] step ${e.step} failed: ${e.message}`);
+  if (opts.always || didSomething(r)) console.log(summarizeCleanup(r));
+}
+
+/**
+ * The one entry point index.ts (startup) and the interval share: run the
+ * sweep, report it, never reject. `run` is injectable for tests.
+ */
+export async function runScheduledSweep(
+  opts: { always: boolean },
+  run: () => Promise<CleanupResult> = runCleanup,
+): Promise<void> {
+  try {
+    logCleanupResult(await run(), opts);
+  } catch (e) {
+    console.error("Remediation cleanup sweep failed:", e);
+  }
+}
+
 let intervalHandle: NodeJS.Timeout | null = null;
 
 /**
@@ -311,9 +374,7 @@ let intervalHandle: NodeJS.Timeout | null = null;
 export function startCleanupInterval(): void {
   if (intervalHandle) return;
   intervalHandle = setInterval(() => {
-    runCleanup().catch((e) => {
-      console.error("Remediation cleanup sweep failed:", e);
-    });
+    void runScheduledSweep({ always: false });
   }, REMEDIATION.CLEANUP_INTERVAL_MS);
   // Don't keep the event loop alive on its own account
   intervalHandle.unref?.();
