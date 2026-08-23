@@ -75,9 +75,9 @@ pm2 install pm2-logrotate
 
 pm2 set pm2-logrotate:max_size 10M          # rotate at 10 MB
 pm2 set pm2-logrotate:retain 14             # keep 14 rotated files per stream
-pm2 set pm2-logrotate:compress true         # gzip rotated files
+pm2 set pm2-logrotate:compress true         # INEFFECTIVE in 3.0.0 — see below
 pm2 set pm2-logrotate:rotateInterval '0 0 * * *'   # also rotate nightly
-pm2 set pm2-logrotate:workerInterval 300    # check every 5 minutes
+pm2 set pm2-logrotate:workerInterval 30     # check every 30 seconds (the module default)
 
 pm2 save
 ```
@@ -86,16 +86,29 @@ pm2 save
 
 ```bash
 pm2 conf pm2-logrotate                      # shows the values above
-ls -lh ~/.pm2/logs/                         # rotated files appear as *.log.gz
+ls -lh ~/.pm2/logs/                         # rotated files appear as *__YYYY-MM-DD_HH-mm-ss.log
 ```
 
 `pm2 save` matters: without it the module list is not written to the
 resurrect file, and a server reboot brings PM2 back without rotation.
 
-The retention above keeps roughly 140 MB per log stream in the worst case
-(14 × 10 MB, less compression), which is deliberate — enough history to
-investigate an incident from a few days ago, bounded enough that logs can
-never be what fills the disk.
+**Compression does not happen, despite `compress true`.** Verified on production
+2026-08-22: every rotated file is plain `.log`. The cause is upstream, in
+`pm2-logrotate` 3.0.0: the module's `parseBool` accepts only the *string*
+`'true'`, but pmx casts the value stored by `pm2 set` to a boolean before the
+module reads it, so `COMPRESSION` is always `false`. The setting is left in
+place for whenever upstream fixes it; until then do not expect `.gz` files,
+and do not "fix" it locally — the retention count is what bounds the disk.
+
+The retention above therefore keeps up to **140 MB per log stream**
+(14 × 10 MB, uncompressed) in the worst case, which is deliberate — enough
+history to investigate an incident from a few days ago, bounded enough that
+logs can never be what fills the disk. In practice the whole directory was
+3.9 MB after two weeks. Application-level activity — what was audited, by
+which path, with what result — is not in these logs at all; it is the
+`audit_log` table and the daily activity export (`docs/activity-export.md`). Since v1.88.0 the
+service also tees its own stderr into `logs/errors-YYYY-MM-DD.log` at the checkout root (30
+days, 50 MB/day cap), so a fault can be diagnosed without opening `~/.pm2/logs` at all.
 
 ## Related
 
