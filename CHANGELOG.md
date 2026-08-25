@@ -17,6 +17,9 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - No schema change, no new route, no retention change; nothing new is collected or stored.
 - Tests: API 1,410 · web 1,143 · CLI 49 (**2,602** across 169 files).
 
+<details>
+<summary><strong>v1.89.1 → v1.88.0</strong> (2026-08-25 → 2026-08-22) — click to expand</summary>
+
 ## [1.89.1] - 2026-08-25
 
 ### Fixed
@@ -150,6 +153,11 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Privacy.** Failure rows and activity files carry exactly the usage log's fields. Nothing about the requester — address, browser identifier, token or body — is written anywhere new; the one-line log formats are tested for it. The file name remains the one field that can carry personal information, and the policy says so.
 - Tests: API +96 / web +7 → totals API 1,351 · web 1,134 · CLI 49 (2,534).
 
+</details>
+
+<details>
+<summary><strong>v1.87.1 → v1.80.0</strong> (2026-08-21 → 2026-08-17) — click to expand</summary>
+
 ## [1.87.1] - 2026-08-21
 
 ### Changed
@@ -275,6 +283,11 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Notes
 
 - Frontend-only: the same per-file calls to the existing `/api/analyze` endpoint; no new routes, parameters, or dependencies. Pinned by 13 new tests including a page-wiring pin (the index page renders the switcher; the old inline tablist and banner are gone) and a copy-matches-limit pin on the dropzone. Verified in a real browser with five files, light and dark themes, including card switching. Tests 2,307 → 2,319 (API 1,196 / web 1,074 / CLI 49).
+
+</details>
+
+<details>
+<summary><strong>v1.79.0 → v1.70.0</strong> (2026-08-17 → 2026-08-13) — click to expand</summary>
 
 ## [1.79.0] - 2026-08-17
 
@@ -547,6 +560,11 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - **No change to the rate limiter.** The 2026-08-12 fleet run spent eight hours throttled, but the two-tier system was already correct and complete — it simply had no token configured. Setting `API_PRIVILEGED_TOKEN` here and the matching client token in the fleet-audit pipeline moves that caller from 500/hour + 100/min to 5,000/hour + 1,000/min, which is what `RATE_LIMITS` was sized for.
 - **No change to the 422 path.** Eight agency "PDFs" were refused with 422 during the same run. `urlAuditPipeline.ts` was right: those files are HTML — saved GitHub file-view pages uploaded into Strapi with a `.pdf` extension, served with `content-type: application/pdf` and HTTP 200. Loosening `detectFileType` to accept them would have masked eight broken documents on the agency site. Reported upstream instead.
+
+</details>
+
+<details>
+<summary><strong>v1.69.0 → v1.60.0</strong> (2026-08-11 → 2026-08-07) — click to expand</summary>
 
 ## [1.69.0] - 2026-08-11
 
@@ -865,6 +883,11 @@ Clearing the four items carried since the 2026-08-05 operational review.
 ### Notes
 
 Tests 2,099 → 2,135. The new `colorTokens.test.ts` measures both palettes against the surfaces they are actually painted on, asserts the two stay parallel, and includes a deliberately non-vacuous check that the *old* single palette really did fail — so the file cannot quietly start passing if the thresholds or surfaces drift.
+
+</details>
+
+<details>
+<summary><strong>v1.59.2 → v1.50.0</strong> (2026-08-07 → 2026-08-05) — click to expand</summary>
 
 ## [1.59.2] - 2026-08-07
 
@@ -1188,6 +1211,11 @@ The status page now answers "did last night's backup run?" — remotely, without
 ### Notes
 
 Verified against the real pipeline: the local drill's `last-backup.json` renders the row end-to-end. Tests 1,857 → 1,874 (API 1,135 → 1,146; Web 673 → 679); lint, typecheck, build green.
+
+</details>
+
+<details>
+<summary><strong>v1.49.0 → v1.40.0</strong> (2026-08-05 → 2026-08-03) — click to expand</summary>
 
 ## [1.49.0] - 2026-08-05
 
@@ -1569,6 +1597,11 @@ Dependency security release: clears every open Dependabot advisory. Adds a local
 `fast-xml-parser` is the XML engine behind every DOCX/PPTX/XLSX check, so a behaviour change there would move scores silently rather than throw. Verified by auditing the four OOXML control documents on both 5.9.3 and 5.10.1: results are identical (92/A, 80/B, 90/A, 90/A).
 
 Tests 1,711 → 1,713 (API 1,082 → 1,084); lint, typecheck, build green.
+
+</details>
+
+<details>
+<summary><strong>v1.39.3 → v1.30.0</strong> (2026-08-03 → 2026-07-01) — click to expand</summary>
 
 ## [1.39.3] - 2026-08-03
 
@@ -2023,6 +2056,11 @@ Microsoft Word (`.docx`) accessibility auditing alongside PDF, plus a three-fron
 ### Tests
 
 - API suite now **561**, Web **319**, total **880** (new: docx extractor, scorer, conformance, dispatcher, and integration suites, plus a zip-bomb streaming-cap test). `tsc --noEmit` and `nuxt build` clean.
+
+</details>
+
+<details>
+<summary><strong>v1.29.0 → v1.18.0</strong> (2026-06-27 → 2026-05-18, plus an empty Unreleased placeholder) — click to expand</summary>
 
 ## [1.29.0] - 2026-06-27
 
@@ -2702,6 +2740,11 @@ curl -X POST \
 - Processing is intentionally serial to respect the existing 2-at-a-time semaphore in `pdfAnalyzer.ts`.
 - Auth required. Uses existing `authMiddleware` (cookie JWT) and `reportsLimiter`.
 - Adds `express.text({ limit: '5mb', type: 'text/plain' })` in `index.ts` for the raw text/plain intake mode.
+
+</details>
+
+<details>
+<summary><strong>v1.17.0 → v1.0.0</strong> (2026-05-04 → 2026-03-07) — click to expand</summary>
 
 ## [1.17.0] - 2026-05-04
 
@@ -3388,6 +3431,8 @@ The correction is: **Strict is ICJIA's rubric** (anchored to WCAG 2.1 AA and Ill
 - OG image, meta tags, and structured data (JSON-LD)
 - Environment-specific configuration with `.env` examples
 - Deployment documentation for DigitalOcean/Forge/PM2/nginx
+
+</details>
 
 [1.8.0]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/ICJIA/file-accessibility-audit/compare/v1.7.0...v1.7.1
