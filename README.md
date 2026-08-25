@@ -817,7 +817,10 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 ════════════════════════════════════════════════════════════
 ```
 
-### API Tests (1392 tests)
+### API Tests (1410 tests)
+
+<details>
+<summary><strong>Per-file coverage</strong> — 83 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -903,7 +906,12 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `sharedReportsPurge.test.ts` | 3 | Physical retention of `shared_reports`: rows deleted only past expiry + grace (the 410 survives the grace window), idempotent, and the sweep runs on its interval even with remediation disabled. |
 | `veraPdfHardening.test.ts` | 5 | veraPDF on the main analyze path: bounded concurrency, a spawn environment without API secrets, and error text that is safe to return to a client. |
 
-### Web Tests (1134 tests)
+</details>
+
+### Web Tests (1143 tests)
+
+<details>
+<summary><strong>Per-file coverage</strong> — 80 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -987,9 +995,14 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `automationLimitBand.test.ts` | 29 | `AutomationLimitBand` — a 100 is not a guarantee: the full band over a 79, the one-line reminder for every other grade, visibility that interrupts the celebration, and wiring on every score display. |
 | `publishReadiness.test.ts` | 18 | The remediation result page's "can I publish this?" answer: `publishVerdictFor` gives the same verdict as the audit report's `publicationVerdict`, and fails closed when the audit cannot be read. |
 
+</details>
+
 ### CLI Tests (49 tests)
 
 `apps/cli` (`@icjia/a11y-audit`) has its own vitest suite. `pnpm test` at the repo root now runs it too (alongside API and Web, with the unified summary above); `cd apps/cli && pnpm test` still works standalone.
+
+<details>
+<summary><strong>Per-file coverage</strong> — 6 test files — click to expand</summary>
 
 | File | Tests | What it covers |
 | --- | ---: | --- |
@@ -999,6 +1012,8 @@ cd apps/cli && pnpm test  # CLI tests only, standalone
 | `publist.test.ts` | 6 | `downloadFile`'s streaming download guard: reassembles chunked responses into a Buffer, rejects on a non-ok HTTP status, and enforces the size cap both from a `content-length` header and from cumulative streamed bytes — cancelling the reader (not draining an unbounded body) the moment either is exceeded |
 | `version.test.ts` | 3 | The CLI's reported `--version` matches `apps/cli/package.json` (no longer the stale hardcoded `1.0.0`), and neither `index.ts` nor `commands/audit.ts` hardcodes its own `VERSION` literal |
 | `cache.test.ts` | 1 | The result cache's round-trip: PowerPoint (`slide_titles`) and Excel (`sheet_names`) category scores/grades/severities survive `upsertResult` and render correctly in the CSV and HTML reports |
+
+</details>
 
 ### Accessibility Compliance (WCAG 2.1 AA)
 
@@ -1056,6 +1071,9 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
 ### Status & uptime monitoring
 
 **`GET /status`** (Nuxt) is the monitoring and service-visibility URL. It returns a JSON document covering both tiers, the audit engines, and usage:
+
+<details>
+<summary><strong>Sample payload</strong> — click to expand</summary>
 
 ```json
 {
@@ -1116,6 +1134,8 @@ pnpm build && pnpm start:all    # Clears ports, starts API :5103 + Web :5102
   "privileged_tier": "on"
 }
 ```
+
+</details>
 
 **Distinct documents and the re-audit loop (v1.89.0).** `distinct_documents` counts distinct uploaded *contents* (by hash, inside SQLite — no hash leaves the database): four audits of one unchanged file are four audits but one distinct document, and a re-export counts as a new one. It counts **every tier** — the fleet's documents are documents. `document_progress_30d` is the audit → fix → re-audit loop over the last 30 days, grouped by file name inside SQLite, **from public uploads only (v1.90.0)**: the trusted-tool fleet re-scans unchanged documents on a schedule and was drowning the signal, so `privileged = 1` rows are excluded — and so are unknown-tier rows from before migration 12, meaning the figures climb from when tier recording began, exactly as `privileged_audits` does. It reports how many documents were checked, how many were checked 2+ times, how many of the re-checked that started below an A improved or reached one, and the median score change among re-checked documents. The card on the live page, days after tier recording began, with the small-sample floor active:
 
@@ -1223,6 +1243,9 @@ Entries marked **(entry recorded 2026-08-08)** were reconstructed from that rele
 ### v1.90.0 — 2026-08-25 · The re-audit summary counts public uploads only — fleet re-scans no longer drown the signal (semantic narrowing of a published figure; no new attack surface)
 
 On its first live day, `document_progress_30d` read 3,781 documents / 3,293 re-audited / median lift 0: the trusted-tool fleet re-scans the same unchanged documents weekly, and its runs buried the human remediation story the block exists to tell. The grouping now counts `privileged = 0` rows only — fleet runs excluded, and unknown-tier rows from before migration 12 excluded with them (unknown might be the fleet), so the figures climb from when tier recording began, the same behavior `privileged_audits` has had since v1.86.0. Reviewed for what the change could expose: nothing — it *narrows* what is published; the SQL predicate is a constant, no new value reaches the payload or the HTML, and `distinct_documents` deliberately still counts every tier (a volume figure, contextualized by `privileged_audits`, now pinned by test). The card's caveat states the exclusion and the climb-from date in plain language; data-retention policy → v1.14 (§ 14 clarification), held to the code by `statusProgressPolicy.test.ts`. Two new exclusion tests: a leaked fleet row would flip `improvable` (watched directly), and unknown-tier rows contribute nothing. Tests 2,599 → 2,602.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.89.1 → v1.33.0) — click to expand</summary>
 
 ### v1.89.1 — 2026-08-25 · The v1.89.0 What's New link to the status page works again (one config field; no new attack surface)
 
@@ -1731,6 +1754,8 @@ A prioritized backlog from a whole-application structural and tooling review (fi
 - **Server-side JWT session revocation.** Logout now writes the session token's `jti` to a `revoked_jtis` table (migration 10); `authMiddleware` rejects any subsequently presented token whose `jti` is denylisted, even though the JWT's own signature and `exp` are otherwise still valid — closing the gap where a captured token remained usable after logout until natural expiry. Tokens issued before this shipped carry no `jti` and are simply unaffected by the new check — they still expire on their original schedule.
 - **Remediation job-status/receipt authorization.** `GET /api/remediate/:id/status` and `/receipt` now require the job's own download token whenever the request is anonymous (`!AUTH.REQUIRE_LOGIN || !job.email`) — previously these reads had no authorization check in that mode. A missing or wrong token returns 404 (not 401/403) so a caller can't distinguish "wrong token" from "no such job." The logged-in owner-match path is unchanged.
 - **Numbered SQLite migrations.** Schema changes are now an ordered `MIGRATIONS` array keyed on `PRAGMA user_version` (`apps/api/src/db/migrations.ts`), replacing inline probe-then-`ALTER` blocks in `sqlite.ts`. A legacy-fast-forward path detects an already-provisioned production database (one that ran the old inline code before `user_version` tracking existed) and jumps straight to the correct baseline version without re-running any `ALTER` — avoiding the exact failure mode (`ALTER TABLE ADD COLUMN` on a column that already exists throws in SQLite) that would otherwise crash the API on deploy.
+
+</details>
 
 <details>
 <summary><strong>Previous security reviews</strong> (per-release, v1.32.0 and earlier) — click to expand</summary>
