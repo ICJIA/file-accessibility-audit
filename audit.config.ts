@@ -257,6 +257,8 @@ export const ANNOUNCEMENTS = [
     text: "The status page now shows whether documents improve. Two new figures are published there: how many distinct documents were checked (not just how many checks ran), and — for the last 30 days — how many documents were checked more than once, how many of those improved, and the typical score change among re-checked documents. Every figure is a count or a median computed from the usage records the data-retention policy already describes; no file name, content fingerprint, or individual score is shown. When fewer than five documents qualify, the rates and the median are withheld rather than describe a single visitor's documents, and the counts remain published like every other figure on the page. The data-retention policy (now v1.13) records the addition in its change log, and the release was security-reviewed before publishing, with the review recorded in the security log.",
     linkText: "See the status page",
     linkTo: "/status?html",
+    /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
+    linkExternal: true,
     /** Shown under the text so visitors can see the tool is actively maintained. */
     date: "August 25, 2026",
     /** Only shown while the app is on this WCAG version (null = always). */

@@ -315,6 +315,24 @@ describe("AnnouncementBanner", () => {
       // SPA navigation rather than forcing a full document reload.
       expect(link!.attributes("external")).toBe("false");
     });
+
+    it("every REAL announcement pointing at /status carries linkExternal: true", async () => {
+      // The two tests above prove the component honours the flag; this one
+      // proves the DATA sets it. v1.89.0 shipped an entry linking to
+      // /status?html without the flag — every banner click landed on the SPA
+      // 404 while the direct URL worked, the third time this class of bug
+      // reached production (v1.39.0: the component; v1.89.0: the data).
+      const { ANNOUNCEMENTS } = await import("../../../../audit.config");
+      expect(ANNOUNCEMENTS.length).toBeGreaterThan(0);
+      for (const a of ANNOUNCEMENTS as ReadonlyArray<Record<string, unknown>>) {
+        const to = typeof a.linkTo === "string" ? a.linkTo : "";
+        if (to === "/status" || to.startsWith("/status?")) {
+          expect(a.linkExternal, `${String(a.id)} links to ${to} (a Nitro server route)`).toBe(
+            true,
+          );
+        }
+      }
+    });
   });
 });
 

@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.89.1",
+    meta: "Reviewed <strong>2026-08-25</strong> · scope: one field on one What&rsquo;s New entry — the link to the status page navigated the wrong way and showed a &ldquo;page not found&rdquo; screen. No new way to reach the service, nothing new collected, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The v1.89.0 update notice linked to the status page, but the link was missing the marker that tells the site to load that page as a full page rather than in-app — the status page is served directly by the server, not by the in-browser application, so the in-app route finds nothing and shows &ldquo;page not found&rdquo;. Typing the address directly always worked. Fixed within minutes of a visitor&rsquo;s report by adding the marker, and an automated test now checks every update notice that links to the status page carries it.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>The What&rsquo;s New link to the status page opens the status page again.</strong> A navigation defect only — no data was wrong, exposed, or at risk; the status page itself was serving correctly throughout.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.89.0",
     meta: "Reviewed <strong>2026-08-25</strong> · scope: two new families of aggregate figures on the public status page — distinct documents checked, and whether re-checked documents improve. Nothing new is collected or stored; no new way to reach the service; no retention period changed.",
     body: [

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.89.1] - 2026-08-25
+
+### Fixed
+
+- **The v1.89.0 What's New link to the status page rendered the SPA 404.** The new announcement's `linkTo: "/status?html"` was missing `linkExternal: true`, so the banner and archive rendered a client-side `<NuxtLink>` to a Nitro server route — the Vue router finds no such page and shows "Page not found" without ever contacting the server; the direct URL worked throughout. One field fixes it; found by a visitor click minutes after deploy.
+- **The whole class is now pinned.** The existing tests proved the component honours `linkExternal`; nothing proved the DATA sets it — the same gap that shipped v1.39.0's identical bug. `AnnouncementBanner.test.ts` (+1 → 21) now walks the real `ANNOUNCEMENTS` and fails if any entry pointing at `/status` lacks the flag.
+
+### Notes
+
+- Config data + one test only; no route, data, or retention change. Tests 2,598 → **2,599** (API 1,408 / web 1,142 / CLI 49).
+
 ## [1.89.0] - 2026-08-25
 
 ### Added
