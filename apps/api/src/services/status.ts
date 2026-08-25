@@ -27,6 +27,7 @@ import { access, constants } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEPLOY, REMEDIATION, STATUS } from "#config";
+import { GRADE_THRESHOLDS } from "@file-audit/shared";
 import { QPDF_BIN } from "./qpdfService.js";
 import { defaultDataDir } from "./dataDir.js";
 import { sqliteUtcToIso } from "./sqliteTime.js";
@@ -106,6 +107,51 @@ export interface PrivilegedCounts {
   total: number;
 }
 
+/** Distinct uploaded contents (by content hash), per window — the counterpart
+ *  to documents_audited's event counts: four audits of one unchanged file are
+ *  four audits but one distinct document. A re-export of the same document
+ *  produces new bytes and counts as a new distinct content — that is the
+ *  honest reading, since the tool cannot know two different files are "the
+ *  same" document. Rows without a stored hash (old rows; failed audits) are
+ *  not counted, so these figures climb from when hashing began and can be
+ *  smaller than documents_audited, never larger. Hashes are consumed inside
+ *  SQLite by COUNT(DISTINCT …) and never cross the module boundary. */
+export interface DistinctDocumentCounts {
+  last_24h: number;
+  last_30d: number;
+  total: number;
+}
+
+/** The remediation loop (audit → fix → re-audit), aggregated over the last 30
+ *  days. Documents are grouped by filename INSIDE SQLite; one row of plain
+ *  numbers per document comes back (run count, first score, latest score) and
+ *  only the folded totals below leave the module — no filename, hash, score
+ *  list, or timestamp is ever serialized.
+ *
+ *    documents   distinct filenames with ≥1 completed, scored document audit
+ *    reaudited   of those, audited 2+ times in the window
+ *    improvable  re-audited AND the first audit scored below an A
+ *    improved    improvable AND the latest score beats the first
+ *    reached_a   improvable AND the latest score is an A
+ *    median_lift median (latest − first) across re-audited documents, or null
+ *                below STATUS.PROGRESS_MIN_DOCS qualifying documents — a
+ *                "median" of one document would describe a single visitor's
+ *                afternoon, not a usage pattern. Counts are always published.
+ *
+ *  Grouping by filename (not hash) is deliberate: the loop's whole point is
+ *  that the bytes change between runs while the document stays "the same".
+ *  Two different visitors auditing identically-named files would merge — an
+ *  accepted imprecision for an aggregate; nothing about either file is
+ *  disclosed. */
+export interface DocumentProgress {
+  documents: number;
+  reaudited: number;
+  improvable: number;
+  improved: number;
+  reached_a: number;
+  median_lift: number | null;
+}
+
 /** Refused uploads, split by what was offered.
  *
  *  `other` is the catch-all and, unlike FormatCounts.unknown_extension, it is
@@ -150,6 +196,13 @@ export interface StatusPayload {
     chromium: EngineResult;
   };
   documents_audited: DocumentCounts;
+  /** Distinct uploaded contents per window (see DistinctDocumentCounts):
+   *  separates "documents touched" from "audit runs". Aggregate counts only. */
+  distinct_documents: DistinctDocumentCounts;
+  /** The audit → fix → re-audit loop over the last 30 days (see
+   *  DocumentProgress): how many documents were re-checked and whether they
+   *  improved. Aggregate counts and one median only. */
+  document_progress_30d: DocumentProgress;
   /** Privileged-tier audit volume (API_PRIVILEGED_TOKEN tier). Lets an
    *  operator confirm privileged usage matches the fleet and spot misuse of
    *  the shared token. */
@@ -383,6 +436,109 @@ function countPrivilegedDocuments(db: StatusDb, sinceMs: number | null): number 
   return row?.n ?? 0;
 }
 
+/** Distinct uploaded contents in the window. The DISTINCT runs inside SQLite;
+ *  no hash crosses the boundary. Empty-string hashes are excluded alongside
+ *  NULLs defensively — no writer produces them, but a distinct-count of ''
+ *  would silently add a phantom document. */
+function countDistinctDocuments(db: StatusDb, sinceMs: number | null): number {
+  const inClause = placeholders(DOCUMENT_TYPES.length);
+  const base = `SELECT COUNT(DISTINCT content_hash) AS n FROM audit_log
+                 WHERE event_type IN (${inClause})
+                   AND content_hash IS NOT NULL AND content_hash != ''`;
+  const sql = sinceMs === null ? base : `${base} AND created_at > datetime(?, 'unixepoch')`;
+  const params =
+    sinceMs === null ? [...DOCUMENT_TYPES] : [...DOCUMENT_TYPES, Math.floor(sinceMs / 1000)];
+  const row = db.prepare(sql).get(...params) as { n?: number } | undefined;
+  return row?.n ?? 0;
+}
+
+/** The score at and above which a document is an A. Read from the published
+ *  grade ladder rather than repeated here, so the stats can never disagree
+ *  with the grades the reports themselves show. */
+const A_MIN = GRADE_THRESHOLDS.find((t) => t.grade === "A")?.min ?? 90;
+
+/** One folded DocumentProgress over the window.
+ *
+ *  The CTE partitions by filename INSIDE SQLite and emits exactly one row of
+ *  numbers per document — run count, first score, latest score. The filename
+ *  is the partition key only; it is never in the SELECT list, so it cannot
+ *  cross the module boundary (rule 1 in the header). Ties on created_at
+ *  (second precision — a batch upload) are broken by id, the insertion order. */
+function collectDocumentProgress(db: StatusDb, sinceMs: number): DocumentProgress {
+  const inClause = placeholders(DOCUMENT_TYPES.length);
+  const sql = `
+    WITH runs AS (
+      SELECT
+        ROW_NUMBER() OVER (PARTITION BY filename ORDER BY created_at ASC, id ASC) AS rn,
+        COUNT(*) OVER (PARTITION BY filename) AS n,
+        FIRST_VALUE(score) OVER (
+          PARTITION BY filename ORDER BY created_at ASC, id ASC
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS first_score,
+        LAST_VALUE(score) OVER (
+          PARTITION BY filename ORDER BY created_at ASC, id ASC
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_score
+      FROM audit_log
+      WHERE event_type IN (${inClause})
+        AND score IS NOT NULL
+        AND created_at > datetime(?, 'unixepoch')
+    )
+    SELECT n, first_score, last_score FROM runs WHERE rn = 1`;
+  const rows = db.prepare(sql).all(...DOCUMENT_TYPES, Math.floor(sinceMs / 1000)) as Array<{
+    n?: number;
+    first_score?: number;
+    last_score?: number;
+  }>;
+
+  let documents = 0;
+  let reaudited = 0;
+  let improvable = 0;
+  let improved = 0;
+  let reachedA = 0;
+  const lifts: number[] = [];
+  for (const r of rows) {
+    documents += 1;
+    if ((r.n ?? 0) < 2) continue;
+    const first = r.first_score ?? 0;
+    const last = r.last_score ?? 0;
+    reaudited += 1;
+    lifts.push(last - first);
+    if (first < A_MIN) {
+      improvable += 1;
+      if (last > first) improved += 1;
+      if (last >= A_MIN) reachedA += 1;
+    }
+  }
+  return {
+    documents,
+    reaudited,
+    improvable,
+    improved,
+    reached_a: reachedA,
+    median_lift: reaudited >= STATUS.PROGRESS_MIN_DOCS ? median(lifts) : null,
+  };
+}
+
+/** Median of a non-empty list: the middle value, or halfway between the middle
+ *  pair, rounded to one decimal so the payload never carries float noise. */
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  const m =
+    s.length % 2 === 1 ? (s[mid] as number) : ((s[mid - 1] as number) + (s[mid] as number)) / 2;
+  return Math.round(m * 10) / 10;
+}
+
+function emptyDocumentProgress(): DocumentProgress {
+  return {
+    documents: 0,
+    reaudited: 0,
+    improvable: 0,
+    improved: 0,
+    reached_a: 0,
+    median_lift: null,
+  };
+}
+
 function countDocumentsByFormat(db: StatusDb, sinceMs: number | null): FormatCounts {
   const inClause = placeholders(DOCUMENT_TYPES.length);
   const sql =
@@ -529,6 +685,8 @@ function remediationJobs24h(db: StatusDb, nowMs: number): { complete: number; fa
 export interface AggregateSnapshot {
   database: "ok" | "down";
   documents_audited: DocumentCounts;
+  distinct_documents: DistinctDocumentCounts;
+  document_progress_30d: DocumentProgress;
   privileged_audits: PrivilegedCounts;
   documents_rejected: RejectedCounts;
   last_audit_at: string | null;
@@ -552,6 +710,12 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         by_grade_30d: countDocumentsByGrade(db, nowMs - THIRTY_DAYS_MS),
         by_grade_total: countDocumentsByGrade(db, null),
       },
+      distinct_documents: {
+        last_24h: countDistinctDocuments(db, nowMs - DAY_MS),
+        last_30d: countDistinctDocuments(db, nowMs - THIRTY_DAYS_MS),
+        total: countDistinctDocuments(db, null),
+      },
+      document_progress_30d: collectDocumentProgress(db, nowMs - THIRTY_DAYS_MS),
       privileged_audits: {
         last_24h: countPrivilegedDocuments(db, nowMs - DAY_MS),
         last_30d: countPrivilegedDocuments(db, nowMs - THIRTY_DAYS_MS),
@@ -581,6 +745,8 @@ export function collectAggregates(db: StatusDb, nowMs: number): AggregateSnapsho
         by_grade_30d: emptyGradeCounts(),
         by_grade_total: emptyGradeCounts(),
       },
+      distinct_documents: { last_24h: 0, last_30d: 0, total: 0 },
+      document_progress_30d: emptyDocumentProgress(),
       privileged_audits: { last_24h: 0, last_30d: 0, total: 0 },
       documents_rejected: {
         last_24h: 0,
@@ -896,6 +1062,8 @@ export function createStatusService(deps: StatusDeps) {
       database: agg.database,
       engines: eng,
       documents_audited: agg.documents_audited,
+      distinct_documents: agg.distinct_documents,
+      document_progress_30d: agg.document_progress_30d,
       privileged_audits: agg.privileged_audits,
       documents_rejected: agg.documents_rejected,
       disk,

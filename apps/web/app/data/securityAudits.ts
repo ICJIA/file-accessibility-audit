@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.89.0",
+    meta: "Reviewed <strong>2026-08-25</strong> · scope: two new families of aggregate figures on the public status page — distinct documents checked, and whether re-checked documents improve. Nothing new is collected or stored; no new way to reach the service; no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The status page now answers a question its raw counts could not: do documents actually get fixed? It publishes how many <em>distinct</em> documents were checked per period, and — for the last 30 days — how many documents were checked more than once, how many of those improved, and the median score change. Every figure is computed inside the database from the usage records this policy already describes (&sect; 6, &sect; 8), by grouping on the stored file name; only counts and one median come out. The addition is recorded in &sect; 14 (policy v1.13).",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>No new exposure by construction, and proven by test.</strong> The grouping query can only return numbers &mdash; the file name is the grouping key and is never in its output; the content fingerprint is consumed by a distinct-count. An automated test plants a distinctive file name and two fingerprints, confirms the new figures counted them, and confirms neither value appears anywhere in the published document. The queries are parameterized throughout, and the web rendering receives nothing but numbers.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Small-sample withholding.</strong> When fewer than five documents were re-checked in the period, the rates and the median are withheld &mdash; over so few documents they would describe one visitor&rsquo;s documents rather than a usage pattern. The counts themselves remain published, like every other aggregate on the page.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Residual, accepted.</strong> The service has no accounts, so documents with the same file name &mdash; whoever uploaded them &mdash; are grouped together. Someone who already knows a document&rsquo;s exact file name could, during quiet traffic, infer that its score moved by watching the counts change. What that reveals is an accessibility score and nothing else; anyone who holds the file itself can already obtain the exact score by auditing it, and the page has always published score information at this granularity in its per-period grade distributions.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.88.5",
     meta: "Reviewed <strong>2026-08-25</strong> · scope: two read-only views added to the staff log-reading script, and a calmer start-of-day wait in its error-log follower. No new way to reach the service, no new information collected, no retention period changed.",
     body: [

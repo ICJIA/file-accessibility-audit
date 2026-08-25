@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "status-shows-document-progress-2026-08-25",
+    badge: "New",
+    text: "The status page now shows whether documents improve. Two new figures are published there: how many distinct documents were checked (not just how many checks ran), and — for the last 30 days — how many documents were checked more than once, how many of those improved, and the typical score change among re-checked documents. Every figure is a count or a median computed from the usage records the data-retention policy already describes; no file name, content fingerprint, or individual score is shown. When fewer than five documents qualify, the rates and the median are withheld rather than describe a single visitor's documents, and the counts remain published like every other figure on the page. The data-retention policy (now v1.13) records the addition in its change log, and the release was security-reviewed before publishing, with the review recorded in the security log.",
+    linkText: "See the status page",
+    linkTo: "/status?html",
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 25, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "activity-export-and-failed-audits-2026-08-22",
     badge: "Improved",
     text: "The service now keeps a daily record of what it did, on its own server, for the people who audit it. Each night the previous day's usage records — which documents and pages were checked, with what result — are written to one file, kept for the same 365 days as the records themselves and then deleted. Audits that could not be completed are now recorded too, with a one-word reason and never the error text. The service also keeps its own error log for 30 days so a fault can be diagnosed quickly. These records hold the same fields the usage record always has — nothing about who made a request — and nothing is downloadable from this site; the data-retention policy (now v1.12) describes exactly what they hold.",
@@ -1791,6 +1802,22 @@ export const STATUS = {
    * Raise it on a small volume, where 10% may be smaller than one backup.
    */
   DISK_LOW_FREE_PCT: 10,
+
+  /**
+   * Small-sample floor for the document_progress_30d statistics on /status.
+   *
+   * The progress block reports rates and a median over documents that were
+   * audited more than once in the last 30 days. Below this many qualifying
+   * documents the derived figures are suppressed (median_lift is null in the
+   * JSON; the HTML card shows an em dash): a "median" of one document is not
+   * a statistic, it is a description of somebody's afternoon. Raw counts are
+   * always published — they are ordinary aggregates like every other number
+   * on the page.
+   *
+   * SAFE TO CHANGE: Yes. Raise it for stricter suppression; 2 is the lowest
+   * value at which "median" means anything at all.
+   */
+  PROGRESS_MIN_DOCS: 5,
 } as const;
 
 // ---------------------------------------------------------------------------

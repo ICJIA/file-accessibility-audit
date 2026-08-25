@@ -4,6 +4,7 @@ import {
   renderStatusHtml,
   renderGradeDistribution,
   renderFormatSplit,
+  renderDocumentProgress,
   renderRejectedUploads,
   renderBackup,
   renderDiskLine,
@@ -966,5 +967,61 @@ describe("renderPrivilegedAudits — trusted-tool (privileged) tier volume", () 
     // simply not appear rather than render zeros or throw.
     const html = renderStatusHtml(PAYLOAD);
     expect(html).not.toContain("Trusted-tool");
+  });
+});
+
+describe("renderDocumentProgress — the remediation-loop card (v1.89.0)", () => {
+  const PROGRESS = {
+    document_progress_30d: {
+      documents: 41,
+      reaudited: 12,
+      improvable: 9,
+      improved: 7,
+      reached_a: 5,
+      median_lift: 18,
+    },
+  };
+
+  it("renders nothing when the payload has no progress block (an older API build)", () => {
+    expect(renderDocumentProgress(PAYLOAD)).toBe("");
+    expect(renderStatusHtml(PAYLOAD)).not.toContain("re-checked");
+  });
+
+  it("shows the headline figures, their rates, and where the numbers come from", () => {
+    const html = renderDocumentProgress({ ...PAYLOAD, ...PROGRESS });
+    expect(html).toMatch(/41/); // documents checked
+    expect(html).toMatch(/12/); // re-checked
+    expect(html).toMatch(/29\s?%/); // 12 of 41
+    expect(html).toMatch(/7 of 9/); // improved of improvable
+    expect(html).toMatch(/78\s?%/); // 7 of 9
+    expect(html).toMatch(/5 reached an A/);
+    expect(html).toContain("+18"); // median lift, signed
+    // The provenance sentence the data-retention policy expects: name the
+    // fields the figures are computed from, and state what is not shown.
+    expect(html).toContain("file name, score, and time of audit");
+    expect(html).toContain("No file name");
+  });
+
+  it("suppresses rates and the median below the small-sample floor, and says why", () => {
+    const html = renderDocumentProgress({
+      ...PAYLOAD,
+      document_progress_30d: {
+        documents: 3,
+        reaudited: 1,
+        improvable: 1,
+        improved: 1,
+        reached_a: 0,
+        median_lift: null,
+      },
+    });
+    expect(html).toContain("too few");
+    expect(html).not.toMatch(/\d\s?%/); // no rate may be derived from 1 document
+    expect(html).toContain("3"); // the raw counts themselves stay published
+  });
+
+  it("is wired into the page and folds like the other interpretive cards", () => {
+    const page = renderStatusHtml({ ...PAYLOAD, ...PROGRESS });
+    expect(cardFor(page, "prog-h")).toContain('<details class="card">');
+    expect(page).toContain('<summary><h2 id="prog-h">');
   });
 });

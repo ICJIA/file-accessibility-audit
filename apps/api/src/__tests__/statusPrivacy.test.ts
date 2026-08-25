@@ -30,6 +30,11 @@ const T0 = Date.UTC(2026, 7, 3, 14, 22, 10);
 // that still exist: the uploaded filename and the content hash.
 const SECRET_FILENAME = "ZZTOP-Confidential-Budget-Memo-2026.pdf";
 const SECRET_HASH = "deadbeefcafebabe0123456789abcdef0123456789abcdef0123456789abcdef";
+// A second version of the same document: same secret filename, different
+// bytes. Makes the document_progress_30d group genuinely populated (one
+// re-audited document) so the assertions below prove the loop stats consume
+// the filename without ever disclosing it.
+const SECRET_HASH_V2 = "feedface0123456789abcdef0123456789abcdef0123456789abcdefdeadbeef";
 const SECRET_PATH = "/opt/verapdf/verapdf";
 
 function seededDb(): DB {
@@ -40,6 +45,11 @@ function seededDb(): DB {
        (event_type, filename, score, grade, content_hash, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run("analyze", SECRET_FILENAME, 42, "F", SECRET_HASH, "2026-08-03 09:22:10");
+  db.prepare(
+    `INSERT INTO audit_log
+       (event_type, filename, score, grade, content_hash, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("analyze", SECRET_FILENAME, 95, "A", SECRET_HASH_V2, "2026-08-03 11:22:10");
   db.prepare(
     `INSERT INTO remediation_jobs (id, input_filename, status, created_at, expires_at)
      VALUES (?, ?, ?, ?, ?)`,
@@ -84,14 +94,22 @@ describe("/status never discloses identifying data", () => {
     const payload = await build();
     const json = JSON.stringify(payload);
 
-    // Proves the row was actually read — otherwise the assertions below
+    // Proves the rows were actually read — otherwise the assertions below
     // would pass trivially against an empty result set.
-    expect(payload.documents_audited.total).toBe(1);
-    expect(payload.documents_audited.by_format_total.pdf).toBe(1);
+    expect(payload.documents_audited.total).toBe(2);
+    expect(payload.documents_audited.by_format_total.pdf).toBe(2);
     expect(payload.remediation.jobs_24h.complete).toBe(1);
+    // The distinct-document and progress stats consume the filename (as the
+    // SQL partition key) and both hashes (in a DISTINCT count) — and emit
+    // numbers only.
+    expect(payload.distinct_documents.total).toBe(2);
+    expect(payload.document_progress_30d.documents).toBe(1);
+    expect(payload.document_progress_30d.reaudited).toBe(1);
+    expect(payload.document_progress_30d.improved).toBe(1);
 
     expect(json).not.toContain(SECRET_FILENAME);
     expect(json).not.toContain(SECRET_HASH);
+    expect(json).not.toContain(SECRET_HASH_V2);
   });
 
   it("the database physically cannot hold email, IP, or user-agent (v1.68.0)", () => {
@@ -195,6 +213,13 @@ describe("/status never discloses identifying data", () => {
         "database",
         "disk",
         "documents_audited",
+        // Distinct uploaded contents per window — COUNT(DISTINCT hash) inside
+        // SQLite, counts only. Deliberate addition (v1.89.0).
+        "distinct_documents",
+        // The re-audit loop, folded to six numbers (counts + one median);
+        // filenames are the SQL partition key and are never selected out.
+        // Deliberate addition (v1.89.0).
+        "document_progress_30d",
         // Aggregate privileged-tier audit counts (24h/30d/total). A property
         // of the shared service token, never identity — deliberate addition.
         "privileged_audits",

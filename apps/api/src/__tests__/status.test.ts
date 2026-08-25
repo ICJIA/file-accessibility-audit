@@ -68,24 +68,30 @@ function seedAudit(
     eventType: string;
     filename: string;
     agoMs?: number;
+    /** Defaults to 80. Pass null explicitly to write a NULL score — the shape
+     *  of a failed audit's row, which the progress stats must skip. */
+    score?: number | null;
     /** Defaults to "B". Pass null explicitly to write a NULL grade, which is
      *  what a failed audit (and any row predating the column) looks like. */
     grade?: string | null;
     /** Request tier: 1 = privileged (trusted-tool), 0 = public. Omit to write
      *  NULL — the shape of a row predating the privileged column. */
     privileged?: 0 | 1;
+    /** Defaults to NULL (rows predating the hash, and failed audits). */
+    contentHash?: string | null;
   },
 ): void {
   const at = new Date(T0 - (opts.agoMs ?? 0)).toISOString().replace("T", " ").slice(0, 19);
   db.prepare(
-    `INSERT INTO audit_log (event_type, filename, score, grade, privileged, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO audit_log (event_type, filename, score, grade, privileged, content_hash, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     opts.eventType,
     opts.filename,
-    80,
+    opts.score === undefined ? 80 : opts.score,
     opts.grade === undefined ? "B" : opts.grade,
     opts.privileged ?? null,
+    opts.contentHash ?? null,
     at,
   );
 }
@@ -1190,5 +1196,114 @@ describe("local time comes from DEPLOY.LOCAL_TIME_ZONE (v1.88.0)", () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(new URL("../services/status.ts", import.meta.url), "utf8");
     expect(src).not.toMatch(/timeZone:\s*"America\/Chicago"/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Distinct documents + the remediation loop (document_progress_30d)
+// ---------------------------------------------------------------------------
+// Both are aggregates over columns the payload already draws on. Filenames and
+// hashes are consumed inside SQLite / inside the service; only counts and a
+// median cross the boundary — statusPrivacy.test.ts holds that line.
+
+describe("distinct documents (by content hash)", () => {
+  it("counts distinct uploaded contents across the three windows", async () => {
+    const db = freshDb();
+    const h1 = "a".repeat(64);
+    const h2 = "b".repeat(64);
+    const h3 = "c".repeat(64);
+    seedAudit(db, { eventType: "analyze", filename: "x.pdf", contentHash: h1, agoMs: HOUR });
+    // The same bytes re-checked: a second audit, not a second document.
+    seedAudit(db, { eventType: "analyze", filename: "x.pdf", contentHash: h1, agoMs: 2 * HOUR });
+    seedAudit(db, { eventType: "audit-url", filename: "y.pdf", contentHash: h2, agoMs: 10 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "z.pdf", contentHash: h3, agoMs: 40 * DAY });
+    // No hash (an old row): counted by documents_audited, not here.
+    seedAudit(db, { eventType: "analyze", filename: "nohash.pdf", agoMs: HOUR });
+    // A page audit is not a document.
+    seedAudit(db, {
+      eventType: "audit-url-page",
+      filename: "https://x.gov/p",
+      contentHash: "d".repeat(64),
+      agoMs: HOUR,
+    });
+
+    const payload = await makeService(db).getStatus();
+    expect(payload.distinct_documents).toEqual({ last_24h: 1, last_30d: 2, total: 3 });
+  });
+});
+
+describe("document_progress_30d (the remediation loop)", () => {
+  it("groups the last 30 days by filename: runs, improvability, improvement", async () => {
+    const db = freshDb();
+    // grant.pdf: 69 → 79 → 89 — re-audited, improvable, improved, not yet an A.
+    seedAudit(db, { eventType: "analyze", filename: "grant.pdf", score: 69, agoMs: 25 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "grant.pdf", score: 79, agoMs: 20 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "grant.pdf", score: 89, agoMs: 2 * DAY });
+    // deck.pptx: started at an A — re-audited but not improvable.
+    seedAudit(db, { eventType: "analyze", filename: "deck.pptx", score: 95, agoMs: 3 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "deck.pptx", score: 100, agoMs: DAY });
+    // solo.pdf: audited once.
+    seedAudit(db, { eventType: "analyze", filename: "solo.pdf", score: 50, agoMs: DAY });
+    // Entirely outside the window.
+    seedAudit(db, { eventType: "analyze", filename: "old.pdf", score: 10, agoMs: 40 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "old.pdf", score: 20, agoMs: 35 * DAY });
+    // A failed attempt writes no score and is not a run.
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "grant.pdf",
+      score: null,
+      grade: null,
+      agoMs: DAY,
+    });
+
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.documents).toBe(3);
+    expect(p.reaudited).toBe(2);
+    expect(p.improvable).toBe(1);
+    expect(p.improved).toBe(1);
+    expect(p.reached_a).toBe(0);
+  });
+
+  it("reports the median lift once at least PROGRESS_MIN_DOCS documents were re-audited", async () => {
+    const db = freshDb();
+    const pairs: Array<[string, number, number]> = [
+      ["a.pdf", 50, 60], // +10
+      ["b.pdf", 60, 80], // +20
+      ["c.pdf", 40, 70], // +30
+      ["d.pdf", 88, 88], // 0
+      ["e.pdf", 69, 100], // +31 — reaches an A
+    ];
+    for (const [f, first, last] of pairs) {
+      seedAudit(db, { eventType: "analyze", filename: f, score: first, agoMs: 5 * DAY });
+      seedAudit(db, { eventType: "analyze", filename: f, score: last, agoMs: DAY });
+    }
+
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.reaudited).toBe(5);
+    expect(p.improvable).toBe(5);
+    expect(p.improved).toBe(4); // d.pdf did not move
+    expect(p.reached_a).toBe(1); // e.pdf
+    expect(p.median_lift).toBe(20); // 0, 10, 20, 30, 31
+  });
+
+  it("suppresses the median below the small-document floor", async () => {
+    const db = freshDb();
+    expect(STATUS.PROGRESS_MIN_DOCS).toBeGreaterThan(1);
+    seedAudit(db, { eventType: "analyze", filename: "a.pdf", score: 50, agoMs: 2 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "a.pdf", score: 90, agoMs: DAY });
+
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.reaudited).toBe(1);
+    expect(p.median_lift).toBeNull();
+  });
+
+  it("breaks same-second ties by insertion order, so first and last are stable", async () => {
+    const db = freshDb();
+    seedAudit(db, { eventType: "analyze", filename: "tie.pdf", score: 50, agoMs: DAY });
+    seedAudit(db, { eventType: "analyze", filename: "tie.pdf", score: 90, agoMs: DAY });
+
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.improved).toBe(1); // 50 → 90, never 90 → 50
+    expect(p.reached_a).toBe(1);
   });
 });

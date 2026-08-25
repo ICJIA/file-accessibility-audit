@@ -16,6 +16,7 @@
 // Inline <style> is fine: the CSP keeps style-src 'unsafe-inline'.
 
 import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import { STATUS } from "../../../../audit.config";
 import { CORE_ENGINE_NAMES } from "./status";
 
 /** HTML-escape. Applied to every key and value without exception.
@@ -499,6 +500,90 @@ function renderRejectedWindow(title: string, total: number, raw: Record<string, 
     `<th scope="col">Format</th><th scope="col">Files</th><th scope="col">Share</th>` +
     `</tr></thead><tbody>${body}</tbody></table></div>`
   );
+}
+
+/**
+ * The remediation-loop card ("Do documents improve?"), or "" when the payload
+ * has no document_progress_30d block (an older API build — omit rather than
+ * render fabricated zeros).
+ *
+ * Every figure is a count or one median the API already folded; this renderer
+ * derives only the two percentages. Below the small-sample floor
+ * (STATUS.PROGRESS_MIN_DOCS re-checked documents) the rates and median are
+ * replaced by an em dash and the card says why — a rate over one document
+ * would narrate a single visitor's afternoon, which is exactly what this page
+ * must never do. The raw counts stay: they are ordinary aggregates like every
+ * other number here.
+ */
+export function renderDocumentProgress(body: Record<string, unknown>): string {
+  const prog = asRecord(body.document_progress_30d);
+  if (!prog) return "";
+
+  const documents = asCount(prog.documents);
+  const reaudited = asCount(prog.reaudited);
+  const improvable = asCount(prog.improvable);
+  const improved = asCount(prog.improved);
+  const reachedA = asCount(prog.reached_a);
+  const medianLift = typeof prog.median_lift === "number" ? prog.median_lift : null;
+  const floored = reaudited < STATUS.PROGRESS_MIN_DOCS;
+
+  const num = (n: number) => n.toLocaleString("en-US");
+  const share = (n: number, total: number) =>
+    floored || total === 0 ? "—" : `${Math.round(pct(n, total))}%`;
+  const medianCell =
+    floored || medianLift === null ? "—" : `${medianLift > 0 ? "+" : ""}${medianLift} points`;
+  const improvedCell =
+    improvable === 0
+      ? floored
+        ? num(improved)
+        : "none started below an A"
+      : `${num(improved)} of ${num(improvable)} that started below an A` +
+        (floored || reachedA === 0 ? "" : ` — ${num(reachedA)} reached an A`);
+
+  const rows: Array<[string, string, string]> = [
+    ["Documents checked", num(documents), ""],
+    ["Re-checked (audited 2+ times)", num(reaudited), share(reaudited, documents)],
+    ["Improved after a re-check", improvedCell, share(improved, improvable)],
+    ["Median score change among re-checked", medianCell, ""],
+  ];
+  const table =
+    `<table><thead><tr>` +
+    `<th scope="col">Measure</th><th scope="col">Value</th><th scope="col">Share</th>` +
+    `</tr></thead><tbody>` +
+    rows
+      .map(
+        ([label, value, sharePct]) =>
+          `<tr><th scope="row">${escapeHtml(label)}</th>` +
+          `<td class="n">${escapeHtml(value)}</td>` +
+          `<td class="pc">${escapeHtml(sharePct)}</td></tr>`,
+      )
+      .join("") +
+    `</tbody></table>`;
+
+  const flooredNote = floored
+    ? `<p class="none">Rates and the median are hidden: too few re-checked documents in this ` +
+      `window (fewer than ${STATUS.PROGRESS_MIN_DOCS}) for either to describe a pattern. ` +
+      `The counts are exact.</p>`
+    : "";
+
+  return fold({
+    id: "prog-h",
+    title: "Do documents improve?",
+    peek:
+      reaudited > 0
+        ? `${num(reaudited)} of ${num(documents)} documents re-checked in 30 days`
+        : documents > 0
+          ? `${num(documents)} checked in 30 days, none re-checked yet`
+          : "no documents in the last 30 days",
+    body:
+      `<p class="caveat">The audit &rarr; fix &rarr; re-audit loop over the last 30 days. ` +
+      `Computed from stored audit records — the file name, score, and time of audit — grouped ` +
+      `by file name inside the database. No file name, content hash, or individual score ` +
+      `appears here; only these counts and one median are published. A document counts as ` +
+      `re-checked when the same file name was audited more than once; failed audits are not ` +
+      `counted at all.</p>` +
+      `<div class="windows"><div class="win"><h3>Last 30 days</h3>${table}${flooredNote}</div></div>`,
+  });
 }
 
 /**
@@ -1101,6 +1186,7 @@ ${renderStatusStrip(body)}
 ${renderEngines(body)}
 ${renderGradeDistribution(body)}
 ${renderFormatSplit(body)}
+${renderDocumentProgress(body)}
 ${renderPrivilegedAudits(body)}
 ${renderRejectedUploads(body)}
 ${renderBackup(body)}

@@ -6,6 +6,20 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.13 · 2026-08-25</strong> — Nothing new is collected or stored; no retention
+        period changes. The public status page publishes two new families of
+        <em>aggregate</em> figures computed from the usage-metadata records the policy already
+        describes (§ 6, § 8): the number of <em>distinct documents</em> audited (a count of distinct
+        content fingerprints — the fingerprints themselves are never shown), and a
+        <em>re-audit summary</em> for the last 30 days — how many documents were checked more than
+        once, how many of those improved, and the median score change. The summary is computed by
+        grouping records by file name inside the database; no file name, fingerprint, or individual
+        score is published. When fewer than five documents qualify, the rates and the median are
+        withheld — over so few documents they would describe a single visitor's documents rather
+        than a usage pattern. The counts themselves remain published, like every other aggregate
+        count on the status page.
+      </li>
+      <li>
         <strong>v1.12 · 2026-08-22</strong> — Two additions, no change to any retention period.
         <em>Failed audits are now recorded</em> in the usage-metadata table: an audit the tool
         attempted and could not complete leaves a row with the same fields as a successful one, no

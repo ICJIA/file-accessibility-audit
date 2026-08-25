@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.89.0] - 2026-08-25
+
+### Added
+
+- **`/status` answers "do documents improve?"** — in both the JSON payload and the HTML view. `distinct_documents` counts distinct uploaded contents per window (by hash, counted inside SQLite: the same bytes re-checked stay one document; a re-export counts as a new one). `document_progress_30d` is the audit → fix → re-audit loop over the last 30 days, grouped by file name inside SQLite: documents checked, checked 2+ times, improved after starting below an A, reached an A, and the median score change among re-checked documents. The HTML view renders it as the **"Do documents improve?"** card.
+- **A small-sample floor** (`STATUS.PROGRESS_MIN_DOCS`, 5): below it, `median_lift` is `null` in the JSON and the HTML card replaces every rate and the median with an em dash and says why. Raw counts are always published — they are ordinary aggregates like every other number on the page.
+- **Privacy proven, not asserted.** The grouped SQL selects only numbers — the file name is the partition key and is never in the SELECT list; the hash is consumed by `COUNT(DISTINCT …)`. `statusPrivacy.test.ts` now seeds two versions of a secret filename and proves the new blocks consumed the name and both hashes while neither appears anywhere in the serialized JSON; the payload's top-level key allow-list gained the two fields as deliberate additions. Data-retention policy → **v1.13** (§ 14 entry), pinned — including the overclaim guard — by the new `statusProgressPolicy.test.ts`.
+- Announcement banner entry (visitor-facing); README documents both fields, and its `/api/status` sample also gained the v1.86.0 fields (`privileged_audits`, `disk`, `privileged_tier`) it had silently been missing.
+
+### Security
+
+- Reviewed before release: parameterized SQL built from config constants only (no injection path), only numbers reach the HTML tier (no XSS vector), no filename or hash serialization (seeded-secret proof). One residual accepted and documented in § 10 and the README security log: with no accounts, same-named uploads merge in the grouped counts, so someone who already knows a document's exact file name could infer its score movement from count deltas during quiet traffic — it discloses only an accessibility score, and anyone holding the file itself can already get the exact score by auditing it.
+
+### Notes
+
+- No schema change, no new route, no retention-period change; nothing new is collected or stored.
+- Tests: API +5 → 1,408 · web +7 → 1,141 · CLI 49 (**2,598** across 169 files).
+
 ## [1.88.5] - 2026-08-25
 
 ### Added

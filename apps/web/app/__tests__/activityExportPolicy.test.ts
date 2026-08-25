@@ -32,7 +32,6 @@ const s07 = read("app/components/dataRetention/Section07RetentionTable.vue");
 const s08 = read("app/components/dataRetention/Section08Stored.vue");
 const s08a = read("app/components/dataRetention/Section08aStorageVerification.vue");
 const s14 = read("app/components/dataRetention/Section14ChangeLog.vue");
-const page = read("app/pages/data-retention.vue");
 
 const REASONS = ["unreadable", "timeout", "fetch-failed", "navigation-failed", "internal"];
 
@@ -73,9 +72,10 @@ describe("data-retention policy v1.12: failed audits + daily activity files", ()
     expect(visible(s08a)).toMatch(/migration 13's reason code/);
   });
 
-  it("§ 14 has the v1.12 entry and the header constant agrees", () => {
+  it("§ 14 keeps the v1.12 entry — history is append-only", () => {
+    // The header constant has moved on (dataRetentionVersion.test.ts holds it
+    // to the NEWEST § 14 entry); this test owns the v1.12 entry itself.
     expect(s14).toMatch(/<strong>v1\.12 · 2026-08-22<\/strong>/);
-    expect(page).toContain('const POLICY_VERSION = "1.12"');
     const entry = visible(between(s14, "v1.12 · 2026-08-22", "</li>"));
     expect(entry).toMatch(/no change to any retention period/i);
     expect(entry).toMatch(/not part of the nightly backup/);
