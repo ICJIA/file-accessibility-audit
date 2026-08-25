@@ -6,6 +6,8 @@
 #   ./logs.sh 200                    the 200 most recent
 #   ./logs.sh 2026-08-19             every audit on that day
 #   ./logs.sh failed 2026-08-19      only the audits that could not complete, with the reason
+#   ./logs.sh docs                   the remediation loop: documents audited 2+ times, first → last score
+#   ./logs.sh doc grant-report       one document's whole history, oldest first (name fragment or hash prefix)
 #   ./logs.sh errors                 today's error log (message + stack trace per fault)
 #   ./logs.sh tail                   watch today's error log live (Ctrl-C to stop)
 #   ./logs.sh help                   this text
@@ -35,6 +37,21 @@
 #                                     across as many days' files as it takes
 #   ./logs.sh activity [DATE] [FMT]   every audit on one day (default: yesterday)
 #   ./logs.sh failed [DATE] [FMT]     only that day's failed audits, with the reason
+#   ./logs.sh docs [N|DATE] [FMT]     the remediation loop, grouped: one row per document audited 2 or
+#                                     more times — how many runs, how many distinct versions (content
+#                                     hashes), the first and last score, and the change between them,
+#                                     newest activity first. N looks among the N most recent audits
+#                                     (default 500); a DATE looks at that day only. Failed audits are
+#                                     not counted — ./logs.sh failed shows those.
+#   ./logs.sh doc PATTERN [FMT]       every audit of one document, oldest first, across every day on
+#                                     file (failed attempts included). PATTERN is a file-name fragment
+#                                     (case-insensitive) or a content-hash prefix (6+ hex characters).
+#     Examples:
+#       ./logs.sh docs                        which documents were fixed and re-checked, and did they improve
+#       ./logs.sh docs 200                    the loop within the 200 most recent audits
+#       ./logs.sh docs yesterday --md         yesterday's re-audited documents, as a Markdown table
+#       ./logs.sh doc grant-report            every audit of file names containing "grant-report"
+#       ./logs.sh doc 4c5e4b5abd70 --table    one exact upload's audits, by its content-hash prefix
 #   ./logs.sh errors [DATE]           the error log for one day (default: today)
 #   ./logs.sh grep PATTERN [DATE]     search the error log for one day (default: today)
 #   ./logs.sh tail                    follow today's error log live (Ctrl-C to stop)
@@ -58,7 +75,7 @@
 #     ./logs.sh grep ERR_ABORTED 2026-08-19
 #   ./logs.sh list shows which days have a file.
 #
-# FMT — how a table of audits is printed (recent / activity / failed)
+# FMT — how a table of audits is printed (recent / activity / failed / docs / doc)
 #   --table   aligned columns for reading in the terminal   (default at a terminal)
 #   --csv     the file as-is                                 (default when piped or redirected)
 #   --tsv     tab-separated — pastes into Excel / Numbers / Sheets as columns
@@ -90,7 +107,7 @@ AUDIT_REMOTE_DIR="${AUDIT_REMOTE_DIR:-audit.icjia.app/file-accessibility-audit}"
 TZ_LOCAL="America/Chicago"
 RECENT_DEFAULT=500  # rows shown by a bare ./logs.sh
 LIST_DEFAULT=15     # files shown by ./logs.sh list
-COMMANDS="recent activity failed errors grep tail list pull help"
+COMMANDS="recent activity failed docs doc errors grep tail list pull help"
 SELF="${BASH_SOURCE[0]:-$0}"
 
 here() { cd "$(dirname "$SELF")" 2>/dev/null && pwd; }
@@ -160,8 +177,15 @@ clip() {
 }
 
 # --- CSV rendering (python3: real RFC 4180 parsing — quoted commas, the BOM) ----------
-# render FORMAT FILTER LIMIT FILE...
-#   FORMAT: table|csv|tsv|md    FILTER: all|failed
+# render FORMAT MODE LIMIT FILE...
+#   FORMAT: table|csv|tsv|md
+#   MODE:   all            every row
+#           failed         only *-failed rows
+#           group          one row per filename audited 2+ times (runs, versions, first
+#                          and last score, change) — failed rows are not counted
+#           match:PATTERN  rows whose filename contains PATTERN (case-insensitive) or
+#                          whose content_hash starts with it (6+ hex chars); every file
+#                          is read and LIMIT is ignored — oldest first, the whole story
 #   LIMIT 0: one day's file, rows in file order (oldest first), "N row(s)" under a table.
 #   LIMIT N: the files are whole days; take the last N rows overall, newest first, with a
 #            caption saying what was shown (in the table itself; on stderr for the paste
@@ -171,7 +195,8 @@ render() {
   command -v python3 >/dev/null 2>&1 || die "python3 is required for --table/--tsv/--md (use --csv)"
   LOGS_TZ="$TZ_LOCAL" python3 - "$@" <<'PY'
 import csv, os, re, sys
-fmt, flt, limit, paths = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4:]
+fmt, mode, limit, paths = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4:]
+pattern = mode[len("match:"):] if mode.startswith("match:") else None
 
 def read(path):
     with open(path, encoding="utf-8-sig", newline="") as fh:
@@ -183,7 +208,41 @@ def day_of(path):  # activity-YYYY-MM-DD.csv -> YYYY-MM-DD
     return m.group(0) if m else os.path.basename(path)
 
 caption = None
-if limit == 0:
+if pattern is not None:
+    # One document's whole story: every day on file, oldest first — a journey
+    # must not lose its first chapter to a row window, so LIMIT is ignored.
+    header, body = [], []
+    for path in sorted(paths, key=day_of):                     # oldest day first
+        h, rows = read(path)
+        if not h or not rows:
+            continue
+        if not header:
+            header = h
+        elif h != header:                                      # an older layout: match columns by name
+            at = {name: i for i, name in enumerate(h)}
+            rows = [[r[at[c]] if c in at and at[c] < len(r) else "" for c in header] for r in rows]
+        body += rows
+    if not header:
+        print("no audits on file yet — every activity file is empty", file=sys.stderr)
+        sys.exit(0)
+    fi0 = header.index("filename") if "filename" in header else -1
+    hi0 = header.index("content_hash") if "content_hash" in header else -1
+    pl = pattern.lower()
+    hexish = re.fullmatch(r"[0-9a-fA-F]{6,}", pattern) is not None
+    def matches(r):
+        name = (r[fi0] if 0 <= fi0 < len(r) else "").lower()
+        h = (r[hi0] if 0 <= hi0 < len(r) else "").lower()
+        return pl in name or (hexish and h.startswith(pl))
+    body = [r for r in body if matches(r)]
+    if body:
+        ti0 = header.index("timestamp_chicago") if "timestamp_chicago" in header else -1
+        d0 = body[0][ti0][:10] if 0 <= ti0 < len(body[0]) else ""
+        d1 = body[-1][ti0][:10] if 0 <= ti0 < len(body[-1]) else ""
+        span = d0 if d0 == d1 else f"{d0} to {d1}"
+        caption = f"all {len(body)} audits matching '{pattern}', oldest first — {span}"
+    else:
+        caption = f"no audits matching '{pattern}' anywhere on file"
+elif limit == 0:
     header, body = read(paths[0])
 else:
     header, chrono, days, need = [], [], [], limit
@@ -214,7 +273,46 @@ else:
                f"so today's audits are not on file yet)")
 if not header:
     sys.exit(0)
-if flt == "failed" and "event" in header:
+if mode == "group":
+    # The remediation loop: collapse the rows selected above into one row per
+    # document (filename) audited 2 or more times — the audit → fix → re-audit
+    # story. Failed rows carry no score and are not counted here.
+    def at(name): return header.index(name) if name in header else -1
+    ei_, fi_, si_, gi_, hi_, tu_, tc_ = (at(n) for n in
+        ("event", "filename", "score", "grade", "content_hash", "timestamp_utc", "timestamp_chicago"))
+    def cell(r, i): return r[i] if 0 <= i < len(r) else ""
+    windowed = len(body)
+    groups = {}
+    for r in body:
+        if cell(r, ei_).endswith("-failed") or not cell(r, si_):
+            continue
+        groups.setdefault(cell(r, fi_), []).append(r)
+    singles = sum(1 for rows in groups.values() if len(rows) < 2)
+    grouped = []
+    for name, rows in groups.items():
+        if len(rows) < 2:
+            continue
+        rows.sort(key=lambda r: cell(r, tu_))
+        first, last = rows[0], rows[-1]
+        versions = len({cell(r, hi_) for r in rows} - {""})
+        try:
+            d = int(cell(last, si_)) - int(cell(first, si_))
+            change = f"+{d}" if d > 0 else str(d)
+        except ValueError:
+            change = ""
+        grouped.append((cell(last, tu_), [name, str(len(rows)), str(versions),
+                        f"{cell(first, si_)} {cell(first, gi_)}".strip(),
+                        f"{cell(last, si_)} {cell(last, gi_)}".strip(),
+                        change, cell(first, tc_), cell(last, tc_)]))
+    grouped.sort(key=lambda p: p[0], reverse=True)              # newest activity first
+    header = ["filename", "runs", "versions", "first", "last", "change", "first_at", "last_at"]
+    body = [row for _, row in grouped]
+    scope = f"among {what} — {span}" if limit else f"on {day_of(paths[0])}"
+    note = (f"; a day's file is written just after midnight {os.environ.get('LOGS_TZ', 'local time')}, "
+            f"so today's audits are not on file yet" if limit else "")
+    caption = (f"{len(body)} document(s) audited 2 or more times {scope}, newest activity first\n"
+               f"({singles} audited once not shown; failed audits not counted{note})")
+if mode == "failed" and "event" in header:
     ei = header.index("event")
     body = [r for r in body if len(r) > ei and r[ei].endswith("-failed")]
 one_line = lambda c: c.replace("\r", " ").replace("\n", " ")
@@ -260,16 +358,34 @@ PY
 # a command substitution — so a die() nested in a further $(…) (resolve_date, errors_file)
 # only ends that inner subshell. Every such call carries an explicit `|| exit $?` to
 # stop the command there, with one message, instead of carrying on with an empty value.
+# Every day's activity CSV, into the global FILES array — dies if there are none.
+activity_files() {
+  local f; FILES=()
+  [ -d "$LOGS_DIR" ] || die "no directory $LOGS_DIR"
+  for f in "$LOGS_DIR"/activity-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].csv; do
+    [ -f "$f" ] && FILES+=("$f")
+  done
+  [ ${#FILES[@]} -gt 0 ] || die "no activity-YYYY-MM-DD.csv files in $LOGS_DIR yet — the API writes one per complete day within 5 minutes of starting (./logs.sh list shows what is there)"
+}
+
+# One day's activity CSV path, or die with the day-specific explanation.
+activity_day_file() {
+  local d f; d="$(resolve_date "${1:-yesterday}")" || exit $?
+  f="$LOGS_DIR/activity-$d.csv"
+  if [ ! -f "$f" ]; then
+    if [ "$d" = "$(today)" ]; then
+      die "no $(basename "$f") yet — a day's file is written just after midnight ($TZ_LOCAL), so today's audits are not on file until tomorrow; the newest day is yesterday, $(yesterday)"
+    fi
+    die "no $(basename "$f") — ./logs.sh list shows which days are on file (365 days are kept; the newest is yesterday, $(yesterday))"
+  fi
+  echo "$f"
+}
+
 cmd_recent() {  # $1 count, $2 format
   local n="${1:-$RECENT_DEFAULT}"
   is_count "$n" || die "N must be a whole number, 1 or more (for example: ./logs.sh recent 100) — got '$n'"
-  [ -d "$LOGS_DIR" ] || die "no directory $LOGS_DIR"
-  local f files=()
-  for f in "$LOGS_DIR"/activity-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].csv; do
-    [ -f "$f" ] && files+=("$f")
-  done
-  [ ${#files[@]} -gt 0 ] || die "no activity-YYYY-MM-DD.csv files in $LOGS_DIR yet — the API writes one per complete day within 5 minutes of starting (./logs.sh list shows what is there)"
-  render "$2" all "$n" "${files[@]}"
+  activity_files
+  render "$2" all "$n" "${FILES[@]}"
 }
 
 cmd_list() {
@@ -281,15 +397,28 @@ cmd_list() {
 }
 
 cmd_activity() {  # $1 date, $2 format, $3 filter
-  local d f; d="$(resolve_date "${1:-yesterday}")" || exit $?
-  f="$LOGS_DIR/activity-$d.csv"
-  if [ ! -f "$f" ]; then
-    if [ "$d" = "$(today)" ]; then
-      die "no $(basename "$f") yet — a day's file is written just after midnight ($TZ_LOCAL), so today's audits are not on file until tomorrow; the newest day is yesterday, $(yesterday)"
-    fi
-    die "no $(basename "$f") — ./logs.sh list shows which days are on file (365 days are kept; the newest is yesterday, $(yesterday))"
-  fi
+  local f; f="$(activity_day_file "${1:-yesterday}")" || exit $?
   render "$2" "$3" 0 "$f"
+}
+
+cmd_docs() {  # $1 row count or DATE (optional), $2 format
+  local w="${1:-}"
+  if [ -n "$w" ] && { is_date "$w" || is_date_word "$w"; }; then
+    local f; f="$(activity_day_file "$w")" || exit $?
+    render "$2" group 0 "$f"
+  else
+    local n="${w:-$RECENT_DEFAULT}"
+    is_count "$n" || die "docs takes a row count or a DATE (for example: ./logs.sh docs 200, or ./logs.sh docs $(yesterday)) — got '$w'"
+    activity_files
+    render "$2" group "$n" "${FILES[@]}"
+  fi
+}
+
+cmd_doc() {  # $1 pattern, $2 format
+  local p="${1:-}"
+  [ -n "$p" ] || die "usage: doc PATTERN — a file-name fragment (case-insensitive) or a content-hash prefix of 6+ hex characters (for example: ./logs.sh doc grant-report, or ./logs.sh doc 4c5e4b5abd70)"
+  activity_files
+  render "$2" "match:$p" 0 "${FILES[@]}"
 }
 
 errors_file() {
@@ -315,7 +444,16 @@ cmd_grep() {
 
 cmd_tail() {
   local f; f="$(errors_file)"
-  echo "following $f (Ctrl-C to stop; the file appears on the first error of the day)" >&2
+  # Started before the day's first error, the file does not exist yet. Waiting
+  # here (rather than handing tail -F the missing path) keeps tail's alarming
+  # "cannot open … No such file or directory" off the screen.
+  if [ ! -e "$f" ]; then
+    echo "no errors so far today — $(basename "$f") is created by the first error of the day; waiting for it (Ctrl-C to stop)" >&2
+    until [ -e "$f" ]; do sleep 1; done
+    echo "$(basename "$f") has appeared — following it now" >&2
+  else
+    echo "following $f (Ctrl-C to stop)" >&2
+  fi
   tail -n 50 -F "$f"
 }
 
@@ -352,7 +490,7 @@ main() {
   case "$cmd" in
     pull) cmd_pull ${positional[@]+"${positional[@]}"}; return 0 ;;
     tail) ;;  # no sink: follows the file
-    recent|activity|failed|errors|grep|list) ;;
+    recent|activity|failed|docs|doc|errors|grep|list) ;;
     *) die "unknown command '$cmd' — the commands are: $COMMANDS (./logs.sh help explains each)" ;;
   esac
 
@@ -381,6 +519,8 @@ main() {
       recent)   out="$(cmd_recent "${positional[0]:-}" "$fmt")" ;;
       activity) out="$(cmd_activity "${positional[0]:-}" "$fmt" all)" ;;
       failed)   out="$(cmd_activity "${positional[0]:-}" "$fmt" failed)" ;;
+      docs)     out="$(cmd_docs "${positional[0]:-}" "$fmt")" ;;
+      doc)      out="$(cmd_doc "${positional[0]:-}" "$fmt")" ;;
       errors)   out="$(cmd_errors "${positional[0]:-}")" ;;
       grep)     out="$(cmd_grep "${positional[0]:-}" "${positional[1]:-}")" ;;
       list)     out="$(cmd_list "${positional[0]:-}")" ;;

@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.88.5",
+    meta: "Reviewed <strong>2026-08-25</strong> · scope: two read-only views added to the staff log-reading script, and a calmer start-of-day wait in its error-log follower. No new way to reach the service, no new information collected, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The staff script that reads the daily activity files (v1.88.1) can now show the same records grouped by document: one line per file audited two or more times, with how many runs, how many distinct versions, and the first and last score &mdash; the fix-and-recheck cycle the activity record already contains, made visible. A second view lists every audit of one document, oldest first, found by part of its file name or by its content fingerprint. Both are re-arrangements of records staff could already read in full, over the same staff-only SSH access.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>No new exposure.</strong> The new views draw only on the existing daily files; nothing about what the site collects, keeps, or serves has changed. Automated tests pin what each view shows &mdash; including that failed audits are not counted in the grouped view.",
+          },
+          {
+            badge: "UX",
+            html: "<strong>Watching the error log before the day&rsquo;s first error now reads calmly.</strong> The follower says the day&rsquo;s file has not been created yet and waits for it, instead of surfacing a raw <code>cannot open</code> warning that looked like a failure.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.88.4",
     meta: "Reviewed <strong>2026-08-23</strong> · scope: one number in the staff log-reading script &mdash; its default view grew from the 50 most recent audits to the 500 most recent. No new way to reach the service, no new information collected, no retention period changed.",
     body: [

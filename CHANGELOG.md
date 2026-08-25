@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.88.5] - 2026-08-25
+
+### Added
+
+- **`./logs.sh docs [N|DATE]` — the remediation loop, grouped.** One row per document audited 2 or more times: how many runs, how many distinct versions (content hashes), the first and last score, and the change between them, newest activity first. With no arguments it looks among the 500 most recent audits, like a bare `./logs.sh`; `docs 200` picks a different window, `docs 2026-08-19` one day. Documents audited once are left out and counted in the caption; failed audits are not counted — `./logs.sh failed` shows those.
+- **`./logs.sh doc PATTERN` — one document's whole story, oldest first, across every day on file**, failed attempts included with their reason. PATTERN is a file-name fragment (case-insensitive) or a content-hash prefix (6+ hex characters), so one exact upload can be followed by its hash. The whole archive is searched on purpose — a journey must not lose its first chapter to a row window.
+- Both commands speak every existing format (`--table` / `--csv` / `--tsv` / `--md` / `--copy`), and the help header documents them with worked examples (`./logs.sh docs yesterday --md`, `./logs.sh doc grant-report`, `./logs.sh doc 4c5e4b5abd70 --table`).
+- **`logsSh.test.ts` +11 → 36**: the grouping math (runs, distinct versions, first → last score, signed change), newest-activity-first ordering, the 2-or-more filter with the singleton counted in the caption, the `docs DATE` and `docs N` windows, `doc` matching by name fragment and by hash prefix, oldest-first ordering with failed attempts included, the clean no-match answer, the PATTERN usage error, the midnight explanation for `docs today`, the tail wait-then-follow handoff from both starting states, and the help examples.
+
+### Changed
+
+- **`./logs.sh tail` started before the day's first error now explains and waits** — `no errors so far today — errors-….log is created by the first error of the day; waiting for it (Ctrl-C to stop)` — then announces the file and follows it the moment the first error lands. Previously tail was handed the missing path, and its `cannot open … No such file or directory` warning read like a failure.
+
+### Notes
+
+- Operator tooling only; no route, no data, no retention period changed; the script reads the same files over the same SSH credential. Not visitor-facing, so no What's New entry.
+- Tests: API +11 → totals API 1,403 · web 1,134 · CLI 49 (2,586).
+
 ## [1.88.4] - 2026-08-23
 
 ### Changed

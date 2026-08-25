@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -63,9 +63,9 @@ afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function run(args: string[]): { status: number | null; out: string; err: string } {
+function run(args: string[], dirPath = dir): { status: number | null; out: string; err: string } {
   const r = spawnSync("bash", [SCRIPT, ...args], {
-    env: { ...process.env, LOGS_DIR: dir, PAGER: "cat" },
+    env: { ...process.env, LOGS_DIR: dirPath, PAGER: "cat" },
     encoding: "utf-8",
   });
   return { status: r.status, out: r.stdout, err: r.stderr };
@@ -268,11 +268,142 @@ describe("logs.sh — DATE", () => {
   });
 });
 
+describe("logs.sh — the remediation loop (docs / doc)", () => {
+  // Its own fixture: a document fixed and re-checked across two days (four
+  // completed runs on three distinct versions, one failed attempt), a second
+  // document fixed the same morning, and a singleton that must stay out of
+  // the grouped view. The shared fixture's pinned id sequences stay untouched.
+  const GROUP_HEADER = "filename,runs,versions,first,last,change,first_at,last_at";
+  const hash = (c: string) => `,${c.repeat(64)},public,`;
+  const DAY21 = [
+    line(301, "2026-08-21", "09:00:00", "analyze", "grant-report.pdf", `,69,D${hash("a")}`),
+    line(302, "2026-08-21", "09:30:00", "analyze", "grant-report.pdf", `,79,C${hash("b")}`),
+    line(303, "2026-08-21", "10:00:00", "analyze", "single-shot.pdf", `,100,A${hash("c")}`),
+    line(
+      304,
+      "2026-08-21",
+      "10:30:00",
+      "analyze-failed",
+      "grant-report.pdf",
+      ",,,,public,unreadable",
+    ),
+  ];
+  const DAY22 = [
+    line(401, "2026-08-22", "08:00:00", "analyze", "grant-report.pdf", `,89,B${hash("d")}`),
+    line(402, "2026-08-22", "08:15:00", "analyze", "grant-report.pdf", `,89,B${hash("d")}`),
+    line(403, "2026-08-22", "09:00:00", "analyze", "other-doc.docx", `,79,C${hash("e")}`),
+    line(404, "2026-08-22", "09:30:00", "analyze", "other-doc.docx", `,100,A${hash("f")}`),
+  ];
+  let loopDir: string;
+
+  beforeAll(() => {
+    loopDir = mkdtempSync(join(tmpdir(), "logs-sh-loop-"));
+    writeFileSync(
+      join(loopDir, "activity-2026-08-21.csv"),
+      `${BOM}${HEADER}\n${DAY21.join("\n")}\n`,
+    );
+    writeFileSync(
+      join(loopDir, "activity-2026-08-22.csv"),
+      `${BOM}${HEADER}\n${DAY22.join("\n")}\n`,
+    );
+  });
+
+  afterAll(() => {
+    rmSync(loopDir, { recursive: true, force: true });
+  });
+
+  it("docs groups by filename: runs, distinct versions, first → last score, newest activity first", () => {
+    const r = run(["docs"], loopDir);
+    expect(r.status).toBe(0);
+    const lines = r.out.trim().split("\n");
+    expect(lines[0]).toBe(GROUP_HEADER);
+    // other-doc last moved at 09:30, grant-report at 08:15 — newest first.
+    expect(lines[1]).toBe(
+      "other-doc.docx,2,2,79 C,100 A,+21,2026-08-22 09:00:00 CDT,2026-08-22 09:30:00 CDT",
+    );
+    // 4 completed runs (the failed attempt is not counted), 3 distinct hashes.
+    expect(lines[2]).toBe(
+      "grant-report.pdf,4,3,69 D,89 B,+20,2026-08-21 09:00:00 CDT,2026-08-22 08:15:00 CDT",
+    );
+    expect(lines).toHaveLength(3); // single-shot.pdf: audited once, not shown
+    expect(r.err).toMatch(/audited once not shown/);
+    expect(r.err).toMatch(/failed audits not counted/);
+  });
+
+  it("docs DATE narrows the loop to one day", () => {
+    const r = run(["docs", "2026-08-21"], loopDir);
+    expect(r.status).toBe(0);
+    const lines = r.out.trim().split("\n");
+    expect(lines[1]).toBe(
+      "grant-report.pdf,2,2,69 D,79 C,+10,2026-08-21 09:00:00 CDT,2026-08-21 09:30:00 CDT",
+    );
+    expect(lines).toHaveLength(2);
+  });
+
+  it("docs N groups within the N most recent audits, like recent N", () => {
+    const r = run(["docs", "4"], loopDir);
+    const lines = r.out.trim().split("\n");
+    expect(lines[1]).toBe(
+      "other-doc.docx,2,2,79 C,100 A,+21,2026-08-22 09:00:00 CDT,2026-08-22 09:30:00 CDT",
+    );
+    // Within the window only day 22's runs exist: same score, same hash, change 0.
+    expect(lines[2]).toBe(
+      "grant-report.pdf,2,1,89 B,89 B,0,2026-08-22 08:00:00 CDT,2026-08-22 08:15:00 CDT",
+    );
+    expect(lines).toHaveLength(3);
+  });
+
+  it("docs --table carries a caption saying what was grouped", () => {
+    const r = run(["docs", "--table"], loopDir);
+    expect(r.status).toBe(0);
+    expect(r.out.split("\n")[0]).toMatch(/audited 2 or more times/);
+    expect(r.out).toMatch(/newest activity first/);
+  });
+
+  it("doc NAME is one document's whole story, oldest first, failed attempts included", () => {
+    const r = run(["doc", "grant"], loopDir);
+    expect(r.status).toBe(0);
+    expect(r.out.split("\n")[0]).toBe(HEADER);
+    expect(ids(r.out)).toEqual([301, 302, 304, 401, 402]);
+    expect(r.out).toContain("unreadable"); // the failed attempt's reason is part of the story
+    expect(r.err).toMatch(/oldest first/);
+    // case-insensitive
+    expect(run(["doc", "GRANT"], loopDir).out).toBe(r.out);
+  });
+
+  it("doc accepts a content-hash prefix and finds that exact version's audits", () => {
+    const r = run(["doc", "dddddddd"], loopDir);
+    expect(r.status).toBe(0);
+    expect(ids(r.out)).toEqual([401, 402]);
+  });
+
+  it("doc with no match says so and exits cleanly", () => {
+    const r = run(["doc", "zzzznope"], loopDir);
+    expect(r.status).toBe(0);
+    expect(r.err).toMatch(/no audits matching 'zzzznope'/);
+  });
+
+  it("doc without a pattern explains its usage with an example", () => {
+    const r = run(["doc"], loopDir);
+    expect(r.status).toBe(1);
+    expect(r.err).toContain("PATTERN");
+    expect(r.err).toContain("./logs.sh doc ");
+  });
+
+  it("docs today explains the midnight lag like the other day views", () => {
+    const r = run(["docs", "today"], loopDir);
+    expect(r.status).toBe(1);
+    expect(r.err).toMatch(/midnight/);
+  });
+});
+
 describe("logs.sh — help and mistakes", () => {
   const COMMANDS = [
     "recent",
     "activity",
     "failed",
+    "docs",
+    "doc",
     "errors",
     "grep",
     "tail",
@@ -294,6 +425,10 @@ describe("logs.sh — help and mistakes", () => {
     expect(r.out).toContain("QUICK START");
     // The header must state the real bare-run default (RECENT_DEFAULT).
     expect(r.out).toContain("(default 500)");
+    // The remediation-loop commands come with worked examples.
+    expect(r.out).toContain("./logs.sh doc grant-report");
+    expect(r.out).toMatch(/\.\/logs\.sh docs yesterday --md/);
+    expect(r.out).toMatch(/hash prefix/i);
   });
 
   it("-h and --help print the same text; it is the script's own header", () => {
@@ -318,4 +453,80 @@ describe("logs.sh — help and mistakes", () => {
     expect(r.err).toContain("--markdown");
     expect(r.err).toContain("--md");
   });
+});
+
+describe("logs.sh — tail", () => {
+  // tail follows a live file, so these spawn the script asynchronously in a
+  // private fixture dir (today's error file must not leak into the shared one)
+  // and kill the whole process group when done — tail outlives bash otherwise.
+  const chicagoToday = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+  }).format(new Date());
+
+  function tailIn(dirPath: string) {
+    const child = spawn("bash", [SCRIPT, "tail"], {
+      env: { ...process.env, LOGS_DIR: dirPath, PAGER: "cat" },
+      detached: true,
+    });
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err += d));
+    return {
+      child,
+      out: () => out,
+      err: () => err,
+      stop: () => {
+        try {
+          process.kill(-child.pid!, "SIGKILL");
+        } catch {
+          /* already gone */
+        }
+      },
+    };
+  }
+
+  async function eventually(cond: () => boolean, what: string, ms = 10000): Promise<void> {
+    const t0 = Date.now();
+    while (!cond()) {
+      if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${what}`);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  it("without today's file: explains and waits — no tail warning — then follows on the first error", async () => {
+    const d = mkdtempSync(join(tmpdir(), "logs-sh-tail-"));
+    const t = tailIn(d);
+    try {
+      await eventually(() => /waiting/.test(t.err()), "the waiting notice");
+      expect(t.err()).toContain("no errors so far today");
+      expect(t.err()).toContain(`errors-${chicagoToday}.log`);
+      expect(t.err()).not.toMatch(/No such file or directory/);
+      expect(t.child.exitCode).toBeNull(); // still watching, not exited
+      writeFileSync(join(d, `errors-${chicagoToday}.log`), "MARKER first fault\n");
+      await eventually(() => t.out().includes("MARKER first fault"), "the first error to stream");
+      expect(t.err()).toMatch(/has appeared/);
+      expect(t.err()).not.toMatch(/No such file or directory/);
+    } finally {
+      t.stop();
+      rmSync(d, { recursive: true, force: true });
+    }
+  }, 20000);
+
+  it("with the file present: announces which file it follows and streams appended lines", async () => {
+    const d = mkdtempSync(join(tmpdir(), "logs-sh-tail2-"));
+    const f = join(d, `errors-${chicagoToday}.log`);
+    writeFileSync(f, "first fault\n");
+    const t = tailIn(d);
+    try {
+      await eventually(() => t.out().includes("first fault"), "the existing log to print");
+      expect(t.err()).toMatch(/following .*errors-.*\.log/);
+      expect(t.err()).not.toMatch(/No such file or directory/);
+      appendFileSync(f, "second fault\n");
+      await eventually(() => t.out().includes("second fault"), "the appended line to stream");
+    } finally {
+      t.stop();
+      rmSync(d, { recursive: true, force: true });
+    }
+  }, 20000);
 });
