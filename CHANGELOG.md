@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.90.0] - 2026-08-25
+
+### Changed
+
+- **`document_progress_30d` counts public uploads only.** On its first live day the block read 3,781 documents / 3,293 re-audited / median lift 0 — the trusted-tool fleet re-scans the same unchanged documents on a schedule, and its runs drowned out the picture of documents people actually fix, which is the question the block exists to answer. The grouping now takes `privileged = 0` rows only: fleet runs are excluded, and so are unknown-tier rows written before migration 12 (unknown might be the fleet), so the figures **climb from when tier recording began** — the same reasoning and the same climb-from-migration behavior `privileged_audits` has had since v1.86.0. The "Do documents improve?" card says so in its caveat.
+- **`distinct_documents` deliberately keeps every tier** — it is a volume figure, already contextualized by `privileged_audits` — and is now pinned to keep counting fleet documents.
+
+### Notes
+
+- Data-retention policy → **v1.14** (§ 14 clarification entry), pinned by `statusProgressPolicy.test.ts` (+1 → 4). Two new exclusion tests in `status.test.ts` (+2 → 80): a leaked fleet row would flip `improvable`, and unknown-tier rows contribute nothing. Announcement banner entry (with `linkExternal: true` — the v1.89.1 data contract holds it there).
+- No schema change, no new route, no retention change; nothing new is collected or stored.
+- Tests: API 1,410 · web 1,143 · CLI 49 (**2,602** across 169 files).
+
 ## [1.89.1] - 2026-08-25
 
 ### Fixed

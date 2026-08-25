@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.90.0",
+    meta: "Reviewed <strong>2026-08-25</strong> · scope: the status page&rsquo;s re-audit summary now counts public audits only. The change narrows what is published; nothing new is collected, no new way to reach the service, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "On its first live day the new re-audit summary was dominated by the automated fleet inventory, which re-scans the same unchanged documents on a schedule through the internal trusted-tool tier &mdash; so the &ldquo;typical score change&rdquo; read as zero and said nothing about the documents people actually fix. The summary now counts audits from the public tier only. Records whose tier is unknown (written before the tier was recorded) are excluded as well, so the figures build from when tier recording began rather than guessing &mdash; the same approach the trusted-tool volume figures have used since v1.86.0. The count of distinct documents checked is unchanged and still includes every tier.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Narrower, not wider.</strong> The change removes rows from an aggregate; no new value reaches the published document or the page, and the selection rule is a fixed constant, not anything request-derived. Automated tests watch both directions: a trusted-tool run leaking into the summary would flip a published figure the tests check directly, and the distinct-document counts are pinned to keep including every tier.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>The page says what it counts.</strong> The card&rsquo;s own caption states that the figures come from public uploads only and that counting began when the request tier was first recorded; the data-retention policy records the clarification in &sect; 14 (policy v1.14).",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.89.1",
     meta: "Reviewed <strong>2026-08-25</strong> · scope: one field on one What&rsquo;s New entry — the link to the status page navigated the wrong way and showed a &ldquo;page not found&rdquo; screen. No new way to reach the service, nothing new collected, no retention period changed.",
     body: [

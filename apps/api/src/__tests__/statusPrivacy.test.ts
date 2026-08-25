@@ -40,15 +40,17 @@ const SECRET_PATH = "/opt/verapdf/verapdf";
 function seededDb(): DB {
   const db = new Database(":memory:");
   runMigrations(db);
+  // privileged = 0: the progress block counts known-public rows only
+  // (v1.90.0), and these two must keep proving it consumes the filename.
   db.prepare(
     `INSERT INTO audit_log
-       (event_type, filename, score, grade, content_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+       (event_type, filename, score, grade, privileged, content_hash, created_at)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`,
   ).run("analyze", SECRET_FILENAME, 42, "F", SECRET_HASH, "2026-08-03 09:22:10");
   db.prepare(
     `INSERT INTO audit_log
-       (event_type, filename, score, grade, content_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+       (event_type, filename, score, grade, privileged, content_hash, created_at)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`,
   ).run("analyze", SECRET_FILENAME, 95, "A", SECRET_HASH_V2, "2026-08-03 11:22:10");
   db.prepare(
     `INSERT INTO remediation_jobs (id, input_filename, status, created_at, expires_at)

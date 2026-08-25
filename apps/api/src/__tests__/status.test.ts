@@ -1226,9 +1226,18 @@ describe("distinct documents (by content hash)", () => {
       contentHash: "d".repeat(64),
       agoMs: HOUR,
     });
+    // The fleet's documents count here — distinct_documents is a volume
+    // figure over every tier; only document_progress_30d filters by tier.
+    seedAudit(db, {
+      eventType: "audit-url",
+      filename: "fleet.pdf",
+      contentHash: "e".repeat(64),
+      privileged: 1,
+      agoMs: HOUR,
+    });
 
     const payload = await makeService(db).getStatus();
-    expect(payload.distinct_documents).toEqual({ last_24h: 1, last_30d: 2, total: 3 });
+    expect(payload.distinct_documents).toEqual({ last_24h: 2, last_30d: 3, total: 4 });
   });
 });
 
@@ -1236,22 +1245,71 @@ describe("document_progress_30d (the remediation loop)", () => {
   it("groups the last 30 days by filename: runs, improvability, improvement", async () => {
     const db = freshDb();
     // grant.pdf: 69 → 79 → 89 — re-audited, improvable, improved, not yet an A.
-    seedAudit(db, { eventType: "analyze", filename: "grant.pdf", score: 69, agoMs: 25 * DAY });
-    seedAudit(db, { eventType: "analyze", filename: "grant.pdf", score: 79, agoMs: 20 * DAY });
-    seedAudit(db, { eventType: "analyze", filename: "grant.pdf", score: 89, agoMs: 2 * DAY });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "grant.pdf",
+      score: 69,
+      privileged: 0,
+      agoMs: 25 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "grant.pdf",
+      score: 79,
+      privileged: 0,
+      agoMs: 20 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "grant.pdf",
+      score: 89,
+      privileged: 0,
+      agoMs: 2 * DAY,
+    });
     // deck.pptx: started at an A — re-audited but not improvable.
-    seedAudit(db, { eventType: "analyze", filename: "deck.pptx", score: 95, agoMs: 3 * DAY });
-    seedAudit(db, { eventType: "analyze", filename: "deck.pptx", score: 100, agoMs: DAY });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "deck.pptx",
+      score: 95,
+      privileged: 0,
+      agoMs: 3 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "deck.pptx",
+      score: 100,
+      privileged: 0,
+      agoMs: DAY,
+    });
     // solo.pdf: audited once.
-    seedAudit(db, { eventType: "analyze", filename: "solo.pdf", score: 50, agoMs: DAY });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "solo.pdf",
+      score: 50,
+      privileged: 0,
+      agoMs: DAY,
+    });
     // Entirely outside the window.
-    seedAudit(db, { eventType: "analyze", filename: "old.pdf", score: 10, agoMs: 40 * DAY });
-    seedAudit(db, { eventType: "analyze", filename: "old.pdf", score: 20, agoMs: 35 * DAY });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "old.pdf",
+      score: 10,
+      privileged: 0,
+      agoMs: 40 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "old.pdf",
+      score: 20,
+      privileged: 0,
+      agoMs: 35 * DAY,
+    });
     // A failed attempt writes no score and is not a run.
     seedAudit(db, {
       eventType: "analyze",
       filename: "grant.pdf",
       score: null,
+      privileged: 0,
       grade: null,
       agoMs: DAY,
     });
@@ -1274,8 +1332,14 @@ describe("document_progress_30d (the remediation loop)", () => {
       ["e.pdf", 69, 100], // +31 — reaches an A
     ];
     for (const [f, first, last] of pairs) {
-      seedAudit(db, { eventType: "analyze", filename: f, score: first, agoMs: 5 * DAY });
-      seedAudit(db, { eventType: "analyze", filename: f, score: last, agoMs: DAY });
+      seedAudit(db, {
+        eventType: "analyze",
+        filename: f,
+        score: first,
+        privileged: 0,
+        agoMs: 5 * DAY,
+      });
+      seedAudit(db, { eventType: "analyze", filename: f, score: last, privileged: 0, agoMs: DAY });
     }
 
     const p = (await makeService(db).getStatus()).document_progress_30d;
@@ -1289,8 +1353,20 @@ describe("document_progress_30d (the remediation loop)", () => {
   it("suppresses the median below the small-document floor", async () => {
     const db = freshDb();
     expect(STATUS.PROGRESS_MIN_DOCS).toBeGreaterThan(1);
-    seedAudit(db, { eventType: "analyze", filename: "a.pdf", score: 50, agoMs: 2 * DAY });
-    seedAudit(db, { eventType: "analyze", filename: "a.pdf", score: 90, agoMs: DAY });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "a.pdf",
+      score: 50,
+      privileged: 0,
+      agoMs: 2 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "a.pdf",
+      score: 90,
+      privileged: 0,
+      agoMs: DAY,
+    });
 
     const p = (await makeService(db).getStatus()).document_progress_30d;
     expect(p.reaudited).toBe(1);
@@ -1299,11 +1375,84 @@ describe("document_progress_30d (the remediation loop)", () => {
 
   it("breaks same-second ties by insertion order, so first and last are stable", async () => {
     const db = freshDb();
-    seedAudit(db, { eventType: "analyze", filename: "tie.pdf", score: 50, agoMs: DAY });
-    seedAudit(db, { eventType: "analyze", filename: "tie.pdf", score: 90, agoMs: DAY });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "tie.pdf",
+      score: 50,
+      privileged: 0,
+      agoMs: DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "tie.pdf",
+      score: 90,
+      privileged: 0,
+      agoMs: DAY,
+    });
 
     const p = (await makeService(db).getStatus()).document_progress_30d;
     expect(p.improved).toBe(1); // 50 → 90, never 90 → 50
     expect(p.reached_a).toBe(1);
+  });
+
+  it("counts public uploads only — fleet (trusted-tool) runs are excluded (v1.90.0)", async () => {
+    const db = freshDb();
+    // pub.pdf publicly never dipped below an A; the fleet also scanned it at
+    // 40. A leaked fleet row would become the group's first score and flip
+    // `improvable` — that flip is what this test watches.
+    seedAudit(db, {
+      eventType: "audit-url",
+      filename: "pub.pdf",
+      score: 40,
+      privileged: 1,
+      agoMs: 4 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "pub.pdf",
+      score: 92,
+      privileged: 0,
+      agoMs: 3 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "analyze",
+      filename: "pub.pdf",
+      score: 95,
+      privileged: 0,
+      agoMs: DAY,
+    });
+    // A document only the fleet ever touched contributes nothing at all.
+    seedAudit(db, {
+      eventType: "audit-url",
+      filename: "fleet-only.pdf",
+      score: 70,
+      privileged: 1,
+      agoMs: 3 * DAY,
+    });
+    seedAudit(db, {
+      eventType: "audit-url",
+      filename: "fleet-only.pdf",
+      score: 70,
+      privileged: 1,
+      agoMs: DAY,
+    });
+
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.documents).toBe(1);
+    expect(p.reaudited).toBe(1);
+    expect(p.improvable).toBe(0); // 92 → 95 never needed improving
+  });
+
+  it("excludes unknown-tier rows (pre-migration), climbing from when tier recording began", async () => {
+    const db = freshDb();
+    // seedAudit's default tier is NULL — the shape of rows written before
+    // migration 12. Unknown might be the fleet, so it is not counted; the
+    // same reasoning privileged_audits has followed since v1.86.0.
+    seedAudit(db, { eventType: "analyze", filename: "old-row.pdf", score: 50, agoMs: 3 * DAY });
+    seedAudit(db, { eventType: "analyze", filename: "old-row.pdf", score: 90, agoMs: DAY });
+
+    const p = (await makeService(db).getStatus()).document_progress_30d;
+    expect(p.documents).toBe(0);
+    expect(p.reaudited).toBe(0);
   });
 });

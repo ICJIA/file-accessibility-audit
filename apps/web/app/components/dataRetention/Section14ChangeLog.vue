@@ -6,6 +6,16 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.14 · 2026-08-25</strong> — One clarification of the v1.13 figures; nothing new is
+        collected or stored and no retention period changes. The re-audit summary on the status page
+        now counts <em>public</em> audits only: audits made through the internal trusted-tool tier
+        (the automated fleet inventory, § 8a) are excluded, because the fleet re-scans unchanged
+        documents on a schedule and its runs were drowning out the picture of documents people
+        actually fix. Records whose tier is unknown — written before the tier was recorded — are
+        excluded as well, so the summary climbs from when tier recording began rather than guessing.
+        The distinct-document counts are unchanged and still include every tier.
+      </li>
+      <li>
         <strong>v1.13 · 2026-08-25</strong> — Nothing new is collected or stored; no retention
         period changes. The public status page publishes two new families of
         <em>aggregate</em> figures computed from the usage-metadata records the policy already

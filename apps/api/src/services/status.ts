@@ -142,7 +142,13 @@ export interface DistinctDocumentCounts {
  *  that the bytes change between runs while the document stays "the same".
  *  Two different visitors auditing identically-named files would merge — an
  *  accepted imprecision for an aggregate; nothing about either file is
- *  disclosed. */
+ *  disclosed.
+ *
+ *  Counts PUBLIC-tier audits only (privileged = 0) since v1.90.0 — the fleet
+ *  re-scans unchanged documents on a schedule and was drowning the signal;
+ *  NULL-tier (pre-migration) rows are excluded with it, so the figures climb
+ *  from when tier recording began. distinct_documents deliberately keeps all
+ *  tiers: it is a volume figure, already contextualized by privileged_audits. */
 export interface DocumentProgress {
   documents: number;
   reaudited: number;
@@ -463,7 +469,16 @@ const A_MIN = GRADE_THRESHOLDS.find((t) => t.grade === "A")?.min ?? 90;
  *  numbers per document — run count, first score, latest score. The filename
  *  is the partition key only; it is never in the SELECT list, so it cannot
  *  cross the module boundary (rule 1 in the header). Ties on created_at
- *  (second precision — a batch upload) are broken by id, the insertion order. */
+ *  (second precision — a batch upload) are broken by id, the insertion order.
+ *
+ *  PUBLIC UPLOADS ONLY (`privileged = 0`, v1.90.0): the trusted-tool fleet
+ *  re-scans the same unchanged documents on a schedule, and on the first live
+ *  day its runs were 3,293 of 3,781 grouped documents with a median lift of
+ *  0 — drowning the picture of documents people actually fix, which is the
+ *  question this block exists to answer. `= 0` also excludes NULL-tier rows
+ *  (written before migration 12): unknown might be the fleet, so the figures
+ *  climb from when tier recording began — the same reasoning, and the same
+ *  climb-from-migration behavior, as privileged_audits (v1.86.0). */
 function collectDocumentProgress(db: StatusDb, sinceMs: number): DocumentProgress {
   const inClause = placeholders(DOCUMENT_TYPES.length);
   const sql = `
@@ -480,6 +495,7 @@ function collectDocumentProgress(db: StatusDb, sinceMs: number): DocumentProgres
       FROM audit_log
       WHERE event_type IN (${inClause})
         AND score IS NOT NULL
+        AND privileged = 0
         AND created_at > datetime(?, 'unixepoch')
     )
     SELECT n, first_score, last_score FROM runs WHERE rn = 1`;

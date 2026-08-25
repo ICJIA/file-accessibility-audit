@@ -1000,6 +1000,10 @@ describe("renderDocumentProgress — the remediation-loop card (v1.89.0)", () =>
     // fields the figures are computed from, and state what is not shown.
     expect(html).toContain("file name, score, and time of audit");
     expect(html).toContain("No file name");
+    // v1.90.0: the card must say the fleet's trusted-tool runs are excluded,
+    // and that counting climbs from when the request tier was first recorded.
+    expect(html).toContain("trusted-tool");
+    expect(html).toMatch(/public uploads only/i);
   });
 
   it("suppresses rates and the median below the small-sample floor, and says why", () => {

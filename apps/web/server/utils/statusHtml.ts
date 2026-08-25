@@ -576,11 +576,14 @@ export function renderDocumentProgress(body: Record<string, unknown>): string {
           ? `${num(documents)} checked in 30 days, none re-checked yet`
           : "no documents in the last 30 days",
     body:
-      `<p class="caveat">The audit &rarr; fix &rarr; re-audit loop over the last 30 days. ` +
-      `Computed from stored audit records — the file name, score, and time of audit — grouped ` +
-      `by file name inside the database. No file name, content hash, or individual score ` +
-      `appears here; only these counts and one median are published. A document counts as ` +
-      `re-checked when the same file name was audited more than once; failed audits are not ` +
+      `<p class="caveat">The audit &rarr; fix &rarr; re-audit loop over the last 30 days, from ` +
+      `public uploads only — audits made through the internal trusted-tool tier (the automated ` +
+      `fleet, which re-scans unchanged documents on a schedule) are not counted here, and ` +
+      `counting began when the request tier was first recorded, so these figures climb from ` +
+      `that date. Computed from stored audit records — the file name, score, and time of audit ` +
+      `— grouped by file name inside the database. No file name, content hash, or individual ` +
+      `score appears here; only these counts and one median are published. A document counts ` +
+      `as re-checked when the same file name was audited more than once; failed audits are not ` +
       `counted at all.</p>` +
       `<div class="windows"><div class="win"><h3>Last 30 days</h3>${table}${flooredNote}</div></div>`,
   });

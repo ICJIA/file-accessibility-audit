@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "status-progress-public-only-2026-08-25",
+    badge: "Improved",
+    text: 'The status page\'s new "do documents improve?" figures now count public audits only. The automated fleet inventory re-scans the same unchanged documents on a schedule through an internal tier, and those runs were drowning out the picture of documents people actually fix — the typical score change read as zero because most re-checks were fleet re-scans of files that had not changed. Fleet runs are no longer counted there, and neither are older records written before the request tier was recorded, so the figures build from that date. The count of distinct documents checked is unchanged and still includes everything. The data-retention policy (now v1.14) records the clarification in its change log.',
+    linkText: "See the status page",
+    linkTo: "/status?html",
+    /** REQUIRED: /status is a server route, not a Vue page. See the v1.39.1 note below. */
+    linkExternal: true,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 25, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "status-shows-document-progress-2026-08-25",
     badge: "New",
     text: "The status page now shows whether documents improve. Two new figures are published there: how many distinct documents were checked (not just how many checks ran), and — for the last 30 days — how many documents were checked more than once, how many of those improved, and the typical score change among re-checked documents. Every figure is a count or a median computed from the usage records the data-retention policy already describes; no file name, content fingerprint, or individual score is shown. When fewer than five documents qualify, the rates and the median are withheld rather than describe a single visitor's documents, and the counts remain published like every other figure on the page. The data-retention policy (now v1.13) records the addition in its change log, and the release was security-reviewed before publishing, with the review recorded in the security log.",

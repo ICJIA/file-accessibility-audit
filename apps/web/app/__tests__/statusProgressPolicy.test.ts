@@ -52,6 +52,18 @@ describe("data-retention policy v1.13: aggregate status-page figures", () => {
     expect(entry).not.toMatch(/\bstrong\b/i);
   });
 
+  it("§ 14 has the v1.14 entry: the re-audit summary counts public audits only", () => {
+    expect(s14).toMatch(/<strong>v1\.14 · 2026-08-25<\/strong>/);
+    const entry = visible(between(s14, "v1.14 · 2026-08-25", "</li>"));
+    expect(entry).toMatch(/nothing new is collected or stored/i);
+    expect(entry).toMatch(/public/);
+    expect(entry).toMatch(/trusted-tool/);
+    expect(entry).toMatch(/distinct-document counts are unchanged/i);
+    expect(entry).not.toMatch(/no personal (data|information|details)/i);
+    expect(entry).not.toMatch(/anonymous|anonymi[sz]ed/i);
+    expect(entry).not.toMatch(/\bstrong\b/i);
+  });
+
   it("the status card's own caveat follows the same rules", () => {
     const html = read("../server/utils/statusHtml.ts");
     const caveat = between(html, "renderDocumentProgress", "renderPrivilegedAudits");
