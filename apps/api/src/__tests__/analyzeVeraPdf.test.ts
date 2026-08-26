@@ -91,7 +91,7 @@ describe("/analyze attaches pdfUaVerdict", () => {
     );
   });
 
-  it("omits the verdict when veraPDF is unavailable (available:false → not attached)", async () => {
+  it("attaches available:false when veraPDF did not run, so the report can disclose the gap (v1.91.0)", async () => {
     detectFileType.mockResolvedValue("pdf");
     runVeraPdfOnBuffer.mockResolvedValue({
       available: false,
@@ -105,7 +105,10 @@ describe("/analyze attaches pdfUaVerdict", () => {
       makeReq({ file: { buffer: Buffer.from("%PDF-1.4"), originalname: "a.pdf" } }),
       res,
     );
-    expect(res._json.pdfUaVerdict).toBeUndefined();
+    // The old behavior (field omitted) silently hid the PDF/UA panel — a
+    // PDF report then looked complete while the machine-check layer was
+    // missing. available:false is the signal the web disclosure renders from.
+    expect(res._json.pdfUaVerdict).toEqual(expect.objectContaining({ available: false }));
   });
 
   it("does not run veraPDF for a non-PDF upload", async () => {

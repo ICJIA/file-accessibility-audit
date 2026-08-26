@@ -52,8 +52,13 @@ router.post(
         analyzeDocument(file.buffer, filename),
         detectedType === "pdf" ? runVeraPdfOnBuffer(file.buffer) : Promise.resolve(null),
       ]);
-      // Only attach when veraPDF actually ran (available). Absent field = hidden panel.
-      if (pdfUaVerdict && pdfUaVerdict.available) {
+      // v1.91.0: attach the verdict for every PDF, INCLUDING available:false.
+      // The old gate (`&& pdfUaVerdict.available`) silently hid the PDF/UA
+      // panel whenever veraPDF didn't run (unconfigured binary, saturated
+      // JVM queue) — a report that looked complete while the machine-check
+      // layer was missing. The web panel now renders an explicit "did not
+      // run" disclosure from available:false; absent field = non-PDF only.
+      if (pdfUaVerdict) {
         result.pdfUaVerdict = pdfUaVerdict;
       }
 

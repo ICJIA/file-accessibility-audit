@@ -156,9 +156,11 @@
         :categories="result.categories"
         class="max-w-2xl mx-auto my-6"
       />
+      <!-- Rendered for every PDF (v1.91.0): a missing verdict renders the
+           component's "did not run" disclosure instead of hiding the panel. -->
       <PdfUaVerdict
-        v-if="result.pdfUaVerdict"
-        :verdict="result.pdfUaVerdict"
+        v-if="result.fileType === 'pdf'"
+        :verdict="result.pdfUaVerdict ?? null"
         :grade="result.grade"
         :categories="result.categories"
         :verapdf-url="verapdfUrl || ''"

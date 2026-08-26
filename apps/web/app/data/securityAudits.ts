@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.91.0",
+    meta: "Reviewed <strong>2026-08-25</strong> · scope: two candor additions &mdash; PDF reports now say when the PDF/UA machine check did not run, and the front page lists the Matterhorn Protocol checkpoints with which layer checks each. Nothing new is collected, no new way to reach the service, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Alongside its own analysis, this tool runs the open-source veraPDF validator on every PDF to check the machine-checkable rules of the PDF/UA standard. Until now, if that extra check could not run &mdash; the validator missing from the server, or briefly at capacity &mdash; its panel was simply left out of the report, and an absent panel can read as &ldquo;nothing to report&rdquo;. The report now says plainly: <em>&ldquo;PDF/UA-1 machine checks (veraPDF): Did not run&rdquo;</em>, that not run means not checked &mdash; never passed &mdash; and that the score is computed independently. The front page also gained the Matterhorn checklist: all 31 checkpoints of the PDF Association&rsquo;s test model for PDF accessibility, each labeled with what checks it here &mdash; this tool&rsquo;s own engine, the veraPDF pass, or human review for the checks no software anywhere can make.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Only fixed text was added.</strong> The new disclosure and the checklist render wording written in this repository &mdash; no uploaded document content and no visitor input appears in either. The one behavioral change is that a &ldquo;did not run&rdquo; marker is now included with PDF results instead of being left out; it carries no file paths or server details.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Overclaiming is guarded by automated tests.</strong> The checklist must never label a human-judgment checkpoint (flicker, color and contrast, article threads) as machine-checked, and checkpoints this tool does not check in-house stay attributed to veraPDF. A deploy-time probe now also confirms the validator is working on the server, using the already-public status page.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.90.0",
     meta: "Reviewed <strong>2026-08-25</strong> · scope: the status page&rsquo;s re-audit summary now counts public audits only. The change narrows what is published; nothing new is collected, no new way to reach the service, no retention period changed.",
     body: [

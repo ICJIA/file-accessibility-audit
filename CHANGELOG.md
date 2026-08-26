@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.91.0] - 2026-08-25
+
+### Added
+
+- **PDF reports disclose when the veraPDF machine check did not run.** The PDF/UA-1 panel now renders for **every** PDF — the live result, both report views, and stored shared reports. When veraPDF did not run (binary not configured, or its bounded JVM queue was saturated) the panel says **"PDF/UA-1 machine checks (veraPDF): Did not run"**, states that not run means not checked — never passed — and that the WCAG score is computed independently. Previously the panel silently disappeared, so a PDF report looked complete while the machine-checkable subset of the Matterhorn Protocol's 31 checkpoints went unexamined — the highest-priority finding of the 2026-08-25 analyzer completeness audit. A stored PDF report from before the field existed shows the same disclosure.
+- **The landing page carries the Matterhorn checklist.** All 31 checkpoints of the Matterhorn Protocol (the PDF Association's PDF/UA test model, the one professional checkers like PAC implement), each labeled with the layer that checks it — the audit engine, the veraPDF pass that runs alongside every PDF audit, or human review — with the protocol's own arithmetic stated (136 failure conditions: 87 machine-checkable, 47 human, 2 untestable). Data-driven (`apps/web/app/data/matterhorn.ts`); `matterhornChecklist.test.ts` pins the overclaim guards — the human-judgment checkpoints can never claim machine coverage, and Character Mappings stays veraPDF-attributed until the planned in-house glyph census ships.
+- **`rebuild.sh` probes the veraPDF engine after every deploy** via `/status?format=json`, so a deploy that lost the binary (env drift, broken install) fails its smoke checks loudly instead of being discovered one "Did not run" report at a time.
+
+### Changed
+
+- `POST /api/analyze` now attaches `pdfUaVerdict` with `available: false` when veraPDF did not run for a PDF (previously the field was omitted). Absent now means non-PDF result or a pre-v1.91.0 stored report; the shared-type doc comments say so.
+
+### Notes
+
+- No schema change, no new route, no retention change; nothing new is collected or stored — data-retention policy stays **v1.14**. The disclosure renders static repo-authored copy only (no document- or request-derived values).
+- Tests: API 1,410 · web 1,160 · CLI 49 (**2,619** across 170 files).
+
+<details>
+<summary><strong>v1.90.0 → v1.88.0</strong> (2026-08-25 → 2026-08-22) — click to expand</summary>
+
 ## [1.90.0] - 2026-08-25
 
 ### Changed
@@ -16,9 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Data-retention policy → **v1.14** (§ 14 clarification entry), pinned by `statusProgressPolicy.test.ts` (+1 → 4). Two new exclusion tests in `status.test.ts` (+2 → 80): a leaked fleet row would flip `improvable`, and unknown-tier rows contribute nothing. Announcement banner entry (with `linkExternal: true` — the v1.89.1 data contract holds it there).
 - No schema change, no new route, no retention change; nothing new is collected or stored.
 - Tests: API 1,410 · web 1,143 · CLI 49 (**2,602** across 169 files).
-
-<details>
-<summary><strong>v1.89.1 → v1.88.0</strong> (2026-08-25 → 2026-08-22) — click to expand</summary>
 
 ## [1.89.1] - 2026-08-25
 

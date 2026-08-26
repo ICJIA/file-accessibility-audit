@@ -240,6 +240,9 @@ export interface AnalysisResult {
   pptxMetadata?: PptxMetadata;
   /** Present only for XLSX results. */
   xlsxMetadata?: XlsxMetadata;
-  /** PDF/UA-1 machine-check verdict (veraPDF). PDF results only; absent when veraPDF isn't configured. */
+  /** PDF/UA-1 machine-check verdict (veraPDF). PDF results only. Since
+   *  v1.91.0 it is attached even when veraPDF did NOT run (available:false),
+   *  so reports can disclose the gap instead of hiding the panel; absent only
+   *  on non-PDF results and on stored reports from before v1.91.0. */
   pdfUaVerdict?: PdfUaVerdict;
 }

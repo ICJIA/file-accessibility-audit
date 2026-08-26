@@ -6,7 +6,12 @@ import { pdfUaFixHint } from "./pdfUaFixHint";
 import { tallySeverity } from "~/utils/severityTally";
 
 const props = defineProps<{
-  verdict: PdfUaVerdict;
+  /**
+   * null is a legal value (v1.91.0): a PDF report that carries no verdict
+   * field at all — a stored report from before the API always attached one.
+   * It renders the same "did not run" disclosure as available:false.
+   */
+  verdict: PdfUaVerdict | null;
   verapdfUrl?: string;
   grade?: string;
   /**
@@ -37,6 +42,19 @@ const adamsOpen = ref(false);
 const couldNotValidate = computed(
   () => Boolean(props.verdict?.error) && props.verdict?.totalFailureCount === 0,
 );
+
+// v1.91.0 — the "did not run" disclosure. Two shapes reach it:
+//   null            — a PDF report with no verdict field at all (stored
+//                     reports from before the field was always attached).
+//   available:false — veraPDF did not run for this audit (binary not
+//                     configured, or its JVM queue was saturated).
+// Both mean the machine-checkable PDF/UA-1 rules were never evaluated.
+// Hiding the panel (the pre-v1.91.0 behavior) let that absence read as "no
+// news is good news"; the disclosure exists so absence is never mistaken
+// for a pass. The remediation result page keeps its own unavailable markup
+// and only mounts this component when available === true, so this branch
+// renders on the audit surfaces (inline result, shared report) only.
+const didNotRun = computed(() => !props.verdict || props.verdict.available === false);
 
 // Grade-aware reassurance. The "Don't Panic" framing only applies when the WCAG
 // grade — the measure that matters for real users — is actually good; we never
@@ -107,21 +125,64 @@ function fmt(n: number): string {
 </script>
 
 <template>
-  <section
-    v-if="verdict?.available"
-    class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6"
-  >
-    <div class="flex items-start gap-3">
+  <section class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6">
+    <!-- "Did not run" disclosure (v1.91.0). The machine-check layer covers a
+         large share of the Matterhorn Protocol's machine-testable PDF/UA-1
+         conditions, so its silent absence made a report look complete while
+         ten-plus checkpoints went unexamined. Absence is now stated. -->
+    <div v-if="didNotRun" class="flex items-start gap-3" data-testid="pdfua-did-not-run">
+      <span
+        class="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-[var(--border)] text-[var(--text-muted)]"
+        aria-hidden="true"
+        >–</span
+      >
+      <div class="flex-1 text-sm">
+        <p class="font-medium mb-1 text-[var(--text-muted)]">
+          PDF/UA-1 machine checks (veraPDF): Did not run
+        </p>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
+          <template v-if="verdict === null"
+            >This report was created without the
+            <a
+              v-if="verapdfUrl"
+              :href="verapdfUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-blue-300 hover:text-blue-200 underline"
+              >veraPDF</a
+            ><span v-else>veraPDF</span> machine check, so none of the machine-checkable PDF/UA-1
+            (ISO 14289-1) rules were evaluated for it. Re-run the audit to include them.</template
+          ><template v-else
+            >The
+            <a
+              v-if="verapdfUrl"
+              :href="verapdfUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-blue-300 hover:text-blue-200 underline"
+              >veraPDF</a
+            ><span v-else>veraPDF</span> checker that runs the machine-checkable PDF/UA-1 (ISO
+            14289-1) rules did not run for this audit — it may not be configured on this server, or
+            it was momentarily at capacity. Re-run the audit to try again.</template
+          >
+        </p>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          Not run means not checked — it never means passed. The WCAG score and categories in this
+          report are computed independently and are unaffected.
+        </p>
+      </div>
+    </div>
+    <div v-else class="flex items-start gap-3">
       <span
         class="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0"
         :class="
           couldNotValidate
             ? 'border border-[var(--border)] text-[var(--text-muted)]'
-            : verdict.passed
+            : verdict?.passed
               ? 'bg-emerald-700/40 text-emerald-200'
               : 'bg-sky-700/40 text-sky-200'
         "
-        >{{ couldNotValidate ? "?" : verdict.passed ? "✓" : "+" }}</span
+        >{{ couldNotValidate ? "?" : verdict?.passed ? "✓" : "+" }}</span
       >
       <div class="flex-1 text-sm">
         <p v-if="couldNotValidate" class="font-medium mb-1 text-[var(--text-muted)]">
@@ -129,7 +190,7 @@ function fmt(n: number): string {
         </p>
         <p v-else class="font-medium mb-1">
           PDF/UA-1 machine checks (veraPDF):
-          {{ verdict.passed ? "Pass" : "Additional checks could be addressed" }}
+          {{ verdict?.passed ? "Pass" : "Additional checks could be addressed" }}
         </p>
         <p v-if="showPassCaveat" class="mb-2 text-[var(--text-secondary)]">
           <strong class="text-[var(--text-heading)]">This is not a publishing green light</strong>
@@ -197,7 +258,7 @@ function fmt(n: number): string {
           </p>
         </template>
         <p v-if="couldNotValidate" class="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
-          {{ verdict.error }}
+          {{ verdict?.error }}
         </p>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
           Machine-checkable conditions only (ISO 14289-1 via
@@ -213,7 +274,7 @@ function fmt(n: number): string {
           automatically.
         </p>
 
-        <div v-if="!couldNotValidate && !verdict.passed && sortedFailures.length" class="mt-3">
+        <div v-if="!couldNotValidate && !verdict?.passed && sortedFailures.length" class="mt-3">
           <button
             type="button"
             class="text-xs uppercase tracking-wider text-amber-300 hover:text-amber-200"

@@ -13,9 +13,32 @@ const base = {
 };
 
 describe("PdfUaVerdict.vue", () => {
-  it("renders nothing when veraPDF is unavailable", () => {
+  // v1.91.0 — the pre-existing behavior here was `expect(w.text()).toBe("")`:
+  // an unavailable verdict rendered NOTHING, so a PDF report looked complete
+  // while the whole machine-check layer was missing. Absence is now stated.
+  it("discloses 'Did not run' when veraPDF was unavailable (available:false)", () => {
     const w = mount(PdfUaVerdict, { props: { verdict: { ...base, available: false } } });
-    expect(w.text()).toBe("");
+    expect(w.find('[data-testid="pdfua-did-not-run"]').exists()).toBe(true);
+    expect(w.text()).toMatch(/Did not run/);
+    expect(w.text()).toMatch(/not run means not checked — it never means passed/i);
+    // It did not run — so it must claim neither verdict.
+    expect(w.text()).not.toMatch(/\bPass\b/);
+    expect(w.text()).not.toMatch(/additional checks could be addressed/i);
+  });
+  it("discloses 'Did not run' for a null verdict (stored PDF report without the field)", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: null } });
+    expect(w.find('[data-testid="pdfua-did-not-run"]').exists()).toBe(true);
+    expect(w.text()).toMatch(/created without the\s+veraPDF\s+machine check/i);
+    expect(w.text()).toMatch(/re-run the audit/i);
+  });
+  it("keeps the score-independence claim in the disclosure (the report is unaffected)", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: { ...base, available: false } } });
+    expect(w.text()).toMatch(/computed independently and are unaffected/i);
+  });
+  it("never shows the did-not-run disclosure when veraPDF actually ran", () => {
+    const w = mount(PdfUaVerdict, { props: { verdict: base } });
+    expect(w.find('[data-testid="pdfua-did-not-run"]').exists()).toBe(false);
+    expect(w.text()).not.toMatch(/Did not run/);
   });
   it("frames the non-pass verdict as additional checks — never the bare words Fail or Conformant", () => {
     const w = mount(PdfUaVerdict, { props: { verdict: base } });

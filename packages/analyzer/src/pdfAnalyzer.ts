@@ -61,7 +61,9 @@ export interface AnalysisResult extends ScoringResult {
   pptxMetadata?: PptxMetadata;
   /** Excel metadata — present only for XLSX results. */
   xlsxMetadata?: XlsxMetadata;
-  /** PDF/UA-1 machine-check verdict (veraPDF). PDF results only; absent when veraPDF isn't configured. */
+  /** PDF/UA-1 machine-check verdict (veraPDF). PDF results only. Attached by
+   *  routes/analyze.ts even when veraPDF did not run (available:false, since
+   *  v1.91.0) so the report can disclose the gap; absent on non-PDF results. */
   pdfUaVerdict?: PdfUaVerdict;
 }
 

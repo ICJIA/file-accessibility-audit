@@ -175,11 +175,14 @@
             <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
              deliberately below the blocking issues above: a "Pass" here does
              not mean the document is publishable, only that the formal
-             machine-checkable PDF/UA-1 rules were met. Self-hides when the
-             verdict is absent (non-PDF, or veraPDF unavailable). -->
+             machine-checkable PDF/UA-1 rules were met. Rendered for EVERY
+             stored PDF report (v1.91.0): when the stored report carries no
+             verdict — veraPDF didn't run, or the report predates the field —
+             the component shows an explicit "did not run" disclosure instead
+             of silently hiding. Absence must never read as a pass. -->
             <PdfUaVerdict
-              v-if="data.report?.pdfUaVerdict"
-              :verdict="data.report.pdfUaVerdict"
+              v-if="data.report?.fileType === 'pdf'"
+              :verdict="data.report.pdfUaVerdict ?? null"
               :grade="data.report?.grade"
               :categories="data.report?.categories"
               :verapdf-url="String(config.public.verapdfUrl ?? '')"

@@ -280,11 +280,13 @@
             <!-- PDF/UA-1 machine-check verdict (veraPDF) — INFORMATIONAL, and
              deliberately below the blocking issues above: a "Pass" here does
              not mean the document is publishable, only that the formal
-             machine-checkable PDF/UA-1 rules were met. Self-hides when the
-             verdict is absent (non-PDF, or veraPDF unavailable). -->
+             machine-checkable PDF/UA-1 rules were met. Rendered for EVERY
+             PDF (v1.91.0): when veraPDF did not run the component shows an
+             explicit "did not run" disclosure instead of silently hiding —
+             a missing machine-check layer must never read as a pass. -->
             <PdfUaVerdict
-              v-if="result?.pdfUaVerdict"
-              :verdict="result.pdfUaVerdict"
+              v-if="result?.fileType === 'pdf'"
+              :verdict="result.pdfUaVerdict ?? null"
               :grade="result?.grade"
               :categories="result?.categories"
               :verapdf-url="String(runtimeConfig.public.verapdfUrl ?? '')"
@@ -721,6 +723,13 @@
         </p>
       </div>
     </div>
+
+    <!-- Checkpoint-by-checkpoint Matterhorn Protocol coverage (v1.91.0) —
+         the trust disclosure: which of the 31 PDF/UA checkpoints the audit
+         engine checks itself, which the veraPDF pass covers, and which no
+         software can judge. Data in ~/data/matterhorn.ts; honesty-critical
+         entries pinned by matterhornChecklist.test.ts. -->
+    <MatterhornChecklist />
   </div>
 </template>
 
@@ -734,6 +743,7 @@ import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import ReportVisualView from "~/components/ReportVisualView.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import BatchFileSwitcher from "~/components/BatchFileSwitcher.vue";
+import MatterhornChecklist from "~/components/MatterhornChecklist.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";

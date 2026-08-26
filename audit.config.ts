@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "matterhorn-checklist-verapdf-disclosure-2026-08-25",
+    badge: "New",
+    text: 'The front page now shows the Matterhorn checklist — all 31 checkpoints of the PDF Association\'s test model for PDF accessibility, the same one professional checkers are built on — and which layer of this tool checks each one: our own audit engine, the open-source veraPDF validator that runs alongside every PDF audit, or human review for the checks no software can make. PDF reports also became more candid about that validator. If it ever cannot run, the report now says "Did not run" in its PDF/UA panel instead of leaving the panel out, because a missing check should never look like a passing one. Nothing about scoring changed, and nothing new is collected or stored.',
+    linkText: "See the Matterhorn checklist",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 25, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "status-progress-public-only-2026-08-25",
     badge: "Improved",
     text: 'The status page\'s new "do documents improve?" figures now count public audits only. The automated fleet inventory re-scans the same unchanged documents on a schedule through an internal tier, and those runs were drowning out the picture of documents people actually fix — the typical score change read as zero because most re-checks were fleet re-scans of files that had not changed. Fleet runs are no longer counted there, and neither are older records written before the request tier was recorded, so the figures build from that date. The count of distinct documents checked is unchanged and still includes everything. The data-retention policy (now v1.14) records the clarification in its change log.',

@@ -462,6 +462,33 @@ ROBOTS_HINT
   _smoke_failed=1
 fi
 
+# ---------------------------------------------------------------------
+# veraPDF engine probe (v1.91.0).
+#
+# veraPDF powers the PDF/UA machine-check layer — the machine-testable
+# subset of the Matterhorn Protocol's 31 checkpoints. Since v1.91.0 a PDF
+# report DISCLOSES when veraPDF did not run instead of silently hiding
+# the panel, so a deploy that lost the binary (env drift, a removed
+# install, a broken JAVA) would otherwise be discovered one apologetic
+# report at a time. Make it loud here instead.
+#
+# /status?format=json carries the engine probe (services/status.ts); the
+# first request after a restart spawns the veraPDF JVM, hence the longer
+# --max-time. Field order inside the object is not guaranteed, so grab
+# the whole {...} block and test for "ok":true inside it.
+# ---------------------------------------------------------------------
+_status_json=$(curl -s --max-time 60 "${SMOKE_URL}/status?format=json" 2>/dev/null || true)
+_verapdf_block=$(printf '%s' "$_status_json" | grep -o '"verapdf":{[^}]*}' || true)
+if printf '%s' "$_verapdf_block" | grep -q '"ok":true'; then
+  echo "  ✓ engine verapdf -> ${_verapdf_block}"
+else
+  echo "  ✗ engine verapdf -> ${_verapdf_block:-no verapdf block in /status?format=json}"
+  echo "    PDF reports will show 'PDF/UA-1 machine checks (veraPDF): Did not run'"
+  echo "    until VERAPDF_PATH (in /etc/environment, then pm2 restart --update-env)"
+  echo "    points at a working veraPDF install. See /status for the engine panel."
+  _smoke_failed=1
+fi
+
 if [ "$_smoke_failed" -eq 0 ]; then
   echo ""
   echo "✓ All post-deploy smoke checks passed."
