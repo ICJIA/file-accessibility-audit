@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "waiting-experience-2026-08-26",
+    badge: "Improved",
+    text: "Big documents no longer look stuck while they're being checked. Complex, design-heavy PDFs can genuinely take up to a minute — the two veraPDF engine passes are thorough — and the waiting screen used to show one frozen line the whole time. It now walks through the actual checks being run, counts the seconds, and explains what's taking long and why, and the upload area says up front that analysis isn't instant. Nothing about the checks themselves changed — same audits, same scores, just an honest view of the work while it happens.",
+    linkText: "What gets checked",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "wcag-second-opinion-2026-08-26",
     badge: "New",
     text: "Every PDF report now includes a WCAG second opinion. The veraPDF checker that already validates the PDF/UA standard on every PDF audit now also runs the industry's machine-testable WCAG 2.2 rules — the same subset professional checkers like PAC verify by machine, including text contrast, which this tool's score deliberately doesn't compute. It appears as its own panel on PDF reports: it can flag extra things worth fixing, it plainly says \"Did not run\" if it ever can't run, and it never changes your score or grade — every previously checked document keeps its exact result.",

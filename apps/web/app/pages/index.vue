@@ -541,7 +541,12 @@
     />
 
     <!-- Processing overlay (single file) -->
-    <ProcessingOverlay v-else-if="processing" :stage="processingStage" />
+    <ProcessingOverlay
+      v-else-if="processing"
+      :stage="processingStage"
+      :rotate="processingRotate"
+      :file-type="processingFileType"
+    />
 
     <!-- Drop zone (idle state) -->
     <div v-else>
@@ -833,6 +838,16 @@ const hasRemediationItems = computed(() => {
 // --- Single file state (preserved for single-file UX) ---
 const processing = ref(false);
 const processingStage = ref("");
+// v1.99.0: single-file uploads use the overlay's rotating check queue (the
+// server reports nothing until done, so index.vue's old hand-set stage
+// strings sat frozen — and claimed "PDF structure" for Word files). URL
+// audits keep narrating their own real milestones via processingStage.
+const processingRotate = ref(false);
+const processingFileType = ref<"pdf" | "docx" | "pptx" | "xlsx" | null>(null);
+function fileTypeFromName(name: string): "pdf" | "docx" | "pptx" | "xlsx" | null {
+  const m = /\.(pdf|docx|pptx|xlsx)$/i.exec(name);
+  return m ? (m[1]!.toLowerCase() as "pdf" | "docx" | "pptx" | "xlsx") : null;
+}
 const singleResult = ref<AnalysisResult | null>(null);
 const singleFile = ref<File | null>(null);
 const analysisError = ref<PrefillError | null>(null);
@@ -948,20 +963,17 @@ async function analyzeFile(file: File) {
   batchItems.value = [];
 
   try {
-    processingStage.value = "Uploading…";
+    processingRotate.value = true;
+    processingFileType.value = fileTypeFromName(file.name);
+    processingStage.value = "";
     const formData = new FormData();
     formData.append("file", file);
-
-    processingStage.value = "Extracting PDF structure…";
 
     const response = await $fetch<AnalysisResult>("/api/analyze", {
       method: "POST",
       body: formData,
       credentials: "include",
     });
-
-    processingStage.value = "Building report…";
-    await new Promise((r) => setTimeout(r, 300)); // Brief pause for UX
 
     singleResult.value = response;
     focusResultsHeading();
@@ -971,6 +983,8 @@ async function analyzeFile(file: File) {
     };
   } finally {
     processing.value = false;
+    processingRotate.value = false;
+    processingFileType.value = null;
   }
 }
 

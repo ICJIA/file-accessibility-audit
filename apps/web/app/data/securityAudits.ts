@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.99.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: what the page shows while an audit is running. Nothing new is received, sent, or stored; no scoring change.",
+    body: [
+      {
+        kind: "p",
+        html: "A real report of an audit that &ldquo;just spins&rdquo; turned out to be a healthy 26-second run on a design-heavy PDF with no feedback on screen. The waiting screen now rotates through the actual checks being run, counts the seconds, and — after 15 and 60 seconds — explains truthfully why some documents take longer and that every step has a hard server-side timeout. The upload area also says up front that analysis can take up to a minute.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Honesty was the review.</strong> The server reports nothing until an audit finishes, so the rotating list deliberately cycles instead of claiming step-by-step progress it cannot know, and it never marks a step complete. Screen-reader users get the same facts on a calmer 15-second cadence rather than an announcement every two and a half seconds.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.98.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: the technical-details page and the audit page's technical section now share one body of text. Nothing about how the service runs, what it collects, or how long anything is kept changed.",
     body: [

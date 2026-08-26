@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.98.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2777%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.99.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2783%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -799,7 +799,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,777 tests** across 178 test files (API 1509, Web 1219, CLI 49). Run all three suites with one summary:
+**2,783 tests** across 179 test files (API 1509, Web 1225, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1251,12 +1251,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.99.0 — 2026-08-26 · The waiting experience: a rotating check queue, elapsed counter, and up-front timing expectation (client-side presentation only)
+
+Prompted by a real report of an audit that "just spins": a design-heavy InDesign PDF measured ~26 s in production (the two veraPDF JVM passes are the slow part) while the overlay showed one frozen — and for Office files, wrong — stage line. The overlay now cycles through the real per-format check suite with an elapsed counter and escalating truthful reassurance (15 s: large PDFs can take 30–60 seconds; 60 s: every step is hard-timeout-bounded, so it finishes or fails cleanly). Reviewed for honesty rather than attack surface, since nothing new is received, sent, or stored: the server reports nothing until done, so the queue cycles rather than claiming step-by-step progress, never fakes completion, and URL audits keep their genuinely-known milestones; the rotation is visual-only for screen readers, which get a ~15-second live-region cadence instead of a 2.5-second firehose. The drop zone states up front that analysis can take up to a minute. Tests 2,777 → 2,783.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.98.0 → v1.33.0) — click to expand</summary>
+
 ### v1.98.0 — 2026-08-26 · The Technical Details unification: one content source for the page and the collapsible (no new attack surface)
 
 The `/technical-details` page and the audit page's Technical Details collapsible are now the same `TechnicalExplainer` component — identical by construction and pinned by test (page chrome only on the page; no section prose allowed back; the header states the identity claim so any future divergence would make the page lie visibly). The motivation is the v1.95.2 lesson: two separately-authored surfaces drift, and one of them taught a scoring model retired six weeks earlier. Nothing unique was lost — the worked scoring example (current model + severity cap), the WCAG 2.2 Alignment section, and the toolchain license table moved into the shared component, so both surfaces gained them. Reviewed for surface: purely a re-composition of already-served, repo-authored content — no new route, no request, no input handling, nothing collected or stored; the data-retention policy is untouched at v1.16. Tests 2,775 → 2,777.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.97.0 → v1.33.0) — click to expand</summary>
 
 ### v1.97.0 — 2026-08-26 · The WCAG second opinion: veraPDF's machine-testable WCAG 2.2 profile on every PDF audit (new subprocess input reviewed; adversarially tested)
 

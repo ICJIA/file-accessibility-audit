@@ -111,6 +111,13 @@
           <p class="text-sm text-[var(--text-muted)] mt-1">
             or click to browse — up to 5 files, max 25 MB each
           </p>
+          <!-- v1.99.0 (user request): set the timing expectation up front —
+               a design-heavy PDF measured ~26 s in production, and a silent
+               wait that long reads as "stuck". -->
+          <p class="text-xs text-[var(--text-muted)] mt-2" data-testid="dropzone-timing-note">
+            Analysis isn't instant — most files finish in seconds, but large or design-heavy
+            documents can take up to a minute while the full check suite runs.
+          </p>
         </div>
       </div>
     </div>

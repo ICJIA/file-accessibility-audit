@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.99.0] - 2026-08-26
+
+### Added
+
+- **The audit no longer looks stuck** (user request, prompted by a real case: a design-heavy InDesign PDF measured ~26 s in production while the overlay showed one frozen line — which even said "Extracting PDF structure…" for Word files). The processing overlay now shows a **rotating queue of the real checks** ("Reading the PDF's internal structure (qpdf)…", "Running veraPDF: WCAG 2.2 machine checks…", per-format lists), a **live elapsed counter**, and **escalating truthful reassurance** at 15 s (large PDFs can take 30–60 seconds; the veraPDF passes are the slow part) and 60 s (every step is hard-timeout-bounded — it finishes or fails cleanly, never hangs).
+  - **Honesty shape:** the server reports nothing until it's done, so no precise "now on step N" claim is possible — the queue *cycles* through the real check suite under a line stating they run together, and never fakes completion of a step. URL audits keep their genuinely-known milestones ("Fetching …").
+  - **Screen readers get a humane cadence:** the 2.5-second rotation is visual only; a separate live region announces progress every ~15 seconds instead of firehosing.
+- **The drop zone sets the expectation up front:** "Analysis isn't instant — most files finish in seconds, but large or design-heavy documents can take up to a minute while the full check suite runs."
+
+### Notes
+
+- All behavior is client-side presentation — no API, scoring, or storage change. Tests: API 1,509 · web 1,225 · CLI 49 (**2,783**).
+
+<details>
+<summary><strong>v1.98.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.98.0] - 2026-08-26
 
 ### Changed
@@ -11,9 +27,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **The two Technical Details surfaces are now one content source** (user decision: identical, and kept in sync for every future change). The `/technical-details` page no longer carries its own separately-authored prose — it renders the same `TechnicalExplainer` component as the audit page's collapsible, wrapped in page chrome only (header, back nav, related-documents grid). Sync is **by construction**, and `technicalDetailsSync.test.ts` pins the construction: the page must render the shared component, must contain no section prose of its own, and its header must state the identity claim — because the failure mode is exactly what v1.95.2 had to fix, a separately-authored page teaching a scoring model retired six weeks earlier.
 - **Nothing the standalone page uniquely had was lost** — its three one-of-a-kind pieces moved into the shared component, so both surfaces now carry them: the worked scoring example (current passing-weight model *plus* the severity-cap step, ending at the capped 79 · C), the **WCAG 2.2 Alignment** section (2.2 AA as a strict superset of the legally-required 2.1 AA, with the "legal minimum" precision line), and the open-source **toolchain license table** (veraPDF row already naming the v1.97.0 WCAG profile).
 - Tests: web 1,217 → 1,219 (**2,777**).
-
-<details>
-<summary><strong>v1.97.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.97.0] - 2026-08-26
 
