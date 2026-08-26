@@ -62,7 +62,29 @@ function releaseSlot(): void {
 }
 
 /**
- * Run veraPDF's PDF/UA-1 check against an in-memory PDF buffer.
+ * Which PDF/UA flavour a buffer declares (v1.94.0). XMP metadata streams are
+ * typically stored uncompressed precisely so byte scanners can find them, so
+ * a cheap scan for `pdfuaid` occurrences and a nearby part value of 2 picks
+ * the ua2 profile for PDF/UA-2 documents. A miss (compressed XMP, no
+ * identifier) just keeps today's ua1 behavior — never worse than before.
+ * Exported for tests.
+ */
+export function detectPdfUaFlavour(buffer: Buffer): "ua1" | "ua2" {
+  let from = 0;
+  for (let i = 0; i < 8; i++) {
+    const idx = buffer.indexOf("pdfuaid", from);
+    if (idx === -1) break;
+    const window = buffer
+      .subarray(Math.max(0, idx - 40), Math.min(buffer.length, idx + 200))
+      .toString("latin1");
+    if (/pdfuaid:part(?:\s*=\s*["']\s*2\s*["']|[^>]*>\s*2\s*<)/i.test(window)) return "ua2";
+    from = idx + 7;
+  }
+  return "ua1";
+}
+
+/**
+ * Run veraPDF's PDF/UA check against an in-memory PDF buffer.
  *
  * Writes a short-lived temp copy (same TMP_DIR||/tmp + UUID.pdf pattern the
  * qpdf audit path already uses and the privacy docs already disclose), runs
@@ -76,16 +98,17 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
   if (!REMEDIATION.VERAPDF_PATH) return unavailable();
 
   if (!(await acquireSlot())) {
-    // Saturated. The check is supplementary — hide the panel rather than
-    // fail the audit the user actually asked for.
+    // Saturated. The check is supplementary — the report discloses "Did not
+    // run" (v1.91.0) rather than failing the audit the user asked for.
     return unavailable();
   }
 
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
+  const flavour = detectPdfUaFlavour(buffer);
   try {
     fs.writeFileSync(tmpPath, buffer);
-    return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS);
+    return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour);
   } catch {
     // The message here can carry the temp path (e.g. ENOENT ... '/tmp/x.pdf')
     // and this field is serialized to the client by routes/analyze.ts and
@@ -93,7 +116,7 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
     return {
       available: true,
       passed: false,
-      profile: "ua1",
+      profile: flavour,
       failures: [],
       totalFailureCount: 0,
       distinctRuleCount: 0,

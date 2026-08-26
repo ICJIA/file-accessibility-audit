@@ -176,6 +176,56 @@ describe("text_extractability failure-mode variants", () => {
     expect(acrobat.steps.join(" ")).not.toMatch(/Scan & OCR/);
   });
 
+  it("RB-review F5: heavy unmapped glyphs on a tagged PDF → font/character-map step, never the OCR headline", () => {
+    const step = build(
+      [
+        "PDF contains extractable text",
+        "Document is tagged (StructTreeRoot present)",
+        "--- Character Mapping (Matterhorn 10) ---",
+        "  300 extracted character(s) cannot be mapped to readable text (30% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.",
+        "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.",
+      ],
+      "Moderate",
+    );
+    expect(step.title.toLowerCase()).toMatch(/font|words/);
+    expect(step.why).not.toContain("picture of text");
+    expect(step.why.toLowerCase()).toContain("unreadable symbols");
+  });
+
+  it("RB-review F5: heavy untagged text on a tagged PDF → bring-into-structure step, never the OCR headline", () => {
+    const step = build(
+      [
+        "PDF contains extractable text",
+        "Document is tagged (StructTreeRoot present)",
+        "--- Content Outside the Tag Structure (Matterhorn 01) ---",
+        "  500 visible character(s) — 50% of the page text — are painted outside the tagged content (pages 2, 3). They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.",
+        "  How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF to bring the untagged content into the structure, then verify the affected pages in the Tags panel — or mark genuinely decorative runs as artifacts.",
+      ],
+      "Moderate",
+    );
+    expect(step.title.toLowerCase()).toContain("untagged text");
+    expect(step.why).not.toContain("picture of text");
+    expect(step.why.toLowerCase()).toContain("outside the tag structure");
+  });
+
+  it("RB-review F5: the ADVISORY census tiers keep the category's normal copy (no variant hijack)", () => {
+    const step = build(
+      [
+        "PDF contains extractable text",
+        "Document is tagged (StructTreeRoot present)",
+        "3 non-embedded font(s) may cause garbled text on systems without these fonts: ArialMT",
+        "--- Character Mapping (Matterhorn 10) ---",
+        "  4 extracted character(s) cannot be mapped to readable text (0% of the text layer)…",
+        "  Advisory — not scored: a count this small is usually symbol-font bullets or dingbats… No action needed unless real words are affected.",
+      ],
+      "Minor",
+    );
+    // The fonts variant should win — the advisory glyph line must not steal
+    // the headline from the actual (scored) problem.
+    expect(step.title.toLowerCase()).toContain("font");
+    expect(step.title.toLowerCase()).not.toContain("words");
+  });
+
   it("extractable text but no tags → tagging step, without OCR and without 'picture of text'", () => {
     const step = build(
       [

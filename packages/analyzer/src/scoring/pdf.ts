@@ -84,6 +84,7 @@ export function scoreDocument(qpdf: QpdfResult, pdfjs: PdfjsResult): ScoringResu
     adobeParity,
     conformance,
     pdfUa,
+    matterhornCensusGeneration: 2,
   };
 }
 
@@ -124,7 +125,7 @@ function buildCategories(
   categories.push(scoreColorContrast());
   categories.push(scoreLinkQuality(qpdf, pdfjs));
   categories.push(scoreReadingOrder(qpdf, pdfjs));
-  categories.push(scoreFormAccessibility(qpdf));
+  categories.push(scoreFormAccessibility(qpdf, pdfjs));
 
   applyProfileWeights(categories, mode);
   applyWcagCriteria(categories);
@@ -298,6 +299,79 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     } else {
       findings.push(
         "All fonts are embedded — text will render correctly regardless of the user's installed fonts",
+      );
+    }
+  }
+
+  // Unmapped glyphs (v1.94.0 — Matterhorn 10). pdf.js lands glyphs whose
+  // fonts provide no usable text mapping in the Private Use Areas (or
+  // U+FFFD): the page LOOKS fine while a screen reader gets symbols with no
+  // pronunciation — the failure font embedding is only a proxy for. Tiny
+  // counts are almost always symbol-font list bullets (Wingdings), so they
+  // stay advisory; caps engage only when real prose is affected.
+  const unmappedChars = pdfjs.unmappedTextCharCount;
+  if (typeof unmappedChars === "number" && unmappedChars > 0) {
+    const share = unmappedChars / Math.max(1, pdfjs.textLength);
+    const sharePct = Math.round(share * 100);
+    findings.push(`--- Character Mapping (Matterhorn 10) ---`);
+    findings.push(
+      `  ${unmappedChars.toLocaleString()} extracted character(s) cannot be mapped to readable text (${sharePct}% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.`,
+    );
+    if (unmappedChars >= 100 && share >= 0.05) {
+      score = Math.min(score, 50);
+      findings.push(
+        "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.",
+      );
+    } else if (unmappedChars >= 20) {
+      score = Math.min(score, 85);
+      findings.push(
+        "  Verify the affected passages read correctly with a screen reader. If they are decorative symbols or bullets, no action is needed; if they are real words, re-export from the source application.",
+      );
+    } else {
+      findings.push(
+        "  Advisory — not scored: a count this small is usually symbol-font bullets or dingbats, which read as decoration. No action needed unless real words are affected.",
+      );
+    }
+  }
+
+  // Text outside tagged content (v1.94.0 — Matterhorn 01-005/006). The
+  // content-free-tree check catches the all-or-nothing case; this census
+  // measures PARTIAL tagging — visible, non-artifact text painted outside
+  // every MCID-carrying run, which no structure element can reference.
+  // Computed from the text layer (never annotation appearance streams).
+  const untaggedChars = pdfjs.untaggedVisibleChars;
+  const taggedChars = pdfjs.taggedVisibleChars ?? 0;
+  if (
+    qpdf.hasStructTree &&
+    !structTreeIsContentFree(qpdf, pdfjs) &&
+    typeof untaggedChars === "number" &&
+    untaggedChars > 0
+  ) {
+    const totalVisible = untaggedChars + taggedChars;
+    const untaggedShare = untaggedChars / Math.max(1, totalVisible);
+    const untaggedPct = Math.round(untaggedShare * 100);
+    const pages = pdfjs.untaggedTextPages ?? [];
+    const pageList =
+      pages.length > 0
+        ? ` (page${pages.length === 1 ? "" : "s"} ${pages.join(", ")}${pages.length >= 12 ? ", …" : ""})`
+        : "";
+    findings.push(`--- Content Outside the Tag Structure (Matterhorn 01) ---`);
+    findings.push(
+      `  ${untaggedChars.toLocaleString()} visible character(s) — ${untaggedPct}% of the page text — are painted outside the tagged content${pageList}. They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.`,
+    );
+    if (untaggedShare >= 0.1 && untaggedChars >= 200) {
+      score = Math.min(score, 50);
+      findings.push(
+        "  How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF to bring the untagged content into the structure, then verify the affected pages in the Tags panel — or mark genuinely decorative runs as artifacts.",
+      );
+    } else if (untaggedShare >= 0.02 && untaggedChars >= 50) {
+      score = Math.min(score, 85);
+      findings.push(
+        "  Review the named pages in Acrobat's Tags panel: tag real content, or mark decorative text (watermarks, crop marks) as artifacts.",
+      );
+    } else {
+      findings.push(
+        "  Advisory — not scored: an amount this small is often stray export residue. Verify the named pages when convenient.",
       );
     }
   }
@@ -1612,7 +1686,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   };
 }
 
-function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
+function scoreFormAccessibility(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const formLinks: CategoryResult["helpLinks"] = [
     {
       label: "Adobe: Create Accessible Forms",
@@ -1645,10 +1719,35 @@ function scoreFormAccessibility(qpdf: QpdfResult): CategoryResult {
   }
 
   const withLabels = qpdf.formFields.filter((f) => f.hasTU).length;
-  const score = Math.floor((withLabels / qpdf.formFields.length) * 100);
+  let score = Math.floor((withLabels / qpdf.formFields.length) * 100);
   const findings: string[] = [];
 
   findings.push(`${qpdf.formFields.length} form field(s) detected`);
+
+  // Untagged widgets (v1.94.0 — Matterhorn 28, the untagged-link mechanics
+  // applied to form fields): a visible widget no structure element references
+  // via OBJR is invisible to a screen reader following the tags, whatever its
+  // /TU says. Only meaningful in a tagged document with real content, and
+  // only when the census exists (fresh analyses; stored pre-census reports
+  // keep their TU-only score).
+  const untaggedWidgets = qpdf.untaggedWidgetAnnotationCount;
+  const widgetCensusKnown =
+    typeof untaggedWidgets === "number" &&
+    qpdf.hasStructTree &&
+    !structTreeIsContentFree(qpdf, pdfjs);
+  if (widgetCensusKnown && untaggedWidgets! > 0) {
+    const totalWidgets = Math.max(qpdf.widgetAnnotationCount ?? untaggedWidgets!, untaggedWidgets!);
+    // Proportional, exactly like the untagged-LINKS treatment of the same
+    // defect (RB-review near-miss): one untagged widget among 26 dents the
+    // score; an all-untagged form drives it to 0.
+    score = Math.min(score, Math.floor(((totalWidgets - untaggedWidgets!) / totalWidgets) * 100));
+    findings.push(
+      `${untaggedWidgets} of ${totalWidgets} visible form-field widget(s) are not referenced from the tag structure — no structure element points at them (no OBJR), so a screen reader following the tags never reaches those fields, whatever their tooltips say.`,
+    );
+    findings.push(
+      'How to fix: In Adobe Acrobat, open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Annotations" → Find → Tag Element, so each field is wrapped in a <Form> tag at its reading position; then re-check the tab order.',
+    );
+  }
 
   if (qpdf.hasXfa && !qpdf.needsRendering) {
     findings.push(

@@ -98,6 +98,30 @@ export interface PdfjsResult {
   // share the same "p{pageObjId}_mc{mcid}" id format. Optional: absent on
   // stored reports from before this field existed.
   headingOutline?: Array<{ level: string; text: string }>;
+  // -------------------------------------------------------------------------
+  // v1.94.0 text censuses (Matterhorn 10 and 01), computed from the SAME
+  // getTextContent({includeMarkedContent: true}) item stream the heading
+  // outline uses — deliberately NOT the operator list, because the text
+  // layer never includes annotation appearance streams, so form-widget
+  // label text can never pollute either census. Absent on stored reports
+  // from before v1.94.0.
+  // -------------------------------------------------------------------------
+  /** Extracted characters in the Unicode Private Use Areas or U+FFFD —
+   *  pdf.js's signature for glyphs whose fonts provide no usable mapping to
+   *  real text (Matterhorn 10): the glyph paints, but a screen reader gets
+   *  a symbol with no pronunciation. Artifact runs excluded. */
+  unmappedTextCharCount?: number;
+  /** Visible (non-whitespace, non-artifact) characters INSIDE a marked-
+   *  content run that carries an MCID — i.e. text the structure tree can
+   *  reference. */
+  taggedVisibleChars?: number;
+  /** Visible non-artifact characters OUTSIDE every MCID-carrying run — text
+   *  painted on the page that no structure element can reference
+   *  (Matterhorn 01-005/006: real content neither tagged nor artifacted). */
+  untaggedVisibleChars?: number;
+  /** 1-indexed pages with untagged visible text, ascending, capped at 12 —
+   *  so the finding can NAME pages to open instead of only counting. */
+  untaggedTextPages?: number[];
   error: string | null;
 }
 
@@ -134,6 +158,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
     linkAnnotationCount: 0,
     untaggedLinkAnnotationCount: 0,
     textBearingFigures: [],
+    unmappedTextCharCount: 0,
+    taggedVisibleChars: 0,
+    untaggedVisibleChars: 0,
+    untaggedTextPages: [],
     metadata: {
       creator: null,
       producer: null,
@@ -245,6 +273,15 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       // Track empty pages (pages with negligible text content)
       if (pageText.trim().length < 10) {
         result.emptyPages.push(i);
+      }
+
+      // v1.94.0 text censuses (Matterhorn 10 + 01) over the same item stream.
+      const census = censusTextItems(textContent.items);
+      result.unmappedTextCharCount! += census.unmappedChars;
+      result.taggedVisibleChars! += census.taggedVisibleChars;
+      result.untaggedVisibleChars! += census.untaggedVisibleChars;
+      if (census.untaggedVisibleChars > 0 && result.untaggedTextPages!.length < 12) {
+        result.untaggedTextPages!.push(i);
       }
 
       // This page's struct tree, fetched once and shared by the link-text
@@ -572,6 +609,73 @@ function findLinkText(annot: any, textItems: any[]): string {
   }
 
   return matchingTexts.join(" ");
+}
+
+// ---------------------------------------------------------------------------
+// v1.94.0 text censuses (Matterhorn 10 + 01). Pure function over a
+// getTextContent({ includeMarkedContent: true }) item stream, so it is
+// unit-testable with synthetic items (the pdfjsHeadingOutline.test.ts
+// pattern) and immune to annotation appearance streams by construction.
+// ---------------------------------------------------------------------------
+
+/** Character codes pdf.js uses when a glyph has no usable text mapping: the
+ *  three Private Use Areas plus the replacement character. A reader hears
+ *  nothing useful for these — the extraction-visible face of a missing
+ *  ToUnicode/cmap (Matterhorn 10). */
+export function isUnmappedChar(code: number): boolean {
+  return (
+    (code >= 0xe000 && code <= 0xf8ff) ||
+    (code >= 0xf0000 && code <= 0xffffd) ||
+    (code >= 0x100000 && code <= 0x10fffd) ||
+    code === 0xfffd
+  );
+}
+
+export interface TextCensus {
+  /** Non-artifact extracted characters that are PUA/replacement — unmapped. */
+  unmappedChars: number;
+  /** Visible (non-whitespace) non-artifact chars inside an MCID-bearing run. */
+  taggedVisibleChars: number;
+  /** Visible non-artifact chars outside every MCID-bearing run. */
+  untaggedVisibleChars: number;
+}
+
+/**
+ * Census one page's text items. Marked-content marker items nest: a text
+ * item is TAGGED when any enclosing frame carries an id (the same
+ * "p…_mc…" ids the struct tree references), and ignored entirely when any
+ * enclosing frame is an /Artifact (artifact text is deliberately outside
+ * the reading order — headers, footers, page numbers). Exported for tests.
+ */
+export function censusTextItems(items: unknown[]): TextCensus {
+  const census: TextCensus = { unmappedChars: 0, taggedVisibleChars: 0, untaggedVisibleChars: 0 };
+  const stack: Array<{ hasId: boolean; artifact: boolean }> = [];
+  for (const raw of items) {
+    const item = raw as any;
+    if (item?.type === "beginMarkedContent" || item?.type === "beginMarkedContentProps") {
+      const tag = typeof item.tag === "string" ? item.tag : "";
+      stack.push({
+        hasId: typeof item.id === "string" && item.id.length > 0,
+        artifact: tag === "Artifact" || tag === "/Artifact",
+      });
+      continue;
+    }
+    if (item?.type === "endMarkedContent") {
+      stack.pop();
+      continue;
+    }
+    if (typeof item?.str !== "string" || item.str.length === 0) continue;
+    if (stack.some((f) => f.artifact)) continue;
+    const tagged = stack.some((f) => f.hasId);
+    for (const ch of item.str) {
+      const code = ch.codePointAt(0)!;
+      if (isUnmappedChar(code)) census.unmappedChars++;
+      if (ch.trim() === "") continue; // whitespace paints nothing
+      if (tagged) census.taggedVisibleChars++;
+      else census.untaggedVisibleChars++;
+    }
+  }
+  return census;
 }
 
 // Build "p{pageObjId}_mc{mcid}" → text from a getTextContent({

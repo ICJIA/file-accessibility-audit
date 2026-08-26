@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.94.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: three deeper automated checks inside the PDF analyzer, plus a deliberate adversarial (red-team) review of every change since the &ldquo;Did not run&rdquo; release — thirteen weaknesses found that way were fixed before this release shipped. Nothing new is collected, no new way to reach the service, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The analyzer now catches three problems that can hide behind a good-looking page: text that renders fine but extracts as unpronounceable symbols (a font problem screen readers cannot work around), visible text painted outside the document&rsquo;s tag structure (a screen reader following the structure never meets it), and form fields the structure never points at. Before release, these and every other recent change were attacked on purpose &mdash; hostile documents, forged shared-report data, misleading edge cases &mdash; first by the developer&rsquo;s own adversarial pass and then by an independent automated review.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Fixed",
+            html: "<strong>The most important find protected YOU from a false accusation.</strong> A correctly tagged form written in a less common (but perfectly legal) internal layout could have been reported as &ldquo;every form field unreachable&rdquo; &mdash; a confirmed failure the document didn&rsquo;t deserve. The reader now understands every legal layout, and an automated test replays the tricky ones.",
+          },
+          {
+            badge: "Hardened",
+            html: "<strong>Hostile inputs hit hard limits.</strong> A document built to make the checker do enormous unnecessary work (an endless chain of tag-name mappings, footnote IDs megabytes long) and a forged shared report stuffed with thousands of fake checker results each now stop at a bounded cost, with tests that replay the attacks.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>Honesty details.</strong> Advisory notes the report itself waves off can no longer flip a checklist row to &ldquo;issues found&rdquo; or change a fix-plan headline; older shared reports no longer show a green &ldquo;no issues detected&rdquo; for checks that did not exist when they were made; and when a list is shortened for safety, the report now says how many entries were left out instead of staying silent.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.93.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: a new collapsed section on report pages that regroups a report&rsquo;s existing findings under the PDF industry&rsquo;s 31-point checklist. Nothing new is collected, no new way to reach the service, no retention period changed.",
     body: [

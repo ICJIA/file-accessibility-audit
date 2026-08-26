@@ -295,7 +295,19 @@ export function appendSupplementaryFindings(
     const media = qpdf.mediaAnnotationCounts;
     const mediaTotal = media ? media.screen + media.movie + media.sound + media.richMedia : 0;
     const jsSignals = (qpdf.jsActionCount ?? 0) + (qpdf.hasJsNameTree ? 1 : 0);
-    if (mediaTotal > 0 || jsSignals > 0 || qpdf.hasOptionalContent) {
+    const otherAnnots = qpdf.otherAnnotationCount ?? 0;
+    const refXObjects = qpdf.refXObjectCount ?? 0;
+    const embeddedFiles = qpdf.embeddedFileCount ?? 0;
+    const sigFields = qpdf.signatureFieldCount ?? 0;
+    if (
+      mediaTotal > 0 ||
+      jsSignals > 0 ||
+      qpdf.hasOptionalContent ||
+      otherAnnots > 0 ||
+      refXObjects > 0 ||
+      embeddedFiles > 0 ||
+      sigFields > 0
+    ) {
       readingCat.findings.push(`--- Document Behaviors ---`);
     }
     if (mediaTotal > 0 && media) {
@@ -333,6 +345,51 @@ export function appendSupplementaryFindings(
           `  Advisory — not scored: ${withAS} layer configuration(s) carry an /AS auto-state (Matterhorn 20-002) — content can appear or disappear with zoom or print without the reader acting, which assistive technology cannot follow.`,
         );
       }
+    }
+
+    // v1.94.0 censuses — annotations beyond links/widgets, reference
+    // XObjects, attachments, and signature fields. All advisory.
+    if (otherAnnots > 0) {
+      const subtypeCounts = qpdf.otherAnnotationSubtypeCounts ?? {};
+      const kinds = Object.entries(subtypeCounts)
+        .map(([k, n]) => (n > 1 ? `${k} ×${n}` : k))
+        .join(", ");
+      readingCat.findings.push(
+        `  ${otherAnnots} annotation(s) beyond links and form fields (${kinds}) — comments, markup, and stamps are content too`,
+      );
+      const untaggedOther = qpdf.untaggedOtherAnnotationCount ?? 0;
+      if (untaggedOther > 0) {
+        readingCat.findings.push(
+          `  Advisory — not scored: ${untaggedOther} of them are not referenced from the tag structure (Matterhorn 28) — assistive technology following the tags will not encounter them.`,
+        );
+      }
+      const missingContents = qpdf.otherAnnotationsMissingContents ?? 0;
+      if (missingContents > 0) {
+        readingCat.findings.push(
+          `  Advisory — not scored: ${missingContents} of them carry no /Contents description (PDF/UA 7.18.2) — a screen reader announces the annotation type with nothing to say about it.`,
+        );
+      }
+    }
+    if (refXObjects > 0) {
+      readingCat.findings.push(
+        `  Advisory — not scored: the document uses ${refXObjects} reference XObject(s), which import content from another document — PDF/UA prohibits them outright (Matterhorn 30-001) because the imported content's structure is unreachable. Flatten or re-export the affected pages.`,
+      );
+    }
+    if (embeddedFiles > 0) {
+      const missingDesc = qpdf.embeddedFilesMissingDesc ?? 0;
+      readingCat.findings.push(
+        `  ${embeddedFiles} embedded file attachment(s) present${missingDesc === 0 ? " — each carries a description (Matterhorn 21)" : ""}`,
+      );
+      if (missingDesc > 0) {
+        readingCat.findings.push(
+          `  Advisory — not scored: ${missingDesc} attachment(s) have no description (/Desc — Matterhorn 21), so assistive technology can only announce a bare filename. In Acrobat's Attachments panel, add a description to each.`,
+        );
+      }
+    }
+    if (sigFields > 0) {
+      readingCat.findings.push(
+        `  ${sigFields} digital-signature field(s) present (Matterhorn 23) — verify their labels and position in the reading order; whether a signature workflow is accessible end-to-end is a human judgment.`,
+      );
     }
   }
 

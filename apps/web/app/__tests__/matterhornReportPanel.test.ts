@@ -36,6 +36,9 @@ function pdfReport(over: Record<string, any> = {}) {
     fileType: "pdf",
     categories: [{ id: "text_extractability", score: 100, findings: [] }],
     conformance: { failures: [] },
+    // Fresh analyses since v1.94.0 carry the census generation; tests for
+    // OLD stored payloads override this to undefined (RB-review F7).
+    matterhornCensusGeneration: 2,
     ...over,
   };
 }
@@ -241,6 +244,105 @@ describe("buildMatterhornProjection — engine evidence mapping", () => {
   });
 });
 
+describe("buildMatterhornProjection — v1.94.0 markers and gate mappings", () => {
+  it("maps the text censuses' SCORED branches: unmapped glyphs → 10, text outside tagged content → 01", () => {
+    const p = buildMatterhornProjection(
+      pdfReport({
+        categories: [
+          {
+            id: "text_extractability",
+            score: 50,
+            findings: [
+              "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says…",
+              "  How to fix: … Automatically tag PDF to bring the untagged content into the structure…",
+            ],
+          },
+        ],
+      }),
+    )!;
+    expect(rowById(p, "10").status).toBe("issues");
+    expect(rowById(p, "01").status).toBe("issues");
+  });
+
+  it("RB-review F4: the advisory tier ('No action needed') must NOT flip rows 10/01 to Issues found", () => {
+    const p = buildMatterhornProjection(
+      pdfReport({
+        categories: [
+          {
+            id: "text_extractability",
+            score: 100,
+            findings: [
+              "--- Character Mapping (Matterhorn 10) ---",
+              "  4 extracted character(s) cannot be mapped to readable text (0% of the text layer)…",
+              "  Advisory — not scored: a count this small is usually symbol-font bullets… No action needed…",
+              "--- Content Outside the Tag Structure (Matterhorn 01) ---",
+              "  2 visible character(s) — 0% of the page text — are painted outside the tagged content (page 3)…",
+              "  Advisory — not scored: an amount this small is often stray export residue…",
+            ],
+          },
+        ],
+      }),
+    )!;
+    expect(rowById(p, "10").status).toBe("clean");
+    expect(rowById(p, "01").status).toBe("clean");
+  });
+
+  it("maps the untagged-widget 1.3.1 gate failure to checkpoint 28", () => {
+    const p = buildMatterhornProjection(
+      pdfReport({
+        conformance: {
+          failures: [
+            {
+              sc: "1.3.1",
+              category: "form_accessibility",
+              issue: "2 visible form-field widget(s) are not referenced from the tag structure…",
+            },
+          ],
+        },
+      }),
+    )!;
+    expect(rowById(p, "28").status).toBe("issues");
+  });
+
+  it("maps the behavior advisories: reference XObjects → 30, undescriped attachments → 21, untagged markup → 28", () => {
+    const p = buildMatterhornProjection(
+      pdfReport({
+        categories: [
+          {
+            id: "reading_order",
+            score: 100,
+            findings: [
+              "  Advisory — not scored: the document uses 1 reference XObject(s)… (Matterhorn 30-001)…",
+              "  Advisory — not scored: 2 attachment(s) have no description (/Desc — Matterhorn 21)…",
+              "  Advisory — not scored: 3 of them are not referenced from the tag structure (Matterhorn 28)…",
+            ],
+          },
+        ],
+      }),
+    )!;
+    expect(rowById(p, "30").status).toBe("issues");
+    expect(rowById(p, "21").status).toBe("issues");
+    expect(rowById(p, "28").status).toBe("issues");
+  });
+
+  it("does not trip 21 on the all-good attachments line", () => {
+    const p = buildMatterhornProjection(
+      pdfReport({
+        categories: [
+          {
+            id: "reading_order",
+            score: 100,
+            findings: [
+              "  2 embedded file attachment(s) present — each carries a description (Matterhorn 21)",
+            ],
+          },
+        ],
+      }),
+    )!;
+    expect(rowById(p, "21").status).toBe("clean");
+  });
+});
+
 describe("buildMatterhornProjection — veraPDF mapping and the tri-state", () => {
   it("maps clauses to checkpoints (7.4 → 14, 7.21.x → 31, 5 → 06) and keyword-splits 7.1/7.2", () => {
     expect(checkpointForVeraClause("7.4", "heading levels")).toBe("14");
@@ -317,9 +419,11 @@ describe("buildMatterhornProjection — veraPDF mapping and the tri-state", () =
     ]) {
       const p = buildMatterhornProjection(pdfReport({ pdfUaVerdict: verdict }))!;
       expect(p.veraPdfRan, JSON.stringify(verdict)).toBe(false);
-      // 10 Character Mappings and 21 Embedded Files are veraPDF-covered.
-      expect(rowById(p, "10").status, JSON.stringify(verdict)).toBe("unchecked");
-      expect(rowById(p, "21").status, JSON.stringify(verdict)).toBe("unchecked");
+      // 05 Sound and 24 Non-Interactive Forms are veraPDF-only (10 and 21
+      // were promoted to engine-partial in v1.94.0 and now read "clean"
+      // from the engine's own coverage).
+      expect(rowById(p, "05").status, JSON.stringify(verdict)).toBe("unchecked");
+      expect(rowById(p, "24").status, JSON.stringify(verdict)).toBe("unchecked");
     }
   });
 
@@ -348,9 +452,79 @@ describe("buildMatterhornProjection — REAL captured payload (marker-drift guar
     expect(rowById(p, "11").status).toBe("issues");
     // Captured before veraPDF ran on audits → tri-state false → unchecked.
     expect(p.veraPdfRan).toBe(false);
+    expect(rowById(p, "05").status).toBe("unchecked");
+    // RB-review F7: the fixture also predates the engine censuses (no
+    // matterhornCensusGeneration), so the census-promoted checkpoints demote
+    // to veraPDF-era coverage — "unchecked" here, never a green "clean" for
+    // checks that never ran.
     expect(rowById(p, "10").status).toBe("unchecked");
+    expect(rowById(p, "17").status).toBe("unchecked");
+    expect(rowById(p, "21").status).toBe("unchecked");
     // Human rows stay human on real payloads too.
     expect(rowById(p, "04").status).toBe("human");
+  });
+});
+
+describe("RB-review F7 — census-generation honesty on stored reports", () => {
+  it("a pre-census stored report (no generation field) demotes 10/17/19/20/21/30 to veraPDF-era coverage", () => {
+    const old = buildMatterhornProjection(pdfReport({ matterhornCensusGeneration: undefined }))!;
+    // veraPDF absent too → nothing checked these → unchecked, not clean.
+    for (const id of ["10", "17", "19", "20", "21", "30"]) {
+      expect(rowById(old, id).status, id).toBe("unchecked");
+    }
+    // With veraPDF having RUN clean, "clean" is honest — veraPDF checked them.
+    const oldWithVera = buildMatterhornProjection(
+      pdfReport({
+        matterhornCensusGeneration: undefined,
+        pdfUaVerdict: { available: true, passed: true, totalFailureCount: 0, failures: [] },
+      }),
+    )!;
+    for (const id of ["10", "17", "19", "20", "21", "30"]) {
+      expect(rowById(oldWithVera, id).status, id).toBe("clean");
+    }
+  });
+
+  it("a generation-2 report keeps the engine coverage (clean without veraPDF)", () => {
+    const fresh = buildMatterhornProjection(pdfReport())!;
+    for (const id of ["17", "19", "20"]) {
+      expect(rowById(fresh, id).status, id).toBe("clean");
+    }
+  });
+});
+
+describe("red/blue — forged shared-report payloads are bounded (RB-2, v1.94.0)", () => {
+  it("caps a forged 1,000-entry veraPDF failure list: unmapped ≤ 40, per-row evidence ≤ 24", () => {
+    const failures = Array.from({ length: 1000 }, (_, i) => ({
+      clause: i % 2 === 0 ? "9.9" : "7.5", // half unmappable, half → tables
+      ruleId: `9.9-${i}`,
+      description: "forged ".repeat(200), // ~1.4KB each — also tests label truncation
+      count: 1,
+    }));
+    const p = buildMatterhornProjection(
+      pdfReport({
+        pdfUaVerdict: { available: true, passed: false, totalFailureCount: 1000, failures },
+      }),
+    )!;
+    expect(p.unmapped.length).toBeLessThanOrEqual(40);
+    // RB-review F8: nothing SILENTLY dropped — the overflow is counted so
+    // the panel can render "and N more" (100 processed, half unmappable).
+    expect(p.unmappedTruncated).toBe(10);
+    expect(rowById(p, "15").evidence.length).toBeLessThanOrEqual(24);
+    for (const ev of p.unmapped) expect(ev.label.length).toBeLessThanOrEqual(400);
+  });
+
+  it("tolerates a non-array failures field on a forged verdict", () => {
+    const p = buildMatterhornProjection(
+      pdfReport({
+        pdfUaVerdict: {
+          available: true,
+          passed: false,
+          totalFailureCount: 0,
+          failures: "junk" as any,
+        },
+      }),
+    );
+    expect(p).not.toBeNull();
   });
 });
 

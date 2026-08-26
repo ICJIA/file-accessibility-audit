@@ -56,6 +56,14 @@ const couldNotValidate = computed(
 // renders on the audit surfaces (inline result, shared report) only.
 const didNotRun = computed(() => !props.verdict || props.verdict.available === false);
 
+// v1.94.0: PDF/UA-2 documents are validated against the ua2 profile — the
+// panel's own name must follow the profile that actually ran (default UA-1,
+// including the did-not-run state, which has no profile to speak of).
+const uaLabel = computed(() =>
+  /ua[\s_-]?2/i.test(String(props.verdict?.profile ?? "")) ? "PDF/UA-2" : "PDF/UA-1",
+);
+const isoLabel = computed(() => (uaLabel.value === "PDF/UA-2" ? "ISO 14289-2" : "ISO 14289-1"));
+
 // Grade-aware reassurance. The "Don't Panic" framing only applies when the WCAG
 // grade — the measure that matters for real users — is actually good; we never
 // tell someone with a failing grade that they're fine. Grade is optional (the
@@ -138,7 +146,7 @@ function fmt(n: number): string {
       >
       <div class="flex-1 text-sm">
         <p class="font-medium mb-1 text-[var(--text-muted)]">
-          PDF/UA-1 machine checks (veraPDF): Did not run
+          {{ uaLabel }} machine checks (veraPDF): Did not run
         </p>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
           <template v-if="verdict === null"
@@ -186,10 +194,10 @@ function fmt(n: number): string {
       >
       <div class="flex-1 text-sm">
         <p v-if="couldNotValidate" class="font-medium mb-1 text-[var(--text-muted)]">
-          PDF/UA-1 machine checks (veraPDF): Could not validate
+          {{ uaLabel }} machine checks (veraPDF): Could not validate
         </p>
         <p v-else class="font-medium mb-1">
-          PDF/UA-1 machine checks (veraPDF):
+          {{ uaLabel }} machine checks (veraPDF):
           {{ verdict?.passed ? "Pass" : "Additional checks could be addressed" }}
         </p>
         <p v-if="showPassCaveat" class="mb-2 text-[var(--text-secondary)]">
@@ -261,7 +269,7 @@ function fmt(n: number): string {
           {{ verdict?.error }}
         </p>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          Machine-checkable conditions only (ISO 14289-1 via
+          Machine-checkable conditions only ({{ isoLabel }} via
           <a
             v-if="verapdfUrl"
             :href="verapdfUrl"

@@ -150,8 +150,8 @@ const MAX_EVIDENCE_PER_ROW = 5;
       >
         <p class="text-sm font-medium text-[var(--text-heading)]">Other PDF/UA rules</p>
         <p class="mt-0.5 text-xs text-[var(--text-muted)] leading-relaxed">
-          veraPDF findings whose rule doesn't group under one checkpoint — listed here so nothing is
-          dropped:
+          veraPDF findings whose rule doesn't group under one checkpoint — every one is either
+          listed or counted below, never silently dropped:
         </p>
         <ul class="mt-1 space-y-0.5 text-xs text-[var(--text-muted)] leading-relaxed list-none p-0">
           <li v-for="ev in projection.unmapped" :key="ev.label">
@@ -159,6 +159,10 @@ const MAX_EVIDENCE_PER_ROW = 5;
               >veraPDF</span
             >
             {{ ev.label }}
+          </li>
+          <li v-if="projection.unmappedTruncated > 0" data-testid="matterhorn-unmapped-more">
+            … and {{ projection.unmappedTruncated }} more rule(s) not shown — open the PDF/UA panel
+            above (or run veraPDF locally) for the full list.
           </li>
         </ul>
       </div>

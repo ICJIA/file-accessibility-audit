@@ -504,3 +504,349 @@ describe("Adobe parity — scripts/multimedia/flicker are measured, not assumed"
     expect(byId(report, "scripts").note).toMatch(/predates the script census/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// v1.94.0 — annotation/OBJR, reference-XObject, attachment, and signature
+// censuses, plus their scoring/gate/parity consumers and the pdfjs text
+// censuses' scoring thresholds.
+// ---------------------------------------------------------------------------
+
+describe("qpdfService — OBJR-based annotation censuses (Matterhorn 28, v1.94.0)", () => {
+  const withStructTree = {
+    "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+    "2 0 R": { "/Type": "/StructTreeRoot", "/K": "3 0 R" },
+    "3 0 R": {
+      "/Type": "/StructElem",
+      "/S": "/Form",
+      "/P": "2 0 R",
+      "/K": [{ "/Type": "/OBJR", "/Obj": "10 0 R" }],
+    },
+  };
+
+  it("counts widgets and knows which ones the tag tree references via OBJR", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          ...withStructTree,
+          "10 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "u:name", "/TU": "u:Name" },
+          "11 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "u:email", "/TU": "u:Email" },
+        },
+      ],
+    });
+    expect(result.widgetAnnotationCount).toBe(2);
+    expect(result.untaggedWidgetAnnotationCount).toBe(1); // 11 0 R has no OBJR
+  });
+
+  it("excludes Hidden/NoView widgets from the census (PDF/UA 7.18.1)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "10 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "u:calc", "/F": 2 },
+        },
+      ],
+    });
+    expect(result.widgetAnnotationCount).toBe(0);
+    expect(result.untaggedWidgetAnnotationCount).toBe(0);
+  });
+
+  it("censuses other annotations (subtype counts, OBJR tagging, /Contents) and skips Popups", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          ...withStructTree,
+          "10 0 R": {
+            "/Type": "/Annot",
+            "/Subtype": "/Highlight",
+            "/Contents": "u:Key sentence",
+          },
+          "11 0 R": { "/Type": "/Annot", "/Subtype": "/Highlight" },
+          "12 0 R": { "/Type": "/Annot", "/Subtype": "/FileAttachment" },
+          "13 0 R": { "/Type": "/Annot", "/Subtype": "/Popup" },
+          "14 0 R": { "/Type": "/Annot", "/Subtype": "/Stamp", "/F": 2 }, // hidden
+        },
+      ],
+    });
+    expect(result.otherAnnotationCount).toBe(3);
+    expect(result.otherAnnotationSubtypeCounts).toEqual({ Highlight: 2, FileAttachment: 1 });
+    expect(result.untaggedOtherAnnotationCount).toBe(2); // 11, 12 — 10 is OBJR-referenced
+    expect(result.otherAnnotationsMissingContents).toBe(2);
+  });
+
+  it("counts reference XObjects (30-001), EMBEDDED-attachment /Desc gaps (21), and signature fields (23)", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "10 0 R": { "/Subtype": "/Form", "/Ref": { "/F": "u:other.pdf" } },
+          "11 0 R": {
+            "/Type": "/Filespec",
+            "/F": "u:data.csv",
+            "/EF": { "/F": "20 0 R" },
+            "/Desc": "u:Raw data",
+          },
+          "12 0 R": { "/Type": "/Filespec", "/F": "u:notes.txt", "/EF": { "/F": "21 0 R" } },
+          "13 0 R": { "/FT": "/Sig", "/T": "u:Signature1" },
+          // RB-review F6: a Filespec WITHOUT /EF is an EXTERNAL reference (a
+          // /GoToR target), not an attachment — it must not be counted, or
+          // the report sends users to an empty Attachments panel.
+          "14 0 R": { "/Type": "/Filespec", "/F": "u:remote-target.pdf" },
+        },
+      ],
+    });
+    expect(result.refXObjectCount).toBe(1);
+    expect(result.embeddedFileCount).toBe(2);
+    expect(result.embeddedFilesMissingDesc).toBe(1);
+    expect(result.signatureFieldCount).toBe(1);
+  });
+
+  it("RB-review F9: print-production annotations (PrinterMark/TrapNet/Watermark) are never censused", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "10 0 R": { "/Type": "/Annot", "/Subtype": "/PrinterMark" },
+          "11 0 R": { "/Type": "/Annot", "/Subtype": "/TrapNet" },
+          "12 0 R": { "/Type": "/Annot", "/Subtype": "/Watermark" },
+        },
+      ],
+    });
+    expect(result.otherAnnotationCount).toBe(0);
+    expect(result.untaggedOtherAnnotationCount).toBe(0);
+  });
+
+  it("RB-review F1: OBJRs are collected in every serialization — indirect OBJR object, /K → indirect kids array, and inline struct-elem kids", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": "3 0 R" },
+          // /K points at an INDIRECT ARRAY object (4 0 R) …
+          "3 0 R": { "/Type": "/StructElem", "/S": "/Form", "/P": "2 0 R", "/K": "4 0 R" },
+          // … which mixes an INDIRECT OBJR (5 0 R) and an INLINE struct-elem
+          // kid whose own /K holds an inline OBJR.
+          "4 0 R": ["5 0 R", { "/S": "/Form", "/K": [{ "/Type": "/OBJR", "/Obj": "11 0 R" }] }],
+          "5 0 R": { "/Type": "/OBJR", "/Obj": "10 0 R" },
+          "10 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "u:a", "/TU": "u:A" },
+          "11 0 R": { "/Type": "/Annot", "/Subtype": "/Widget", "/T": "u:b", "/TU": "u:B" },
+        },
+      ],
+    });
+    expect(result.widgetAnnotationCount).toBe(2);
+    // Both widgets are claimed by the tree despite the exotic serializations
+    // — before F1 this read as "every widget untagged" and asserted a FALSE
+    // confirmed 1.3.1 on a correctly tagged form.
+    expect(result.untaggedWidgetAnnotationCount).toBe(0);
+  });
+});
+
+describe("scoring + gate — untagged widgets (v1.94.0)", () => {
+  const taggedDoc = (over: Partial<QpdfResult> = {}) =>
+    makeQpdf({
+      hasStructTree: true,
+      structTreeDepth: 3,
+      // Real content: an all-empty tree beside extractable text is the
+      // content-free case, which deliberately suppresses the widget census
+      // (the document-level 1.3.1 already covers it).
+      paragraphCount: 5,
+      hasAcroForm: true,
+      formFields: [
+        { ref: "10 0 R", hasTU: true, name: "a" },
+        { ref: "11 0 R", hasTU: true, name: "b" },
+      ],
+      widgetAnnotationCount: 2,
+      untaggedWidgetAnnotationCount: 1,
+      ...over,
+    });
+
+  it("caps form_accessibility and asserts a confirmed 1.3.1 failure for untagged widgets", () => {
+    const result = scoreDocument(taggedDoc(), makePdfjs());
+    const cat = findCategory(result, "form_accessibility");
+    expect(cat.score).toBeLessThanOrEqual(60);
+    expect(cat.findings.some((f) => f.includes("not referenced from the tag structure"))).toBe(
+      true,
+    );
+    const failure = result.conformance.failures.find(
+      (f) => f.sc === "1.3.1" && f.category === "form_accessibility",
+    );
+    expect(failure).toBeTruthy();
+  });
+
+  it("drops to 30 when EVERY widget is untagged, and never fires without a struct tree", () => {
+    const allUntagged = scoreDocument(taggedDoc({ untaggedWidgetAnnotationCount: 2 }), makePdfjs());
+    expect(findCategory(allUntagged, "form_accessibility").score).toBeLessThanOrEqual(30);
+
+    const untaggedDocResult = scoreDocument(
+      taggedDoc({ hasStructTree: false, structTreeDepth: 0 }),
+      makePdfjs(),
+    );
+    // No struct tree → the document-level 1.3.1 already covers it; the
+    // widget-specific failure must not double-fire.
+    expect(
+      untaggedDocResult.conformance.failures.some(
+        (f) => f.sc === "1.3.1" && f.category === "form_accessibility",
+      ),
+    ).toBe(false);
+  });
+
+  it("RB-review F3: widgets without an /AcroForm never fire the gate (the category is N/A there)", () => {
+    const result = scoreDocument(taggedDoc({ hasAcroForm: false, formFields: [] }), makePdfjs());
+    expect(
+      result.conformance.failures.some(
+        (f) => f.sc === "1.3.1" && f.category === "form_accessibility",
+      ),
+    ).toBe(false);
+    expect(findCategory(result, "form_accessibility").score).toBeNull();
+  });
+
+  it("leaves pre-census stored reports alone (no census fields → TU-only scoring)", () => {
+    const result = scoreDocument(
+      makeQpdf({
+        hasStructTree: true,
+        structTreeDepth: 3,
+        hasAcroForm: true,
+        formFields: [{ ref: "10 0 R", hasTU: true, name: "a" }],
+      }),
+      makePdfjs(),
+    );
+    expect(findCategory(result, "form_accessibility").score).toBe(100);
+  });
+});
+
+describe("scoring — pdfjs text censuses (Matterhorn 10 + 01, v1.94.0)", () => {
+  it("caps text_extractability at 50 when a heavy share of text is unmapped", () => {
+    const result = scoreDocument(
+      makeQpdf({ hasStructTree: true, structTreeDepth: 3, paragraphCount: 5 }),
+      makePdfjs({ unmappedTextCharCount: 300, textLength: 1000 }),
+    );
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBeLessThanOrEqual(50);
+    expect(cat.findings.some((f) => f.includes("cannot be mapped to readable text"))).toBe(true);
+  });
+
+  it("treats a tiny unmapped count as advisory only (symbol-font bullets)", () => {
+    const result = scoreDocument(
+      makeQpdf({ hasStructTree: true, structTreeDepth: 3, paragraphCount: 5 }),
+      makePdfjs({ unmappedTextCharCount: 4, textLength: 5000 }),
+    );
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => f.includes("Advisory — not scored"))).toBe(true);
+  });
+
+  it("caps text_extractability when a heavy share of visible text sits outside tagged content", () => {
+    const result = scoreDocument(
+      makeQpdf({ hasStructTree: true, structTreeDepth: 3, paragraphCount: 5 }),
+      makePdfjs({
+        taggedVisibleChars: 500,
+        untaggedVisibleChars: 500,
+        untaggedTextPages: [2, 3],
+      }),
+    );
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBeLessThanOrEqual(50);
+    expect(cat.findings.some((f) => f.includes("outside the tagged content"))).toBe(true);
+    expect(cat.findings.some((f) => f.includes("pages 2, 3"))).toBe(true);
+  });
+
+  it("stays quiet when every visible character is tagged", () => {
+    const result = scoreDocument(
+      makeQpdf({ hasStructTree: true, structTreeDepth: 3, paragraphCount: 5 }),
+      makePdfjs({ taggedVisibleChars: 900, untaggedVisibleChars: 0 }),
+    );
+    const cat = findCategory(result, "text_extractability");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => f.includes("outside the tagged content"))).toBe(false);
+  });
+});
+
+describe("Adobe parity — annotations and form fields are computable (v1.94.0)", () => {
+  const byId = (report: ReturnType<typeof buildAdobeParityReport>, id: string) => {
+    const row = report.rules.find((r) => r.id === id);
+    if (!row) throw new Error(`rule ${id} missing`);
+    return row;
+  };
+
+  it("tagged_form_fields passes as measured when every widget is OBJR-referenced, fails otherwise", () => {
+    const base = {
+      hasStructTree: true,
+      hasAcroForm: true,
+      formFields: [{ ref: "10 0 R", hasTU: true, name: "a" }],
+      widgetAnnotationCount: 1,
+    };
+    const clean = buildAdobeParityReport(
+      makeQpdf({ ...base, untaggedWidgetAnnotationCount: 0 }),
+      makePdfjs(),
+    );
+    expect(byId(clean, "tagged_form_fields").status).toBe("passed");
+    const dirty = buildAdobeParityReport(
+      makeQpdf({ ...base, untaggedWidgetAnnotationCount: 1 }),
+      makePdfjs(),
+    );
+    expect(byId(dirty, "tagged_form_fields").status).toBe("failed");
+  });
+
+  it("tagged_annotations aggregates links + widgets + other annotations when the censuses exist", () => {
+    const report = buildAdobeParityReport(
+      makeQpdf({
+        hasStructTree: true,
+        widgetAnnotationCount: 1,
+        untaggedWidgetAnnotationCount: 1,
+        otherAnnotationCount: 2,
+        untaggedOtherAnnotationCount: 0,
+      }),
+      makePdfjs({ linkAnnotationCount: 3, untaggedLinkAnnotationCount: 0 }),
+    );
+    const row = byId(report, "tagged_annotations");
+    expect(row.status).toBe("failed");
+    expect(row.note).toContain("1 form widget(s)");
+    expect(row.note).not.toContain("Only link annotations");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v1.94.0 red/blue hardening (RB-1 / RB-3): hostile inputs must be BOUNDED,
+// never a hang or a memory amplifier in the main Express process.
+// ---------------------------------------------------------------------------
+
+describe("red/blue — hostile RoleMap and Note inputs are bounded", () => {
+  it("RB-1: a 10,000-entry single-chain RoleMap parses quickly instead of going quadratic", () => {
+    const chain: Record<string, string> = {};
+    for (let i = 0; i < 10_000; i++) chain[`/T${i}`] = `/T${i + 1}`;
+    const objects: Record<string, unknown> = {
+      "1 0 R": { "/Type": "/Catalog", "/RoleMap": chain },
+      "2 0 R": { "/S": "/T0", "/K": 0 },
+    };
+    const started = Date.now();
+    const result = parseJson({ qpdf: [null, objects] });
+    const elapsed = Date.now() - started;
+    expect(result.error).toBeNull();
+    // Un-capped, this walk was O(entries × chain) ≈ 10^8+ steps. The hop cap
+    // makes it linear-ish; 3s is a generous CI bound for what should be ms.
+    expect(elapsed).toBeLessThan(3000);
+    // The chain exceeds the hop cap, so the element resolves to a
+    // non-standard name — which the validity census then reports.
+    expect(result.roleMapUnmappedTags!.length).toBeGreaterThan(0);
+    // Census lists stay capped for the report payload.
+    expect(result.roleMapCircularTags!.length).toBeLessThanOrEqual(24);
+    expect(result.roleMapStandardRemaps!.length).toBeLessThanOrEqual(24);
+  });
+
+  it("RB-3: multi-megabyte /ID strings still dedup (256-char prefix) without being held whole", () => {
+    const bigId = "u:" + "x".repeat(1_000_000);
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/S": "/Note", "/ID": bigId },
+          "2 0 R": { "/S": "/Note", "/ID": bigId },
+        },
+      ],
+    });
+    expect(result.noteCount).toBe(2);
+    expect(result.noteDuplicateIdCount).toBe(1);
+  });
+});

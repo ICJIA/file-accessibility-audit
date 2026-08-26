@@ -171,6 +171,35 @@ export interface QpdfResult {
   /** Configurations carrying an /AS auto-state array (20-002 — content can
    *  switch on zoom/print without user intent). */
   ocgConfigsWithAS?: number;
+  // -------------------------------------------------------------------------
+  // v1.94.0 censuses (Matterhorn 28 / 30 / 21 / 23).
+  // -------------------------------------------------------------------------
+  /** Visible (non-Hidden/NoView) form-field widget annotations. */
+  widgetAnnotationCount?: number;
+  /** Widgets no structure element references via OBJR — a screen reader
+   *  following the tags never reaches them (the untagged-links mechanics
+   *  applied to form fields; PDF/UA 7.18 / Matterhorn 28). */
+  untaggedWidgetAnnotationCount?: number;
+  /** Visible annotations that are neither links, widgets, popups, nor the
+   *  separately-censused multimedia kinds (highlights, stamps, notes, file
+   *  attachments, …). */
+  otherAnnotationCount?: number;
+  /** Of those, how many no structure element references via OBJR. */
+  untaggedOtherAnnotationCount?: number;
+  /** Of those, how many carry no /Contents text (PDF/UA 7.18.2 expects an
+   *  alternate description). */
+  otherAnnotationsMissingContents?: number;
+  /** Subtype → count for the census above, e.g. { Highlight: 2 }. */
+  otherAnnotationSubtypeCounts?: Record<string, number>;
+  /** Form XObjects carrying /Ref — reference XObjects, prohibited outright
+   *  by PDF/UA (Matterhorn 30-001). */
+  refXObjectCount?: number;
+  /** /Filespec objects (file attachments) and how many lack a /Desc
+   *  (Matterhorn 21 — a nameless attachment is unannounceable). */
+  embeddedFileCount?: number;
+  embeddedFilesMissingDesc?: number;
+  /** Signature form fields (/FT /Sig) — presence disclosure (Matterhorn 23). */
+  signatureFieldCount?: number;
   error: string | null;
 }
 
@@ -213,6 +242,37 @@ function decodeQpdfString(raw: string): string {
   }
   return raw;
 }
+
+/** Annotation subtypes for the "other annotations" census (v1.94.0) — every
+ *  presentable kind EXCEPT links (censused by pdfjs), widgets (their own
+ *  census), popups (a duplicate view of the parent note), and the multimedia
+ *  kinds (their own census). */
+const OTHER_ANNOT_SUBTYPES: ReadonlySet<string> = new Set(
+  [
+    // RB-review F9: print-production annotations (PrinterMark, TrapNet,
+    // Watermark) are deliberately EXCLUDED — the spec treats them as
+    // production aids outside the reading experience, they are never
+    // OBJR-referenced or /Contents-described in practice, and counting
+    // them failed press-ready PDFs that Acrobat's own checker passes.
+    "Text",
+    "FreeText",
+    "Line",
+    "Square",
+    "Circle",
+    "Polygon",
+    "PolyLine",
+    "Highlight",
+    "Underline",
+    "Squiggly",
+    "StrikeOut",
+    "Stamp",
+    "Caret",
+    "Ink",
+    "FileAttachment",
+    "3D",
+    "Redact",
+  ].map((t) => `/${t}`),
+);
 
 export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
   const tmpDir = process.env.TMP_DIR || "/tmp";
@@ -313,6 +373,16 @@ type ParsedQpdfResult = QpdfResult &
       | "ocgConfigCount"
       | "ocgConfigsMissingName"
       | "ocgConfigsWithAS"
+      | "widgetAnnotationCount"
+      | "untaggedWidgetAnnotationCount"
+      | "otherAnnotationCount"
+      | "untaggedOtherAnnotationCount"
+      | "otherAnnotationsMissingContents"
+      | "otherAnnotationSubtypeCounts"
+      | "refXObjectCount"
+      | "embeddedFileCount"
+      | "embeddedFilesMissingDesc"
+      | "signatureFieldCount"
     >
   >;
 
@@ -370,6 +440,16 @@ function emptyQpdfResult(error: string | null): ParsedQpdfResult {
     ocgConfigCount: 0,
     ocgConfigsMissingName: 0,
     ocgConfigsWithAS: 0,
+    widgetAnnotationCount: 0,
+    untaggedWidgetAnnotationCount: 0,
+    otherAnnotationCount: 0,
+    untaggedOtherAnnotationCount: 0,
+    otherAnnotationsMissingContents: 0,
+    otherAnnotationSubtypeCounts: {},
+    refXObjectCount: 0,
+    embeddedFileCount: 0,
+    embeddedFilesMissingDesc: 0,
+    signatureFieldCount: 0,
     error,
   };
 }
@@ -592,11 +672,17 @@ function parseQpdfJson(json: any): QpdfResult {
     // every ref named as a child inside any /K in a pre-pass so reachability can
     // be decided as the main walk below collects each structure element.
     const referencedStructRefs = new Set<string>();
+    // Annotations some structure element references via an OBJR kid — the
+    // "claimed by the tag tree" set the widget/annotation censuses (v1.94.0,
+    // Matterhorn 28) test membership against. Collected in the SAME pre-pass
+    // as struct-kid reachability.
+    const structReferencedAnnotRefs = new Set<string>();
     let docHasStructTree = false;
     for (const obj of Object.values(objects)) {
       const o = obj as any;
       if (!o || typeof o !== "object") continue;
-      if (o["/K"] !== undefined) collectStructKidRefs(o["/K"], referencedStructRefs);
+      if (o["/K"] !== undefined)
+        collectStructKidRefs(o["/K"], referencedStructRefs, structReferencedAnnotRefs, objects);
       // Orphan-pruning is only meaningful when a structure tree exists to be
       // reachable from. Without a StructTreeRoot there is no "live tree", so
       // nothing is pruned (this is also why the parser's unit fixtures, which
@@ -793,6 +879,56 @@ function parseQpdfJson(json: any): QpdfResult {
           break;
       }
 
+      // Other annotations (v1.94.0 — Matterhorn 28): comments, highlights,
+      // stamps, file attachments, … — everything that is not a link (censused
+      // by pdfjs), a widget (above), a popup (a duplicate view of its parent
+      // note), or a multimedia kind (censused above). Hidden/NoView are
+      // exempt (PDF/UA 7.18.1); each visible one should be referenced from
+      // the tag tree and carry a /Contents description (7.18.2).
+      if (OTHER_ANNOT_SUBTYPES.has(o["/Subtype"]) && (o["/Type"] === "/Annot" || o["/Rect"])) {
+        const flags = typeof o["/F"] === "number" ? o["/F"] : 0;
+        if ((flags & 2) === 0 && (flags & 32) === 0) {
+          result.otherAnnotationCount++;
+          const subtypeName = String(o["/Subtype"]).replace(/^\//, "");
+          result.otherAnnotationSubtypeCounts[subtypeName] =
+            (result.otherAnnotationSubtypeCounts[subtypeName] ?? 0) + 1;
+          if (!structReferencedAnnotRefs.has(normRef(ref))) {
+            result.untaggedOtherAnnotationCount++;
+          }
+          const contents = o["/Contents"];
+          const hasContents =
+            typeof contents === "string" && decodeQpdfString(contents).trim() !== "";
+          if (!hasContents) result.otherAnnotationsMissingContents++;
+        }
+      }
+
+      // Reference XObjects (v1.94.0 — Matterhorn 30-001): a Form XObject
+      // carrying /Ref imports content from another document, which PDF/UA
+      // prohibits outright — the imported content's structure is unreachable.
+      if (o["/Subtype"] === "/Form" && o["/Ref"] !== undefined) {
+        result.refXObjectCount++;
+      }
+
+      // Embedded files (v1.94.0 — Matterhorn 21): every EMBEDDED /Filespec
+      // should carry a /Desc so assistive technology can announce the
+      // attachment. RB-review F6: /EF is required — a Filespec WITHOUT /EF
+      // merely references an external file (a /GoToR target); counting those
+      // sent users to an empty Attachments panel.
+      if (o["/Type"] === "/Filespec" && o["/EF"]) {
+        result.embeddedFileCount++;
+        const desc = o["/Desc"];
+        if (!(typeof desc === "string" && decodeQpdfString(desc).trim() !== "")) {
+          result.embeddedFilesMissingDesc++;
+        }
+      }
+
+      // Signature fields (v1.94.0 — Matterhorn 23): presence disclosure only
+      // (23-001 is one of the protocol's two untestable conditions; the /TU
+      // labeling of signature fields is already covered by the form census).
+      if (o["/FT"] === "/Sig" && typeof o["/T"] === "string") {
+        result.signatureFieldCount++;
+      }
+
       // Metadata streams — check for PDF/UA identifier in XMP
       if (
         o["/Type"] === "/Metadata" ||
@@ -912,7 +1048,11 @@ function parseQpdfJson(json: any): QpdfResult {
           result.noteCount++;
           const rawId = o["/ID"];
           if (typeof rawId === "string" && rawId.replace(/^[ub]:/, "").trim() !== "") {
-            noteIds.push(rawId);
+            // RB-3 (v1.94.0 red/blue): hold at most 256 chars per ID for the
+            // uniqueness check — a hostile PDF can make each /ID megabytes,
+            // and N of those held together is a memory amplifier. A 256-char
+            // prefix collision is a duplicate for every real-world ID scheme.
+            noteIds.push(rawId.slice(0, 256));
           } else {
             result.notesMissingId++;
           }
@@ -957,6 +1097,14 @@ function parseQpdfJson(json: any): QpdfResult {
         // field" findings about controls no one can land on.
         const annotFlags = typeof o["/F"] === "number" ? o["/F"] : 0;
         if ((annotFlags & 2) !== 0 || (annotFlags & 32) !== 0) continue;
+        // v1.94.0 (Matterhorn 28): is this visible widget claimed by the tag
+        // tree via an OBJR? Same mechanics as the untagged-link census — a
+        // screen reader following the tags in forms mode never reaches a
+        // widget no structure element references.
+        result.widgetAnnotationCount++;
+        if (!structReferencedAnnotRefs.has(normRef(ref))) {
+          result.untaggedWidgetAnnotationCount++;
+        }
         if (typeof o["/T"] === "string") {
           // Merged field+widget dict — a terminal field in its own right.
           // Seed the seen-set: malformed-but-real PDFs sometimes give the
@@ -1037,11 +1185,22 @@ function parseQpdfJson(json: any): QpdfResult {
     // any source whose chain revisits a name. Standard remap: the map's
     // SOURCE side names a standard structure type — remapping standard types
     // is prohibited outright, whatever the target.
+    //
+    // RB-1 (v1.94.0 red/blue): both loops are BOUNDED against a hostile map.
+    // Chain walks stop at 32 hops (matching mapToStandardTag's cap), and at
+    // most 2,000 entries are examined — a legitimate RoleMap has a handful;
+    // past the cap the census reports what it saw and stops, instead of
+    // handing a quadratic O(entries × chain) to the main process.
+    const MAX_ROLEMAP_DIAG_ENTRIES = 2000;
+    const MAX_ROLEMAP_HOPS = 32;
+    let diagExamined = 0;
     for (const [src, dst] of Object.entries(roleMap)) {
+      if (diagExamined++ >= MAX_ROLEMAP_DIAG_ENTRIES) break;
       if (!src.startsWith("/") || typeof dst !== "string") continue;
       let cursor = src;
       const chainSeen = new Set<string>();
-      while (roleMap[cursor] !== undefined) {
+      for (let hop = 0; hop < MAX_ROLEMAP_HOPS; hop++) {
+        if (roleMap[cursor] === undefined) break;
         if (chainSeen.has(cursor)) {
           result.roleMapCircularTags.push(src.replace(/^\//, ""));
           break;
@@ -1055,6 +1214,10 @@ function parseQpdfJson(json: any): QpdfResult {
     }
     result.roleMapCircularTags.sort();
     result.roleMapStandardRemaps.sort();
+    // Caps for the report payload: the census lists are evidence, not an
+    // inventory — a hostile map must not bloat stored reports.
+    if (result.roleMapCircularTags.length > 24) result.roleMapCircularTags.length = 24;
+    if (result.roleMapStandardRemaps.length > 24) result.roleMapStandardRemaps.length = 24;
 
     // Resolve table candidates into top-level tables. A /Table that appears in
     // the subtree of another /Table is a nested table: the parent already
@@ -1277,16 +1440,67 @@ function analyzeList(
 /**
  * Walk a /K value and record every struct-element reference ("N 0 R") it names
  * as a direct child. /K may be a single ref string, an MCID integer, or an array
- * mixing refs, MCID integers, and MCR/OBJR dicts. Only direct child refs matter
- * for figure reachability, so bare "N 0 R" strings (at the top level or inside a
- * /K array) are collected; MCID integers and MCR/OBJR dicts (whose /Pg and /Obj
- * refs point at content, not struct children) are deliberately not descended.
+ * mixing refs, MCID integers, and MCR/OBJR dicts. Bare "N 0 R" strings feed the
+ * struct-reachability set; MCID integers and MCR dicts are deliberately not
+ * descended. OBJR dicts point at ANNOTATIONS, not struct children — their /Obj
+ * refs feed the separate `annotRefs` set (v1.94.0), which is how the widget
+ * and annotation censuses know an annotation is claimed by the tag tree.
+ *
+ * RB-review F1 (v1.94.0): OBJRs are collected in EVERY legal serialization,
+ * not just the inline-dict-in-array shape Acrobat writes — a string /K kid is
+ * ALSO resolved one level so an indirectly-written OBJR object, a /K pointing
+ * at an indirect kids ARRAY, and an inline struct-elem kid carrying its own
+ * /K all contribute. Missing any of these made a correctly tagged form read
+ * as "every widget untagged" → a FALSE confirmed 1.3.1. Depth-capped and
+ * cycle-guarded; `objects` may be absent in the legacy two-arg call shape
+ * (none remain in-tree, but the resolution is skipped safely if so).
  */
-function collectStructKidRefs(k: unknown, out: Set<string>): void {
+function collectStructKidRefs(
+  k: unknown,
+  out: Set<string>,
+  annotRefs?: Set<string>,
+  objects?: Record<string, any>,
+  depth = 0,
+  seen?: Set<unknown>,
+): void {
+  if (depth > 12) return;
+  const visited = seen ?? new Set<unknown>();
   if (typeof k === "string" && /^\d+ \d+ R$/.test(k)) {
     out.add(normRef(k));
+    // Resolve ONE level: the target may be an OBJR written as an indirect
+    // object, or an indirect kids array. A struct-elem target's own /K is
+    // handled by the pre-pass when it visits that object directly.
+    if (objects && annotRefs) {
+      const resolved = resolveRef(k, objects);
+      if (Array.isArray(resolved)) {
+        // The array branch below carries its own visited-guard; adding here
+        // FIRST would make that guard bounce the very first visit.
+        collectStructKidRefs(resolved, out, annotRefs, objects, depth + 1, visited);
+      } else if (
+        resolved &&
+        typeof resolved === "object" &&
+        resolved["/Type"] === "/OBJR" &&
+        typeof resolved["/Obj"] === "string"
+      ) {
+        annotRefs.add(normRef(resolved["/Obj"]));
+      }
+    }
   } else if (Array.isArray(k)) {
-    for (const item of k) collectStructKidRefs(item, out);
+    if (visited.has(k)) return;
+    visited.add(k);
+    for (const item of k) collectStructKidRefs(item, out, annotRefs, objects, depth + 1, visited);
+  } else if (k && typeof k === "object") {
+    const kid = k as any;
+    if (kid["/Type"] === "/OBJR" && typeof kid["/Obj"] === "string" && annotRefs) {
+      annotRefs.add(normRef(kid["/Obj"]));
+    } else if (kid["/K"] !== undefined && !visited.has(kid)) {
+      // An INLINE struct-element kid: the pre-pass never sees it as a
+      // top-level object, so its own /K (which may hold OBJRs) is walked
+      // here. MCR dicts (which carry /MCID) never reach this branch's
+      // recursion in a harmful way — they have no /K.
+      visited.add(kid);
+      collectStructKidRefs(kid["/K"], out, annotRefs, objects, depth + 1, visited);
+    }
   }
 }
 

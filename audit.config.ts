@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "score-integrity-redblue-2026-08-26",
+    badge: "Improved",
+    text: "The PDF checker now sees through three ways a document can look fine while failing its readers: text that displays correctly but extracts as unpronounceable symbols, visible text painted outside the document's reading structure, and form fields that structure never points at — each now scored and explained with the right fix steps. The Matterhorn checklist also moved up the front page as a collapsible section, so you don't have to scroll past everything to find it. Before release, every recent change was deliberately attacked — hostile files, forged data, misleading edge cases — and thirteen weaknesses found that way were fixed first, including one that could have wrongly accused a correctly built form. As always, every previously checked document keeps its exact score; only documents that actually have these problems are affected.",
+    linkText: "See the Matterhorn checklist",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "matterhorn-report-panel-2026-08-26",
     badge: "New",
     text: "PDF reports now include \"Your document against the Matterhorn checklist\" — a collapsible section showing how your document's findings land on each of the 31 checkpoints of the PDF industry's standard test model, the same checklist explained on the front page. Each checkpoint says, in words, whether issues were found, nothing was machine-detected, human review is needed, or the check did not run — never a tally or a pass/fail stamp, because this view adds nothing to your score and takes nothing from it. It is another way of reading the findings your report already contains, useful when working with remediation vendors who follow the PAC checker or the Matterhorn Protocol. Reports you shared earlier show the new section automatically.",

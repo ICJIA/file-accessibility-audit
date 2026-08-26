@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.94.0] - 2026-08-26
+
+### Added
+
+- **Unmapped-glyph census (Matterhorn 10).** Extracted characters in the Unicode Private Use Areas (or U+FFFD) — pdf.js's signature for glyphs whose fonts carry no usable text mapping — are counted from the text layer. A heavy share (≥5% and ≥100 chars) caps Text Extractability at 50; a smaller count at 85; a handful stays advisory (symbol-font bullets). The page can LOOK perfect while a screen reader gets unpronounceable symbols — font embedding was only a proxy for this.
+- **Partial-tagging census (Matterhorn 01-005/006).** Visible, non-artifact text painted outside every MCID-carrying run — text no structure element can reference — measured per page from the same text-layer item stream (annotation appearance streams can never pollute it). Heavy share caps at 50, smaller at 85, tiny stays advisory; affected pages are named. Closes the gap between "content-free tree" and truly tagged.
+- **Widget/annotation OBJR census (Matterhorn 28).** Visible form-field widgets no structure element references (no OBJR) reduce Form Accessibility proportionally — the same treatment untagged links get — and assert a confirmed 1.3.1 failure; comments/markup/attachments get tagging and /Contents advisories. Adobe-parity's "Tagged annotations" now aggregates links + widgets + other annotations, and "Tagged form fields" is computable instead of not_computed.
+- **Reference XObjects (30-001), embedded-file /Desc (21 — /EF required, external file references excluded), and signature-field (23) censuses** as behaviors advisories.
+- **PDF/UA-2 flavour detection.** A buffer declaring pdfuaid part 2 runs veraPDF with `--flavour ua2` (threaded through every error path), and the report panel names PDF/UA-2 / ISO 14289-2 accordingly.
+- **Two synthetic integration fixtures** (hand-authored, qpdf-normalized) prove both text censuses through the REAL pipeline: `partial-tagging.pdf` (81% untagged → 50) and `unmapped-glyphs.pdf` (ToUnicode→PUA, 77% unmapped → 50).
+
+### Changed
+
+- **The landing-page Matterhorn checklist moved above the fold** (user request): now a collapsible `<details>` directly beneath the Technical Details expander — with its section landmark and `<h2>` preserved — and the What's New `/#matterhorn` link opens it via a reactive route-hash watch (a same-page click previously landed on a closed bar).
+- Landing-page promotions, pinned by test: checkpoints 10, 21, 30 → **Engine + veraPDF**.
+- **Stored-report honesty for the Matterhorn panel:** results now carry a census generation, and reports from before the v1.92/v1.94 censuses demote the census-backed checkpoints (10/17/19/20/21/30) to veraPDF-era coverage — never a green "No machine-detected issues" for a check that did not exist when the report was made.
+
+### Security — the requested adversarial red/blue pass (v1.91.0 → v1.94.0 surface)
+
+My own red-team sweep fixed three findings (RB-1 hostile-RoleMap quadratic hang in the main process — hop-capped and entry-capped with a 10,000-entry-chain wall-clock test; RB-2 forged shared-report verdicts flooding the Matterhorn panel with DOM nodes — bounded at every dimension; RB-3 multi-megabyte /Note IDs held whole — 256-char prefix), and an independent high-effort code review then confirmed ten more findings, ALL fixed before this tag:
+
+- **F1 (worst):** OBJRs written as indirect objects, via indirect kids arrays, or inside inline struct-element kids were invisible to the widget census — a correctly tagged form read as "every widget untagged" and earned a FALSE confirmed 1.3.1. All serializations are now collected (cycle-guarded, depth-capped) and pinned by test.
+- **F2:** the `/#matterhorn` auto-open only ran on mount; the banner's same-page click never opened the panel. Route-hash is now watched reactively.
+- **F3:** the widget gate could fire beside an N/A Form Accessibility category (widgets without /AcroForm) — gate now requires the form context the category scores.
+- **F4:** the census COUNT lines (printed even for the "No action needed" advisory tier) flipped Matterhorn panel rows to "Issues found" — markers now match the SCORED-branch sentences only, with both-direction tests.
+- **F5:** the action plan headlined the new caps with the scanned-document "picture of text → OCR" copy — two findings-keyed variants added (untagged text; unmapped characters), advisory tiers can't hijack the headline.
+- **F6:** /Filespec objects WITHOUT /EF (external file references, e.g. /GoToR targets) counted as attachments and sent users to an empty Attachments panel — /EF is now required.
+- **F7:** pre-census stored reports rendered promoted checkpoints as green "clean" though nothing had checked them — the census-generation demotion above.
+- **F8:** the RB-2 unmapped cap silently dropped overflow while the panel promised "nothing dropped" — overflow is now counted and rendered as "and N more".
+- **F9:** print-production annotations (PrinterMark/TrapNet/Watermark) produced untaggable findings on press-ready PDFs Acrobat passes — excluded from the census.
+- **F10:** the checklist's collapse had removed its `<h2>` and section landmark from the landing page — restored (an accessibility product's disclosure must stay reachable by H-key and region navigation).
+- Near-misses fixed too: veraPDF error paths no longer hardcode `ua1` when ua2 ran, and the untagged-widget score penalty is proportional (the links precedent) instead of a cliff.
+
+### Notes
+
+- **Calibration: zero drift, fourth release running** — all 27 control PDFs byte-identical on scores, grades, categories, and gate verdicts; censuses verified live on real controls (the static-XFA form's 3 JavaScript actions now disclosed).
+- Deferred from the backlog: running veraPDF's WCAG profile alongside ua1 (needs a server-side profile check first).
+- Tests: API 1,472 · web 1,202 · CLI 49 (**2,723** across 174 files).
+
+<details>
+<summary><strong>v1.93.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.93.0] - 2026-08-26
 
 ### Added
@@ -18,8 +60,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - A real captured analyzer payload (`fixtures/analyzer-output.pdf.json`) guards the finding-marker mapping, so a reworded analyzer finding that would silently unmap fails CI.
 - Tests: API 1,437 · web 1,185 · CLI 49 (**2,671** across 172 files).
 
-<details>
-<summary><strong>v1.92.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.92.0] - 2026-08-26
 

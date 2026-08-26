@@ -23,13 +23,15 @@
  *                      veraPDF); the report's manual-review card carries it.
  *
  * Statuses reflect the 2026-08-25 completeness audit of packages/analyzer
- * against Matterhorn 1.1, updated as gaps ship. v1.92.0 promoted 17 and 19
- * to engine-partial (the in-house <Formula> alt and <Note> /ID censuses) and
- * 20 to engine (both of its machine conditions — config /Name and /AS — are
- * checked in-house). When a further gap ships (e.g. the planned
- * unmapped-glyph census for checkpoint 10), PROMOTE that checkpoint's
- * coverage here in the same release — matterhornChecklist.test.ts pins the
- * honesty-critical entries.
+ * against Matterhorn 1.1, updated as gaps ship. v1.92.0 promoted 17/19
+ * (Formula alt + Note /ID censuses) and 20 (OCG /Name + /AS). v1.94.0
+ * promoted 10 (the unmapped-glyph census — PUA/replacement characters in
+ * the extracted text), 21 (the /Filespec /Desc census), and 30 (the
+ * reference-XObject census); 01 and 28 stay engine-partial but gained the
+ * partial-tagging text census and the widget/annotation OBJR censuses.
+ * When a further gap ships, PROMOTE that checkpoint's coverage here in the
+ * same release — matterhornChecklist.test.ts pins the honesty-critical
+ * entries.
  */
 
 export type MatterhornCoverage = "engine" | "engine-partial" | "verapdf" | "human";
@@ -111,7 +113,7 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "10",
     name: "Character Mappings",
-    coverage: "verapdf",
+    coverage: "engine-partial",
     summary: "Every glyph maps to real Unicode text a screen reader can speak.",
   },
   {
@@ -177,7 +179,7 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "21",
     name: "Embedded Files",
-    coverage: "verapdf",
+    coverage: "engine-partial",
     summary: "Attachments carry filenames and descriptions.",
   },
   {
@@ -231,7 +233,7 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "30",
     name: "XObjects",
-    coverage: "verapdf",
+    coverage: "engine-partial",
     summary: "No prohibited reference XObjects.",
   },
   {

@@ -591,6 +591,14 @@
 
     <LazyTechnicalExplainer hydrate-on-visible />
 
+    <!-- Checkpoint-by-checkpoint Matterhorn Protocol coverage — the trust
+         disclosure, placed directly beneath the Technical Details expander
+         so it sits near the fold instead of below every tile (user request,
+         v1.94.0). Collapsible; the What's New banner's /#matterhorn link
+         auto-opens it. Data in ~/data/matterhorn.ts; honesty-critical
+         entries pinned by matterhornChecklist.test.ts. -->
+    <MatterhornChecklist />
+
     <!-- Feature stats (infographic style) -->
     <div class="mt-12 mb-2 text-center">
       <h2 class="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--text-muted)]">
@@ -728,13 +736,6 @@
         </p>
       </div>
     </div>
-
-    <!-- Checkpoint-by-checkpoint Matterhorn Protocol coverage (v1.91.0) —
-         the trust disclosure: which of the 31 PDF/UA checkpoints the audit
-         engine checks itself, which the veraPDF pass covers, and which no
-         software can judge. Data in ~/data/matterhorn.ts; honesty-critical
-         entries pinned by matterhornChecklist.test.ts. -->
-    <MatterhornChecklist />
   </div>
 </template>
 

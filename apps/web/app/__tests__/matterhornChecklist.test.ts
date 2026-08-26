@@ -68,12 +68,12 @@ describe("matterhorn.ts — the checkpoint data", () => {
     expect(byId("22")?.coverage).toBe("human");
   });
 
-  // Checkpoint 10 (Character Mappings / glyph→Unicode) is NOT checked
-  // in-house today — font embedding is only a proxy. It is veraPDF-covered.
-  // When the planned unmapped-glyph census ships in packages/analyzer,
-  // promote the data entry to "engine-partial" and flip this pin with it.
-  it("does not claim in-house coverage for Character Mappings (10) before the glyph census ships", () => {
-    expect(byId("10")?.coverage).toBe("verapdf");
+  // Checkpoint 10 (Character Mappings): promoted in v1.94.0 — the engine now
+  // censuses PUA/replacement characters in the extracted text (the
+  // extraction-visible face of a missing ToUnicode/cmap); veraPDF still
+  // covers the font-table side, hence engine-partial, never full engine.
+  it("claims exactly engine-partial for Character Mappings (10) since the v1.94.0 glyph census", () => {
+    expect(byId("10")?.coverage).toBe("engine-partial");
   });
 
   // v1.92.0 promotions — each pinned to the engine change that earned it.
@@ -82,6 +82,12 @@ describe("matterhorn.ts — the checkpoint data", () => {
     expect(byId("17")?.coverage).toBe("engine-partial");
     expect(byId("19")?.coverage).toBe("engine-partial");
     expect(byId("20")?.coverage).toBe("engine");
+  });
+
+  it("claims the v1.94.0 promotions exactly: 10/21/30 engine-partial (glyph, /Filespec /Desc, and reference-XObject censuses)", () => {
+    expect(byId("10")?.coverage).toBe("engine-partial");
+    expect(byId("21")?.coverage).toBe("engine-partial");
+    expect(byId("30")?.coverage).toBe("engine-partial");
   });
 
   // Two marquee in-house checks that must never silently demote: Security
@@ -189,6 +195,46 @@ describe("MatterhornChecklist.vue", () => {
   });
 });
 
+describe("MatterhornChecklist.vue — collapsible placement (v1.94.0, user request)", () => {
+  it("renders as a native <details> expander, collapsed by default, with a summary headline", () => {
+    const w = mount(MatterhornChecklist);
+    const details = w.find("section#matterhorn details");
+    expect(details.exists()).toBe(true);
+    expect(details.attributes("open")).toBeUndefined();
+    expect(w.find("summary").text()).toContain("The Matterhorn Checklist");
+  });
+
+  // RB-review F10: collapsing must not cost the heading outline or landmark
+  // list — on an accessibility product, the trust disclosure has to stay
+  // reachable by H-key and region navigation.
+  it("keeps the section landmark and a real <h2> despite the collapse", () => {
+    const w = mount(MatterhornChecklist);
+    const section = w.find("section#matterhorn");
+    expect(section.attributes("aria-labelledby")).toBe("matterhorn-heading");
+    const h2 = w.find("summary h2#matterhorn-heading");
+    expect(h2.exists()).toBe(true);
+    expect(h2.text()).toContain("The Matterhorn Checklist");
+  });
+
+  it("auto-opens when the page arrives on the banner's /#matterhorn hash", async () => {
+    window.location.hash = "#matterhorn";
+    try {
+      const w = mount(MatterhornChecklist);
+      await w.vm.$nextTick();
+      expect((w.find("section#matterhorn details").element as HTMLDetailsElement).open).toBe(true);
+    } finally {
+      window.location.hash = "";
+    }
+  });
+
+  it("stays collapsed for an ordinary visit (no hash)", async () => {
+    window.location.hash = "";
+    const w = mount(MatterhornChecklist);
+    await w.vm.$nextTick();
+    expect((w.find("section#matterhorn details").element as HTMLDetailsElement).open).toBe(false);
+  });
+});
+
 describe("landing page wiring", () => {
   // The classic trap: a tested component nothing renders. reportSectionOrder
   // pins report-surface composition the same source-inspecting way.
@@ -196,5 +242,14 @@ describe("landing page wiring", () => {
     const src = readFileSync(path.join(import.meta.dirname, "..", "pages", "index.vue"), "utf8");
     expect(src).toMatch(/import MatterhornChecklist from "~\/components\/MatterhornChecklist.vue"/);
     expect(src).toMatch(/<MatterhornChecklist \/>/);
+    // Placement is the point (v1.94.0): directly beneath the Technical
+    // Details expander, ABOVE the "What This Tool Does" tiles — near the
+    // fold, not buried at the bottom of the page.
+    const explainerAt = src.indexOf("<LazyTechnicalExplainer");
+    const checklistAt = src.indexOf("<MatterhornChecklist");
+    const tilesAt = src.indexOf("What This Tool Does");
+    expect(explainerAt).toBeGreaterThan(-1);
+    expect(checklistAt).toBeGreaterThan(explainerAt);
+    expect(checklistAt).toBeLessThan(tilesAt);
   });
 });

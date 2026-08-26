@@ -57,7 +57,13 @@ describe("runVeraPdfOnBuffer", () => {
     expect(writeFileSync).toHaveBeenCalledTimes(1);
     const tmpPath = writeFileSync.mock.calls[0][0] as string;
     expect(tmpPath).toMatch(/\.pdf$/);
-    expect(runVeraPdf).toHaveBeenCalledWith(tmpPath, cfg.REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS);
+    // v1.94.0: the third argument is the detected PDF/UA flavour — "ua1" for
+    // this plain buffer (detectPdfUaFlavour has its own tests).
+    expect(runVeraPdf).toHaveBeenCalledWith(
+      tmpPath,
+      cfg.REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS,
+      "ua1",
+    );
     expect(unlinkSync).toHaveBeenCalledWith(tmpPath);
     expect(verdict.passed).toBe(false);
     expect(verdict.totalFailureCount).toBe(2);

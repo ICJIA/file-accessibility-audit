@@ -108,6 +108,12 @@ export interface ScoringResult {
   // PDF-only: machine-checkable PDF/UA-1 signals, surfaced as a "conformance
   // signals" panel. Optional — omitted for .docx (no PDF/UA concept applies).
   pdfUa?: PdfUaSignals;
+  /** Which generation of Matterhorn engine censuses produced this result
+   *  (v1.94.0 writes 2). The report page's Matterhorn panel demotes
+   *  census-backed checkpoints to veraPDF-era coverage when this is absent —
+   *  a stored report from before the censuses must never render "No
+   *  machine-detected issues" for a check that never existed (RB-review F7). */
+  matterhornCensusGeneration?: number;
 }
 
 /**

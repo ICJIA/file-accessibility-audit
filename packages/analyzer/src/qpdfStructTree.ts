@@ -154,9 +154,17 @@ export function mapToStandardTag(
   if (!tag) return null;
   let current = tag;
   const seen = new Set<string>();
-  while (roleMap[current] !== undefined && !seen.has(current)) {
+  // RB-1 (v1.94.0 red/blue): the hop cap bounds a HOSTILE RoleMap authored
+  // as one enormous chain — without it, resolution is O(chain length) per
+  // struct element in the main Express process. Real chains are 2–3 hops;
+  // 32 is beyond anything an authoring tool emits, and a chain cut short
+  // resolves to a non-standard name, which the validity census then reports.
+  const MAX_HOPS = 32;
+  for (let hop = 0; hop < MAX_HOPS; hop++) {
+    const next = roleMap[current];
+    if (next === undefined || seen.has(current)) break;
     seen.add(current);
-    current = roleMap[current];
+    current = next;
   }
   return current;
 }

@@ -53,8 +53,11 @@ export interface MatterhornRow {
 export interface MatterhornProjection {
   rows: MatterhornRow[];
   /** veraPDF failures whose clause has no checkpoint mapping — shown in an
-   *  "Other PDF/UA rules" block, never dropped. */
+   *  "Other PDF/UA rules" block. Display is CAPPED (RB-2); anything past the
+   *  cap is counted in `unmappedTruncated` so nothing is SILENTLY dropped. */
   unmapped: MatterhornEvidence[];
+  /** Unmappable failures beyond the display cap — rendered as a count. */
+  unmappedTruncated: number;
   /** veraPDF produced a usable verdict for this report (ran, and did not
    *  error out) — when false, verapdf-covered rows are "unchecked". */
   veraPdfRan: boolean;
@@ -62,6 +65,11 @@ export interface MatterhornProjection {
 
 interface ReportLike {
   fileType?: string;
+  /** Analyzer census generation (v1.94.0+ writes 2). Reports without it
+   *  predate the engine censuses behind several checkpoint promotions —
+   *  their rows must fall back to veraPDF-era coverage, or "nothing checked
+   *  this" would render as a green "No machine-detected issues". */
+  matterhornCensusGeneration?: number;
   categories?: Array<{ id?: string; score?: number | null; findings?: string[] }>;
   conformance?: { failures?: Array<{ sc?: string; category?: string; issue?: string }> };
   pdfUaVerdict?: {
@@ -96,6 +104,8 @@ function mapConformanceFailure(f: {
   if (cat === "reading_order") return { id: "16", label: "Lists missing required structure" };
   if (cat === "link_quality")
     return { id: "28", label: "Links not tagged for assistive technology" };
+  if (cat === "form_accessibility" && sc === "1.3.1")
+    return { id: "28", label: "Form fields not referenced from the tag structure" };
   if (sc === "4.1.2") return { id: "28", label: "Form fields without accessible labels" };
   return null;
 }
@@ -140,6 +150,47 @@ const FINDING_MARKERS: Array<{
     pattern: /Suspects = true/i,
     id: "08",
     label: "The producing tool marked its own tagging as suspect (common after OCR)",
+  },
+  // RB-review F4: these two match the SCORED-branch sentences only — the
+  // census COUNT line also prints for the advisory tier ("No action
+  // needed"), and an advisory the report itself waves off must never flip a
+  // panel row to "Issues found".
+  {
+    category: "text_extractability",
+    pattern: /cannot be read aloud or searched|Verify the affected passages read correctly/i,
+    id: "10",
+    label: "Characters that extract as unreadable symbols (missing character maps)",
+  },
+  {
+    category: "text_extractability",
+    pattern:
+      /bring the untagged content into the structure|Review the named pages in Acrobat's Tags panel/i,
+    id: "01",
+    label: "Visible text painted outside the tag structure",
+  },
+  {
+    category: "reading_order",
+    pattern: /reference XObject/i,
+    id: "30",
+    label: "Prohibited reference XObjects (imported content)",
+  },
+  {
+    category: "reading_order",
+    pattern: /have no description \(\/Desc/i,
+    id: "21",
+    label: "Attachments without a description",
+  },
+  {
+    category: "reading_order",
+    pattern: /not referenced from the tag structure \(Matterhorn 28\)/i,
+    id: "28",
+    label: "Comments or markup annotations outside the tag structure",
+  },
+  {
+    category: "reading_order",
+    pattern: /no \/Contents description/i,
+    id: "28",
+    label: "Annotations without an alternate description",
   },
   {
     category: "reading_order",
@@ -264,12 +315,35 @@ export function buildMatterhornProjection(report: ReportLike): MatterhornProject
   if (report.fileType !== "pdf") return null;
   if (!Array.isArray(report.categories) || report.categories.length === 0) return null;
 
+  // RB-review F7: checkpoints promoted on engine-census evidence must not
+  // read "clean" on reports from before those censuses existed. Generation
+  // 2 = the v1.92–v1.94 censuses ran; older payloads demote the affected
+  // checkpoints back to veraPDF-era coverage for THIS report.
+  const censusGeneration =
+    typeof report.matterhornCensusGeneration === "number" ? report.matterhornCensusGeneration : 1;
+  const PRE_CENSUS_COVERAGE: Record<string, "verapdf"> = {
+    "10": "verapdf", // glyph census        (v1.94.0)
+    "17": "verapdf", // Formula census      (v1.92.0)
+    "19": "verapdf", // Note /ID census     (v1.92.0)
+    "20": "verapdf", // OCG census          (v1.92.0)
+    "21": "verapdf", // /Filespec census    (v1.94.0)
+    "30": "verapdf", // RefXObject census   (v1.94.0)
+  };
+  const effectiveCoverage = (cp: MatterhornCheckpoint): MatterhornCheckpoint["coverage"] =>
+    censusGeneration < 2 && PRE_CENSUS_COVERAGE[cp.id] ? "verapdf" : cp.coverage;
+
   const evidenceById = new Map<string, MatterhornEvidence[]>();
   const push = (id: string, ev: MatterhornEvidence): void => {
     const list = evidenceById.get(id) ?? [];
+    // RB-2: bound per-row evidence against forged payloads (the panel shows
+    // 5; 24 keeps an honest "and N more" while capping memory/DOM).
+    if (list.length >= 24) return;
     // Dedup by label: the gate and a category score often describe the same
-    // defect; one line per distinct statement.
-    if (!list.some((e) => e.label === ev.label && e.source === ev.source)) list.push(ev);
+    // defect; one line per distinct statement. Labels are truncated so a
+    // forged multi-megabyte description cannot bloat the page.
+    const bounded = { source: ev.source, label: ev.label.slice(0, 400) };
+    if (!list.some((e) => e.label === bounded.label && e.source === bounded.source))
+      list.push(bounded);
     evidenceById.set(id, list);
   };
 
@@ -300,26 +374,35 @@ export function buildMatterhornProjection(report: ReportLike): MatterhornProject
   const couldNotValidate = Boolean(v?.error) && (v?.totalFailureCount ?? 0) === 0;
   const veraPdfRan = v?.available === true && !couldNotValidate;
   const unmapped: MatterhornEvidence[] = [];
+  let unmappedTruncated = 0;
   if (veraPdfRan) {
-    for (const f of v?.failures ?? []) {
+    // RB-2 (v1.94.0 red/blue): shared-report payloads are client-supplied
+    // (POST /api/reports), so a forged verdict can carry thousands of
+    // "failures" — real verdicts store at most 20. Process a bounded slice
+    // so a hostile stored report cannot flood this page with DOM nodes.
+    const MAX_VERA_FAILURES = 100;
+    for (const f of (Array.isArray(v?.failures) ? v!.failures! : []).slice(0, MAX_VERA_FAILURES)) {
       const clause = f?.clause ?? "";
       const description = f?.description ?? "";
       const count = typeof f?.count === "number" ? f.count : 1;
       const label = `${clause || f?.ruleId || "rule"} — ${description || "PDF/UA rule failed"} (${count.toLocaleString("en-US")}×)`;
       const id = checkpointForVeraClause(clause, description);
       if (id) push(id, { source: "verapdf", label });
-      else unmapped.push({ source: "verapdf", label });
+      else if (unmapped.length < 40)
+        unmapped.push({ source: "verapdf", label: label.slice(0, 400) });
+      else unmappedTruncated++;
     }
   }
 
   const rows: MatterhornRow[] = MATTERHORN_CHECKPOINTS.map((checkpoint) => {
     const evidence = evidenceById.get(checkpoint.id) ?? [];
+    const coverage = effectiveCoverage(checkpoint);
     let status: MatterhornRowStatus;
-    if (checkpoint.coverage === "human") {
+    if (coverage === "human") {
       status = "human";
     } else if (evidence.length > 0) {
       status = "issues";
-    } else if (checkpoint.coverage === "verapdf" && !veraPdfRan) {
+    } else if (coverage === "verapdf" && !veraPdfRan) {
       status = "unchecked";
     } else {
       status = "clean";
@@ -327,5 +410,5 @@ export function buildMatterhornProjection(report: ReportLike): MatterhornProject
     return { checkpoint, status, evidence };
   });
 
-  return { rows, unmapped, veraPdfRan };
+  return { rows, unmapped, unmappedTruncated, veraPdfRan };
 }

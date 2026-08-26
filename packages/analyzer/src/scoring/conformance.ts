@@ -396,6 +396,30 @@ export function evaluateConformance(
     }
   }
 
+  // 8b. Form-field widgets outside the structure tree (v1.94.0 — the
+  //     untagged-link mechanics of 7b applied to widgets, Matterhorn 28 /
+  //     PDF/UA 7.18). Mechanical and certain: the visible widget exists and
+  //     no structure element references it via OBJR. Same guards as 7b: only
+  //     a tagged document with real content, and only when the census exists
+  //     (never fires on stored pre-census reports).
+  // RB-review F3: hasAcroForm is required — without it the Form
+  // Accessibility category early-returns N/A ("no form fields found"), and a
+  // confirmed failure beside an N/A category (no action-plan step, no score
+  // effect) is exactly the gate/score divergence this file exists to avoid.
+  const untaggedWidgets =
+    qpdf.hasAcroForm && qpdf.hasStructTree && !structTreeIsContentFree(qpdf, pdfjs)
+      ? (qpdf.untaggedWidgetAnnotationCount ?? 0)
+      : 0;
+  if (untaggedWidgets > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "form_accessibility",
+      `${untaggedWidgets} visible form-field widget(s) are not referenced from the tag structure — no structure element points at them, so assistive technology following the tags cannot reach those fields. In Acrobat: Tags panel → Options → Find → "Unmarked Annotations" → Tag Element.`,
+    );
+  }
+
   // 9. Reading-order divergence — measured by the rigorous struct-tree vs
   //    content-stream MCID comparison, but NEVER asserted as a confirmed
   //    1.3.2 failure: the content stream is DRAW order, not visual reading

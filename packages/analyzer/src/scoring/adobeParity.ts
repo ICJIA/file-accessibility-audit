@@ -230,13 +230,14 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
     ),
   );
 
-  // Tagged annotations: computed from pdfjs's link-annotation census — every
-  // /Link annotation, and how many no structure element references. Only
-  // LINK annotations are checked (Acrobat's rule also covers comments and
-  // form widgets), which the note says. The census is absent on stored
-  // reports from before it existed; those stay not_computed.
+  // Tagged annotations. v1.94.0: computed from THREE censuses — pdfjs's link
+  // census plus qpdf's widget and other-annotation censuses — so the rule
+  // now covers what Acrobat's does (links, comments/markup, form widgets).
+  // Reports predating any census fall back to the older narrower wording.
   const linkAnnots = pdfjs.linkAnnotationCount;
   const untaggedLinkAnnots = pdfjs.untaggedLinkAnnotationCount;
+  const fullAnnotCensus =
+    typeof qpdf.widgetAnnotationCount === "number" && typeof qpdf.otherAnnotationCount === "number";
   const linkScope = "(Only link annotations are checked; comments and form widgets are not.)";
   if (typeof linkAnnots !== "number" || typeof untaggedLinkAnnots !== "number") {
     rules.push(
@@ -250,6 +251,53 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
         "This report predates the link-tagging census, so whether every annotation is wrapped in a structural tag was not verified. Compare with Acrobat's Accessibility Checker for this rule specifically.",
       ),
     );
+  } else if (fullAnnotCensus) {
+    const totalAnnots =
+      linkAnnots + (qpdf.widgetAnnotationCount ?? 0) + (qpdf.otherAnnotationCount ?? 0);
+    const untaggedTotal =
+      untaggedLinkAnnots +
+      (qpdf.untaggedWidgetAnnotationCount ?? 0) +
+      (qpdf.untaggedOtherAnnotationCount ?? 0);
+    const breakdown = `${linkAnnots} link(s), ${qpdf.widgetAnnotationCount} form widget(s), ${qpdf.otherAnnotationCount} other annotation(s)`;
+    if (totalAnnots === 0) {
+      rules.push(
+        rule(
+          "tagged_annotations",
+          "Page Content",
+          "Tagged annotations",
+          "All annotations are tagged",
+          "passed",
+          true,
+          "No visible annotations in the document — the rule passes vacuously.",
+        ),
+      );
+    } else if (!qpdf.hasStructTree) {
+      rules.push(
+        rule(
+          "tagged_annotations",
+          "Page Content",
+          "Tagged annotations",
+          "All annotations are tagged",
+          "failed",
+          false,
+          `The document has no structure tree, so none of its ${totalAnnots} visible annotation(s) (${breakdown}) can have a structural parent.`,
+        ),
+      );
+    } else {
+      rules.push(
+        rule(
+          "tagged_annotations",
+          "Page Content",
+          "Tagged annotations",
+          "All annotations are tagged",
+          untaggedTotal === 0 ? "passed" : "failed",
+          false,
+          untaggedTotal === 0
+            ? `All ${totalAnnots} visible annotation(s) (${breakdown}) are referenced from the structure tree.`
+            : `${untaggedTotal} of ${totalAnnots} visible annotation(s) are not referenced from the structure tree (${untaggedLinkAnnots} link(s), ${qpdf.untaggedWidgetAnnotationCount ?? 0} form widget(s), ${qpdf.untaggedOtherAnnotationCount ?? 0} other).`,
+        ),
+      );
+    }
   } else if (linkAnnots === 0) {
     rules.push(
       rule(
@@ -446,17 +494,31 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
 
   const formFieldsVacuous = formFieldCount === 0;
   const untaggedForm = qpdf.formFields.filter((f) => !f.hasTU).length;
+  // v1.94.0: the widget census makes this rule COMPUTABLE — a widget is
+  // "tagged" when a structure element references it via OBJR. Reports
+  // predating the census keep the honest not_computed.
+  const widgetCensusKnown = typeof qpdf.untaggedWidgetAnnotationCount === "number";
   rules.push(
     rule(
       "tagged_form_fields",
       "Forms",
       "Tagged form fields",
       "All form fields are tagged",
-      formFieldsVacuous ? "passed" : "not_computed",
+      formFieldsVacuous
+        ? "passed"
+        : !widgetCensusKnown
+          ? "not_computed"
+          : (qpdf.untaggedWidgetAnnotationCount ?? 0) === 0
+            ? "passed"
+            : "failed",
       formFieldsVacuous,
       formFieldsVacuous
         ? "No form fields found — rule passes vacuously."
-        : `${formFieldCount} form field(s) detected. This tool does not currently verify structural tagging of each form field.`,
+        : !widgetCensusKnown
+          ? `${formFieldCount} form field(s) detected. This report predates the widget-tagging census; compare with Acrobat's checker for this rule.`
+          : (qpdf.untaggedWidgetAnnotationCount ?? 0) === 0
+            ? `All ${qpdf.widgetAnnotationCount ?? formFieldCount} visible form-field widget(s) are referenced from the structure tree.`
+            : `${qpdf.untaggedWidgetAnnotationCount} of ${qpdf.widgetAnnotationCount ?? formFieldCount} visible form-field widget(s) are not referenced from the structure tree (no OBJR).`,
     ),
   );
 

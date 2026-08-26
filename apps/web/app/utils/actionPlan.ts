@@ -417,6 +417,63 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
     },
   },
   {
+    // v1.94.0 (RB-review F5): visible text painted OUTSIDE the tag
+    // structure — a tagged document, so the "picture of text → OCR" default
+    // is the wrong story. Keyed on the SCORED-branch sentences only; the
+    // advisory tier ("often stray export residue", score untouched) never
+    // brings this category into the plan by itself.
+    matches: (f) =>
+      f.some(
+        (s) =>
+          s.includes("bring the untagged content into the structure") ||
+          s.includes("Review the named pages in Acrobat's Tags panel"),
+      ),
+    entry: {
+      title: "Bring the untagged text into the tag structure",
+      why: "The document is tagged, but part of its visible text is painted outside the tag structure — a screen reader following the tags never encounters those passages.",
+      source: {
+        pdf: [
+          'Open the original file and re-export the PDF with accessibility tags enabled (in Word: File → Save As → PDF → Options → check "Document structure tags for accessibility") — a clean re-export usually tags everything',
+        ],
+      },
+      sourceInDesign: [
+        'In InDesign, make sure the affected frames are in the Articles panel (or anchored in the main story), then re-export with "Create Tagged PDF" checked',
+      ],
+      acrobat: [
+        "All tools → Prepare for accessibility → Automatically tag PDF picks up untagged content (classic UI: Tools → Accessibility → Autotag Document)",
+        "Then open the Tags panel on the pages named in the finding and confirm the passages now appear beneath tags — or mark genuinely decorative runs as artifacts",
+      ],
+    },
+  },
+  {
+    // v1.94.0 (RB-review F5): characters that extract as unreadable symbols
+    // (missing character maps). The text LOOKS fine — OCR advice would be
+    // wrong; the fix is fonts at the source. Keyed on the SCORED-branch
+    // sentences only, same rule as above.
+    matches: (f) =>
+      f.some(
+        (s) =>
+          s.includes("cannot be read aloud or searched") ||
+          s.includes("Verify the affected passages read correctly"),
+      ),
+    entry: {
+      title: "Fix the fonts so the text reads as real words",
+      why: "The page looks fine, but some of its characters extract as unreadable symbols — the fonts don't carry a usable map from glyphs to text, so a screen reader gets nothing it can pronounce.",
+      source: {
+        pdf: [
+          "Re-export the PDF from the original application using standard fonts (or with font embedding enabled) — modern exports write the character maps screen readers need",
+        ],
+      },
+      sourceInDesign: [
+        'Replace any decorative or converted font on the affected passages with a standard OpenType font, then re-export (File → Export → Adobe PDF (Print)) with "Create Tagged PDF" checked',
+      ],
+      acrobat: [
+        "If the affected passages came from a scan, run All tools → Scan & OCR → Recognize Text over those pages",
+        "Otherwise the fix is at the source: re-export with standard fonts — Acrobat cannot rebuild a missing character map in place",
+      ],
+    },
+  },
+  {
     // Non-embedded fonts on an otherwise clean text layer. "Document is
     // tagged (StructTreeRoot present)" is emitted only on the no-deduction
     // path, so if this category is flagged at all alongside it, fonts are
