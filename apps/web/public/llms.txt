@@ -10,7 +10,7 @@ This web application analyzes PDF (.pdf), Word (.docx), PowerPoint (.pptx), and 
 - Analyzes the document across the WCAG-aligned categories that apply to its format — up to 9, depending on format (PDF 9, PowerPoint 9, Word 8, Excel 7 scored categories; each format also shows a couple of always-"Not Assessed" placeholder categories for checks it doesn't yet automate)
 - Returns one overall score (0-100), letter grade (A-F), and per-category findings — plus a separate binary WCAG 2.2 conformance verdict (confirmed automated failures with links to the W3C standard, or "no automated WCAG failures detected" — never a blanket "conformant")
 - Color contrast is machine-checked directly for Word, PowerPoint, and Excel — explicit colors, theme-based colors, and Excel's legacy indexed palette are all resolved (theme resolution for Word/Excel since v1.95.0); PDF contrast analysis is not yet implemented and always shows as "Not Assessed"
-- Runs the open-source veraPDF PDF/UA-1 validator alongside every PDF audit (the machine-checkable subset of the Matterhorn Protocol's 31 checkpoints); the report discloses "Did not run" when that check could not run, and the landing page lists all 31 checkpoints with which layer checks each (audit engine, veraPDF, or human review)
+- Runs the open-source veraPDF PDF/UA validator alongside every PDF audit (PDF/UA-1, or PDF/UA-2 when the document declares it — since v1.94.0) (the machine-checkable subset of the Matterhorn Protocol's 31 checkpoints); the report discloses "Did not run" when that check could not run, and the landing page lists all 31 checkpoints with which layer checks each (audit engine, veraPDF, or human review)
 - Every PDF report includes a collapsible per-document Matterhorn view: the report's findings regrouped under the 31 checkpoints, each labeled in words (issues found / no machine-detected issues / needs human review / not machine-checked) — never a tally or pass/fail stamp, and never part of the score
 - Can optionally auto-remediate untagged PDFs (tagging via qpdf + OpenDataLoader, optionally verified with veraPDF) — PDF only, disabled by default, and Word/PowerPoint/Excel are audit-only
 - Provides remediation guidance with WCAG success criteria references for every category
@@ -42,7 +42,7 @@ Approximate category weights by format:
 - ADA Title II (effective April 2026)
 - Illinois IITAA 2.1 (§E205.4)
 - Section 508
-- PDF/UA (ISO 14289-1) — PDF only, not applicable to Word/PowerPoint/Excel
+- PDF/UA (ISO 14289-1; ISO 14289-2 validated when a document declares PDF/UA-2) — PDF only, not applicable to Word/PowerPoint/Excel
 
 ## API
 

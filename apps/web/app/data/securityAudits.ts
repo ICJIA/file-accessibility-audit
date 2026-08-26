@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.95.1",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: a wording-accuracy pass across the explanation pages — nothing about how the service runs, what it collects, or how long anything is kept changed.",
+    body: [
+      {
+        kind: "p",
+        html: "After the five releases above, every page that <em>explains</em> the tool was re-read against what the tool now actually does: the front page, the full technical-details page, this data-retention policy, and the project README. Descriptions that had fallen behind were corrected &mdash; for example, the checker validates the newer PDF/UA-2 standard when a document declares it, and Word/Excel theme colors are now checked for contrast, but several pages still described the older behavior. Two long-standing description errors were also found and fixed: two scoring categories displayed each other&rsquo;s weights (the scoring itself was always right &mdash; the label on the card was wrong), and one section described a safety comparison in the remediation pipeline as checking three numbers when the code checks two.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Words only.</strong> No code that processes documents changed, no score can move, nothing new is collected, and no retention period changed. The stored-report format is untouched &mdash; one deliberately unchanged label in the machine-readable export is kept because outside consumers may match its exact text.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.95.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: deeper automated checks inside the Word and Excel analyzers — theme-based colors now checked for contrast, plus new counts of languages, floating objects, merged cells, and form fields. Nothing new is collected, no new way to reach the service, no retention period changed.",
     body: [

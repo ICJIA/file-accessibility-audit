@@ -670,14 +670,17 @@
 
       <!-- Standards alignment -->
       <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
+        <!-- v1.94.0: veraPDF runs the ua2 flavour when a document declares
+             PDF/UA-2, so the headline is the family, not just part 1. -->
         <div class="text-4xl sm:text-5xl font-black text-[var(--accent-green)] mb-3 leading-none">
-          PDF/UA-1
+          PDF/UA
         </div>
         <div class="text-sm font-semibold text-[var(--text-heading)] mb-1">Standards aligned</div>
         <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-          WCAG 2.2 Level AA, ADA Title II (effective April 2026), Illinois IITAA 2.1, and PDF/UA-1
-          (ISO 14289-1) via veraPDF. Full lifecycle audit trail with deletion verification for
-          compliance reporting.
+          WCAG 2.2 Level AA, ADA Title II (in effect since April 2026), Illinois IITAA 2.1, and
+          PDF/UA-1 (ISO 14289-1) via veraPDF — with PDF/UA-2 (ISO 14289-2) validated when a document
+          declares it. Full lifecycle audit trail with deletion verification for compliance
+          reporting.
         </p>
       </div>
 

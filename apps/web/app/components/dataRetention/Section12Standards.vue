@@ -28,9 +28,10 @@
         accessibility standards.
       </li>
       <li>
-        <strong>PDF/UA-1 (ISO 14289-1)</strong> — the remediation pipeline uses veraPDF to validate
-        output against PDF/UA-1 technical conformance. veraPDF's verdict is surfaced honestly on the
-        result page; manual review is acknowledged as still required for full accessibility.
+        <strong>PDF/UA (ISO 14289)</strong> — every PDF audit runs veraPDF against PDF/UA-1 (ISO
+        14289-1), or PDF/UA-2 (ISO 14289-2) when the document declares it, and the remediation
+        pipeline validates its output against PDF/UA-1. veraPDF's verdict is surfaced honestly on
+        the result page; manual review is acknowledged as still required for full accessibility.
       </li>
       <li>
         <strong>State of Illinois records-retention policy</strong> — the default 7-year retention

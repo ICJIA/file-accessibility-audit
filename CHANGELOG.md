@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.95.1] - 2026-08-26
+
+### Fixed
+
+- **Accuracy pass across every explanatory surface** (user-requested verification of the front-page teasers, Technical Details, data-retention policy, README, and llms docs against v1.91.0–v1.95.0). Copy only — no code behavior, scoring, or API change.
+  - **Front page:** the standards tile now reads **PDF/UA** — PDF/UA-2 (ISO 14289-2) is validated when a document declares it (v1.94.0), so "PDF/UA-1" undersold it; ADA Title II is "in effect since April 2026."
+  - **Technical Details — fourteen fixes.** The QPDF/PDF.js extraction tables gained the v1.92–v1.94 census rows (footnotes/formulas, annotation tagging via OBJR, document behaviors; unmapped glyphs, untagged visible text); four category cards now describe the current scoring (the two v1.94 Text Extractability caps, the v1.92 language-shape half credit, the mixed /H+/Hn → 60 rung, the untagged-widget proportional reduction); the Supplementary Analysis table gained the footnote-ID, role-map-validity, and behaviors rows; two audit-pipeline labels became "PDF/UA" (remediation diagrams correctly keep ua1). Plus two pre-existing errors found by the read-through: **the Bookmarks and Reading Order cards had swapped weights** (10%/5% shown; 5%/10% actual — the weight table beside them was right, so the page contradicted itself), and **the Regression Guards section described a three-profile comparison with "all six numbers"** while the code checks two (overall + strict) — leftover prose from the dual-profile system retired in v1.21.0. Also corrected the stated reason PDF contrast is not assessed (rendered-page analysis not implemented — not "inherited colors").
+  - **Data retention:** §2, §5, and §12 no longer describe veraPDF as PDF/UA-1-only; §12 now also says the check runs on every PDF audit, not just remediation.
+  - **README + llms.txt + llms-full.txt:** the teaser table and the pre-v1.21 note carry the PDF/UA-2 clause; llms-full no longer claims veraPDF runs only in remediation (stale since v1.37.0), and its Forms/Tables/Reading-Order/Title-&-Language category details describe the v1.94/v1.95 censuses.
+- Retention facts, endpoints, payload shapes: verified unchanged — nothing needed. The JSON export's `"PDF/UA (ISO 14289-1)"` literal in `llmContext.standards` is left as-is deliberately (documented payload contract).
+
+### Notes
+
+- veraPDF WCAG profile investigation (user-requested): server probe of veraPDF 1.30.1 shows flavours `ua1/ua2/wt1r/wt1a` but no built-in WCAG flavour and no bundled profile XMLs — implementing it means vendoring the version-matched WCAG-2-2 validation profile and a second JVM run per PDF audit via `--profile`. Feasible; deferred as its own release.
+- Tests: unchanged, **2,751** (API 1,500 · web 1,202 · CLI 49) — all green, plus root typecheck/lint/format/build.
+
+<details>
+<summary><strong>v1.95.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.95.0] - 2026-08-26
 
 ### Added
@@ -34,9 +53,6 @@ My own red-team sweep hardened three forged-input paths (each attack replayed in
 
 - **Calibration:** two real-world Excel controls flip Color Contrast from N/A to a scored 100 — their theme/indexed colors, previously unresolvable (nothing to check), now resolve and all pass. No score, grade, category, or verdict moved anywhere else — including through all ten review fixes; all 27 control PDFs byte-identical for the fifth consecutive release.
 - Tests: API 1,500 · web 1,202 · CLI 49 (**2,751**).
-
-<details>
-<summary><strong>v1.94.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.94.0] - 2026-08-26
 

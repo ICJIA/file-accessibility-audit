@@ -225,9 +225,10 @@
           When you upload a <strong>PDF</strong>, the server runs three independent, open-source
           checks <strong>in parallel</strong> — one reads the PDF's internal structure (tags,
           bookmarks, form fields), one extracts text and metadata from every page, and veraPDF
-          validates the file against the PDF/UA-1 standard (ISO 14289-1), reported on the audit as
-          its own verdict. The combined output of the first two feeds a scorer that evaluates nine
-          accessibility categories and produces a weighted overall score.
+          validates the file against the PDF/UA standard — PDF/UA-1 (ISO 14289-1), or PDF/UA-2 (ISO
+          14289-2) when the document declares it — reported on the audit as its own verdict. The
+          combined output of the first two feeds a scorer that evaluates nine accessibility
+          categories and produces a weighted overall score.
           <strong>Word, PowerPoint, and Excel</strong> files skip that two-tool step entirely —
           they're already ZIP archives of XML, so the server unzips them with JSZip and reads the
           relevant parts with fast-xml-parser inside a dedicated, short-lived child process (no
@@ -250,7 +251,7 @@
         >
 <span class="text-sky-300">PDF:</span>
   File → [validate type &amp; size]
-       → parallel { <span class="text-emerald-300">QPDF</span> (structure), <span class="text-emerald-300">PDF.js</span> (content), <span class="text-emerald-300">veraPDF</span> (PDF/UA-1) }
+       → parallel { <span class="text-emerald-300">QPDF</span> (structure), <span class="text-emerald-300">PDF.js</span> (content), <span class="text-emerald-300">veraPDF</span> (PDF/UA) }
        → Scorer (9 categories) → Weighted Score → Report
 
 <span class="text-sky-300">Word / PowerPoint / Excel:</span>
@@ -272,7 +273,7 @@
           <DiagramFigure
             name="audit-flow"
             title="Audit pipeline — visual flow"
-            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel, and veraPDF checks PDF/UA-1 conformance. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
+            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel, and veraPDF checks PDF/UA conformance (PDF/UA-1, or PDF/UA-2 when the document declares it). A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
           />
         </div>
       </div>
@@ -524,13 +525,47 @@
                   Decorative content (headers, footers, watermarks) distinguished from real content
                 </td>
               </tr>
-              <tr>
+              <tr class="border-b border-[var(--border-subtle)]">
                 <td class="px-4 py-2">ActualText &amp; expansion</td>
                 <td class="px-4 py-2">
                   <code>/ActualText</code> and <code>/E</code> on structure elements
                 </td>
                 <td class="px-4 py-2">
                   Screen reader text overrides for ligatures, symbols, and abbreviation expansions
+                </td>
+              </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Footnotes &amp; formulas</td>
+                <td class="px-4 py-2">
+                  <code>/Note</code> elements (<code>/ID</code>) and <code>/Formula</code> elements
+                  (<code>/Alt</code>)
+                </td>
+                <td class="px-4 py-2">
+                  Footnote linkability advisory (Matterhorn 19); formulas without a spoken
+                  alternative reduce the alt-text score (v1.92.0)
+                </td>
+              </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Annotation tagging (OBJR)</td>
+                <td class="px-4 py-2">
+                  Structure-tree <code>/OBJR</code> references vs. visible widget, link, and markup
+                  annotations
+                </td>
+                <td class="px-4 py-2">
+                  Form-field widgets no structure element references reduce Form Accessibility;
+                  comments and markup get tagging advisories (v1.94.0; Matterhorn 28)
+                </td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2">Document behaviors</td>
+                <td class="px-4 py-2">
+                  JavaScript actions, multimedia annotations, optional-content layers
+                  (<code>/OCG</code>), reference XObjects, embedded files (<code>/EF</code> +
+                  <code>/Desc</code>), signature fields
+                </td>
+                <td class="px-4 py-2">
+                  Disclosed as behaviors advisories so nothing a reader will encounter is silently
+                  skipped (v1.92.0&ndash;v1.94.0)
                 </td>
               </tr>
             </tbody>
@@ -609,6 +644,27 @@
                 <td class="px-4 py-2">Outlines</td>
                 <td class="px-4 py-2"><code>doc.getOutline()</code></td>
                 <td class="px-4 py-2">Bookmark detection (cross-referenced with QPDF)</td>
+              </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Unmapped glyphs</td>
+                <td class="px-4 py-2">
+                  <code>getTextContent()</code> character codes in the Unicode Private Use Areas or
+                  U+FFFD
+                </td>
+                <td class="px-4 py-2">
+                  Text that renders fine but extracts as unpronounceable symbols — caps Text
+                  Extractability when heavy (v1.94.0; Matterhorn 10)
+                </td>
+              </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Untagged visible text</td>
+                <td class="px-4 py-2">
+                  <code>getTextContent({includeMarkedContent})</code> marked-content stream per page
+                </td>
+                <td class="px-4 py-2">
+                  Visible, non-artifact text painted outside every tagged run — caps Text
+                  Extractability when heavy; affected pages are named (v1.94.0; Matterhorn 01)
+                </td>
               </tr>
               <tr>
                 <td class="px-4 py-2">Empty pages</td>
@@ -836,7 +892,8 @@
           <p class="text-xs text-[var(--text-muted)]">
             When the veraPDF engine is configured (it is on the production deployment), every PDF
             audit also includes a formal
-            <strong>PDF/UA-1 (ISO 14289-1) conformance check</strong> by
+            <strong>PDF/UA conformance check</strong> — against PDF/UA-1 (ISO 14289-1), or PDF/UA-2
+            (ISO 14289-2) when the document declares it — by
             <a
               href="https://verapdf.org/"
               target="_blank"
@@ -893,10 +950,12 @@
           </ul>
           <p class="text-xs text-[var(--text-muted)]">
             <strong>Color contrast</strong> is one place Office formats do <em>more</em> than PDF:
-            Word, PowerPoint, and Excel all read explicit text/fill colors directly from their XML,
-            so contrast is machine-checked wherever colors are explicitly set (PowerPoint
-            additionally resolves theme colors). PDF's Color Contrast category, by contrast, remains
-            N/A pending rendered-page analysis — see "Color contrast" under Limitations below.
+            Word, PowerPoint, and Excel all read text/fill colors directly from their XML, so
+            contrast is machine-checked wherever a resolvable color pair is set — explicit colors,
+            theme-based colors (all three formats since v1.95.0), and Excel's legacy indexed
+            palette; only style-inherited and automatic colors stay unresolved. PDF's Color Contrast
+            category, by contrast, remains N/A pending rendered-page analysis — see "Color contrast"
+            under Limitations below.
           </p>
         </div>
 
@@ -923,8 +982,13 @@
               leftovers or whitespace-only runs, are exempt). <strong>50</strong> = text is present
               but no tags (an untagged PDF). <strong>25</strong> = tags are present but no
               extractable text (partially remediated scan). <strong>0</strong> = no text and no tags
-              (unremediated scanned image). This category carries the highest weight because if text
-              can't be extracted, nothing else matters.
+              (unremediated scanned image). Since v1.94.0, two text-layer censuses also cap this
+              category: a heavy share of <strong>unmapped glyphs</strong> (characters that extract
+              as unpronounceable symbols — Matterhorn 10) caps at 50 (smaller shares at 85), and a
+              heavy share of <strong>visible text outside every tagged run</strong> (Matterhorn
+              01-005/006, with the affected pages named) caps at 50 likewise; a handful of either
+              stays an advisory. This category carries the highest weight because if text can't be
+              extracted, nothing else matters.
             </p>
           </div>
           <div
@@ -940,8 +1004,10 @@
             <p class="text-xs text-[var(--text-muted)]">
               <em>How it's scored:</em> 50 points for a meaningful document title (filenames like
               "report_final.pdf" are automatically rejected as non-meaningful), plus 50 points for a
-              declared language tag. Both are checked in QPDF's catalog <code>/Lang</code> and
-              PDF.js metadata.
+              declared language tag. Since v1.92.0 the language <em>value</em> is also
+              shape-checked: a declaration that is not a usable code ("english", "en_US") earns half
+              the language credit with a targeted fix, since screen readers may ignore it. Both are
+              checked in QPDF's catalog <code>/Lang</code> and PDF.js metadata.
             </p>
           </div>
           <div
@@ -959,9 +1025,11 @@
               hierarchy (no level skips, exactly one H1). <strong>75</strong> = multiple H1 headings
               (a document should have exactly one H1 for the title). <strong>60</strong> = numbered
               headings present but hierarchy is broken (e.g., jumps from H1 to H3 with no H2).
-              <strong>55</strong> = both multiple H1s and hierarchy gaps. <strong>40</strong> = only
-              generic <code>/H</code> tags (not properly numbered H1–H6). <strong>0</strong> = no
-              heading tags at all.
+              <strong>55</strong> = both multiple H1s and hierarchy gaps. <strong>60</strong> = the
+              document mixes the two heading conventions (generic <code>/H</code> alongside numbered
+              <code>/H1</code>&ndash;<code>/H6</code> — PDF/UA forbids mixing them; v1.92.0).
+              <strong>40</strong> = only generic <code>/H</code> tags (not properly numbered H1–H6).
+              <strong>0</strong> = no heading tags at all.
             </p>
           </div>
           <div
@@ -987,9 +1055,7 @@
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">
-              Bookmarks / Navigation (10%)
-            </p>
+            <p class="font-medium text-[var(--text-secondary)] mb-1">Bookmarks / Navigation (5%)</p>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Bookmarks act as a clickable table of contents in the PDF
               viewer's sidebar. For longer documents, they're essential for all users — and required
@@ -1059,13 +1125,16 @@
               <em>How it's scored:</em> <strong>N/A</strong> if no form fields. Percentage of widget
               annotations (form fields) that have a <code>/TU</code> (tooltip) attribute, which
               serves as the accessible label. QPDF checks both the widget annotation and the
-              <code>/AcroForm</code> fields array.
+              <code>/AcroForm</code> fields array. Since v1.94.0, visible widgets that no structure
+              element references (no <code>/OBJR</code> — a screen reader following the structure
+              never reaches them) reduce the score proportionally as well, the same treatment
+              untagged links get (Matterhorn 28).
             </p>
           </div>
           <div
             class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3"
           >
-            <p class="font-medium text-[var(--text-secondary)] mb-1">Reading Order (5%)</p>
+            <p class="font-medium text-[var(--text-secondary)] mb-1">Reading Order (10%)</p>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> PDFs with multi-column layouts, sidebars, or callout boxes can
               confuse screen readers if the reading order isn't explicitly defined. A sighted user
@@ -1185,6 +1254,32 @@
                   abbreviation expansions — help screen readers pronounce content correctly
                 </td>
               </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Footnotes (<code>&lt;Note&gt;</code> IDs)</td>
+                <td class="px-4 py-2">Reading Order</td>
+                <td class="px-4 py-2">
+                  <code>&lt;Note&gt;</code> tags missing the unique <code>/ID</code> that lets
+                  assistive technology link a footnote to its reference — advisory with the Acrobat
+                  fix path (v1.92.0; Matterhorn 19)
+                </td>
+              </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Role-map validity</td>
+                <td class="px-4 py-2">Reading Order</td>
+                <td class="px-4 py-2">
+                  Circular mappings, remappings of standard tags, and custom tags that never reach a
+                  standard role (resolved transitively) — advisories (v1.92.0; Matterhorn 02)
+                </td>
+              </tr>
+              <tr class="border-b border-[var(--border-subtle)]">
+                <td class="px-4 py-2">Document behaviors</td>
+                <td class="px-4 py-2">Reading Order</td>
+                <td class="px-4 py-2">
+                  JavaScript actions, audio/video annotations, optional-content layers, reference
+                  XObjects, embedded files without descriptions, and signature fields — each
+                  disclosed for human review rather than silently skipped (v1.92.0&ndash;v1.94.0)
+                </td>
+              </tr>
               <tr>
                 <td class="px-4 py-2">Acrobat remediation guide</td>
                 <td class="px-4 py-2">All PDF categories</td>
@@ -1212,9 +1307,9 @@
           A category that doesn't apply to a document (a text-only file has no images, tables,
           links, or forms) counts as <strong>passing</strong> and keeps its weight in the score's
           base: a document with no tables does not have a table problem. Only a category the tool
-          <em>could not assess</em> — color contrast on PDFs, where inherited colors can't be
-          resolved — sits outside the weighted score, because "we don't know" must not be scored as
-          a pass. Through v1.58.2 the tool instead dropped non-applicable categories and
+          <em>could not assess</em> — color contrast on PDFs, where rendered-page analysis is not
+          yet implemented — sits outside the weighted score, because "we don't know" must not be
+          scored as a pass. Through v1.58.2 the tool instead dropped non-applicable categories and
           renormalized the remaining weights; that magnified a simple document's single fault (a
           one-page notice scored <em>worse</em> than a longer agenda carrying the identical
           missing-title defect) and was removed.
@@ -1665,29 +1760,26 @@ Output finalized OR job marked failed. Scratch dir wiped in `finally`.</pre>
         <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">Regression Guards</h3>
         <p class="text-[var(--text-muted)] mb-3">
           After successful tagging + validation, the worker re-audits the output and compares
-          against the pre-flight audit stored at job creation time. Three independent comparisons
-          run:
+          against the pre-flight audit stored at job creation time. Two independent comparisons run:
         </p>
         <pre
           class="mt-2 rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
           tabindex="0"
         >
 <span class="text-sky-300">if</span> (output.overallScore &lt; input.overallScore ||
-    output.scoreProfiles.strict.overallScore &lt; input.scoreProfiles.strict.overallScore ||
-    output.scoreProfiles.remediation.overallScore &lt; input.scoreProfiles.remediation.overallScore) {
+    output.scoreProfiles.strict.overallScore &lt; input.scoreProfiles.strict.overallScore) {
   <span class="text-emerald-300">recordEvent</span>(jobId, <span class="text-purple-300">'validation_failed'</span>, { regressed_profiles: [...] })
   <span class="text-sky-300">await</span> <span class="text-amber-300">deleteAndVerify</span>(jobId, taggedPath, 'cleanup')
   <span class="text-amber-300">setFailed</span>(jobId, `auto-remediation regressed: ${regressed.join(', ')}`)
   <span class="text-sky-300">return</span>
 }</pre>
         <p class="text-[var(--text-muted)] mt-3">
-          <strong>Why all three:</strong> the headline overall score uses whichever profile is the
-          active scoring mode, which can mask a regression on the other profile. Checking both
-          profiles plus the displayed overall ensures the user never sees a metric that decreased.
-          The <code class="font-mono">validation_failed</code> event payload records all six numbers
-          (input/output × overall + strict + practical) plus the
-          <code class="font-mono">regressed_profiles</code> array, so any auditor query can identify
-          exactly which profile failed and by how much.
+          <strong>Why both:</strong> the headline overall score can fall back to a stored value
+          while the strict profile is the canonical scoring methodology, so either could mask a
+          regression in the other. Checking both ensures the user never sees a metric that
+          decreased. The <code class="font-mono">validation_failed</code> event payload records the
+          input/output deltas plus the <code class="font-mono">regressed_profiles</code> array, so
+          any auditor query can identify exactly which comparison failed and by how much.
         </p>
       </div>
 
@@ -1884,9 +1976,10 @@ pm2 restart ecosystem.config.cjs</pre>
               ><strong>Color contrast (PDF only):</strong> PDF color contrast analysis requires
               rendering each page as an image and analyzing pixel colors. This tool focuses on
               structural accessibility (tags, metadata, markup) and does not currently assess color
-              contrast for PDFs. Word, PowerPoint, and Excel are the exception: their colors are
-              explicit values in the document XML, so contrast <em>is</em> machine-checked for those
-              three formats.</span
+              contrast for PDFs. Word, PowerPoint, and Excel are the exception: their colors live in
+              the document XML (explicit values, theme references, and Excel's legacy indexed
+              palette are all resolved), so contrast <em>is</em> machine-checked for those three
+              formats.</span
             >
           </li>
           <li class="flex gap-2">
