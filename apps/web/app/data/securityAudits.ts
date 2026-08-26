@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.101.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: one explanatory card on the landing page's Matterhorn checklist. Nothing received, sent, stored, or scored differently.",
+    body: [
+      {
+        kind: "p",
+        html: "The checklist now answers a fair question up front: why is it only about PDFs? The Matterhorn Protocol is the test model for PDF/UA, a standard written for the PDF format alone, so its checkpoints have no meaning for Word, PowerPoint, or Excel files &mdash; which this tool still checks fully, under their own per-format audits. The card says both halves out loud (each pinned by an automated test, so neither wrong reading can creep back), points at the technical-details page for the per-format checks, and links the protocol&rsquo;s specification at the PDF Association &mdash; static, repository-authored copy whose only new outbound link opens the PDF Association&rsquo;s own page.",
+      },
+    ],
+  },
+  {
     version: "v1.100.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: two new endpoints that let the page show real progress while an audit runs. The checks themselves are the same code; policy v1.17 describes the one small retention nuance honestly.",
     body: [

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.101.0] - 2026-08-26
+
+### Added
+
+- **The Matterhorn checklist now says who it's for** (user request): a scope note at the top of the landing-page checklist — _"Why is this checklist only about PDFs?"_ — explaining that the Matterhorn Protocol is PDF/UA's test model and applies to exactly one format by construction (its checkpoints test machinery that only exists inside a PDF — the tag tree, artifact marking, bookmarks, font embedding), while Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) files are **still fully checked here** under their own per-format audits (linked to the technical-details page). Includes a new-tab link to the Matterhorn Protocol specification at the PDF Association.
+- Both halves of the claim are test-pinned so neither wrong reading — that Office files aren't checked, or that this list applies to them — can sneak back in.
+
+### Notes
+
+- Copy + pins only — no API, scoring, or storage change. Tests: API 1,516 · web 1,234 · CLI 49 (**2,799**).
+
+<details>
+<summary><strong>v1.100.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.100.0] - 2026-08-26
 
 ### Added
@@ -16,9 +30,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Notes
 
 - Tests: API 1,516 · web 1,231 · CLI 49 (**2,796**). Analyzer untouched — scoring identical by construction.
-
-<details>
-<summary><strong>v1.99.1 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.99.1] - 2026-08-26
 

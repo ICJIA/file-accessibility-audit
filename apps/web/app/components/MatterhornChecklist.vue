@@ -128,6 +128,58 @@ const coverageCount = computed(() => {
           plain terms.
         </p>
 
+        <!-- Scope note — v1.101.0 (user request): why this checklist names
+             ONE format. Matterhorn is PDF/UA's test model and PDF-only by
+             construction; Office files are still fully audited here, just
+             under their own per-format checks. Saying both halves out loud
+             prevents the two wrong readings — that Office files aren't
+             checked, or that this list applies to them.
+             matterhornChecklist.test.ts pins both halves and the spec link. -->
+        <div
+          class="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6"
+          data-testid="matterhorn-pdf-only"
+        >
+          <h3 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+            Why is this checklist only about PDFs?
+          </h3>
+          <div
+            class="space-y-2.5 text-xs sm:text-[13px] text-[var(--text-secondary)] leading-relaxed max-w-3xl"
+          >
+            <p>
+              The Matterhorn Protocol was written for exactly one file format: PDF. It is the test
+              model for PDF/UA (ISO 14289), the accessibility standard for PDF files specifically,
+              and its {{ facts.checkpoints }} checkpoints test machinery that only exists inside a
+              PDF — the hidden tag tree, artifact marking, bookmark outlines, font embedding. Word,
+              PowerPoint, and Excel files are built on a completely different internal format
+              (Office Open XML), so these checkpoints have no meaning there.
+            </p>
+            <p>
+              Office files can absolutely still be checked here. Drop a Word (.docx), PowerPoint
+              (.pptx), or Excel (.xlsx) file on the same tool and it gets its own audit covering the
+              same accessibility ground — image descriptions, heading structure, table setup —
+              tested the way those formats actually store it, with every per-format check listed on
+              the
+              <NuxtLink
+                to="/technical-details"
+                class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                >technical details</NuxtLink
+              >
+              page. Only this Matterhorn checklist and the veraPDF panels are PDF-specific.
+            </p>
+            <p>
+              The protocol itself is published free by the PDF Association — read the
+              <a
+                href="https://pdfa.org/resource/the-matterhorn-protocol/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                >Matterhorn Protocol specification</a
+              >
+              if you want the full test model behind this list.
+            </p>
+          </div>
+        </div>
+
         <!-- v1.97.0 (user request): THE linkage a non-technical Illinois
              agency reader needs before anything else on this list makes
              sense — WCAG and IITAA are the law they already know; Matterhorn

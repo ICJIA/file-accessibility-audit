@@ -254,6 +254,41 @@ describe("landing page wiring", () => {
   });
 });
 
+describe("MatterhornChecklist.vue — the PDF-only scope note (v1.101.0, user request)", () => {
+  // The note says BOTH halves out loud: Matterhorn applies to PDFs only
+  // (it is PDF/UA's test model), AND Office files are still fully checked
+  // here under their own per-format audits. Dropping either half creates a
+  // wrong reading — that Office files aren't checked, or that this list
+  // applies to them.
+  it("explains that Matterhorn is PDF-only because it is PDF/UA's test model", () => {
+    const w = mount(MatterhornChecklist);
+    const note = w.find('[data-testid="matterhorn-pdf-only"]');
+    expect(note.exists()).toBe(true);
+    expect(note.text()).toContain("Why is this checklist only about PDFs?");
+    expect(note.text()).toMatch(/exactly one file format: PDF/);
+    expect(note.text()).toMatch(/PDF\/UA \(ISO 14289\)/);
+    expect(note.text()).toMatch(/these checkpoints have no meaning there/);
+  });
+
+  it("states that Office files are still checked here — by name (.docx, .pptx, .xlsx) — just not against Matterhorn", () => {
+    const note = mount(MatterhornChecklist).find('[data-testid="matterhorn-pdf-only"]');
+    expect(note.text()).toMatch(/can absolutely still be checked here/);
+    expect(note.text()).toContain(".docx");
+    expect(note.text()).toContain(".pptx");
+    expect(note.text()).toContain(".xlsx");
+    expect(note.text()).toMatch(/Matterhorn checklist and the veraPDF panels are PDF-specific/);
+  });
+
+  it("links the Matterhorn Protocol specification from the note, opening in a new tab", () => {
+    const note = mount(MatterhornChecklist).find('[data-testid="matterhorn-pdf-only"]');
+    const a = note.find('a[href="https://pdfa.org/resource/the-matterhorn-protocol/"]');
+    expect(a.exists()).toBe(true);
+    expect(a.attributes("target")).toBe("_blank");
+    expect(a.attributes("rel")).toContain("noopener");
+    expect(a.text()).toContain("Matterhorn Protocol specification");
+  });
+});
+
 describe("MatterhornChecklist.vue — the law linkage (v1.97.0, user request)", () => {
   // The block exists to answer "WCAG and IITAA are the law — why should I
   // care about Matterhorn?" for a non-technical Illinois agency reader. Its
