@@ -137,6 +137,39 @@ export function appendSupplementaryFindings(
     );
   }
 
+  // Footnote/endnote structure (v1.92.0 — Matterhorn 19). Advisory — not
+  // scored: the WCAG mapping is weak, but PAC flags missing/duplicate Note
+  // IDs constantly on footnoted Word exports, so the signal must not be
+  // silent. IDs let assistive technology link a reference to its note.
+  const noteCount = qpdf.noteCount ?? 0;
+  if (readingCatForLists && noteCount > 0) {
+    const missingId = qpdf.notesMissingId ?? 0;
+    const dupIds = qpdf.noteDuplicateIdCount ?? 0;
+    readingCatForLists.findings.push(`--- Footnotes & Endnotes (<Note>) ---`);
+    readingCatForLists.findings.push(
+      `${noteCount} <Note> tag(s) detected (footnotes, endnotes, or labeled notes)`,
+    );
+    if (missingId === 0 && dupIds === 0) {
+      readingCatForLists.findings.push(
+        "  All notes carry a unique /ID — assistive technology can link each reference to its note (Matterhorn 19-003/19-004)",
+      );
+    } else {
+      if (missingId > 0) {
+        readingCatForLists.findings.push(
+          `  Advisory — not scored: ${missingId} note(s) have no /ID (Matterhorn 19-003). PDF/UA requires one so assistive technology can link the in-text reference to its note; Word footnote exports commonly omit it.`,
+        );
+      }
+      if (dupIds > 0) {
+        readingCatForLists.findings.push(
+          `  Advisory — not scored: ${dupIds} note(s) reuse another note's /ID (Matterhorn 19-004) — IDs must be unique within the document.`,
+        );
+      }
+      readingCatForLists.findings.push(
+        "  Fix: In Adobe Acrobat's Tags panel, select each <Note> tag → Properties → set a unique ID (remediation tools and re-exporting from current Word versions also repair this).",
+      );
+    }
+  }
+
   const textCat = findCat("text_extractability");
   if (textCat) {
     textCat.findings.push(`--- Document Structure Signals ---`);
@@ -211,6 +244,29 @@ export function appendSupplementaryFindings(
       );
     }
 
+    // RoleMap validity (v1.92.0 — Matterhorn 02). All advisory — not scored:
+    // each is machine-certain as a STRUCTURAL fact, but its user impact runs
+    // through whatever content sits inside the affected tags, which the
+    // scored categories already measure.
+    const circular = qpdf.roleMapCircularTags ?? [];
+    if (circular.length > 0) {
+      readingCat.findings.push(
+        `  Advisory — not scored: ${circular.length} role-map entr${circular.length === 1 ? "y is" : "ies are"} circular (${circular.slice(0, 6).join(", ")}${circular.length > 6 ? ", …" : ""}) — the chain never reaches a standard type, so assistive technology cannot resolve what these tags mean (Matterhorn 02-003). Fix the RoleMap so every custom tag ends on a standard structure type.`,
+      );
+    }
+    const standardRemaps = qpdf.roleMapStandardRemaps ?? [];
+    if (standardRemaps.length > 0) {
+      readingCat.findings.push(
+        `  Advisory — not scored: the RoleMap remaps ${standardRemaps.length} STANDARD structure type(s) (${standardRemaps.slice(0, 6).join("; ")}${standardRemaps.length > 6 ? "; …" : ""}) — PDF/UA prohibits remapping standard types (Matterhorn 02-004); viewers may honor either meaning.`,
+      );
+    }
+    const unmapped = qpdf.roleMapUnmappedTags ?? [];
+    if (unmapped.length > 0) {
+      readingCat.findings.push(
+        `  Advisory — not scored: ${unmapped.length} custom tag name(s) carry no mapping to a standard structure type (${unmapped.slice(0, 8).join(", ")}${unmapped.length > 8 ? ", …" : ""}) — assistive technology treats them as anonymous containers (Matterhorn 02-001). Map each to its closest standard type in the RoleMap.`,
+      );
+    }
+
     if (qpdf.totalPageCount > 0) {
       if (qpdf.tabOrderPages === qpdf.totalPageCount) {
         readingCat.findings.push(
@@ -229,6 +285,52 @@ export function appendSupplementaryFindings(
         );
         readingCat.findings.push(
           '  Fix: In Adobe Acrobat, open the Pages panel (View → Show/Hide → Side panels → Page; classic UI: Navigation Panes → Page Thumbnails) → select all pages → right-click → Page Properties → Tab Order → "Use Document Structure"',
+        );
+      }
+    }
+
+    // Document behaviors (v1.92.0 censuses): JavaScript, multimedia, and
+    // optional-content layers. Presence-only disclosures — none is scored,
+    // and none prints when absent (most documents have none of the three).
+    const media = qpdf.mediaAnnotationCounts;
+    const mediaTotal = media ? media.screen + media.movie + media.sound + media.richMedia : 0;
+    const jsSignals = (qpdf.jsActionCount ?? 0) + (qpdf.hasJsNameTree ? 1 : 0);
+    if (mediaTotal > 0 || jsSignals > 0 || qpdf.hasOptionalContent) {
+      readingCat.findings.push(`--- Document Behaviors ---`);
+    }
+    if (mediaTotal > 0 && media) {
+      const kinds = [
+        media.screen ? `${media.screen} Screen` : "",
+        media.movie ? `${media.movie} Movie` : "",
+        media.sound ? `${media.sound} Sound` : "",
+        media.richMedia ? `${media.richMedia} RichMedia` : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      readingCat.findings.push(
+        `  ${mediaTotal} multimedia annotation(s) embedded (${kinds}) — whether the media carries captions or text alternatives requires manual review (WCAG 1.2.x; the conformance panel lists it as not assessed)`,
+      );
+    }
+    if (jsSignals > 0) {
+      readingCat.findings.push(
+        `  JavaScript is present (${qpdf.jsActionCount ?? 0} action(s)${qpdf.hasJsNameTree ? " + a document-level script tree" : ""}) — whether scripted behavior stays keyboard- and AT-accessible requires manual review (Matterhorn 29)`,
+      );
+    }
+    if (qpdf.hasOptionalContent) {
+      const cfgCount = qpdf.ocgConfigCount ?? 0;
+      const missingName = qpdf.ocgConfigsMissingName ?? 0;
+      const withAS = qpdf.ocgConfigsWithAS ?? 0;
+      readingCat.findings.push(
+        `  Optional-content layers are present (${cfgCount} configuration(s))${missingName === 0 && withAS === 0 ? " — configurations are named and none auto-switch content (Matterhorn 20)" : ""}`,
+      );
+      if (missingName > 0) {
+        readingCat.findings.push(
+          `  Advisory — not scored: ${missingName} layer configuration(s) have no /Name (Matterhorn 20-001) — assistive technology cannot announce which view of the content is active.`,
+        );
+      }
+      if (withAS > 0) {
+        readingCat.findings.push(
+          `  Advisory — not scored: ${withAS} layer configuration(s) carry an /AS auto-state (Matterhorn 20-002) — content can appear or disappear with zoom or print without the reader acting, which assistive technology cannot follow.`,
         );
       }
     }

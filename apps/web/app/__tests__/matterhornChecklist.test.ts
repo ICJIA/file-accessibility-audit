@@ -76,6 +76,14 @@ describe("matterhorn.ts — the checkpoint data", () => {
     expect(byId("10")?.coverage).toBe("verapdf");
   });
 
+  // v1.92.0 promotions — each pinned to the engine change that earned it.
+  // Promote further ONLY alongside the analyzer change that makes it true.
+  it("claims the v1.92.0 promotions exactly: 17/19 engine-partial (Formula alt + Note /ID censuses), 20 engine (OCG /Name + /AS)", () => {
+    expect(byId("17")?.coverage).toBe("engine-partial");
+    expect(byId("19")?.coverage).toBe("engine-partial");
+    expect(byId("20")?.coverage).toBe("engine");
+  });
+
   // Two marquee in-house checks that must never silently demote: Security
   // (26 — the accessibility permission flag, cited as Matterhorn 26-002 in
   // the scorer) and Fonts (31 — the rendering-reachability embedding census).
@@ -94,19 +102,43 @@ describe("MatterhornChecklist.vue", () => {
     }
   });
 
-  it("states the protocol figures so the checklist has a denominator", () => {
+  it("states the protocol figures so the checklist has a denominator (plain-language phrasing, v1.92.0)", () => {
     const w = mount(MatterhornChecklist);
     expect(w.text()).toMatch(/31 checkpoints/);
-    expect(w.text()).toMatch(/136 failure conditions/);
-    expect(w.text()).toMatch(/87 machine-checkable/);
-    expect(w.text()).toMatch(/47 requiring human\s+judgment/);
+    expect(w.text()).toMatch(/136 specific ways a PDF can fail/);
+    expect(w.text()).toMatch(/Software can verify 87/);
+    expect(w.text()).toMatch(/47 need\s+human judgment/);
+  });
+
+  // v1.92.0, user request: the section must answer the three questions a
+  // non-technical visitor actually asks, before any jargon is used.
+  it("answers 'Why Matterhorn?' in plain language (the mountain, the PDF Association, PAC)", () => {
+    const w = mount(MatterhornChecklist);
+    expect(w.text()).toContain('Why "Matterhorn"?');
+    expect(w.text()).toMatch(/Alpine\s+mountain/);
+    expect(w.text()).toMatch(/PDF Association/);
+    expect(w.text()).toMatch(/climbing\s+route/);
+  });
+
+  it("answers 'What is veraPDF?' as an independent second opinion that runs automatically", () => {
+    const w = mount(MatterhornChecklist);
+    expect(w.text()).toContain("What is veraPDF?");
+    expect(w.text()).toMatch(/independent second opinion/);
+    expect(w.text()).toMatch(/runs automatically/);
+  });
+
+  it("answers 'Does this change my score?' with a plain No and points back at the action plan", () => {
+    const w = mount(MatterhornChecklist);
+    expect(w.text()).toContain("Does this change my score?");
+    expect(w.text()).toMatch(/No\. Your score comes from the WCAG-based categories/);
+    expect(w.text()).toMatch(/it informs, it\s+never grades/);
   });
 
   it("explains all four coverage mechanisms in the legend", () => {
     const w = mount(MatterhornChecklist);
     expect(w.text()).toContain("Audit engine");
     expect(w.text()).toContain("Engine + veraPDF");
-    expect(w.text()).toMatch(/veraPDF\s+validator/);
+    expect(w.text()).toMatch(/independent checker described above/);
     expect(w.text()).toContain("Human review");
     // The human-review line must name the manual-review card — the honest
     // "no software can do this" pressure valve.
@@ -116,7 +148,7 @@ describe("MatterhornChecklist.vue", () => {
   it("cross-references the v1.91.0 'Did not run' disclosure so absence is never a pass", () => {
     const w = mount(MatterhornChecklist);
     expect(w.text()).toMatch(/Did not run/);
-    expect(w.text()).toMatch(/never presented as passing/i);
+    expect(w.text()).toMatch(/never presented as a passing one/i);
   });
 
   it("links the protocol, PAC, and veraPDF externally with rel=noopener", () => {

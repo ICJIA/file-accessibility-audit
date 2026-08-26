@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "matterhorn-pass-plain-language-2026-08-26",
+    badge: "Improved",
+    text: 'The PDF checker now catches more on its own: formulas without a spoken alternative, footnotes screen readers cannot link to their references, heading labels that mix two conventions, language settings that are not usable codes (like "english" instead of "en-US"), and embedded audio, video, scripts, or switchable layers — each either fixed into the score or flagged for human review, never silently skipped. Every previously checked document keeps its exact score; the new checks only affect documents that actually have these problems. The Matterhorn checklist on this page was also rewritten in plain language, answering why it has that name, what the veraPDF second-opinion checker is, and — plainly — that none of this changes how your score is calculated.',
+    linkText: "See the Matterhorn checklist",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "matterhorn-checklist-verapdf-disclosure-2026-08-25",
     badge: "New",
     text: 'The front page now shows the Matterhorn checklist — all 31 checkpoints of the PDF Association\'s test model for PDF accessibility, the same one professional checkers are built on — and which layer of this tool checks each one: our own audit engine, the open-source veraPDF validator that runs alongside every PDF audit, or human review for the checks no software can make. PDF reports also became more candid about that validator. If it ever cannot run, the report now says "Did not run" in its PDF/UA panel instead of leaving the panel out, because a missing check should never look like a passing one. Nothing about scoring changed, and nothing new is collected or stored.',

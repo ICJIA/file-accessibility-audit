@@ -18,6 +18,7 @@ import {
   collectHeadingsInOrder,
   findStructTreeRoot,
   analyzeTable,
+  STANDARD_STRUCT_TYPES,
   type TableAnalysis,
 } from "./qpdfStructTree.js";
 export type { TableAnalysis };
@@ -129,6 +130,47 @@ export interface QpdfResult {
    *  reports from before v1.81.0 (fidelity then treats every MCID as text —
    *  the legacy behavior). */
   figureMcidsByPage?: Record<number, number[]>;
+  // -------------------------------------------------------------------------
+  // v1.92.0 Matterhorn completeness censuses. Always present on parser output
+  // (emptyQpdfResult provides the zero-defaults); typed OPTIONAL only so the
+  // suite's many hand-built QpdfResult fixtures stay terse — consumers guard
+  // with `?? 0` / `?? []`.
+  // -------------------------------------------------------------------------
+  /** Reachable <Note> structure elements (footnotes/endnotes). */
+  noteCount?: number;
+  /** Notes without an /ID (Matterhorn 19-003). */
+  notesMissingId?: number;
+  /** Notes whose /ID duplicates another note's (Matterhorn 19-004). */
+  noteDuplicateIdCount?: number;
+  /** Reachable <Formula> structure elements (Matterhorn 17). */
+  formulaCount?: number;
+  /** Formulas with NEITHER /Alt nor /ActualText — the machine-certain
+   *  failure mode (a formula's glyphs rarely extract as speakable text). */
+  formulasMissingAlt?: number;
+  /** RoleMap validity (Matterhorn 02). Custom /S values on struct elements
+   *  whose (transitive) mapping does not END on a standard structure type —
+   *  unrecognized semantics for AT (02-001). Unique, capped at 12. */
+  roleMapUnmappedTags?: string[];
+  /** RoleMap entries that sit on a circular chain (02-003). */
+  roleMapCircularTags?: string[];
+  /** Standard structure types the RoleMap REMAPS to something else (02-004),
+   *  as "P → Figure" strings. */
+  roleMapStandardRemaps?: string[];
+  /** JavaScript action dictionaries (/S /JavaScript) in the object graph. */
+  jsActionCount?: number;
+  /** The catalog's /Names tree carries a /JavaScript branch (doc-level JS). */
+  hasJsNameTree?: boolean;
+  /** Multimedia annotation census (Matterhorn 05/29 territory). */
+  mediaAnnotationCounts?: { screen: number; movie: number; sound: number; richMedia: number };
+  /** Optional content (layers — Matterhorn 20). */
+  hasOptionalContent?: boolean;
+  /** OCG configuration dicts seen (the default /D plus /Configs entries). */
+  ocgConfigCount?: number;
+  /** Configurations missing the required /Name (20-001). */
+  ocgConfigsMissingName?: number;
+  /** Configurations carrying an /AS auto-state array (20-002 — content can
+   *  switch on zoom/print without user intent). */
+  ocgConfigsWithAS?: number;
   error: string | null;
 }
 
@@ -248,7 +290,33 @@ function execQpdfAsync(tmpPath: string): Promise<string> {
   });
 }
 
-function emptyQpdfResult(error: string | null): QpdfResult {
+/** The parser's working shape: the v1.92.0 census fields are OPTIONAL on the
+ *  public QpdfResult (so hand-built test fixtures stay terse) but the parser
+ *  always initializes and increments them — Required<Pick<…>> states that to
+ *  the compiler without widening the public contract. */
+type ParsedQpdfResult = QpdfResult &
+  Required<
+    Pick<
+      QpdfResult,
+      | "noteCount"
+      | "notesMissingId"
+      | "noteDuplicateIdCount"
+      | "formulaCount"
+      | "formulasMissingAlt"
+      | "roleMapUnmappedTags"
+      | "roleMapCircularTags"
+      | "roleMapStandardRemaps"
+      | "jsActionCount"
+      | "hasJsNameTree"
+      | "mediaAnnotationCounts"
+      | "hasOptionalContent"
+      | "ocgConfigCount"
+      | "ocgConfigsMissingName"
+      | "ocgConfigsWithAS"
+    >
+  >;
+
+function emptyQpdfResult(error: string | null): ParsedQpdfResult {
   return {
     hasStructTree: false,
     hasLang: false,
@@ -287,6 +355,21 @@ function emptyQpdfResult(error: string | null): QpdfResult {
     contentOrder: [],
     structTreeMcidsByPage: {},
     figureMcidsByPage: {},
+    noteCount: 0,
+    notesMissingId: 0,
+    noteDuplicateIdCount: 0,
+    formulaCount: 0,
+    formulasMissingAlt: 0,
+    roleMapUnmappedTags: [],
+    roleMapCircularTags: [],
+    roleMapStandardRemaps: [],
+    jsActionCount: 0,
+    hasJsNameTree: false,
+    mediaAnnotationCounts: { screen: 0, movie: 0, sound: 0, richMedia: 0 },
+    hasOptionalContent: false,
+    ocgConfigCount: 0,
+    ocgConfigsMissingName: 0,
+    ocgConfigsWithAS: 0,
     error,
   };
 }
@@ -335,7 +418,7 @@ function handleQpdfError(err: any): QpdfResult {
 }
 
 function parseQpdfJson(json: any): QpdfResult {
-  const result: QpdfResult = emptyQpdfResult(null);
+  const result: ParsedQpdfResult = emptyQpdfResult(null);
 
   try {
     // Top-level "encrypt" key (same shape in JSON v1 and v2). qpdf emits it
@@ -492,6 +575,14 @@ function parseQpdfJson(json: any): QpdfResult {
     const imageXObjectRefs = new Set<string>();
     const maskRefs = new Set<string>();
 
+    // Note /ID census scratch (v1.92.0, Matterhorn 19): IDs collected during
+    // the walk; duplicates counted after it.
+    const noteIds: string[] = [];
+    // Unmapped-custom-tag census scratch (Matterhorn 02-001): unique final
+    // tags, capped so a pathological file cannot grow the report payload.
+    const unmappedTagSet = new Set<string>();
+    const MAX_UNMAPPED_TAGS = 12;
+
     // Struct-tree reachability. Authoring tools (notably InDesign → Acrobat)
     // leave behind phantom struct objects — headings, lists, tables, figures
     // that carry /S but are not part of the live structure tree: they have no
@@ -558,6 +649,51 @@ function parseQpdfJson(json: any): QpdfResult {
         // Dynamic-XFA marker (see QpdfResult.needsRendering).
         if (o["/NeedsRendering"] !== undefined) {
           result.needsRendering = resolveScalar(o["/NeedsRendering"]) === true;
+        }
+        // Document-level JavaScript name tree (v1.92.0 — Matterhorn 29
+        // territory): /Names → /JavaScript. Presence only; the scripts'
+        // accessibility is a human judgment.
+        if (o["/Names"]) {
+          const names =
+            typeof o["/Names"] === "string" ? resolveRef(o["/Names"], objects) : o["/Names"];
+          if (names && typeof names === "object" && names["/JavaScript"] !== undefined) {
+            result.hasJsNameTree = true;
+          }
+        }
+        // Optional content (layers — Matterhorn 20). The default /D config
+        // and every /Configs entry must carry a /Name (20-001) and must not
+        // auto-switch content via /AS (20-002). Both are cheap object reads.
+        if (o["/OCProperties"]) {
+          const ocProps =
+            typeof o["/OCProperties"] === "string"
+              ? resolveRef(o["/OCProperties"], objects)
+              : o["/OCProperties"];
+          if (ocProps && typeof ocProps === "object") {
+            result.hasOptionalContent = true;
+            const configs: any[] = [];
+            const dConfig =
+              typeof ocProps["/D"] === "string"
+                ? resolveRef(ocProps["/D"], objects)
+                : ocProps["/D"];
+            if (dConfig && typeof dConfig === "object") configs.push(dConfig);
+            const extra = ocProps["/Configs"];
+            const extraArr = Array.isArray(extra) ? extra : [];
+            for (const c of extraArr) {
+              const cfg = typeof c === "string" ? resolveRef(c, objects) : c;
+              if (cfg && typeof cfg === "object") configs.push(cfg);
+            }
+            for (const cfg of configs) {
+              result.ocgConfigCount++;
+              const name = resolveScalar(cfg["/Name"]);
+              if (typeof name !== "string" || name.replace(/^u:/, "").trim() === "") {
+                result.ocgConfigsMissingName++;
+              }
+              const as = cfg["/AS"];
+              if (Array.isArray(as) ? as.length > 0 : as !== undefined) {
+                result.ocgConfigsWithAS++;
+              }
+            }
+          }
         }
         // MarkInfo — indicates document distinguishes marked content from artifacts
         if (o["/MarkInfo"]) {
@@ -627,6 +763,34 @@ function parseQpdfJson(json: any): QpdfResult {
         imageXObjectRefs.add(normRef(ref));
         if (typeof o["/SMask"] === "string") maskRefs.add(normRef(o["/SMask"]));
         if (typeof o["/Mask"] === "string") maskRefs.add(normRef(o["/Mask"]));
+      }
+
+      // JavaScript action dictionaries (v1.92.0 — Matterhorn 29 territory).
+      // An action's /S names the ACTION TYPE, not a structure role; counted
+      // here, independent of (and before) the structure-element branch below,
+      // which such dicts also enter harmlessly (no structure tag matches).
+      if (o["/S"] === "/JavaScript") {
+        result.jsActionCount++;
+      }
+
+      // Multimedia annotations (Matterhorn 05/29 territory). Presence only —
+      // whether the media carries captions/alternatives is a human judgment,
+      // and the conformance gate discloses 1.2.x as not-assessed when any
+      // exist. Sound OBJECTS carry /Type /Sound, never /Subtype /Sound, so
+      // this subtype test counts annotations alone.
+      switch (o["/Subtype"]) {
+        case "/Screen":
+          result.mediaAnnotationCounts.screen++;
+          break;
+        case "/Movie":
+          result.mediaAnnotationCounts.movie++;
+          break;
+        case "/Sound":
+          result.mediaAnnotationCounts.sound++;
+          break;
+        case "/RichMedia":
+          result.mediaAnnotationCounts.richMedia++;
+          break;
       }
 
       // Metadata streams — check for PDF/UA identifier in XMP
@@ -726,6 +890,54 @@ function parseQpdfJson(json: any): QpdfResult {
           result.images.push({ ref: normRef(ref), hasAlt, altText });
         }
 
+        // Formulas (v1.92.0 — Matterhorn 17). Same Alt-or-ActualText doctrine
+        // as figures: a formula's glyphs rarely extract as speakable text, so
+        // one with NEITHER is machine-certain missing non-text-content
+        // alternative (asserted as 1.1.1 by the conformance gate).
+        if (tag === "/Formula" && structReachable) {
+          result.formulaCount++;
+          const fAlt = o["/Alt"];
+          const fActual = o["/ActualText"];
+          const hasFormulaAlt =
+            (typeof fAlt === "string" && decodeQpdfString(fAlt).trim() !== "") ||
+            (typeof fActual === "string" && decodeQpdfString(fActual).trim() !== "");
+          if (!hasFormulaAlt) result.formulasMissingAlt++;
+        }
+
+        // Notes (v1.92.0 — Matterhorn 19): footnotes/endnotes tagged <Note>
+        // must carry an /ID (19-003), unique across the document (19-004) —
+        // Word footnote exports trip this constantly in PAC. Advisory-only
+        // downstream (weak WCAG mapping), but measured, not silent.
+        if (tag === "/Note" && structReachable) {
+          result.noteCount++;
+          const rawId = o["/ID"];
+          if (typeof rawId === "string" && rawId.replace(/^[ub]:/, "").trim() !== "") {
+            noteIds.push(rawId);
+          } else {
+            result.notesMissingId++;
+          }
+        }
+
+        // RoleMap-validity census (Matterhorn 02-001): a structure element
+        // whose (transitively) mapped tag still isn't a standard structure
+        // type is unrecognized semantics — AT has nothing to announce it as.
+        // Gated on structural evidence so ACTION dictionaries — whose /S
+        // names the action type (/JavaScript, /URI, /GoTo) — and other
+        // /S-bearing non-structure dicts never pollute the census.
+        const looksLikeStructElem =
+          o["/Type"] === "/StructElem" ||
+          o["/P"] !== undefined ||
+          o["/K"] !== undefined ||
+          o["/Pg"] !== undefined;
+        if (
+          looksLikeStructElem &&
+          tag &&
+          !STANDARD_STRUCT_TYPES.has(tag) &&
+          unmappedTagSet.size < MAX_UNMAPPED_TAGS
+        ) {
+          unmappedTagSet.add(tag.replace(/^\//, ""));
+        }
+
         // Collect MCIDs for reading order
         collectMCIDs(o, result.contentOrder);
       }
@@ -808,6 +1020,41 @@ function parseQpdfJson(json: any): QpdfResult {
     for (const imageRef of imageXObjectRefs) {
       if (!maskRefs.has(imageRef)) result.imageObjectCount++;
     }
+
+    // Note /ID uniqueness (Matterhorn 19-004): every occurrence beyond the
+    // first of a given /ID value is a duplicate.
+    if (noteIds.length > 0) {
+      const seenIds = new Set<string>();
+      for (const id of noteIds) {
+        if (seenIds.has(id)) result.noteDuplicateIdCount++;
+        else seenIds.add(id);
+      }
+    }
+    result.roleMapUnmappedTags = [...unmappedTagSet].sort();
+
+    // RoleMap validity diagnostics (v1.92.0 — Matterhorn 02-003 / 02-004),
+    // computed from the FINAL accumulated map after the whole walk. Circular:
+    // any source whose chain revisits a name. Standard remap: the map's
+    // SOURCE side names a standard structure type — remapping standard types
+    // is prohibited outright, whatever the target.
+    for (const [src, dst] of Object.entries(roleMap)) {
+      if (!src.startsWith("/") || typeof dst !== "string") continue;
+      let cursor = src;
+      const chainSeen = new Set<string>();
+      while (roleMap[cursor] !== undefined) {
+        if (chainSeen.has(cursor)) {
+          result.roleMapCircularTags.push(src.replace(/^\//, ""));
+          break;
+        }
+        chainSeen.add(cursor);
+        cursor = roleMap[cursor];
+      }
+      if (STANDARD_STRUCT_TYPES.has(src)) {
+        result.roleMapStandardRemaps.push(`${src.replace(/^\//, "")} → ${dst.replace(/^\//, "")}`);
+      }
+    }
+    result.roleMapCircularTags.sort();
+    result.roleMapStandardRemaps.sort();
 
     // Resolve table candidates into top-level tables. A /Table that appears in
     // the subtree of another /Table is a nested table: the parent already

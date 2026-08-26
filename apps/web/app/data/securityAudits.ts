@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.92.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: eight new automated checks inside the PDF analyzer, and a plain-language rewrite of the front page&rsquo;s checklist section. Nothing new is collected, no new way to reach the service, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The analyzer now checks more of the PDF accessibility standard by itself: formulas without a spoken alternative, footnotes without linkable IDs, heading tags that mix two labeling conventions, language declarations that are not usable codes (&ldquo;english&rdquo; instead of &ldquo;en-US&rdquo;), tag-name mappings that go in circles or redefine standard names, embedded audio/video and scripts (disclosed for human review, never auto-failed), and document &ldquo;layers&rdquo; that could switch content without the reader acting. The front page&rsquo;s checklist section was also rewritten so a non-technical reader can follow it, and its coverage labels were updated to match the new checks.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Same inputs, more scrutiny.</strong> Every new check reads the same document structure the analyzer already parsed; nothing new is fetched, executed, or stored, and every new finding renders through the same escaping pipelines as existing ones. Lists of unrecognized tag names are capped in size so a hostile file cannot bloat a report.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Existing scores are untouched.</strong> Before release, every document in the reference collection was re-scored with the new checks in place: all 27 kept identical scores, grades, and verdicts. The new checks change results only for documents that actually carry the newly-detected problems.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.91.0",
     meta: "Reviewed <strong>2026-08-25</strong> · scope: two candor additions &mdash; PDF reports now say when the PDF/UA machine check did not run, and the front page lists the Matterhorn Protocol checkpoints with which layer checks each. Nothing new is collected, no new way to reach the service, no retention period changed.",
     body: [

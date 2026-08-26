@@ -18,6 +18,7 @@ import {
   untaggedContentImageCount,
   headingOutlineLines,
   splitNonEmbeddedFonts,
+  isPlausibleLanguageTag,
   type ScoringResult,
   type PdfUaSignals,
 } from "./common.js";
@@ -371,11 +372,24 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
     );
   }
 
-  // Language check (50 points)
+  // Language check (50 points; 25 when a declaration exists but its value
+  // is not a usable language code — v1.92.0, Matterhorn 11 / WCAG technique
+  // PDF16. "english" or "en_US" defeats screen-reader pronunciation
+  // switching just like no tag, but a declaration IS present, so partial
+  // credit with a targeted fix. Never a conformance-gate failure.)
   const hasLang = qpdf.hasLang || !!pdfjs.lang;
-  if (hasLang) {
+  const langValue = (qpdf.lang || pdfjs.lang || "").trim();
+  if (hasLang && isPlausibleLanguageTag(langValue)) {
     score += 50;
     findings.push(`Language declared: ${qpdf.lang || pdfjs.lang}`);
+  } else if (hasLang) {
+    score += 25;
+    findings.push(
+      `Language declared as "${langValue}" — this is not a usable language code, so screen readers may ignore it and fall back to their default pronunciation. Language codes are short standard identifiers such as "en-US" (US English) or "es" (Spanish), not language names.`,
+    );
+    findings.push(
+      'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → pick the language from the dropdown (or type a standard code such as "en-US"), then save.',
+    );
   } else {
     findings.push("No language declaration found");
     findings.push(
@@ -564,11 +578,30 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     );
   }
 
-  if (hierarchyBroken) {
-    findings.unshift(`Found ${levels.length} heading tags, but the hierarchy has gaps`);
+  // Mixed conventions (v1.92.0 — Matterhorn 14-002): generic <H> headings
+  // alongside numbered <H1>–<H6>. PDF/UA-1 requires a document to pick ONE
+  // convention; a generic <H> conveys no level, so the outline a screen
+  // reader announces has holes exactly where those headings sit. Scored at
+  // the same tier as a hierarchy skip — the outline is partially unlevelled,
+  // not absent. (An ALL-generic document is the harsher 40 above.)
+  const genericHCount = qpdf.headings.filter((h) => h.level === "H").length;
+  const mixedConventions = genericHCount > 0;
+  if (mixedConventions) {
     findings.push(
-      "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
+      `${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002): a generic <H> carries no level, so screen-reader users lose their place in an otherwise numbered outline.`,
     );
+    findings.push(
+      "How to fix: In the Tags panel, change each generic <H> tag to the specific level (H1–H6) that matches its place in the outline.",
+    );
+  }
+
+  if (hierarchyBroken || mixedConventions) {
+    if (hierarchyBroken) {
+      findings.unshift(`Found ${levels.length} heading tags, but the hierarchy has gaps`);
+      findings.push(
+        "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
+      );
+    }
     return {
       id: "heading_structure",
       label: "Heading Structure",
@@ -672,6 +705,16 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const figures = qpdf.images.filter((img) => img.ref);
   const untaggedImageSignals = Math.max(pdfjs.imageCount, qpdf.imageObjectCount);
 
+  // Formulas (v1.92.0 — Matterhorn 17) join this category's coverage: like
+  // figures, they are non-text content whose machine-verifiable requirement
+  // is a text alternative (/Alt or /ActualText), and a separate category
+  // would double-weight documents carrying both. The figures-only early
+  // returns below are all gated on formulaCount === 0 so a formula-bearing
+  // document always reaches the scored path.
+  const formulaCount = qpdf.formulaCount ?? 0;
+  const formulasMissingAlt = qpdf.formulasMissingAlt ?? 0;
+  const formulasWithAlt = formulaCount - formulasMissingAlt;
+
   // With no tagged figures but images on the page, distinguish decorative
   // artifacts (no alt needed) from untagged content. pdfjs walks the content
   // stream and knows which images sit inside an /Artifact run; when every
@@ -687,7 +730,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     paintedContentImages === 0 &&
     qpdf.imageObjectCount <= paintedImages;
 
-  if (figures.length === 0 && allImagesArtifacted) {
+  if (figures.length === 0 && formulaCount === 0 && allImagesArtifacted) {
     return {
       id: "alt_text",
       label: "Alt Text on Images",
@@ -715,7 +758,12 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   // nothing is even in the reading order — and it used to return N/A, which
   // dropped the category out of the weighted average and let this document
   // out-score one with a single missing /Alt.
-  if (figures.length === 0 && untaggedContentImages !== null && untaggedContentImages > 0) {
+  if (
+    figures.length === 0 &&
+    formulaCount === 0 &&
+    untaggedContentImages !== null &&
+    untaggedContentImages > 0
+  ) {
     return {
       id: "alt_text",
       label: "Alt Text on Images",
@@ -740,7 +788,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
 
   // Raw image signals with no artifact-coverage evidence are still too noisy
   // to score automatically (pdfjs failed, or reported no artifact data).
-  if (figures.length === 0 && untaggedImageSignals > 0) {
+  if (figures.length === 0 && formulaCount === 0 && untaggedImageSignals > 0) {
     const advisoryFindings: string[] = [
       `${untaggedImageSignals} image-like object(s) detected, but no tagged <Figure> elements were found`,
       "Automated alt-text scoring was skipped because raw image detection includes decorative graphics, repeated assets, and other non-content imagery that may not require alt text.",
@@ -775,7 +823,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     };
   }
 
-  if (figures.length === 0) {
+  if (figures.length === 0 && formulaCount === 0) {
     return {
       id: "alt_text",
       label: "Alt Text on Images",
@@ -792,18 +840,20 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     };
   }
 
-  const withAlt = figures.filter((f) => f.hasAlt).length;
-  // Content images absent from the tag tree count AGAINST coverage rather
-  // than being ignored: a partially tagged document can paint many more
-  // images than it tags, and those are worse off than a figure with no /Alt.
-  // Scoring tagged figures alone let a document claim "all images described"
-  // while half of them were never in the reading order.
+  const figuresWithAlt = figures.filter((f) => f.hasAlt).length;
+  // Formulas share the coverage figure with figures — see the census note
+  // above. Content images absent from the tag tree count AGAINST coverage
+  // rather than being ignored: a partially tagged document can paint many
+  // more images than it tags, and those are worse off than a figure with no
+  // /Alt. Scoring tagged figures alone let a document claim "all images
+  // described" while half of them were never in the reading order.
+  const withAlt = figuresWithAlt + formulasWithAlt;
   const untaggedInDenominator = untaggedContentImages ?? 0;
-  const describableTotal = figures.length + untaggedInDenominator;
+  const describableTotal = figures.length + untaggedInDenominator + formulaCount;
   const score = withAlt === 0 ? 0 : Math.floor((withAlt / describableTotal) * 100);
   const findings: string[] = [];
 
-  if (withAlt === figures.length) {
+  if (figures.length > 0 && figuresWithAlt === figures.length) {
     findings.push(`All ${figures.length} tagged image(s) have alternative text`);
     findings.push(`--- Image Alt Text Details ---`);
     for (let fi = 0; fi < figures.length && fi < 20; fi++) {
@@ -814,8 +864,8 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     if (figures.length > 20) {
       findings.push(`  ... and ${figures.length - 20} more image(s)`);
     }
-  } else {
-    findings.push(`${withAlt} of ${figures.length} image(s) have alternative text`);
+  } else if (figures.length > 0) {
+    findings.push(`${figuresWithAlt} of ${figures.length} image(s) have alternative text`);
     findings.push(`--- Images Missing Alt Text ---`);
     let missingCount = 0;
     for (let fi = 0; fi < figures.length && missingCount < 15; fi++) {
@@ -828,7 +878,7 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     if (totalMissing > 15) {
       findings.push(`  ... and ${totalMissing - 15} more image(s) without alt text`);
     }
-    if (withAlt > 0) {
+    if (figuresWithAlt > 0) {
       findings.push(`--- Images With Alt Text ---`);
       let shownCount = 0;
       for (let fi = 0; fi < figures.length && shownCount < 10; fi++) {
@@ -837,8 +887,8 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
           findings.push(`  Image ${fi + 1}: "${figures[fi].altText}"`);
         }
       }
-      if (withAlt > 10) {
-        findings.push(`  ... and ${withAlt - 10} more image(s) with alt text`);
+      if (figuresWithAlt > 10) {
+        findings.push(`  ... and ${figuresWithAlt - 10} more image(s) with alt text`);
       }
     }
     findings.push(
@@ -869,6 +919,38 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
         'Do not add alt text to these. A <Figure>\'s alternate text replaces its contents for screen readers, so describing a text box as an image hides the text inside it. Instead change the tag so the text is read directly: Tags panel → right-click the <Figure> → Properties → Type → "Section" (or "Paragraph" for a single block of text). In Word, keep body content out of text boxes and shapes — use ordinary paragraphs, headings, and lists. Pictures and charts still need alt text.',
       );
     }
+  }
+
+  // Formulas (v1.92.0 — Matterhorn 17). Counted in the coverage figure above;
+  // listed here so a formula-bearing document sees exactly what is measured.
+  if (formulaCount > 0) {
+    findings.push(`--- Mathematical Formulas (Matterhorn 17) ---`);
+    if (formulasMissingAlt === 0) {
+      findings.push(
+        `  All ${formulaCount} <Formula> tag(s) carry a text alternative (/Alt or /ActualText).`,
+      );
+    } else {
+      findings.push(
+        `  ${formulasMissingAlt} of ${formulaCount} <Formula> tag(s) have no text alternative — a formula's glyphs rarely extract as speakable text, so a screen reader gets nothing usable from the expression itself. Counted against this category's coverage above.`,
+      );
+      findings.push(
+        '  How to fix: In Adobe Acrobat, open the Tags panel → find each <Formula> tag → right-click → Properties → enter the spoken form in the Alternate Text field (e.g., "x equals negative b, plus or minus the square root of b squared minus 4 a c, all over 2 a").',
+      );
+    }
+  }
+
+  // A formula-bearing document whose raw image signals could not be
+  // artifact-classified still deserves the manual-review pointer the
+  // signals-only branch above would have shown.
+  if (
+    figures.length === 0 &&
+    formulaCount > 0 &&
+    untaggedContentImages === null &&
+    untaggedImageSignals > 0
+  ) {
+    findings.push(
+      `${untaggedImageSignals} image-like object(s) were also detected but could not be classified as content or decoration — review them manually in Acrobat's Tags panel; they are not counted in this category's coverage.`,
+    );
   }
 
   if (untaggedInDenominator > 0) {

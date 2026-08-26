@@ -368,6 +368,26 @@ const VAGUE_LINK_PHRASES = new Set([
 
 export type LinkClass = "descriptive" | "rawUrl" | "needsFix";
 
+// ---------------------------------------------------------------------------
+// Language-tag shape check (WCAG 3.1.1 / Matterhorn 11, v1.92.0).
+//
+// A /Lang whose value screen readers cannot parse ("english", "en_US", free
+// text) defeats pronunciation switching exactly as if no language were set —
+// but the document still HAS a declaration, so this is scored as partial
+// credit with a targeted fix, never asserted as a confirmed 3.1.1 failure
+// (the gate stays conservative).
+//
+// Deliberately SHAPE-only, no registry lookup: the primary subtag must be
+// the 2–3 letters every real-world language code uses (ISO 639), followed by
+// ordinary hyphenated subtags. This catches the actual field failures
+// ("english", "en_US", "English (US)") while a registry-invalid-but-shaped
+// value like "qq" passes — a shape check that guessed at the registry would
+// false-alarm on legitimate exotic tags, which is worse than under-catching.
+// ---------------------------------------------------------------------------
+export function isPlausibleLanguageTag(tag: string): boolean {
+  return /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{1,8})*$/.test(tag.trim());
+}
+
 export function classifyLinkText(text: string): LinkClass {
   const t = text.trim().toLowerCase();
   if (t.length === 0) return "needsFix"; // empty link text — no purpose conveyed

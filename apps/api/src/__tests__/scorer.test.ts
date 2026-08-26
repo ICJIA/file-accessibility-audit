@@ -1127,7 +1127,12 @@ describe("scoreHeadingStructure edge cases", () => {
     expect(cat.findings.some((f) => f.includes("skip"))).toBe(true);
   });
 
-  it("mixed generic /H and numbered headings, proper hierarchy → score 100", () => {
+  // v1.92.0 (Matterhorn 14-002): mixing generic /H with numbered /H1–/H6 is a
+  // PDF/UA-1 failure this category previously TOLERATED (the old pin here was
+  // "proper hierarchy → 100"). A generic <H> conveys no level, so the outline
+  // has holes exactly where those headings sit — scored at the hierarchy-skip
+  // tier (60), above the all-generic 40 but never a clean 100.
+  it("mixed generic /H and numbered headings → 60 with a Matterhorn 14-002 finding (v1.92.0)", () => {
     const qpdf = makeQpdf({
       headings: [
         { level: "H", tag: "/H" },
@@ -1137,8 +1142,25 @@ describe("scoreHeadingStructure edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    // Has numbered headings with proper hierarchy, so 100
-    expect(findCategory(result, "heading_structure").score).toBe(100);
+    const cat = findCategory(result, "heading_structure");
+    expect(cat.score).toBe(60);
+    expect(cat.findings.some((f) => f.includes("14-002"))).toBe(true);
+    expect(cat.findings.some((f) => f.includes("generic <H>"))).toBe(true);
+  });
+
+  it("all-numbered headings with proper hierarchy still score 100 (no mixed-convention false positive)", () => {
+    const qpdf = makeQpdf({
+      headings: [
+        { level: "H1", tag: "/H1" },
+        { level: "H2", tag: "/H2" },
+        { level: "H2", tag: "/H2" },
+      ],
+    });
+    const pdfjs = makePdfjs();
+    const result = scoreDocument(qpdf, pdfjs);
+    const cat = findCategory(result, "heading_structure");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => f.includes("14-002"))).toBe(false);
   });
 
   // Multiple-H1 behavior is pinned by "multiple H1s are advisory, not scored"

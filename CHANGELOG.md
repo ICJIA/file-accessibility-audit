@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.92.0] - 2026-08-26
+
+### Added
+
+- **Eight new Matterhorn machine checks in the PDF analyzer** — the second tranche of the 2026-08-25 completeness audit:
+  - **`<Formula>` text alternatives (checkpoint 17)** — formulas join the alt-text category's coverage figure, and a formula with neither `/Alt` nor `/ActualText` is asserted as a confirmed WCAG 1.1.1 failure (a formula's glyphs rarely extract as speakable text).
+  - **Mixed heading conventions (14-002)** — generic `<H>` tags alongside numbered `<H1>`–`<H6>` now score 60 with a targeted finding. PDF/UA prohibits mixing; a generic `<H>` conveys no level, so the announced outline has holes. The heading check previously tolerated it silently.
+  - **`/Lang` value shape (checkpoint 11)** — a declaration that is not a usable code ("english", "en_US") earns half the language credit with a targeted fix instead of full credit; never asserted as a 3.1.1 gate failure, because a declaration does exist.
+  - **`<Note>` /ID census (checkpoint 19)** — footnotes/endnotes without an /ID, or with duplicate IDs, are disclosed as advisories (Word footnote exports trip this constantly in PAC).
+  - **RoleMap validity (checkpoint 02)** — circular chains (02-003), remapped standard types (02-004), and custom tags with no standard mapping (02-001) are disclosed as advisories.
+  - **JavaScript and multimedia presence (29/05)** — Screen/Movie/Sound/RichMedia annotations and JS actions are censused; media adds a 1.2.2 not-assessed entry to the conformance panel, and the Adobe-parity rows for scripts, multimedia, and flicker now report **measured** passes ("none found") instead of "vacuous pass assumed".
+  - **Optional-content checks (checkpoint 20)** — layer configurations missing `/Name` (20-001) or carrying `/AS` auto-state (20-002) are disclosed.
+
+### Fixed
+
+- **Transitive RoleMap resolution.** A chained role map (`Custom → MyPara → P`) previously resolved one hop, so chained headings, tables, lists, and figures silently vanished from every census that keyed on the standard tag. The walk is now transitive with a cycle guard.
+
+### Changed
+
+- **The landing-page Matterhorn checklist was rewritten in plain language** (user request): it now opens with three non-technical answers — why "Matterhorn" (the PDF Association's test model, named after the Alpine mountain), what veraPDF is (an independent second opinion that runs automatically), and a plain **"No"** to "does this change my score?" (the score comes from the WCAG categories; these checkpoints cover the same ground, so fixing report findings improves both).
+- Checklist promotions, pinned by test: checkpoints 17 and 19 → **Engine + veraPDF**, checkpoint 20 → **Audit engine**.
+
+### Notes
+
+- **Calibration: zero drift.** All 27 control PDFs keep byte-identical scores, grades, per-category scores, and conformance-gate verdicts — the new checks fire only on documents that actually carry the defects.
+- No schema change, no new route, no retention change; nothing new is collected or stored — data-retention policy stays **v1.14**.
+- Tests: API 1,437 · web 1,164 · CLI 49 (**2,650** across 171 files).
+
+<details>
+<summary><strong>v1.91.0 → v1.88.0</strong> (2026-08-25 → 2026-08-22) — click to expand</summary>
+
 ## [1.91.0] - 2026-08-25
 
 ### Added
@@ -21,8 +52,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - No schema change, no new route, no retention change; nothing new is collected or stored — data-retention policy stays **v1.14**. The disclosure renders static repo-authored copy only (no document- or request-derived values).
 - Tests: API 1,410 · web 1,160 · CLI 49 (**2,619** across 170 files).
 
-<details>
-<summary><strong>v1.90.0 → v1.88.0</strong> (2026-08-25 → 2026-08-22) — click to expand</summary>
 
 ## [1.90.0] - 2026-08-25
 

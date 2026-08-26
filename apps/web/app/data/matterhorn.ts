@@ -23,10 +23,13 @@
  *                      veraPDF); the report's manual-review card carries it.
  *
  * Statuses reflect the 2026-08-25 completeness audit of packages/analyzer
- * against Matterhorn 1.1. When an engine gap ships (e.g. the planned
- * unmapped-glyph census for checkpoint 10, or the Note/Formula censuses for
- * 19/17), PROMOTE that checkpoint's coverage here in the same release —
- * matterhornChecklist.test.ts pins the honesty-critical entries.
+ * against Matterhorn 1.1, updated as gaps ship. v1.92.0 promoted 17 and 19
+ * to engine-partial (the in-house <Formula> alt and <Note> /ID censuses) and
+ * 20 to engine (both of its machine conditions — config /Name and /AS — are
+ * checked in-house). When a further gap ships (e.g. the planned
+ * unmapped-glyph census for checkpoint 10), PROMOTE that checkpoint's
+ * coverage here in the same release — matterhornChecklist.test.ts pins the
+ * honesty-critical entries.
  */
 
 export type MatterhornCoverage = "engine" | "engine-partial" | "verapdf" | "human";
@@ -150,7 +153,7 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "17",
     name: "Mathematical Expressions",
-    coverage: "verapdf",
+    coverage: "engine-partial",
     summary: "Formulas are tagged and carry a readable alternative.",
   },
   {
@@ -162,13 +165,13 @@ export const MATTERHORN_CHECKPOINTS: MatterhornCheckpoint[] = [
   {
     id: "19",
     name: "Notes and References",
-    coverage: "verapdf",
+    coverage: "engine-partial",
     summary: "Footnotes and endnotes use Note tags with unique IDs.",
   },
   {
     id: "20",
     name: "Optional Content",
-    coverage: "verapdf",
+    coverage: "engine",
     summary: "Layer configurations are named and never auto-switch content.",
   },
   {

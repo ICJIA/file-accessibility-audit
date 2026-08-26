@@ -1,11 +1,14 @@
 <!-- apps/web/app/components/MatterhornChecklist.vue
      The landing page's checkpoint-by-checkpoint Matterhorn Protocol coverage
-     disclosure (v1.91.0). The claim this section makes is the product's trust
-     story — which layer checks what, and what no software can check — so the
-     data lives in ~/data/matterhorn.ts and matterhornChecklist.test.ts pins
-     the honesty-critical entries. Explicit import (not Nuxt auto-import): the
-     plain vitest config resolves `~` but performs no auto-import, the same
-     trap AnnouncementBanner.vue documents. -->
+     disclosure (v1.91.0; rewritten for non-technical readers in v1.92.0 —
+     the audience is agency staff, not PDF engineers, so the section leads
+     with the three questions they actually ask: why "Matterhorn", what is
+     veraPDF, and does any of this change my score). The claim this section
+     makes is the product's trust story — which layer checks what, and what
+     no software can check — so the data lives in ~/data/matterhorn.ts and
+     matterhornChecklist.test.ts pins the honesty-critical entries. Explicit
+     import (not Nuxt auto-import): the plain vitest config resolves `~` but
+     performs no auto-import, the same trap AnnouncementBanner.vue documents. -->
 <script setup lang="ts">
 import { computed } from "vue";
 import {
@@ -67,39 +70,83 @@ const coverageCount = computed(() => {
         The Matterhorn Checklist
       </h2>
       <p class="mt-2 text-sm text-[var(--text-secondary)] max-w-2xl mx-auto">
-        Every PDF audit here is measured against the
-        <a
-          href="https://pdfa.org/resource/the-matterhorn-protocol/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-[var(--link)] hover:text-[var(--link-hover)]"
-          >Matterhorn Protocol</a
-        >
-        — the PDF Association's test model for PDF/UA, the same {{ facts.checkpoints }} checkpoints
-        professional checkers like
-        <a
-          href="https://pac.pdf-accessibility.org/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-[var(--link)] hover:text-[var(--link-hover)]"
-          >PAC</a
-        >
-        are built on. Here is every checkpoint, and which layer of this tool checks it.
+        When you check a PDF here, how do you know the checker itself is any good? The PDF industry
+        answers that with a published master checklist of everything a PDF accessibility checker
+        should test. Here is that whole checklist — and who checks each item on it, in plain terms.
       </p>
     </div>
 
-    <div class="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6">
+    <!-- The three questions non-technical visitors actually ask, answered
+         before any jargon is used. -->
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-5">
+        <h3 class="text-sm font-semibold text-[var(--text-heading)] mb-1.5">Why "Matterhorn"?</h3>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          It's the PDF industry's official test model for accessible PDFs, published by the
+          <a
+            href="https://pdfa.org/resource/the-matterhorn-protocol/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >PDF Association</a
+          >
+          — the group that stewards the PDF format itself — and named after the famous Alpine
+          mountain. Its {{ facts.checkpoints }} checkpoints work like the marked stops on a climbing
+          route: clear them all and a PDF meets the formal accessibility standard (called PDF/UA).
+          Professional checkers, like the
+          <a
+            href="https://pac.pdf-accessibility.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >PAC</a
+          >
+          tool many agencies use, are built on this same list.
+        </p>
+      </div>
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-5">
+        <h3 class="text-sm font-semibold text-[var(--text-heading)] mb-1.5">What is veraPDF?</h3>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          A free, industry-standard PDF checker, created with the PDF Association —
+          <a
+            href="https://verapdf.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--link)] hover:text-[var(--link-hover)]"
+            >veraPDF</a
+          >
+          is an independent second opinion, and it runs automatically alongside our own audit engine
+          on every PDF you check here. You don't install or run anything: its result simply appears
+          in your report. And if it ever cannot run, your report says
+          <em>"Did not run"</em> rather than staying silent.
+        </p>
+      </div>
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-5">
+        <h3 class="text-sm font-semibold text-[var(--text-heading)] mb-1.5">
+          Does this change my score?
+        </h3>
+        <p class="text-xs text-[var(--text-muted)] leading-relaxed">
+          No. Your score comes from the WCAG-based categories in your report, and the action plan
+          there is still the thing to follow. These checkpoints cover the same ground — headings,
+          image descriptions, tables, language — so fixing your report's findings improves both. The
+          veraPDF result appears as its own informational panel on PDF reports; it informs, it never
+          grades.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6">
       <!-- Headline figures — stated so the coverage below has a denominator. -->
       <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-        Matterhorn Protocol 1.1 defines
-        <strong class="text-[var(--text-secondary)]">{{ facts.checkpoints }} checkpoints</strong>
-        comprising
+        The protocol defines
+        <strong class="text-[var(--text-secondary)]">{{ facts.checkpoints }} checkpoints</strong>,
+        made up of
         <strong class="text-[var(--text-secondary)]"
-          >{{ facts.failureConditions }} failure conditions</strong
-        >
-        — {{ facts.machineCheckable }} machine-checkable, {{ facts.humanJudgment }} requiring human
-        judgment, and {{ facts.noDefinedTest }} with no defined test. No automated checker can go
-        past the machine-checkable set; the honest ones say so.
+          >{{ facts.failureConditions }} specific ways a PDF can fail</strong
+        >. Software can verify {{ facts.machineCheckable }} of them; {{ facts.humanJudgment }} need
+        human judgment; {{ facts.noDefinedTest }} have no defined test. No tool anywhere can
+        automate the human part — which is why every report here includes a manual-review card
+        listing what still needs a person's eyes.
       </p>
 
       <!-- Legend. Each mechanism is explained once, then the rows just chip. -->
@@ -122,8 +169,8 @@ const coverageCount = computed(() => {
             >Engine + veraPDF</span
           >
           <span
-            >the analyzer checks the frequent failure modes; the veraPDF pass covers the rest of the
-            machine-testable conditions ({{ coverageCount["engine-partial"] }})</span
+            >our analyzer catches the common problems; veraPDF covers the rest of what software can
+            check ({{ coverageCount["engine-partial"] }})</span
           >
         </li>
         <li class="flex items-start gap-2">
@@ -132,17 +179,8 @@ const coverageCount = computed(() => {
             >veraPDF</span
           >
           <span
-            >checked by the open-source
-            <a
-              href="https://verapdf.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-[var(--link)] hover:text-[var(--link-hover)]"
-              >veraPDF</a
-            >
-            validator, which runs alongside every PDF audit on this server ({{
-              coverageCount.verapdf
-            }})</span
+            >checked by veraPDF — the independent checker described above — as part of every PDF
+            audit ({{ coverageCount.verapdf }})</span
           >
         </li>
         <li class="flex items-start gap-2">
@@ -151,8 +189,8 @@ const coverageCount = computed(() => {
             >Human review</span
           >
           <span
-            >no software — this tool, PAC, or veraPDF — can judge these; every report lists them on
-            its manual-review card ({{ coverageCount.human }})</span
+            >no software anywhere can judge these — your report's manual-review card lists them for
+            human eyes ({{ coverageCount.human }})</span
           >
         </li>
       </ul>
@@ -189,13 +227,13 @@ const coverageCount = computed(() => {
       <p
         class="mt-5 border-t border-[var(--border)] pt-4 text-xs text-[var(--text-muted)] leading-relaxed"
       >
-        If veraPDF ever cannot run, PDF reports say
+        One more honesty rule: if veraPDF ever cannot run, PDF reports say
         <span class="text-[var(--text-secondary)]"
           >&ldquo;PDF/UA-1 machine checks (veraPDF): Did not run&rdquo;</span
         >
-        instead of hiding the panel — missing checks are never presented as passing. The Matterhorn
-        Protocol applies to PDF; Word, PowerPoint, and Excel audits follow the per-format checks on
-        the
+        instead of hiding the panel — a missing check is never presented as a passing one. The
+        Matterhorn Protocol applies to PDF files; Word, PowerPoint, and Excel audits follow the
+        per-format checks on the
         <NuxtLink to="/technical-details" class="text-[var(--link)] hover:text-[var(--link-hover)]"
           >technical details</NuxtLink
         >

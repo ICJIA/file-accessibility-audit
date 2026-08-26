@@ -74,12 +74,91 @@ export function findStructTreeRoot(objects: Record<string, any>): any | null {
   return null;
 }
 
+/** The standard structure types of ISO 32000-1 §14.8.4 (Table 333–338 —
+ *  grouping, block, inline, illustration, and ruby/warichu types). Used by
+ *  the RoleMap-validity census: a custom /S value whose RoleMap chain does
+ *  not END on one of these is invisible semantics to assistive technology
+ *  (Matterhorn 02-001). "/Artifact" is included pragmatically: it is not a
+ *  structure type in the spec's table, but real-world trees carry it and it
+ *  must not be reported as an unmapped custom tag. */
+export const STANDARD_STRUCT_TYPES: ReadonlySet<string> = new Set(
+  [
+    "Document",
+    "Part",
+    "Art",
+    "Sect",
+    "Div",
+    "BlockQuote",
+    "Caption",
+    "TOC",
+    "TOCI",
+    "Index",
+    "NonStruct",
+    "Private",
+    "P",
+    "H",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "L",
+    "LI",
+    "Lbl",
+    "LBody",
+    "Table",
+    "TR",
+    "TH",
+    "TD",
+    "THead",
+    "TBody",
+    "TFoot",
+    "Span",
+    "Quote",
+    "Note",
+    "Reference",
+    "BibEntry",
+    "Code",
+    "Link",
+    "Annot",
+    "Ruby",
+    "RB",
+    "RT",
+    "RP",
+    "Warichu",
+    "WT",
+    "WP",
+    "Figure",
+    "Formula",
+    "Form",
+    "Artifact",
+  ].map((t) => `/${t}`),
+);
+
+/**
+ * Resolve a tag through the RoleMap TRANSITIVELY. ISO 32000-1 permits a
+ * RoleMap entry to target another mapped type (Custom → MyPara → P), and
+ * authoring tools emit such chains — single-hop resolution (the behavior
+ * through v1.91.0) left the INTERMEDIATE name, so chained headings, tables,
+ * lists, and figures silently vanished from every census that keyed on the
+ * standard tag. The walk is cycle-guarded: a circular map (Matterhorn
+ * 02-003) stops at the first revisited name and returns the tag reached so
+ * far — the circularity itself is reported separately by the parser's
+ * RoleMap-validity census, never inferred here.
+ */
 export function mapToStandardTag(
   tag: string | null | undefined,
   roleMap: Record<string, string>,
 ): string | null {
   if (!tag) return null;
-  return roleMap[tag] || tag;
+  let current = tag;
+  const seen = new Set<string>();
+  while (roleMap[current] !== undefined && !seen.has(current)) {
+    seen.add(current);
+    current = roleMap[current];
+  }
+  return current;
 }
 
 // Walk a /Table struct element's subtree and record the object refs of any

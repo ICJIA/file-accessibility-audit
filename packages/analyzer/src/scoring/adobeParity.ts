@@ -332,15 +332,33 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
     ),
   );
 
+  // Multimedia / flicker / scripts (v1.92.0): measured from the qpdfService
+  // presence censuses instead of "vacuous pass assumed". Absence is now a
+  // REAL pass; presence is not_computed (accessibility of media and scripts
+  // is a human judgment — presence alone must never fail the rule). The
+  // censuses are always present on fresh parser output; the `known` guards
+  // only defend against a hand-built fixture omitting them.
+  const mediaCounts = qpdf.mediaAnnotationCounts;
+  const mediaKnown = !!mediaCounts;
+  const mediaTotal = mediaCounts
+    ? mediaCounts.screen + mediaCounts.movie + mediaCounts.sound + mediaCounts.richMedia
+    : 0;
+  const jsKnown = typeof qpdf.jsActionCount === "number";
+  const jsSignals = (qpdf.jsActionCount ?? 0) + (qpdf.hasJsNameTree ? 1 : 0);
+
   rules.push(
     rule(
       "tagged_multimedia",
       "Page Content",
       "Tagged multimedia",
       "All multimedia objects are tagged",
-      "passed",
-      true,
-      "Acrobat's rule passes vacuously on PDFs without multimedia objects. This tool does not currently detect multimedia; if present, review manually.",
+      !mediaKnown || mediaTotal === 0 ? "passed" : "not_computed",
+      !mediaKnown,
+      !mediaKnown
+        ? "Acrobat's rule passes vacuously on PDFs without multimedia objects. This report predates the multimedia census; if media is present, review manually."
+        : mediaTotal === 0
+          ? "No multimedia annotations (Screen, Movie, Sound, RichMedia) were found — measured, not assumed."
+          : `${mediaTotal} multimedia annotation(s) present. Whether each is tagged with an accessible alternative requires manual review.`,
     ),
   );
 
@@ -350,9 +368,13 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
       "Page Content",
       "Screen flicker",
       "Page will not cause screen flicker",
-      "passed",
-      true,
-      "Acrobat's rule flags animations and flashing content. This tool does not detect these; vacuous pass assumed.",
+      !mediaKnown || !jsKnown || (mediaTotal === 0 && jsSignals === 0) ? "passed" : "not_computed",
+      !mediaKnown || !jsKnown,
+      !mediaKnown || !jsKnown
+        ? "Acrobat's rule flags animations and flashing content. This report predates the media/script censuses; vacuous pass assumed."
+        : mediaTotal === 0 && jsSignals === 0
+          ? "No multimedia annotations and no JavaScript were found — static page content has no flicker carrier."
+          : "Multimedia or JavaScript is present; whether anything flashes or flickers requires manual review.",
     ),
   );
 
@@ -362,9 +384,13 @@ export function buildAdobeParityReport(qpdf: QpdfResult, pdfjs: PdfjsResult): Ad
       "Page Content",
       "Scripts",
       "No inaccessible scripts",
-      "passed",
-      true,
-      "Acrobat's rule checks for inaccessible JavaScript. This tool does not detect PDF JavaScript; vacuous pass assumed.",
+      !jsKnown || jsSignals === 0 ? "passed" : "not_computed",
+      !jsKnown,
+      !jsKnown
+        ? "Acrobat's rule checks for inaccessible JavaScript. This report predates the script census; vacuous pass assumed."
+        : jsSignals === 0
+          ? "No JavaScript actions or document-level scripts were found — measured, not assumed."
+          : `JavaScript is present (${qpdf.jsActionCount ?? 0} action(s)${qpdf.hasJsNameTree ? " + a document-level script tree" : ""}). Whether the scripts are accessible requires manual review.`,
     ),
   );
 

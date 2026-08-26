@@ -289,6 +289,21 @@ export function evaluateConformance(
     );
   }
 
+  // 3c. Formulas without a text alternative (v1.92.0 — Matterhorn 17).
+  //     Machine-certain: the <Formula> element exists and carries neither
+  //     /Alt nor /ActualText, and a formula's glyphs rarely extract as
+  //     speakable text — the same non-text-content bar figures are held to.
+  const formulasMissingAlt = qpdf.formulasMissingAlt ?? 0;
+  if (formulasMissingAlt > 0) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "alt_text",
+      `${formulasMissingAlt} mathematical formula(s) tagged <Formula> have no text alternative (/Alt or /ActualText), so a screen reader gets nothing usable from the expression. In the Tags panel, add the spoken form of each formula as its Alternate Text.`,
+    );
+  }
+
   // 4. No declared document language.
   if (!(qpdf.hasLang || pdfjs.lang)) {
     add(
@@ -448,6 +463,22 @@ export function evaluateConformance(
         url: wcagUrl(c.sc),
       });
     }
+  }
+
+  // Embedded audio/video/rich media (v1.92.0 — the census in qpdfService).
+  // Presence is detected structurally; whether the media carries captions or
+  // alternatives is not machine-verified — the same disclosure the PPTX gate
+  // has made since its media census. Never a failure from presence alone.
+  const media = qpdf.mediaAnnotationCounts;
+  const mediaTotal = media ? media.screen + media.movie + media.sound + media.richMedia : 0;
+  if (mediaTotal > 0) {
+    notAssessed.push({
+      sc: "1.2.2",
+      name: "Captions (Prerecorded)",
+      level: "A",
+      reason: `This document embeds audio, video, or rich-media content (${mediaTotal} multimedia annotation${mediaTotal === 1 ? "" : "s"}); whether it provides captions or text alternatives is not machine-verified — manual review required.`,
+      url: wcagUrl("1.2.2"),
+    });
   }
 
   // The universally-unassessed criteria, with 3.1.2 upgraded from an abstract
