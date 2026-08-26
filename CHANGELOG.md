@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.99.1] - 2026-08-26
+
+### Changed
+
+- The overlay's two veraPDF lines are now enumerated — "Running veraPDF (pass 1 of 2, both run together): PDF/UA conformance…" / "(pass 2 of 2, both run together): WCAG 2.2 machine checks…" (user question: "should it say pass 2 of 2?"). The concurrency qualifier is deliberate: a bare "pass 2 of 2" would claim sequential progress the client cannot know — the passes run together and the server reports nothing until both are done. Copy + pin only. Tests unchanged, **2,783**.
+
+<details>
+<summary><strong>v1.99.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.99.0] - 2026-08-26
 
 ### Added
@@ -16,9 +25,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Notes
 
 - All behavior is client-side presentation — no API, scoring, or storage change. Tests: API 1,509 · web 1,225 · CLI 49 (**2,783**).
-
-<details>
-<summary><strong>v1.98.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.98.0] - 2026-08-26
 

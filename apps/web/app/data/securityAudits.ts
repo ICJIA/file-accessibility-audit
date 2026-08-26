@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.99.1",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: two lines of wording on the waiting screen. Nothing received, sent, stored, or scored differently.",
+    body: [
+      {
+        kind: "p",
+        html: "The waiting screen&rsquo;s two veraPDF lines now say &ldquo;pass 1 of 2&rdquo; and &ldquo;pass 2 of 2, both run together.&rdquo; The second half of that phrase is the honest part: the two passes run at the same time and the page hears nothing until both finish, so numbering alone would imply step-by-step progress the page cannot actually see.",
+      },
+    ],
+  },
+  {
     version: "v1.99.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: what the page shows while an audit is running. Nothing new is received, sent, or stored; no scoring change.",
     body: [

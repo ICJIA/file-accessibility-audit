@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.99.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2783%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.99.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2783%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -1251,12 +1251,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.99.1 — 2026-08-26 · The veraPDF queue lines enumerated honestly (copy + pin only)
+
+The waiting screen's two veraPDF lines now read "pass 1 of 2 / pass 2 of 2, both run together." The qualifier is the point: the passes run concurrently and the server reports nothing until both finish, so a bare "pass 2 of 2" would claim sequential progress the page cannot know. The test pin carries the same rationale. Nothing received, sent, stored, or scored differently. Tests unchanged: 2,783.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.99.0 → v1.33.0) — click to expand</summary>
+
 ### v1.99.0 — 2026-08-26 · The waiting experience: a rotating check queue, elapsed counter, and up-front timing expectation (client-side presentation only)
 
 Prompted by a real report of an audit that "just spins": a design-heavy InDesign PDF measured ~26 s in production (the two veraPDF JVM passes are the slow part) while the overlay showed one frozen — and for Office files, wrong — stage line. The overlay now cycles through the real per-format check suite with an elapsed counter and escalating truthful reassurance (15 s: large PDFs can take 30–60 seconds; 60 s: every step is hard-timeout-bounded, so it finishes or fails cleanly). Reviewed for honesty rather than attack surface, since nothing new is received, sent, or stored: the server reports nothing until done, so the queue cycles rather than claiming step-by-step progress, never fakes completion, and URL audits keep their genuinely-known milestones; the rotation is visual-only for screen readers, which get a ~15-second live-region cadence instead of a 2.5-second firehose. The drop zone states up front that analysis can take up to a minute. Tests 2,777 → 2,783.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.98.0 → v1.33.0) — click to expand</summary>
 
 ### v1.98.0 — 2026-08-26 · The Technical Details unification: one content source for the page and the collapsible (no new attack surface)
 
