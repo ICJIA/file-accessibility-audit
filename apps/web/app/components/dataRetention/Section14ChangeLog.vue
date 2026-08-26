@@ -6,6 +6,17 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.17 · 2026-08-26</strong> — Nothing new is collected, no new kind of data is
+        stored, and no retention period changes. Description update for a processing variant: the
+        web page now usually runs an audit through progress endpoints that report per-step status
+        while you wait. The one difference § 2 now describes: the finished report (the same result
+        JSON as always — never the file) waits in server process memory until the page collects it
+        or for at most 10 minutes, then is discarded; delivery removes it immediately. The uploaded
+        file's own lifetime is unchanged — discarded the moment analysis completes. Progress jobs
+        carry no owner identity; like remediation, an unguessable token returned once is the only
+        key, stored only as a hash.
+      </li>
+      <li>
         <strong>v1.16 · 2026-08-26</strong> — Nothing new is collected or stored, no retention
         period changes, and the file lifecycle is unchanged. Description update for a new processing
         step: each PDF audit's veraPDF check now runs twice — once against the PDF/UA standard (as

@@ -144,7 +144,16 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
  */
 export async function runVeraPdfChecksOnBuffer(
   buffer: Buffer,
-  opts: { wcag: boolean },
+  opts: {
+    wcag: boolean;
+    /** v1.100.0 job-model hooks: observed per-pass state for the progress
+     *  endpoints. "running" includes any wait for a JVM slot (the honest
+     *  reading — the pass has begun from the caller's point of view);
+     *  "done" fires when the arm settles, whatever the verdict. onWcag
+     *  fires only when the WCAG pass is actually wanted. */
+    onUa?: (state: "running" | "done") => void;
+    onWcag?: (state: "running" | "done") => void;
+  },
 ): Promise<{ pdfUa: VeraPdfVerdict; wcag: VeraPdfVerdict | null }> {
   const wantWcag = opts.wcag;
   if (!REMEDIATION.VERAPDF_PATH) {
@@ -196,6 +205,8 @@ export async function runVeraPdfChecksOnBuffer(
   // takes its own, so the two JVMs stay inside VERAPDF_MAX_CONCURRENT and a
   // queued run never holds a slot while waiting for another — the pool
   // cannot deadlock. Each arm releases exactly the slot it holds.
+  opts.onUa?.("running");
+  if (wantWcag) opts.onWcag?.("running");
   const uaRun = (async (): Promise<VeraPdfVerdict> => {
     try {
       return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour, undefined);
@@ -238,7 +249,12 @@ export async function runVeraPdfChecksOnBuffer(
   })();
 
   try {
-    const [pdfUa, wcag] = await Promise.all([uaRun, wcagRun]);
+    const [pdfUa, wcag] = await Promise.all([
+      uaRun.finally(() => opts.onUa?.("done")),
+      wcagRun.finally(() => {
+        if (wantWcag) opts.onWcag?.("done");
+      }),
+    ]);
     return { pdfUa, wcag };
   } finally {
     try {

@@ -265,6 +265,9 @@ Upload a document for accessibility analysis.
 - Returns the raw analysis result — a flatter object than the JSON Export Schema above: `{ filename, pageCount, fileType, pdfMetadata|docxMetadata|pptxMetadata|xlsxMetadata, overallScore, grade, isScanned, executiveSummary, categories, warnings, scoringMode, scoreProfiles, conformance, pdfUa?, adobeParity? }`. `pdfUa` and `adobeParity` are present only for PDF. `scoreProfiles` here is the same single-entry (`strict`) object described above.
 - Errors: 400 no file / unsupported file type; 415 format disabled on this server; 422 corrupt or unparseable file, or password-protected PDF; 503 server busy (concurrency limit reached); 504 analysis timed out.
 
+### POST /api/analyze-job (v1.100.0)
+The progress variant the web page uses: same multipart body and validation as `POST /api/analyze`, answers `202 {jobId, token}` immediately, then runs the identical pipeline (same audit_log row, same error mapping). Poll `GET /api/analyze-job/:id?t=<token>` for real per-step states (`analysis`, `veraPdfUa`, `veraPdfWcag`: pending/running/done/skipped); when done, the response carries the result — or the exact error body `POST /api/analyze` would have sent — exactly once, and the job is deleted. Wrong id and wrong token are indistinguishable 404s (jobs carry no owner identity; the token, returned once and stored only as a hash, is the only key). The finished result waits in server process memory at most 10 minutes; the synchronous endpoint remains unchanged for all other callers and as the web page's automatic fallback.
+
 ### POST /api/analyze-url
 Audit a document by URL instead of upload. Returns the same result shape as `POST /api/analyze` (not persisted — no report link is created).
 - Content-Type: application/json

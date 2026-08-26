@@ -261,6 +261,15 @@
        → Scorer (adapted categories) → Weighted Score → Report</pre>
 
         <p class="text-[var(--text-muted)] mt-3">
+          Since v1.100.0 the web page usually drives this pipeline through a progress variant (<code
+            class="text-xs font-mono"
+            >POST /api/analyze-job</code
+          >
+          + status polling) that runs the identical steps and reports each one's real state while
+          you wait — the synchronous endpoint above remains unchanged for every other caller and as
+          the page's automatic fallback.
+        </p>
+        <p class="text-[var(--text-muted)] mt-3">
           Files the tool cannot audit — legacy binary Office formats (.doc, .xls, .ppt, .rtf), CSV
           exports, images — are refused up front with a specific explanation instead of a generic
           error, even when the file has been renamed (the format is detected from content, not the

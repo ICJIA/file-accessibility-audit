@@ -9,10 +9,71 @@
     <div class="text-center space-y-2 max-w-md px-4">
       <p class="text-lg font-medium text-[var(--text-heading)]">Analyzing your document</p>
 
+      <!-- v1.100.0 (user request): REAL per-pass rows, driven by the job
+           endpoints' observed step states — pending, running (with its own
+           elapsed), done. Never a percentage: the JVM passes expose none.
+           Skipped steps (non-PDF, WCAG pass disabled) never render. -->
+      <template v-if="steps && steps.length">
+        <ul class="text-left inline-block space-y-1.5" data-testid="overlay-steps">
+          <li
+            v-for="s in visibleSteps"
+            :key="s.key"
+            class="flex items-center gap-2 text-sm"
+            :data-step-state="s.state"
+          >
+            <span
+              class="inline-flex w-5 h-5 items-center justify-center rounded-full flex-shrink-0 text-[11px]"
+              :class="
+                s.state === 'done'
+                  ? 'bg-emerald-700/40 text-emerald-200'
+                  : s.state === 'running'
+                    ? 'border border-sky-500/50 text-sky-300'
+                    : 'border border-[var(--border)] text-[var(--text-muted)]'
+              "
+              aria-hidden="true"
+            >
+              <span v-if="s.state === 'done'">✓</span>
+              <span v-else-if="s.state === 'running'" class="animate-pulse">●</span>
+              <span v-else>○</span>
+            </span>
+            <span
+              :class="
+                s.state === 'pending' ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)]'
+              "
+              >{{ s.label
+              }}<span
+                v-if="s.state === 'running' && s.runningSeconds !== null"
+                class="text-[var(--text-muted)]"
+              >
+                ({{ s.runningSeconds }}s)</span
+              ></span
+            >
+          </li>
+        </ul>
+        <p
+          class="text-xs text-[var(--text-muted)]"
+          aria-hidden="true"
+          data-testid="overlay-elapsed"
+        >
+          {{ elapsedSeconds }}s elapsed — states above are the server's real progress.
+        </p>
+        <p
+          v-if="reassurance"
+          class="text-xs text-[var(--text-secondary)] leading-relaxed"
+          aria-hidden="true"
+          data-testid="overlay-reassurance"
+        >
+          {{ reassurance }}
+        </p>
+        <p class="sr-only" role="status" aria-live="polite" data-testid="overlay-live-region">
+          {{ liveAnnouncement }}
+        </p>
+      </template>
+
       <!-- Legacy mode: an explicit stage string (the URL-audit path still
            narrates its own real milestones: fetching, building). -->
       <p
-        v-if="!rotate"
+        v-else-if="!rotate"
         class="text-sm text-[var(--text-muted)]"
         role="status"
         aria-live="polite"
@@ -64,6 +125,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
+export interface OverlayStep {
+  key: string;
+  label: string;
+  state: "pending" | "running" | "done" | "skipped";
+  startedAt?: number;
+}
+
 const props = defineProps<{
   /** Legacy explicit stage line (URL audits narrate real milestones). */
   stage: string;
@@ -71,6 +139,9 @@ const props = defineProps<{
   rotate?: boolean;
   /** Steers which check list rotates; null/undefined → the generic list. */
   fileType?: "pdf" | "docx" | "pptx" | "xlsx" | null;
+  /** v1.100.0: REAL observed step states from the job endpoints. When
+   *  present, replaces the rotating queue. */
+  steps?: OverlayStep[] | null;
 }>();
 
 // The REAL checks, per pipeline. Wording matches the report's own category
@@ -100,6 +171,18 @@ const lines = computed(() =>
   props.fileType && props.fileType !== "pdf" ? OFFICE_LINES : PDF_LINES,
 );
 
+const visibleSteps = computed(() =>
+  (props.steps ?? [])
+    .filter((s) => s.state !== "skipped")
+    .map((s) => ({
+      ...s,
+      runningSeconds:
+        s.state === "running" && s.startedAt
+          ? Math.max(0, Math.round((nowMs.value - s.startedAt) / 1000))
+          : null,
+    })),
+);
+
 const ROTATE_MS = 2_500;
 const idx = ref(0);
 const elapsedSeconds = ref(0);
@@ -119,15 +202,18 @@ const reassurance = computed(() => {
 // Screen-reader announcements on a sparse cadence (0s, then every ~15s).
 const liveAnnouncement = ref("Analysis running.");
 
+const nowMs = ref(Date.now());
+
 let rotateTimer: ReturnType<typeof setInterval> | undefined;
 let secondTimer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
-  if (!props.rotate) return;
+  if (!props.rotate && !props.steps) return;
   rotateTimer = setInterval(() => {
     idx.value = (idx.value + 1) % lines.value.length;
   }, ROTATE_MS);
   secondTimer = setInterval(() => {
     elapsedSeconds.value += 1;
+    nowMs.value = Date.now();
     if (elapsedSeconds.value % 15 === 0) {
       liveAnnouncement.value = `Analysis still running — about ${elapsedSeconds.value} seconds so far. ${
         reassurance.value || "Large documents can take a minute."

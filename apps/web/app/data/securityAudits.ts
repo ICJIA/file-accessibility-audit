@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.100.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: two new endpoints that let the page show real progress while an audit runs. The checks themselves are the same code; policy v1.17 describes the one small retention nuance honestly.",
+    body: [
+      {
+        kind: "p",
+        html: "Instead of one silent request, the page can now start an audit and ask the server how it&rsquo;s going: which steps are running, which are done. The audit itself is the exact same pipeline &mdash; the code was moved, not copied, and the existing automated tests pass unchanged against it, which is the proof the two paths cannot drift. What the progress job holds is step states and, once finished, the same report the old endpoint would have returned &mdash; in server memory only, never on disk or in the database, deleted the moment the page collects it or after ten minutes.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Hardened",
+            html: "<strong>No identity, no guessing, no oracle.</strong> Progress jobs carry no account or address &mdash; like remediation, an unguessable token returned once is the only key, stored only as a cryptographic hash and compared in constant time. Asking about a wrong job and asking with a wrong key are deliberately indistinguishable. The store is capacity-capped, every job has a hard timeout, and results are handed over exactly once.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Progress is observed, never invented.</strong> Each step&rsquo;s state flips only when the pipeline actually reports it, and there is no percentage anywhere &mdash; the slow steps (the two veraPDF engine passes) expose none, and showing one would be fiction. An automated test pins that rule.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.99.1",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: two lines of wording on the waiting screen. Nothing received, sent, stored, or scored differently.",
     body: [

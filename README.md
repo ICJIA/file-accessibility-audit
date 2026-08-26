@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.99.1-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2783%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.100.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2796%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -799,7 +799,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,783 tests** across 179 test files (API 1509, Web 1225, CLI 49). Run all three suites with one summary:
+**2,796 tests** across 181 test files (API 1516, Web 1231, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1251,12 +1251,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.100.0 — 2026-08-26 · Real per-pass progress: the job-model audit (new endpoints, reviewed; privacy posture unchanged and stated)
+
+Two additive endpoints give the page real observed step states — the engine analysis and the two veraPDF passes each flip pending/running/done as the pipeline reports them, never a percentage (the JVM passes expose none; a percent would be invented, and the pin says so). Reviewed as new surface: the pipeline itself is the SAME code (extracted verbatim into a shared core; the 54 pre-existing route tests pass unchanged against the thinned synchronous handler — the extraction is proven faithful, not assumed); the job store is an in-memory Map only — no disk, no database, no identity, an unguessable once-returned token stored as its SHA-256 and compared timing-safe, with wrong-id and wrong-token indistinguishable (no existence oracle); results delivered exactly once and deleted, 10-minute TTL, 100-job cap, 5-minute hard-timeout backstop. The finished report's brief wait in process memory is DESCRIBED in the policy (v1.17, § 2/§ 14) rather than assumed unchanged. The synchronous endpoint is untouched and remains the page's automatic fallback, so a deploy skew can never break uploads. Tests 2,783 → 2,796.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.99.1 → v1.33.0) — click to expand</summary>
+
 ### v1.99.1 — 2026-08-26 · The veraPDF queue lines enumerated honestly (copy + pin only)
 
 The waiting screen's two veraPDF lines now read "pass 1 of 2 / pass 2 of 2, both run together." The qualifier is the point: the passes run concurrently and the server reports nothing until both finish, so a bare "pass 2 of 2" would claim sequential progress the page cannot know. The test pin carries the same rationale. Nothing received, sent, stored, or scored differently. Tests unchanged: 2,783.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.99.0 → v1.33.0) — click to expand</summary>
 
 ### v1.99.0 — 2026-08-26 · The waiting experience: a rotating check queue, elapsed counter, and up-front timing expectation (client-side presentation only)
 

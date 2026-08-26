@@ -97,15 +97,22 @@ describe("index.vue — single-file error banner (Task F6)", () => {
 
 describe("index.vue — post-analysis focus management (Task F6)", () => {
   it("provides a focusable results heading once a single-file analysis succeeds", async () => {
-    fetchMock.mockResolvedValue({
-      filename: "test.pdf",
-      pageCount: 3,
-      overallScore: 92,
-      grade: "A",
-      isScanned: false,
-      executiveSummary: "Looks good.",
-      categories: [],
-      fileType: "pdf",
+    // v1.100.0: the page tries the job endpoints first; a 404 there routes
+    // through the SYNCHRONOUS fallback this test has always exercised.
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === "/api/analyze-job") {
+        throw Object.assign(new Error("not found"), { status: 404 });
+      }
+      return {
+        filename: "test.pdf",
+        pageCount: 3,
+        overallScore: 92,
+        grade: "A",
+        isScanned: false,
+        executiveSummary: "Looks good.",
+        categories: [],
+        fileType: "pdf",
+      };
     });
     const wrapper = mountIndex({ attachTo: document.body });
 
@@ -121,15 +128,22 @@ describe("index.vue — post-analysis focus management (Task F6)", () => {
   });
 
   it("moves DOM focus to the results heading after a successful single-file analysis", async () => {
-    fetchMock.mockResolvedValue({
-      filename: "test.pdf",
-      pageCount: 3,
-      overallScore: 92,
-      grade: "A",
-      isScanned: false,
-      executiveSummary: "Looks good.",
-      categories: [],
-      fileType: "pdf",
+    // v1.100.0: the page tries the job endpoints first; a 404 there routes
+    // through the SYNCHRONOUS fallback this test has always exercised.
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === "/api/analyze-job") {
+        throw Object.assign(new Error("not found"), { status: 404 });
+      }
+      return {
+        filename: "test.pdf",
+        pageCount: 3,
+        overallScore: 92,
+        grade: "A",
+        isScanned: false,
+        executiveSummary: "Looks good.",
+        categories: [],
+        fileType: "pdf",
+      };
     });
     const wrapper = mountIndex({ attachTo: document.body });
 

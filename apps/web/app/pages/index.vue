@@ -546,6 +546,7 @@
       :stage="processingStage"
       :rotate="processingRotate"
       :file-type="processingFileType"
+      :steps="processingSteps"
     />
 
     <!-- Drop zone (idle state) -->
@@ -768,6 +769,11 @@ import BatchFileSwitcher from "~/components/BatchFileSwitcher.vue";
 import MatterhornChecklist from "~/components/MatterhornChecklist.vue";
 import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
+import {
+  analyzeWithProgress,
+  type AnalyzeJobStatus,
+  type AnalyzeJobStepKey,
+} from "~/utils/analyzeJob";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
 
@@ -844,6 +850,28 @@ const processingStage = ref("");
 // audits keep narrating their own real milestones via processingStage.
 const processingRotate = ref(false);
 const processingFileType = ref<"pdf" | "docx" | "pptx" | "xlsx" | null>(null);
+// v1.100.0: REAL per-pass step rows from the job endpoints. Null until the
+// first status poll answers, so the overlay opens in rotate mode and
+// upgrades to observed states the moment they exist.
+const processingSteps = ref<Array<{
+  key: string;
+  label: string;
+  state: "pending" | "running" | "done" | "skipped";
+  startedAt?: number;
+}> | null>(null);
+const JOB_STEP_LABELS: Record<string, string> = {
+  analysis: "Audit engine — structure, content, and scoring",
+  veraPdfUa: "veraPDF: PDF/UA conformance",
+  veraPdfWcag: "veraPDF: WCAG 2.2 machine checks",
+};
+function mapJobSteps(status: AnalyzeJobStatus) {
+  processingSteps.value = (Object.keys(JOB_STEP_LABELS) as AnalyzeJobStepKey[]).map((key) => ({
+    key,
+    label: JOB_STEP_LABELS[key]!,
+    state: status.steps[key]?.state ?? "pending",
+    startedAt: status.steps[key]?.startedAt,
+  }));
+}
 function fileTypeFromName(name: string): "pdf" | "docx" | "pptx" | "xlsx" | null {
   const m = /\.(pdf|docx|pptx|xlsx)$/i.exec(name);
   return m ? (m[1]!.toLowerCase() as "pdf" | "docx" | "pptx" | "xlsx") : null;
@@ -965,15 +993,27 @@ async function analyzeFile(file: File) {
   try {
     processingRotate.value = true;
     processingFileType.value = fileTypeFromName(file.name);
+    processingSteps.value = null;
     processingStage.value = "";
-    const formData = new FormData();
-    formData.append("file", file);
 
-    const response = await $fetch<AnalysisResult>("/api/analyze", {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
+    // v1.100.0: the job endpoints report REAL per-pass progress. If this
+    // deployment doesn't have them (deploy skew), fall back to the
+    // synchronous endpoint with the v1.99.0 rotating queue — uploads must
+    // never break on the progress feature.
+    let response: AnalysisResult;
+    try {
+      response = await analyzeWithProgress(file, $fetch as never, mapJobSteps);
+    } catch (jobErr: any) {
+      if (!jobErr?.jobUnsupported) throw jobErr;
+      processingSteps.value = null;
+      const formData = new FormData();
+      formData.append("file", file);
+      response = await $fetch<AnalysisResult>("/api/analyze", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+    }
 
     singleResult.value = response;
     focusResultsHeading();
@@ -985,6 +1025,7 @@ async function analyzeFile(file: File) {
     processing.value = false;
     processingRotate.value = false;
     processingFileType.value = null;
+    processingSteps.value = null;
   }
 }
 

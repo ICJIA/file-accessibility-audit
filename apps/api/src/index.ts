@@ -4,6 +4,7 @@ import cors from "cors";
 import { globalLimiter, tokenAuditMiddleware } from "./middleware/rateLimiter.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import analyzeRoutes from "./routes/analyze.js";
+import analyzeJobRoutes from "./routes/analyzeJob.js";
 import reportsRoutes from "./routes/reports.js";
 import bulkInventoryRoutes from "./routes/bulk-from-inventory.js";
 import analyzeUrlRoutes from "./routes/analyze-url.js";
@@ -73,6 +74,7 @@ app.use(globalLimiter);
 
 // Routes
 app.use("/api", analyzeRoutes);
+app.use("/api", analyzeJobRoutes);
 app.use("/api", reportsRoutes);
 app.use("/api", bulkInventoryRoutes);
 app.use("/api", analyzeUrlRoutes);

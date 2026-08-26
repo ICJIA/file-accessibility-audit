@@ -4,14 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.100.0] - 2026-08-26
+
+### Added
+
+- **Real per-pass progress — the job-model audit** (user request, closing the day). New additive endpoints: `POST /api/analyze-job` answers `202 {jobId, token}` immediately, then runs the **identical** pipeline as the synchronous endpoint (extracted verbatim into `services/analyzeCore.ts` so the two can never drift — same audit_log row, same error mapping, proven by the 54 existing route tests passing unchanged against the thinned handler); `GET /api/analyze-job/:id?t=…` reports **real observed step states** — the engine analysis and the two veraPDF passes each flip pending → running → done as the pipeline actually reports them (per-pass hooks in `runVeraPdfChecksOnBuffer`), and delivers the result — or the exact error body the synchronous endpoint would send — **exactly once**, deleting the job on delivery.
+- **The overlay's steps mode**: real rows (pending ○ · running ● with that pass's own seconds · done ✓; skipped rows — non-PDF, WCAG pass disabled — never render), replacing the v1.99.0 rotating queue the moment observed states exist. **Never a percentage** — the JVM passes expose none, and a percent would be invented (pin-tested).
+- **Privacy posture unchanged, stated not assumed**: jobs live in an in-memory Map only — no disk, no database, no new columns; no owner identity (the remediation precedent: an unguessable token returned once, stored only as its SHA-256, compared timing-safe; wrong id and wrong token are indistinguishable 404s); the finished result waits in process memory until collected or a 10-minute TTL, and the uploaded buffer's lifetime is unchanged. Capacity-capped (100 jobs) with a 5-minute hard-timeout backstop. Data-retention policy → **v1.17** (§ 2, § 14).
+- **Deploy-skew-proof**: the page falls back automatically to the synchronous endpoint (and the v1.99.0 rotating queue) when the job endpoints don't exist — uploads can never break on the progress feature. The synchronous `POST /api/analyze` is untouched for the CLI, the fleet, and the batch path.
+
+### Notes
+
+- Tests: API 1,516 · web 1,231 · CLI 49 (**2,796**). Analyzer untouched — scoring identical by construction.
+
+<details>
+<summary><strong>v1.99.1 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.99.1] - 2026-08-26
 
 ### Changed
 
 - The overlay's two veraPDF lines are now enumerated — "Running veraPDF (pass 1 of 2, both run together): PDF/UA conformance…" / "(pass 2 of 2, both run together): WCAG 2.2 machine checks…" (user question: "should it say pass 2 of 2?"). The concurrency qualifier is deliberate: a bare "pass 2 of 2" would claim sequential progress the client cannot know — the passes run together and the server reports nothing until both are done. Copy + pin only. Tests unchanged, **2,783**.
-
-<details>
-<summary><strong>v1.99.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.99.0] - 2026-08-26
 
