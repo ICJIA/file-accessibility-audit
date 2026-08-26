@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.95.2] - 2026-08-26
+
+### Fixed
+
+- **The standalone `/technical-details` page brought back into truth** (the diagram-led manager tour — a separate surface from the audit page's Technical Details expander, which v1.95.1 already fixed). Twelve corrections, two of them material and long-standing:
+  - **The worked scoring example still taught the pre-v1.58.3 redistribution model** — dividing by the reduced weight sum when not-applicable categories have counted as *passing* (keeping their weight) since v1.58.3. Its own arithmetic was wrong under the current model (82 vs 85), and it never mentioned the severity cap. The example now shows the passing-weight arithmetic **and** the cap step (the Moderate heading fault caps the 85 at 79 · C), and the surrounding paragraph explains the two "N/A" states — Not applicable counts as passing, Not assessed is excluded — instead of "weight is redistributed."
+  - **The OOXML path was described as "no subprocess"** while the diagram directly below it showed the child process — it runs in a short-lived, per-request child Node process (SIGKILLable on timeout). Both prose spots corrected.
+  - Office category paragraphs no longer call Form Accessibility "omitted"/"Not applicable" — the card renders as **Not assessed** on all three formats, now with the v1.95.0 census disclosures named (Word floating objects and form controls; Excel form/OLE controls and hidden sheets).
+  - Three PDF/UA-1-only labels (audit prose, flowchart, diagram description) and the toolchain table's veraPDF row now carry the PDF/UA-2 clause; the remediation stage correctly keeps `--flavour ua1`.
+- Copy only — no code behavior, scoring, or API change. Tests unchanged, **2,751**.
+
+<details>
+<summary><strong>v1.95.1 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.95.1] - 2026-08-26
 
 ### Fixed
@@ -19,9 +33,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - veraPDF WCAG profile investigation (user-requested): server probe of veraPDF 1.30.1 shows flavours `ua1/ua2/wt1r/wt1a` but no built-in WCAG flavour and no bundled profile XMLs — implementing it means vendoring the version-matched WCAG-2-2 validation profile and a second JVM run per PDF audit via `--profile`. Feasible; deferred as its own release.
 - Tests: unchanged, **2,751** (API 1,500 · web 1,202 · CLI 49) — all green, plus root typecheck/lint/format/build.
-
-<details>
-<summary><strong>v1.95.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.95.0] - 2026-08-26
 

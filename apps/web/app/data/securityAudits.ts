@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.95.2",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: corrections to one explanation page (the standalone technical-details tour). Nothing about how the service runs, what it collects, or how long anything is kept changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The diagram-led technical-details page is written separately from the audit page&rsquo;s own technical section, and a full read-through found it had drifted further: its worked example of how the score is computed still described a calculation method retired in mid-July (v1.58.3) &mdash; under the current method, categories with nothing to check count in the document&rsquo;s favor rather than being dropped &mdash; and it did not mention that the score is capped by the worst finding. The example now demonstrates both, and several smaller descriptions (which checks appear on Word/Excel reports, how Office files are parsed, which PDF/UA standards the checker validates) were brought up to date.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Words only, again.</strong> Scores were always computed by the current method &mdash; only this page&rsquo;s <em>description</em> of the method was out of date. No code that processes documents changed, no score can move, nothing new is collected, and no retention period changed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.95.1",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: a wording-accuracy pass across the explanation pages — nothing about how the service runs, what it collects, or how long anything is kept changed.",
     body: [

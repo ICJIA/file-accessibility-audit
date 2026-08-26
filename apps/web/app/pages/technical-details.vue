@@ -127,25 +127,26 @@ function goBack(): void {
         that needs a file path) gets a short-lived temp copy under a random name, deleted in the
         same request — even when analysis fails. The two run in parallel and their combined output
         feeds the scorer. A third check runs concurrently for PDFs when the veraPDF engine is
-        configured (it is on the production deployment): veraPDF validates the file against PDF/UA-1
-        (ISO 14289-1) — it, too, works from a short-lived temp copy deleted in the same request —
-        and its verdict appears on the report as a separate panel (since v1.37.0; in the default
-        Visual view, inside the collapsed "Full technical report" section).
+        configured (it is on the production deployment): veraPDF validates the file against PDF/UA —
+        PDF/UA-1 (ISO 14289-1), or PDF/UA-2 (ISO 14289-2) when the document declares it — working
+        from its own short-lived temp copy deleted in the same request — and its verdict appears on
+        the report as a separate panel (since v1.37.0; in the default Visual view, inside the
+        collapsed "Full technical report" section).
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
         <strong>Word (.docx), PowerPoint (.pptx), and Excel (.xlsx)</strong>
         files take a simpler, fully in-process route: each is just a ZIP of XML (Office Open XML),
         so the server unzips it in memory and reads the accessibility-relevant structure directly
-        with two small JavaScript libraries (JSZip + fast-xml-parser) — no external binary, no
-        subprocess, and no temp file at all. The extracted structure feeds the same scorer. Nothing
-        is uploaded to a directory, cached, or retained in either path. The flowchart below shows
-        both paths.
+        with two small JavaScript libraries (JSZip + fast-xml-parser) inside a short-lived,
+        per-request child Node process (killed outright on timeout) — no external binary and no temp
+        file at all. The extracted structure feeds the same scorer. Nothing is uploaded to a
+        directory, cached, or retained in either path. The flowchart below shows both paths.
       </p>
 
       <DiagramFigure
         name="audit-flow"
         title="Audit pipeline — PDF, Word, PowerPoint, and Excel"
-        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) inside a short-lived child process, with no temp file. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, while veraPDF concurrently checks a PDF for PDF/UA-1 conformance; the result returns to the browser and the memory buffer is discarded.`"
+        :desc="`The browser uploads a file; the server validates it and detects the format. A PDF gets a short-lived qpdf temp copy and is read by qpdf (structure) and pdfjs (content) in parallel; a Word, PowerPoint, or Excel file is unzipped in memory (JSZip) and parsed as OOXML (fast-xml-parser) inside a short-lived child process, with no temp file. Both paths feed the scorer, which produces a grade, an independent WCAG ${wcag.version} conformance verdict, and category findings, while veraPDF concurrently checks a PDF for PDF/UA conformance (PDF/UA-1, or PDF/UA-2 when the document declares it); the result returns to the browser and the memory buffer is discarded.`"
       />
 
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-4 mb-2">
@@ -168,7 +169,7 @@ Client → HTTPS upload (multipart/form-data)
 <span class="text-sky-300">[analyzeDocument]</span> — detects format, dispatches:
   ├── PDF ──┬── <span class="text-emerald-300">qpdf</span>     subprocess; random-name temp copy, <span class="text-amber-300">deleted same request</span>
   │         ├── <span class="text-emerald-300">pdfjs</span>    in-process; reads the memory buffer directly
-  │         └── <span class="text-emerald-300">veraPDF</span>  concurrent PDF/UA-1 check (own temp copy, <span class="text-amber-300">deleted same request</span>) → verdict panel
+  │         └── <span class="text-emerald-300">veraPDF</span>  concurrent PDF/UA check (own temp copy, <span class="text-amber-300">deleted same request</span>) → verdict panel
   │
   └── Word / PowerPoint / Excel
             └── short-lived child process: <span class="text-emerald-300">JSZip</span> + <span class="text-emerald-300">fast-xml-parser</span>
@@ -293,12 +294,15 @@ HTTP response → browser · buffer garbage-collected · <span class="text-emera
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed">
         For PDFs, color contrast (WCAG 1.4.3) is shown as
         <strong>Not assessed</strong> — the tool does not yet measure rendered PDF contrast, and
-        that is stated plainly rather than hidden as a passing result. Reading Order and Alt Text
-        can also report <strong>Not assessed</strong> when the tool lacks the data to judge them
-        honestly (no comparable tag/content order; images present but none tagged). A category reads
-        <strong>Not applicable</strong> only when the document genuinely has no such content (no
-        tables, no forms, no links). In both cases the category's weight is redistributed across the
-        categories that were actually scored.
+        that is stated plainly rather than hidden as a passing result. Reading Order can also report
+        <strong>Not assessed</strong> when the tool lacks the data to judge it honestly (no
+        comparable tag/content order). The two "N/A" states are counted differently, on purpose
+        (since v1.58.3): a category that is <strong>Not applicable</strong> — the document genuinely
+        has no such content (no tables, no forms, no links) — counts as <em>passing</em> and keeps
+        its weight in the score's base, because a document with no tables does not have a table
+        problem. A category that is <strong>Not assessed</strong> — the tool could not evaluate it —
+        is left out of the calculation entirely, because scoring "we don't know" as a pass would be
+        a claim the tool cannot back.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 mb-2">
         A worked example makes the redistribution concrete:
@@ -317,21 +321,28 @@ HTTP response → browser · buffer garbage-collected · <span class="text-emera
   Alt Text                 15%     100
   Reading Order            10%      85
   Bookmarks                 5%      45
-  Table Markup             10%     <span class="text-amber-300">n/a</span> ┐
-  Link Quality              5%     <span class="text-amber-300">n/a</span> ├─ weight redistributed across
-  Form Accessibility        5%     <span class="text-amber-300">n/a</span> ┘  the scored categories
+  Table Markup             10%     <span class="text-emerald-300">n/a → passing</span> ┐
+  Link Quality              5%     <span class="text-emerald-300">n/a → passing</span> ├─ no such content =
+  Form Accessibility        5%     <span class="text-emerald-300">n/a → passing</span> ┘  no such problem (counts as 100)
 
-  Weighted sum = (100×20 + 75×15 + 55×15 + 100×15 + 85×10 + 45×5) ÷ 80
-               = 6525 ÷ 80
-               = 81.6  →  <span class="text-emerald-300">reported as 82 · grade B ("Good", 80–89)</span></pre>
+  Weighted sum = (100×20 + 75×15 + 55×15 + 100×15 + 85×10 + 45×5 + 100×10 + 100×5 + 100×5) ÷ 100
+               = 8525 ÷ 100
+               = 85.3  →  85 before the severity cap
+
+  <span class="text-amber-300">Severity cap:</span> the score may never outrank the worst open finding (Minor 89 ·
+  Moderate 79 · Critical 69). The broken heading hierarchy here is a Moderate
+  finding, so the final score is <span class="text-emerald-300">capped at 79 · grade C</span> — and the report says
+  which finding is holding it there.</pre>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
         <strong>Word (.docx) differs in three ways.</strong> Color contrast <em>is</em> scored —
         Word stores explicit and theme colors in the file, so 1.4.3 is machine-checkable (unlike
         PDF, which would need pixel rendering). A Word-specific
         <strong>List Structure</strong> category (1.3.1 — real lists vs. manually-typed bullets)
         applies in place of PDF-only Bookmarks. And Reading Order and Form Accessibility are
-        <strong>Not applicable</strong>, because Word's linear document flow preserves reading order
-        and interactive form controls are rare in Word.
+        <strong>Not assessed</strong> — shown on the report, never scored: Word's linear flow
+        generally preserves reading order (floating/anchored objects are counted and disclosed for
+        manual review since v1.95.0), and form controls (content controls and legacy form fields)
+        are detected and disclosed but their accessibility is not machine-judged.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
         <strong>PowerPoint (.pptx) swaps in slide-centric categories.</strong>
@@ -339,8 +350,8 @@ HTTP response → browser · buffer garbage-collected · <span class="text-emera
         placeholder, Microsoft's highest-severity PowerPoint rule) applies in place of heading
         structure, and <strong>Reading Order</strong> is actively checked (1.3.2 — the title should
         be the first shape a screen reader encounters on each slide). Color contrast and list
-        structure are scored as for Word; bookmarks and form accessibility don't apply to
-        presentations and are omitted.
+        structure are scored as for Word; bookmarks don't apply to presentations and are omitted,
+        and Form Accessibility is shown as <strong>Not assessed</strong>.
       </p>
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
         <strong>Excel (.xlsx) is table-first.</strong> A <strong>Sheet Names</strong> category (no
@@ -348,8 +359,10 @@ HTTP response → browser · buffer garbage-collected · <span class="text-emera
         <strong>Table Markup</strong> carries the most weight — data belongs in real table objects
         with header rows, and merged cells are flagged as advisories. Excel stores no
         document-language property, so Title &amp; Language scores on the title alone and the
-        language half is reported as not assessed. Reading order, lists, bookmarks, and forms don't
-        apply and are omitted.
+        language half is reported as not assessed. Reading order, lists, and bookmarks don't apply
+        and are omitted; Form Accessibility is shown as <strong>Not assessed</strong>, with any
+        legacy form/OLE controls detected and disclosed (v1.95.0), and hidden sheets are named as
+        excluded from the audit.
       </p>
 
       <section class="mt-8">
@@ -576,9 +589,9 @@ Either way, the end state is the same: <span class="text-emerald-300">zero PDF a
       <p class="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
         Two small services run on a single DigitalOcean droplet, managed by PM2 and fronted by
         Nginx. Every dependency is open source and runs locally. The PDF path shells out to qpdf
-        (and, for remediation, the OpenDataLoader and veraPDF Java tools); the Word, PowerPoint, and
-        Excel path needs none of those — it runs entirely in-process with the JSZip and
-        fast-xml-parser JavaScript libraries.
+        (and to veraPDF for the PDF/UA check; remediation adds OpenDataLoader); the Word,
+        PowerPoint, and Excel path needs no external binary — it parses with the JSZip and
+        fast-xml-parser JavaScript libraries in a short-lived child Node process.
       </p>
 
       <DiagramFigure
@@ -639,7 +652,9 @@ Either way, the end state is the same: <span class="text-emerald-300">zero PDF a
             </tr>
             <tr>
               <td class="py-2.5 pr-4 font-mono">veraPDF</td>
-              <td class="py-2.5 pr-4">PDF/UA-1 (ISO 14289-1) validation</td>
+              <td class="py-2.5 pr-4">
+                PDF/UA validation — ISO 14289-1, or ISO 14289-2 when a document declares PDF/UA-2
+              </td>
               <td class="py-2.5 pr-4">MPL 2.0</td>
               <td class="py-2.5">Audit + Remediation (PDF)</td>
             </tr>
