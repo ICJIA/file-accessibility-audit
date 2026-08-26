@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.97.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2775%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.98.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2777%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -799,7 +799,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,775 tests** across 177 test files (API 1509, Web 1217, CLI 49). Run all three suites with one summary:
+**2,777 tests** across 178 test files (API 1509, Web 1219, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1251,12 +1251,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.98.0 — 2026-08-26 · The Technical Details unification: one content source for the page and the collapsible (no new attack surface)
+
+The `/technical-details` page and the audit page's Technical Details collapsible are now the same `TechnicalExplainer` component — identical by construction and pinned by test (page chrome only on the page; no section prose allowed back; the header states the identity claim so any future divergence would make the page lie visibly). The motivation is the v1.95.2 lesson: two separately-authored surfaces drift, and one of them taught a scoring model retired six weeks earlier. Nothing unique was lost — the worked scoring example (current model + severity cap), the WCAG 2.2 Alignment section, and the toolchain license table moved into the shared component, so both surfaces gained them. Reviewed for surface: purely a re-composition of already-served, repo-authored content — no new route, no request, no input handling, nothing collected or stored; the data-retention policy is untouched at v1.16. Tests 2,775 → 2,777.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.97.0 → v1.33.0) — click to expand</summary>
+
 ### v1.97.0 — 2026-08-26 · The WCAG second opinion: veraPDF's machine-testable WCAG 2.2 profile on every PDF audit (new subprocess input reviewed; adversarially tested)
 
 The deferred Matterhorn-audit item, built scoping-first: a read-only server probe established that veraPDF 1.30.1 has no WCAG flavour and ships no profile files, so the machine-testable WCAG 2.2 profile is vendored in-repo (byte-identical to upstream `rel/1.30` @ `bc8e773`, provenance documented, verified against the production engine before integration) and runs as a second concurrent JVM per PDF audit via `--profile`. Security posture: the pass reuses the existing secret-stripped, timeout-bounded, output-capped invocation path; the profile file is repository-static (not derived from any upload); ONE shared temp copy serves both passes with the first concurrency slot still gating the write — the pre-existing "queued uploads never spill to disk" hardening pin caught the first draft breaking that invariant, and the design was corrected rather than the test. The new panel renders word statuses only (never "Pass"/conformance — it says so itself), shows the v1.91.0 "Did not run" disclosure when the check could not run, renders nothing for the absent key (pre-v1.97.0 stored reports; the `VERAPDF_WCAG_ENABLED=false` kill switch), and bounds forged shared-report payloads to a top-20 render with visible truncation — attack-replayed with a 5,000-row flood. A failing second opinion is test-pinned to change nothing about the score, grade, or categories; calibration is byte-identical across all 32 controls. Data-retention policy v1.16 (lifecycle unchanged — stated, not assumed). Tests 2,752 → 2,775. Both Matterhorn surfaces also gained the plain-language law linkage (ADA Title II + IITAA → WCAG → Matterhorn), with the "the law requires WCAG, not a PDF/UA badge" precision line test-pinned on both.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.96.0 → v1.33.0) — click to expand</summary>
 
 ### v1.96.0 — 2026-08-26 · The data-retention policy verified and reshaped (presentation and wording; policy v1.15; no data-practice change)
 

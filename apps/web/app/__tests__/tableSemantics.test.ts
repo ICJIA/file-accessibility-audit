@@ -55,7 +55,9 @@ const filesWithTables = [
   "components/dataRetention/Section05Tools.vue",
   "components/dataRetention/Section07RetentionTable.vue",
   "pages/wcag-2-2.vue",
-  "pages/technical-details.vue",
+  // pages/technical-details.vue left this list in v1.98.0: the page now
+  // renders <TechnicalExplainer /> (one content source with the audit page's
+  // collapsible) and carries no tables of its own.
   "pages/remediate/[jobId].vue",
 ];
 

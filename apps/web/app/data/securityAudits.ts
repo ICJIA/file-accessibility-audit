@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.98.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: the technical-details page and the audit page's technical section now share one body of text. Nothing about how the service runs, what it collects, or how long anything is kept changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The standalone technical-details page used to be written separately from the technical section on the audit page, and separately-written twins drift &mdash; an earlier release (v1.95.2) had to correct that page after it was found still describing a scoring method retired weeks before. Both surfaces now render the same underlying content, so they can never disagree again, and an automated test enforces it. The pieces the standalone page alone used to carry &mdash; the worked scoring example, the WCAG 2.2 alignment explanation, and the tool license table &mdash; moved into the shared content, so readers of either surface get all of it.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>No new surface.</strong> This is a re-composition of pages already served, written by the maintainers in the repository &mdash; no new route, no new request, no new input handling, nothing new collected or stored.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.97.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: a second automated check on every PDF audit — the veraPDF engine already in use, run a second time against the industry&rsquo;s machine-testable WCAG rules. No new retention: the same single temporary copy, deleted in the same request.",
     body: [

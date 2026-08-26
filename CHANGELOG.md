@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.98.0] - 2026-08-26
+
+### Changed
+
+- **The two Technical Details surfaces are now one content source** (user decision: identical, and kept in sync for every future change). The `/technical-details` page no longer carries its own separately-authored prose — it renders the same `TechnicalExplainer` component as the audit page's collapsible, wrapped in page chrome only (header, back nav, related-documents grid). Sync is **by construction**, and `technicalDetailsSync.test.ts` pins the construction: the page must render the shared component, must contain no section prose of its own, and its header must state the identity claim — because the failure mode is exactly what v1.95.2 had to fix, a separately-authored page teaching a scoring model retired six weeks earlier.
+- **Nothing the standalone page uniquely had was lost** — its three one-of-a-kind pieces moved into the shared component, so both surfaces now carry them: the worked scoring example (current passing-weight model *plus* the severity-cap step, ending at the capped 79 · C), the **WCAG 2.2 Alignment** section (2.2 AA as a strict superset of the legally-required 2.1 AA, with the "legal minimum" precision line), and the open-source **toolchain license table** (veraPDF row already naming the v1.97.0 WCAG profile).
+- Tests: web 1,217 → 1,219 (**2,777**).
+
+<details>
+<summary><strong>v1.97.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.97.0] - 2026-08-26
 
 ### Added
@@ -21,9 +32,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Calibration: byte-identical to v1.95.0 across all 32 controls (the analyzer is untouched — the second opinion is API-side and informational).
 - **The law linkage, spelled out** (user request): both the landing-page Matterhorn checklist and the per-report Matterhorn panel now answer the question an Illinois agency reader actually has — *WCAG and IITAA are the law, so what is Matterhorn and why care?* The chain is drawn in plain language (ADA Title II + IITAA → require WCAG 2.1 AA → tested inside PDFs via Matterhorn's 31 checkpoints → shown in your report), with the load-bearing precision line test-pinned on both surfaces: the law requires WCAG, not a PDF/UA badge — the block can never imply otherwise.
 - Data-retention policy → **v1.16** (§ 2 lifecycle unchanged and stated so; § 5/§ 12/§ 14 describe the added pass). Tests: API 1,509 · web 1,217 · CLI 49 (**2,775**).
-
-<details>
-<summary><strong>v1.96.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.96.0] - 2026-08-26
 

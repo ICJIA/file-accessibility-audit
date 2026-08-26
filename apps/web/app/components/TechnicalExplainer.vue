@@ -1323,6 +1323,59 @@
           that matter for ADA/WCAG/IITAA review. For Illinois agency publication decisions, the
           score is a prioritization aid, not a substitute for the per-category findings.
         </p>
+        <p class="text-[var(--text-muted)] mt-3 mb-2">A worked example makes it concrete:</p>
+        <pre
+          class="rounded-lg bg-[var(--surface-deep)] border border-[var(--border-subtle)] px-4 py-3 font-mono text-xs text-[var(--text-secondary)] overflow-x-auto"
+          tabindex="0"
+        >
+<span class="text-sky-300">Example: a 12-page PDF report — no tables, no links, no form fields</span>
+
+  Category               Weight   Score
+  ─────────────────────────────────────
+  Text Extractability      20%     100
+  Title &amp; Language         15%      75
+  Heading Structure        15%      55
+  Alt Text                 15%     100
+  Reading Order            10%      85
+  Bookmarks                 5%      45
+  Table Markup             10%     <span class="text-emerald-300">n/a → passing</span> ┐
+  Link Quality              5%     <span class="text-emerald-300">n/a → passing</span> ├─ no such content =
+  Form Accessibility        5%     <span class="text-emerald-300">n/a → passing</span> ┘  no such problem (counts as 100)
+
+  Weighted sum = (100×20 + 75×15 + 55×15 + 100×15 + 85×10 + 45×5 + 100×10 + 100×5 + 100×5) ÷ 100
+               = 8525 ÷ 100
+               = 85.3  →  85 before the severity cap
+
+  <span class="text-amber-300">Severity cap:</span> the score may never outrank the worst open finding (Minor 89 ·
+  Moderate 79 · Critical 69). The broken heading hierarchy here is a Moderate
+  finding, so the final score is <span class="text-emerald-300">capped at 79 · grade C</span> — and the report says
+  which finding is holding it there.</pre>
+      </div>
+
+      <!-- WCAG 2.2 vs the legal 2.1 minimum — merged from the standalone
+           technical-details page in v1.98.0 (the two surfaces are one
+           content source now). -->
+      <div>
+        <h3 class="font-semibold text-[var(--text-heading)] mb-2">WCAG 2.2 Alignment</h3>
+        <p class="text-[var(--text-muted)] mb-3">
+          This tool reports against <strong>WCAG 2.2 Level AA</strong>. WCAG 2.2 AA is a strict
+          superset of the WCAG 2.1 AA that IITAA 2.1 (§E205.4) and ADA Title II require. WCAG 2.2
+          adds nine success criteria (six at Level A/AA) and removes one (4.1.1 Parsing, obsolete).
+          The automated checks are unchanged — every machine-checkable criterion carried forward
+          from 2.1. The new 2.2 criteria are interactive/manual; we never report them as automated
+          failures. For documents with interactive form fields, the form-relevant new criteria
+          (Target Size 2.5.8, Redundant Entry 3.3.7, Accessible Authentication 3.3.8) are listed in
+          the verdict as <em>"not assessed — manual review"</em>.
+        </p>
+        <p class="text-[var(--text-muted)]">
+          For a plain-language manager summary, see
+          <NuxtLink
+            to="/wcag-2-2"
+            class="text-[var(--link)] hover:text-[var(--link-hover)] underline"
+            >how WCAG 2.2 differs from 2.1</NuxtLink
+          >. IITAA 2.1 does not yet reference WCAG 2.2, so 2.2 conformance is
+          optional/forward-looking; WCAG 2.1 AA remains the legal minimum.
+        </p>
       </div>
 
       <!-- Scanned detection -->
@@ -2039,6 +2092,70 @@ pm2 restart ecosystem.config.cjs</pre>
           human-judgment parts. The result page is explicit about this in the IITAA compliance
           disclaimer.
         </p>
+      </div>
+
+      <!-- The toolchain at a glance — merged from the standalone
+           technical-details page in v1.98.0. -->
+      <div>
+        <h3 class="font-semibold text-[var(--text-heading)] mb-2">
+          The Open-Source Toolchain at a Glance
+        </h3>
+        <div class="overflow-x-auto" tabindex="0">
+          <table class="w-full text-sm">
+            <caption class="sr-only">
+              The open-source toolchain: each tool, its job, license, and pipeline stage
+            </caption>
+            <thead>
+              <tr class="text-left text-[var(--text-muted)] border-b border-[var(--border)]">
+                <th scope="col" class="py-2 pr-4 font-medium">Tool</th>
+                <th scope="col" class="py-2 pr-4 font-medium">Job</th>
+                <th scope="col" class="py-2 pr-4 font-medium">License</th>
+                <th scope="col" class="py-2 font-medium">Pipeline</th>
+              </tr>
+            </thead>
+            <tbody class="text-[var(--text-secondary)] text-xs">
+              <tr class="border-b border-[var(--border)]/40">
+                <td class="py-2.5 pr-4 font-mono">qpdf</td>
+                <td class="py-2.5 pr-4">Structure parsing + PDF normalization</td>
+                <td class="py-2.5 pr-4">Apache 2.0</td>
+                <td class="py-2.5">Audit + Remediation (PDF)</td>
+              </tr>
+              <tr class="border-b border-[var(--border)]/40">
+                <td class="py-2.5 pr-4 font-mono">pdfjs-dist</td>
+                <td class="py-2.5 pr-4">Text + metadata extraction</td>
+                <td class="py-2.5 pr-4">Apache 2.0</td>
+                <td class="py-2.5">Audit (PDF)</td>
+              </tr>
+              <tr class="border-b border-[var(--border)]/40">
+                <td class="py-2.5 pr-4 font-mono">jszip</td>
+                <td class="py-2.5 pr-4">Unzip the OOXML package (.docx / .pptx / .xlsx)</td>
+                <td class="py-2.5 pr-4">MIT / GPLv3</td>
+                <td class="py-2.5">Audit (Office formats)</td>
+              </tr>
+              <tr class="border-b border-[var(--border)]/40">
+                <td class="py-2.5 pr-4 font-mono">fast-xml-parser</td>
+                <td class="py-2.5 pr-4">Parse OOXML structure &amp; content</td>
+                <td class="py-2.5 pr-4">MIT</td>
+                <td class="py-2.5">Audit (Office formats)</td>
+              </tr>
+              <tr class="border-b border-[var(--border)]/40">
+                <td class="py-2.5 pr-4 font-mono">OpenDataLoader PDF</td>
+                <td class="py-2.5 pr-4">Rule-based PDF auto-tagging</td>
+                <td class="py-2.5 pr-4">Apache 2.0</td>
+                <td class="py-2.5">Remediation (PDF)</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-4 font-mono">veraPDF</td>
+                <td class="py-2.5 pr-4">
+                  PDF/UA validation — ISO 14289-1, or ISO 14289-2 when a document declares PDF/UA-2
+                  — plus its machine-testable WCAG 2.2 profile (v1.97.0)
+                </td>
+                <td class="py-2.5 pr-4">MPL 2.0</td>
+                <td class="py-2.5">Audit + Remediation (PDF)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Security / privacy -->
