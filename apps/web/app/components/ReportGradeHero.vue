@@ -25,11 +25,9 @@
 
     <!-- Directly under the verdict, BEFORE the fix-progress meter (v1.74.1):
          non-technical managers stopped reading at "ready to publish", so the
-         warning now interrupts the celebration rather than trailing it. The
-         band gates itself on the same grade shown above it (full band on
-         A/B, one-line reminder otherwise). -->
+         warning now interrupts the celebration rather than trailing it.
+         Ungated since v1.102.0 — every grade gets the full subset band. -->
     <AutomationLimitBand
-      :grade="grade"
       :not-assessed-count="notAssessedCount"
       :link-manual-review="hasCategories"
       class="mt-5 mx-auto max-w-2xl"

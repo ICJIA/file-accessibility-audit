@@ -472,7 +472,12 @@ describe("ScoreCard", () => {
       });
       expect(wrapper.text()).toContain(`${app}'s built-in`);
       expect(wrapper.text()).toContain(`Because this ${app} file is the source document`);
-      expect(wrapper.text()).not.toContain("Adobe Acrobat");
+      // The FIX PATH must never send an Office file to Acrobat (it can't
+      // edit one). The automation-limit band is exempt: it names Acrobat as
+      // a PEER CHECKER on every format by design (v1.102.0), so the guard
+      // applies to everything outside the band.
+      const bandText = wrapper.find('[data-testid="automation-limit"]').text();
+      expect(wrapper.text().replace(bandText, "")).not.toContain("Adobe Acrobat");
     },
   );
 

@@ -250,6 +250,28 @@ export const WCAG_22_NEW_AA = [
  */
 export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
+/**
+ * How long the site-wide "automated checks are only part of the job"
+ * acknowledgment bar stays away after a visitor clicks "I understand".
+ *
+ * The bar (AutomationAckBanner.vue) is the cookie-banner-style half of the
+ * automation-honesty pair (user request, 2026-08-26): every visitor has to
+ * actively acknowledge — once per this window, per browser — that automated
+ * checkers can only test a subset of accessibility and a person has to check
+ * the rest. Deliberately a bottom bar, not a modal: nothing is blocked and
+ * focus is not stolen ("not too invasive — but a user has to be proactive
+ * with it"). The click is stored client-side only (a localStorage timestamp;
+ * no cookie, nothing sent to the server) and expires, so the reminder recurs
+ * for regulars without nagging on every visit.
+ *
+ * SAFE TO CHANGE: Yes — any number of hours ≥ 1. A week is the user's pick,
+ * tuned live from 24h → 48h → 72h → 168h with the rule "the user should
+ * acknowledge at least once, but not keep getting hammered by it". Don't set
+ * 0: the bar would then reappear on every page load, which turns an
+ * acknowledgment into a nag.
+ */
+export const AUTOMATION_ACK_HOURS = 168;
+
 export const ANNOUNCEMENTS = [
   {
     id: "waiting-experience-2026-08-26",

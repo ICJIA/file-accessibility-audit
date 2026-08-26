@@ -6,7 +6,6 @@
  * `document`).
  */
 import { escapeHtml } from "~/utils/escapeHtml";
-import { shouldShowAutomationLimit } from "~/utils/automationLimit";
 import { naReason } from "~/utils/modeDivergence";
 import { BANNER_EYEBROW, bannerMetaLine, fileTypeLabel } from "~/utils/reportBanner";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
@@ -277,11 +276,9 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
   .limit-band { max-width:640px; margin:0 auto 30px; text-align:left; border:1px solid rgba(245,158,11,.6); border-radius:12px; overflow:hidden }
   .lb-head { background:#fbbf24; color:#111; font-weight:800; font-size:15px; margin:0; padding:10px 20px }
   .limit-band .lb-b { font-size:13px; color:#ccc; margin:0; padding:12px 20px 16px; background:rgba(245,158,11,.07); line-height:1.55 }
-  .limit-line { max-width:640px; margin:0 auto 30px; text-align:left; border:1px solid rgba(245,158,11,.4); background:rgba(245,158,11,.05); border-radius:10px; padding:10px 16px; font-size:13px; color:#ccc; line-height:1.55 }
   @media print { body { background:#fff; color:#000 } .container { max-width:100% }
     .file-banner { border-color:#bbb } .file-banner .fname { color:#000 } .file-banner .eyebrow, .file-banner .meta { color:#333 }
-    .limit-band { border-color:#946300; background:#fff } .lb-head { color:#000 } .limit-band .lb-b { color:#333; background:#fff }
-    .limit-line { border-color:#946300; background:#fff; color:#333 } }
+    .limit-band { border-color:#946300; background:#fff } .lb-head { color:#000 } .limit-band .lb-b { color:#333; background:#fff } }
 </style>
 </head>
 <body>
@@ -307,14 +304,10 @@ export function buildHtml(result: ReportResult, branding: BrandingInfo): string 
     <p style="font-size:14px;color:${heroVerdict.color};font-weight:500;margin:0">${escapeHtml(heroVerdict.label)}</p>
   </div>
 
-  ${
-    shouldShowAutomationLimit(result.grade)
-      ? `<div class="limit-band">
-    <p class="lb-head">&#9888; Even a high score is not a guarantee</p>
-    <p class="lb-b">This score means the document handles the signals automated tests can measure — it is in good shape. It does not mean the document is guaranteed to work with a screen reader: whether the alt text describes each image, headings match their sections, and the reading order makes sense can only be confirmed by a person. No automated tool can do that half of the job.</p>
-  </div>`
-      : `<div class="limit-line">&#9888; Whatever the grade, automated checks are only part of the job — a person still has to review this document.</div>`
-  }
+  <div class="limit-band">
+    <p class="lb-head">&#9888; Automated checks cover a subset — a person checks the rest</p>
+    <p class="lb-b">This score covers the machine-checkable share of accessibility — roughly 30&ndash;40% of issues in independent tests (the UK government&rsquo;s ten-tool study found the best checker caught 41% of planted barriers; Deque&rsquo;s own audit data, the most optimistic figure on record, reaches 57% of issue volume). No automated checker — this one, Adobe Acrobat&rsquo;s, PAC, Word&rsquo;s — can tell you the document works in a screen reader: whether the alt text describes each image, headings match their sections, and the reading order makes sense can only be confirmed by a person. If you have additional questions about file accessibility, contact your agency accessibility coordinator.</p>
+  </div>
   ${tilesOrEmpty}
 
   ${conformanceHtml}

@@ -249,12 +249,15 @@ describe("the print button reaches every surface that shows a report", () => {
   });
 });
 
-describe("the automation-limit warning prints beside the grade", () => {
+describe("the automation-subset box prints on every plan (v1.102.0)", () => {
   // The printout is the version most likely to be read as a verdict — it gets
   // filed, forwarded, stapled to a review. The on-screen band under the score
-  // (AutomationLimitBand) must survive onto paper, anchored to the same
-  // grade line it qualifies.
-  it("prints the not-a-guarantee box when a grade is printed", () => {
+  // (AutomationLimitBand) must survive onto paper. Since v1.102.0 nothing
+  // gates it: it used to print only beside grades that look done (A/B), but
+  // the user's rule is now "something users always see" — and the copy is
+  // self-contained (it no longer says "the grade above"), so a gradeless
+  // plan carries it safely too.
+  it("prints the subset box with the study-backed figures", () => {
     const html = buildPrintablePlan({
       filename: "a.pdf",
       grade: "A",
@@ -262,21 +265,20 @@ describe("the automation-limit warning prints beside the grade", () => {
       steps: [],
       generatedAt: AT,
     });
-    expect(html).toContain("Even a high score is not a guarantee");
+    expect(html).toContain("Automated checks cover a subset");
+    expect(html).toContain("30&ndash;40%");
+    expect(html).toContain("57% of issue volume");
     expect(html).toContain("screen reader");
+    expect(html).toContain("agency accessibility coordinator");
   });
 
-  it("omits the box when no grade line is printed", () => {
-    // With no grade above it, "the score above" would dangle; the footer's
-    // human-in-the-loop sentence still prints on every plan.
+  it("prints the box even when no grade line is printed — the copy is self-contained", () => {
     const html = buildPrintablePlan({ filename: "a.pdf", steps: [], generatedAt: AT });
-    expect(html).not.toContain("Even a high score is not a guarantee");
+    expect(html).toContain("Automated checks cover a subset");
     expect(html).toContain("can tell you a document is accessible");
   });
 
-  it("omits the box below the threshold — a C printout already leads with work to do", () => {
-    // Same rule as on screen: the warning exists to puncture a score that
-    // LOOKS done (over 79 — A and B), not to pile onto a failing one.
+  it("prints the box below the old threshold too — no grade skips the message", () => {
     const html = buildPrintablePlan({
       filename: "a.pdf",
       grade: "C",
@@ -284,6 +286,7 @@ describe("the automation-limit warning prints beside the grade", () => {
       steps: [step()],
       generatedAt: AT,
     });
+    expect(html).toContain("Automated checks cover a subset");
     expect(html).not.toContain("Even a high score is not a guarantee");
   });
 });

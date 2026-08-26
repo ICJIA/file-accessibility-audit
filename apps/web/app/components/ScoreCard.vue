@@ -30,9 +30,8 @@
     <!-- Directly under the verdict, BEFORE the fix-progress meter — same
          interrupt-the-celebration placement as the Visual view's hero
          (v1.74.1); both must match or switching views contradicts itself.
-         Gated on the SAME grade displayed above (the strict profile's). -->
+         Ungated since v1.102.0 — every grade gets the full subset band. -->
     <AutomationLimitBand
-      :grade="displayedProfile.grade"
       :not-assessed-count="notAssessedCount"
       :link-manual-review="linkManualReview"
       class="mx-auto max-w-lg"

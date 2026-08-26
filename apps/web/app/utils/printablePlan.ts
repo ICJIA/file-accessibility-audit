@@ -25,7 +25,6 @@
  */
 import { escapeHtml } from "~/utils/escapeHtml";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
-import { shouldShowAutomationLimit } from "~/utils/automationLimit";
 import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
@@ -252,17 +251,18 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
   }</p>
 ${gradeBit ? `<p class="verdict">${gradeBit}${o.verdict ? ` — ${escapeHtml(o.verdict)}` : ""}</p>` : ""}
 ${
-  // Anchored to the grade line it qualifies; with no grade printed, "the
-  // grade above" would dangle (the footer's human-in-the-loop line still
-  // prints on every plan). Same threshold as the on-screen band: only a
-  // grade that looks done (A/B) gets the celebration puncture.
-  gradeBit && shouldShowAutomationLimit(o.grade)
-    ? `<div class="limit"><p class="limit-h">&#9888; Even a high score is not a guarantee</p>` +
-      `<p class="limit-body">The grade above covers the signals automated tests can measure — the automated half of the job. ` +
-      `Whether the document actually works with a screen reader — alt text that describes each image, headings that match ` +
-      `their sections, a reading order that makes sense — can only be confirmed by a person.` +
-      `${o.manualChecks?.length ? " The &ldquo;Still worth checking by hand&rdquo; section below is that half of the job." : ""}</p></div>`
-    : ""
+  // On every plan since v1.102.0 (it used to print only beside A/B grades):
+  // the printout travels to whoever does the fixing, and they need the
+  // checker's reach stated too. Self-contained copy — it no longer says
+  // "the grade above", so a gradeless plan can carry it safely; the
+  // footer's human-in-the-loop line still closes every plan.
+  `<div class="limit"><p class="limit-h">&#9888; Automated checks cover a subset — a person checks the rest</p>` +
+  `<p class="limit-body">Automated checkers — this one, Adobe Acrobat&rsquo;s, PAC, Word&rsquo;s — can only test the machine-checkable share ` +
+  `of accessibility, roughly 30&ndash;40% of issues in independent tests (the UK government&rsquo;s ten-tool study; even Deque&rsquo;s own most ` +
+  `optimistic figure is 57% of issue volume). Whether the document actually works with a screen reader — alt text that describes each ` +
+  `image, headings that match their sections, a reading order that makes sense — can only be confirmed by a person.` +
+  `${o.manualChecks?.length ? " The &ldquo;Still worth checking by hand&rdquo; section below is that half of the job." : ""}` +
+  ` If you have additional questions about file accessibility, contact your agency accessibility coordinator.</p></div>`
 }
 ${o.intro ? `<p class="note">${escapeHtml(o.intro)}</p>` : ""}
 ${steps}

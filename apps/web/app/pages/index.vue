@@ -1176,7 +1176,7 @@ function emailShareUrl() {
       // For most recipients this email IS the report. Deliberately
       // unconditional — humans stay in the loop at every grade, and a test
       // asserts no grade gate creeps back in here.
-      `(The score covers automated checks only — a person still needs to confirm the document works with a screen reader.)\n\n` +
+      `(The score covers automated checks only — roughly the 30–40% of accessibility a machine can test; a person still needs to confirm the rest, starting with a screen reader.)\n\n` +
       `View the full report:\n${shareUrl.value}\n\n` +
       `This link expires in 365 days.`,
   );
