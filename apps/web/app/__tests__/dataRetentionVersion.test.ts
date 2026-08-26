@@ -51,4 +51,20 @@ describe("data-retention page: POLICY_VERSION matches its own § 14 change log",
     expect(newest).toBeTruthy();
     expect(header).toBe(newest);
   });
+
+  it("the header's Last-updated date equals the newest change-log entry's date (v1.96.0)", () => {
+    const page = readFileSync(resolve(__dirname, "../pages/data-retention.vue"), "utf8");
+    const changeLog = readFileSync(
+      resolve(__dirname, "../components/dataRetention/Section14ChangeLog.vue"),
+      "utf8",
+    );
+    const updated = page.match(/const POLICY_UPDATED = "(\d{4}-\d{2}-\d{2})"/)?.[1];
+    const newestDate = changeLog.match(/<strong>v[\d.]+ · (\d{4}-\d{2}-\d{2})<\/strong>/)?.[1];
+    expect(updated).toBeTruthy();
+    expect(newestDate).toBeTruthy();
+    expect(updated).toBe(newestDate);
+    // And the header actually renders it — a constant nothing displays is
+    // not a date at the top of the page.
+    expect(page).toMatch(/Last updated[\s\S]{0,120}POLICY_UPDATED/);
+  });
 });

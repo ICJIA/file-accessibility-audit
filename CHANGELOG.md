@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.96.0] - 2026-08-26
+
+### Changed
+
+- **The data-retention policy page, verified and reshaped** (user request — the same full-read treatment the other explanation surfaces got, plus three usability changes; policy version 1.14 → **1.15**, all presentation and wording — no retention period, storage location, or data practice changed):
+  - **A "Last updated" date now leads the header**, pinned by test to § 14's newest change-log entry (`dataRetentionVersion.test.ts` — the same discipline that already holds the version constant to § 14).
+  - **§ 4's AI exclusion list drops model version numbers** — providers and model families only (OpenAI/GPT family, Anthropic/Claude family, Google/Gemini family, …), with the rationale stated in the policy itself: versions change too quickly for a policy to chase, and the exclusion covers every past, current, and future version. The retired "Bard"/"PaLM" names — the churn problem in miniature — are gone; the page-top banner matches.
+  - **§ 7's 13-row retention wall became three color-banded tables** — the document itself (red, held seconds to minutes), the application's own records (emerald, metadata only), and adjacent systems (sky: host nginx log, self-hosted Plausible) — each row led by a scannable retention chip ("Seconds", "≤ 30 min", "365 days", "No auto-purge"), with every fact string carried over verbatim (the `activityExportPolicy`/`tableSemantics`/`backupsExplained` pins all pass unchanged; each table keeps its caption and scoped headers).
+  - **§ 10 collapses 148 earlier reviews into one native `<details>` fold** with the most recent review expanded — the changelog's own pattern. Every entry stays in the DOM (`securityAudits.test.ts` still counts all 149 articles); the card markup moved to `Section10AuditEntry.vue` so the two render sites share one template.
+  - Verification findings were minor: § 13's glossary now notes the PDF/UA-2 successor standard, and §§ 1–3, 5–9, 11–15 checked out accurate (the § 2/§ 5/§ 12 PDF/UA fixes shipped in v1.95.1).
+- Tests: web 1,202 → 1,203 (**2,752**).
+
+<details>
+<summary><strong>v1.95.2 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.95.2] - 2026-08-26
 
 ### Fixed
@@ -14,9 +29,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
   - Office category paragraphs no longer call Form Accessibility "omitted"/"Not applicable" — the card renders as **Not assessed** on all three formats, now with the v1.95.0 census disclosures named (Word floating objects and form controls; Excel form/OLE controls and hidden sheets).
   - Three PDF/UA-1-only labels (audit prose, flowchart, diagram description) and the toolchain table's veraPDF row now carry the PDF/UA-2 clause; the remediation stage correctly keeps `--flavour ua1`.
 - Copy only — no code behavior, scoring, or API change. Tests unchanged, **2,751**.
-
-<details>
-<summary><strong>v1.95.1 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.95.1] - 2026-08-26
 

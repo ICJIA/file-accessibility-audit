@@ -13,11 +13,11 @@
         learning API, including but not limited to:
       </p>
       <ul class="text-sm text-[var(--text-secondary)] list-disc list-inside ml-2 space-y-1 mb-4">
-        <li>OpenAI (ChatGPT, GPT-3.5, GPT-4, GPT-4o, embedding APIs)</li>
-        <li>Anthropic (Claude family of models)</li>
-        <li>Google (Gemini, Bard, PaLM, Vertex AI)</li>
+        <li>OpenAI (ChatGPT and the GPT model family, embedding APIs)</li>
+        <li>Anthropic (the Claude model family)</li>
+        <li>Google (the Gemini model family, Vertex AI)</li>
         <li>Microsoft (Copilot, Azure OpenAI)</li>
-        <li>Meta (Llama hosted endpoints)</li>
+        <li>Meta (the Llama model family, hosted endpoints)</li>
         <li>Amazon (Bedrock, SageMaker hosted endpoints)</li>
         <li>
           Any open-source model hosted by a third-party inference provider (Replicate, Modal,
@@ -25,6 +25,11 @@
         </li>
         <li>Self-hosted machine-learning models on this server (none are loaded)</li>
       </ul>
+      <p class="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
+        Providers and model <em>families</em> are named deliberately, without version numbers —
+        specific model versions change too quickly for a policy document to chase, and the exclusion
+        covers every past, current, and future version from every provider, listed here or not.
+      </p>
       <p class="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
         The auto-remediation pipeline uses three open-source software tools (qpdf, OpenDataLoader
         PDF, veraPDF — see § 5), all of which operate on

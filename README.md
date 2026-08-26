@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.95.2-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2751%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.96.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2752%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -799,7 +799,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,751 tests** across 175 test files (API 1500, Web 1202, CLI 49). Run all three suites with one summary:
+**2,752 tests** across 176 test files (API 1500, Web 1203, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1251,12 +1251,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.96.0 — 2026-08-26 · The data-retention policy verified and reshaped (presentation and wording; policy v1.15; no data-practice change)
+
+The policy page got the full-read verification the other explanation surfaces received, plus three user-requested usability changes. Content verdict: accurate — §§ 1–3, 5–9, 11–15 checked out (the PDF/UA fixes had shipped in v1.95.1); § 13's glossary gained a PDF/UA-2 note. The reshaping: a "Last updated" date leads the header, test-pinned to § 14's newest entry so it cannot drift; § 4's AI exclusion list now names providers and model families without version numbers (the rationale stated in the policy itself — versions churn too fast to chase, and the retired "Bard"/"PaLM" names were the proof), covering every past and future version; § 7's 13-row retention wall became three color-banded tables (document / application records / adjacent systems) with scannable retention chips and every fact string verbatim — the overclaim-guard and row-content pins all pass unchanged; § 10 collapses 148 earlier reviews into one native details fold with the newest expanded, every entry still in the DOM and still counted by its test. Reviewed as change surface: no new route, no request, nothing new collected or stored, no retention period moved — the § 10 card markup moved into a child component that receives only compiled repo data, keeping the v-html safety argument intact and test-pinned. Tests 2,751 → 2,752.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.95.2 → v1.33.0) — click to expand</summary>
+
 ### v1.95.2 — 2026-08-26 · The standalone technical-details page corrected (copy only; the second, separately-authored explanation surface)
 
 The `/technical-details` manager tour is a separate surface from the audit page's Technical Details expander v1.95.1 fixed, and reading it in full found twelve issues — two long-standing. Worst: its worked scoring example still taught the pre-v1.58.3 weight-redistribution model (not-applicable categories count as passing and keep their weight since v1.58.3 — the example's own answer was wrong under the current model, and it never mentioned the severity cap; it now shows both mechanisms, ending at the capped 79 · C). Also corrected: the OOXML path described as "no subprocess" while the diagram below it showed the child process; Office Form Accessibility called "omitted" when the card renders as Not assessed (now with the v1.95.0 censuses named); and four PDF/UA-1-only labels gained the PDF/UA-2 clause (the remediation stage correctly keeps ua1). Copy only — nothing new collected, no new route, no scoring change; data-retention policy stays v1.14. Tests unchanged: 2,751.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.95.1 → v1.33.0) — click to expand</summary>
 
 ### v1.95.1 — 2026-08-26 · The accuracy pass: every explanatory surface verified against the v1.91–v1.95 arc (copy only; no code behavior change)
 

@@ -49,7 +49,8 @@
         <dd class="ml-4 text-xs leading-relaxed">
           ISO 14289-1: the technical specification for "accessible PDF." Defines the structural
           requirements (tags, language declaration, metadata) a PDF must meet to be considered
-          conformant. Validated by veraPDF.
+          conformant. Validated by veraPDF. A successor, PDF/UA-2 (ISO 14289-2), exists for newer
+          PDFs — the audit validates against it instead when a document declares it.
         </dd>
       </div>
       <div>

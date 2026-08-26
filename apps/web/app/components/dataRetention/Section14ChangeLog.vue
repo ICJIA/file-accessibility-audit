@@ -6,6 +6,18 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.15 · 2026-08-26</strong> — Presentation and wording only; nothing new is
+        collected or stored, no retention period changes, and no data practice changes. The header
+        now carries a "Last updated" date. § 4's AI exclusion list names providers and model
+        families without version numbers (versions change too quickly for a policy to chase; the
+        exclusion covers all of them, and the section now says so). § 7's retention table is
+        regrouped into three visually distinct groups — the document itself, the application's own
+        records, and adjacent systems — with the same rows, figures, and wording. § 10 now shows the
+        most recent security review expanded and collapses the earlier history into a single
+        expandable list (every entry remains on the page). § 13's PDF/UA entry notes the PDF/UA-2
+        successor standard the audit validates when a document declares it.
+      </li>
+      <li>
         <strong>v1.14 · 2026-08-25</strong> — One clarification of the v1.13 figures; nothing new is
         collected or stored and no retention period changes. The re-audit summary on the status page
         now counts <em>public</em> audits only: audits made through the internal trusted-tool tier

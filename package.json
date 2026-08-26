@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.95.2",
+  "version": "1.96.0",
   "private": true,
   "type": "module",
   "scripts": {

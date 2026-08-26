@@ -54,6 +54,25 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.96.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: this policy page itself — a full accuracy read plus presentation changes (policy v1.15). Nothing about how the service runs, what it collects, or how long anything is kept changed.",
+    body: [
+      {
+        kind: "p",
+        html: "This data-retention page was read end to end against the current system and reshaped for readability: the header now shows when the policy was last updated (checked automatically against &sect; 14&rsquo;s newest entry so the two can never disagree), the AI exclusion list in &sect; 4 names companies and model families rather than version numbers that go stale, the retention table in &sect; 7 is grouped into three color-coded tables with an at-a-glance duration chip per row, and this section now shows the most recent review expanded with the earlier history in one expandable list &mdash; every entry still on the page. Every retention figure, storage location, and wording pin (including the rules against overclaiming &ldquo;no personal data&rdquo;) carried over verbatim and is still enforced by the same automated tests.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Reviewed as attack surface anyway.</strong> The reshaped section renders the same repository-authored text through the same guarded path (a new child component receives entries only from the compiled data file &mdash; nothing user-supplied can reach it, and the automated check on the data file&rsquo;s contents is unchanged). No new route, no new request, nothing new collected or stored.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.95.2",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: corrections to one explanation page (the standalone technical-details tour). Nothing about how the service runs, what it collects, or how long anything is kept changed.",
     body: [

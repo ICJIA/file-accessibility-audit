@@ -74,57 +74,25 @@
       entry here, so the gap cannot reopen.
     </p>
 
-    <!-- One card per release. The entries live in ~/data/securityAudits; this
-         is the only place their markup exists. -->
-    <!-- eslint-disable vue/no-v-html -- Every v-html below renders a string authored in ~/data/securityAudits.ts by the maintainers and compiled into the bundle. This component takes no props, makes no requests, and reads no database, so nothing user-supplied or request-derived can reach them; securityAudits.test.ts asserts the data file contains only <a>/<br>/<code>/<em>/<strong>, no event handler, no style, no src, no data:/javascript: URI, and no interpolation. -->
-    <article
-      v-for="(entry, i) in SECURITY_AUDIT_ENTRIES"
-      :key="entry.version"
-      class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-5 sm:p-6"
-      :class="i < SECURITY_AUDIT_ENTRIES.length - 1 ? 'mb-4' : ''"
-    >
-      <header class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
-        <h3 class="text-lg font-bold text-[var(--text-heading)]">{{ entry.version }}</h3>
-        <span class="text-xs text-[var(--text-muted)]" v-html="entry.meta" />
-      </header>
+    <!-- One card per release. The entries live in ~/data/securityAudits and
+         the card markup lives in Section10AuditEntry.vue. Only the MOST
+         RECENT review is expanded (v1.96.0, user request): the history below
+         it is one <details> fold, the same pattern the project changelog
+         uses — every entry stays in the DOM (and in the accessibility tree),
+         it just doesn't spend two hundred screens of space by default. -->
+    <Section10AuditEntry :entry="newest" />
 
-      <template v-for="(block, b) in entry.body" :key="b">
-        <p
-          v-if="block.kind === 'p'"
-          class="text-sm text-[var(--text-secondary)] leading-relaxed"
-          :class="b > 0 ? 'mt-3' : ''"
-          v-html="block.html"
-        />
-
-        <h4
-          v-else-if="block.kind === 'h'"
-          class="text-sm font-semibold text-[var(--text-heading)] mb-2"
-          :class="b > 0 ? 'mt-5' : ''"
-        >
-          {{ block.text }}
-        </h4>
-
-        <ul
-          v-else
-          class="text-sm text-[var(--text-secondary)]"
-          :class="[
-            block.kind === 'findings' ? 'space-y-3' : 'space-y-1 list-disc list-inside ml-2',
-            b > 0 ? 'mt-3' : '',
-          ]"
-        >
-          <li v-for="(item, n) in block.items" :key="n">
-            <span v-if="item.badge" :class="badgeClass(item.badge)">{{ item.badge }}</span>
-            <span v-html="item.html" />
-            <p
-              v-if="item.note"
-              class="text-xs text-[var(--text-muted)] mt-1 leading-relaxed"
-              v-html="item.note"
-            />
-          </li>
-        </ul>
-      </template>
-    </article>
-    <!-- eslint-enable vue/no-v-html -->
+    <details class="mt-4">
+      <summary
+        class="cursor-pointer select-none rounded-xl border border-[var(--border)] bg-[var(--surface-card)] px-5 py-4 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-heading)] transition-colors"
+      >
+        Earlier reviews — {{ earlier.length }} of them ({{ earlier[0]?.version }} →
+        {{ earlier[earlier.length - 1]?.version }}) — click to expand
+      </summary>
+      <div class="mt-4 space-y-4">
+        <Section10AuditEntry v-for="entry in earlier" :key="entry.version" :entry="entry" />
+      </div>
+    </details>
   </section>
 </template>
 
@@ -133,39 +101,23 @@
 //
 // This component used to BE the history: 65 hand-written <article> blocks,
 // 3,273 lines, ~46 of them boilerplate per release. The entries now live as
-// data in ~/data/securityAudits.ts and this file is the only place their
-// markup exists — so a styling change happens once instead of 65 times, and
-// adding a release is a few lines of prose rather than a copied block.
+// data in ~/data/securityAudits.ts and the card markup lives in
+// Section10AuditEntry.vue — imported explicitly (plain-vitest mounts have no
+// Nuxt auto-import). Only the newest review renders expanded; the rest sit
+// inside one native <details> fold, all still present in the DOM, which is
+// what securityAudits.test.ts counts.
 //
-// ON THE v-html. Entries carry inline emphasis mid-sentence (<strong>, <em>,
-// <code>, <br>, a couple of <a>), so their text is markup and is rendered as
-// markup. This is safe for exactly one reason, and it is worth stating
-// plainly: the strings are authored in the repository by the maintainers and
-// compiled into the bundle. Nothing user-supplied, request-derived, or read
-// from the database reaches this component — it takes no props and makes no
-// requests. securityAudits.test.ts pins that, by asserting the data file
-// contains only inline formatting tags and no script/handler/URL-bearing
-// attribute. If an entry ever needs to include something a user typed, escape
-// it at the source; do not relax the check.
-import { SECURITY_AUDIT_ENTRIES, type AuditBadge } from "~/data/securityAudits";
+// ON THE v-html (in the child): the strings are authored in the repository by
+// the maintainers and compiled into the bundle. Nothing user-supplied,
+// request-derived, or read from the database reaches these components — this
+// one takes no props and makes no requests, and the child receives entries
+// only from the compiled data file. securityAudits.test.ts pins that, by
+// asserting the data file contains only inline formatting tags and no
+// script/handler/URL-bearing attribute. If an entry ever needs to include
+// something a user typed, escape it at the source; do not relax the check.
+import { SECURITY_AUDIT_ENTRIES } from "~/data/securityAudits";
+import Section10AuditEntry from "./Section10AuditEntry.vue";
 
-// Colour is presentation, so it is decided here rather than stored 75 times
-// alongside the labels it is a pure function of.
-const BADGE_TONE: Record<AuditBadge, string> = {
-  P1: "bg-red-700/30 text-red-200",
-  P2: "bg-amber-700/30 text-amber-200",
-  P3: "bg-blue-700/30 text-blue-200",
-  Note: "bg-amber-700/30 text-amber-200",
-  OPS: "bg-amber-700/30 text-amber-200",
-  API: "bg-blue-700/30 text-blue-200",
-  Fix: "bg-blue-700/30 text-blue-200",
-  Fixed: "bg-emerald-700/30 text-emerald-200",
-  New: "bg-emerald-700/30 text-emerald-200",
-  UX: "bg-emerald-700/30 text-emerald-200",
-  Hardened: "bg-sky-700/30 text-sky-200",
-};
-
-function badgeClass(badge: AuditBadge): string {
-  return `inline-block px-1.5 py-0.5 rounded text-[10px] font-mono uppercase mr-2 ${BADGE_TONE[badge]}`;
-}
+const newest = SECURITY_AUDIT_ENTRIES[0]!;
+const earlier = SECURITY_AUDIT_ENTRIES.slice(1);
 </script>

@@ -43,8 +43,11 @@ useHead({
   ],
 });
 
-const POLICY_VERSION = "1.14";
+const POLICY_VERSION = "1.15";
 const POLICY_EFFECTIVE = "2026-08-09";
+// Must equal the date on § 14's newest entry — dataRetentionVersion.test.ts
+// holds both this and POLICY_VERSION to that entry.
+const POLICY_UPDATED = "2026-08-26";
 const TOOL_VERSION = runtimeConfig.public.appVersion;
 
 // Mermaid diagram sources. Deliberately simple — flowchart TD only,
@@ -89,6 +92,7 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
         Data Retention Policy
       </h1>
       <p class="mt-4 text-sm text-[var(--text-muted)]">
+        Last updated <strong class="text-[var(--text-secondary)]">{{ POLICY_UPDATED }}</strong> ·
         Effective <strong>{{ POLICY_EFFECTIVE }}</strong> · Applies to tool version
         <strong>{{ TOOL_VERSION }}</strong> and newer · This document is part of the open-source
         project source code and is version-controlled at
@@ -134,11 +138,10 @@ const TOOL_VERSION = runtimeConfig.public.appVersion;
         class="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto"
       >
         Your file is <strong>never</strong> sent to <strong>ChatGPT</strong>,
-        <strong>GPT-4</strong>, <strong>GPT-4o</strong>, <strong>Claude</strong>,
-        <strong>Gemini</strong>, <strong>Copilot</strong>, or any other artificial-intelligence
-        service. No machine-learning model is loaded on this server. The tool uses rule-based,
-        deterministic, open-source software exclusively. See § 4 below for the complete exclusion
-        list.
+        <strong>Claude</strong>, <strong>Gemini</strong>, <strong>Copilot</strong>, or any other
+        artificial-intelligence service — from any provider, in any version. No machine-learning
+        model is loaded on this server. The tool uses rule-based, deterministic, open-source
+        software exclusively. See § 4 below for the complete exclusion list.
       </p>
     </section>
 
