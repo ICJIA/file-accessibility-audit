@@ -55,13 +55,19 @@ export async function runVeraPdf(
   // declared part (see detectPdfUaFlavour in veraPdfBuffer.ts); default
   // stays ua1 — the remediation pipeline's outputs are UA-1 territory.
   flavour: "ua1" | "ua2" = "ua1",
+  // v1.97.0: when set, run a validation-profile FILE (-p/--profile) instead
+  // of a built-in flavour — used for the vendored WCAG 2.2 machine profile.
+  // The profileFile's label is what the verdict falls back to when veraPDF's
+  // own output names no profile.
+  profileFile?: { path: string; label: string },
 ): Promise<VeraPdfVerdict> {
   const bin = REMEDIATION.VERAPDF_PATH;
+  const fallbackLabel = profileFile ? profileFile.label : flavour;
   if (!bin) {
     return {
       available: false,
       passed: false,
-      profile: flavour,
+      profile: fallbackLabel,
       failures: [],
       totalFailureCount: 0,
       distinctRuleCount: 0,
@@ -73,7 +79,9 @@ export async function runVeraPdf(
   try {
     const result = await execFileAsync(
       bin,
-      ["--flavour", flavour, "--format", "json", pdfPath],
+      profileFile
+        ? ["--profile", profileFile.path, "--format", "json", pdfPath]
+        : ["--flavour", flavour, "--format", "json", pdfPath],
       // Bound the veraPDF JVM so a pathological tagged output can't hang the
       // remediation pipeline. A timeout surfaces as a non-zero exit handled
       // by the catch below (treated as "could not validate"), never blocking.
@@ -103,7 +111,7 @@ export async function runVeraPdf(
       return {
         available: true,
         passed: false,
-        profile: flavour,
+        profile: fallbackLabel,
         failures: [],
         totalFailureCount: 0,
         distinctRuleCount: 0,
@@ -123,7 +131,7 @@ export async function runVeraPdf(
     return {
       available: true,
       passed: false,
-      profile: flavour,
+      profile: fallbackLabel,
       failures: [],
       totalFailureCount: 0,
       distinctRuleCount: 0,
@@ -131,7 +139,7 @@ export async function runVeraPdf(
     };
   }
 
-  return extractVerdict(parsed, exitWasError, flavour);
+  return extractVerdict(parsed, exitWasError, fallbackLabel);
 }
 
 // Exported for tests — pure mapping from veraPDF's JSON output (which
@@ -140,9 +148,9 @@ export function extractVerdict(
   parsed: unknown,
   fellbackToErrorStdout: boolean,
   // RB-review near-miss (v1.94.0): fallback profile label when veraPDF's
-  // output names none — the flavour that actually RAN, never a hardcoded
-  // ua1 that would mislabel a UA-2 document's panel.
-  flavour: "ua1" | "ua2" = "ua1",
+  // output names none — the flavour (or v1.97.0 profile label) that actually
+  // RAN, never a hardcoded ua1 that would mislabel the panel.
+  flavour: string = "ua1",
 ): VeraPdfVerdict {
   // Try several known shapes — be lenient about structure.
   const root = parsed as Record<string, unknown>;

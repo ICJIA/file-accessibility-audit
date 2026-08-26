@@ -608,3 +608,16 @@ describe("report-surface wiring", () => {
     }
   });
 });
+
+describe("the law-linkage paragraph (v1.97.0, user request)", () => {
+  it("explains why the checkpoints matter to an Illinois agency, with the WCAG-not-PDF/UA precision line", async () => {
+    const w = mount(MatterhornReportPanel, { props: { result: pdfReport() } });
+    await w.find('[data-testid="matterhorn-report-toggle"]').trigger("click");
+    const p = w.find('[data-testid="matterhorn-law-linkage"]');
+    expect(p.exists()).toBe(true);
+    expect(p.text()).toContain("ADA Title II");
+    expect(p.text()).toContain("IITAA");
+    expect(p.text()).toMatch(/the law requires WCAG, not a PDF\/UA badge/);
+    expect(p.text()).toMatch(/what professional checkers like PAC actually test/);
+  });
+});

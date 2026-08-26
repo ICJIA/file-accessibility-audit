@@ -188,6 +188,14 @@
               :verapdf-url="String(config.public.verapdfUrl ?? '')"
               class="mb-6"
             />
+            <!-- v1.97.0: veraPDF's WCAG 2.2 second opinion; renders nothing
+                 when the field is absent (pre-v1.97.0 stored reports). -->
+            <WcagMachineChecks
+              v-if="data.report?.fileType === 'pdf'"
+              :verdict="data.report.wcagVerdict"
+              :verapdf-url="String(config.public.verapdfUrl ?? '')"
+              class="mb-6"
+            />
 
             <!-- The report's findings regrouped under the Matterhorn
              Protocol's 31 checkpoints (v1.93.0). Collapsed by default;

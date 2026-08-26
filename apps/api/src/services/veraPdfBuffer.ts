@@ -1,19 +1,48 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { REMEDIATION } from "#config";
 import { runVeraPdf, type VeraPdfVerdict } from "./veraPdf.js";
 
 /** The verdict returned whenever no check could be run at all. */
-function unavailable(): VeraPdfVerdict {
+function unavailable(profile = "ua1"): VeraPdfVerdict {
   return {
     available: false,
     passed: false,
-    profile: "ua1",
+    profile,
     failures: [],
     totalFailureCount: 0,
     distinctRuleCount: 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// The vendored WCAG 2.2 machine profile (v1.97.0). Resolved from THIS
+// module's location so it works identically under tsx from any cwd; the file
+// rides the repository (apps/api/resources/verapdf/, provenance in the
+// README beside it). Existence is checked once and cached — a missing file
+// degrades the WCAG check to "Did not run", never throws.
+// ---------------------------------------------------------------------------
+export const WCAG_PROFILE_LABEL = "wcag-2.2-machine";
+const WCAG_PROFILE_PATH = fileURLToPath(
+  new URL("../../resources/verapdf/WCAG-2-2-Machine.xml", import.meta.url),
+);
+// A positive answer is cached (one stat per process — the path never moves
+// at runtime); a NEGATIVE answer is re-probed on the next audit, so a file
+// restored in place self-heals without a restart, and the miss is logged
+// each probe so it cannot rot silently.
+let wcagProfileExists = false;
+function wcagProfileAvailable(): boolean {
+  if (!wcagProfileExists) {
+    wcagProfileExists = fs.existsSync(WCAG_PROFILE_PATH);
+    if (!wcagProfileExists) {
+      console.error(
+        `veraPDF WCAG profile missing at ${WCAG_PROFILE_PATH} — the WCAG machine check will report "Did not run"`,
+      );
+    }
+  }
+  return wcagProfileExists;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,25 +124,60 @@ export function detectPdfUaFlavour(buffer: Buffer): "ua1" | "ua2" {
  * costs neither a JVM nor a copy of the upload on disk.
  */
 export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict> {
-  if (!REMEDIATION.VERAPDF_PATH) return unavailable();
+  return (await runVeraPdfChecksOnBuffer(buffer, { wcag: false })).pdfUa;
+}
 
+/**
+ * Run the PDF/UA check — and, when enabled (v1.97.0), veraPDF's
+ * machine-testable WCAG 2.2 profile — against an in-memory PDF buffer.
+ *
+ * ONE temp copy serves both runs (same TMP_DIR||/tmp + UUID.pdf pattern the
+ * qpdf audit path uses and the privacy docs disclose), deleted in `finally`
+ * after both settle. Each JVM takes its own concurrency slot and the two run
+ * CONCURRENTLY; under saturation each degrades independently to
+ * available:false ("Did not run") — a queued run never holds a slot while
+ * waiting for another, so the slot pool cannot deadlock.
+ *
+ * `wcag` in the result is null when the check is disabled or veraPDF itself
+ * is not configured — callers then omit the field entirely, so reports made
+ * before the feature (or with it off) never render a false "Did not run".
+ */
+export async function runVeraPdfChecksOnBuffer(
+  buffer: Buffer,
+  opts: { wcag: boolean },
+): Promise<{ pdfUa: VeraPdfVerdict; wcag: VeraPdfVerdict | null }> {
+  const wantWcag = opts.wcag;
+  if (!REMEDIATION.VERAPDF_PATH) {
+    return { pdfUa: unavailable(), wcag: null };
+  }
+
+  const flavour = detectPdfUaFlavour(buffer);
+  const wcagRunnable = wantWcag && wcagProfileAvailable();
+  // The value the wcag field takes whenever the second pass cannot happen:
+  // an honest "Did not run" when the feature is on, or null (field omitted
+  // downstream) when it is off.
+  const wcagFallback = wantWcag ? unavailable(WCAG_PROFILE_LABEL) : null;
+
+  // The FIRST slot gates the temp write — the pre-v1.97.0 invariant, kept:
+  // an upload still queued for a slot must never have its buffer spilled to
+  // disk (veraPdfHardening.test.ts pins it). Only once a JVM slot is granted
+  // does a copy exist, and it is unlinked when the last run settles.
   if (!(await acquireSlot())) {
-    // Saturated. The check is supplementary — the report discloses "Did not
-    // run" (v1.91.0) rather than failing the audit the user asked for.
-    return unavailable();
+    // Saturated. The checks are supplementary — the report discloses "Did
+    // not run" (v1.91.0) rather than failing the audit the user asked for.
+    return { pdfUa: unavailable(), wcag: wcagFallback };
   }
 
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
-  const flavour = detectPdfUaFlavour(buffer);
   try {
     fs.writeFileSync(tmpPath, buffer);
-    return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour);
   } catch {
-    // The message here can carry the temp path (e.g. ENOENT ... '/tmp/x.pdf')
-    // and this field is serialized to the client by routes/analyze.ts and
-    // persisted into shared reports, so it must stay generic.
-    return {
+    releaseSlot();
+    // The message can carry the temp path; keep the client-visible string
+    // generic (it is serialized by routes/analyze.ts and persisted into
+    // shared reports).
+    const failed: VeraPdfVerdict = {
       available: true,
       passed: false,
       profile: flavour,
@@ -122,10 +186,63 @@ export async function runVeraPdfOnBuffer(buffer: Buffer): Promise<VeraPdfVerdict
       distinctRuleCount: 0,
       error: "veraPDF invocation failed",
     };
+    return {
+      pdfUa: failed,
+      wcag: wantWcag ? { ...failed, profile: WCAG_PROFILE_LABEL } : null,
+    };
+  }
+
+  // The UA run uses the already-granted slot; the WCAG run (concurrent)
+  // takes its own, so the two JVMs stay inside VERAPDF_MAX_CONCURRENT and a
+  // queued run never holds a slot while waiting for another — the pool
+  // cannot deadlock. Each arm releases exactly the slot it holds.
+  const uaRun = (async (): Promise<VeraPdfVerdict> => {
+    try {
+      return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour, undefined);
+    } catch {
+      return {
+        available: true,
+        passed: false,
+        profile: flavour,
+        failures: [],
+        totalFailureCount: 0,
+        distinctRuleCount: 0,
+        error: "veraPDF invocation failed",
+      };
+    } finally {
+      releaseSlot();
+    }
+  })();
+
+  const wcagRun = (async (): Promise<VeraPdfVerdict | null> => {
+    if (!wcagRunnable) return wcagFallback;
+    if (!(await acquireSlot())) return unavailable(WCAG_PROFILE_LABEL);
+    try {
+      return await runVeraPdf(tmpPath, REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS, flavour, {
+        path: WCAG_PROFILE_PATH,
+        label: WCAG_PROFILE_LABEL,
+      });
+    } catch {
+      return {
+        available: true,
+        passed: false,
+        profile: WCAG_PROFILE_LABEL,
+        failures: [],
+        totalFailureCount: 0,
+        distinctRuleCount: 0,
+        error: "veraPDF invocation failed",
+      };
+    } finally {
+      releaseSlot();
+    }
+  })();
+
+  try {
+    const [pdfUa, wcag] = await Promise.all([uaRun, wcagRun]);
+    return { pdfUa, wcag };
   } finally {
     try {
       fs.unlinkSync(tmpPath);
     } catch {}
-    releaseSlot();
   }
 }

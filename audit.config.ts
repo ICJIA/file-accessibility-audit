@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "wcag-second-opinion-2026-08-26",
+    badge: "New",
+    text: "Every PDF report now includes a WCAG second opinion. The veraPDF checker that already validates the PDF/UA standard on every PDF audit now also runs the industry's machine-testable WCAG 2.2 rules — the same subset professional checkers like PAC verify by machine, including text contrast, which this tool's score deliberately doesn't compute. It appears as its own panel on PDF reports: it can flag extra things worth fixing, it plainly says \"Did not run\" if it ever can't run, and it never changes your score or grade — every previously checked document keeps its exact result.",
+    linkText: "See what's machine-checked",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "office-theme-contrast-2026-08-26",
     badge: "Improved",
     text: "Word and Excel checking just got meaningfully deeper. Colors that come from a document's theme — which is how most Office text is actually colored — are now resolved and checked for contrast, where the checker previously stayed silent on anything not written out explicitly; the same goes for Excel's legacy color palette. Reports also now disclose what a human reviewer should look at: languages used in the document, floating objects whose reading position isn't guaranteed, merged table cells, form fields, and hidden sheets. As with the last release, every change was adversarially reviewed before shipping — ten weaknesses found that way, including a table of contents miscounted as a form control, were fixed first — and every previously checked document keeps its exact score.",
@@ -2129,6 +2142,24 @@ export const REMEDIATION = {
    * SAFE TO CHANGE: Yes.
    */
   VERAPDF_QUEUE_TIMEOUT_MS: 60_000,
+
+  /**
+   * Run veraPDF's machine-testable WCAG 2.2 validation profile alongside the
+   * PDF/UA check on every PDF audit (v1.97.0) — the analog of PAC 2024's
+   * separate WCAG module, as an independent second opinion. The profile XML
+   * is vendored at apps/api/resources/verapdf/WCAG-2-2-Machine.xml,
+   * version-matched to the installed 1.30.x engine (provenance in the README
+   * beside it). Cost: a second JVM per PDF audit, bounded by the same
+   * VERAPDF_MAX_CONCURRENT slots — under saturation the WCAG check degrades
+   * to "Did not run" before the PDF/UA check does.
+   *
+   * Reads from env: VERAPDF_WCAG_ENABLED. Set to the string "false" to turn
+   * the second check off (the report section disappears entirely — stored
+   * reports made while it was on keep their recorded verdict).
+   *
+   * SAFE TO CHANGE: Yes — it is a kill switch; scoring never depends on it.
+   */
+  VERAPDF_WCAG_ENABLED: process.env.VERAPDF_WCAG_ENABLED !== "false",
 
   /**
    * JVM max heap size for the OpenDataLoader child process.

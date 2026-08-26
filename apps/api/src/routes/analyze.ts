@@ -3,7 +3,8 @@ import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.j
 import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 import { analyzeDocument, detectFileType, detectLegacyFormat } from "../services/analyzer.js";
 import { unsupportedFormatMessage } from "@file-audit/shared";
-import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
+import { runVeraPdfChecksOnBuffer } from "../services/veraPdfBuffer.js";
+import { REMEDIATION } from "#config";
 import {
   recordAudit,
   recordAuditFailure,
@@ -48,9 +49,11 @@ router.post(
       // Detect type up front so veraPDF (PDF/UA-1) runs concurrently with the
       // analysis for PDFs only — cost is max(analyze, veraPDF), not the sum.
       const detectedType = await detectFileType(file.buffer).catch(() => null);
-      const [result, pdfUaVerdict] = await Promise.all([
+      const [result, veraChecks] = await Promise.all([
         analyzeDocument(file.buffer, filename),
-        detectedType === "pdf" ? runVeraPdfOnBuffer(file.buffer) : Promise.resolve(null),
+        detectedType === "pdf"
+          ? runVeraPdfChecksOnBuffer(file.buffer, { wcag: REMEDIATION.VERAPDF_WCAG_ENABLED })
+          : Promise.resolve(null),
       ]);
       // v1.91.0: attach the verdict for every PDF, INCLUDING available:false.
       // The old gate (`&& pdfUaVerdict.available`) silently hid the PDF/UA
@@ -58,8 +61,16 @@ router.post(
       // JVM queue) — a report that looked complete while the machine-check
       // layer was missing. The web panel now renders an explicit "did not
       // run" disclosure from available:false; absent field = non-PDF only.
-      if (pdfUaVerdict) {
-        result.pdfUaVerdict = pdfUaVerdict;
+      if (veraChecks) {
+        result.pdfUaVerdict = veraChecks.pdfUa;
+        // v1.97.0: the machine-testable WCAG 2.2 second opinion. Attached
+        // only when the feature is on (null = off/unconfigured — the key is
+        // then ABSENT, so stored reports from before the feature, or from a
+        // deployment with it disabled, render nothing rather than a false
+        // "Did not run"). Never read by the scorer — informational only.
+        if (veraChecks.wcag) {
+          result.wcagVerdict = veraChecks.wcag;
+        }
       }
 
       // Always record the audit — audit_log is the canonical "this

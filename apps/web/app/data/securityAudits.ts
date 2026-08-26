@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.97.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: a second automated check on every PDF audit — the veraPDF engine already in use, run a second time against the industry&rsquo;s machine-testable WCAG rules. No new retention: the same single temporary copy, deleted in the same request.",
+    body: [
+      {
+        kind: "p",
+        html: "PDF reports gain an independent second opinion: the veraPDF checker that already validates the PDF/UA standard now also runs the machine-testable subset of the WCAG accessibility rules &mdash; the same subset professional checkers verify by machine, including text contrast, which this tool&rsquo;s own score deliberately does not compute. The rule file it checks against ships inside this application&rsquo;s own source code (fetched once from the veraPDF project, version-matched to the installed engine, and verified against the production server before being wired in). The result appears as its own panel; it never changes a score.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Hardened",
+            html: "<strong>The new pass was reviewed as attack surface before shipping.</strong> It runs through the same guarded path as the existing check &mdash; application secrets stripped from the subprocess, a hard timeout, bounded output &mdash; and a document waiting in line is still never written to disk (an existing automated test caught the first draft weakening exactly that guarantee, and the design was fixed rather than the test). A tampered shared report stuffed with thousands of fake results displays at most twenty, saying how many were left out; the attack is replayed by an automated test.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Honesty rules carried over.</strong> A clean result reads &ldquo;No machine-detected failures&rdquo; &mdash; never &ldquo;Pass&rdquo; and never a conformance claim, because most accessibility criteria still need human judgment. If the check cannot run, the report says &ldquo;Did not run&rdquo;; reports from before this release simply don&rsquo;t show the section. An automated test pins that this second opinion can never move a score.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.96.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: this policy page itself — a full accuracy read plus presentation changes (policy v1.15). Nothing about how the service runs, what it collects, or how long anything is kept changed.",
     body: [

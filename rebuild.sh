@@ -219,6 +219,15 @@ fi
 if [ -n "$REMEDIATION_VERAPDF_PATH" ] && [ -x "$REMEDIATION_VERAPDF_PATH" ]; then
   VERAPDF_VERSION=$("$REMEDIATION_VERAPDF_PATH" --version 2>/dev/null | head -1 || echo "unknown")
   echo "✓ veraPDF found: $REMEDIATION_VERAPDF_PATH ($VERAPDF_VERSION)"
+  # v1.97.0: the WCAG second opinion needs the vendored validation profile.
+  WCAG_PROFILE="apps/api/resources/verapdf/WCAG-2-2-Machine.xml"
+  if [ -f "$WCAG_PROFILE" ]; then
+    echo "✓ veraPDF WCAG profile present: $WCAG_PROFILE"
+  else
+    echo "✗ veraPDF WCAG profile MISSING: $WCAG_PROFILE"
+    echo "  The WCAG machine-check panel will report \"Did not run\" until the"
+    echo "  file is restored (it ships in the repository — check the checkout)."
+  fi
   # Warn if the path isn't persisted in /etc/environment — PM2 won't see
   # it on a fresh server boot otherwise.
   if [ -f /etc/environment ] && ! grep -q '^REMEDIATION_VERAPDF_PATH' /etc/environment 2>/dev/null; then

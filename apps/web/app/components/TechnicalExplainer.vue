@@ -226,9 +226,10 @@
           checks <strong>in parallel</strong> — one reads the PDF's internal structure (tags,
           bookmarks, form fields), one extracts text and metadata from every page, and veraPDF
           validates the file against the PDF/UA standard — PDF/UA-1 (ISO 14289-1), or PDF/UA-2 (ISO
-          14289-2) when the document declares it — reported on the audit as its own verdict. The
-          combined output of the first two feeds a scorer that evaluates nine accessibility
-          categories and produces a weighted overall score.
+          14289-2) when the document declares it — and, since v1.97.0, against its machine-testable
+          WCAG 2.2 profile as an independent second opinion; each is reported on the audit as its
+          own panel. The combined output of the first two feeds a scorer that evaluates nine
+          accessibility categories and produces a weighted overall score.
           <strong>Word, PowerPoint, and Excel</strong> files skip that two-tool step entirely —
           they're already ZIP archives of XML, so the server unzips them with JSZip and reads the
           relevant parts with fast-xml-parser inside a dedicated, short-lived child process (no
@@ -273,7 +274,7 @@
           <DiagramFigure
             name="audit-flow"
             title="Audit pipeline — visual flow"
-            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel, and veraPDF checks PDF/UA conformance (PDF/UA-1, or PDF/UA-2 when the document declares it). A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
+            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel, and veraPDF runs two concurrent checks: PDF/UA conformance (PDF/UA-1, or PDF/UA-2 when the document declares it) and its machine-testable WCAG 2.2 profile. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
           />
         </div>
       </div>
@@ -893,7 +894,9 @@
             When the veraPDF engine is configured (it is on the production deployment), every PDF
             audit also includes a formal
             <strong>PDF/UA conformance check</strong> — against PDF/UA-1 (ISO 14289-1), or PDF/UA-2
-            (ISO 14289-2) when the document declares it — by
+            (ISO 14289-2) when the document declares it — and, since v1.97.0, a second pass against
+            veraPDF's <strong>machine-testable WCAG 2.2 profile</strong> (the subset a dedicated
+            checker like PAC verifies by machine, including PDF text contrast), by
             <a
               href="https://verapdf.org/"
               target="_blank"

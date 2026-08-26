@@ -91,6 +91,22 @@ const MAX_EVIDENCE_PER_ROW = 5;
         PAC or the Matterhorn Protocol) can see where this document stands on each checkpoint.
       </p>
       <p
+        class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
+        data-testid="matterhorn-law-linkage"
+      >
+        <strong class="text-[var(--text-secondary)]"
+          >Why these checkpoints matter to an Illinois agency:</strong
+        >
+        ADA Title II and the Illinois IITAA make <strong>WCAG</strong> the legal accessibility
+        standard for public bodies — but WCAG says <em>what</em> must be true of any content, not
+        <em>how</em> a PDF shows it internally. The Matterhorn Protocol is the PDF industry's
+        translation of those same requirements into concrete, testable form — and it is what
+        professional checkers like PAC actually test. Clearing this report's findings advances both
+        at once: the WCAG obligation the law names, and the PDF-specific checks evaluators run. (To
+        be precise, the law requires WCAG, not a PDF/UA badge — but the two overlap heavily by
+        design.)
+      </p>
+      <p
         v-if="!projection.veraPdfRan"
         class="mt-2 text-xs text-[var(--text-muted)] leading-relaxed"
         data-testid="matterhorn-vera-missing"

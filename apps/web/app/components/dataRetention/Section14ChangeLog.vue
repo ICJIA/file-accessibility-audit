@@ -6,6 +6,16 @@
     </h2>
     <ul class="space-y-2 text-sm text-[var(--text-secondary)]">
       <li>
+        <strong>v1.16 · 2026-08-26</strong> — Nothing new is collected or stored, no retention
+        period changes, and the file lifecycle is unchanged. Description update for a new processing
+        step: each PDF audit's veraPDF check now runs twice — once against the PDF/UA standard (as
+        before) and once against veraPDF's machine-testable WCAG 2.2 validation profile (a rule file
+        that ships inside this application's own source code). Both passes read the same single
+        short-lived temp copy already described in § 2, deleted in the same request; the second
+        result appears on PDF reports as its own informational panel and never affects the score. §
+        5 and § 12 describe the added pass.
+      </li>
+      <li>
         <strong>v1.15 · 2026-08-26</strong> — Presentation and wording only; nothing new is
         collected or stored, no retention period changes, and no data practice changes. The header
         now carries a "Last updated" date. § 4's AI exclusion list names providers and model

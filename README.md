@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.96.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2752%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.97.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2775%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -15,7 +15,7 @@ A web tool that **audits** PDF, Word (.docx), PowerPoint (.pptx), and Excel (.xl
 | **9** | WCAG categories audited | Each document (PDF, Word, PowerPoint, or Excel) scored across the WCAG-aligned categories that apply to its format (up to 9) — a weighted 0–100 score (A–F grade) plus a separate, binary pass/fail **WCAG 2.2 conformance verdict**. |
 | **F → A** | Auto-remediation (optional) | Tag untagged PDFs in seconds: qpdf → [OpenDataLoader](https://github.com/opendataloader-project/opendataloader-pdf) → [veraPDF](https://verapdf.org/). Output is rejected if it regresses the score. Manual review still recommended for IITAA compliance. |
 | **PDF/UA** | Standards aligned | WCAG 2.2 AA (superset of 2.1 AA), ADA Title II (in effect since April 2026), Illinois IITAA 2.1, PDF/UA-1 via veraPDF — PDF/UA-2 validated when a document declares it (v1.94.0). Full lifecycle audit trail with `fs.stat`-verified deletion events for compliance reporting. |
-| **31** | Matterhorn checkpoints disclosed | The landing page lists all 31 checkpoints of the [Matterhorn Protocol](https://pdfa.org/resource/the-matterhorn-protocol/) — the PDF Association's PDF/UA test model, the same one PAC implements — and which layer checks each: the audit engine, the [veraPDF](https://verapdf.org/) pass that runs alongside every PDF audit, or human review (47 of its 136 failure conditions are machine-uncheckable by any tool). When veraPDF cannot run, PDF reports say **"Did not run"** instead of hiding the panel (v1.91.0). |
+| **31** | Matterhorn checkpoints disclosed | The landing page lists all 31 checkpoints of the [Matterhorn Protocol](https://pdfa.org/resource/the-matterhorn-protocol/) — the PDF Association's PDF/UA test model, the same one PAC implements — and which layer checks each: the audit engine, the [veraPDF](https://verapdf.org/) passes that run alongside every PDF audit (PDF/UA conformance, plus its machine-testable WCAG 2.2 profile since v1.97.0), or human review (47 of its 136 failure conditions are machine-uncheckable by any tool). When veraPDF cannot run, PDF reports say **"Did not run"** instead of hiding the panel (v1.91.0). |
 | **0** | Files retained | Audit: in-memory only, gone in seconds. Remediation: output deleted on first download or 30-minute TTL, then verified absent. |
 | **$0** | No AI, no third-party APIs | Every step runs on your own server. No data sent to vision models, hosted AI services, or commercial PDF/Office SDKs. |
 | **100%** | Open source | Apache 2.0 / MIT / MPL toolchain. No per-document fees, no SDK licensing. Designed for state agencies that need control over their pipeline. |
@@ -799,7 +799,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,752 tests** across 176 test files (API 1500, Web 1203, CLI 49). Run all three suites with one summary:
+**2,775 tests** across 177 test files (API 1509, Web 1217, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1251,12 +1251,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.97.0 — 2026-08-26 · The WCAG second opinion: veraPDF's machine-testable WCAG 2.2 profile on every PDF audit (new subprocess input reviewed; adversarially tested)
+
+The deferred Matterhorn-audit item, built scoping-first: a read-only server probe established that veraPDF 1.30.1 has no WCAG flavour and ships no profile files, so the machine-testable WCAG 2.2 profile is vendored in-repo (byte-identical to upstream `rel/1.30` @ `bc8e773`, provenance documented, verified against the production engine before integration) and runs as a second concurrent JVM per PDF audit via `--profile`. Security posture: the pass reuses the existing secret-stripped, timeout-bounded, output-capped invocation path; the profile file is repository-static (not derived from any upload); ONE shared temp copy serves both passes with the first concurrency slot still gating the write — the pre-existing "queued uploads never spill to disk" hardening pin caught the first draft breaking that invariant, and the design was corrected rather than the test. The new panel renders word statuses only (never "Pass"/conformance — it says so itself), shows the v1.91.0 "Did not run" disclosure when the check could not run, renders nothing for the absent key (pre-v1.97.0 stored reports; the `VERAPDF_WCAG_ENABLED=false` kill switch), and bounds forged shared-report payloads to a top-20 render with visible truncation — attack-replayed with a 5,000-row flood. A failing second opinion is test-pinned to change nothing about the score, grade, or categories; calibration is byte-identical across all 32 controls. Data-retention policy v1.16 (lifecycle unchanged — stated, not assumed). Tests 2,752 → 2,775. Both Matterhorn surfaces also gained the plain-language law linkage (ADA Title II + IITAA → WCAG → Matterhorn), with the "the law requires WCAG, not a PDF/UA badge" precision line test-pinned on both.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.96.0 → v1.33.0) — click to expand</summary>
+
 ### v1.96.0 — 2026-08-26 · The data-retention policy verified and reshaped (presentation and wording; policy v1.15; no data-practice change)
 
 The policy page got the full-read verification the other explanation surfaces received, plus three user-requested usability changes. Content verdict: accurate — §§ 1–3, 5–9, 11–15 checked out (the PDF/UA fixes had shipped in v1.95.1); § 13's glossary gained a PDF/UA-2 note. The reshaping: a "Last updated" date leads the header, test-pinned to § 14's newest entry so it cannot drift; § 4's AI exclusion list now names providers and model families without version numbers (the rationale stated in the policy itself — versions churn too fast to chase, and the retired "Bard"/"PaLM" names were the proof), covering every past and future version; § 7's 13-row retention wall became three color-banded tables (document / application records / adjacent systems) with scannable retention chips and every fact string verbatim — the overclaim-guard and row-content pins all pass unchanged; § 10 collapses 148 earlier reviews into one native details fold with the newest expanded, every entry still in the DOM and still counted by its test. Reviewed as change surface: no new route, no request, nothing new collected or stored, no retention period moved — the § 10 card markup moved into a child component that receives only compiled repo data, keeping the v-html safety argument intact and test-pinned. Tests 2,751 → 2,752.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.95.2 → v1.33.0) — click to expand</summary>
 
 ### v1.95.2 — 2026-08-26 · The standalone technical-details page corrected (copy only; the second, separately-authored explanation surface)
 

@@ -98,7 +98,7 @@ describe("POST /api/analyze records analyze-failed", () => {
       detectLegacyFormat: vi.fn(() => null),
     }));
     vi.doMock("../services/veraPdfBuffer.js", () => ({
-      runVeraPdfOnBuffer: vi.fn(async () => null),
+      runVeraPdfChecksOnBuffer: vi.fn(async () => ({ pdfUa: null, wcag: null })),
     }));
     const { default: router } = await import("../routes/analyze.js");
     return { handler: extractHandler(router, "/analyze"), ...m };

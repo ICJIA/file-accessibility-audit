@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.97.0] - 2026-08-26
+
+### Added
+
+- **WCAG machine checks — a veraPDF second opinion on every PDF audit.** The deferred item from the 2026-08-25 Matterhorn audit, built after a server-side probe settled the scoping: the installed veraPDF 1.30.1 has no built-in WCAG flavour and ships no profile files, so the **machine-testable WCAG 2.2 validation profile** (107 rules — the human-judgment WCAG conditions are deliberately absent) is now **vendored in-repo** (`apps/api/resources/verapdf/WCAG-2-2-Machine.xml`, byte-identical to upstream `rel/1.30` @ `bc8e773`, provenance README beside it, verified against the production engine before a line of integration code was written) and runs via `--profile` as a second concurrent JVM pass per PDF audit — the analog of PAC 2024's separate WCAG module. Its rules include **PDF text contrast**, which the score itself deliberately does not compute.
+- **A new report panel on all three audit surfaces** (`WcagMachineChecks.vue`; the remediation page deliberately excluded): word statuses only — *No machine-detected failures* (never "Pass", never a conformance claim — the panel says so itself), a flagged rule list behind a toggle (SC-shaped clauses labeled "WCAG 1.4.3", ISO clauses "Clause 7.1"), the v1.91.0 *Did not run* disclosure when the check could not run, and **nothing at all when the field is absent** — stored reports from before this release, and deployments with the `VERAPDF_WCAG_ENABLED=false` kill switch, never render a false "Did not run" (the census-generation discipline).
+- **Plumbing with the old invariants kept:** one shared temp copy serves both veraPDF passes (same lifecycle §2 of the data-retention policy already describes — the pass count changed, the file count did not); each JVM takes its own concurrency slot with the **first slot still gating the temp write** (a queued upload never spills to disk — the pre-existing hardening pin caught my first draft breaking this, and the design was corrected rather than the test); under saturation the WCAG pass degrades to "Did not run" before the PDF/UA pass does. `rebuild.sh` probes the vendored profile on every deploy.
+
+### Security
+
+- Reviewed as new attack surface: the second pass runs the same secret-stripped, timeout-bounded, output-capped invocation path as the first; the vendored profile is repo-static; and the panel bounds a **forged shared-report payload** to its top-20 render with visible truncation (attack-replayed with a 5,000-row flood test). A failing WCAG second opinion is pinned by test to change nothing about the score, grade, or categories.
+
+### Notes
+
+- Calibration: byte-identical to v1.95.0 across all 32 controls (the analyzer is untouched — the second opinion is API-side and informational).
+- **The law linkage, spelled out** (user request): both the landing-page Matterhorn checklist and the per-report Matterhorn panel now answer the question an Illinois agency reader actually has — *WCAG and IITAA are the law, so what is Matterhorn and why care?* The chain is drawn in plain language (ADA Title II + IITAA → require WCAG 2.1 AA → tested inside PDFs via Matterhorn's 31 checkpoints → shown in your report), with the load-bearing precision line test-pinned on both surfaces: the law requires WCAG, not a PDF/UA badge — the block can never imply otherwise.
+- Data-retention policy → **v1.16** (§ 2 lifecycle unchanged and stated so; § 5/§ 12/§ 14 describe the added pass). Tests: API 1,509 · web 1,217 · CLI 49 (**2,775**).
+
+<details>
+<summary><strong>v1.96.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.96.0] - 2026-08-26
 
 ### Changed
@@ -15,9 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
   - **§ 10 collapses 148 earlier reviews into one native `<details>` fold** with the most recent review expanded — the changelog's own pattern. Every entry stays in the DOM (`securityAudits.test.ts` still counts all 149 articles); the card markup moved to `Section10AuditEntry.vue` so the two render sites share one template.
   - Verification findings were minor: § 13's glossary now notes the PDF/UA-2 successor standard, and §§ 1–3, 5–9, 11–15 checked out accurate (the § 2/§ 5/§ 12 PDF/UA fixes shipped in v1.95.1).
 - Tests: web 1,202 → 1,203 (**2,752**).
-
-<details>
-<summary><strong>v1.95.2 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.95.2] - 2026-08-26
 

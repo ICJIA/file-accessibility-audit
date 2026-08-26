@@ -65,6 +65,11 @@ export interface AnalysisResult extends ScoringResult {
    *  routes/analyze.ts even when veraPDF did not run (available:false, since
    *  v1.91.0) so the report can disclose the gap; absent on non-PDF results. */
   pdfUaVerdict?: PdfUaVerdict;
+  /** veraPDF's machine-testable WCAG 2.2 second opinion (v1.97.0), attached
+   *  by routes/analyze.ts. Absent on non-PDF results, on results predating
+   *  the feature, and when VERAPDF_WCAG_ENABLED=false (an absent key renders
+   *  nothing — never a false "Did not run"). Never read by the scorer. */
+  wcagVerdict?: PdfUaVerdict;
 }
 
 /**

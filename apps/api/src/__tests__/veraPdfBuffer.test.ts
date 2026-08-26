@@ -4,11 +4,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // variable a factory references must itself be declared via vi.hoisted() —
 // same idiom already used in qpdfSpawnEnv.test.ts / ooxmlWorker.test.ts /
 // remediate-spawn-env.test.ts. Assertions below are unchanged.
-const { writeFileSync, unlinkSync } = vi.hoisted(() => ({
+const { writeFileSync, unlinkSync, existsSync } = vi.hoisted(() => ({
   writeFileSync: vi.fn(),
   unlinkSync: vi.fn(),
+  // v1.97.0: the WCAG profile existence probe. Default true so the wcag path
+  // is exercisable; individual tests flip it to prove the missing-file
+  // degradation.
+  existsSync: vi.fn(() => true),
 }));
-vi.mock("node:fs", () => ({ default: { writeFileSync, unlinkSync } }));
+vi.mock("node:fs", () => ({ default: { writeFileSync, unlinkSync, existsSync } }));
 
 const { runVeraPdf } = vi.hoisted(() => ({ runVeraPdf: vi.fn() }));
 vi.mock("../services/veraPdf.js", () => ({ runVeraPdf }));
@@ -29,7 +33,7 @@ const { cfg } = vi.hoisted(() => ({
 }));
 vi.mock("#config", () => cfg);
 
-import { runVeraPdfOnBuffer } from "../services/veraPdfBuffer.js";
+import { runVeraPdfOnBuffer, runVeraPdfChecksOnBuffer } from "../services/veraPdfBuffer.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,10 +63,13 @@ describe("runVeraPdfOnBuffer", () => {
     expect(tmpPath).toMatch(/\.pdf$/);
     // v1.94.0: the third argument is the detected PDF/UA flavour — "ua1" for
     // this plain buffer (detectPdfUaFlavour has its own tests).
+    // v1.94.0: third argument is the detected flavour; v1.97.0: fourth is
+    // the profile FILE — undefined for the PDF/UA run (built-in flavour).
     expect(runVeraPdf).toHaveBeenCalledWith(
       tmpPath,
       cfg.REMEDIATION.VERAPDF_AUDIT_TIMEOUT_MS,
       "ua1",
+      undefined,
     );
     expect(unlinkSync).toHaveBeenCalledWith(tmpPath);
     expect(verdict.passed).toBe(false);
@@ -76,5 +83,72 @@ describe("runVeraPdfOnBuffer", () => {
     expect(verdict.available).toBe(true);
     expect(verdict.passed).toBe(false);
     expect(verdict.error).toBeTruthy();
+  });
+});
+
+describe("runVeraPdfChecksOnBuffer (v1.97.0 — the WCAG second opinion)", () => {
+  it("wcag:false returns wcag null and runs exactly one veraPDF pass", async () => {
+    runVeraPdf.mockResolvedValue({
+      available: true,
+      passed: true,
+      profile: "ua1",
+      failures: [],
+      totalFailureCount: 0,
+    });
+    const r = await runVeraPdfChecksOnBuffer(Buffer.from("%PDF-1.4"), { wcag: false });
+    expect(r.wcag).toBeNull();
+    expect(runVeraPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it("wcag:true runs BOTH passes against the SAME temp copy, writing it once and unlinking it once", async () => {
+    runVeraPdf.mockResolvedValue({
+      available: true,
+      passed: true,
+      profile: "x",
+      failures: [],
+      totalFailureCount: 0,
+    });
+    const r = await runVeraPdfChecksOnBuffer(Buffer.from("%PDF-1.4"), { wcag: true });
+    expect(writeFileSync).toHaveBeenCalledTimes(1);
+    expect(unlinkSync).toHaveBeenCalledTimes(1);
+    expect(runVeraPdf).toHaveBeenCalledTimes(2);
+    const paths = runVeraPdf.mock.calls.map((c) => c[0]);
+    expect(paths[0]).toBe(paths[1]);
+    // The WCAG pass carries the vendored profile file; the UA pass does not.
+    const profileArgs = runVeraPdf.mock.calls.map((c) => c[3]);
+    const wcagCall = profileArgs.find(Boolean) as { path: string; label: string };
+    expect(wcagCall.path).toMatch(/WCAG-2-2-Machine\.xml$/);
+    expect(wcagCall.label).toBe("wcag-2.2-machine");
+    expect(profileArgs.filter((a) => a === undefined)).toHaveLength(1);
+    expect(r.wcag).not.toBeNull();
+  });
+
+  it("degrades the WCAG check to an honest available:false when the vendored profile is missing — the UA check still runs", async () => {
+    // The positive probe result is cached module-level (one stat per
+    // process), so get a FRESH module instance for the missing-file world.
+    vi.resetModules();
+    existsSync.mockReturnValue(false);
+    const fresh = await import("../services/veraPdfBuffer.js");
+    runVeraPdf.mockResolvedValue({
+      available: true,
+      passed: true,
+      profile: "ua1",
+      failures: [],
+      totalFailureCount: 0,
+    });
+    const r = await fresh.runVeraPdfChecksOnBuffer(Buffer.from("%PDF-1.4"), { wcag: true });
+    expect(r.pdfUa.available).toBe(true);
+    expect(r.wcag).toEqual(
+      expect.objectContaining({ available: false, profile: "wcag-2.2-machine" }),
+    );
+    expect(runVeraPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it("engine unconfigured: pdfUa unavailable, wcag null — no temp file at all", async () => {
+    cfg.REMEDIATION.VERAPDF_PATH = null;
+    const r = await runVeraPdfChecksOnBuffer(Buffer.from("%PDF-1.4"), { wcag: true });
+    expect(r.pdfUa.available).toBe(false);
+    expect(r.wcag).toBeNull();
+    expect(writeFileSync).not.toHaveBeenCalled();
   });
 });

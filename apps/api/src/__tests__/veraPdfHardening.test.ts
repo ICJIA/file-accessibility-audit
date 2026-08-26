@@ -178,3 +178,42 @@ describe("veraPDF error text is safe to return to a client", () => {
     expect(verdict.error).not.toContain("Command failed");
   });
 });
+
+describe("v1.97.0 — profile-file invocation (the WCAG second opinion's plumbing)", () => {
+  it("passes --profile <path> instead of --flavour, and labels the verdict from the profile when output names none", async () => {
+    execFileMock.mockImplementation((_bin, _args, _opts, cb) => {
+      cb(
+        null,
+        JSON.stringify({
+          report: { jobs: [{ validationResult: { compliant: false, details: { rules: [] } } }] },
+        }),
+        "",
+      );
+    });
+    const v = await runVeraPdf("/tmp/x.pdf", 1_000, "ua1", {
+      path: "/repo/resources/verapdf/WCAG-2-2-Machine.xml",
+      label: "wcag-2.2-machine",
+    });
+    const args = execFileMock.mock.calls[0][1] as string[];
+    expect(args).toEqual([
+      "--profile",
+      "/repo/resources/verapdf/WCAG-2-2-Machine.xml",
+      "--format",
+      "json",
+      "/tmp/x.pdf",
+    ]);
+    // No profileName in the output → the label of the profile that RAN, never
+    // a hardcoded ua1 that would mislabel the WCAG panel (the v1.94.0 rule).
+    expect(v.profile).toBe("wcag-2.2-machine");
+    expect(v.passed).toBe(false);
+  });
+
+  it("without a profile file the flavour args are unchanged (the pre-v1.97.0 contract)", async () => {
+    execFileMock.mockImplementation((_bin, _args, _opts, cb) => {
+      cb(null, JSON.stringify({ report: { jobs: [] } }), "");
+    });
+    await runVeraPdf("/tmp/x.pdf", 1_000, "ua2");
+    const args = execFileMock.mock.calls[0][1] as string[];
+    expect(args).toEqual(["--flavour", "ua2", "--format", "json", "/tmp/x.pdf"]);
+  });
+});

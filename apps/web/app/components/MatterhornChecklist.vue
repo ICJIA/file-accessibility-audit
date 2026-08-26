@@ -128,6 +128,80 @@ const coverageCount = computed(() => {
           plain terms.
         </p>
 
+        <!-- v1.97.0 (user request): THE linkage a non-technical Illinois
+             agency reader needs before anything else on this list makes
+             sense — WCAG and IITAA are the law they already know; Matterhorn
+             is how those legal requirements get tested inside a PDF. The
+             honesty line at the end is load-bearing: the law names WCAG, not
+             PDF/UA, and this block must never imply otherwise
+             (matterhornChecklist.test.ts pins it). -->
+        <div
+          class="mt-6 rounded-xl border border-[var(--accent-green)]/30 bg-[var(--surface-card)] p-4 sm:p-6"
+          data-testid="matterhorn-law-linkage"
+        >
+          <h3 class="text-sm font-semibold text-[var(--text-heading)] mb-2">
+            WCAG and IITAA are the law — so where does Matterhorn fit?
+          </h3>
+          <div
+            class="space-y-2.5 text-xs sm:text-[13px] text-[var(--text-secondary)] leading-relaxed max-w-3xl"
+          >
+            <p>
+              <strong>The legal chain, in one breath:</strong> ADA Title II (federal, in effect
+              since April 2026) and Illinois' IITAA 2.1 make digital accessibility a legal
+              obligation for public bodies like ICJIA — and both name
+              <strong>WCAG 2.1 AA</strong> as the standard to meet. (This tool audits against WCAG
+              2.2 AA, a superset of that legal minimum.)
+            </p>
+            <p>
+              <strong>But WCAG was written mainly for web pages.</strong> It says <em>what</em> must
+              be true of any content — text alternatives for images, a correct reading order, real
+              headings, sufficient contrast — not <em>how</em> those requirements look inside a PDF,
+              whose internals are nothing like a web page's.
+            </p>
+            <p>
+              <strong>Matterhorn is the PDF world's translation.</strong> PDF/UA (ISO 14289) is the
+              technical standard for an accessible PDF, and the Matterhorn Protocol is its published
+              test model: the {{ facts.checkpoints }} checkpoints below are the concrete, checkable
+              form those same WCAG-style requirements take inside a PDF file.
+            </p>
+            <p>
+              <strong>Why you should care:</strong> when your PDF is evaluated — by an auditor, a
+              records officer, a remediation vendor, or the professional checkers agencies use (PAC,
+              Acrobat, veraPDF) — these checkpoints are what those tools test. Fixing your report's
+              findings moves both needles at once: the WCAG/IITAA obligation the law names, and the
+              PDF-specific checks evaluators actually run.
+            </p>
+            <p class="text-[var(--text-muted)]">
+              To be precise: the law requires WCAG — a PDF does not need a PDF/UA badge to be
+              lawful. But the two overlap heavily by design, and Matterhorn is how PDF accessibility
+              gets tested in practice.
+            </p>
+          </div>
+          <!-- The chain, drawn: colors follow the section's coverage legend
+               (neutral = external requirement, emerald = this tool's work). -->
+          <p class="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]" aria-hidden="true">
+            <span
+              class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[var(--text-muted)]"
+              >ADA Title II + IITAA</span
+            >
+            <span class="text-[var(--text-muted)]">→ require →</span>
+            <span
+              class="rounded-full border border-[var(--border)] px-2 py-0.5 text-[var(--text-muted)]"
+              >WCAG 2.1 AA</span
+            >
+            <span class="text-[var(--text-muted)]">→ tested in PDFs via →</span>
+            <span
+              class="rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-sky-300"
+              >Matterhorn's 31 checkpoints</span
+            >
+            <span class="text-[var(--text-muted)]">→ shown in →</span>
+            <span
+              class="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-300"
+              >your report</span
+            >
+          </p>
+        </div>
+
         <!-- The three questions non-technical visitors actually ask, answered
          before any jargon is used. -->
         <div class="mt-6 grid gap-4 sm:grid-cols-3">
@@ -172,9 +246,10 @@ const coverageCount = computed(() => {
                 >veraPDF</a
               >
               is an independent second opinion, and it runs automatically alongside our own audit
-              engine on every PDF you check here. You don't install or run anything: its result
-              simply appears in your report. And if it ever cannot run, your report says
-              <em>"Did not run"</em> rather than staying silent.
+              engine on every PDF you check here — once against the PDF/UA standard, and once
+              against its machine-testable WCAG&nbsp;2.2 rules (v1.97.0). You don't install or run
+              anything: both results simply appear in your report. And if a check ever cannot run,
+              your report says <em>"Did not run"</em> rather than staying silent.
             </p>
           </div>
           <div class="rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-5">

@@ -253,3 +253,28 @@ describe("landing page wiring", () => {
     expect(checklistAt).toBeLessThan(tilesAt);
   });
 });
+
+describe("MatterhornChecklist.vue — the law linkage (v1.97.0, user request)", () => {
+  // The block exists to answer "WCAG and IITAA are the law — why should I
+  // care about Matterhorn?" for a non-technical Illinois agency reader. Its
+  // honesty line is load-bearing: the LAW names WCAG, not PDF/UA, and the
+  // block must never imply a PDF/UA badge is legally required.
+  it("names the whole chain: ADA Title II, IITAA, WCAG 2.1 AA, and Matterhorn as the PDF-side test model", () => {
+    const text = mount(MatterhornChecklist).text();
+    expect(text).toContain("WCAG and IITAA are the law");
+    expect(text).toContain("ADA Title II");
+    expect(text).toContain("IITAA 2.1");
+    expect(text).toContain("WCAG 2.1 AA");
+    expect(text).toMatch(/WCAG\s*2\.2 AA, a superset/);
+    expect(text).toMatch(/Matterhorn is the PDF world's translation/);
+    expect(text).toMatch(/PAC, Acrobat, veraPDF/);
+  });
+
+  it("carries the load-bearing precision line and never claims PDF/UA is legally required", () => {
+    const text = mount(MatterhornChecklist).text();
+    expect(text).toMatch(/the law requires WCAG/i);
+    expect(text).toMatch(/does not need a PDF\/UA badge to be lawful/);
+    expect(text).not.toMatch(/law requires PDF\/UA/i);
+    expect(text).not.toMatch(/PDF\/UA is (legally )?required/i);
+  });
+});

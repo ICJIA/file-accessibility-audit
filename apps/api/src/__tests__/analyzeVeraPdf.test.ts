@@ -54,8 +54,8 @@ const { analyzeDocument, detectFileType } = vi.hoisted(() => ({
   detectFileType: vi.fn(),
 }));
 vi.mock("../services/analyzer.js", () => ({ analyzeDocument, detectFileType }));
-const { runVeraPdfOnBuffer } = vi.hoisted(() => ({ runVeraPdfOnBuffer: vi.fn() }));
-vi.mock("../services/veraPdfBuffer.js", () => ({ runVeraPdfOnBuffer }));
+const { runVeraPdfChecksOnBuffer } = vi.hoisted(() => ({ runVeraPdfChecksOnBuffer: vi.fn() }));
+vi.mock("../services/veraPdfBuffer.js", () => ({ runVeraPdfChecksOnBuffer }));
 
 import analyzeRouter from "../routes/analyze.js";
 const handler = extractHandler(analyzeRouter, "/analyze");
@@ -74,12 +74,15 @@ beforeEach(() => {
 describe("/analyze attaches pdfUaVerdict", () => {
   it("attaches the verdict for a PDF when veraPDF is available", async () => {
     detectFileType.mockResolvedValue("pdf");
-    runVeraPdfOnBuffer.mockResolvedValue({
-      available: true,
-      passed: false,
-      profile: "ua1",
-      failures: [{ ruleId: "7.1-1", clause: "7.1", description: "x", count: 1 }],
-      totalFailureCount: 1,
+    runVeraPdfChecksOnBuffer.mockResolvedValue({
+      pdfUa: {
+        available: true,
+        passed: false,
+        profile: "ua1",
+        failures: [{ ruleId: "7.1-1", clause: "7.1", description: "x", count: 1 }],
+        totalFailureCount: 1,
+      },
+      wcag: null,
     });
     const res = makeRes();
     await handler(
@@ -93,12 +96,15 @@ describe("/analyze attaches pdfUaVerdict", () => {
 
   it("attaches available:false when veraPDF did not run, so the report can disclose the gap (v1.91.0)", async () => {
     detectFileType.mockResolvedValue("pdf");
-    runVeraPdfOnBuffer.mockResolvedValue({
-      available: false,
-      passed: false,
-      profile: "ua1",
-      failures: [],
-      totalFailureCount: 0,
+    runVeraPdfChecksOnBuffer.mockResolvedValue({
+      pdfUa: {
+        available: false,
+        passed: false,
+        profile: "ua1",
+        failures: [],
+        totalFailureCount: 0,
+      },
+      wcag: null,
     });
     const res = makeRes();
     await handler(
@@ -122,7 +128,74 @@ describe("/analyze attaches pdfUaVerdict", () => {
     });
     const res = makeRes();
     await handler(makeReq({ file: { buffer: Buffer.from("PK"), originalname: "a.docx" } }), res);
-    expect(runVeraPdfOnBuffer).not.toHaveBeenCalled();
+    expect(runVeraPdfChecksOnBuffer).not.toHaveBeenCalled();
     expect(res._json.pdfUaVerdict).toBeUndefined();
+  });
+});
+
+describe("/analyze attaches wcagVerdict (v1.97.0)", () => {
+  const uaOk = {
+    available: true,
+    passed: true,
+    profile: "ua1",
+    failures: [],
+    totalFailureCount: 0,
+  };
+
+  it("attaches the WCAG second opinion when the check ran", async () => {
+    detectFileType.mockResolvedValue("pdf");
+    runVeraPdfChecksOnBuffer.mockResolvedValue({
+      pdfUa: uaOk,
+      wcag: {
+        available: true,
+        passed: false,
+        profile: "wcag-2.2-machine",
+        failures: [{ ruleId: "1.4.3-1", clause: "1.4.3", description: "contrast", count: 3 }],
+        totalFailureCount: 3,
+      },
+    });
+    const res = makeRes();
+    await handler(
+      makeReq({ file: { buffer: Buffer.from("%PDF-1.4"), originalname: "a.pdf" } }),
+      res,
+    );
+    expect(res._json.wcagVerdict).toEqual(
+      expect.objectContaining({ available: true, profile: "wcag-2.2-machine" }),
+    );
+  });
+
+  it("OMITS the field entirely when the check is off (wcag null) — never a false 'Did not run'", async () => {
+    detectFileType.mockResolvedValue("pdf");
+    runVeraPdfChecksOnBuffer.mockResolvedValue({ pdfUa: uaOk, wcag: null });
+    const res = makeRes();
+    await handler(
+      makeReq({ file: { buffer: Buffer.from("%PDF-1.4"), originalname: "a.pdf" } }),
+      res,
+    );
+    expect("wcagVerdict" in res._json).toBe(false);
+  });
+
+  it("a failing WCAG second opinion changes NOTHING about the score, grade, or categories", async () => {
+    detectFileType.mockResolvedValue("pdf");
+    runVeraPdfChecksOnBuffer.mockResolvedValue({
+      pdfUa: uaOk,
+      wcag: {
+        available: true,
+        passed: false,
+        profile: "wcag-2.2-machine",
+        failures: [{ ruleId: "1.4.3-1", clause: "1.4.3", description: "contrast", count: 999 }],
+        totalFailureCount: 999,
+      },
+    });
+    const res = makeRes();
+    await handler(
+      makeReq({ file: { buffer: Buffer.from("%PDF-1.4"), originalname: "a.pdf" } }),
+      res,
+    );
+    // The analyzer's own output rides through untouched — the second opinion
+    // is informational only, pinned here so it can never leak into scoring.
+    expect(res._json.overallScore).toBe(80);
+    expect(res._json.grade).toBe("B");
+    expect(res._json.categories).toEqual([]);
   });
 });

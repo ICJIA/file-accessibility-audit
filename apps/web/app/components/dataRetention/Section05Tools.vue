@@ -114,7 +114,9 @@
             <td class="py-3 pr-4 text-xs">
               PDF/UA conformance validation — PDF/UA-1 (ISO 14289-1), or PDF/UA-2 (ISO 14289-2) when
               a document declares it (every PDF audit since v1.37.0, plus the remediation pipeline;
-              optional)
+              optional) — and, since v1.97.0, a second pass per PDF audit against its
+              machine-testable WCAG 2.2 validation profile (a repository-vendored rule file; same
+              engine, same temp-copy lifecycle)
             </td>
             <td class="py-3 pr-4 text-xs">MPL 2.0</td>
             <td class="py-3 text-xs">

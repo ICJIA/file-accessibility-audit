@@ -43,7 +43,7 @@ useHead({
   ],
 });
 
-const POLICY_VERSION = "1.15";
+const POLICY_VERSION = "1.16";
 const POLICY_EFFECTIVE = "2026-08-09";
 // Must equal the date on § 14's newest entry — dataRetentionVersion.test.ts
 // holds both this and POLICY_VERSION to that entry.

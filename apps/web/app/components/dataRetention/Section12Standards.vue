@@ -29,7 +29,8 @@
       </li>
       <li>
         <strong>PDF/UA (ISO 14289)</strong> — every PDF audit runs veraPDF against PDF/UA-1 (ISO
-        14289-1), or PDF/UA-2 (ISO 14289-2) when the document declares it, and the remediation
+        14289-1), or PDF/UA-2 (ISO 14289-2) when the document declares it — plus, since v1.97.0, a
+        second pass against veraPDF's machine-testable WCAG 2.2 profile —, and the remediation
         pipeline validates its output against PDF/UA-1. veraPDF's verdict is surfaced honestly on
         the result page; manual review is acknowledged as still required for full accessibility.
       </li>

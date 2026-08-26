@@ -245,4 +245,13 @@ export interface AnalysisResult {
    *  so reports can disclose the gap instead of hiding the panel; absent only
    *  on non-PDF results and on stored reports from before v1.91.0. */
   pdfUaVerdict?: PdfUaVerdict;
+  /** veraPDF's machine-testable WCAG 2.2 second opinion (v1.97.0) — the
+   *  analog of PAC 2024's separate WCAG module, run as a validation-profile
+   *  pass alongside the PDF/UA check. PDF results only, and only when the
+   *  feature is enabled: absent on non-PDF results, on stored reports from
+   *  before v1.97.0, and on deployments with VERAPDF_WCAG_ENABLED=false —
+   *  the panel renders NOTHING for an absent key (never a false "Did not
+   *  run"). available:false = the feature was on but the check could not
+   *  run. Never read by the scorer. */
+  wcagVerdict?: PdfUaVerdict;
 }

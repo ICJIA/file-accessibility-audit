@@ -166,6 +166,16 @@
         :verapdf-url="verapdfUrl || ''"
         class="my-6"
       />
+      <!-- v1.97.0: veraPDF's machine-testable WCAG 2.2 second opinion.
+           Renders NOTHING when the field is absent (pre-v1.97.0 stored
+           reports, feature off) — an absent key must never become a false
+           "Did not run". -->
+      <WcagMachineChecks
+        v-if="result.fileType === 'pdf'"
+        :verdict="result.wcagVerdict"
+        :verapdf-url="verapdfUrl || ''"
+        class="my-6"
+      />
 
       <MethodologyCard :file-type="result.fileType" />
     </div>
