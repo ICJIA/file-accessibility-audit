@@ -33,6 +33,9 @@ import {
   contrastRatio,
   readCapped as ooxmlReadCapped,
   assertZipWithinLimits,
+  buildSchemeColorMap,
+  WORD_THEME_COLOR_MAP,
+  applyWordTintShade,
 } from "./ooxml.js";
 
 export interface DocxMetadata {
@@ -62,6 +65,9 @@ export interface DocxAnalysis {
     /** No table style, borders, shading, or header semantics anywhere —
      *  overwhelmingly a layout grid; the gate must not assert 1.3.1 on it. */
     looksLikeLayout?: boolean;
+    /** Cells merged horizontally (gridSpan > 1) or vertically (vMerge) —
+     *  Microsoft's own checker flags merged/split cells (v1.95.0). */
+    mergedCellCount?: number;
   }>;
   /** Hyperlinks with display text and resolved target (null if unresolved). */
   links: Array<{ text: string; url: string | null }>;
@@ -85,6 +91,25 @@ export interface DocxAnalysis {
     }>;
   };
   paragraphCount: number;
+  // -------------------------------------------------------------------------
+  // v1.95.0 Office-pass censuses. Optional so hand-built scorer fixtures stay
+  // terse; the extractor always populates them.
+  // -------------------------------------------------------------------------
+  /** Distinct run-level languages (primary subtags) that differ from the
+   *  document default — the 3.1.2 evidence the PDF gate already surfaces.
+   *  Capped at 8. */
+  runLanguages?: string[];
+  /** Floating (anchored) drawings — content whose reading position is not
+   *  the text flow (wp:anchor, vs wp:inline). */
+  floatingObjectCount?: number;
+  /** Modern content controls (w:sdt) in the body. */
+  contentControlCount?: number;
+  /** Legacy form fields (FORMTEXT / FORMCHECKBOX / FORMDROPDOWN). */
+  legacyFieldCount?: number;
+  /** Runs of 3+ consecutive empty paragraphs (spacing-by-blank-lines). */
+  emptyParagraphRunCount?: number;
+  /** Table rows whose every cell is empty (spacing rows). */
+  emptyTableRowCount?: number;
   /** Per-part parse outcomes, so the conformance gate can distinguish "the
    *  part said X" from "the part could not be read" (no false confirmed
    *  claims from unread parts, no false clean verdicts from unparsed ones). */
@@ -330,10 +355,22 @@ function extractTables(body: PONode): DocxAnalysis["tables"] {
     let hasHeaderRow = false;
     let anyTblHeaderMark = false;
     let hasNestedTable = false;
+    let mergedCellCount = 0;
     for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
       const row = rows[rowIdx];
       const cells = childrenOf(row).filter((c) => tagOf(c) === "tc");
       cellCols = Math.max(cellCols, cells.length);
+      // Merged cells (v1.95.0): gridSpan > 1 spans columns; a vMerge child
+      // (with or without val="restart") marks vertical merging. Advisory
+      // downstream — Microsoft's checker flags them; placement decides harm.
+      for (const tc of cells) {
+        const tcPr = firstChild(tc, "tcPr");
+        if (!tcPr) continue;
+        const gridSpan = firstChild(tcPr, "gridSpan");
+        const spanVal = gridSpan ? Number(attrOf(gridSpan, "val")) : NaN;
+        if (Number.isFinite(spanVal) && spanVal > 1) mergedCellCount++;
+        else if (firstChild(tcPr, "vMerge")) mergedCellCount++;
+      }
       const trPr = firstChild(row, "trPr");
       const tblHeader = trPr ? firstChild(trPr, "tblHeader") : undefined;
       if (tblHeader) {
@@ -359,8 +396,26 @@ function extractTables(body: PONode): DocxAnalysis["tables"] {
       colCount: Math.max(cellCols, gridCols),
       hasNestedTable,
       looksLikeLayout,
+      mergedCellCount,
     };
   });
+}
+
+/** Table rows whose every cell has no text — blank rows used as spacing,
+ *  which a screen reader announces as empty rows to sit through (v1.95.0). */
+function countEmptyTableRows(body: PONode): number {
+  let empty = 0;
+  for (const tbl of topLevelTables(body)) {
+    for (const row of childrenOf(tbl).filter((c) => tagOf(c) === "tr")) {
+      const cells = childrenOf(row).filter((c) => tagOf(c) === "tc");
+      // A cell holding only an image (logo/signature rows) is content, not
+      // spacing — same exclusion the blank-paragraph census applies.
+      const isEmptyCell = (tc: PONode): boolean =>
+        textOf(tc).trim() === "" && descendants(tc, "drawing").length === 0;
+      if (cells.length > 0 && cells.every(isEmptyCell)) empty++;
+    }
+  }
+  return empty;
 }
 
 const HYPERLINK_INSTR_RE = /HYPERLINK\s+"([^"]+)"/i;
@@ -462,11 +517,35 @@ function extractLists(paragraphs: PONode[], styleInfo: StyleInfo): DocxAnalysis[
 const LARGE_HALF_PT = 36; // ≥18pt
 const LARGE_BOLD_HALF_PT = 28; // ≥14pt bold
 
-/** Background fill of a run/paragraph properties node, if an explicit color. */
-function shdFill(propsNode: PONode | undefined): string | null {
+/** Resolve a Word theme-color reference (themeColor + optional themeTint/
+ *  themeShade attrs) against the pre-built scheme map. Null when the name is
+ *  unknown or the theme lacks the slot — the caller then treats the run as
+ *  unresolved, exactly like before v1.95.0. */
+function resolveWordThemeColor(
+  node: PONode,
+  schemeMap: Map<string, string>,
+  colorAttr: string,
+  tintAttr: string,
+  shadeAttr: string,
+): string | null {
+  const themeName = attrOf(node, colorAttr);
+  if (!themeName) return null;
+  const slot = WORD_THEME_COLOR_MAP[themeName];
+  if (!slot) return null;
+  const base = schemeMap.get(slot);
+  if (!base) return null;
+  return applyWordTintShade(base, attrOf(node, tintAttr), attrOf(node, shadeAttr));
+}
+
+/** Background fill of a run/paragraph properties node: an explicit fill, or
+ *  (v1.95.0) a resolvable theme fill. */
+function shdFill(propsNode: PONode | undefined, schemeMap: Map<string, string>): string | null {
   if (!propsNode) return null;
   const shd = firstChild(propsNode, "shd");
-  return shd ? normalizeHex(attrOf(shd, "fill")) : null;
+  if (!shd) return null;
+  const explicit = normalizeHex(attrOf(shd, "fill"));
+  if (explicit) return explicit;
+  return resolveWordThemeColor(shd, schemeMap, "themeFill", "themeFillTint", "themeFillShade");
 }
 
 function isLargeRun(rPr: PONode | undefined): boolean {
@@ -496,6 +575,7 @@ interface BgContext {
 function extractContrast(
   body: PONode | undefined,
   documentBg: string | null,
+  schemeMap: Map<string, string>,
 ): DocxAnalysis["contrast"] {
   let checkedRuns = 0;
   let unresolvedRuns = 0;
@@ -516,15 +596,23 @@ function extractContrast(
     if (!text) return;
     const rPr = firstChild(run, "rPr");
     const colorNode = rPr ? firstChild(rPr, "color") : undefined;
-    const fg = colorNode ? normalizeHex(attrOf(colorNode, "val")) : null;
+    // v1.95.0: explicit val first; else the THEME reference (themeColor +
+    // tint/shade), resolved through word/theme/theme1.xml — most Word text
+    // is theme-colored, and leaving it unresolved made the format's
+    // headline machine check mostly silent. val="auto" and style-inherited
+    // colors remain unresolved (honest: the effective color is unknown).
+    const explicitFg = colorNode ? normalizeHex(attrOf(colorNode, "val")) : null;
+    const themeFg = colorNode
+      ? resolveWordThemeColor(colorNode, schemeMap, "themeColor", "themeTint", "themeShade")
+      : null;
+    const fg = explicitFg ?? themeFg;
     if (!fg) {
-      // No explicit color (inherits style/default) — not resolvable in v1.
       unresolvedRuns++;
       return;
     }
     // Run/paragraph shading beats the inherited context; an unresolved
     // context without local shading means the pair cannot be judged.
-    const localBg = shdFill(rPr) ?? shdFill(pPr);
+    const localBg = shdFill(rPr, schemeMap) ?? shdFill(pPr, schemeMap);
     const bg = localBg ?? (ctx.unresolved ? null : (ctx.bg ?? documentBg ?? "FFFFFF"));
     if (!bg) {
       unresolvedRuns++;
@@ -575,7 +663,7 @@ function extractContrast(
       // (lacking their own explicit fill) become unresolved. An explicit
       // table-level shd is resolvable and becomes the cells' default.
       const tblPr = firstChild(node, "tblPr");
-      const tableBg = shdFill(tblPr);
+      const tableBg = shdFill(tblPr, schemeMap);
       const styled = !!(tblPr && firstChild(tblPr, "tblStyle"));
       const tableCtx: BgContext = {
         bg: tableBg ?? ctx.bg,
@@ -586,7 +674,7 @@ function extractContrast(
       return;
     }
     if (t === "tc") {
-      const cellFill = shdFill(firstChild(node, "tcPr"));
+      const cellFill = shdFill(firstChild(node, "tcPr"), schemeMap);
       const cellCtx: BgContext = cellFill
         ? { bg: cellFill, unresolved: false, styledTable: ctx.styledTable }
         : ctx;
@@ -662,6 +750,11 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
   const coreXml = await read("docProps/core.xml");
   const appXml = await read("docProps/app.xml");
   const relsXml = await read("word/_rels/document.xml.rels");
+  // v1.95.0: the theme part powers theme-color contrast resolution (the
+  // pptx path's approach, ported). Only the map outlives this statement.
+  const schemeMap = buildSchemeColorMap(
+    rootElement(parseXml(await read("word/theme/theme1.xml")), "theme"),
+  );
 
   const docRoot = rootElement(parseXml(documentXml), "document");
   const body = docRoot ? firstChild(docRoot, "body") : undefined;
@@ -724,7 +817,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
 
   const images = body ? extractImages(body) : [];
   const links = body ? extractLinks(body, relMap) : [];
-  const contrast = extractContrast(body, documentBg);
+  const contrast = extractContrast(body, documentBg, schemeMap);
 
   // Auxiliary story parts — headers/footers (letterhead logos are the most
   // common image in agency documents), footnotes, and endnotes. Their
@@ -751,7 +844,7 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     );
     images.push(...extractImages(partRoot));
     links.push(...extractLinks(partRoot, partRels));
-    const partContrast = extractContrast(partRoot, documentBg);
+    const partContrast = extractContrast(partRoot, documentBg, schemeMap);
     contrast.checkedRuns += partContrast.checkedRuns;
     contrast.unresolvedRuns += partContrast.unresolvedRuns;
     contrast.failing.push(...partContrast.failing);
@@ -761,6 +854,79 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     xml: string | null,
     root: PONode | undefined,
   ): "ok" | "absent" | "unparseable" => (xml === null ? "absent" : root ? "ok" : "unparseable");
+
+  // ------ v1.95.0 censuses ------
+  // Run-level languages (Matterhorn-style 3.1.2 evidence, the PDF gate's
+  // approach): distinct primary subtags on runs that differ from the doc
+  // default. Word's autodetect scatters these; whether each is a real
+  // foreign passage is exactly the judgment a machine cannot make.
+  const docPrimary = (language ?? "").toLowerCase().split("-")[0];
+  const runLangSet = new Set<string>();
+  // Without a resolved document language there is no baseline to differ
+  // from — generator files stamp en-US on runs routinely, and "passages
+  // alongside the main language" would contradict the missing-language
+  // finding on the same report.
+  if (body && docPrimary) {
+    for (const langNode of descendants(body, "lang")) {
+      const val = (attrOf(langNode, "val") ?? "").trim();
+      if (!val) continue;
+      // Primary subtags are 2–3 ASCII letters (BCP 47) — anything else is a
+      // forged/corrupt value and must not flow into report/reason strings.
+      const primary = val.toLowerCase().split("-")[0];
+      if (!/^[a-z]{2,3}$/.test(primary)) continue;
+      if (primary !== docPrimary && runLangSet.size < 8) runLangSet.add(primary);
+    }
+  }
+
+  // Floating (anchored) drawings — reading position not guaranteed by flow.
+  const floatingObjectCount = body ? descendants(body, "anchor").length : 0;
+
+  // Forms: modern content controls + legacy form fields. Only sdts whose
+  // properties declare an INTERACTIVE type count — Word wraps its automatic
+  // TOC, cover pages, citations, and bibliographies in w:sdt too
+  // (w:docPartObj etc.), and those must not read as form controls.
+  const SDT_INTERACTIVE_TYPES = ["text", "comboBox", "dropDownList", "date", "checkbox", "picture"];
+  let contentControlCount = 0;
+  if (body) {
+    for (const sdt of descendants(body, "sdt")) {
+      const sdtPr = firstChild(sdt, "sdtPr");
+      if (sdtPr && SDT_INTERACTIVE_TYPES.some((t) => firstChild(sdtPr, t))) contentControlCount++;
+    }
+  }
+  let legacyFieldCount = 0;
+  if (body) {
+    // Word routinely splits one field's instruction across several
+    // instrText runs (rsid/proofing boundaries), so match against the
+    // CONCATENATED instruction text — the same reason extractLinks
+    // accumulates across the fldChar state machine. Word-boundary anchors
+    // keep two adjacent fields from fusing into a false token.
+    const LEGACY_FIELD_RE = /\b(FORMTEXT|FORMCHECKBOX|FORMDROPDOWN)\b/g;
+    const joined = descendants(body, "instrText")
+      .map((it) => rawText(it))
+      .join("");
+    legacyFieldCount += (joined.match(LEGACY_FIELD_RE) ?? []).length;
+    for (const fld of descendants(body, "fldSimple")) {
+      legacyFieldCount += ((attrOf(fld, "instr") ?? "").match(LEGACY_FIELD_RE) ?? []).length;
+    }
+  }
+
+  // Spacing-by-blank-paragraphs: runs of 3+ consecutive empty paragraphs in
+  // the BODY FLOW only (a screen reader sits through each one). Paragraphs
+  // inside table cells are a table construct — the empty-row census owns
+  // those, and chaining across cell boundaries would double-report them
+  // with the wrong fix advice.
+  let emptyParagraphRunCount = 0;
+  let consecutiveEmpty = 0;
+  const bodyFlowParagraphs = body ? childrenOf(body).filter((c) => tagOf(c) === "p") : [];
+  for (const p of bodyFlowParagraphs) {
+    if (textOf(p).trim() === "" && descendants(p, "drawing").length === 0) {
+      consecutiveEmpty++;
+      if (consecutiveEmpty === 3) emptyParagraphRunCount++;
+    } else {
+      consecutiveEmpty = 0;
+    }
+  }
+  const emptyTableRowCount = body ? countEmptyTableRows(body) : 0;
 
   return {
     metadata: {
@@ -779,6 +945,12 @@ export async function analyzeDocx(buffer: Buffer): Promise<DocxAnalysis> {
     lists: extractLists(paragraphs, styleInfo),
     contrast,
     paragraphCount: paragraphs.length,
+    runLanguages: [...runLangSet].sort(),
+    floatingObjectCount,
+    contentControlCount,
+    legacyFieldCount,
+    emptyParagraphRunCount,
+    emptyTableRowCount,
     parse: {
       documentOk: !!body,
       stylesState: partState(stylesXml, stylesRoot),

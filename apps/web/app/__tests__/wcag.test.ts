@@ -57,9 +57,14 @@ describe("WCAG_MAP remediation: Office equivalents added alongside Acrobat steps
     expect(r).toMatch(/Word, PowerPoint, or Excel/);
   });
 
-  it("form_accessibility notes Office form fields are uncommon/not automatically assessed", () => {
+  it("form_accessibility copy matches the v1.95.0 census honesty: Word/Excel detected-and-disclosed, only PowerPoint still 'uncommon'", () => {
     const r = WCAG_MAP.form_accessibility!.remediation;
-    expect(r).toMatch(/Word, PowerPoint, and Excel/);
+    expect(r).toMatch(/Word and Excel form controls/);
+    expect(r).toMatch(/detected and disclosed/);
+    // The unconditional Office-wide "uncommon" claim is gone — the analyzer
+    // now counts Word/Excel controls; "uncommon" may only describe PowerPoint.
+    expect(r).not.toMatch(/uncommon in Word/);
+    expect(r).toMatch(/PowerPoint form fields are uncommon/);
   });
 
   it("form_accessibility's WCAG 2.2 note applies to any interactive form, not just PDF forms", () => {

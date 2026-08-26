@@ -43,6 +43,10 @@ import {
   contrastRatio,
   readCapped,
   assertZipWithinLimits,
+  buildSchemeColorMap,
+  applyExcelTint,
+  EXCEL_THEME_INDEX_ORDER,
+  EXCEL_INDEXED_PALETTE,
 } from "./ooxml.js";
 
 export interface XlsxMetadata {
@@ -63,6 +67,10 @@ export interface XlsxAnalysis {
     /** Sheet carries a pivot-table relationship (pivots materialize as plain
      *  cells — "Insert → Table" advice is wrong for them). */
     hasPivot?: boolean;
+    /** 1-based row/column of the first non-empty cell (v1.95.0) — data
+     *  starting far from A1 makes screen-reader users wade through blanks. */
+    firstDataRow?: number | null;
+    firstDataCol?: number | null;
   }>;
   tables: Array<{
     sheetName: string;
@@ -97,6 +105,9 @@ export interface XlsxAnalysis {
   /** Drawing text boxes (xdr:sp with text) across visible sheets — content
    *  the cell-based checks cannot see; disclosed, not silently passed. */
   textBoxCount: number;
+  /** Legacy form controls / OLE controls on visible sheets (v1.95.0) —
+   *  detected and disclosed; their accessibility is not machine-assessed. */
+  formControlCount?: number;
 }
 
 export class XlsxParseError extends Error {
@@ -136,6 +147,25 @@ function countValueCells(sheetRoot: PONode): number {
     if (firstChild(cell, "v") || firstChild(cell, "is") || firstChild(cell, "f")) n++;
   }
   return n;
+}
+
+/** 1-based row/col of the first (top-left-most) non-empty cell, from each
+ *  cell's own `r` ref (v1.95.0). Null when the sheet has no value cells or
+ *  no parsable refs. */
+function firstDataCell(sheetRoot: PONode): { row: number | null; col: number | null } {
+  let minRow: number | null = null;
+  let minCol: number | null = null;
+  for (const cell of descendants(sheetRoot, "c")) {
+    if (!(firstChild(cell, "v") || firstChild(cell, "is") || firstChild(cell, "f"))) continue;
+    const ref = attrOf(cell, "r");
+    const m = ref ? /^([A-Z]+)(\d+)$/.exec(ref.toUpperCase()) : null;
+    if (!m) continue;
+    const col = colToNumber(m[1]);
+    const row = Number(m[2]);
+    if (minRow === null || row < minRow) minRow = row;
+    if (minCol === null || col < minCol) minCol = col;
+  }
+  return { row: minRow, col: minCol };
 }
 
 /** Cells in a dimension ref: "A1:D20" → 80, "A1" → 1, malformed → 0. */
@@ -251,6 +281,7 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     contrast: { checkedRuns: 0, unresolvedRuns: 0, failing: [] },
     totalCellsWithValue: 0,
     textBoxCount: 0,
+    formControlCount: 0,
   };
 
   // Shared strings, indexed by <si> position. textOf concatenates every t
@@ -323,9 +354,16 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
     // their lookup tables, reference images, and styles must not drive
     // findings or confirmed verdict claims. Skip content collection wholesale
     // and disclose the exclusion via the sheet record.
+    let firstData: { row: number | null; col: number | null } = { row: null, col: null };
     if (!hidden && sheetRoot) {
       collectAppliedCellStyles(sheetRoot, appliedStyleIndices);
       analysis.totalCellsWithValue += countValueCells(sheetRoot);
+      firstData = firstDataCell(sheetRoot);
+      // Legacy form controls / OLE controls (v1.95.0): presence only.
+      analysis.formControlCount =
+        (analysis.formControlCount ?? 0) +
+        descendants(sheetRoot, "control").length +
+        descendants(sheetRoot, "oleObject").length;
       const sheetDir = sheetPath ? sheetPath.replace(/\/[^/]+$/, "") : "xl/worksheets";
       await collectSheetContent(
         analysis,
@@ -347,10 +385,18 @@ export async function analyzeXlsx(buffer: Buffer): Promise<XlsxAnalysis> {
       usedRangeCellCount,
       hasDefinedTable: sheetRels.some((r) => /\/table$/.test(r.type)),
       hasPivot: sheetRels.some((r) => /\/pivotTable$/.test(r.type)),
+      firstDataRow: firstData.row,
+      firstDataCol: firstData.col,
     });
   }
 
-  await collectStylesContrast(analysis, read, appliedStyleIndices);
+  // v1.95.0: the theme part powers theme= color resolution; the legacy
+  // indexed palette (with any workbook override) powers indexed=.
+  const schemeMap = buildSchemeColorMap(
+    rootElement(parseXml(await read("xl/theme/theme1.xml")), "theme"),
+  );
+
+  await collectStylesContrast(analysis, read, appliedStyleIndices, schemeMap);
   return analysis;
 }
 
@@ -557,6 +603,7 @@ async function collectStylesContrast(
   analysis: XlsxAnalysis,
   read: (p: string) => Promise<string | null>,
   appliedStyleIndices: Set<number>,
+  schemeMap: Map<string, string>,
 ): Promise<void> {
   const stylesRoot = rootElement(parseXml(await read("xl/styles.xml")), "styleSheet");
   if (!stylesRoot) return;
@@ -567,6 +614,56 @@ async function collectStylesContrast(
   const fonts = childrenOf(fontsEl).filter((c) => tagOf(c) === "font");
   const fills = childrenOf(fillsEl).filter((c) => tagOf(c) === "fill");
   const xfs = childrenOf(xfsEl).filter((c) => tagOf(c) === "xf");
+
+  // v1.95.0: the workbook may OVERRIDE the legacy indexed palette via
+  // styles.xml <colors><indexedColors><rgbColor rgb="…"/>…, in index order.
+  const indexedOverride: string[] = [];
+  const colorsEl = descendants(stylesRoot, "colors")[0];
+  const indexedColorsEl = colorsEl ? descendants(colorsEl, "indexedColors")[0] : undefined;
+  if (indexedColorsEl) {
+    for (const rc of childrenOf(indexedColorsEl)) {
+      if (tagOf(rc) !== "rgbColor") continue;
+      // Cap: no legitimate palette exceeds the 66 spec slots by much; a
+      // forged million-entry override must not balloon this array. Indices
+      // past the cap simply resolve as unresolved (honest).
+      if (indexedOverride.length >= 256) break;
+      indexedOverride.push(attrOf(rc, "rgb") ?? "");
+    }
+  }
+
+  // Resolve one SpreadsheetML <color …/> element: rgb= (literal ARGB), then
+  // theme= (+ tint), then indexed= (override palette, else the spec default).
+  // Null = genuinely unresolvable (auto colors, missing slots).
+  const resolveColorEl = (colorEl: PONode | undefined): string | null => {
+    if (!colorEl) return null;
+    const rgb = argbToHex(attrOf(colorEl, "rgb"));
+    if (rgb) return rgb;
+    const themeAttr = attrOf(colorEl, "theme");
+    if (themeAttr !== undefined) {
+      // Digits only: Number("") is 0, so a malformed empty attribute would
+      // otherwise resolve to slot 0 (white in the stock theme) and could
+      // fabricate a white-on-white contrast failure. Malformed → unresolved.
+      const idx = /^\d+$/.test(themeAttr.trim()) ? Number(themeAttr.trim()) : NaN;
+      const slot = Number.isInteger(idx) ? EXCEL_THEME_INDEX_ORDER[idx] : undefined;
+      const base = slot ? schemeMap.get(slot) : undefined;
+      if (base) {
+        const tint = Number(attrOf(colorEl, "tint") ?? "0");
+        return applyExcelTint(base, Number.isFinite(tint) ? tint : 0);
+      }
+      return null;
+    }
+    const indexedAttr = attrOf(colorEl, "indexed");
+    if (indexedAttr !== undefined) {
+      const idx = /^\d+$/.test(indexedAttr.trim()) ? Number(indexedAttr.trim()) : NaN;
+      if (!Number.isInteger(idx) || idx < 0) return null;
+      // An override palette replaces the table positionally: an entry that
+      // EXISTS but cannot be read (missing/short/junk rgb) is unresolved —
+      // never silently swapped for the spec default the workbook overrode.
+      if (idx < indexedOverride.length) return argbToHex(indexedOverride[idx]);
+      return normalizeHex(EXCEL_INDEXED_PALETTE[idx] ?? undefined);
+    }
+    return null;
+  };
 
   xfs.forEach((xf, idx) => {
     // FIX B: a style no NON-EMPTY cell applies produces no contrast signal at
@@ -580,13 +677,14 @@ async function collectStylesContrast(
     if (!font || !fill) return;
     const colorEl = firstChild(font, "color");
     if (!colorEl) return; // default ink — nothing explicit to check
-    const fg = argbToHex(attrOf(colorEl, "rgb"));
+    const fg = resolveColorEl(colorEl);
     const pattern = firstChild(fill, "patternFill");
     const solid = pattern && attrOf(pattern, "patternType") === "solid";
     const fgColorEl = pattern ? firstChild(pattern, "fgColor") : undefined;
-    const bg = solid && fgColorEl ? argbToHex(attrOf(fgColorEl, "rgb")) : null;
+    const bg = solid && fgColorEl ? resolveColorEl(fgColorEl) : null;
     if (!fg || !bg) {
-      // theme=/indexed= colors and non-solid fills are unresolved in v1.
+      // Auto colors and non-solid fills stay unresolved; rgb=, theme= (+tint)
+      // and indexed= all resolve since v1.95.0.
       analysis.contrast.unresolvedRuns++;
       return;
     }

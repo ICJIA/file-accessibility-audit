@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "office-theme-contrast-2026-08-26",
+    badge: "Improved",
+    text: "Word and Excel checking just got meaningfully deeper. Colors that come from a document's theme — which is how most Office text is actually colored — are now resolved and checked for contrast, where the checker previously stayed silent on anything not written out explicitly; the same goes for Excel's legacy color palette. Reports also now disclose what a human reviewer should look at: languages used in the document, floating objects whose reading position isn't guaranteed, merged table cells, form fields, and hidden sheets. As with the last release, every change was adversarially reviewed before shipping — ten weaknesses found that way, including a table of contents miscounted as a form control, were fixed first — and every previously checked document keeps its exact score.",
+    linkText: "See what's machine-checked",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "score-integrity-redblue-2026-08-26",
     badge: "Improved",
     text: "The PDF checker now sees through three ways a document can look fine while failing its readers: text that displays correctly but extracts as unpronounceable symbols, visible text painted outside the document's reading structure, and form fields that structure never points at — each now scored and explained with the right fix steps. The Matterhorn checklist also moved up the front page as a collapsible section, so you don't have to scroll past everything to find it. Before release, every recent change was deliberately attacked — hostile files, forged data, misleading edge cases — and thirteen weaknesses found that way were fixed first, including one that could have wrongly accused a correctly built form. As always, every previously checked document keeps its exact score; only documents that actually have these problems are affected.",

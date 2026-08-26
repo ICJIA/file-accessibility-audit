@@ -166,6 +166,12 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
           (s) =>
             `Rename "${s.name}" to describe its contents — sheet names are the workbook's navigation.`,
         );
+  const hiddenCount = a.sheets.length - visible.length;
+  if (hiddenCount > 0) {
+    findings.push(
+      `Note: ${hiddenCount} hidden sheet(s) were excluded from this audit — hidden sheets are not presented to any reader, so their content, images, and styles do not drive findings (v1.95.0 disclosure).`,
+    );
+  }
   // Proportional with floor/cap (mirrors slide titles): the old −25 per
   // sheet zeroed a 20-sheet workbook over 4 leftover names while barely
   // touching a 2-sheet one.
@@ -242,6 +248,27 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
       `Note — not scored: ${pivotSheets.length} sheet(s) contain pivot tables (${pivotSheets
         .map((s) => `"${s.name}"`)
         .join(", ")}). Pivots cannot become Excel Tables; verify their readability manually.`,
+    );
+  }
+
+  // v1.95.0: data starting far from A1 makes screen-reader users wade
+  // through empty cells to find it (they land at A1). Advisory only.
+  const farStart = a.sheets.filter(
+    (s) =>
+      !s.hidden &&
+      s.usedRangeCellCount >= 12 &&
+      ((s.firstDataRow ?? 1) > 4 || (s.firstDataCol ?? 1) > 4),
+  );
+  if (farStart.length > 0) {
+    findings.push(
+      `Note — not scored: on ${farStart
+        .map(
+          (s) =>
+            `"${s.name}" data begins at row ${s.firstDataRow ?? "?"}, column ${s.firstDataCol ?? "?"}`,
+        )
+        .join(
+          "; ",
+        )} — screen readers land at A1, so leading blank rows/columns are dead space to navigate. Start data at or near A1.`,
     );
   }
 
@@ -334,9 +361,9 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.color_contrast,
       null,
       [
-        "No cell styles with explicit font and solid-fill colors were found; theme and indexed colors are not resolved.",
+        "No cell styles with a resolvable font-plus-solid-fill color pair were found (literal, theme-based, and legacy indexed colors are all resolved since v1.95.0; automatic colors and non-solid fills are not).",
       ],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color and a solid fill are set.",
       [XLSX_HELP.contrast],
       unresolvedRuns > 0,
     );
@@ -348,7 +375,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
       XLSX.SCORING_WEIGHTS.color_contrast,
       100,
       [`${checkedRuns} cell style(s) checked; all meet the WCAG contrast minimum.`],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color and a solid fill are set.",
       [XLSX_HELP.contrast],
     );
   }
@@ -368,7 +395,7 @@ function scoreXlsxColorContrast(a: XlsxAnalysis): CategoryResult {
     XLSX.SCORING_WEIGHTS.color_contrast,
     clamp100(score),
     findings,
-    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Excel stores explicit cell-style colors, so this is checked directly where both a font color and a solid fill are set.",
+    "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Literal, theme-based, and legacy indexed cell-style colors are all resolved, so this is checked wherever a font color and a solid fill are set.",
     [XLSX_HELP.contrast],
   );
 }
@@ -439,16 +466,25 @@ function scoreXlsxLinkQuality(a: XlsxAnalysis): CategoryResult {
   );
 }
 
-function scoreXlsxForms(): CategoryResult {
+function scoreXlsxForms(a: XlsxAnalysis): CategoryResult {
+  // v1.95.0: evidence-based — legacy form/OLE controls are DETECTED and
+  // disclosed; their accessibility semantics still are not machine-assessed.
+  const controls = a.formControlCount ?? 0;
+  const findings =
+    controls > 0
+      ? [
+          `${controls} legacy form/OLE control(s) were detected on visible sheets. Their labels and keyboard behavior are not automatically assessed — verify with Excel's own Accessibility Checker and a screen reader.`,
+        ]
+      : [
+          "No form controls were detected on visible sheets. Interactive form semantics are not automatically assessed in this version.",
+        ];
   return xlsxCategory(
     "form_accessibility",
     "Form Accessibility",
     0,
     null,
-    [
-      "Interactive form controls are uncommon in Excel workbooks and are not automatically assessed in this version.",
-    ],
-    "Interactive form fields need accessible labels. They are rare in Excel workbooks and are not assessed automatically here.",
+    findings,
+    "Interactive form fields need accessible labels. Excel form controls are detected and disclosed here; their accessibility is not scored automatically.",
     [XLSX_HELP.overview],
     true,
   );
@@ -463,7 +499,7 @@ function buildXlsxCategories(a: XlsxAnalysis): CategoryResult[] {
     scoreXlsxAltText(a),
     scoreXlsxColorContrast(a),
     scoreXlsxLinkQuality(a),
-    scoreXlsxForms(),
+    scoreXlsxForms(a),
   ];
   applyWcagCriteria(categories);
   return categories;

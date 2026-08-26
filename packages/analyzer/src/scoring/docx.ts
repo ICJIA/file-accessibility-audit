@@ -81,15 +81,21 @@ function docxCategory(
   };
 }
 
-function scoreDocxText(): CategoryResult {
+function scoreDocxText(a: DocxAnalysis): CategoryResult {
+  const findings = [
+    "Word documents contain fully extractable, selectable text — unlike a scanned PDF, the content is always available to assistive technology.",
+  ];
+  if ((a.emptyParagraphRunCount ?? 0) > 0) {
+    findings.push(
+      `Advisory — not scored: ${a.emptyParagraphRunCount} run(s) of three or more consecutive empty paragraphs — blank lines used for spacing, each announced by a screen reader. Use paragraph spacing (Layout → Spacing) instead.`,
+    );
+  }
   return docxCategory(
     "text_extractability",
     "Text Extractability",
     DOCX.SCORING_WEIGHTS.text_extractability,
     100,
-    [
-      "Word documents contain fully extractable, selectable text — unlike a scanned PDF, the content is always available to assistive technology.",
-    ],
+    findings,
     "Word stores real text (never a flat image), so screen readers can always read the words. This foundational check therefore passes automatically for .docx; the remaining categories assess how well that text is structured.",
     [DOCX_HELP.overview, DOCX_HELP.webaim],
   );
@@ -109,7 +115,13 @@ function scoreDocxTitleLanguage(a: DocxAnalysis): CategoryResult {
   if (a.metadata.language) {
     score += 50;
     findings.push(`Document language: ${a.metadata.language}`);
-  } else {
+  }
+  if ((a.runLanguages?.length ?? 0) > 0) {
+    findings.push(
+      `Passages are declared in ${a.runLanguages!.join(", ")} alongside the document language. Screen readers switch pronunciation for each — whether every marking is a real foreign passage (rather than Word's autodetect guessing) is worth a manual glance (WCAG 3.1.2).`,
+    );
+  }
+  if (!a.metadata.language) {
     findings.push(
       "No document language is declared. In Word: Review → Language → Set Proofing Language. This tells screen readers which pronunciation rules to use.",
     );
@@ -279,6 +291,17 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
       "Nested tables were found — these are hard for screen readers to navigate. Flatten them where possible.",
     );
   }
+  const mergedTotal = a.tables.reduce((sum, t) => sum + (t.mergedCellCount ?? 0), 0);
+  if (mergedTotal > 0) {
+    findings.push(
+      `Note — not scored: ${mergedTotal} merged cell(s) across the table(s). Merged and split cells can confuse screen-reader navigation (Microsoft's own checker flags them); whether they harm depends on placement — review manually.`,
+    );
+  }
+  if ((a.emptyTableRowCount ?? 0) > 0) {
+    findings.push(
+      `Note — not scored: ${a.emptyTableRowCount} entirely empty table row(s) — blank rows used for spacing are announced as empty rows a screen reader has to sit through. Use cell padding or table spacing instead.`,
+    );
+  }
   return docxCategory(
     "table_markup",
     "Table Markup",
@@ -345,10 +368,10 @@ function scoreDocxContrast(a: DocxAnalysis): CategoryResult {
       null,
       [
         unresolvedRuns > 0
-          ? `${unresolvedRuns} text run(s) inherit their color from styles/theme; those colors are not resolved in this version, so contrast could not be evaluated automatically — review manually.`
-          : "No explicitly-colored text was found to evaluate.",
+          ? `${unresolvedRuns} text run(s) use style-inherited or automatic colors that could not be resolved, so contrast could not be evaluated automatically — review manually. (Explicit and theme-based colors ARE resolved since v1.95.0.)`
+          : "No text with a resolvable color (explicit or theme-based) was found to evaluate.",
       ],
-      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Word stores explicit colors, so this is checked directly where colors are set.",
+      "Text must contrast enough with its background (≥4.5:1 normal, ≥3:1 large). Word stores explicit and theme colors, so both are checked directly where they are set.",
       [DOCX_HELP.contrast],
       unresolvedRuns > 0,
     );
@@ -416,31 +439,49 @@ function scoreDocxLists(a: DocxAnalysis): CategoryResult {
   );
 }
 
-function scoreDocxReadingOrder(): CategoryResult {
+function scoreDocxReadingOrder(a: DocxAnalysis): CategoryResult {
+  const floating = a.floatingObjectCount ?? 0;
+  const findings =
+    floating > 0
+      ? [
+          `${floating} floating (anchored) object(s) were found — their reading position is set by anchoring, not the text flow, so verify each is announced where a reader expects it (v1.95.0 census). Inline objects follow the flow and are fine.`,
+          "Word's linear flow preserves the order of ordinary paragraphs; the floating objects above are the part to check by hand.",
+        ]
+      : [
+          "No floating (anchored) objects were found in the document body — body content follows Word's linear flow, which preserves reading order. Headers/footers and text-box internals are still worth a manual glance.",
+        ];
   return docxCategory(
     "reading_order",
     "Reading Order",
     0,
     null,
-    [
-      "Word's linear document flow generally preserves reading order. Floating objects, text boxes, and wrapped images are not automatically verified — review those manually.",
-    ],
-    "Reading order determines the sequence assistive technology reads content. Word's linear flow usually preserves it; this tool does not automatically assess floating/anchored objects.",
+    findings,
+    "Reading order determines the sequence assistive technology reads content. Word's linear flow usually preserves it; floating/anchored objects are counted and disclosed for manual review.",
     [DOCX_HELP.overview],
     true,
   );
 }
 
-function scoreDocxForms(): CategoryResult {
+function scoreDocxForms(a: DocxAnalysis): CategoryResult {
+  // v1.95.0: evidence-based instead of an unconditional "uncommon" claim —
+  // content controls and legacy fields are DETECTED and disclosed; their
+  // label/accessibility semantics still are not machine-assessed.
+  const controls = (a.contentControlCount ?? 0) + (a.legacyFieldCount ?? 0);
+  const findings =
+    controls > 0
+      ? [
+          `${a.contentControlCount ?? 0} content control(s) and ${a.legacyFieldCount ?? 0} legacy form field(s) were detected. Whether each is labeled and reachable is not automatically assessed — verify with Word's own Accessibility Checker and a screen reader.`,
+        ]
+      : [
+          "No form controls were detected in the document body (interactive content controls and legacy form fields are both checked). Interactive form semantics are not automatically assessed in this version.",
+        ];
   return docxCategory(
     "form_accessibility",
     "Form Accessibility",
     0,
     null,
-    [
-      "Interactive form controls are uncommon in Word documents and are not automatically assessed in this version.",
-    ],
-    "Interactive form fields need accessible labels. They are rare in Word documents and are not assessed automatically here.",
+    findings,
+    "Interactive form fields need accessible labels. Word forms (content controls or legacy fields) are detected and disclosed here; their accessibility is not scored automatically.",
     [DOCX_HELP.overview],
     true,
   );
@@ -448,7 +489,7 @@ function scoreDocxForms(): CategoryResult {
 
 function buildDocxCategories(a: DocxAnalysis): CategoryResult[] {
   const categories = [
-    scoreDocxText(),
+    scoreDocxText(a),
     scoreDocxTitleLanguage(a),
     scoreDocxHeadings(a),
     scoreDocxAltText(a),
@@ -456,8 +497,8 @@ function buildDocxCategories(a: DocxAnalysis): CategoryResult[] {
     scoreDocxContrast(a),
     scoreDocxLists(a),
     scoreDocxLinks(a),
-    scoreDocxReadingOrder(),
-    scoreDocxForms(),
+    scoreDocxReadingOrder(a),
+    scoreDocxForms(a),
   ];
   applyWcagCriteria(categories);
   return categories;

@@ -568,12 +568,23 @@ function finalizeVerdict(
   failures: ConformanceFinding[],
   notAssessed: NotAssessedCriterion[],
   contrastNotEvaluated: boolean,
+  // v1.95.0: distinct run-level language subtags (docx), mirroring the PDF
+  // gate's evidence-backed 3.1.2 reason. Empty/omitted keeps the generic.
+  foreignSpanLangs: string[] = [],
 ): ConformanceVerdict {
   // Every Office verdict funnels through here, so the universally-unassessed
   // document criteria are appended in one place for docx/pptx/xlsx. (The PDF
   // gate has its own tail and appends them itself, with a 3.1.2 reason built
   // from the document's measured language spans.)
-  notAssessed = [...notAssessed, ...universalNotAssessed()];
+  const universal = universalNotAssessed().map((c) =>
+    c.sc === "3.1.2" && foreignSpanLangs.length > 0
+      ? {
+          ...c,
+          reason: `This document declares passages in ${foreignSpanLangs.join(", ")} alongside its main language. Screen readers will switch pronunciation for each — whether every marking is a real foreign-language passage (rather than autodetect noise) and whether unmarked foreign passages remain is not automatically verified.`,
+        }
+      : c,
+  );
+  notAssessed = [...notAssessed, ...universal];
 
   const status: ConformanceVerdict["status"] =
     failures.length > 0 ? "fail" : "no-automated-failures";
@@ -704,13 +715,16 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
   }
 
   // --- criteria not assessed automatically ----------------------------------
+  const floatingCount = analysis.floatingObjectCount ?? 0;
   const notAssessed: NotAssessedCriterion[] = [
     {
       sc: "1.3.2",
       name: "Meaningful Sequence",
       level: "A",
       reason:
-        "Word's linear document flow usually preserves reading order, but floating objects and text boxes are not automatically verified — manual review recommended.",
+        floatingCount > 0
+          ? `Word's linear flow preserves the order of ordinary paragraphs, but this document has ${floatingCount} floating (anchored) object(s) whose reading position is set by anchoring — verify each is announced where a reader expects it.`
+          : "Word's linear document flow usually preserves reading order, but floating objects and text boxes are not automatically verified — manual review recommended.",
       url: wcagUrl("1.3.2"),
     },
   ];
@@ -722,12 +736,17 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       name: "Contrast (Minimum)",
       level: "AA",
       reason:
-        "No text with an explicit color was found; inherited and theme colors are not resolved in this version, so contrast could not be evaluated.",
+        "No text with a resolvable color was found (explicit and theme-based colors are both checked since v1.95.0; style-inherited and automatic colors are not), so contrast could not be evaluated.",
       url: wcagUrl("1.4.3"),
     });
   }
 
-  return finalizeVerdict(failures, notAssessed, analysis.contrast.checkedRuns === 0);
+  return finalizeVerdict(
+    failures,
+    notAssessed,
+    analysis.contrast.checkedRuns === 0,
+    analysis.runLanguages ?? [],
+  );
 }
 
 /**
@@ -973,7 +992,7 @@ export function evaluateXlsxConformance(analysis: XlsxAnalysis): ConformanceVerd
       name: "Contrast (Minimum)",
       level: "AA",
       reason:
-        "No cell style with an explicit color was found; only literal rgb colors on solid fills are resolvable in this version, so contrast could not be evaluated.",
+        "No cell style with a resolvable color pair was found (literal, theme-based, and legacy indexed colors on solid fills are all checked since v1.95.0; automatic colors and non-solid fills are not), so contrast could not be evaluated.",
       url: wcagUrl("1.4.3"),
     });
   }

@@ -162,7 +162,7 @@ export const WCAG_MAP: Record<string, CategoryWcagMeta> = {
     ],
     principle: "Perceivable / Robust",
     remediation:
-      "In Acrobat: open All tools → Prepare a form (classic UI: Tools → Prepare Form), then right-click each form field → Properties → General tab → enter a descriptive Tooltip; the tooltip becomes the accessible label announced by screen readers. Interactive form fields are uncommon in Word, PowerPoint, and Excel and are not automatically assessed there — if present (e.g. Word/Excel Developer-tab content controls), give each one a descriptive title or accessible name.",
+      "In Acrobat: open All tools → Prepare a form (classic UI: Tools → Prepare Form), then right-click each form field → Properties → General tab → enter a descriptive Tooltip; the tooltip becomes the accessible label announced by screen readers. Word and Excel form controls (Developer-tab content controls, legacy form fields, form/OLE controls) are detected and disclosed on the report but not automatically assessed — give each one a descriptive title or accessible name; PowerPoint form fields are uncommon and are not assessed there.",
     wcag22Note:
       "New in WCAG 2.2: interactive forms may also implicate Target Size (2.5.8), Redundant Entry (3.3.7), and Accessible Authentication (3.3.8). These are not automatically assessed — confirm by manual review.",
   },

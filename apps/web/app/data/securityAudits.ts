@@ -54,6 +54,33 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.95.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: deeper automated checks inside the Word and Excel analyzers — theme-based colors now checked for contrast, plus new counts of languages, floating objects, merged cells, and form fields. Nothing new is collected, no new way to reach the service, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "This release extends to Word and Excel the same discipline the last four releases applied to PDF. The headline change: colors that come from a document&rsquo;s <em>theme</em> &mdash; which is how most Office text is actually colored &mdash; are now resolved and checked for contrast, where before the checker could only read colors written out explicitly and stayed silent on the rest. Several new counts (languages used, floating objects, merged table cells, form fields, hidden sheets) are disclosed on the report so a human reviewer knows where to look. Every new reader of document internals was reviewed as a new attack surface before shipping.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Hardened",
+            html: "<strong>Forged document internals hit validation walls.</strong> A document declaring kilobytes of junk as a &ldquo;language&rdquo; cannot push that junk into the report &mdash; only real language codes are collected; a spreadsheet declaring a million-entry color palette stops at a fixed cap; an out-of-range theme or palette reference is reported as unresolvable rather than guessed. Each attack is replayed by an automated test.",
+          },
+          {
+            badge: "Fixed",
+            html: "<strong>An independent adversarial review then found ten more weaknesses, all fixed before release.</strong> The most important protected documents from false accusations: an automatic Table of Contents could have been reported as a form control needing accessibility work, a corrupt color attribute could have fabricated a &ldquo;white text on white background&rdquo; failure, and a form field written the way Word actually writes them could have been missed entirely &mdash; producing a false &ldquo;no form controls&rdquo; claim. Each fix ships with an automated test that replays the mistake.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Honesty over silence, again.</strong> Where a color still cannot be resolved (inherited from a style, or set to automatic), the report says contrast could not be evaluated there &mdash; it never pretends the check ran. Two real-world test spreadsheets moved from &ldquo;could not check contrast&rdquo; to a checked, passing result; no document&rsquo;s score changed.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.94.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: three deeper automated checks inside the PDF analyzer, plus a deliberate adversarial (red-team) review of every change since the &ldquo;Did not run&rdquo; release — thirteen weaknesses found that way were fixed before this release shipped. Nothing new is collected, no new way to reach the service, no retention period changed.",
     body: [

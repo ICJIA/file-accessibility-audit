@@ -405,6 +405,7 @@ describe("docx tables", () => {
         colCount: 2,
         hasNestedTable: false,
         looksLikeLayout: false,
+        mergedCellCount: 0,
       },
     ]);
   });

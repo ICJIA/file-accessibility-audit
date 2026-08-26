@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.95.0] - 2026-08-26
+
+### Added
+
+- **Word theme-color contrast is resolved.** Text and shading that reference the document theme (`themeColor`/`themeTint`/`themeShade`, `themeFill`) now resolve through `word/theme/theme1.xml` — the PowerPoint path's approach, ported — so the format's headline machine check covers the colors most Word text actually uses instead of going silent on them. A failing theme pair asserts a confirmed WCAG 1.4.3, exactly like an explicit pair. Style-inherited and `auto` colors stay honestly unresolved.
+- **Excel theme and legacy indexed colors are resolved.** Cell styles using `<color theme="N"/>` (with `tint`, in Excel's light-first index order — the classic dk1/lt1 swap) and `<color indexed="N"/>` (the ECMA-376 66-entry default palette, plus any workbook `<indexedColors>` override) now feed the contrast check alongside literal rgb colors.
+- **Word run-language census (WCAG 3.1.2 evidence).** Distinct run-level languages that differ from the document default are collected (BCP 47-validated primary subtags, capped at 8) and named in the conformance gate's 3.1.2 entry and the language card — the PDF gate's evidence-based approach, ported.
+- **Word floating-object census (1.3.2 evidence).** Anchored drawings — content whose reading position is set by anchoring, not text flow — are counted and named in the 1.3.2 reason and the reading-order card, replacing the unconditional boilerplate.
+- **Word table advisories at Microsoft-checker parity:** merged/split cells (gridSpan + vMerge) and entirely empty table rows are counted and disclosed (never scored). Runs of 3+ consecutive empty paragraphs (spacing-by-blank-lines) get the same advisory treatment with the Layout → Spacing fix named.
+- **Forms honesty, both formats.** Word content controls and legacy form fields, and Excel legacy form/OLE controls, are detected and disclosed — the form cards are now evidence-based ("N detected, not automatically assessed") instead of an unconditional "forms are uncommon" claim.
+- **Excel disclosure advisories:** hidden sheets are named as excluded on the sheet-names card, and data starting far from A1 (screen readers land there) gets a per-sheet advisory naming the first data cell.
+
+### Security — the adversarial red/blue pass on the new surface
+
+My own red-team sweep hardened three forged-input paths (each attack replayed in tests): forged `w:lang` values (kilobytes of junk) cannot reach report or reason strings — primary subtags are BCP 47-validated before collection; a forged million-entry `indexedColors` override is capped at 256 with past-cap indices honestly unresolved; out-of-range theme indices and junk tints resolve to *unresolved*, never to a defaulted color. An independent high-effort code review then confirmed TEN more findings, all fixed before this tag (each with a replay test):
+
+- **CR-1 (worst):** every `w:sdt` counted as a content control — Word wraps automatic TOCs, cover pages, citations, and bibliographies in `w:sdt`, so one of the most common document shapes got a false "1 content control(s) were detected" forms claim. Only sdts declaring an interactive type (text/comboBox/dropDownList/date/checkbox/picture) count now.
+- **CR-9:** `Number("") === 0` — a malformed empty `theme=""` attribute resolved to slot 0 (white in the stock theme) and could fabricate a confirmed white-on-white 1.4.3 from a corrupt attribute. Digits-only validation; malformed → unresolved.
+- **CR-4:** Word routinely splits a field's instruction across `instrText` runs, so a split FORMTEXT token was invisible and the card asserted a false "No form controls were detected." The census now matches against the concatenated instruction text.
+- **CR-2:** the blank-paragraph census walked every paragraph including table-cell interiors, so an all-empty table row chained into a "spacing run" with the wrong fix advice, double-reporting what the empty-row census already flags. Body-flow paragraphs only now.
+- **CR-3:** with no resolvable document language, routine generator-stamped `en-US` runs read as "foreign passages alongside the main language" — self-contradicting the missing-language finding on the same report. The census requires a baseline language.
+- **CR-8:** a table row whose only content is an image (logo/signature rows) counted as an "entirely empty spacing row." Cells with drawings are content.
+- **CR-7:** the zero branches claimed "No floating objects / no form controls **in this document**" from body-only evidence while a letterhead's floating logo lives in the header — wording now scoped to the document body with headers/footers named as manual-review territory.
+- **CR-10:** a present-but-unreadable `indexedColors` override entry silently fell back to the spec default the workbook had overridden — scored against a color the workbook never renders. Present-but-invalid is now unresolved; only indices past the override use the default table.
+- **CR-5/CR-6:** two web surfaces still carried the pre-v1.95.0 claims ("inherited theme/style colors could not be resolved"; "form fields are uncommon in Word, PowerPoint, and Excel") — both updated, the forms sentence split per-format since PowerPoint alone keeps the old truth.
+
+### Notes
+
+- **Calibration:** two real-world Excel controls flip Color Contrast from N/A to a scored 100 — their theme/indexed colors, previously unresolvable (nothing to check), now resolve and all pass. No score, grade, category, or verdict moved anywhere else — including through all ten review fixes; all 27 control PDFs byte-identical for the fifth consecutive release.
+- Tests: API 1,500 · web 1,202 · CLI 49 (**2,751**).
+
+<details>
+<summary><strong>v1.94.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.94.0] - 2026-08-26
 
 ### Added
@@ -42,9 +76,6 @@ My own red-team sweep fixed three findings (RB-1 hostile-RoleMap quadratic hang 
 - **Calibration: zero drift, fourth release running** — all 27 control PDFs byte-identical on scores, grades, categories, and gate verdicts; censuses verified live on real controls (the static-XFA form's 3 JavaScript actions now disclosed).
 - Deferred from the backlog: running veraPDF's WCAG profile alongside ua1 (needs a server-side profile check first).
 - Tests: API 1,472 · web 1,202 · CLI 49 (**2,723** across 174 files).
-
-<details>
-<summary><strong>v1.93.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.93.0] - 2026-08-26
 

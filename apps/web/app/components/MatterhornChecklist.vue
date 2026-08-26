@@ -62,7 +62,6 @@ function openIfMatterhornHash(hash: string | undefined): void {
   if (hash === "#matterhorn" && rootEl.value) rootEl.value.open = true;
 }
 try {
-  // eslint-disable-next-line no-undef
   const route = useRoute();
   watch(
     () => route.hash,

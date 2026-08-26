@@ -456,3 +456,216 @@ export function buildSchemeColorMap(themeRoot: PONode | undefined): Map<string, 
   }
   return map;
 }
+
+// ---------------------------------------------------------------------------
+// Theme-color application helpers (v1.95.0) — shared by the DOCX and XLSX
+// contrast upgrades so both formats resolve the same theme the same way.
+// ---------------------------------------------------------------------------
+
+/** WordprocessingML's ST_ThemeColor names → clrScheme slots. Word's attr
+ *  values ("dark1", "background2", "hyperlink") differ from DrawingML's
+ *  slot names; text1/background1 alias the dk/lt slots exactly like
+ *  DrawingML's tx1/bg1 (SCHEME_ALIASES). */
+export const WORD_THEME_COLOR_MAP: Record<string, string> = {
+  dark1: "dk1",
+  light1: "lt1",
+  dark2: "dk2",
+  light2: "lt2",
+  text1: "dk1",
+  background1: "lt1",
+  text2: "dk2",
+  background2: "lt2",
+  accent1: "accent1",
+  accent2: "accent2",
+  accent3: "accent3",
+  accent4: "accent4",
+  accent5: "accent5",
+  accent6: "accent6",
+  hyperlink: "hlink",
+  followedHyperlink: "folHlink",
+};
+
+/**
+ * Apply Word's themeTint / themeShade to a 6-hex color. Both are a hex BYTE
+ * ("99" = 0x99/255): shade multiplies each channel toward black, tint blends
+ * each channel toward white — the WordprocessingML per-channel formulas, not
+ * DrawingML's HSL variant. Invalid inputs return the base color unchanged
+ * (never null: a bad modifier must not erase a resolved color).
+ */
+export function applyWordTintShade(hex: string, tint?: string, shade?: string): string {
+  const parse = (b?: string): number | null =>
+    b && /^[0-9a-fA-F]{1,2}$/.test(b) ? parseInt(b, 16) / 255 : null;
+  const channels = [
+    parseInt(hex.slice(0, 2), 16),
+    parseInt(hex.slice(2, 4), 16),
+    parseInt(hex.slice(4, 6), 16),
+  ];
+  if (channels.some((c) => Number.isNaN(c))) return hex;
+  const shadeV = parse(shade);
+  const tintV = parse(tint);
+  let out = channels;
+  if (shadeV !== null) out = out.map((c) => c * shadeV);
+  if (tintV !== null) out = out.map((c) => c * tintV + 255 * (1 - tintV));
+  return out
+    .map((c) =>
+      Math.max(0, Math.min(255, Math.round(c)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")
+    .toUpperCase();
+}
+
+/**
+ * Apply SpreadsheetML's `tint` attribute (a double in [-1, 1]) to a 6-hex
+ * color, per the documented HSL-luminance formula: negative darkens
+ * (L' = L·(1+tint)), positive lightens (L' = L·(1−tint) + tint). Zero or
+ * invalid → unchanged.
+ */
+export function applyExcelTint(hex: string, tint: number): string {
+  if (!Number.isFinite(tint) || tint === 0) return hex;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  if ([r, g, b].some((c) => Number.isNaN(c))) return hex;
+  // RGB → HSL
+  const rn = r / 255,
+    gn = g / 255,
+    bn = b / 255;
+  const max = Math.max(rn, gn, bn),
+    min = Math.min(rn, gn, bn);
+  let h = 0;
+  const l0 = (max + min) / 2;
+  const d = max - min;
+  let sat = 0;
+  if (d !== 0) {
+    sat = l0 > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
+    else if (max === gn) h = ((bn - rn) / d + 2) / 6;
+    else h = ((rn - gn) / d + 4) / 6;
+  }
+  const l = tint < 0 ? l0 * (1 + tint) : l0 * (1 - tint) + tint;
+  // HSL → RGB
+  const hue2rgb = (p: number, q: number, t: number): number => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  let ro: number, go: number, bo: number;
+  if (sat === 0) {
+    ro = go = bo = l;
+  } else {
+    const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat;
+    const pp = 2 * l - q;
+    ro = hue2rgb(pp, q, h + 1 / 3);
+    go = hue2rgb(pp, q, h);
+    bo = hue2rgb(pp, q, h - 1 / 3);
+  }
+  return [ro, go, bo]
+    .map((c) =>
+      Math.max(0, Math.min(255, Math.round(c * 255)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")
+    .toUpperCase();
+}
+
+/** SpreadsheetML theme-INDEX order (`<color theme="N"/>`). Indices 0–3 are
+ *  the lt1/dk1/lt2/dk2 pairs in EXCEL's order (light first — the classic
+ *  gotcha: theme1.xml lists dk1 before lt1, but Excel's index puts the
+ *  background first, which is why theme="0" fills are white and theme="1"
+ *  text is black in every stock workbook); 4–9 the accents; 10–11 the link
+ *  colors. Verified empirically against Excel-authored controls in
+ *  xlsxThemeContrast tests. */
+export const EXCEL_THEME_INDEX_ORDER: readonly string[] = [
+  "lt1",
+  "dk1",
+  "lt2",
+  "dk2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hlink",
+  "folHlink",
+];
+
+/** The SpreadsheetML legacy indexed-color palette (`<color indexed="N"/>`),
+ *  per ECMA-376 §18.8.27 — the fixed default table (0–7 duplicate 8–15;
+ *  64/65 are the system foreground/background, resolved as black/white).
+ *  Workbooks may override it via styles.xml <colors><indexedColors>. */
+export const EXCEL_INDEXED_PALETTE: readonly string[] = [
+  "000000",
+  "FFFFFF",
+  "FF0000",
+  "00FF00",
+  "0000FF",
+  "FFFF00",
+  "FF00FF",
+  "00FFFF",
+  "000000",
+  "FFFFFF",
+  "FF0000",
+  "00FF00",
+  "0000FF",
+  "FFFF00",
+  "FF00FF",
+  "00FFFF",
+  "800000",
+  "008000",
+  "000080",
+  "808000",
+  "800080",
+  "008080",
+  "C0C0C0",
+  "808080",
+  "9999FF",
+  "993366",
+  "FFFFCC",
+  "CCFFFF",
+  "660066",
+  "FF8080",
+  "0066CC",
+  "CCCCFF",
+  "000080",
+  "FF00FF",
+  "FFFF00",
+  "00FFFF",
+  "800080",
+  "800000",
+  "008080",
+  "0000FF",
+  "00CCFF",
+  "CCFFFF",
+  "CCFFCC",
+  "FFFF99",
+  "99CCFF",
+  "FF99CC",
+  "CC99FF",
+  "FFCC99",
+  "3366FF",
+  "33CCCC",
+  "99CC00",
+  "FFCC00",
+  "FF9900",
+  "FF6600",
+  "666699",
+  "969696",
+  "003366",
+  "339966",
+  "003300",
+  "333300",
+  "993300",
+  "993366",
+  "333399",
+  "333333",
+  "000000",
+  "FFFFFF",
+];

@@ -63,6 +63,9 @@ export interface SheetOpts {
     /** Emit a bare `<c r="{ref}" s="N"/>` with no value child. */
     empty?: boolean;
   }>;
+  /** Raw XML appended inside the <worksheet> after the standard blocks —
+   *  e.g. <controls>/<oleObjects> for the v1.95.0 form-control census. */
+  rawSheetExtra?: string;
 }
 
 export interface BuildXlsxOpts {
@@ -71,14 +74,26 @@ export interface BuildXlsxOpts {
   /** xl/sharedStrings.xml entries: plain strings become <si><t>…</t></si>;
    *  a { richRuns } entry becomes <si><r><t>…</t></r>…</si>. */
   sharedStrings?: Array<string | { richRuns: string[] }>;
-  /** cellXfs entries: font color/size/bold × solid-fill color (both ARGB or 6-hex). */
+  /** cellXfs entries: font color/size/bold × solid-fill color (both ARGB or
+   *  6-hex). v1.95.0: fontThemeIdx/fillThemeIdx emit <color theme="N"
+   *  tint="…"/>, fontIndexed/fillIndexed emit <color indexed="N"/>. */
   styles?: Array<{
     fontRgb?: string;
     fontTheme?: boolean;
+    fontThemeIdx?: number;
+    fontTint?: number;
+    fontIndexed?: number;
     sz?: number;
     bold?: boolean;
     fillRgb?: string;
+    fillThemeIdx?: number;
+    fillTint?: number;
+    fillIndexed?: number;
   }>;
+  /** Raw xl/styles.xml override (wins over `styles`). */
+  stylesXml?: string;
+  /** xl/theme/theme1.xml content (v1.95.0 theme-resolution tests). */
+  themeXml?: string;
 }
 
 const R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
@@ -168,11 +183,17 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
   const fonts = [`<font><sz val="11"/><name val="Calibri"/></font>`]
     .concat(
       styles.map((st) => {
-        const color = st.fontTheme
-          ? `<color theme="1"/>`
-          : st.fontRgb
-            ? `<color rgb="${st.fontRgb}"/>`
-            : "";
+        const tint = st.fontTint !== undefined ? ` tint="${st.fontTint}"` : "";
+        const color =
+          st.fontThemeIdx !== undefined
+            ? `<color theme="${st.fontThemeIdx}"${tint}/>`
+            : st.fontIndexed !== undefined
+              ? `<color indexed="${st.fontIndexed}"/>`
+              : st.fontTheme
+                ? `<color theme="1"/>`
+                : st.fontRgb
+                  ? `<color rgb="${st.fontRgb}"/>`
+                  : "";
         return `<font><sz val="${st.sz ?? 11}"/>${st.bold ? "<b/>" : ""}${color}</font>`;
       }),
     )
@@ -182,11 +203,20 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     `<fill><patternFill patternType="gray125"/></fill>`,
   ]
     .concat(
-      styles.map((st) =>
-        st.fillRgb
-          ? `<fill><patternFill patternType="solid"><fgColor rgb="${st.fillRgb}"/></patternFill></fill>`
-          : `<fill><patternFill patternType="none"/></fill>`,
-      ),
+      styles.map((st) => {
+        const tint = st.fillTint !== undefined ? ` tint="${st.fillTint}"` : "";
+        const fg =
+          st.fillThemeIdx !== undefined
+            ? `<fgColor theme="${st.fillThemeIdx}"${tint}/>`
+            : st.fillIndexed !== undefined
+              ? `<fgColor indexed="${st.fillIndexed}"/>`
+              : st.fillRgb
+                ? `<fgColor rgb="${st.fillRgb}"/>`
+                : null;
+        return fg
+          ? `<fill><patternFill patternType="solid">${fg}</patternFill></fill>`
+          : `<fill><patternFill patternType="none"/></fill>`;
+      }),
     )
     .join("");
   const xfs = [`<xf fontId="0" fillId="0"/>`]
@@ -194,8 +224,10 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     .join("");
   zip.file(
     "xl/styles.xml",
-    `<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts>${fonts}</fonts><fills>${fills}</fills><cellXfs>${xfs}</cellXfs></styleSheet>`,
+    opts.stylesXml ??
+      `<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts>${fonts}</fonts><fills>${fills}</fills><cellXfs>${xfs}</cellXfs></styleSheet>`,
   );
+  if (opts.themeXml) zip.file("xl/theme/theme1.xml", opts.themeXml);
 
   opts.sheets.forEach((s, i) => {
     const rels: string[] = [];
@@ -284,7 +316,7 @@ export async function buildXlsx(opts: BuildXlsxOpts): Promise<Buffer> {
     } else {
       zip.file(
         `xl/worksheets/sheet${i + 1}.xml`,
-        `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${dim}${renderSheetData(s.cells)}${merges}${links}</worksheet>`,
+        `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ${R}>${dim}${renderSheetData(s.cells)}${merges}${links}${s.rawSheetExtra ?? ""}</worksheet>`,
       );
       if (rels.length) {
         zip.file(
