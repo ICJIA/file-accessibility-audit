@@ -189,6 +189,12 @@
               class="mb-6"
             />
 
+            <!-- The report's findings regrouped under the Matterhorn
+             Protocol's 31 checkpoints (v1.93.0). Collapsed by default;
+             self-hides for non-PDF reports and category-less page-audit
+             rows. Never a second score. -->
+            <MatterhornReportPanel v-if="data.report" :result="data.report" class="mb-6" />
+
             <!-- Scanned warning -->
             <div
               v-if="data.report.isScanned"
@@ -285,6 +291,7 @@ import ReportFileBanner from "~/components/ReportFileBanner.vue";
 import MethodologyCard from "~/components/MethodologyCard.vue";
 import ReportDownloadBar from "~/components/ReportDownloadBar.vue";
 import ReportVisualView from "~/components/ReportVisualView.vue";
+import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import type { AnalysisResult } from "@file-audit/shared";
 

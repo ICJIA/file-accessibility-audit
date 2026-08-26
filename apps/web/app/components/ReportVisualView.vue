@@ -67,6 +67,12 @@
 
       <CategoryBars :categories="displayedCategories" class="mb-6" />
 
+      <!-- The report's findings regrouped under the Matterhorn Protocol's 31
+           checkpoints (v1.93.0). Collapsed by default; self-hides for
+           non-PDF reports. Purely a re-presentation of evidence above —
+           never a second score. -->
+      <MatterhornReportPanel :result="result" class="mb-6" />
+
       <TechnicalReport
         v-model:open="techOpen"
         :result="result"
@@ -86,6 +92,7 @@ import ActionPlan from "~/components/ActionPlan.vue";
 import DocumentMetadataCard from "~/components/DocumentMetadataCard.vue";
 import PrintPlanButton from "~/components/PrintPlanButton.vue";
 import CategoryBars from "~/components/CategoryBars.vue";
+import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
 import TechnicalReport from "~/components/TechnicalReport.vue";
 import { buildActionPlan } from "~/utils/actionPlan";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";

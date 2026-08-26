@@ -252,6 +252,19 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "matterhorn-report-panel-2026-08-26",
+    badge: "New",
+    text: "PDF reports now include \"Your document against the Matterhorn checklist\" — a collapsible section showing how your document's findings land on each of the 31 checkpoints of the PDF industry's standard test model, the same checklist explained on the front page. Each checkpoint says, in words, whether issues were found, nothing was machine-detected, human review is needed, or the check did not run — never a tally or a pass/fail stamp, because this view adds nothing to your score and takes nothing from it. It is another way of reading the findings your report already contains, useful when working with remediation vendors who follow the PAC checker or the Matterhorn Protocol. Reports you shared earlier show the new section automatically.",
+    linkText: "How the checklist works",
+    linkTo: "/#matterhorn",
+    /** Same-page anchor on the landing page — an ordinary router link. */
+    linkExternal: false,
+    /** Shown under the text so visitors can see the tool is actively maintained. */
+    date: "August 26, 2026",
+    /** Only shown while the app is on this WCAG version (null = always). */
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "matterhorn-pass-plain-language-2026-08-26",
     badge: "Improved",
     text: 'The PDF checker now catches more on its own: formulas without a spoken alternative, footnotes screen readers cannot link to their references, heading labels that mix two conventions, language settings that are not usable codes (like "english" instead of "en-US"), and embedded audio, video, scripts, or switchable layers — each either fixed into the score or flagged for human review, never silently skipped. Every previously checked document keeps its exact score; the new checks only affect documents that actually have these problems. The Matterhorn checklist on this page was also rewritten in plain language, answering why it has that name, what the veraPDF second-opinion checker is, and — plainly — that none of this changes how your score is calculated.',

@@ -293,6 +293,11 @@
               class="mb-6"
             />
 
+            <!-- The report's findings regrouped under the Matterhorn
+             Protocol's 31 checkpoints (v1.93.0). Collapsed by default;
+             self-hides for non-PDF reports. Never a second score. -->
+            <MatterhornReportPanel v-if="result" :result="result" class="mb-6" />
+
             <MethodologyCard :file-type="result?.fileType" />
 
             <ReportContent :result="result" />
@@ -744,6 +749,7 @@ import ReportVisualView from "~/components/ReportVisualView.vue";
 import ReportViewToggle from "~/components/ReportViewToggle.vue";
 import BatchFileSwitcher from "~/components/BatchFileSwitcher.vue";
 import MatterhornChecklist from "~/components/MatterhornChecklist.vue";
+import MatterhornReportPanel from "~/components/MatterhornReportPanel.vue";
 import { uploadNoun } from "~/utils/uploadFormats";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";

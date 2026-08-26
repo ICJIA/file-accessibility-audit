@@ -54,6 +54,29 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.93.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: a new collapsed section on report pages that regroups a report&rsquo;s existing findings under the PDF industry&rsquo;s 31-point checklist. Nothing new is collected, no new way to reach the service, no retention period changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Every PDF report now offers &ldquo;Your document against the Matterhorn checklist&rdquo;: the same findings the report already shows, regrouped under the 31 checkpoints of the PDF industry&rsquo;s standard test model (the checklist the front page explains). It is computed in the reader&rsquo;s browser from the report data the page already had &mdash; no new information is generated, requested, or stored, and reports shared before this release gain the section automatically because nothing about the stored data changed.",
+      },
+      {
+        kind: "findings",
+        items: [
+          {
+            badge: "Note",
+            html: "<strong>Worded so it cannot be mistaken for a second grade.</strong> The section never shows a tally (&ldquo;24 of 31&rdquo;), a percentage, or the word &ldquo;Pass&rdquo; &mdash; automated tests fail the build if any of those ever appear. Checkpoints no software can judge always say &ldquo;Needs human review&rdquo;, and when the veraPDF check did not run, the checkpoints it covers say &ldquo;Not machine-checked&rdquo; rather than looking clean.",
+          },
+          {
+            badge: "Note",
+            html: "<strong>Nothing is silently dropped.</strong> A veraPDF finding that does not fit under one checkpoint is listed in its own &ldquo;Other PDF/UA rules&rdquo; block, and every line shows the rule&rsquo;s own reference number and wording.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "v1.92.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: eight new automated checks inside the PDF analyzer, and a plain-language rewrite of the front page&rsquo;s checklist section. Nothing new is collected, no new way to reach the service, no retention period changed.",
     body: [

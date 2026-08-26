@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.93.0] - 2026-08-26
+
+### Added
+
+- **"Your document against the Matterhorn checklist" — a per-report Matterhorn view on every PDF report.** A collapsed panel on all four report surfaces (Visual + Detailed, live and shared pages) that regroups the report's existing findings under the 31 Matterhorn Protocol checkpoints the landing page discloses: the engine's conformance failures and category findings map to their checkpoints, and veraPDF failures group by the checkpoint their PDF/UA clause belongs to (7.4 → Headings, 7.5 → Tables, …), with the raw clause and rule wording shown verbatim.
+- **Four statuses, in words — never a second grade.** *Issues found* (with the evidence listed), *No machine-detected issues* (never "Pass" — human-judgment conditions remain on most checkpoints, and the footer says so), *Needs human review* (Flicker, Color and Contrast, Article Threads — always), and *Not machine-checked* (veraPDF-covered checkpoints on reports where veraPDF did not run — the v1.91.0 "Did not run" disclosure carried down to checkpoint level). A pin test asserts the panel never renders an aggregate count, a percentage, or the word "Pass".
+- **Nothing dropped:** a veraPDF rule whose clause has no checkpoint mapping lands in a visible "Other PDF/UA rules" block.
+
+### Notes
+
+- **Presentation only — computed from the report payload at render time.** No API, schema, scoring, or storage change; **existing stored reports gain the panel retroactively.** URL page-audit rows (no categories) and non-PDF reports never render it.
+- A real captured analyzer payload (`fixtures/analyzer-output.pdf.json`) guards the finding-marker mapping, so a reworded analyzer finding that would silently unmap fails CI.
+- Tests: API 1,437 · web 1,185 · CLI 49 (**2,671** across 172 files).
+
+<details>
+<summary><strong>v1.92.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.92.0] - 2026-08-26
 
 ### Added
@@ -32,8 +49,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - No schema change, no new route, no retention change; nothing new is collected or stored — data-retention policy stays **v1.14**.
 - Tests: API 1,437 · web 1,164 · CLI 49 (**2,650** across 171 files).
 
-<details>
-<summary><strong>v1.91.0 → v1.88.0</strong> (2026-08-25 → 2026-08-22) — click to expand</summary>
 
 ## [1.91.0] - 2026-08-25
 
