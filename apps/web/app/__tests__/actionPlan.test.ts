@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { buildActionPlan, publicationVerdict, PLAN_COPY } from "../utils/actionPlan";
 
@@ -448,6 +450,183 @@ describe("InDesign-authored PDFs (creator detection)", () => {
       INDESIGN,
     );
     expect(steps[0]!.routes.length).toBeGreaterThan(0);
+  });
+});
+
+describe("alt_text variant — lettering that is artwork, not text", () => {
+  // Most authors only ever read the Visual view, so the plan step is where
+  // this has to be explained (user request, 2026-08-27). The defect: Word's
+  // PDF export flattens text carrying an effect into pictures, one per line.
+  // A real ICJIA board agenda is the reference case — its letterhead, the
+  // agency's own name, became three images, so "ILLINOIS" appeared nowhere
+  // in the text layer.
+  //
+  // The step's first job is to answer "what images?". The author knows they
+  // never inserted one, and nothing in Word looked wrong, so a step that
+  // opens by demanding descriptions reads as the tool being broken.
+  const RASTERIZED_FINDINGS = [
+    "0 of 3 image(s) have alternative text",
+    "--- Images Missing Alt Text ---",
+    "  Image 1: <Figure> tag — no /Alt attribute",
+    "--- Some Lettering May Not Be Real Text ---",
+    "3 image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos.",
+    "Why it matters: a picture of a word is not a word.",
+  ];
+
+  it("explains what the mystery images are and why they exist", () => {
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", RASTERIZED_FINDINGS)],
+      "pdf",
+    )[0]!;
+    expect(step.title).toMatch(/artwork|lettering/i);
+    // Answers "what images?" before asking the author for anything.
+    expect(step.why).toMatch(/never have added|never added/i);
+    expect(step.why).toMatch(/letterhead|banner/i);
+    // Says why it matters in human terms, not standards terms.
+    expect(step.why).toMatch(/screen reader/i);
+    expect(step.why).toMatch(/search/i);
+    // Gives the reader the ten-second self-check.
+    expect(step.why).toMatch(/select/i);
+    // And is honest that no source-side checker can warn them.
+    expect(step.why).toMatch(/no checker inside Word or InDesign|source file looks fine/i);
+  });
+
+  it("covers BOTH causes — recoverable typed text and unrecoverable artwork", () => {
+    // The correction that a fresh-eyes review forced (2026-08-27). The first
+    // copy asserted one mechanism: "Word flattened your text into a picture,
+    // remove the effect and re-export". Inspecting the reference agenda's
+    // content stream showed the letterhead words were VECTOR OUTLINES —
+    // 194 bezier curves, zero text operators — i.e. lettering inside placed
+    // artwork, which no amount of removing effects recovers. Telling that
+    // author to strip a text effect would have sent them hunting for
+    // something that was never there. Both causes must be named, with their
+    // different remedies.
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", RASTERIZED_FINDINGS)],
+      "pdf",
+    )[0]!;
+    const source = step.routes.find((r) => r.tool === "source")!.steps.join(" ");
+    // Cause 1: baked into a logo/letterhead graphic — NOT recoverable, so the
+    // remedy is real text elsewhere plus marking the graphic decorative.
+    expect(source).toMatch(/logo or letterhead/i);
+    expect(source).toMatch(/never text and cannot be recovered|cannot be recovered/i);
+    expect(source).toMatch(/decorative/i);
+    // Cause 2: typed text carrying an effect — IS recoverable at the source.
+    expect(source).toMatch(/Text Effects/i);
+    expect(source).toMatch(/does come through as real text|once the effect is gone/i);
+    expect(source).toMatch(/re-upload|Save as PDF again/i);
+    // Real photos still need describing — not lost when this variant takes over.
+    expect(source).toMatch(/Alt Text/);
+  });
+
+  it("is honest that Acrobat cannot undo it", () => {
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", RASTERIZED_FINDINGS)],
+      "pdf",
+    )[0]!;
+    const acrobatText = step.routes.find((r) => r.tool === "acrobat")!.steps.join(" ");
+    expect(acrobatText).toMatch(/cannot turn artwork back into text/i);
+    expect(acrobatText).toMatch(/Background\/Artifact/);
+  });
+
+  it("outranks the text-box variant when a document has both", () => {
+    // First match wins, and this defect is the more severe of the two: a text
+    // box still holds its words inside the file, a flattened line has none.
+    const step = buildActionPlan(
+      [
+        cat("alt_text", "Alt Text on Images", "Critical", [
+          ...RASTERIZED_FINDINGS,
+          "--- Figures That Contain Text ---",
+          '  Page 22: "LEGISLATIVE TIMELINE"',
+        ]),
+      ],
+      "pdf",
+    )[0]!;
+    expect(step.title).toMatch(/artwork|lettering/i);
+    expect(step.why).toMatch(/letterhead|banner/i);
+  });
+
+  it("keeps today's copy when no image looks like text", () => {
+    const today = buildActionPlan([cat("alt_text", "Alt Text on Images", "Critical")], "pdf")[0]!;
+    const plain = buildActionPlan(
+      [
+        cat("alt_text", "Alt Text on Images", "Critical", [
+          "0 of 3 image(s) have alternative text",
+          "  Image 1: <Figure> tag — no /Alt attribute",
+        ]),
+      ],
+      "pdf",
+    )[0]!;
+    expect(plain.title).toBe(today.title);
+    expect(plain.why).toBe(today.why);
+  });
+
+  it("is InDesign-aware and obeys the plain-language rule", () => {
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", RASTERIZED_FINDINGS)],
+      "pdf",
+      "Adobe InDesign 21.4 (Macintosh)",
+    )[0]!;
+    const source = step.routes.find((r) => r.tool === "source")!;
+    expect(source.label).toBe("Easiest — fix the InDesign file, then re-export");
+    expect(source.steps.join(" ")).not.toMatch(/Word|File → Save As/);
+    // Non-technical audience: no standards references, and none of the PDF
+    // internals the Detailed view is allowed to use.
+    for (const s of [step.title, step.why, ...step.routes.flatMap((r) => r.steps)]) {
+      expect(s).not.toMatch(/WCAG|ISO|14289|StructTreeRoot|MCID|rasteri[sz]|XObject/i);
+    }
+  });
+
+  it("leads the Acrobat route with the correction, ahead of the report's own block", () => {
+    // Caught by rendering the real agenda rather than by a unit test: a
+    // report carrying its own Acrobat block beats the dictionary default, so
+    // the route opened with "Add alternate text — Acrobat detects all figures
+    // and walks through them" — the exact move this step exists to prevent.
+    // The lead-in must come FIRST, and the block's still-useful steps stay.
+    const step = buildActionPlan(
+      [
+        cat("alt_text", "Alt Text on Images", "Critical", [
+          ...RASTERIZED_FINDINGS,
+          "--- Adobe Acrobat: How to Fix ---",
+          "To fix every image in one pass: All tools → Prepare for accessibility → Add alternate text",
+          "Decorative images: select with the Reading Order tool → click Background/Artifact",
+        ]),
+      ],
+      "pdf",
+    )[0]!;
+    const acrobat = step.routes.find((r) => r.tool === "acrobat")!;
+    expect(acrobat.steps[0]).toMatch(/do not describe the graphics that are really words/i);
+    expect(acrobat.steps[0]).toMatch(/cannot turn artwork back into letters/i);
+    // The per-document block survives underneath — a real photo still needs a
+    // description, and that advice must not be thrown away.
+    expect(acrobat.steps.join(" ")).toMatch(/Add alternate text/);
+    expect(acrobat.steps.length).toBeGreaterThan(1);
+  });
+
+  it("does not say the caveat twice when the dictionary default is in use", () => {
+    // With no per-document block the dictionary copy already opens with the
+    // same warning, so the lead-in must stay out of the way.
+    const step = buildActionPlan(
+      [cat("alt_text", "Alt Text on Images", "Critical", RASTERIZED_FINDINGS)],
+      "pdf",
+    )[0]!;
+    const acrobat = step.routes.find((r) => r.tool === "acrobat")!;
+    const leadIns = acrobat.steps.filter((s) => /do not describe the graphics/i.test(s));
+    expect(leadIns).toHaveLength(0);
+    expect(acrobat.steps[0]).toMatch(/cannot turn artwork back into text/i);
+  });
+
+  it("matches the header the ANALYZER actually emits — the wiring, not just the logic", () => {
+    // This variant is keyed on a string produced in another package. Both
+    // sides pass their own tests while agreeing on nothing if either is
+    // reworded, and the symptom is silent: the Visual view quietly drops back
+    // to "add a description", which is the exact wrong advice this exists to
+    // replace. So assert the literal at its source.
+    const analyzer = readFileSync(
+      resolve(__dirname, "../../../../packages/analyzer/src/scoring/pdf.ts"),
+      "utf8",
+    );
+    expect(analyzer).toContain("--- Some Lettering May Not Be Real Text ---");
   });
 });
 

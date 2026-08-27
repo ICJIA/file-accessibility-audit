@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.106.0",
+    meta: "Reviewed <strong>2026-08-27</strong> · scope: where the note described just below appears, and a correction to what it said. Nothing new is received, sent, stored, or scored.",
+    body: [
+      {
+        kind: "p",
+        html: "The note about lettering that may not be real text now also appears in the plain-language step list &mdash; the view most people actually read &mdash; instead of only in the detailed report. It leads by answering the question the report otherwise raises: <em>what images? I never added one.</em>",
+      },
+      {
+        kind: "p",
+        html: "We also got the explanation wrong the first time, and would rather say so than quietly change it. The previous release stated that Word had flattened text into a picture, and told authors to remove the visual effect on that text and save the PDF again. Looking more closely at the document that prompted the work, its letterhead words were not a picture at all &mdash; they were letter <em>shapes</em>, traced outlines inside a piece of pasted artwork. No export setting brings those back. Someone following the old advice would have gone looking in Word for an effect that was never there. The note now explains that there are two different causes, and that only one of them can be repaired: lettering baked into a logo or letterhead cannot be recovered, so the same wording needs to appear as ordinary text elsewhere on the page, while text that merely carries an effect does come through as text once the effect is removed.",
+      },
+      {
+        kind: "p",
+        html: "Two smaller corrections in the same spirit. The previous entry said every flagged item we inspected by hand was a genuine problem; checking the remaining ones found three genuine and one not (a solid coloured callout box behind a chart, whose text is perfectly readable). And the announcement about this feature was rewritten in place rather than shown again, because that release was never published to the live site &mdash; nobody had read the original wording. How it was reviewed: this release changes wording and where the wording appears. No web address, stored record, retention period, or document score changed, and all 27 test documents come out with exactly the same scores and grades as before.",
+      },
+    ],
+  },
+  {
     version: "v1.105.0",
     meta: "Reviewed <strong>2026-08-27</strong> · scope: one new thing the report can tell you about your document. Nothing new is received, sent, stored, or scored.",
     body: [

@@ -52,6 +52,19 @@ interface PlanCopyEntry {
    *  SOURCE_ONLY_LABEL instead of ACROBAT_LABEL so it reads as a straight
    *  answer instead of a dead-end redirect. */
   acrobatIsSourceOnly?: boolean;
+  /** Lines PREPENDED to the Acrobat route even when the report carries its
+   *  own per-document Acrobat block.
+   *
+   *  Normally the per-document block wins outright, because it describes what
+   *  the analyzer actually saw. That rule breaks for a defect whose per-
+   *  document advice is wrong: a document whose words were flattened into
+   *  pictures gets the stock "Add alternate text — Acrobat detects all
+   *  figures and walks through them", which is precisely what the step is
+   *  telling the author NOT to do. Prepending rather than replacing keeps the
+   *  block's still-valid parts (the real photo does need a description, the
+   *  decorative one does need marking) while making sure the caveat is read
+   *  first. */
+  acrobatLead?: string[];
 }
 
 const SOURCE_LABEL_PDF = "Easiest — fix the source document, then re-export";
@@ -503,6 +516,23 @@ const TEXT_EXTRACTABILITY_VARIANTS: Array<{
 ];
 
 /**
+ * alt_text's variants, FIRST MATCH WINS — so the order below is the decision.
+ *
+ * "Text turned into pictures" is checked first because it is the one an
+ * author cannot otherwise work out. The report says a document has images;
+ * the author knows they never inserted one; nothing in Word looks wrong. The
+ * step has to answer "what images?" before it asks for anything, or it reads
+ * as the tool being broken. It also outranks the text-box variant below on
+ * severity: a text box at least keeps its words inside the file, where a
+ * flattened line of type has no words left at all. When a document has both,
+ * this copy still points at the real pictures so the alt-text instruction is
+ * never lost.
+ *
+ * Both variants exist because "add a description" is the WRONG fix for their
+ * defect, and the stock step would send the author to do exactly that.
+ */
+
+/**
  * alt_text has one findings-keyed variant: figures that are really text.
  * Word exports text boxes, sidebars, SmartArt and chart title bars as
  * <Figure> with the text nested inside, and a Figure's alt text REPLACES its
@@ -517,6 +547,38 @@ const ALT_TEXT_VARIANTS: Array<{
   matches: (findings: string[]) => boolean;
   entry: PlanCopyEntry;
 }> = [
+  {
+    matches: (f) => f.some((s) => s.includes("--- Some Lettering May Not Be Real Text ---")),
+    entry: {
+      title: "Check whether some lettering here is artwork instead of text",
+      why: 'This document contains "images" you may never have added knowingly. Graphics shaped like lines of writing usually mean words have been baked into artwork — most often a letterhead or a banner heading. On screen they look perfect, which is why it goes unnoticed, and no checker inside Word or InDesign can warn you, because the source file looks fine there. But a picture of a word is not a word: a screen reader has nothing to read out, nobody can search for it, and it can blur when zoomed. Check it in ten seconds — try to select those words in the PDF with your mouse. If they highlight, they are real text and you can skip this step.',
+      source: {
+        pdf: [
+          "Find the words that would not highlight in the PDF — usually the letterhead or a banner heading",
+          "If they are part of a logo or letterhead picture, those words were never text and cannot be recovered. Instead make sure the same wording also appears as ordinary text on the page — the organisation's name in the body or the footer — and mark the graphic itself as decorative (right-click → View Alt Text → Mark as decorative)",
+          "If instead they are words you typed that carry an effect — a shadow, outline, glow, reflection, or a colour that fades — select that text → Font → Text Effects → remove the effect, or retype it as plain text in a solid colour. That kind does come through as real text once the effect is gone",
+          "While you are there, give any real photo or chart a short description: right-click → View Alt Text (some Word versions call it Edit Alt Text)",
+          "Save as PDF again, then re-upload here — anything that was fixable should now be selectable",
+        ],
+      },
+      sourceInDesign: [
+        "Find the words that would not highlight in the PDF — usually a letterhead or banner heading",
+        "If the lettering sits inside placed artwork (a logo, an EPS, or type that was converted to outlines), those words are shapes, not text. Make sure the same wording also appears as live text on the page, and mark the artwork as decorative via Object → Object Export Options → Alt Text",
+        "If it is live type carrying an effect or transparency (Effects panel: drop shadow, glow, feather; or a gradient or partly transparent fill), remove that from the type — those force the exporter to flatten it",
+        'Re-export with "Create Tagged PDF" checked',
+      ],
+      acrobat: [
+        "Acrobat cannot turn artwork back into text — once the letters are shapes or pixels, the words are gone from the file. Anything repairable has to be repaired in the source document and exported again",
+        'What you CAN do here: make sure the same wording exists as real text on the page, then select the graphic with All tools → Prepare for accessibility → Fix reading order and mark it "Background/Artifact" so a screen reader skips it rather than announcing an unexplained image',
+      ],
+      // The per-document block below this offers "add alternate text to every
+      // figure". For the graphics that are really words that is the wrong
+      // move, so the caveat has to be read first.
+      acrobatLead: [
+        "First — do not describe the graphics that are really words. A description stands in for the wording rather than restoring it, and leaves it unsearchable. Acrobat cannot turn artwork back into letters: anything repairable belongs in the source document. The steps below still apply to any real photo, logo, or chart in this document",
+      ],
+    },
+  },
   {
     matches: (f) => f.some((s) => s.includes("--- Figures That Contain Text ---")),
     entry: {
@@ -695,7 +757,14 @@ export function buildActionPlan(
     // specific to what the analyzer actually saw in this file.
     const reportAcrobat = partitionCardFindings(findings).acrobat;
     const usesDictionaryAcrobat = !reportAcrobat.length;
-    const acrobatSteps = reportAcrobat.length ? reportAcrobat : (entry?.acrobat ?? []);
+    const acrobatBody = reportAcrobat.length ? reportAcrobat : (entry?.acrobat ?? []);
+    // A variant's lead-in goes first even ahead of a per-document block — see
+    // acrobatLead. Skipped when the dictionary default is already in use,
+    // since that copy carries the caveat itself and would say it twice.
+    const acrobatSteps =
+      entry?.acrobatLead && !usesDictionaryAcrobat
+        ? [...entry.acrobatLead, ...acrobatBody]
+        : acrobatBody;
     // A per-document Acrobat block from the report itself is always a real,
     // actionable PDF fix — only the dictionary's generic default can be a
     // "you have to go back to the source" dead end, so acrobatIsSourceOnly

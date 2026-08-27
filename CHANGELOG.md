@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.106.0] - 2026-08-27
+
+### Added
+
+- **The Visual view now carries the lettering-as-artwork warning too.** Most authors never open the Detailed view, so the action plan gains its own step that answers the question the report otherwise provokes — *"what images? I never added one"* — before it asks for anything.
+
+### Fixed
+
+- **v1.105.0 described the wrong cause, and this corrects it.** That release asserted one mechanism: Word flattens effect-carrying text into a picture, so remove the effect and re-export. Re-examining the reference agenda's content stream showed its letterhead words were **vector outlines** — 194 bezier curves and zero text operators — that is, lettering inside placed artwork, which no export setting recovers. An author following the old advice would have hunted through Word for an effect that was never there. The finding is renamed **"Some Lettering May Not Be Real Text"** and now names both causes with their different remedies: lettering baked into a logo or letterhead (not recoverable — put the same wording in real text on the page and mark the graphic decorative) versus typed text carrying an effect (genuinely repairable at the source).
+- **The Visual step's Acrobat route was opening with the wrong instruction.** A report's own per-document Acrobat block outranks the dictionary copy, and here that block leads with *"Add alternate text — Acrobat detects all figures and walks through them"* — precisely the move the step exists to prevent. A variant lead-in (`acrobatLead`) now sits ahead of it, keeping the block's still-valid advice for real photos underneath. Caught by rendering the real document rather than by a unit test.
+
+### Notes
+
+- **A correction to v1.105.0's own claim**: it said every hand-checked flag was a true positive. Inspecting the two remaining flagged control files found **three true positives and one false positive** — a fact sheet's section title and a form's header really are lettering-as-artwork, while a chart's solid callout-box background is not (its text extracts fine). The finding was already worded as something to check rather than a failure it declares; that wording is now doing real work.
+- **The v1.105.0 announcement banner was corrected in place** rather than re-shown, because that release was tagged but never deployed — no visitor ever read the original wording. This entry is the on-the-record disclosure, following the v1.73.0 precedent.
+- Known limits, stated rather than buried: the width-grouping rule that drops sliced graphics will also suppress genuine lettering if three or more lines share a width, the 4:1 aspect floor misses short single words, and the check only ever finds these documents when images accompany the outlines — a purely vector logo is invisible to it. It remains a proxy signal, and it still never moves the score.
+- Tests: API 1,529 · web 1,249 · CLI 49 (**2,827**). No API, scoring, storage, or retention change.
+
+<details>
+<summary><strong>v1.105.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
+
 ## [1.105.0] - 2026-08-27
 
 ### Added
@@ -17,9 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Evidence, not a verdict.** The detector recognises the shape of a line of type — wider than 4:1, 8 to 120 pixels tall, at least 40 wide — so the finding asks the reader to confirm, never asserts a WCAG failure, and **never moves the score**. The 185-test scoring calibration passes unchanged: every control document keeps its exact score and grade.
 - Measured, not guessed. Dimensions come from qpdf's object graph, not pdf.js, because pdf.js resolves image objects lazily while *rendering* — an operator-list walk read 0 on a file with three such images. Every threshold excludes something real, and a width-grouping rule drops pictures sliced into identical horizontal bands after a control file's state seal came out as six 392-pixel strips that all matched the shape test (that file went from 7 flags to 1). Across the 27 control PDFs it fires on four; the ones opened by hand are true positives — one of them had a section title stored as a picture.
 - Tests: API 1,529 · web 1,240 · CLI 49 (**2,818**), 13 new, each threshold pinned to the real file that would otherwise be misread. No API, storage, or retention change.
-
-<details>
-<summary><strong>v1.104.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
 
 ## [1.104.0] - 2026-08-27
 

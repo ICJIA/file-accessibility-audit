@@ -1008,21 +1008,21 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   // proof. It gives the reader a one-step way to confirm it themselves.
   const textLineLikeImages = qpdf.textLineLikeImageCount ?? 0;
   if (textLineLikeImages > 0) {
-    findings.push(`--- Possible Text Turned Into Pictures ---`);
+    findings.push(`--- Some Lettering May Not Be Real Text ---`);
     findings.push(
-      `${textLineLikeImages} image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos. That shape is what you get when words are flattened into a picture: instead of being stored as letters, they are stored as a grid of coloured dots, the same way a photograph is. On screen the words still look perfect, which is exactly why this is so easy to miss.`,
+      `${textLineLikeImages} image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos. Graphics that shape usually mean words have been baked into artwork instead of typed as text. Letterheads and banner headings are where this happens most. On screen those words look perfect, which is exactly why it goes unnoticed.`,
     );
     findings.push(
-      "Why it matters: a picture of a word is not a word. A screen reader has nothing to read out — it sees a picture, not letters. Find-on-this-page cannot search it. It will not rearrange itself to fit the screen when someone zooms in, and it turns blurry when magnified. None of that is solved by describing the picture.",
+      "Why it matters: a picture of a word is not a word. A screen reader has nothing to read out — it sees artwork, not letters. Find-on-this-page cannot search it. It will not rearrange itself when someone zooms in, and it can turn blurry when magnified. None of that is solved by describing the graphic.",
     );
     findings.push(
-      "How to check this yourself, in about ten seconds: open this PDF and try to select those words with your mouse, as though you were about to copy them. If they highlight, they are real text and you can ignore this note. If nothing highlights, they are a picture.",
+      "How to check this yourself, in about ten seconds: open this PDF and try to select those words with your mouse, as though you were about to copy them. If they highlight, they are real text and you can ignore this note. If nothing highlights, they are artwork.",
     );
     findings.push(
-      "Where to fix it — in Word, not in Acrobat. In the Word file these are almost always still ordinary words. That is why Word's own accessibility checker finds nothing wrong, and why nothing looks wrong on your screen: the words only turn into a picture at the moment the PDF is created. The usual cause is a visual effect applied to the text that a PDF has no way to store — a drop shadow, an outline, a glow, a reflection, or a colour that fades across the letters or is partly see-through. In Word, select that text, then Font → Text Effects, and remove the effect (or simply retype it as plain text in a solid colour). Save as PDF again and the words come through as words.",
+      "Documents end up this way for two different reasons, and the reasons need different fixes. (1) The lettering belongs to a logo or letterhead that was pasted in as a graphic — those words were never text and cannot be turned back into text. Make sure the same wording also appears as ordinary text somewhere on the page (the organisation's name in the body or the footer, for example), and mark the graphic itself as decorative so it is not announced as an unexplained image. (2) The lettering is text somebody typed that carries a visual effect — a drop shadow, an outline, a glow, a reflection, or a colour that fades across the letters — and the PDF export flattened it on the way out. That one IS repairable at the source: select the text, remove the effect (in Word: Font → Text Effects) or retype it as plain text in a solid colour, then export again.",
     );
     findings.push(
-      'Adding a description to these will not fix it. A description stands in for the words instead of bringing them back, so the text still cannot be searched, selected, or resized. If the design really must keep the picture, make sure the same wording also appears as ordinary text somewhere on the page, and then mark the picture as decorative — in Acrobat\'s reading-order tool that is the "Background/Artifact" option — so a screen reader skips past it instead of announcing it twice.',
+      'Either way, do not simply add a description. A description stands in for the words rather than bringing them back, so the wording still cannot be searched, selected, or resized. Worth knowing: no accessibility checker inside Word or InDesign can warn you about this, because the source file looks perfectly fine there — the words only stop being words when the PDF is produced, which makes the PDF the first place it can be caught. Decorative artwork is marked with the "Background/Artifact" option in Acrobat\'s reading-order tool.',
     );
   }
 
