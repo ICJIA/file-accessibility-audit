@@ -4,10 +4,6 @@
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
-    <!-- Site-wide, every page: the proactive "I understand" bar about what
-         automated checking can and cannot cover. Fixed to the bottom, so it
-         belongs to the app shell, not any one page. -->
-    <AutomationAckBanner />
   </div>
 </template>
 

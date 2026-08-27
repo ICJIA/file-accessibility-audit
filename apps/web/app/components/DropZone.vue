@@ -54,8 +54,7 @@
         </div>
         <div class="mt-3 flex gap-2 justify-center">
           <button
-            class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-green-600"
-            :disabled="blocked"
+            class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
             @click="submitStaged"
           >
             Analyze {{ stagedFiles.length }} {{ stagedFiles.length === 1 ? "File" : "Files" }}
@@ -71,18 +70,12 @@
     </div>
 
     <div
-      class="flex flex-col items-center justify-center min-h-[50vh] border-2 border-dashed rounded-2xl transition-all"
-      :class="[
-        blocked
-          ? 'cursor-not-allowed border-amber-500/40 bg-[var(--surface-card-50)] opacity-70'
-          : 'cursor-pointer',
-        !blocked && dragging
+      class="flex flex-col items-center justify-center min-h-[50vh] border-2 border-dashed rounded-2xl transition-all cursor-pointer"
+      :class="
+        dragging
           ? 'border-green-400 bg-green-400/5 scale-[1.01]'
-          : !blocked
-            ? 'border-[var(--border-input)] hover:border-[var(--border-hover)] bg-[var(--surface-card-50)]'
-            : '',
-      ]"
-      :aria-disabled="blocked ? 'true' : 'false'"
+          : 'border-[var(--border-input)] hover:border-[var(--border-hover)] bg-[var(--surface-card-50)]'
+      "
       @dragover.prevent
       @dragenter.prevent="onDragEnter"
       @dragleave.prevent="onDragLeave"
@@ -108,20 +101,7 @@
           </svg>
         </div>
 
-        <!-- Gated state (v1.102.0, legal compliance): the disclosure that
-             this tool checks only part of accessibility must be acknowledged
-             before any file can be checked. The zone says so in place rather
-             than failing silently — a drop target that quietly does nothing
-             is the worst version of this. -->
-        <div v-if="blocked" data-testid="dropzone-blocked">
-          <p class="text-lg font-medium text-[var(--text-heading)]">
-            One thing first — this tool checks only part of accessibility
-          </p>
-          <p class="mt-1 text-sm text-[var(--text-secondary)]">
-            {{ AUTOMATION_ACK_GATE_NOTE }}
-          </p>
-        </div>
-        <div v-else>
+        <div>
           <p
             class="text-lg font-medium"
             :class="dragging ? 'text-green-400' : 'text-[var(--text-heading)]'"
@@ -161,19 +141,6 @@ import {
   uploadNounWithExts,
   unsupportedFormatHint,
 } from "~/utils/uploadFormats";
-import { AUTOMATION_ACK_GATE_NOTE } from "~/composables/useAutomationAck";
-
-const props = withDefaults(
-  defineProps<{
-    /** True while the automation-coverage disclosure is unacknowledged. The
-     *  zone then refuses every route in: no picker, no drop, no staged
-     *  submit. The page owns the flag (useAutomationAck) and guards its own
-     *  analyze entry points too — this is the visible half of that gate, not
-     *  the only half. */
-    blocked?: boolean;
-  }>(),
-  { blocked: false },
-);
 
 // Must match the advertised copy below ("up to 5 files") — they drifted once
 // (copy said 5, limit was 3) and users hit "Maximum 3 files allowed" under a
@@ -198,9 +165,6 @@ const dropLabelActive = computed(() => `Drop your ${fileNoun.value} files here`)
 const emit = defineEmits<{
   "file-selected": [file: File];
   "files-selected": [files: File[]];
-  /** Someone tried to start a check while the disclosure is unacknowledged.
-   *  The page uses this to send them to the acknowledgment bar. */
-  "blocked-attempt": [];
 }>();
 
 const dragging = ref(false);
@@ -220,18 +184,7 @@ onMounted(() => {
   });
 });
 
-// Every route into a check passes through this. Blocked = the automation
-// coverage disclosure has not been acknowledged; the caller is sent to the
-// bar instead of being ignored.
-function refuseWhileBlocked(): boolean {
-  if (!props.blocked) return false;
-  validationError.value = "";
-  emit("blocked-attempt");
-  return true;
-}
-
 function onDragEnter() {
-  if (props.blocked) return;
   dragCounter.value++;
   dragging.value = true;
 }
@@ -245,14 +198,12 @@ function onDragLeave() {
 }
 
 function openPicker() {
-  if (refuseWhileBlocked()) return;
   fileInput.value?.click();
 }
 
 function handleDrop(e: DragEvent) {
   dragCounter.value = 0;
   dragging.value = false;
-  if (refuseWhileBlocked()) return;
   const files = Array.from(e.dataTransfer?.files || []);
   processFiles(files);
 }
@@ -260,13 +211,11 @@ function handleDrop(e: DragEvent) {
 function handleFileInput(e: Event) {
   const input = e.target as HTMLInputElement;
   const files = Array.from(input.files || []);
-  input.value = ""; // Reset so same files can be re-selected
-  if (refuseWhileBlocked()) return;
   processFiles(files);
+  input.value = ""; // Reset so same files can be re-selected
 }
 
 function processFiles(files: File[]) {
-  if (refuseWhileBlocked()) return;
   validationError.value = "";
 
   const exts = uploadExtensions(uploadFlags.value);
@@ -316,8 +265,6 @@ function clearStaged() {
 
 function submitStaged() {
   if (stagedFiles.value.length === 0) return;
-  // Files staged before the acknowledgment expired must not slip through.
-  if (refuseWhileBlocked()) return;
   if (stagedFiles.value.length === 1) {
     // Non-null: the length check above guarantees index 0 exists.
     emit("file-selected", stagedFiles.value[0]!);

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.104.0",
+    meta: "Reviewed <strong>2026-08-27</strong> · scope: removing the notice described in the two entries below. Nothing replaced it, and nothing about what is received, sent, stored, or scored changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The notice that asked you to confirm you had read it &mdash; and held the page still until you did &mdash; has been withdrawn while we reconsider how it should look and work. Everything that existed for it is gone: the notice, the hold on the page, the block on checking or fixing a file, and the single date-and-time value it saved in your browser. Nothing was added in its place, so this release removes the only thing this service had ever asked your browser to remember on its own behalf. Uploading, checking, and fixing files all behave exactly as they did before that notice was written.",
+      },
+      {
+        kind: "p",
+        html: "Worth stating plainly for this record: <strong>the two releases that introduced the notice were never put onto the live site</strong>. So nobody ever saw it, no browser ever saved anything for it, and there is nothing to undo or clean up on anyone&rsquo;s machine &mdash; the entries below describe work that only ever existed in our source code.",
+      },
+      {
+        kind: "p",
+        html: "What has <em>not</em> changed is the honesty this was meant to serve. Every report still carries the same message it did: this tool checks roughly 30&ndash;40% of accessibility problems, the same is true of every automated checker, the rest has to be checked by a person, and a good score does not mean the document is accessible &mdash; with links to the independent studies those figures come from. Only the notice that interrupted you was removed, not the disclosure itself.",
+      },
+    ],
+  },
+  {
     version: "v1.103.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: how the notice described just below looks and behaves. Nothing about what is received, sent, stored, or scored changed &mdash; the acknowledgment still never leaves your browser.",
     body: [

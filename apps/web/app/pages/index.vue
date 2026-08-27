@@ -600,12 +600,7 @@
         </div>
       </Transition>
 
-      <DropZone
-        :blocked="ackBlocked"
-        @file-selected="analyzeFile"
-        @files-selected="analyzeBatch"
-        @blocked-attempt="requestAck"
-      />
+      <DropZone @file-selected="analyzeFile" @files-selected="analyzeBatch" />
     </div>
 
     <LazyTechnicalExplainer hydrate-on-visible />
@@ -781,13 +776,6 @@ import {
 } from "~/utils/analyzeJob";
 import { type AnalysisResult } from "@file-audit/shared";
 import type { PrefillError } from "~/composables/usePrefill";
-import { useAutomationAck } from "~/composables/useAutomationAck";
-
-// The automation-coverage disclosure gate (legal compliance, 2026-08-26):
-// nothing is checked or remediated until the visitor acknowledges that this
-// tool covers only part of accessibility. AutomationAckBanner owns the ask;
-// the page owns the refusal.
-const { blocked: ackBlocked, requestAck } = useAutomationAck();
 
 // Word / PowerPoint / Excel support can each be disabled server-side
 // (DOCX_ENABLED / PPTX_ENABLED / XLSX_ENABLED = "false"); mirror that in the
@@ -996,11 +984,6 @@ usePrefill({
 
 // --- Single file analysis (unchanged behavior) ---
 async function analyzeFile(file: File) {
-  // The automation-coverage disclosure gate (legal compliance): no file is
-  // checked until it is acknowledged. Enforced HERE as well as in DropZone —
-  // the drop zone's own refusal is the visible half, this is the half that
-  // holds if any other path ever emits a file.
-  if (ackBlocked.value) return requestAck();
   processing.value = true;
   analysisError.value = null;
   singleResult.value = null;
@@ -1048,7 +1031,6 @@ async function analyzeFile(file: File) {
 
 // --- Batch analysis ---
 async function analyzeBatch(files: File[]) {
-  if (ackBlocked.value) return requestAck();
   singleResult.value = null;
   analysisError.value = null;
   batchProcessing.value = true;

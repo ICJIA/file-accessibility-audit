@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
 import { navigateTo, useRuntimeConfig } from "#app";
-import { useAutomationAck, AUTOMATION_ACK_GATE_NOTE } from "~/composables/useAutomationAck";
 
 interface Props {
   /** The File that was uploaded for the audit; re-uploaded for remediation. */
@@ -44,16 +43,8 @@ const visible = computed(() => {
 // understands their file has been checked and is in good shape.
 const alreadyAccessible = computed(() => props.inputScore !== null && props.inputScore >= 90);
 
-// The automation-coverage disclosure gate (legal compliance): remediation is
-// the other way a file gets worked on, so it is gated exactly like the audit.
-// Normally unreachable — a report has to exist above this button, and getting
-// one already required the acknowledgment — but it holds if the window
-// expires with the page open, and it is the second half of "no files can be
-// checked or remediated".
-const { blocked: ackBlocked, requestAck } = useAutomationAck();
-
 const busy = computed(() => phase.value !== "idle");
-const disabledForClick = computed(() => busy.value || alreadyAccessible.value || ackBlocked.value);
+const disabledForClick = computed(() => busy.value || alreadyAccessible.value);
 
 const phaseCopy = computed(() => {
   if (phase.value === "uploading") {
@@ -114,7 +105,6 @@ async function startRemediation(file: File): Promise<void> {
 
 async function handleClick(): Promise<void> {
   if (busy.value) return;
-  if (ackBlocked.value) return requestAck();
   if (props.file) {
     await startRemediation(props.file);
     return;
@@ -128,7 +118,6 @@ async function handlePickerChange(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
   const picked = input.files?.[0];
   if (!picked) return;
-  if (ackBlocked.value) return requestAck();
   await startRemediation(picked);
 }
 
@@ -259,13 +248,6 @@ onBeforeUnmount(() => {
         </div>
       </details>
     </div>
-    <p
-      v-if="ackBlocked && !busy"
-      data-testid="remediate-blocked"
-      class="mt-3 text-sm text-[var(--text-secondary)]"
-    >
-      {{ AUTOMATION_ACK_GATE_NOTE }}
-    </p>
     <p v-if="error" class="text-sm text-red-400 mt-3" role="alert">
       {{ error }}
     </p>

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.104.0] - 2026-08-27
+
+### Removed
+
+- **The acknowledgment notice is withdrawn** (user request), pending a rethink of how it should look and work. Everything added for it in v1.102.0 and v1.103.0 is gone: the dialog itself, the page freeze, the drop-zone and remediation gates, the shared state, the stored `localStorage` timestamp, and the `AUTOMATION_ACK_HOURS` setting. Uploading, checking, and remediating all behave exactly as they did in v1.101.0 — no notice, no acknowledgment, nothing to click first.
+- **This never reached production.** v1.102.0 and v1.103.0 were tagged but never deployed, so no visitor ever saw the notice and nobody's browser ever stored an acknowledgment. There is no migration and nothing to clean up.
+
+### Notes
+
+- **The disclosure itself stays put.** What was removed is the *gate*, not the message: every report still carries the automation-limit band at every grade — the 30–40% machine-checkable split, the sourced figures with their links, and the line that a good score does not mean the document is accessible. The landing-page announcement now describes that band rather than the withdrawn notice.
+- Tests: API 1,516 · web 1,240 · CLI 49 (**2,805**) — 26 fewer, all of them the withdrawn notice's own. No API, scoring, storage, or retention change.
+
+<details>
+<summary><strong>v1.103.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.103.0] - 2026-08-26
 
 ### Changed
@@ -15,9 +30,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Notes
 
 - Presentation and copy only. The gate's enforcement, the one-week window, the fail-closed behaviour, and the privacy posture are all unchanged from v1.102.0 — still a single `localStorage` timestamp, never a cookie, never sent to the server, no identity recorded. No API, scoring, storage, or retention change. Tests: API 1,516 · web 1,266 · CLI 49 (**2,831**).
-
-<details>
-<summary><strong>v1.102.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.102.0] - 2026-08-26
 

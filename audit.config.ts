@@ -250,38 +250,16 @@ export const WCAG_22_NEW_AA = [
  */
 export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
-/**
- * How long the site-wide "automated checks are only part of the job"
- * acknowledgment bar stays away after a visitor clicks "I understand".
- *
- * The bar (AutomationAckBanner.vue) is the cookie-banner-style half of the
- * automation-honesty pair (user request, 2026-08-26): every visitor has to
- * actively acknowledge — once per this window, per browser — that automated
- * checkers can only test a subset of accessibility and a person has to check
- * the rest. Deliberately a bottom bar, not a modal: nothing is blocked and
- * focus is not stolen ("not too invasive — but a user has to be proactive
- * with it"). The click is stored client-side only (a localStorage timestamp;
- * no cookie, nothing sent to the server) and expires, so the reminder recurs
- * for regulars without nagging on every visit.
- *
- * SAFE TO CHANGE: Yes — any number of hours ≥ 1. A week is the user's pick,
- * tuned live from 24h → 48h → 72h → 168h with the rule "the user should
- * acknowledge at least once, but not keep getting hammered by it". Don't set
- * 0: the bar would then reappear on every page load, which turns an
- * acknowledgment into a nag.
- */
-export const AUTOMATION_ACK_HOURS = 168;
-
 export const ANNOUNCEMENTS = [
   {
-    id: "automation-coverage-ack-2026-08-26",
+    id: "automation-coverage-2026-08-27",
     badge: "Important",
-    text: "Before checking a file, the tool now asks you to confirm one thing, and holds the page still until you do. This tool finds some accessibility problems — not all of them: checkers like this one, including the ones built into Adobe Acrobat and Microsoft Word, catch only about 30–40% of the problems in a document, and the rest can only be found by a person opening the file and looking. So a good score means the document passed the checks a computer can run; it does not mean the document is accessible. Every report now says the same thing at every grade, not just high-scoring ones, with the studies behind those figures linked so you can read them yourself. Your confirmation is remembered for a week and never leaves your browser — it isn't a cookie and nothing is sent to us; nothing about the checks or the scores changed.",
+    text: "Every report now says plainly what this tool can and cannot check. It finds some accessibility problems — not all of them: checkers like this one, including the ones built into Adobe Acrobat and Microsoft Word, catch only about 30–40% of the problems in a document, and the rest can only be found by a person opening the file and looking. So a good score means the document passed the checks a computer can run; it does not mean the document is accessible. That now appears on every report at every grade, not just high-scoring ones, with the studies behind those figures linked so you can read them yourself. Nothing about the checks or the scores changed — this is about being straight on what a score can and cannot tell you.",
     linkText: "What gets checked",
     linkTo: "/technical-details",
     /** In-app route — an ordinary router link. */
     linkExternal: false,
-    date: "August 26, 2026",
+    date: "August 27, 2026",
     requiresWcagVersion: null as "2.1" | "2.2" | null,
   },
   {
