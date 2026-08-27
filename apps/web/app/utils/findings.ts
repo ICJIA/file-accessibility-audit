@@ -1,3 +1,42 @@
+/**
+ * Is this finding a NEUTRAL statement rather than a fault?
+ *
+ * The report card used to pick one icon from the CATEGORY's score and stamp
+ * it on every line, so a card scoring 65 marked all of its findings with a
+ * red ✗ — including plain measurements ("Structure tree depth: 7 level(s)",
+ * "Pages: 1 | Paragraphs: 26 | Headings: 3"), the methodology paragraph, and
+ * the card's OWN caveat saying the signal is not conclusive. A reader saw a
+ * document with four correctly-tagged form captions presented as
+ * comprehensively broken (DoIT XFA example, 2026-08-27, reported by the
+ * document's author disputing the grade — correctly).
+ *
+ * Deliberately conservative: only lines that clearly state a measurement,
+ * a method, or an explicit "this is not necessarily wrong" caveat are
+ * neutralised. Anything this cannot recognise keeps the category icon, so a
+ * real fault can never be softened into a bullet by accident.
+ */
+export function isNeutralFinding(finding: string): boolean {
+  if (!finding) return false;
+  const f = finding.trim();
+  if (!f) return false;
+  // Bare measurements: "Label: value" where the value carries no verdict.
+  // The optional `[^:]{0,20}` allows a parenthetical before the colon —
+  // "Content items (MCIDs): 66".
+  if (/^(structure tree depth|content items|pages|reading-order fidelity)\b[^:]{0,20}:/i.test(f)) {
+    return true;
+  }
+  // Census lines that count what exists rather than what is wrong.
+  if (/^(language declared|author):/i.test(f)) return true;
+  if (/^extracted [\d,]+ characters/i.test(f)) return true;
+  // Methodology and self-caveat prose — the card explaining how it measured,
+  // or explicitly saying the measurement is not a verdict.
+  if (/^compared the /i.test(f)) return true;
+  if (/is not automatically wrong|does not affect the score|advisory|not required by/i.test(f)) {
+    return true;
+  }
+  return false;
+}
+
 export function isGuidanceFinding(finding: string): boolean {
   if (!finding) return false;
   const f = finding.toLowerCase();

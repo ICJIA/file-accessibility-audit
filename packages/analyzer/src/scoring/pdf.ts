@@ -1006,8 +1006,21 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   // Never asserts a WCAG failure and never moves the score: the heuristic
   // recognises the SHAPE of a rasterized text line, which is evidence, not
   // proof. It gives the reader a one-step way to confirm it themselves.
+  // Softened when every image is already described (v1.107.0). A document
+  // that gave its banner real alt text has done the accessible thing — the
+  // DoIT XFA example alt-texted "Office Supply" and still got a scary block
+  // under a category scoring 100/A. The wording is still worth having (a
+  // description does not make the words searchable or resizable), but as a
+  // short note rather than a five-paragraph correction aimed at someone who
+  // did it wrong.
   const textLineLikeImages = qpdf.textLineLikeImageCount ?? 0;
-  if (textLineLikeImages > 0) {
+  const everyImageDescribed = figures.length > 0 && figuresWithAlt === figures.length;
+  if (textLineLikeImages > 0 && everyImageDescribed) {
+    findings.push(`--- Some Lettering May Not Be Real Text ---`);
+    findings.push(
+      `${textLineLikeImages} image(s) here are shaped like lines of writing rather than like photographs — often a banner or letterhead whose words are part of the artwork. You have described them, which is the right thing to do, so this is a note rather than a problem: a description makes the meaning available to a screen reader, but the words themselves still cannot be searched for, selected, or resized. If that wording matters to readers, consider also having it on the page as ordinary text. Advisory — this does not affect the score.`,
+    );
+  } else if (textLineLikeImages > 0) {
     findings.push(`--- Some Lettering May Not Be Real Text ---`);
     findings.push(
       `${textLineLikeImages} image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos. Graphics that shape usually mean words have been baked into artwork instead of typed as text. Letterheads and banner headings are where this happens most. On screen those words look perfect, which is exactly why it goes unnoticed.`,
@@ -1922,6 +1935,41 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       findings.push(
         `${rigorous.pagesWithDrift} page(s) had noticeable drift (< 80% match): ${shown.join(", ")}${more > 0 ? `, and ${more} more` : ""}. Open these in Adobe Acrobat's Reading Order or Order panels to review the tag sequence.`,
       );
+    }
+    // FORMS ARE NOT SCORED ON THIS METRIC (v1.107.0). Draw order and reading
+    // order are structurally unrelated in a form: field captions and widgets
+    // are painted in a later pass, so a CORRECTLY tagged form — one whose
+    // tags sit in logical reading position rather than paint position —
+    // scores worst. The DoIT XFA example is the case that proved it: its
+    // whole deduction came from four /Caption elements reading "Order Date:",
+    // "City:", "State:", "ZIP:", tagged exactly where a reader meets them and
+    // painted last. Its author was right to dispute the grade.
+    //
+    // The old behaviour also contradicted itself — the card said "divergence
+    // is not automatically wrong" and then deducted 35 points for it. Where
+    // the measurement cannot support a verdict, report it and say so rather
+    // than scoring it. Per the scoring model an unassessed category counts as
+    // passing, so a well-built form is no longer punished for being a form.
+    const formFieldCount = qpdf.hasAcroForm ? qpdf.formFields.length : 0;
+    if (formFieldCount > 0) {
+      findings.push(
+        `Not scored for this document: it is a form (${formFieldCount} field(s)). In a form the two orders are expected to disagree — field captions and widgets are painted in a later pass, so a correctly tagged form, whose tags sit in logical reading position rather than paint position, would score worst. Measuring it here would punish the right answer.`,
+      );
+      findings.push(
+        "How to check reading order in a form: tab through it with the keyboard and confirm focus moves in the order a person would fill it in, then read it with a screen reader. Acrobat's Order panel shows the tagged sequence.",
+      );
+      return {
+        id: "reading_order",
+        label: "Reading Order",
+        weight: SCORING_WEIGHTS.reading_order,
+        score: null,
+        grade: null,
+        severity: null,
+        notAssessed: true,
+        findings,
+        explanation: readingExplanation,
+        helpLinks: readingLinks,
+      };
     }
     if (rigorous.score < 100) {
       findings.push(

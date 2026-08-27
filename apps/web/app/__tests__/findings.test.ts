@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isGuidanceFinding,
+  isNeutralFinding,
   firstActionableFinding,
   partitionCardFindings,
 } from "../utils/findings";
@@ -193,5 +194,55 @@ describe("partitionCardFindings", () => {
     const out = partitionCardFindings(input);
     expect(out.main).toEqual(["plain1", "plain2", "plain3"]);
     expect(out.signals.map((s) => s.heading)).toEqual(["Header A", "Header B"]);
+  });
+});
+
+describe("isNeutralFinding — a measurement is not a failure", () => {
+  // The report card picked ONE icon from the category's score and stamped it
+  // on every line, so a card scoring 65 marked plain measurements, the
+  // methodology paragraph, and its OWN "this is not necessarily wrong"
+  // caveat with a red ✗. A reader saw a document with four correctly-tagged
+  // form captions presented as comprehensively broken (DoIT XFA example,
+  // 2026-08-27 — reported by the document's author, who was right).
+
+  it("neutralises bare measurements", () => {
+    expect(isNeutralFinding("Structure tree depth: 7 level(s)")).toBe(true);
+    expect(isNeutralFinding("Content items (MCIDs): 66")).toBe(true);
+    expect(isNeutralFinding("Pages: 1 | Paragraphs: 26 | Headings: 3")).toBe(true);
+    expect(isNeutralFinding("Reading-order fidelity: 76% (1 of 1 page(s) compared)")).toBe(true);
+    expect(isNeutralFinding("Extracted 292 characters of text content")).toBe(true);
+  });
+
+  it("neutralises the methodology paragraph and the card's own caveat", () => {
+    expect(
+      isNeutralFinding(
+        "Compared the structure-tree MCID sequence (logical tag order) against the content-stream MCID sequence",
+      ),
+    ).toBe(true);
+    expect(
+      isNeutralFinding(
+        "Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose",
+      ),
+    ).toBe(true);
+    expect(isNeutralFinding("This category does not affect the score")).toBe(true);
+    expect(isNeutralFinding("Advisory — not scored: the RoleMap remaps 1 standard type")).toBe(
+      true,
+    );
+  });
+
+  it("leaves REAL faults alone — they must keep the failure mark", () => {
+    // The guard that matters: a defect must never be softened into a bullet.
+    expect(isNeutralFinding("0 of 3 image(s) have alternative text")).toBe(false);
+    expect(isNeutralFinding("No heading tags found in the document structure")).toBe(false);
+    expect(isNeutralFinding("1 page(s) had noticeable drift (< 80% match): page 1 (76%)")).toBe(
+      false,
+    );
+    expect(isNeutralFinding("No document title found in metadata")).toBe(false);
+    expect(isNeutralFinding("4 <TH> cell(s) missing Scope attribute")).toBe(false);
+  });
+
+  it("survives empty and whitespace input", () => {
+    expect(isNeutralFinding("")).toBe(false);
+    expect(isNeutralFinding("   ")).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.106.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2827%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.107.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2838%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -203,6 +203,10 @@ Nine categories, weighted by WCAG conformance level and user impact. A category 
 | Form Accessibility | 5% | 1.3.1, 3.3.2, 4.1.2 (A) | Unlabeled form fields are unusable with assistive technology. |
 | Color Contrast | not scored | 1.4.3 (AA) | Rendered-PDF contrast analysis is not yet implemented, so this row applies to PDF only — surfaced as **"Not assessed"** — never as a pass — so a PDF report never implies contrast was checked. Word, PowerPoint, and Excel documents store explicit and theme-based colors (plus Excel's legacy indexed palette), so contrast *is* computed and scored directly for those formats (theme resolution since v1.95.0). |
 | **Total** | **100%** | | |
+
+**Reading order is not scored on forms.** The metric compares the tag sequence against the *draw* sequence, which works for flowing prose but is structurally meaningless in a form: field captions and widgets are painted in a later pass, so a **correctly** tagged form — one whose tags sit in logical reading position rather than paint position — scored worst. A DoIT Accessibility XFA example took a 35-point deduction whose entire cause was four `/Caption` elements reading "Order Date:", "City:", "State:", "ZIP:", tagged exactly where a reader meets them and painted last; its author disputed the grade and was right. The card had also been contradicting itself, printing *"divergence is not automatically wrong"* directly above the deduction for that divergence. Where the measurement cannot support a verdict it is now reported and not scored, with a check a person can actually run (tab through the form, then read it with a screen reader). Non-form documents are untouched — the calibration corpus keeps byte-identical scores.
+
+**Neutral findings no longer wear a failure mark.** The card picked one icon from the *category* score and stamped it on every line, so a card scoring 65 put a red ✗ beside plain measurements ("Structure tree depth: 7 level(s)"), the methodology paragraph, and its own "not necessarily wrong" caveat. `isNeutralFinding` now classifies per line, and its load-bearing test is the negative one: a real fault must never be softened into a bullet.
 
 The published category → success-criteria map also appears on the in-app Technical Details page.
 
@@ -807,7 +811,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,827 tests** across 180 test files (API 1529, Web 1249, CLI 49). Run all three suites with one summary:
+**2,838 tests** across 181 test files (API 1536, Web 1253, CLI 49). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1260,12 +1264,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.107.0 — 2026-08-27 · Reading order is no longer scored on forms; neutral findings stop wearing a failure mark (scoring change, deliberately re-baselined)
+
+**A user-reported false positive, confirmed and fixed.** A DoIT Accessibility XFA example scored 65/D for reading order and its own author disputed the grade — correctly. The entire deduction traced to four `/Caption` elements reading _"Order Date:", "City:", "State:", "ZIP:"_: tagged exactly where a reader meets them, painted last, because that is how form content renders. In a form the two orders are *expected* to disagree, so the better the tagging the worse the metric scored. The card had also been printing _"divergence is not automatically wrong"_ directly above a 35-point deduction for that divergence. Reading order is now reported-but-unscored on documents with form fields, and that file scores 100/A. **This is a scoring change and it is treated as one**: the 185-test calibration passes unchanged, a re-sweep of all 27 control PDFs shows every non-form document keeping its exact score, and a test pins that a *perfectly* ordered form is unscored too — so the rule is structural, not an amnesty for forms that would score badly. Reviewed for what it could hide: an unassessed category counts as passing, so a genuinely bad form no longer loses points here; that is accepted deliberately, because the measurement could not tell the two apart and a wrong verdict is worse than an honest "not measurable — check it this way". Two smaller corrections ship alongside: the report card was choosing one icon from the *category* score and stamping it on every line, marking plain measurements and its own caveat as failures (now classified per line, with the load-bearing test being the negative one — a real fault must never be softened into a bullet); and the lettering note fired its full correction on a banner that already had alt text, under a category scoring 100/A, so it now credits the author and marks itself advisory. Tests 2,827 → 2,838.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.106.0 → v1.33.0) — click to expand</summary>
+
 ### v1.106.0 — 2026-08-27 · The lettering finding reaches the Visual view, and its explanation is corrected (copy + presentation; no new attack surface)
 
 Two things, one of them a correction to the release below. **The warning now appears in the Visual view**, where most authors actually read their report, as an action-plan step that answers *"what images? I never added one"* before asking for anything. And **v1.105.0's explanation was wrong**: it asserted that Word had flattened effect-carrying text into a picture, so the remedy was to remove the effect and re-export. Re-reading the reference agenda's content stream showed its letterhead words were **vector outlines** — 194 bezier curves, zero text operators — lettering inside placed artwork, which no export setting can recover. An author following that advice would have searched Word for an effect that never existed. The finding is renamed and now names both causes with their different remedies, only one of which is repairable. Also corrected: v1.105.0 claimed every hand-checked flag was a true positive; inspecting the remaining two found **three true and one false** (a chart's solid callout-box background, whose text extracts fine). Reviewed as **copy and presentation only** — no new file access, route, schema, or stored field; the detector, its thresholds, and the scoring calibration are untouched, so all 27 control documents keep byte-identical scores. One behavioural change worth recording: a per-document Acrobat block normally outranks dictionary copy, and here it was opening with *"Add alternate text"* — the exact instruction the step exists to prevent — so a variant lead-in now precedes it while keeping the block's valid advice for real photos. That was caught by rendering a real document, not by a unit test. The v1.105.0 announcement banner was corrected **in place** rather than re-shown, since that release was tagged but never deployed and no visitor read the original wording (v1.73.0 precedent); this entry is the disclosure. Tests 2,818 → 2,827.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.105.0 → v1.33.0) — click to expand</summary>
 
 ### v1.105.0 — 2026-08-27 · A new finding: text turned into pictures (read-only analysis; no new attack surface, nothing new collected)
 

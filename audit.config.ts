@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "reading-order-forms-2026-08-27",
+    badge: "Fixed",
+    text: "If you audit forms, your score may go up. Someone told us a score was wrong, and it was: a form built by the State's own accessibility team was marked down for reading order, and its author said the document was fine. They were right. The check compared the order a document is tagged in against the order it is painted in — useful for ordinary documents, but meaningless for a form, because forms paint their field labels last no matter how carefully they are tagged, so the better the form was built the worse it scored. Reports now say plainly that reading order cannot be judged automatically in a form, and show you how to check it yourself. Low-scoring cards also stop putting a red cross beside plain facts and beside the report's own notes.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 27, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "text-turned-into-pictures-2026-08-27",
     badge: "New check",
     text: "Reports now tell you when words in your document may not really be words. Lettering can end up baked into artwork — as part of a pasted logo or letterhead, or because text carried an effect like a drop shadow or a glow that gets flattened when the PDF is made. It still looks perfect on screen, but a screen reader has nothing to read, nobody can search it, and it can blur when zoomed. We found this on a real board agenda whose letterhead had quietly stopped being text, so the agency's own name was invisible to a screen reader. Both the plain-language step and the detailed report now point it out, explain which of the two causes you are looking at (only one of them is repairable), and show you how to check in ten seconds: try to select the words — if they will not highlight, they are artwork.",

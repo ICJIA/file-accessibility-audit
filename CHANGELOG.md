@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.107.0] - 2026-08-27
+
+### Fixed
+
+- **Reading order is no longer scored on forms — some form documents will see their grade rise.** The metric compares the tag sequence against the *draw* sequence, which is meaningful for flowing prose and structurally meaningless in a form: field captions and widgets are painted in a later pass, so a **correctly** tagged form — one whose tags sit in logical reading position rather than paint position — scored worst. A DoIT Accessibility XFA example took a 35-point deduction (65/D) whose entire cause was four `/Caption` elements reading _"Order Date:", "City:", "State:", "ZIP:"_, tagged exactly where a reader meets them and painted last. **The document's author disputed the grade and was right**; that file now scores 100/A. Where the measurement cannot support a verdict it is reported and not scored, with a check a person can actually run: tab through the form, then read it with a screen reader.
+- The card had also been contradicting itself, printing _"divergence is not automatically wrong"_ directly above the deduction for that divergence. Prose and arithmetic now agree.
+- **Neutral findings no longer wear a failure mark.** The report card picked one icon from the *category* score and stamped it on every line, so a card scoring 65 put a red ✗ beside plain measurements ("Structure tree depth: 7 level(s)"), the methodology paragraph, and its own caveat. Findings are now classified per line.
+- **The lettering note no longer scolds an author who did the right thing.** It fired its full correction on a banner that already carried alt text, under a category scoring 100/A. It now credits the description, keeps the point that a description does not make words searchable or resizable, and marks itself advisory.
+
+### Notes
+
+- **Scope of the scoring change, verified rather than asserted**: the 185-test calibration passes unchanged and a re-sweep of all 27 control PDFs shows every non-form document keeping its exact score — only the form moved. A test pins that a *perfectly* ordered form is also unscored, so this is "the metric does not apply here", not "forms get a pass".
+- Tests: API 1,536 · web 1,253 · CLI 49 (**2,838**), 11 new. The load-bearing one is negative: a real fault must never be softened into a neutral bullet.
+
+<details>
+<summary><strong>v1.106.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
+
 ## [1.106.0] - 2026-08-27
 
 ### Added
@@ -21,9 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **The v1.105.0 announcement banner was corrected in place** rather than re-shown, because that release was tagged but never deployed — no visitor ever read the original wording. This entry is the on-the-record disclosure, following the v1.73.0 precedent.
 - Known limits, stated rather than buried: the width-grouping rule that drops sliced graphics will also suppress genuine lettering if three or more lines share a width, the 4:1 aspect floor misses short single words, and the check only ever finds these documents when images accompany the outlines — a purely vector logo is invisible to it. It remains a proxy signal, and it still never moves the score.
 - Tests: API 1,529 · web 1,249 · CLI 49 (**2,827**). No API, scoring, storage, or retention change.
-
-<details>
-<summary><strong>v1.105.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
 
 ## [1.105.0] - 2026-08-27
 

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { isTextLineLikeImage, countTextLineLikeImages } from "@file-audit/analyzer/qpdfService";
 
@@ -107,5 +109,37 @@ describe("countTextLineLikeImages — dropping pictures sliced into bands", () =
 
   it("counts nothing when there are no candidates", () => {
     expect(countTextLineLikeImages([])).toBe(0);
+  });
+});
+
+describe("the finding softens when every image is already described", () => {
+  // The DoIT XFA example alt-texted its "Office Supply" banner — the right
+  // thing to do — and still got a five-paragraph correction under a category
+  // scoring 100/A. The wording is still worth having (a description does not
+  // make words searchable or resizable) but not aimed at someone who got it
+  // wrong. Asserted against the analyzer source, since building a full
+  // qpdf+pdfjs fixture here would test the mock rather than the copy.
+  const src = readFileSync(
+    resolve(__dirname, "../../../../packages/analyzer/src/scoring/pdf.ts"),
+    "utf8",
+  );
+
+  it("has a described-images branch keyed on full alt-text coverage", () => {
+    expect(src).toContain("const everyImageDescribed =");
+    expect(src).toContain("figures.length > 0 && figuresWithAlt === figures.length");
+    expect(src).toContain("textLineLikeImages > 0 && everyImageDescribed");
+  });
+
+  it("credits the author instead of correcting them, and marks itself advisory", () => {
+    const block = src.slice(
+      src.indexOf("everyImageDescribed) {"),
+      src.indexOf("} else if (textLineLikeImages"),
+    );
+    expect(block).toMatch(/which is the right thing to do/i);
+    expect(block).toMatch(/note rather than a problem/i);
+    expect(block).toMatch(/does not affect the score/i);
+    // It must NOT scold: the "do not simply add a description" correction
+    // belongs only to the branch where nothing was described.
+    expect(block).not.toMatch(/do not simply add a description/i);
   });
 });

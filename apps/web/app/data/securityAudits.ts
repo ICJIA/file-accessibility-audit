@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.107.0",
+    meta: "Reviewed <strong>2026-08-27</strong> · scope: one measurement we were getting wrong, and two places the report was overstating a problem. Some forms will score higher than before. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Someone told us a score was wrong, and it was. A form built by the State&rsquo;s own accessibility team was marked down for &ldquo;reading order&rdquo;, and its author said the document was fine. They were right. The check compares the order the document is <em>tagged</em> in against the order it is <em>painted</em> in &mdash; useful for ordinary documents, but meaningless for a form, because a form paints its field labels last no matter how carefully they are tagged. The better the form was built, the worse it scored. In this case the whole mark-down came from four labels reading &ldquo;Order Date&rdquo;, &ldquo;City&rdquo;, &ldquo;State&rdquo; and &ldquo;ZIP&rdquo;. The report now says plainly that it cannot judge reading order in a form, and tells you how to check it yourself: tab through the form and see whether the cursor moves the way a person would fill it in, then listen to it with a screen reader.",
+      },
+      {
+        kind: "p",
+        html: "Two related over-statements are fixed as well. The report was drawing a red cross beside <em>every</em> line on a low-scoring card &mdash; including plain facts like how many pages the document has, and including its own note saying the measurement was not necessarily a problem. Those now show as neutral points. And the note about words being part of a picture was giving a full correction to authors who had already done the right thing by describing the image; it now says so, and marks itself as advice rather than a fault.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: this release changes a score, so it was checked as one. Every one of the 27 documents we keep for exactly this purpose was re-measured, and each of them &mdash; apart from the form &mdash; came out with precisely the same score and grade as before. Being straight about the trade: a form that genuinely has a bad reading order will no longer lose points for it here, because the measurement could not tell a good form from a bad one. We would rather say &ldquo;we cannot measure this, here is how to check it&rdquo; than keep publishing a verdict we know is unreliable. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.106.0",
     meta: "Reviewed <strong>2026-08-27</strong> · scope: where the note described just below appears, and a correction to what it said. Nothing new is received, sent, stored, or scored.",
     body: [

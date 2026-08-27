@@ -237,6 +237,18 @@
               <span class="flex-shrink-0 mt-0.5 text-amber-400">&#9656;</span>
               <span>{{ finding }}</span>
             </template>
+            <!-- A neutral statement — a measurement, the methodology, or the
+                 card's own "this is not necessarily wrong" caveat — must not
+                 wear the category's failure mark. See isNeutralFinding. -->
+            <template v-else-if="isNeutralFinding(finding)">
+              <span
+                class="flex-shrink-0 mt-0.5 font-bold"
+                :style="{ color: 'var(--icon-info)' }"
+                aria-hidden="true"
+                >&#8226;</span
+              >
+              <span>{{ finding }}</span>
+            </template>
             <template v-else>
               <span class="flex-shrink-0 mt-0.5 font-bold" :style="findingIconStyle(cat)">{{
                 findingIcon(cat)
@@ -519,7 +531,7 @@ import {
 } from "@file-audit/shared";
 import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
-import { partitionCardFindings, isGuidanceFinding } from "~/utils/findings";
+import { partitionCardFindings, isGuidanceFinding, isNeutralFinding } from "~/utils/findings";
 import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { useWcag } from "~/composables/useWcag";
