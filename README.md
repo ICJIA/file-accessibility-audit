@@ -1,6 +1,6 @@
 # ICJIA File Accessibility Audit
 
-[![Version](https://img.shields.io/badge/version-1.101.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2825%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
+[![Version](https://img.shields.io/badge/version-1.102.0-blue)](https://github.com/ICJIA/file-accessibility-audit/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Tests](https://img.shields.io/badge/tests-2825%20passing-brightgreen) ![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white) ![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white) ![Audits: WCAG 2.2 AA](https://img.shields.io/badge/audits-WCAG%202.2%20AA-blueviolet)
 
 ![ICJIA File Accessibility Audit](apps/web/public/og-image.png)
 
@@ -1260,12 +1260,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.102.0 — 2026-08-26 · The automation-coverage disclosure becomes a gate: no file is checked until it is acknowledged (client-side only; no new attack surface, nothing new collected)
+
+Legal compliance: people must understand this tool checks only *part* of accessibility — roughly 30–40% of issues in independent testing, true of every checker — before they use it. Reviewed as a **client-side control with no server component**: the acknowledgment is one `localStorage` timestamp, never a cookie, never transmitted, and no identity is recorded, so no request, route, header, column, or retention window changed. State the limit of that honestly — it evidences the disclosure was made and required on a device, not who agreed to it; recording *who* would mean identifying visitors, which this service deliberately does not do (§ 7). It **fails closed**: absent, junk, future-dated, or unreadable storage all leave the tool gated, so a tampered value cannot open it. Enforcement is defense-in-depth rather than a single check — the drop zone refuses the picker, drops, and staged submits; the page guards `analyzeFile`/`analyzeBatch` independently; `RemediateButton` refuses at both entry points — and it is deliberately **not a modal** (no backdrop, no focus trap, no `aria-modal`; the page stays scrollable and readable), because a focus trap would introduce an accessibility defect into an accessibility tool. Verified in a browser against the production build, not only in tests: with the acknowledgment cleared, a click opened no file picker and a genuine `drop` event carrying a PDF started no audit; the ack persisted across reload, and a backdated or junk value re-gated the tool. Also in this release: the automation-limit band is ungated on every grade and every report, and its coverage percentages are sourced and linked (UK GDS, Deque, Adobe, Matterhorn) — amending, not repealing, the v1.58.1 rule against bare figures near the grade, enforced as a test whitelist. Tests 2,799 → 2,825.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.101.0 → v1.33.0) — click to expand</summary>
+
 ### v1.101.0 — 2026-08-26 · The Matterhorn checklist states its scope: PDFs only, Office formats still fully checked (copy + pins; no new attack surface)
 
 A scope note at the top of the landing-page Matterhorn checklist answers "why is this checklist only about PDFs?" — the protocol is PDF/UA's test model and applies to one format by construction, while Word/PowerPoint/Excel files are still fully checked here under their own per-format audits. Reviewed for what the change could expose: nothing — static repository-authored copy rendered through ordinary interpolation; the one new outbound link is `target="_blank" rel="noopener noreferrer"` to the PDF Association's own Matterhorn Protocol page (the same URL the section already linked); the internal link routes to the existing technical-details page. Both halves of the claim are test-pinned so neither wrong reading — Office files aren't checked, or Matterhorn applies to them — can creep back. No API, scoring, or storage change. Tests 2,796 → 2,799.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.100.0 → v1.33.0) — click to expand</summary>
 
 ### v1.100.0 — 2026-08-26 · Real per-pass progress: the job-model audit (new endpoints, reviewed; privacy posture unchanged and stated)
 

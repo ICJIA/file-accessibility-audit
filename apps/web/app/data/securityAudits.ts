@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.102.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: a notice you have to acknowledge before checking a file, and a wider version of the same notice on every report. Nothing new is received, sent, or stored &mdash; the acknowledgment never leaves your browser.",
+    body: [
+      {
+        kind: "p",
+        html: "Automated checkers can only test <strong>part</strong> of accessibility &mdash; roughly 30&ndash;40% of issues in independent testing, and that is true of every checker, including Adobe Acrobat&rsquo;s, PAC, and Word&rsquo;s. The rest is judgment no software can make: whether the text describing an image actually describes it, whether a screen reader reads the page in an order that makes sense, whether a complicated table can be navigated. So the tool now says so plainly and asks you to confirm you have read it before it will check a file. Every report carries the same split at every grade &mdash; not only the good ones, as before &mdash; with the studies behind the figures linked so you can read them yourself.",
+      },
+      {
+        kind: "p",
+        html: "What that acknowledgment is, precisely: a single date-and-time value saved by your own browser, so the notice does not reappear for a week. It is not a cookie, it is never sent to us, and nothing about you is recorded &mdash; this service has no accounts and stores no identifiers. Being straight about what that means: it shows the notice was shown and required on a device, not who agreed to it. Recording that would mean identifying visitors, which we deliberately do not do. If the saved value is missing, unreadable, or has been tampered with, the notice simply comes back and the tool stays closed until it is acknowledged again.",
+      },
+      {
+        kind: "p",
+        html: "The notice deliberately does <strong>not</strong> trap you in a pop-up. There is no dark overlay, nothing steals your keyboard, and the rest of the page &mdash; the FAQs, the technical details, the Matterhorn checklist &mdash; stays open to read without acknowledging anything. Only <em>starting work</em> on a file is held back. A pop-up that seized keyboard focus would be an accessibility fault in an accessibility tool, which is the one place it cannot be excused. No part of this release changed a web address, a stored record, how long anything is kept, or how any document is scored.",
+      },
+    ],
+  },
+  {
     version: "v1.101.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: one explanatory card on the landing page's Matterhorn checklist. Nothing received, sent, stored, or scored differently.",
     body: [

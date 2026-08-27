@@ -274,6 +274,17 @@ export const AUTOMATION_ACK_HOURS = 168;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "automation-coverage-ack-2026-08-26",
+    badge: "Important",
+    text: "Before checking a file, the tool now asks you to confirm one thing. Automated checkers can only test part of accessibility — roughly 30–40% of issues in independent testing — and that is true of every checker, including Adobe Acrobat's, PAC, and Word's; the rest has to be checked by a person, starting with whether the alt text actually describes each image and whether the reading order makes sense in a screen reader. Every report now carries that split at every grade, not just high-scoring ones, with the studies behind the figures linked so you can read them yourself. Your confirmation is remembered for a week and never leaves your browser — it isn't a cookie and nothing is sent to us. Nothing about the checks or the scores changed; this is about being straight on what a score can and cannot tell you.",
+    linkText: "What gets checked",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 26, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "waiting-experience-2026-08-26",
     badge: "Improved",
     text: "Big documents no longer look stuck while they're being checked. Complex, design-heavy PDFs can genuinely take up to a minute — the two veraPDF engine passes are thorough — and the waiting screen used to show one frozen line the whole time. It now walks through the actual checks being run, counts the seconds, and explains what's taking long and why, and the upload area says up front that analysis isn't instant. Nothing about the checks themselves changed — same audits, same scores, just an honest view of the work while it happens.",

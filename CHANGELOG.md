@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.102.0] - 2026-08-26
+
+### Added
+
+- **The tool now says what it cannot check — and asks you to confirm you've read it** (user request, for legal compliance). Automated checkers can only test *part* of accessibility: roughly **30–40% of issues** in independent testing. That is true of every checker — this one, Adobe Acrobat's, PAC, Word's — and the remainder is judgment no software can make (does the alt text actually describe the image, does the reading order make sense in a screen reader, do complex tables navigate sensibly, is the writing clear). A site-wide bar states this and requires a click on **"I understand"** before any file can be checked or remediated; the acknowledgment is remembered for a week.
+- **The figures are sourced, and the sources are linked in-product**: the [UK government's ten-tool study](https://accessibility.blog.gov.uk/2017/02/24/what-we-found-when-we-tested-tools-on-the-worlds-least-accessible-webpage/) (143 planted barriers — best tool 41%, worst 17%), [Deque's own coverage report](https://www.deque.com/automated-accessibility-coverage-report/) (57% of issue volume — named in place as the most optimistic figure on record, so the vendor's higher number isn't hidden), and [Adobe's checker documentation](https://helpx.adobe.com/acrobat/using/create-verify-pdf-accessibility.html) (reading order and contrast are manual checks) — plus Matterhorn's own 47-of-136 human-judgment split, read live from the protocol data.
+
+### Changed
+
+- **The automation-limit band is now ungated: one form, every grade, every report.** It previously showed in full only above a 79 (A and B) with a one-line reminder elsewhere. Nobody sees a score from this tool without seeing what the tool cannot check. The band draws the split — *Machine-checkable, roughly 30–40%* beside *Human judgment, roughly 60–70%* — names the peer checkers so the limit reads as a property of automated checking rather than a hedge about this tool, and points further questions at the reader's agency accessibility coordinator. The same box now rides the printable plan and the downloaded HTML report at every grade, and the share email quotes the range beside the score it sends.
+- This **amends** the v1.58.1 rule against figures near the grade rather than repealing it: a bare figure out of 100 beside a letter grade is still read *as* the grade, so the band may carry only the paired coverage ranges and the attributed study figures. The test enforces that as a whitelist — strip those five figures and nothing percent-like may remain.
+
+### Notes
+
+- **Not a modal, deliberately.** No backdrop, no focus trap, no `aria-modal`; the page stays scrollable and fully readable — the FAQs, Technical Details, and the Matterhorn checklist are all reachable without acknowledging anything. What is gated is starting *work*, not reading the site: a focus trap would add an accessibility defect to an accessibility tool. A blocked attempt pulls focus to the bar and flashes it, so the block always names its own remedy.
+- **Privacy unchanged.** The acknowledgment is a single `localStorage` timestamp — never a cookie, never sent to the server, no identity recorded. It evidences that the disclosure was made and required on a device, not who agreed to it; recording that would mean identifying visitors, which this service deliberately does not do. It **fails closed**: absent, junk, future-dated, or unreadable storage all leave the tool gated.
+- Verified end-to-end in a browser against the production build, not only in unit tests: with the acknowledgment cleared, a click on the drop zone opened no file picker and a genuine drop event carrying a PDF started no audit. No API, scoring, storage, or retention change. Tests: API 1,516 · web 1,260 · CLI 49 (**2,825**).
+
+<details>
+<summary><strong>v1.101.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.101.0] - 2026-08-26
 
 ### Added
@@ -14,9 +35,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Notes
 
 - Copy + pins only — no API, scoring, or storage change. Tests: API 1,516 · web 1,234 · CLI 49 (**2,799**).
-
-<details>
-<summary><strong>v1.100.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.100.0] - 2026-08-26
 
