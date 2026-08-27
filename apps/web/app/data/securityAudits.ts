@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.103.0",
+    meta: "Reviewed <strong>2026-08-26</strong> · scope: how the notice described just below looks and behaves. Nothing about what is received, sent, stored, or scored changed &mdash; the acknowledgment still never leaves your browser.",
+    body: [
+      {
+        kind: "p",
+        html: "The notice now holds the page still until you answer it: the page will not scroll, and the area behind it dims so it is obvious why. We also rewrote it in plain language &mdash; no jargon, no acronyms &mdash; because the point is that anyone can understand it. It says the tool finds <strong>some</strong> accessibility problems and not all of them, that checkers like this one (including the ones built into Adobe Acrobat and Microsoft Word) catch only about 30&ndash;40% of the problems in a document, and that the rest can only be found by a person opening the file and looking. Then the sentence the whole notice exists for: a good score means the document passed the checks a computer can run &mdash; it does not mean the document is accessible.",
+      },
+      {
+        kind: "p",
+        html: "One earlier decision is reversed here, and we would rather say so than quietly change it. The previous release deliberately did <em>not</em> hold the page still, on the reasoning that trapping someone in a pop-up is itself an accessibility fault. Holding the page still changes that calculation: if the page cannot scroll, then a keyboard user could still tab onto things they can no longer reach, and someone using a screen reader would get no signal that the rest of the page is inactive. So the notice is now announced properly as a dialog, keeps the keyboard inside it, and is released by its own button &mdash; which is the standard, accessible way to do this, and is not the kind of trap the guidelines prohibit. There is no &ldquo;close&rdquo; or Escape shortcut on purpose, because the acknowledgment is required; the button you need is where the keyboard lands first.",
+      },
+      {
+        kind: "p",
+        html: "Two things are guarded by automated test because failing at them would be serious and easy to miss: the page is released both when you acknowledge <em>and</em> if the notice ever goes away for any other reason, so a stuck, unscrollable page can never outlive it; and someone who has already acknowledged never has their page held still at all. No web address, stored record, retention period, or document score changed in this release.",
+      },
+    ],
+  },
+  {
     version: "v1.102.0",
     meta: "Reviewed <strong>2026-08-26</strong> · scope: a notice you have to acknowledge before checking a file, and a wider version of the same notice on every report. Nothing new is received, sent, or stored &mdash; the acknowledgment never leaves your browser.",
     body: [

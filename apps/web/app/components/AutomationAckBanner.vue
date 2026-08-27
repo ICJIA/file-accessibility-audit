@@ -1,76 +1,109 @@
 <template>
-  <!-- The acknowledgment gate. Legal-compliance control (2026-08-26): people
-       must understand this tool checks only PART of accessibility, so the
-       disclosure is not merely displayed — it is REQUIRED before any file can
-       be checked or remediated. DropZone, index.vue's analyze entry points,
-       and RemediateButton all refuse to work while `blocked` is true.
+  <!-- The acknowledgment gate. Legal-compliance control: people must
+       understand this tool checks only PART of accessibility, so the
+       disclosure is required, not merely displayed — DropZone, index.vue's
+       analyze entry points, and RemediateButton all refuse while `blocked`.
 
-       Still deliberately NOT a modal: no backdrop, no focus trap, no
-       aria-modal, and the page stays readable and scrollable (the FAQs,
-       Technical Details, and the Matterhorn checklist are all reachable
-       without acknowledging anything). What is gated is starting WORK, not
-       reading the site — a focus trap would add an accessibility defect to an
-       accessibility tool, and this is the one product that cannot afford
-       that. The gate does the compliance job; the trap would only add risk.
+       v1.103.0 (user request): the page is FROZEN until it is acknowledged.
+       That changes what this has to be. A scroll lock with no dialog
+       semantics is the worst of both worlds — a keyboard user would still
+       tab into content they can no longer scroll to, and a screen-reader
+       user would get no signal that the page behind is inert. So freezing
+       promotes this to a real dialog: role="dialog" + aria-modal, focus
+       moved in and held, a dim backdrop so sighted users can see WHY the
+       page stopped responding, and the scroll lock itself.
 
-       It DOES pull focus on demand: when a gated surface is used anyway, it
-       bumps `nudge`, and the bar takes focus and flashes so the block always
-       names its own remedy instead of reading as a dead drop zone.
+       This reverses v1.102.0's "deliberately not a modal" — recorded rather
+       than quietly changed. The earlier reasoning was that a focus trap is
+       an accessibility defect; that is only true of a BADLY built one. A
+       dialog that announces itself, holds focus, and is dismissed by the one
+       control inside it is the standard accessible pattern (ARIA APG), and
+       it is not a WCAG 2.1.2 keyboard trap because its own button releases
+       it. What would be a defect is freezing the page without any of that.
 
-       Fails closed for the disclosure: unreadable/absent/junk/future-dated
-       storage all leave the bar up and the tool gated (see automationAck.ts).
-       Dismissal is one localStorage timestamp — never a cookie, never sent to
-       the server, no identity recorded. It proves the disclosure was made and
-       required on this device, not who agreed to it.
+       No Escape handler on purpose: the acknowledgment is required, so the
+       only way out is the button. That is also why focus starts ON the
+       button — the remedy is the first thing a keyboard or screen-reader
+       user lands on.
 
-       Client-only reveal (needs localStorage) costs no CLS because the bar is
-       fixed — unlike the in-flow announcement banner, which is SSR-rendered
-       for exactly that reason. z-40, same layer as ScrollToTop but later in
-       the DOM, so it paints over it; ProcessingOverlay (z-50) still covers
-       everything. automationAck.test.ts pins all of the above. -->
-  <section
-    v-if="visible"
-    ref="barEl"
-    data-testid="automation-ack"
-    aria-labelledby="automation-ack-lead"
-    class="fixed inset-x-0 bottom-0 z-40 border-t bg-[var(--surface-raised)] px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.25)] transition-shadow sm:px-6"
-    :class="
-      flashing
-        ? 'border-amber-400 shadow-[0_-8px_32px_rgba(251,191,36,0.45)]'
-        : 'border-amber-500/40'
-    "
-    :style="{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }"
-  >
-    <div class="mx-auto flex max-w-4xl flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
-      <p class="text-xs leading-relaxed text-[var(--text-secondary)] sm:text-[13px]">
-        <span id="automation-ack-lead" class="font-semibold text-[var(--text-heading)]">
-          This tool checks only part of accessibility — studies put automated coverage at around
-          30–40% of issues.
-        </span>
-        {{ " " }}That's true of every checker, including Adobe Acrobat's, PAC, and Word's. The rest
-        — whether the alt text really describes the image, whether the reading order makes sense —
-        has to be checked by a person. Questions? Ask your agency accessibility coordinator.
-      </p>
-      <button
-        ref="btnEl"
-        type="button"
-        data-testid="automation-ack-btn"
-        class="shrink-0 self-start rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black hover:bg-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 sm:self-auto"
-        @click="acknowledge"
-      >
-        I understand
-      </button>
-    </div>
-  </section>
+       Fails closed: unreadable/absent/junk/future-dated storage all leave
+       the gate up (see automationAck.ts). Dismissal is one localStorage
+       timestamp — never a cookie, never sent to the server, no identity
+       recorded. It proves the disclosure was made and required on this
+       device, not who agreed to it.
+
+       automationAck.test.ts pins all of the above. -->
+  <div v-if="visible" data-testid="automation-ack-root">
+    <!-- Backdrop: the visible reason the page stopped scrolling. -->
+    <div
+      data-testid="automation-ack-backdrop"
+      class="fixed inset-0 z-40 bg-black/70"
+      @touchmove.prevent
+    />
+
+    <section
+      ref="dialogEl"
+      role="dialog"
+      aria-modal="true"
+      data-testid="automation-ack"
+      aria-labelledby="automation-ack-title"
+      aria-describedby="automation-ack-body"
+      class="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto border-t-2 bg-[var(--surface-raised)] px-4 py-5 shadow-[0_-8px_32px_rgba(0,0,0,0.5)] transition-colors sm:px-6"
+      :class="flashing ? 'border-amber-300' : 'border-amber-400'"
+      :style="{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }"
+    >
+      <div class="mx-auto flex max-w-3xl flex-col gap-4">
+        <div>
+          <h2
+            id="automation-ack-title"
+            class="text-base font-bold text-[var(--text-heading)] sm:text-lg"
+          >
+            Before you check a file
+          </h2>
+          <div
+            id="automation-ack-body"
+            class="mt-2 space-y-2 text-sm leading-relaxed text-[var(--text-secondary)]"
+          >
+            <p>
+              <strong class="text-[var(--text-heading)]"
+                >This tool finds some accessibility problems — not all of them.</strong
+              >
+              {{ " " }}Checkers like this one, including the ones built into Adobe Acrobat and
+              Microsoft Word, catch only about 30–40% of the problems in a document.
+            </p>
+            <p>
+              The rest can only be found by a person opening the file and looking: whether the
+              description of a photo actually describes it, whether the pages read aloud in an order
+              that makes sense, whether a table still makes sense read one cell at a time.
+            </p>
+            <p>
+              So a good score here means the document passed the checks a computer can run. It does
+              not mean the document is accessible. Questions? Ask your agency accessibility
+              coordinator.
+            </p>
+          </div>
+        </div>
+        <button
+          ref="btnEl"
+          type="button"
+          data-testid="automation-ack-btn"
+          class="self-start rounded-lg bg-amber-400 px-6 py-2.5 text-sm font-bold text-black hover:bg-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+          @click="acknowledge"
+        >
+          I understand
+        </button>
+      </div>
+    </section>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue";
 import { useAutomationAck } from "~/composables/useAutomationAck";
 
 const { acknowledged, nudge, resolve, acknowledge } = useAutomationAck();
 
-const barEl = ref<HTMLElement | null>(null);
+const dialogEl = ref<HTMLElement | null>(null);
 const btnEl = ref<HTMLButtonElement | null>(null);
 const flashing = ref(false);
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -78,9 +111,78 @@ let flashTimer: ReturnType<typeof setTimeout> | null = null;
 // Only once the answer is known — never during SSR or the tick before mount.
 const visible = computed(() => acknowledged.value === false);
 
-onMounted(resolve);
+// --- Scroll lock -----------------------------------------------------------
+// Both elements: browsers disagree about which one owns the document scroll.
+// The width compensation stops the page shifting sideways as the scrollbar
+// disappears, which otherwise reads as the layout breaking at the exact
+// moment the gate appears.
+let prevHtmlOverflow = "";
+let prevBodyOverflow = "";
+let prevBodyPaddingRight = "";
+let locked = false;
 
-// Someone tried to start work while blocked: take them to the answer.
+function lockScroll(): void {
+  if (locked || typeof document === "undefined") return;
+  const html = document.documentElement;
+  const body = document.body;
+  const gap = window.innerWidth - html.clientWidth;
+  prevHtmlOverflow = html.style.overflow;
+  prevBodyOverflow = body.style.overflow;
+  prevBodyPaddingRight = body.style.paddingRight;
+  html.style.overflow = "hidden";
+  body.style.overflow = "hidden";
+  if (gap > 0) body.style.paddingRight = `${gap}px`;
+  locked = true;
+}
+
+function unlockScroll(): void {
+  if (!locked || typeof document === "undefined") return;
+  document.documentElement.style.overflow = prevHtmlOverflow;
+  document.body.style.overflow = prevBodyOverflow;
+  document.body.style.paddingRight = prevBodyPaddingRight;
+  locked = false;
+}
+
+// --- Focus containment -----------------------------------------------------
+// With the page frozen, focus must not land on content the visitor can no
+// longer scroll to. aria-modal tells assistive tech the same thing; this
+// enforces it for everyone else. The dialog holds one control, so anything
+// that escapes is simply returned to it.
+function onFocusIn(e: FocusEvent): void {
+  if (!visible.value) return;
+  const el = dialogEl.value;
+  const target = e.target as Node | null;
+  if (el && target && !el.contains(target)) btnEl.value?.focus();
+}
+
+onMounted(() => {
+  resolve();
+  document.addEventListener("focusin", onFocusIn);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("focusin", onFocusIn);
+  if (flashTimer) clearTimeout(flashTimer);
+  // Never leave the page frozen behind us.
+  unlockScroll();
+});
+
+watch(
+  visible,
+  async (isVisible) => {
+    if (isVisible) {
+      lockScroll();
+      await nextTick();
+      btnEl.value?.focus();
+    } else {
+      unlockScroll();
+    }
+  },
+  { immediate: true },
+);
+
+// Someone tried to start work anyway (they can still reach the drop zone by
+// keyboard before focus settles, and the gate outlives a slow hydration).
 watch(nudge, (n, prev) => {
   if (n === prev || !visible.value) return;
   flashing.value = true;
@@ -88,8 +190,6 @@ watch(nudge, (n, prev) => {
   flashTimer = setTimeout(() => {
     flashing.value = false;
   }, 1_200);
-  // focus() also scrolls it into view; the bar is fixed, so this is only
-  // about where the keyboard is, not where the page is.
   btnEl.value?.focus();
 });
 </script>

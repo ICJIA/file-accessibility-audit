@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.103.0] - 2026-08-26
+
+### Changed
+
+- **The acknowledgment now freezes the page until it is answered** (user request). The page does not scroll and a dimmed backdrop shows why. This **reverses v1.102.0's "deliberately not a modal"**, and the reversal is the accessible choice rather than a concession to it: a scroll lock *without* dialog semantics is the genuinely broken option, because keyboard users would still tab into content they can no longer scroll to and screen-reader users would get no signal that the page behind is inert. So freezing brings the rest with it — `role="dialog"`, `aria-modal="true"`, labelled and described, focus moved onto the button and held there. There is no Escape handler on purpose: the acknowledgment is required, so the button is the only way out, which is why focus starts on it. A dialog released by its own control is not a WCAG 2.1.2 keyboard trap.
+- The freeze is lifted on acknowledgment **and on unmount**, so a frozen page can never outlive the gate — and it is never applied at all for someone who already acknowledged.
+- **The wording is rewritten for a non-technical reader** (user request), and a test enforces it: "alt text", "reading order", "WCAG", "PDF/UA", and tool acronyms now fail the suite if they creep back into this copy. It says the tool finds *some* accessibility problems and not all of them; that checkers like this one — including the ones built into Adobe Acrobat and Microsoft Word — catch only about 30–40% of the problems in a document; that the rest can only be found by a person opening the file and looking (whether the description of a photo actually describes it, whether the pages read aloud in an order that makes sense, whether a table still makes sense read one cell at a time); and then the sentence the whole gate exists for — **a good score means the document passed the checks a computer can run, not that the document is accessible.**
+
+### Notes
+
+- Presentation and copy only. The gate's enforcement, the one-week window, the fail-closed behaviour, and the privacy posture are all unchanged from v1.102.0 — still a single `localStorage` timestamp, never a cookie, never sent to the server, no identity recorded. No API, scoring, storage, or retention change. Tests: API 1,516 · web 1,266 · CLI 49 (**2,831**).
+
+<details>
+<summary><strong>v1.102.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
+
 ## [1.102.0] - 2026-08-26
 
 ### Added
@@ -21,9 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Not a modal, deliberately.** No backdrop, no focus trap, no `aria-modal`; the page stays scrollable and fully readable — the FAQs, Technical Details, and the Matterhorn checklist are all reachable without acknowledging anything. What is gated is starting *work*, not reading the site: a focus trap would add an accessibility defect to an accessibility tool. A blocked attempt pulls focus to the bar and flashes it, so the block always names its own remedy.
 - **Privacy unchanged.** The acknowledgment is a single `localStorage` timestamp — never a cookie, never sent to the server, no identity recorded. It evidences that the disclosure was made and required on a device, not who agreed to it; recording that would mean identifying visitors, which this service deliberately does not do. It **fails closed**: absent, junk, future-dated, or unreadable storage all leave the tool gated.
 - Verified end-to-end in a browser against the production build, not only in unit tests: with the acknowledgment cleared, a click on the drop zone opened no file picker and a genuine drop event carrying a PDF started no audit. No API, scoring, storage, or retention change. Tests: API 1,516 · web 1,260 · CLI 49 (**2,825**).
-
-<details>
-<summary><strong>v1.101.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.101.0] - 2026-08-26
 
