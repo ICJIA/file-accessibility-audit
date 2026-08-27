@@ -66,6 +66,35 @@ export interface QpdfResult {
   formFields: Array<{ ref?: string; hasTU: boolean; name?: string }>;
   images: Array<{ ref: string; hasAlt: boolean; altText?: string }>;
   imageObjectCount: number;
+  /**
+   * Image XObjects shaped like a LINE OF TEXT rather than a picture — wide,
+   * short, and in the height range a line of type falls into. Soft masks are
+   * excluded, same as `imageObjectCount`.
+   *
+   * Why this exists (v1.105.0). Word's PDF export turns text carrying an
+   * effect it cannot express in PDF — a shadow, outline, glow, reflection, or
+   * a gradient/see-through fill — into pictures, ONE PER LINE. A real ICJIA
+   * board agenda found it: the letterhead read "ILLINOIS / CRIMINAL JUSTICE /
+   * INFORMATION AUTHORITY" and all three lines were pixels. "ILLINOIS" did
+   * not appear in the text layer at all, so the agency's own name could not
+   * be read aloud, searched, or reflowed — while the report said only
+   * "3 images missing alt text" and sent the author to Acrobat to describe
+   * their own letterhead.
+   *
+   * Read from qpdf, not pdf.js, on purpose: pdf.js resolves image objects
+   * lazily while RENDERING, so an operator-list walk never learns their
+   * dimensions (measured — the counter read 0 for a file with three such
+   * images). qpdf reads /Width and /Height straight from the object graph,
+   * which is static and always available.
+   *
+   * A COUNT, not a verdict: the heuristic recognises a shape, which is
+   * evidence rather than proof, so the finding it drives asks the reader to
+   * confirm and never asserts a failure or moves the score.
+   *
+   * Optional because it is absent from analyses stored before v1.105.0 — and
+   * consumers must read it as `?? 0` rather than assuming a number.
+   */
+  textLineLikeImageCount?: number;
   headings: Array<{ level: string; tag: string }>;
   tables: TableAnalysis[];
   lists: ListAnalysis[];
@@ -274,6 +303,64 @@ const OTHER_ANNOT_SUBTYPES: ReadonlySet<string> = new Set(
   ].map((t) => `/${t}`),
 );
 
+/**
+ * Is this image shaped like a LINE OF TEXT rather than a picture?
+ *
+ * Deliberately conservative — a false positive sends an author to inspect a
+ * photograph for no reason — so every threshold exists to exclude something
+ * specific:
+ *
+ *  - `aspect >= 4` — a line of words is far wider than it is tall. Excludes
+ *    logos, seals, headshots, charts and photos, which sit near square. (The
+ *    ICJIA seal that prompted this work is 192×192: aspect 1, excluded.)
+ *  - `height >= 8` px — excludes hairline rules, borders and underlines,
+ *    which run 1–4 px tall and would otherwise dominate the count. A rule is
+ *    decorative and wants an Artifact, not this finding.
+ *  - `height <= 120` px — the ceiling is set from what a LINE OF TYPE can
+ *    actually measure across normal export resolutions: about 16 px at
+ *    96 ppi, 25 px at 150, 37 px at 220 (the motivating letterhead came out
+ *    at 35), 50 px at 300, and ~100 px even at 600. Anything taller is a
+ *    band, not a line. This threshold was tightened from 200 after a control
+ *    file's decorative colour bars — 1274×194, 1296×179, 2390×199, all with
+ *    flat uniform alpha — sailed through the looser bound.
+ *  - `width >= 40` px — excludes single glyphs, bullets and spacer tiles.
+ *    (The same file's 10×35 and 9×31 spacer slivers are excluded by this.)
+ *
+ * Uses the image's own pixel dimensions, so the test is independent of where
+ * the image was placed on the page and of the DPI it was exported at.
+ */
+export function isTextLineLikeImage(width: number, height: number): boolean {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return false;
+  if (height < 8 || height > 120) return false;
+  if (width < 40) return false;
+  return width / height >= 4;
+}
+
+/**
+ * Drop the candidates that are really one PICTURE cut into horizontal bands,
+ * and count what remains.
+ *
+ * The shape test above cannot tell a line of type from a slice of a graphic —
+ * both are wide and short. A real control file caught this: a recidivism
+ * report's state seal had been flattened into six bands, and every band
+ * matched. What separates them is the WIDTH. Lines of writing are ragged,
+ * because sentences differ in length — the letterhead that motivated this
+ * work measured 189, 404 and 562 px. Slices of one graphic are all exactly
+ * as wide as the graphic: 392, 392, 392, 392, 392, 392.
+ *
+ * So any width shared by three or more candidates is treated as a sliced
+ * picture and dropped. Three is the threshold because two lines of text can
+ * legitimately come out the same width by chance, while three identical
+ * widths in a row is a grid, not prose.
+ */
+export function countTextLineLikeImages(widths: readonly number[]): number {
+  const perWidth = new Map<number, number>();
+  for (const w of widths) perWidth.set(w, (perWidth.get(w) ?? 0) + 1);
+  let count = 0;
+  for (const [, n] of perWidth) if (n < 3) count += n;
+  return count;
+}
+
 export function analyzeWithQpdf(buffer: Buffer): QpdfResult {
   const tmpDir = process.env.TMP_DIR || "/tmp";
   const tmpPath = path.join(tmpDir, `${randomUUID()}.pdf`);
@@ -398,6 +485,7 @@ function emptyQpdfResult(error: string | null): ParsedQpdfResult {
     formFields: [],
     images: [],
     imageObjectCount: 0,
+    textLineLikeImageCount: 0,
     headings: [],
     tables: [],
     lists: [],
@@ -653,6 +741,8 @@ function parseQpdfJson(json: any): QpdfResult {
     // themselves Image XObjects, but they are channels OF a visible image,
     // not additional images — counting them would double-report.
     const imageXObjectRefs = new Set<string>();
+    // /Width and /Height per image XObject, for the text-line-shape test below.
+    const imageDims = new Map<string, { width: number; height: number }>();
     const maskRefs = new Set<string>();
 
     // Note /ID census scratch (v1.92.0, Matterhorn 19): IDs collected during
@@ -847,6 +937,11 @@ function parseQpdfJson(json: any): QpdfResult {
       // Image XObjects (visible only after the stream-dict unwrap above)
       if (o["/Subtype"] === "/Image") {
         imageXObjectRefs.add(normRef(ref));
+        const iw = o["/Width"];
+        const ih = o["/Height"];
+        if (typeof iw === "number" && typeof ih === "number") {
+          imageDims.set(normRef(ref), { width: iw, height: ih });
+        }
         if (typeof o["/SMask"] === "string") maskRefs.add(normRef(o["/SMask"]));
         if (typeof o["/Mask"] === "string") maskRefs.add(normRef(o["/Mask"]));
       }
@@ -1165,9 +1260,16 @@ function parseQpdfJson(json: any): QpdfResult {
       }
     }
 
+    const textLineCandidateWidths: number[] = [];
     for (const imageRef of imageXObjectRefs) {
-      if (!maskRefs.has(imageRef)) result.imageObjectCount++;
+      if (maskRefs.has(imageRef)) continue;
+      result.imageObjectCount++;
+      const dims = imageDims.get(imageRef);
+      if (dims && isTextLineLikeImage(dims.width, dims.height)) {
+        textLineCandidateWidths.push(dims.width);
+      }
     }
+    result.textLineLikeImageCount = countTextLineLikeImages(textLineCandidateWidths);
 
     // Note /ID uniqueness (Matterhorn 19-004): every occurrence beyond the
     // first of a given /ID value is a duplicate.

@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "text-turned-into-pictures-2026-08-27",
+    badge: "New check",
+    text: "Reports now tell you when words in your document are not really words. Text that has an effect on it — a drop shadow, an outline, a glow, or a colour that fades — can be flattened into a picture when Word saves a PDF, one picture per line. It still looks perfect on screen, but a screen reader has nothing to read, nobody can search it, and it goes blurry when zoomed. We found this on a real board agenda whose letterhead had quietly become pictures, so the agency's own name was invisible to a screen reader. The report now points it out, explains that the fix belongs in Word rather than Acrobat, and shows you how to check it yourself in ten seconds: try to select the words — if they will not highlight, they are a picture.",
+    linkText: "What gets checked",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 27, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "automation-coverage-2026-08-27",
     badge: "Important",
     text: "Every report now says plainly what this tool can and cannot check. It finds some accessibility problems — not all of them: checkers like this one, including the ones built into Adobe Acrobat and Microsoft Word, catch only about 30–40% of the problems in a document, and the rest can only be found by a person opening the file and looking. So a good score means the document passed the checks a computer can run; it does not mean the document is accessible. That now appears on every report at every grade, not just high-scoring ones, with the studies behind those figures linked so you can read them yourself. Nothing about the checks or the scores changed — this is about being straight on what a score can and cannot tell you.",

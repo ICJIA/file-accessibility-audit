@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.105.0",
+    meta: "Reviewed <strong>2026-08-27</strong> · scope: one new thing the report can tell you about your document. Nothing new is received, sent, stored, or scored.",
+    body: [
+      {
+        kind: "p",
+        html: "Some documents contain words that are not really words. When a PDF is made from Word, text that has a visual effect on it &mdash; a drop shadow, an outline, a glow, a reflection, or a colour that fades or is see-through &mdash; can be flattened into a picture, one picture per line. It still looks perfect on screen. But a screen reader has nothing to read out, find-on-this-page cannot search it, it will not rearrange itself when someone zooms in, and it goes blurry when magnified. A real board agenda is what brought this to light: the letterhead carrying the agency&rsquo;s own name had become pictures, and nothing in the report said so.",
+      },
+      {
+        kind: "p",
+        html: "The report now points this out when it sees it, and says what to do &mdash; which is the opposite of the old advice. Adding a description to the picture does not bring the words back; the repair belongs in the Word file, not in Acrobat. The note also gives you a check you can run yourself in about ten seconds: open the PDF and try to select those words with your mouse. If they highlight, they are real text. If nothing highlights, they are a picture. This is a problem no check inside Word can find, because in the Word file it is still ordinary text &mdash; it only becomes a picture at the moment the PDF is made.",
+      },
+      {
+        kind: "p",
+        html: "How it was reviewed: this only looks at information the tool had already read out of the document &mdash; the recorded width and height of each picture &mdash; so nothing new is opened, run, sent, or kept, and no web address or stored record changed. It adds a note to the report and <strong>cannot change anyone&rsquo;s score</strong>: all 27 test documents come out with exactly the same scores and grades as before. And because recognising a shape is a clue rather than a certainty, the note is deliberately worded as something to check rather than a failure it declares &mdash; a rule the automated tests enforce.",
+      },
+    ],
+  },
+  {
     version: "v1.104.0",
     meta: "Reviewed <strong>2026-08-27</strong> · scope: removing the notice described in the two entries below. Nothing replaced it, and nothing about what is received, sent, stored, or scored changed.",
     body: [

@@ -995,6 +995,37 @@ function scoreAltText(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     }
   }
 
+  // Text that was turned into pictures on the way out of Word (v1.105.0).
+  // Deliberately its own section rather than a note under "missing alt text":
+  // the remedy is the opposite one. Alt text on a rasterized word is not a
+  // fix — it re-types the word into a description and leaves it unsearchable,
+  // unselectable, and unable to reflow. The fix belongs in the source
+  // document, and the author cannot see the problem from there, so the
+  // finding has to say both things out loud.
+  //
+  // Never asserts a WCAG failure and never moves the score: the heuristic
+  // recognises the SHAPE of a rasterized text line, which is evidence, not
+  // proof. It gives the reader a one-step way to confirm it themselves.
+  const textLineLikeImages = qpdf.textLineLikeImageCount ?? 0;
+  if (textLineLikeImages > 0) {
+    findings.push(`--- Possible Text Turned Into Pictures ---`);
+    findings.push(
+      `${textLineLikeImages} image(s) in this document are shaped like lines of writing — wide, short, and about as tall as a line of type — rather than like photographs or logos. That shape is what you get when words are flattened into a picture: instead of being stored as letters, they are stored as a grid of coloured dots, the same way a photograph is. On screen the words still look perfect, which is exactly why this is so easy to miss.`,
+    );
+    findings.push(
+      "Why it matters: a picture of a word is not a word. A screen reader has nothing to read out — it sees a picture, not letters. Find-on-this-page cannot search it. It will not rearrange itself to fit the screen when someone zooms in, and it turns blurry when magnified. None of that is solved by describing the picture.",
+    );
+    findings.push(
+      "How to check this yourself, in about ten seconds: open this PDF and try to select those words with your mouse, as though you were about to copy them. If they highlight, they are real text and you can ignore this note. If nothing highlights, they are a picture.",
+    );
+    findings.push(
+      "Where to fix it — in Word, not in Acrobat. In the Word file these are almost always still ordinary words. That is why Word's own accessibility checker finds nothing wrong, and why nothing looks wrong on your screen: the words only turn into a picture at the moment the PDF is created. The usual cause is a visual effect applied to the text that a PDF has no way to store — a drop shadow, an outline, a glow, a reflection, or a colour that fades across the letters or is partly see-through. In Word, select that text, then Font → Text Effects, and remove the effect (or simply retype it as plain text in a solid colour). Save as PDF again and the words come through as words.",
+    );
+    findings.push(
+      'Adding a description to these will not fix it. A description stands in for the words instead of bringing them back, so the text still cannot be searched, selected, or resized. If the design really must keep the picture, make sure the same wording also appears as ordinary text somewhere on the page, and then mark the picture as decorative — in Acrobat\'s reading-order tool that is the "Background/Artifact" option — so a screen reader skips past it instead of announcing it twice.',
+    );
+  }
+
   // Formulas (v1.92.0 — Matterhorn 17). Counted in the coverage figure above;
   // listed here so a formula-bearing document sees exactly what is measured.
   if (formulaCount > 0) {

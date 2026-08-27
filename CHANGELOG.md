@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.105.0] - 2026-08-27
+
+### Added
+
+- **A new finding: "Possible Text Turned Into Pictures."** Word's PDF export rasterizes text carrying an effect it cannot express in PDF — a shadow, outline, glow, reflection, or a gradient or partly transparent fill — and it does so **one image per line**. A real board agenda found it: the letterhead read "ILLINOIS / CRIMINAL JUSTICE / INFORMATION AUTHORITY" and all three lines were pixels. The string "ILLINOIS" appeared nowhere in the PDF's text layer, so the agency's own name could not be read aloud by a screen reader, searched for, or reflowed on zoom — while the report said only "3 images missing alt text" and sent the author to Acrobat to describe their own letterhead.
+- **The finding says the opposite of what the old advice implied.** A description stands in for the words instead of restoring them, so it explains that the fix belongs in Word rather than Acrobat, names the effects that cause it, and gives a ten-second check anyone can run: try to select the words — if they will not highlight, they are a picture. Written for a non-technical reader, with no jargon: no "rasterized", no "artifact".
+- **This is the class of defect no source-side checker can catch.** In the `.docx` it is still text, so Word's own Accessibility Checker reports nothing and nothing looks wrong on screen. It becomes an image only at export, which makes the PDF the first place it can be found.
+
+### Notes
+
+- **Evidence, not a verdict.** The detector recognises the shape of a line of type — wider than 4:1, 8 to 120 pixels tall, at least 40 wide — so the finding asks the reader to confirm, never asserts a WCAG failure, and **never moves the score**. The 185-test scoring calibration passes unchanged: every control document keeps its exact score and grade.
+- Measured, not guessed. Dimensions come from qpdf's object graph, not pdf.js, because pdf.js resolves image objects lazily while *rendering* — an operator-list walk read 0 on a file with three such images. Every threshold excludes something real, and a width-grouping rule drops pictures sliced into identical horizontal bands after a control file's state seal came out as six 392-pixel strips that all matched the shape test (that file went from 7 flags to 1). Across the 27 control PDFs it fires on four; the ones opened by hand are true positives — one of them had a section title stored as a picture.
+- Tests: API 1,529 · web 1,240 · CLI 49 (**2,818**), 13 new, each threshold pinned to the real file that would otherwise be misread. No API, storage, or retention change.
+
+<details>
+<summary><strong>v1.104.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
+
 ## [1.104.0] - 2026-08-27
 
 ### Removed
@@ -15,9 +32,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - **The disclosure itself stays put.** What was removed is the *gate*, not the message: every report still carries the automation-limit band at every grade — the 30–40% machine-checkable split, the sourced figures with their links, and the line that a good score does not mean the document is accessible. The landing-page announcement now describes that band rather than the withdrawn notice.
 - Tests: API 1,516 · web 1,240 · CLI 49 (**2,805**) — 26 fewer, all of them the withdrawn notice's own. No API, scoring, storage, or retention change.
-
-<details>
-<summary><strong>v1.103.0 → v1.88.0</strong> (2026-08-26 → 2026-08-22) — click to expand</summary>
 
 ## [1.103.0] - 2026-08-26
 
