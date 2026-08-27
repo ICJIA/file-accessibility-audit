@@ -791,3 +791,75 @@ describe("publicationVerdict", () => {
     }
   });
 });
+
+describe("table_markup variant — headers exist but have no direction", () => {
+  // A DoIT Accessibility example (2026-08-27): a clean two-way table with all
+  // seven header cells tagged and not one carrying a Scope. Its author
+  // believed the file was fully compliant — against WCAG they had a fair
+  // argument, against PDF/UA they did not. The stock step says "mark a
+  // header row", which teaches nothing to someone whose header row is
+  // already marked.
+  const SCOPE_FINDINGS = [
+    "--- Table Structure Overview ---",
+    "  Table: 4 rows × 4 cols | 7 <TH>, 9 <TD> | scope: missing on 7 header(s)",
+    "All 1 table(s) have header cells (TH) — 7 header cell(s) total",
+    "7 <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data",
+  ];
+
+  const step = () =>
+    buildActionPlan([cat("table_markup", "Table Markup", "Minor", SCOPE_FINDINGS)], "pdf")[0]!;
+
+  it("does not tell an author to mark a header row they already marked", () => {
+    const s = step();
+    expect(s.title).toMatch(/which way|direction/i);
+    expect(s.why).toMatch(/already has its header cells marked/i);
+  });
+
+  it("says which value goes where — the whole question", () => {
+    const joined = step()
+      .routes.flatMap((r) => r.steps)
+      .join(" ");
+    expect(joined).toMatch(/TOP.*Column/s);
+    expect(joined).toMatch(/LEFT.*Row/s);
+    // And the corner cell, which is the one genuinely ambiguous cell.
+    expect(joined).toMatch(/corner/i);
+  });
+
+  it("leads the Acrobat route, ahead of the generic table block", () => {
+    // The per-document block opens with "how to add header cells" — useless
+    // here — so the applicable instruction must come first.
+    const acrobat = buildActionPlan(
+      [
+        cat("table_markup", "Table Markup", "Minor", [
+          ...SCOPE_FINDINGS,
+          "--- Adobe Acrobat: How to Fix ---",
+          "To add header cells: right-click a <TD> tag → Properties → Type",
+        ]),
+      ],
+      "pdf",
+    )[0]!.routes.find((r) => r.tool === "acrobat")!;
+    expect(acrobat.steps[0]).toMatch(/header cells already exist/i);
+    expect(acrobat.steps.join(" ")).toMatch(/To add header cells/); // block kept
+  });
+
+  it("explains the PDF/UA vs WCAG split, and that both experts can be right", () => {
+    // The point of the copy: an author told "100% compliant" by one expert
+    // and "something is missing" by this report should learn that the two
+    // are measuring against different rulebooks, not that someone is lying.
+    const why = step().why;
+    expect(why).toMatch(/PDF\/UA/);
+    expect(why).toMatch(/WCAG/);
+    expect(why).toMatch(/both can be right|experts may disagree/i);
+    expect(why).toMatch(/satisfies both|worth doing either way/i);
+  });
+
+  it("keeps today's copy for a table with no headers at all", () => {
+    const today = buildActionPlan([cat("table_markup", "Table Markup", "Moderate")], "pdf")[0]!;
+    const noHeaders = buildActionPlan(
+      [cat("table_markup", "Table Markup", "Moderate", ["2 table(s) have no header cells (TH)"])],
+      "pdf",
+    )[0]!;
+    expect(noHeaders.title).toBe(today.title);
+    expect(noHeaders.why).toBe(today.why);
+  });
+});

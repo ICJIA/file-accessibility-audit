@@ -1449,7 +1449,18 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       }
     }
     findings.push(
-      'Fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope to "Column" or "Row"',
+      'Fix: which value to set is decided by where the header sits, not by preference. A header at the TOP of a column, labelling everything beneath it, is Scope = "Column". A header at the START of a row, labelling everything across it, is Scope = "Row". A table can need both: in a grid with labels along the top AND down the left side, the top row is Column and the left-hand cells are Row. The one genuinely ambiguous cell is the empty corner where the two meet — leave it as a data cell, or if it holds a label give it "Column".',
+    );
+    findings.push(
+      'How to set it in Adobe Acrobat: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope. In Word, you rarely need to do this by hand: select the table, then Table Design → check "Header Row" (and "First Column" if the left-hand cells are labels too), and re-export — Word writes the scopes for you.',
+    );
+    // The standards distinction (user request, 2026-08-27). Authors are told
+    // by one expert that a file is "100% compliant" and by this report that
+    // something is missing, and both can be true — they are measuring
+    // against different rulebooks. Saying so is more useful than letting the
+    // reader assume one of the two is simply wrong.
+    findings.push(
+      "Which rule does this break? Worth being precise, because the two standards disagree here. PDF/UA — the PDF-specific standard — treats a header cell with no Scope and no explicit header link as a defect outright, so a document missing these is not fully PDF/UA conformant. WCAG is less clear-cut: it asks that the header-to-data relationship be determinable by software, without naming Scope as the only way to do it, so a simple table whose header row is already marked as a header row may satisfy WCAG while still failing PDF/UA. That is why this is scored as a readiness gap rather than reported as a confirmed WCAG failure — and why an author can honestly say a file passes WCAG while this report still asks for Scope. Setting it satisfies both, which is why it is worth doing either way.",
     );
   }
 

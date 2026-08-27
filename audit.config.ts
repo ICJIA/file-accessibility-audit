@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "table-scope-guidance-2026-08-27",
+    badge: "Clearer",
+    text: "Table findings now tell you which way your headers point. A header cell can be marked correctly and still not say whether it labels the column beneath it or the row beside it — and the report used to ask you to set that without saying which value to use where. It now gives the rule: cells along the top label what is beneath them, cells down the left label what is across from them, and the empty corner cell needs nothing. In Word you rarely need to do it by hand — tick the Header Row box and Word writes it for you. We have also explained something that confuses people regularly: your accessibility expert may say a file is fully compliant while this report says something is missing, and both can be right, because the PDF standard and the web guidelines set different bars here. Doing it satisfies both.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 27, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "reading-order-forms-2026-08-27",
     badge: "Fixed",
     text: "If you audit forms, your score may go up. Someone told us a score was wrong, and it was: a form built by the State's own accessibility team was marked down for reading order, and its author said the document was fine. They were right. The check compared the order a document is tagged in against the order it is painted in — useful for ordinary documents, but meaningless for a form, because forms paint their field labels last no matter how carefully they are tagged, so the better the form was built the worse it scored. Reports now say plainly that reading order cannot be judged automatically in a form, and show you how to check it yourself. Low-scoring cards also stop putting a red cross beside plain facts and beside the report's own notes.",

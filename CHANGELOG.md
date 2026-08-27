@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.108.0] - 2026-08-27
+
+### Changed
+
+- **Table headers are now told which way they point.** A header cell can be tagged correctly and still not say whether it labels the column beneath it or the row beside it — that is what `/Scope` carries. The old fix text said _set Scope to "Column" or "Row"_ and left the reader to work out which; it now states the rule by position: cells along the **top** are Column, cells down the **left** are Row, and the empty corner cell needs nothing. It also gives the Word shortcut most authors should use instead — tick Header Row (and First Column) and Word writes the scopes on export.
+- **The Visual view needed its own version of this.** Its table step read _"Make tables real tables with a marked header row"_ — useless advice for a document whose header row is already marked. It now leads with "Say which way your table headers point", and the applicable instruction is pushed ahead of the generic per-document Acrobat block, which opens with "how to add header cells" this document already has.
+- **The PDF/UA versus WCAG split is explained rather than left to confuse people.** Authors keep being told by one expert that a file is fully compliant and by this report that something is missing, and **both can be right — they are reading different rulebooks.** PDF/UA treats a header with no direction as a defect outright; WCAG only asks that the header-to-data relationship be determinable somehow and never names Scope as the only way. The copy says so, and closes on the practical point: setting Scope satisfies both, so the argument does not need resolving.
+
+### Notes
+
+- Prompted by a DoIT Accessibility example — a clean two-way table (labels across the top *and* down the left) with all seven header cells tagged and not one carrying a Scope, whose author believed the file was fully compliant. Verified against the file directly: not one of its 16 cells carries an `/A` attribute dictionary, so no Scope, no `/Headers`, no IDs.
+- **No scoring change** — the finding was already correct, so this release adds explanation rather than leniency. That document still scores 89/B with table markup at 85/Minor, and the 185-test calibration passes unchanged. Reported as a PDF/UA readiness gap, never as a confirmed WCAG failure: the tool's conformance verdict for that file remains "no automated failures", which is what the new copy now says out loud.
+- Tests: API 1,536 · web 1,258 · CLI 49 (**2,843**), 5 new.
+
+<details>
+<summary><strong>v1.107.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
+
 ## [1.107.0] - 2026-08-27
 
 ### Fixed
@@ -17,9 +34,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - **Scope of the scoring change, verified rather than asserted**: the 185-test calibration passes unchanged and a re-sweep of all 27 control PDFs shows every non-form document keeping its exact score — only the form moved. A test pins that a *perfectly* ordered form is also unscored, so this is "the metric does not apply here", not "forms get a pass".
 - Tests: API 1,536 · web 1,253 · CLI 49 (**2,838**), 11 new. The load-bearing one is negative: a real fault must never be softened into a neutral bullet.
-
-<details>
-<summary><strong>v1.106.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
 
 ## [1.106.0] - 2026-08-27
 

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.108.0",
+    meta: "Reviewed <strong>2026-08-27</strong> · scope: better wording on one table finding, and an explanation of why two experts can disagree about it. No score changed. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "A table header can be marked correctly and still not say <em>which way it points</em> &mdash; whether it labels the column beneath it or the row beside it. The report was asking authors to set that direction without saying which value to use where, and in the step-by-step view it was telling people to &ldquo;mark a header row&rdquo; on documents whose header row was already marked. It now gives the actual rule: the cells along the top label what is beneath them, the cells down the left label what is across from them, and the empty corner cell needs nothing. It also points out that in Word you rarely need to do this by hand &mdash; tick the Header Row box and Word writes it for you.",
+      },
+      {
+        kind: "p",
+        html: "The more useful addition is an explanation of something that confuses people regularly. An author may be told by one expert that their file is fully compliant, and by this report that something is missing, and <strong>both can be right &mdash; they are measuring against different rulebooks</strong>. The PDF-specific standard treats a header with no direction as a defect outright. The web content guidelines only ask that the connection between headers and data be workable by software, and do not insist on this particular way of doing it. The report now says so plainly, and ends with the practical point: setting the direction satisfies both, so the disagreement does not need settling.",
+      },
+      {
+        kind: "p",
+        html: "This came from someone sending us a document and questioning the result &mdash; the second in two days. On the first, the tool was wrong and we changed it. On this one the tool was right, and we checked that properly before saying so: none of the 16 cells in that table carried the information in question, in any of the forms the standard allows. So this release changes wording only. The document scores exactly what it scored before, all 27 of our test documents are unchanged, and this finding is still reported as a &ldquo;not yet ready&rdquo; note rather than a declared failure &mdash; which is precisely what the new wording explains. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.107.0",
     meta: "Reviewed <strong>2026-08-27</strong> · scope: one measurement we were getting wrong, and two places the report was overstating a problem. Some forms will score higher than before. Nothing new is received, sent, or stored.",
     body: [

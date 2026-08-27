@@ -644,6 +644,62 @@ const LINK_QUALITY_VARIANTS: Array<{
   },
 ];
 
+/**
+ * table_markup has one findings-keyed variant: headers exist, but nothing
+ * says which way they point.
+ *
+ * The stock step teaches "mark a header row", which is the right advice for
+ * a table with NO headers and useless for a table that already has them. A
+ * DoIT Accessibility example (2026-08-27) was the case: a clean two-way
+ * table — labels across the top AND down the left — with all seven header
+ * cells tagged and not one carrying a Scope. Its author believed the file
+ * was fully compliant, and against WCAG they had a fair argument; against
+ * PDF/UA they did not. An author reading "mark your header row" on a
+ * document whose header row is already marked learns nothing.
+ *
+ * Keyed on the analyzer's "missing Scope attribute" line, which is emitted
+ * only when Scope AND the explicit /Headers association are both absent.
+ */
+const TABLE_MARKUP_VARIANTS: Array<{
+  matches: (findings: string[]) => boolean;
+  entry: PlanCopyEntry;
+}> = [
+  {
+    matches: (f) => f.some((s) => s.includes("missing Scope attribute")),
+    entry: {
+      title: "Say which way your table headers point",
+      why: 'This table already has its header cells marked, which is the hard part — but nothing in the file says whether each header labels the column beneath it or the row beside it. A sighted reader gets that from the layout. Someone listening to the table cell by cell does not: they hear "20" and need the file to tell them it means Post-its in January. Note that experts may disagree about whether this is a failure, and both can be right — the PDF-specific standard (PDF/UA) counts a header with no direction as a defect, while WCAG only asks that the relationship be determinable somehow and does not name this as the only way. Setting it satisfies both, so it is worth doing either way.',
+      source: {
+        pdf: [
+          "In Word this is usually automatic: click the table, then Table Design → check Header Row. If the left-hand cells are labels too, check First Column as well",
+          "Re-export the PDF — Word writes the directions for you when those boxes are ticked",
+        ],
+        docx: [
+          "Click the table, then Table Design → check Header Row",
+          "If the left-hand column holds labels rather than data, check First Column too",
+        ],
+      },
+      sourceInDesign: [
+        "Select the header row → Table → Convert Rows → To Header, so the row is exported as a real header row",
+        'Re-export with "Create Tagged PDF" checked',
+      ],
+      acrobat: [
+        "All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor",
+        'Right-click the cells along the TOP of the table → Table Cell Properties → set Scope to "Column" — they label everything beneath them',
+        'Right-click the cells down the LEFT side, if those are labels → Table Cell Properties → set Scope to "Row" — they label everything across from them',
+        "The empty corner cell where the two meet needs nothing; leave it as an ordinary cell",
+      ],
+      // The per-document block below is the generic table advice — it opens
+      // with "how to add header cells", which this document already has. The
+      // instruction that actually applies has to come first, and it has to
+      // say WHICH value goes where, since that is the whole question.
+      acrobatLead: [
+        'Your header cells already exist — what is missing is their direction. In the Table Editor: the cells along the TOP get Scope "Column" (they label what is beneath them), the cells down the LEFT side get Scope "Row" (they label what is across from them), and the empty corner where the two meet needs nothing. The steps below cover the rest of the table tools.',
+      ],
+    },
+  },
+];
+
 const FINDINGS_VARIANTS: Record<
   string,
   Array<{ matches: (findings: string[]) => boolean; entry: PlanCopyEntry }>
@@ -651,6 +707,7 @@ const FINDINGS_VARIANTS: Record<
   text_extractability: TEXT_EXTRACTABILITY_VARIANTS,
   alt_text: ALT_TEXT_VARIANTS,
   link_quality: LINK_QUALITY_VARIANTS,
+  table_markup: TABLE_MARKUP_VARIANTS,
 };
 
 /**
