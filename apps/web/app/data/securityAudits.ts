@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.119.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: the trust page joined the app properly, menu rows stopped breaking words in half, and the site gained a sitemap. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "The &ldquo;Can I trust this?&rdquo; page described below now lives fully inside the site &mdash; same menu, same look, same footer as every other page &mdash; rather than as a separate standalone file. Its content is still produced by the same generator that keeps its numbers current, and a test guarantees the page and the emailable document version stay word-for-word identical. Its project timeline now reads newest-first. The menus at the top and bottom of every page were also repaired: on mid-sized screens they had been squeezing entries onto two lines mid-word (&ldquo;What&rsquo;s / New&rdquo;); rows now wrap as whole entries, never inside a word.",
+      },
+      {
+        kind: "p",
+        html: "Housekeeping for search engines, prompted by an external report card on our page metadata (94 out of 100): the site now publishes a <strong>sitemap</strong> &mdash; a machine-readable list of its public pages, refreshed with a real date whenever the trust page is regenerated &mdash; and the robots file points to it. The sitemap lists only pages meant for the public; addresses the robots file asks crawlers to skip are deliberately excluded, and a test keeps the two files from ever contradicting each other. The site&rsquo;s one-line description was shortened so search results and shared links stop cutting it off mid-sentence.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: appearance, navigation, and two static text files for search engines. The page renders the same generator-produced content as before; no code runs on it, nothing is collected, and no score moved. No web address handling, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.118.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: a new &ldquo;Can I trust this?&rdquo; page on the site, and the trap-document battery doubled. Nothing new is received, sent, or stored.",
     body: [

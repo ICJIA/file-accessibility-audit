@@ -38,7 +38,7 @@ Software that only pretends to work can't afford to lose an argument in public. 
 
 ## {{MONTHS_WORD}} months. {{COMMITS}} changes. {{VERSIONS}} versions.
 
-Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. Milestones: adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements · removed all accounts and identity (nothing stored about who uses it) · covered all 31 industry checkpoints · lost two public arguments and fixed both · made its own grading **stricter** on itself · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · passes its own trap test {{TRAPS}}/{{TRAPS}}.
+Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. Milestones, newest first: passes its own trap test {{TRAPS}}/{{TRAPS}} · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · made its own grading **stricter** on itself · lost two public arguments and fixed both · covered all 31 industry checkpoints · removed all accounts and identity (nothing stored about who uses it) · adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements.
 
 ## "But one person built it."
 

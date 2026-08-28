@@ -17,8 +17,10 @@ const siteUrl = isProd ? DEPLOY.PRODUCTION_URL : `http://localhost:${DEPLOY.WEB_
 const appName = BRANDING.APP_SHORT_NAME;
 const orgName = BRANDING.ORG_NAME;
 const orgUrl = BRANDING.ORG_URL;
+// Kept under 160 characters — search results and share previews truncate
+// beyond that (MetaPeek flagged the previous 217-char version, 2026-08-28).
 const appDesc =
-  "Upload a PDF, Word, PowerPoint, or Excel document and get an instant accessibility score across WCAG 2.2 (and 2.1) Level AA, ADA Title II, and Illinois IITAA categories with detailed findings and remediation guidance.";
+  "Free accessibility checker for PDF, Word, PowerPoint, and Excel: an instant WCAG 2.2 AA score with fix-it guidance for ADA Title II and Illinois IITAA.";
 const datePublished = "2025-03-06";
 
 // Derived from the last commit's date at build time, so this can't silently
@@ -142,6 +144,20 @@ export default defineNuxtConfig({
         { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
         { rel: "canonical", href: siteUrl },
         { rel: "manifest", href: "/site.webmanifest" },
+        // Resource hint for the one third-party origin the page contacts
+        // (MetaPeek, 2026-08-28): preconnect shaves the TLS round-trip off
+        // the analytics beacon. Spread-gated on the same constant as the
+        // script tag below — no analytics, no hint; everything else the site
+        // loads is same-origin.
+        ...(ANALYTICS.PLAUSIBLE_HOST
+          ? [
+              {
+                rel: "preconnect",
+                href: ANALYTICS.PLAUSIBLE_HOST,
+                crossorigin: "anonymous" as const,
+              },
+            ]
+          : []),
       ],
       // Self-hosted, cookie-free Plausible analytics (see ANALYTICS in
       // audit.config.ts). Included in dev too: the script ignores localhost

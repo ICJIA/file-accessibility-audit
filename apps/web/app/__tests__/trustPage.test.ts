@@ -3,55 +3,89 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
-// "Can I trust this?" (2026-08-28, user request): the manager-facing brief —
-// the plain-English page of verifiable claims about this checker — is served
-// by the site itself at /trust.html and linked from BOTH navs.
+// "Can I trust this?" — the manager-facing brief, as a REAL PAGE of the app.
 //
-// Two rules pinned here:
-//   1. /trust.html is a STATIC file in public/, not a Vue route — so every
-//      link to it must be a plain <a>, never NuxtLink (the same twice-shipped
-//      trap as /status: a NuxtLink would client-navigate into the SPA 404).
-//   2. The served copy must be BYTE-IDENTICAL to docs/brief/checker-brief.html
-//      — both are written by `pnpm build-brief` in one run, and this identity
-//      is what guarantees the site never shows a different story than the
-//      document being emailed around. If this fails, run `pnpm build-brief`.
+// v1.118.0 served it as a static file at /trust.html; v1.119.0 makes it a Vue
+// route at /trust so it wears the site's own header nav and footer and stays
+// responsive with everything else. The page body is GENERATED — `pnpm
+// build-brief` fills the template with live numbers and writes
+// app/data/trustBody.ts — and the same fill also produces the emailable
+// standalone twins in docs/brief/, so the sync guarantee is containment: the
+// app body must appear verbatim inside the standalone page. If these fail,
+// run `pnpm build-brief`.
 // ---------------------------------------------------------------------------
 
 const WEB = resolve(__dirname, "..");
-const ROOT = resolve(WEB, "../../.."); // apps/web/app -> repo root
+const ROOT = resolve(WEB, "../../..");
 const layout = readFileSync(resolve(WEB, "layouts/default.vue"), "utf8");
 
-describe("Can I trust this? — the trust page", () => {
-  it("is served as a static file in public/", () => {
-    expect(existsSync(resolve(WEB, "../public/trust.html"))).toBe(true);
+describe("Can I trust this? — the /trust page", () => {
+  it("is a Vue page of the app, rendering the generated body", () => {
+    const page = readFileSync(resolve(WEB, "pages/trust.vue"), "utf8");
+    expect(page).toMatch(/from "~\/data\/trustBody"/);
+    expect(page).toMatch(/v-html="TRUST_BODY"/);
   });
 
-  it("is byte-identical to the generated brief (pnpm build-brief writes both)", () => {
-    const served = readFileSync(resolve(WEB, "../public/trust.html"), "utf8");
-    const brief = readFileSync(resolve(ROOT, "docs/brief/checker-brief.html"), "utf8");
-    expect(served).toBe(brief);
+  it("the generated body exists, carries the date stamp, and the old static file is gone", () => {
+    const body = readFileSync(resolve(WEB, "data/trustBody.ts"), "utf8");
+    expect(body).toMatch(/pulled live/);
+    expect(body).toMatch(/class=\\"stamp\\"|class="stamp"/);
+    // The /trust.html era must not linger — two copies of one page is drift.
+    expect(existsSync(resolve(WEB, "../public/trust.html"))).toBe(false);
   });
 
-  it("carries the big date stamp that makes staleness visible", () => {
-    const served = readFileSync(resolve(WEB, "../public/trust.html"), "utf8");
-    expect(served).toMatch(/Every number below was pulled live/);
-    expect(served).toMatch(/class="stamp"/);
+  it("stays in sync with the emailable brief: the app body appears verbatim inside it", () => {
+    // Parsed from the generated module rather than imported, so a missing
+    // file fails THIS assertion instead of crashing collection.
+    const src = readFileSync(resolve(WEB, "data/trustBody.ts"), "utf8");
+    // First statement only — the module also exports TRUST_STAMP after it.
+    const literal = src.slice(src.indexOf("= ") + 2, src.indexOf(";\n"));
+    const body = JSON.parse(literal) as string;
+    // The app body drops the template's own <footer> (the layout provides the
+    // real one), which cuts a chunk out of the final section — so apply the
+    // SAME strip to the standalone before asserting containment.
+    const standalone = readFileSync(resolve(ROOT, "docs/brief/checker-brief.html"), "utf8");
+    const stripped = standalone.replace(/\s*<footer>[\s\S]*?<\/footer>/, "");
+    expect(body.length).toBeGreaterThan(5_000);
+    expect(stripped).toContain(body.trim());
   });
 
-  it("the header nav links it as a plain <a>, never NuxtLink", () => {
+  it("the header nav links it — a NuxtLink now, because /trust is a real route", () => {
     const headerNav = layout.slice(0, layout.indexOf("</nav>"));
-    expect(headerNav).toMatch(/<a[^>]+href="\/trust\.html"/);
+    expect(headerNav).toMatch(/<NuxtLink[^>]*to="\/trust"/);
     expect(headerNav).toMatch(/Can I trust this\?/);
-    // The /status trap, twice shipped: a NuxtLink to a non-Vue route renders
-    // the SPA 404.
-    // Component form only — the guard comment beside the link itself says
-    // "NOT NuxtLink: /trust.html", which must not trip this.
-    expect(headerNav).not.toMatch(/<NuxtLink[^>]*trust/);
   });
 
-  it("the footer links it as a plain <a> too", () => {
+  it("the footer links it like its neighbors", () => {
     const footer = layout.slice(layout.indexOf("<footer"));
-    expect(footer).toMatch(/<a[^>]+href="\/trust\.html"/);
+    expect(footer).toMatch(/href="\/trust"/);
     expect(footer).toMatch(/Can I trust this\?/);
+  });
+});
+
+describe("nav rows never wrap mid-label", () => {
+  // Reported 2026-08-28 with a screenshot: at laptop widths the footer showed
+  // "What's / New", "Can I trust / this?", "Data Retention / Policy". A row
+  // may wrap as WHOLE items; a label may not break in half.
+  it("every footer nav label is whitespace-nowrap, and the row is allowed to wrap as items", () => {
+    const footer = layout.slice(layout.indexOf("<footer"));
+    const row = footer.slice(0, footer.indexOf("</div>"));
+    expect(row).toMatch(/flex-wrap/);
+    const anchors = footer.match(/<a[\s\S]*?<\/a>/g) ?? [];
+    const navAnchors = anchors.filter((a) =>
+      /Changelog|What's New|Can I trust|Data Retention|Technical Details|Scoring|GitHub/.test(a),
+    );
+    expect(navAnchors.length).toBeGreaterThanOrEqual(5);
+    for (const a of navAnchors) expect(a).toMatch(/whitespace-nowrap/);
+  });
+
+  it("header and footer get the wider container; reading content keeps its measure", () => {
+    const headerBlock = layout.slice(0, layout.indexOf("</header>"));
+    const footerBlock = layout.slice(layout.indexOf("<footer"));
+    expect(headerBlock).toMatch(/max-w-6xl/);
+    expect(footerBlock).toMatch(/max-w-6xl/);
+    // main stays at the comfortable reading width
+    const mainTag = layout.slice(layout.indexOf("<main"), layout.indexOf("</main>"));
+    expect(mainTag).toMatch(/max-w-4xl/);
   });
 });
