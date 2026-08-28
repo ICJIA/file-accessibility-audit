@@ -254,7 +254,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "can-i-trust-this-2026-08-28",
     badge: "New page",
-    text: "A fair question deserves its own page: Can I trust this? The new link at the top and bottom of every screen answers it in plain English — the laws this checker serves (Title II of the ADA, the Illinois IITAA, and the WCAG rulebook both point to), the independent referee program that co-signs every report, the battery of trap documents built specifically to fool the checker (now 39 of them — all judged correctly), the working sessions with the agency's file accessibility specialist, and the grade disputes the checker lost in public and fixed the same day. Every number on the page is pulled from the live system, under a big dated stamp so you can see exactly how fresh it is.",
+    text: "A fair question deserves its own page: Can I trust this? The new link at the top and bottom of every screen answers it in plain English — the laws this checker serves (Title II of the ADA, the Illinois IITAA, and the WCAG rulebook both point to), the independent referee program that co-signs every report, the battery of trap documents built specifically to fool the checker (now 39 of them — all judged correctly), the working sessions with internal and external accessibility specialists, and the grade disputes the checker lost in public and fixed the same day. Every number on the page is pulled from the live system, under a big dated stamp so you can see exactly how fresh it is.",
     linkText: "Can I trust this?",
     /** Static file in public/, NOT a Vue route — plain <a> semantics. */
     linkTo: "/trust.html",
