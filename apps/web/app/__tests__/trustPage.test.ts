@@ -50,6 +50,22 @@ describe("Can I trust this? — the /trust page", () => {
     expect(stripped).toContain(body.trim());
   });
 
+  it("the trap-inventory modal lists every document the stats claim", () => {
+    // The trust page says "we built N documents designed to fool it" and
+    // offers a modal listing all of them. The modal must carry exactly N
+    // cards — a page that claims 100 and lists 60 is the kind of gap a
+    // skeptic is right to pounce on. N comes from brief-stats.json, the same
+    // number the hero stat is filled from.
+    const stats = JSON.parse(
+      readFileSync(resolve(WEB, "../../../scripts/brief-stats.json"), "utf8"),
+    );
+    const body = readFileSync(resolve(WEB, "data/trustBody.ts"), "utf8");
+    const cards = body.match(/class=\\"trapm\\"/g) ?? [];
+    expect(cards.length).toBe(stats.traps);
+    expect(body).toContain('id=\\"all-traps\\"');
+    expect(body).toMatch(/FOUND A REAL BUG/);
+  });
+
   it("the header nav links it — a NuxtLink now, because /trust is a real route", () => {
     const headerNav = layout.slice(0, layout.indexOf("</nav>"));
     expect(headerNav).toMatch(/<NuxtLink[^>]*to="\/trust"/);

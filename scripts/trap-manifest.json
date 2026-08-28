@@ -1,0 +1,512 @@
+{
+  "count": 100,
+  "generated": "2026-08-28",
+  "items": [
+    {
+      "file": "synthetic-01-well-built.pdf",
+      "label": "A correctly built document — no false accusations allowed",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-02-scanned-lie.pdf",
+      "label": "Perfect title & language — secretly one big photo",
+      "chip": "caught",
+      "chipText": "CAUGHT · SCORED 0"
+    },
+    {
+      "file": "synthetic-03-hollow-alt.pdf",
+      "label": "Image \"description\" of nothing but blank spaces",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-04-gibberish-lang.pdf",
+      "label": "Language declared as meaningless gibberish",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-05-tag-cycle.pdf",
+      "label": "Internal structure that loops back on itself forever",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-06-sixty-deep.pdf",
+      "label": "Tags nested sixty levels deep",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-07-paragraphs-as-headings.pdf",
+      "label": "Whole paragraphs disguised as headings",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-08-headerless-table.pdf",
+      "label": "A data table with no header row at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-09-empty-table.pdf",
+      "label": "A table tag with no rows inside it",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-10-orphan-decoy.pdf",
+      "label": "A detached decoy stuffed with fake problems",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-11-untagged-text.pdf",
+      "label": "Real text painted outside every tag",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-12-hostile-strings.pdf",
+      "label": "Hostile computer code hidden in the text",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-13-bold-fake-headings.pdf",
+      "label": "Big bold text instead of real headings",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-14-indesign-rolemap.pdf",
+      "label": "InDesign naming soup with a one-letter typo",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-15-canva-empty-pairs.pdf",
+      "label": "A page built the way Canva builds them — unreadable inside",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-16-form-unlabeled.pdf",
+      "label": "A form with no labels on any field",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-17-form-labeled.pdf",
+      "label": "The same form, fully labeled",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-18-rasterized-lettering.pdf",
+      "label": "A letterhead line that is a picture of type",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-19-skipped-heading-levels.pdf",
+      "label": "Heading levels that skip steps",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-20-generic-h-only.pdf",
+      "label": "Generic headings with no levels at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-21-mixed-h-conventions.pdf",
+      "label": "Two heading conventions mixed together",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-22-filename-title.pdf",
+      "label": "A filename where the title should be",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-23-title-display-off.pdf",
+      "label": "A good title the viewer is told not to show",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-24-th-without-scope.pdf",
+      "label": "Header cells with no declared direction",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-25-fake-bullet-list.pdf",
+      "label": "Bullets typed as plain text, no list structure",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-26-nested-table.pdf",
+      "label": "A table inside a table cell",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-27-ragged-table.pdf",
+      "label": "Rows whose columns do not line up",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-28-link-bare-url.pdf",
+      "label": "Link text that is just the raw web address",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-29-link-click-here.pdf",
+      "label": "A link that says only \"click here\"",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-30-untagged-link.pdf",
+      "label": "A clickable link no tag claims",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-31-empty-headings.pdf",
+      "label": "Eight headings, six holding no text at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-32-note-without-id.pdf",
+      "label": "A footnote no reader can trace back",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-33-unnamed-layer.pdf",
+      "label": "A layer switch with no name to announce",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-34-rolemap-circular.pdf",
+      "label": "A naming loop that could hang a parser",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-35-rolemap-remaps-standard.pdf",
+      "label": "The standard rulebook words redefined",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-36-javascript-action.pdf",
+      "label": "JavaScript actions hidden in the document",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-37-no-tab-order.pdf",
+      "label": "No keyboard tab order on any page",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-38-actualtext-figure.pdf",
+      "label": "A figure described the other legal way",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-39-artifact-decoration.pdf",
+      "label": "Decoration properly marked invisible",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-40-language-span-good.pdf",
+      "label": "A French passage properly declared",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-41-long-doc-no-bookmarks.pdf",
+      "label": "Twelve pages and no bookmarks",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-42-long-doc-with-bookmarks.pdf",
+      "label": "The same twelve pages, with bookmarks",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-43-cover-sheet.pdf",
+      "label": "A one-page cover sheet — small is not a defect",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-44-artifact-figure-conflict.pdf",
+      "label": "Marked decorative, yet tagged as content, undescribed",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-45-rotated-pages.pdf",
+      "label": "Pages rotated sideways",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-46-link-good-twin.pdf",
+      "label": "A link that says where it goes",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-47-formula-no-alt.pdf",
+      "label": "A formula with no spoken form",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-48-formula-good-twin.pdf",
+      "label": "The same formula, spoken form included",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-49-three-failures-one-file.pdf",
+      "label": "Three unrelated defects in one file — all three flagged",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-50-kitchen-sink-good.pdf",
+      "label": "Everything right at once — the grand good twin",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-51-canva-flat-poster.pdf",
+      "label": "Canva default export: gorgeous and completely untagged",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-52-canva-missing-title.pdf",
+      "label": "Never given a name — no title anywhere",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-53-canva-decorative-swarm.pdf",
+      "label": "Twelve decorative shapes tagged as content, undescribed",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-54-canva-artifact-twin.pdf",
+      "label": "The same shapes properly made invisible",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-55-canva-headline-image.pdf",
+      "label": "A stylized headline that is a picture of words",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-56-canva-mixed-links.pdf",
+      "label": "Three links: one good, one raw address, one \"here\"",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-57-canva-no-language.pdf",
+      "label": "No language declared anywhere",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-58-canva-square-page.pdf",
+      "label": "A social-media square page, tagged right",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-59-canva-decorated-heading.pdf",
+      "label": "A heading dressed in template ornaments",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-60-canva-one-giant-p.pdf",
+      "label": "Four pages of visual style, zero heading tags",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-61-canva-dangling-pg.pdf",
+      "label": "A tag pointing at a deleted page",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-62-canva-double-tagged.pdf",
+      "label": "One passage claimed by two tags at once",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-63-canva-blank-pages.pdf",
+      "label": "Blank pages used as padding",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-64-canva-h1-forest.pdf",
+      "label": "Every text box its own H1 — reported honestly",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-65-canva-story-no-bookmarks.pdf",
+      "label": "A twelve-page photo story with no navigation",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-66-canva-vector-decor.pdf",
+      "label": "Forty drawn shapes beneath properly tagged text",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-67-canva-emoticon-alt.pdf",
+      "label": "An image described as \":-)\" — the human share of the work",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-68-canva-done-right.pdf",
+      "label": "A Canva layout remediated by hand",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-69-indesign-untagged-book.pdf",
+      "label": "InDesign with tagging unchecked — pretty, not accessible",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-70-indesign-rolemap-styles.pdf",
+      "label": "Custom style names, mapped correctly",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-71-indesign-unmapped-tag.pdf",
+      "label": "A custom tag with no mapping at all",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-72-indesign-figures-no-alt.pdf",
+      "label": "Three images, alt panel never opened",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-73-indesign-master-artifacts.pdf",
+      "label": "Running headers properly made invisible",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-74-indesign-toc-unlinked.pdf",
+      "label": "A contents page with no links — nothing to punish",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-75-indesign-toc-linked.pdf",
+      "label": "A contents page properly linked",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-76-indesign-bold-not-th.pdf",
+      "label": "A header row that is only styled bold",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-77-indesign-threaded-reverse.pdf",
+      "label": "Threaded frames tagged in reverse order",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-78-indesign-spread-page.pdf",
+      "label": "A facing-page spread, double wide",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-79-indesign-dangling-bookmark.pdf",
+      "label": "A bookmark to a deleted page",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-80-indesign-figure-caption.pdf",
+      "label": "A figure grouped with its caption",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-81-indesign-span-explosion.pdf",
+      "label": "One paragraph shattered into 120 style runs",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-82-indesign-empty-frames.pdf",
+      "label": "Headings emptied in a late edit",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-83-indesign-crop-marks.pdf",
+      "label": "Crop marks outside the trim box",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-84-indesign-form-xobject-text.pdf",
+      "label": "Text inside a placed drawing object",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-85-indesign-soft-hyphens.pdf",
+      "label": "Soft hyphens through justified text",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-86-indesign-done-right.pdf",
+      "label": "InDesign at its best — mapped, described, linked",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-87-word-rasterized-effects.pdf",
+      "label": "Word text effects: every styled line a picture",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-88-word-whitespace-table.pdf",
+      "label": "A \"table\" drawn with spaces — none hallucinated",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-89-word-boilerplate-alt.pdf",
+      "label": "Word's auto-alt: present, judged by the human share",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-90-word-empty-spacers.pdf",
+      "label": "Sixteen empty paragraphs as vertical spacing",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-91-word-track-changes.pdf",
+      "label": "Review comments shipped in the final file",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-92-word-styles-good.pdf",
+      "label": "Word styles used correctly: a clean H1-H2-H3 ladder",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-93-word-fake-and-real-list.pdf",
+      "label": "A real list beside a typed dash \"list\"",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-94-word-merged-cells.pdf",
+      "label": "A merged header spanning two columns",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-95-word-info-title-only.pdf",
+      "label": "A title in the classic metadata slot only",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-96-word-print-to-pdf.pdf",
+      "label": "\"Print to PDF\": three losses in one habit",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-97-word-done-right.pdf",
+      "label": "Word done right, end to end",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-98-tool-soup.pdf",
+      "label": "Three tools' bad habits stapled into one file",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-99-remediated-brochure.pdf",
+      "label": "A remediated four-page brochure",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-100-the-hundredth.pdf",
+      "label": "The hundredth document — perfect, and graded perfect",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
+    }
+  ]
+}

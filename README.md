@@ -1266,12 +1266,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.122.0 — 2026-08-28 · One hundred trap documents, all held; the full inventory opens from the trust page (no new attack surface)
+
+The adversarial corpus doubles again, 50 → **100, every designed truth holding**. Batch four is modeled on what **Canva, InDesign, and Word** actually export: flat untagged posters, decorative-shape swarms beside their properly-artifacted twins, custom naming soup with unmapped orphans, alt-less anchored images, bold-only header rows, text effects rasterized line by line, whitespace "tables" the checker must not hallucinate, "Print to PDF" (three losses named on one report) — plus per-tool done-right twins and a hundredth document that is perfect and grades exactly 100/A. The trust page now opens a **modal inventory of all 100** (48 defects caught · 51 correct or hostile documents passed clean · 1 real bug found and fixed), rendered from a manifest only a fully verified battery run can write and pinned by a test that counts the cards. **The battery is now a CI gate**: every push rebuilds all 100 from scratch and one violated truth fails the build — every failure is a defect to fix, in a sample or in the checker. "Can I trust this?" now leads the top navigation. **No new attack surface**: trap PDFs from a dev-only script, generated-page content, one nav reorder. Tests 2,923. The verification corpus now spans **136 documents: 36 real + 100 synthetic.**
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.121.0 → v1.33.0) — click to expand</summary>
+
 ### v1.121.0 — 2026-08-28 · Every open Dependabot alert cleared (dependency safety update)
 
 GitHub's automatic advisory watcher had three open alerts; all cleared. The high-severity one — `extract-zip`, with **no patched version in existence** — was cured by removal: **puppeteer 25**'s browser installer no longer uses it, and the package is gone from the dependency tree. **@nuxt/ui 4.11** clears the form-component advisory (components unused here), and **mermaid 11.17.2** (development-only) clears five more. Verified before release: 2,922 tests green, a live page render + axe pass on the new Chrome 152, UI pages screenshotted intact, documentation diagrams pixel-identical, and `fast-xml-parser` unmoved so document scores cannot shift. No code path that receives, sends, or stores anything changed.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.120.0 → v1.33.0) — click to expand</summary>
 
 ### v1.120.0 — 2026-08-28 · The trap corpus reaches 50 (all held); the trust page explains Matterhorn (no new attack surface)
 

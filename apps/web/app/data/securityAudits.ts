@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.122.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: the trap-document battery doubled to 100 and published as a full inventory; the battery now runs on every code change. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "The battery of trap documents grew from 50 to <strong>100, with every designed answer returned correctly</strong>. The new fifty are modeled on the three programs behind most problem documents: <strong>Canva</strong> (beautiful posters exported with no reading structure at all, swarms of decorative shapes tagged as content, headlines that are pictures of words), <strong>InDesign</strong> (custom style names with and without their translation table, images whose description panel was never opened, header rows that are only styled bold), and <strong>Word</strong> (styled titles turned into one picture per line, &ldquo;tables&rdquo; drawn with spaces, files made with Print&nbsp;to&nbsp;PDF &mdash; which loses the reading structure, the title, and the language in one habit). Each family also includes documents done <em>right</em>, which must pass clean &mdash; and did.",
+      },
+      {
+        kind: "p",
+        html: "Two additions make the battery harder to doubt. First, the trust page now opens a <strong>full inventory of all 100 documents</strong> &mdash; each with a plain-language label and its verdict &mdash; drawn from a manifest file that only a fully verified battery run can produce, with a self-check that counts the listed cards against the same number the page&rsquo;s statistics use. Second, <strong>the battery now runs automatically on every code change</strong>: all 100 documents are rebuilt from scratch and re-judged, and a single wrong answer blocks the change from shipping. That is the battery&rsquo;s real job &mdash; every failure is a defect to find and fix, in a test document or in the checker itself, exactly how it caught a real bug once before.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the trap documents are files produced by a developer-only script that never runs on the server; the inventory is generated page content; the &ldquo;Can I trust this?&rdquo; link simply moved to the front of the menu. No code path that receives, sends, or stores anything changed; no score moved on any real document. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.121.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: routine dependency safety update — the third-party building blocks the software stands on, brought current. Nothing new is received, sent, or stored.",
     body: [

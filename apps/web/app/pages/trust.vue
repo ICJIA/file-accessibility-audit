@@ -508,6 +508,93 @@ useHead({
   color: var(--tp-good);
   font-weight: 700;
 }
+.trust-page .trapall {
+  color: var(--tp-act);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--tp-act);
+}
+.trust-page .chip.clean {
+  background: var(--tp-act-dim);
+  color: var(--tp-act);
+  border: 1px solid var(--tp-act);
+}
+.trust-page .trapmodal {
+  display: none;
+}
+.trust-page .trapmodal:target {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(6, 8, 10, 0.96);
+  overflow: auto;
+}
+.trust-page .tm-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+.trust-page .tm-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: rgba(6, 8, 10, 0.97);
+  padding: 12px 0 14px;
+  border-bottom: 1px solid var(--tp-line);
+}
+.trust-page .tm-title {
+  font-family: "Archivo Black", "Public Sans", sans-serif;
+  font-size: clamp(22px, 3.4vw, 32px);
+}
+.trust-page .tm-sub {
+  color: var(--tp-muted);
+  font-size: 14px;
+  margin-top: 6px;
+  max-width: 75ch;
+}
+.trust-page .tm-close {
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--tp-text);
+  border: 1px solid var(--tp-line);
+  border-radius: 999px;
+  padding: 8px 16px;
+  text-decoration: none;
+  background: var(--tp-panel);
+}
+.trust-page .tm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.trust-page .trapm {
+  background: var(--tp-panel);
+  border: 1px solid var(--tp-line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trust-page .trapm .name {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--tp-muted);
+}
+.trust-page .trapm .what {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.trust-page .trapm .chip {
+  margin-top: auto;
+  align-self: flex-start;
+}
 .trust-page .timeline {
   margin-top: 30px;
   display: flex;

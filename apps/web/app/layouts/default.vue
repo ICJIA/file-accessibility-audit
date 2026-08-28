@@ -38,6 +38,15 @@
                shipped in v1.39.0 and was fixed in v1.39.1 — do not
                "tidy" this into a NuxtLink. -->
           <nav aria-label="Site information" class="flex items-center gap-3 sm:gap-4">
+            <!-- FIRST on purpose (user request, 2026-08-28): the skeptic's
+                 question leads the nav. /trust is a real Vue route since
+                 v1.119.0, so NuxtLink is correct. Pinned by trustPage.test.ts. -->
+            <NuxtLink
+              to="/trust"
+              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
+            >
+              Can I trust this?
+            </NuxtLink>
             <a
               v-if="config.public.faqsUrl"
               :href="config.public.faqsUrl"
@@ -52,15 +61,6 @@
               class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               What's New
-            </NuxtLink>
-            <!-- /trust is a real Vue route since v1.119.0 (the page moved
-                 in-app from the static /trust.html), so NuxtLink is correct
-                 here. Pinned by trustPage.test.ts. -->
-            <NuxtLink
-              to="/trust"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
-            >
-              Can I trust this?
             </NuxtLink>
             <!-- Plain <a>, NOT NuxtLink — see the note above.
                  Same tab, deliberately: this opened in a new one originally,

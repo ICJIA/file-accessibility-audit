@@ -99,6 +99,39 @@ const dateLong = now.toLocaleDateString("en-US", {
   year: "numeric",
 });
 
+// --- the trap inventory modal (2026-08-28, user request): every trap
+//     document, its plain-language label, and its verdict chip, rendered from
+//     scripts/trap-manifest.json — which only a fully verified
+//     `pnpm synthetic-controls` run may write. The count is pinned to
+//     brief-stats.json so the page can never claim documents that were not
+//     actually verified. ---
+const trapManifest = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "scripts", "trap-manifest.json"), "utf8"),
+);
+if (trapManifest.count !== manual.traps)
+  throw new Error(
+    `trap-manifest.json has ${trapManifest.count} entries but brief-stats.json says traps=${manual.traps} — rerun pnpm synthetic-controls or fix brief-stats`,
+  );
+const escHtml = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const chipFor = (i) =>
+  i.chip === "bug"
+    ? ["caught", i.chipText ?? "FOUND A REAL BUG"]
+    : i.chip === "caught"
+      ? ["held", i.chipText ?? "CAUGHT"]
+      : ["clean", i.chipText ?? "PASSED CLEAN"];
+const shortName = (f) => f.replace(/^(synthetic-\d+).*$/, "$1");
+const TRAP_CARDS = trapManifest.items
+  .map((i) => {
+    const [cls, txt] = chipFor(i);
+    return `<div class="trapm"><div class="name">${shortName(i.file)}</div><div class="what">${escHtml(i.label)}</div><span class="chip ${cls}">${escHtml(txt)}</span></div>`;
+  })
+  .join("");
+const TRAP_LIST_MD = trapManifest.items
+  .map((i) => `- **${shortName(i.file)}** — ${i.label} *(${chipFor(i)[1].toLowerCase()})*`)
+  .join("\n");
+const trapsCaught = trapManifest.items.filter((i) => i.chip === "caught").length;
+const trapsHeld = trapManifest.items.filter((i) => i.chip === "held").length;
+
 const SUBS = {
   DATE_BIG: dateBig,
   DATE_LONG: dateLong,
@@ -108,6 +141,10 @@ const SUBS = {
   TESTS: fmt(manual.tests),
   TRAPS: String(manual.traps),
   TRAPS_REST: String(manual.traps - 9), // the trap grid shows 9 named tiles
+  TRAP_CARDS,
+  TRAP_LIST_MD,
+  TRAPS_CAUGHT: String(trapsCaught),
+  TRAPS_HELD: String(trapsHeld),
   COMMITS: String(commits),
   COMMITS_30D: String(commits30d),
   WEEKS: String(weeks),

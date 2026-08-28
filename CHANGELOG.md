@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.122.0] - 2026-08-28
+
+### Added
+
+- **The trap corpus doubles again: 50 → 100 documents, ALL 100 designed truths held.** Batch four is modeled on the three tools behind most problem uploads. **Canva (51–68):** the flat untagged poster, the never-named download, a twelve-shape decorative swarm beside its properly-artifacted twin, a headline that is a picture of words, mixed link habits, no language, a social square page, ornamented headings, four pages of style with zero heading tags, a tag pointing at a deleted page, one passage claimed by two tags, blank padding pages, an H1 forest, a twelve-page story with no navigation, forty vector shapes, an emoticon alt (the human 60–70%), and a hand-remediated Canva layout. **InDesign (69–86):** the untagged book with perfect metadata, mapped custom styles and an unmapped orphan tag, three alt-less anchored images, artifacted master-page furniture, unlinked and linked contents pages, a bold-only header row, reverse-threaded frames, a facing-page spread, a dead bookmark, a figure-caption group, a 120-span style-run explosion, emptied heading frames, crop marks, text inside a placed form object, soft hyphens, and InDesign done right. **Word (87–97):** text effects rasterized line by line, a whitespace "table" the checker must not hallucinate, boilerplate auto-alt, sixteen empty spacer paragraphs, track-changes leftovers, a clean H1–H2–H3 ladder, a real list beside a typed dash list, merged header cells, a classic-metadata title, "Print to PDF" (three losses named on one report), and Word done right. **Finale (98–100):** three tools' habits stapled into one file (all caught together), a remediated four-page brochure, and the hundredth document — perfect, and graded exactly 100/A.
+- **The full inventory is now public, in the product**: the trust page's trap section opens a modal listing **all 100 documents** — each with a plain-language label and its verdict chip (48 designed defects CAUGHT · 51 correct or hostile documents PASSED CLEAN · 1 FOUND A REAL BUG). Rendered from `scripts/trap-manifest.json`, which only a fully verified `pnpm synthetic-controls` run can write, and pinned by a test that counts the cards against the same number the hero stat uses — the page cannot claim documents that were not verified. The modal is pure HTML/CSS (`:target`), so it works identically on /trust and in the emailable brief; the document version carries the same list as an appendix.
+- **The trap battery is now a CI gate.** `pnpm synthetic-controls` runs on every push after the test suites: all 100 documents are rebuilt from scratch and pushed through the real analyzer, and one violated truth fails the build. This is the corpus's real job — every failure is a defect to fix, in a sample or in the checker itself, exactly how it caught the whitespace-only-/Alt bug.
+- **"Can I trust this?" is now the FIRST item in the top navigation** — the skeptic's question leads the menu.
+
+### Notes
+
+- Batch four's three first-run failures were all sample defects, and the checker's rules won each argument: an all-alt'd page prints no "X of Y" census line (there is nothing to count against), and a four-page artifact test legitimately owed a heading under the substantive-document rule. Zero new checker bugs found in batch four; the corpus's one real catch remains the whitespace-only-/Alt bug from batch one, and eleven of the hundred now re-prove past real-world fixes on every run.
+- Tests 2,922 → **2,923** (the modal-count pin). The verification corpus now spans **136 documents: 36 real + 100 synthetic.**
+
+<details>
+<summary><strong>v1.121.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.121.0] - 2026-08-28
 
 ### Security
@@ -19,8 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Verified before release: all five gates green (**2,922 tests unchanged**); a live page render + axe pass on the new Chrome 152; the `/status` chromium probe healthy locally **and on production after deploy**; landing and What's New pages screenshotted intact on Nuxt UI 4.11; all four documentation diagrams re-rendered pixel-identical on mermaid 11.17.2; `fast-xml-parser` unmoved at 5.10.1, so document scores cannot shift.
 - The first deploy after this change downloads puppeteer's Chrome (~180 MB) during install — a few extra minutes, one time. (Already done: production deployed and verified.)
 
-<details>
-<summary><strong>v1.120.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
 
 ## [1.120.0] - 2026-08-28
 

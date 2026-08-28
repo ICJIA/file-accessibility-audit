@@ -1682,7 +1682,2134 @@ const SAMPLES: Sample[] = [
       return null;
     },
   },
+
+  // -------------------------------------------------------------------------
+  // BATCH FOUR (51-100), 2026-08-28: fifty documents modeled on what Canva,
+  // InDesign, and Word ACTUALLY export — the three tools behind most of the
+  // problem documents agencies upload. Canva 51-68, InDesign 69-86,
+  // Word 87-97, cross-tool finale 98-100.
+  // -------------------------------------------------------------------------
+  {
+    file: "synthetic-51-canva-flat-poster.pdf",
+    truth:
+      "Canva's default PDF export: a beautiful poster with real text painted on the page and NO tags at all. A title and a language cannot buy back an untagged document.",
+    build: () => {
+      const content =
+        `q 612 0 0 300 0 492 cm /Im1 Do Q\n` +
+        `BT /F1 24 Tf 72 440 Td (Community Resource Fair) Tj ET\n` +
+        `BT /F1 11 Tf 72 400 Td (${LONG("Join us Saturday")}) Tj ET\n` +
+        `BT /F1 11 Tf 72 380 Td (${LONG("Free services")}) Tj ET\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> /XObject << /Im1 6 0 R >> >> /Contents 4 0 R >>",
+          stream(content),
+          FONT,
+          GRAY_IMG(6),
+        ],
+        "<< /Title (Community Resource Fair Poster) >>",
+      );
+    },
+    check: (r) => {
+      if (!/outside tagged content|not.*tagged|untagged|no structure/i.test(allFindings(r)))
+        return "untagged poster not called untagged";
+      if (r.overallScore > 79) return `untagged poster scored ${r.overallScore} — too kind`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-52-canva-missing-title.pdf",
+    truth:
+      "A Canva download that was never given a name: tagged and readable, but no title anywhere in its metadata. The checker must name the missing title, not shrug.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Neighborhood Newsletter) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("This month")}) Tj ET\nEMC\n`;
+      return buildPdf([
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+        "<< /Nums [0 [7 0 R 10 0 R]] >>",
+        FONT,
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+      ]);
+    },
+    check: (r) =>
+      /No document title found in metadata/i.test(allFindings(r))
+        ? null
+        : "missing title not named",
+  },
+  {
+    file: "synthetic-53-canva-decorative-swarm.pdf",
+    truth:
+      "Canva's decorative shapes exported as twelve tagged <Figure>s with no descriptions, beside one real photo that has one. The census must read 1 of 13 — the swarm is not described.",
+    build: () => {
+      let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Report body")}) Tj ET\nEMC\n`;
+      for (let i = 0; i < 12; i++)
+        content += `/Figure << /MCID ${i + 1} >> BDC\nq 12 0 0 12 ${80 + i * 40} 640 cm /Im1 Do Q\nEMC\n`;
+      content += `/Figure << /MCID 13 >> BDC\nq 80 0 0 80 72 520 cm /Im1 Do Q\nEMC\n`;
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R ${Array.from({ length: 13 }, (_, i) => `${11 + i} 0 R`).join(" ")}] >>`,
+        FONT,
+        GRAY_IMG(8),
+        `<< /Nums [0 [10 0 R ${Array.from({ length: 13 }, (_, i) => `${11 + i} 0 R`).join(" ")}]] >>`,
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+      ];
+      for (let i = 0; i < 12; i++)
+        objs.push(`<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K ${i + 1} >>`);
+      objs.push(
+        "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 13 /Alt (A photograph of the community center entrance.) >>",
+      );
+      return buildPdf(objs, "<< /Title (Decorative Swarm) >>");
+    },
+    check: (r) => {
+      const m = allFindings(r).match(/(\d+) of (\d+) image\(s\) have alternative text/);
+      if (!m) return "no image census line found";
+      return m[1] === "1" && m[2] === "13" ? null : `census says ${m[0]}`;
+    },
+  },
+  {
+    file: "synthetic-54-canva-artifact-twin.pdf",
+    truth:
+      "The same page done right: the twelve decorative shapes marked as artifacts (invisible to screen readers, correctly), the one real photo described. No accusation is deserved and none may be made.",
+    build: () => {
+      let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Report body")}) Tj ET\nEMC\n`;
+      for (let i = 0; i < 12; i++)
+        content += `/Artifact BMC\nq 12 0 0 12 ${80 + i * 40} 640 cm /Im1 Do Q\nEMC\n`;
+      content += `/Figure << /MCID 1 >> BDC\nq 80 0 0 80 72 520 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (A photograph of the community center entrance.) >>",
+        ],
+        "<< /Title (Decorative Shapes Done Right) >>",
+      );
+    },
+    check: (r) => {
+      const m = allFindings(r).match(/(\d+) of (\d+) image\(s\) have alternative text/);
+      if (m && m[2] !== "1") return `artifacts counted as images — census ${m[0]}`;
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-55-canva-headline-image.pdf",
+    truth:
+      "The stylized headline is a picture of words with no description; the body is real text. The census must read 0 of 1 — a headline you cannot hear is a missing description.",
+    build: () => {
+      const content =
+        `/Figure << /MCID 0 >> BDC\nq 400 0 0 60 72 700 cm /Im1 Do Q\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("The details")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R]] >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Headline As Picture) >>",
+      );
+    },
+    check: (r) => {
+      const m = allFindings(r).match(/(\d+) of (\d+) image\(s\) have alternative text/);
+      if (!m) return "no image census line found";
+      return m[1] === "0" && m[2] === "1" ? null : `census says ${m[0]}`;
+    },
+  },
+  {
+    file: "synthetic-56-canva-mixed-links.pdf",
+    truth:
+      "Three links a template produced: one descriptive, one a bare web address, one saying only 'here'. The two bad habits must each be named; the good one must not be.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Event page")}) Tj ET\nEMC\n` +
+        `/Link << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (Read the full program schedule) Tj ET\nEMC\n` +
+        `/Link << /MCID 2 >> BDC\nBT /F1 11 Tf 72 670 Td (https://example.org/x9k2/p?id=884) Tj ET\nEMC\n` +
+        `/Link << /MCID 3 >> BDC\nBT /F1 11 Tf 72 640 Td (here) Tj ET\nEMC\n`;
+      const annot = (n: number, y: number) =>
+        `<< /Type /Annot /Subtype /Link /Rect [72 ${y} 300 ${y + 16}] /A << /S /URI /URI (https://example.org/p${n}) >> /F 4 /StructParent ${n} >>`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [8 0 R 9 0 R 10 0 R] >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 11 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [12 0 R 13 0 R 14 0 R 15 0 R] >>",
+          FONT,
+          annot(1, 697),
+          annot(2, 667),
+          annot(3, 637),
+          "<< /Nums [0 [12 0 R 13 0 R 14 0 R 15 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [1 << /Type /OBJR /Obj 8 0 R >>] >>",
+          "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [2 << /Type /OBJR /Obj 9 0 R >>] >>",
+          "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [3 << /Type /OBJR /Obj 10 0 R >>] >>",
+        ],
+        "<< /Title (Three Links) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/click here|generic|descriptive/i.test(text)) return "'here' link not flagged";
+      if (!/URL|address|link text/i.test(text)) return "bare-URL link not flagged";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-57-canva-no-language.pdf",
+    truth:
+      "Tagged, titled, readable — but the document never says what language it is in, so a screen reader must guess its pronunciation. The missing declaration must be named.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Volunteer Guide) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Welcome aboard")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Volunteer Guide) >>",
+      );
+    },
+    check: (r) =>
+      /No language declaration found/i.test(allFindings(r)) ? null : "missing /Lang not named",
+  },
+  {
+    file: "synthetic-58-canva-square-page.pdf",
+    truth:
+      "A social-media square page, 1080 by 1080 points. An unusual page size is a design choice, not an accessibility defect — a correctly tagged square must not be punished.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 22 Tf 80 980 Td (Save The Date) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 12 Tf 80 940 Td (${LONG("Our annual meeting")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1080 1080] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Save The Date Square) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `square page accused of ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `square page scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-59-canva-decorated-heading.pdf",
+    truth:
+      "A heading dressed in guillemet ornaments, template-style. Decoration in the text must not break heading detection or crash extraction.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 20 Tf 72 720 Td (\\253\\253 Spring Festival \\273\\273) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("The festival")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Decorated Heading) >>",
+      );
+    },
+    check: (r) => {
+      const m =
+        allFindings(r).match(/Found (\d+) heading tags?/i) ??
+        allFindings(r).match(/(\d+) heading tag/);
+      if (m && m[1] !== "1") return `heading census says ${m[1]}`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-60-canva-one-giant-p.pdf",
+    truth:
+      "Four pages of real prose with visual hierarchy only — sizes and colors, never a heading tag. A substantive document with no headings must be told so.",
+    build: () => {
+      const { objs, catalogExtra } = multiPageObjs(4);
+      objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
+      return buildPdf(objs, "<< /Title (All Style No Structure) >>");
+    },
+    check: (r) =>
+      /No heading tags found|No headings were found/i.test(allFindings(r))
+        ? null
+        : "heading-free substantive document not flagged",
+  },
+  {
+    file: "synthetic-61-canva-dangling-pg.pdf",
+    truth:
+      "A tag whose page pointer aims at an object that does not exist — the leftovers of a deleted page. The checker must survive it and still finish the report.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Live text")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 60 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R 12 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (A gray square with a description.) >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 99 0 R /K 7 >>",
+        ],
+        "<< /Title (Dangling Page Pointer) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      if (!/of \d+ image\(s\) have alternative text/.test(allFindings(r)))
+        return "image census missing";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-62-canva-double-tagged.pdf",
+    truth:
+      "One piece of painted content claimed by TWO tags at once — a paragraph and a figure both point at the same marked run. Contradictory tagging must not crash the checker or lose the text.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Shared content")}) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Second paragraph")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R 11 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 10 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Double Tagged Content) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const t = cat("text_extractability")(r);
+      if (t && t.severity === "Critical") return "double tagging zeroed text extraction";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-63-canva-blank-pages.pdf",
+    truth:
+      "Template padding: pages two and four are completely empty. Blank pages are wasteful, not fatal — they must not zero a document whose other pages are properly tagged.",
+    build: () => {
+      const pg = (n: number, extra: string) =>
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]${extra} >>`;
+      const content = (seed: string) =>
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG(seed)}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 11 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R 6 0 R 7 0 R] /Count 5 >>",
+          pg(1, " /Resources << /Font << /F1 17 0 R >> >> /Contents 8 0 R /StructParents 0"),
+          pg(2, ""),
+          pg(3, " /Resources << /Font << /F1 17 0 R >> >> /Contents 9 0 R /StructParents 1"),
+          pg(4, ""),
+          pg(5, " /Resources << /Font << /F1 17 0 R >> >> /Contents 10 0 R /StructParents 2"),
+          stream(content("Page one")),
+          stream(content("Page three")),
+          stream(content("Page five")),
+          "<< /Type /StructTreeRoot /K 12 0 R /ParentTree 16 0 R >>",
+          "<< /Type /StructElem /S /Document /P 11 0 R /K [13 0 R 14 0 R 15 0 R] >>",
+          "<< /Type /StructElem /S /P /P 12 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 12 0 R /Pg 5 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 12 0 R /Pg 7 0 R /K 0 >>",
+          "<< /Nums [0 [13 0 R] 1 [14 0 R] 2 [15 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Padded With Blanks) >>",
+      );
+    },
+    check: (r) => {
+      if (r.overallScore === 0) return "blank padding zeroed the document";
+      return r.overallScore >= 60 ? null : `scored ${r.overallScore} — blanks over-punished`;
+    },
+  },
+  {
+    file: "synthetic-64-canva-h1-forest.pdf",
+    truth:
+      "Every text box exported as its own top-level heading: five H1s, no hierarchy beneath them. The heading census must read all five; the checker reports the shape honestly.",
+    build: () => {
+      let content = "";
+      for (let i = 0; i < 5; i++)
+        content += `/H1 << /MCID ${i} >> BDC\nBT /F1 16 Tf 72 ${740 - i * 30} Td (Section Heading Number ${i + 1}) Tj ET\nEMC\n`;
+      content += `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 560 Td (${LONG("Body under")}) Tj ET\nEMC\n`;
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${Array.from({ length: 6 }, (_, i) => `${9 + i} 0 R`).join(" ")}] >>`,
+        FONT,
+        `<< /Nums [0 [${Array.from({ length: 6 }, (_, i) => `${9 + i} 0 R`).join(" ")}]] >>`,
+      ];
+      for (let i = 0; i < 5; i++)
+        objs.push(`<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K ${i} >>`);
+      objs.push("<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 5 >>");
+      return buildPdf(objs, "<< /Title (Heading Forest) >>");
+    },
+    check: (r) => {
+      const m =
+        allFindings(r).match(/Found (\d+) heading tags?/i) ??
+        allFindings(r).match(/(\d+) heading tag/);
+      if (!m) return "no heading census";
+      return m[1] === "5" ? null : `census says ${m[1]} of 5 H1s`;
+    },
+  },
+  {
+    file: "synthetic-65-canva-story-no-bookmarks.pdf",
+    truth:
+      "A twelve-page photo story with no bookmarks. Past ten pages the checker asks for navigation; a long Canva export never has any.",
+    build: () => {
+      const { objs, catalogExtra } = multiPageObjs(12);
+      objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
+      return buildPdf(objs, "<< /Title (Twelve Page Story) >>");
+    },
+    check: (r) => {
+      const c = cat("bookmarks")(r);
+      if (!c || c.score === null) return "bookmarks unscored on a 12-page document";
+      return c.score < 100 ? null : "12 bookmark-less pages scored 100";
+    },
+  },
+  {
+    file: "synthetic-66-canva-vector-decor.pdf",
+    truth:
+      "Heavy vector decoration — dozens of drawn shapes, none marked — beneath properly tagged text. Unmarked drawing operators are furniture, not content, and must cost nothing.",
+    build: () => {
+      let decor = "";
+      for (let i = 0; i < 40; i++)
+        decor += `q 0.9 0.9 0.9 rg ${40 + i * 13} ${100 + (i % 7) * 90} 9 9 re f Q\n`;
+      const content =
+        decor +
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Annual Highlights) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("This year")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Vector Decoration) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `decor accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-67-canva-emoticon-alt.pdf",
+    truth:
+      "An image whose description is ':-) :-) :-)'. Automation can verify a description EXISTS; whether it is a good one is the human 60-70% — the census must count it, and the product's own coverage disclosure carries the rest.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Photo caption")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 60 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (:-\\) :-\\) :-\\)) >>",
+        ],
+        "<< /Title (Emoticon Alt Text) >>",
+      );
+    },
+    check: (r) => {
+      const alt = cat("alt_text")(r);
+      if (!alt) return "no alt_text category";
+      if (alt.severity === "Critical" || alt.severity === "Moderate")
+        return `present (if silly) alt still accused: ${alt.severity}`;
+      return alt.score === null || alt.score >= 89 ? null : `alt_text scored ${alt.score}`;
+    },
+  },
+  {
+    file: "synthetic-68-canva-done-right.pdf",
+    truth:
+      "A Canva-style layout remediated by hand: tagged, titled, language set, headline real text, photo described, shapes artifacted. The checker must recognize the repair — no accusation, high grade.",
+    build: () => {
+      const content =
+        `/Artifact BMC\nq 0.9 0.9 0.9 rg 0 700 612 92 re f Q\nEMC\n` +
+        `/H1 << /MCID 0 >> BDC\nBT /F1 22 Tf 72 730 Td (Fall Community Events) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("Every autumn")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 100 0 0 70 72 540 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> /XObject << /Im1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 10 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          FONT,
+          GRAY_IMG(9),
+          "<< /Nums [0 [7 0 R 11 0 R 12 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (Families at last year's fall festival in the park.) >>",
+        ],
+        "<< /Title (Fall Community Events Guide) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `remediated Canva doc accused of ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+
+  {
+    file: "synthetic-69-indesign-untagged-book.pdf",
+    truth:
+      "InDesign with 'Create Tagged PDF' unchecked: six pages of real text, a proper title, bookmarks, a language — everything EXCEPT tags. Pretty is not accessible; the untagged content must be named.",
+    build: () => {
+      const pageObj = (i: number) => 3 + i * 2;
+      const objs: string[] = [
+        "{{CAT}}",
+        `<< /Type /Pages /Kids [${Array.from({ length: 6 }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count 6 >>`,
+      ];
+      for (let i = 0; i < 6; i++) {
+        objs.push(
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 15 0 R >> >> /Contents ${4 + i * 2} 0 R >>`,
+        );
+        objs.push(stream(`BT /F1 11 Tf 72 720 Td (${LONG(`Chapter page ${i + 1}`)}) Tj ET\n`));
+      }
+      objs.push(FONT); // 15
+      objs.push("<< /First 17 0 R /Last 17 0 R /Count 1 >>"); // 16 outlines
+      objs.push(`<< /Title (Chapter One) /Parent 16 0 R /Dest [${pageObj(0)} 0 R /Fit] >>`); // 17
+      objs[0] =
+        "<< /Type /Catalog /Pages 2 0 R /Lang (en-US) /Outlines 16 0 R /ViewerPreferences << /DisplayDocTitle true >> >>";
+      return buildPdf(objs, "<< /Title (The Untagged Book) >>");
+    },
+    check: (r) => {
+      if (!/outside tagged content|not.*tagged|untagged|no structure/i.test(allFindings(r)))
+        return "untagged book not called untagged";
+      if (r.overallScore > 79) return `untagged book scored ${r.overallScore} — too kind`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-70-indesign-rolemap-styles.pdf",
+    truth:
+      "InDesign's custom paragraph-style names — Head-A, Body-Text — exported as custom tags with a correct role map. The checker must read through the map: the heading is a heading.",
+    build: () => {
+      const content =
+        `/Head-A << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Program Overview) Tj ET\nEMC\n` +
+        `/Body-Text << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("The program")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R /RoleMap << /Head-A /H1 /Body-Text /P >> >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /Head-A /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /Body-Text /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Custom Styles Mapped Right) >>",
+      );
+    },
+    check: (r) => {
+      const m =
+        allFindings(r).match(/Found (\d+) heading tags?/i) ??
+        allFindings(r).match(/(\d+) heading tag/);
+      if (!m || m[1] !== "1") return `role-mapped heading not seen (census ${m?.[1] ?? "none"})`;
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-71-indesign-unmapped-tag.pdf",
+    truth:
+      "A custom tag with NO role-map entry at all — the style was renamed after mapping. An unknown tag must not crash the checker, and the text inside it must not vanish.",
+    build: () => {
+      const content =
+        `/BodyCopy << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Orphan style")}) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Mapped style")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /BodyCopy /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Unmapped Custom Tag) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const t = cat("text_extractability")(r);
+      if (t && t.severity === "Critical") return "unknown tag zeroed text extraction";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-72-indesign-figures-no-alt.pdf",
+    truth:
+      "Three anchored images whose alt-text panel was never opened — the single most common InDesign miss. The census must read 0 of 3.",
+    build: () => {
+      let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Annual report")}) Tj ET\nEMC\n`;
+      for (let i = 0; i < 3; i++)
+        content += `/Figure << /MCID ${i + 1} >> BDC\nq 60 0 0 60 ${72 + i * 90} 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R 12 0 R 13 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R 12 0 R 13 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Alt Panel Never Opened) >>",
+      );
+    },
+    check: (r) => {
+      const m = allFindings(r).match(/(\d+) of (\d+) image\(s\) have alternative text/);
+      if (!m) return "no image census line";
+      return m[1] === "0" && m[2] === "3" ? null : `census says ${m[0]}`;
+    },
+  },
+  {
+    file: "synthetic-73-indesign-master-artifacts.pdf",
+    truth:
+      "Master-page furniture — running header and page number on all four pages — correctly marked as artifacts, over a properly headed report. Furniture done right must cost nothing.",
+    build: () => {
+      const pageObj = (i: number) => 3 + i * 2;
+      const furniture = (i: number) =>
+        `/Artifact << /Type /Pagination /Subtype /Header >> BDC\nBT /F1 9 Tf 72 770 Td (Annual Report 2026) Tj ET\nEMC\n` +
+        `/Artifact << /Type /Pagination >> BDC\nBT /F1 9 Tf 530 30 Td (Page ${i + 1}) Tj ET\nEMC\n`;
+      const objs: string[] = [
+        "{{CAT}}",
+        `<< /Type /Pages /Kids [${Array.from({ length: 4 }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count 4 >>`,
+      ];
+      const p1 =
+        furniture(0) +
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 730 Td (Findings Overview) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("Body page 1")}) Tj ET\nEMC\n`;
+      objs.push(
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 19 0 R >> >> /Contents 4 0 R /StructParents 0 >>`,
+      );
+      objs.push(stream(p1));
+      for (let i = 1; i < 4; i++) {
+        const content =
+          furniture(i) +
+          `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG(`Body page ${i + 1}`)}) Tj ET\nEMC\n`;
+        objs.push(
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 19 0 R >> >> /Contents ${4 + i * 2} 0 R /StructParents ${i} >>`,
+        );
+        objs.push(stream(content));
+      }
+      objs.push("<< /Type /StructTreeRoot /K 12 0 R /ParentTree 18 0 R >>"); // 11
+      objs.push(
+        "<< /Type /StructElem /S /Document /P 11 0 R /K [13 0 R 14 0 R 15 0 R 16 0 R 17 0 R] >>",
+      ); // 12
+      objs.push(`<< /Type /StructElem /S /H1 /P 12 0 R /Pg ${pageObj(0)} 0 R /K 0 >>`); // 13
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(0)} 0 R /K 1 >>`); // 14
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(1)} 0 R /K 0 >>`); // 15
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(2)} 0 R /K 0 >>`); // 16
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(3)} 0 R /K 0 >>`); // 17
+      objs.push("<< /Nums [0 [13 0 R 14 0 R] 1 [15 0 R] 2 [16 0 R] 3 [17 0 R]] >>"); // 18
+      objs.push(FONT); // 19
+      objs[0] =
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 11 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>";
+      return buildPdf(objs, "<< /Title (Master Page Furniture) >>");
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `artifacted furniture accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-74-indesign-toc-unlinked.pdf",
+    truth:
+      "A table-of-contents page with dotted leaders as plain text and no links anywhere in the document. With no links present, the link check must count as passing — never 'not applicable, so penalized'.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 16 Tf 72 740 Td (Contents) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (Chapter One . . . . . . . . 3) Tj ET\nEMC\n` +
+        `/P << /MCID 2 >> BDC\nBT /F1 11 Tf 72 680 Td (Chapter Two . . . . . . . . 9) Tj ET\nEMC\n` +
+        `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 640 Td (${LONG("Preface")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R 11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R 11 0 R 12 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Unlinked Contents Page) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (!c) return "no link category";
+      if (c.score !== null && c.score < 100) return `no links, yet link score ${c.score}`;
+      if (c.severity === "Critical" || c.severity === "Moderate")
+        return `no links, yet accused: ${c.severity}`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-75-indesign-toc-linked.pdf",
+    truth:
+      "The same contents page done right: each line a real tagged link with descriptive text, jumping inside the document. Descriptive internal links must pass clean.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 16 Tf 72 740 Td (Contents) Tj ET\nEMC\n` +
+        `/Link << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (Chapter One: Getting Started) Tj ET\nEMC\n` +
+        `/P << /MCID 2 >> BDC\nBT /F1 11 Tf 72 640 Td (${LONG("Preface")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [10 0 R] >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 11 0 R 12 0 R]] >>",
+          FONT,
+          "<< /Type /Annot /Subtype /Link /Rect [72 697 280 713] /Dest [3 0 R /Fit] /F 4 /StructParent 1 >>",
+          "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [1 << /Type /OBJR /Obj 10 0 R >>] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 2 >>",
+        ],
+        "<< /Title (Linked Contents Page) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("link_quality")(r);
+      if (c && (c.severity === "Critical" || c.severity === "Moderate"))
+        return `descriptive internal link accused: ${c.severity}`;
+      const bad = r.categories.filter((x) => x.severity === "Critical");
+      return bad.length ? `accused of ${bad.map((x) => x.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-76-indesign-bold-not-th.pdf",
+    truth:
+      "A table whose header row is merely styled bold — every cell exported as a data cell. A header you can only see is not a header; the table must be dinged.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Budget table")}) Tj ET\nEMC\n` +
+        `/TD << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (Category) Tj ET\nEMC\n` +
+        `/TD << /MCID 2 >> BDC\nBT /F1 11 Tf 200 700 Td (Amount) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 72 680 Td (Training) Tj ET\nEMC\n` +
+        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 200 680 Td (12,400) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 11 0 R /K [13 0 R 14 0 R] >>",
+          FONT,
+          "<< /Nums [0 [10 0 R 13 0 R 14 0 R 15 0 R 16 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [7 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 11 0 R /K [15 0 R 16 0 R] >>",
+          "<< /Type /StructElem /S /TD /P 7 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /TD /P 7 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 4 >>",
+        ],
+        "<< /Title (Bold Is Not A Header) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("table_markup")(r)!;
+      return c.score !== null && c.score < 100 ? null : "bold-only header row scored 100";
+    },
+  },
+  {
+    file: "synthetic-77-indesign-threaded-reverse.pdf",
+    truth:
+      "Threaded text frames exported with tags in the opposite order from the paint order. Disagreement between the two orders must not crash the checker or lose either paragraph.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Second frame")}) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("First frame")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 10 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Threaded Frames Reversed) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const t = cat("text_extractability")(r);
+      if (t && t.severity === "Critical") return "reversed thread order zeroed extraction";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-78-indesign-spread-page.pdf",
+    truth:
+      "A facing-page spread exported as one double-wide page, 1224 by 792. An unusual canvas is not a defect; a tagged spread must pass like any other page.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Center Spread) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Left side")}) Tj ET\nEMC\n` +
+        `/P << /MCID 2 >> BDC\nBT /F1 11 Tf 700 690 Td (${LONG("Right side")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1224 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R 11 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 2 >>",
+        ],
+        "<< /Title (Facing Page Spread) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `spread accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `spread scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-79-indesign-dangling-bookmark.pdf",
+    truth:
+      "A bookmark pointing at a page that was deleted after the bookmarks were made. A dead bookmark must not crash the checker; the report must still finish.",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Live page")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /Outlines 9 0 R >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [11 0 R] >>",
+          "<< /Nums [0 [11 0 R]] >>",
+          FONT,
+          "<< /First 10 0 R /Last 10 0 R /Count 1 >>",
+          "<< /Title (Deleted Chapter) /Parent 9 0 R /Dest [99 0 R /Fit] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Dead Bookmark) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      return cat("bookmarks")(r) ? null : "bookmarks category vanished";
+    },
+  },
+  {
+    file: "synthetic-80-indesign-figure-caption.pdf",
+    truth:
+      "A described figure grouped with its caption, the way InDesign exports an anchored image with a caption frame. The pairing is correct and must pass clean.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Field notes")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 80 0 0 60 72 620 cm /Im1 Do Q\nEMC\n` +
+        `/Caption << /MCID 2 >> BDC\nBT /F1 9 Tf 72 605 Td (Figure 1: The survey site at dawn.) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 12 0 R 13 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Div /P 6 0 R /K [12 0 R 13 0 R] >>",
+          "<< /Type /StructElem /S /Figure /P 11 0 R /Pg 3 0 R /K 1 /Alt (The survey site photographed at dawn.) >>",
+          "<< /Type /StructElem /S /Caption /P 11 0 R /Pg 3 0 R /K 2 >>",
+        ],
+        "<< /Title (Figure With Caption) >>",
+      );
+    },
+    check: (r) => {
+      const alt = cat("alt_text")(r);
+      if (alt && (alt.severity === "Critical" || alt.severity === "Moderate"))
+        return `captioned, described figure accused: ${alt.severity}`;
+      const bad = r.categories.filter((c) => c.severity === "Critical");
+      return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-81-indesign-span-explosion.pdf",
+    truth:
+      "One paragraph shattered into 120 style-run spans — InDesign's character-style confetti. Fragmentation must not crash the checker or zero the text.",
+    build: () => {
+      let content = "";
+      const spanRefs: string[] = [];
+      for (let i = 0; i < 120; i++) {
+        content += `/Span << /MCID ${i} >> BDC\nBT /F1 10 Tf ${72 + (i % 12) * 42} ${740 - Math.floor(i / 12) * 16} Td (word${i}) Tj ET\nEMC\n`;
+        spanRefs.push(`${9 + i} 0 R`);
+      }
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${129} 0 R] >>`,
+        FONT,
+        `<< /Nums [0 [${Array.from({ length: 120 }, (_, i) => `${9 + i} 0 R`).join(" ")}]] >>`,
+      ];
+      for (let i = 0; i < 120; i++)
+        objs.push(`<< /Type /StructElem /S /Span /P 129 0 R /Pg 3 0 R /K ${i} >>`);
+      objs.push(`<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K [${spanRefs.join(" ")}] >>`);
+      return buildPdf(objs, "<< /Title (Style Run Confetti) >>");
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const t = cat("text_extractability")(r);
+      if (t && t.severity === "Critical") return "span confetti zeroed extraction";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-82-indesign-empty-frames.pdf",
+    truth:
+      "Two headings whose text frames were emptied during a late edit, still exported as heading tags with nothing inside. Empty headings must be named.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 740 Td (Quarterly Update) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 710 Td (${LONG("The quarter")}) Tj ET\nEMC\n` +
+        `/H2 << /MCID 2 >> BDC\nEMC\n` +
+        `/H2 << /MCID 3 >> BDC\nEMC\n` +
+        `/H2 << /MCID 4 >> BDC\nBT /F1 14 Tf 72 650 Td (Spending Detail) Tj ET\nEMC\n` +
+        `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 620 Td (${LONG("Spending rose")}) Tj ET\nEMC\n`;
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${Array.from({ length: 6 }, (_, i) => `${9 + i} 0 R`).join(" ")}] >>`,
+        FONT,
+        `<< /Nums [0 [${Array.from({ length: 6 }, (_, i) => `${9 + i} 0 R`).join(" ")}]] >>`,
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        "<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K 2 >>",
+        "<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K 3 >>",
+        "<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K 4 >>",
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 5 >>",
+      ];
+      return buildPdf(objs, "<< /Title (Emptied Heading Frames) >>");
+    },
+    check: (r) =>
+      /carry no text at all/i.test(allFindings(r)) ? null : "emptied heading frames not named",
+  },
+  {
+    file: "synthetic-83-indesign-crop-marks.pdf",
+    truth:
+      "A print-shop export: crop marks drawn outside the crop box, live content inside it. Printer's marks must not confuse the reading of the real page.",
+    build: () => {
+      const marks =
+        `q 0 0 0 RG 0.5 w 18 36 m 18 6 l S 36 18 m 6 18 l S Q\n` +
+        `q 0 0 0 RG 0.5 w 594 756 m 594 786 l S 576 774 m 606 774 l S Q\n`;
+      const content =
+        marks +
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Print Ready Flyer) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Come celebrate")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /CropBox [36 36 576 756] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Print Ready Flyer) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `crop marks accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-84-indesign-form-xobject-text.pdf",
+    truth:
+      "A reusable drawing object with untagged text inside it, placed beside properly tagged text — the shape a placed snippet exports as. It must not crash the checker, and the tagged text must survive.",
+    build: () => {
+      const inner = `BT /F1 10 Tf 4 4 Td (Inside a placed object with more words to read) Tj ET\n`;
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Main story")}) Tj ET\nEMC\n` +
+        `q 1 0 0 1 72 600 cm /Fx1 Do Q\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Fx1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R] >>",
+          FONT,
+          `<< /Type /XObject /Subtype /Form /BBox [0 0 300 20] /Resources << /Font << /F1 7 0 R >> >> /Length ${inner.length} >>\nstream\n${inner}endstream`,
+          "<< /Nums [0 [10 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        ],
+        "<< /Title (Placed Object Text) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const t = cat("text_extractability")(r);
+      if (t && t.severity === "Critical") return "placed object zeroed extraction";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-85-indesign-soft-hyphens.pdf",
+    truth:
+      "Justified text riddled with soft hyphens at line breaks. Typographic hyphenation must not zero extraction or crash the reading of words.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (The commis\\255sion recom\\255mends a compre\\255hensive re\\255view of the pro\\255gram and its out\\255comes across every re\\255gion this year.) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Plain second paragraph")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 10 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Hyphenated Justified Text) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const t = cat("text_extractability")(r);
+      if (t && (t.severity === "Critical" || t.severity === "Moderate"))
+        return `soft hyphens accused: ${t.severity}`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-86-indesign-done-right.pdf",
+    truth:
+      "InDesign at its best: mapped styles, a described anchored image, a linked contents line, bookmarks, title display, tab order. The checker must recognize professional work.",
+    build: () => {
+      const content =
+        `/Head-A << /MCID 0 >> BDC\nBT /F1 20 Tf 72 740 Td (Program Handbook) Tj ET\nEMC\n` +
+        `/Body-Text << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("This handbook")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 80 0 0 60 72 600 cm /Im1 Do Q\nEMC\n` +
+        `/Link << /MCID 3 >> BDC\nBT /F1 11 Tf 72 560 Td (Read the appendix on reporting) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> /Outlines 12 0 R >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> /XObject << /Im1 9 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [10 0 R] /Tabs /S >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 11 0 R /RoleMap << /Head-A /H1 /Body-Text /P >> >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 14 0 R 15 0 R 16 0 R] >>",
+          "<< /Type /StructElem /S /Head-A /P 6 0 R /Pg 3 0 R /K 0 >>",
+          FONT,
+          GRAY_IMG(9),
+          "<< /Type /Annot /Subtype /Link /Rect [72 557 300 573] /Dest [3 0 R /Fit] /F 4 /StructParent 1 >>",
+          "<< /Nums [0 [7 0 R 14 0 R 15 0 R 16 0 R]] >>",
+          "<< /First 13 0 R /Last 13 0 R /Count 1 >>",
+          "<< /Title (Program Handbook) /Parent 12 0 R /Dest [3 0 R /Fit] >>",
+          "<< /Type /StructElem /S /Body-Text /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (Staff assisting a visitor at the front desk.) >>",
+          "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [3 << /Type /OBJR /Obj 10 0 R >>] >>",
+        ],
+        "<< /Title (Program Handbook) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `professional export accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+
+  {
+    file: "synthetic-87-word-rasterized-effects.pdf",
+    truth:
+      "Word's export of a title with text effects: each styled line becomes a picture of words, one image per line, over real body text. The checker must say the lettering may not be real text.",
+    build: () => {
+      const content =
+        `/Figure << /MCID 0 >> BDC\nq 420 0 0 15 72 740 cm /Im1 Do Q\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 420 0 0 15 72 720 cm /Im1 Do Q\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 420 0 0 15 72 700 cm /Im1 Do Q\nEMC\n` +
+        `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("Meeting agenda")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R 12 0 R 13 0 R] >>",
+          FONT,
+          `<< /Type /XObject /Subtype /Image /Width 600 /Height 21 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 12600 >>\nstream\n${"x".repeat(12600)}endstream`,
+          "<< /Nums [0 [10 0 R 11 0 R 12 0 R 13 0 R]] >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Styled Title Rasterized) >>",
+      );
+    },
+    check: (r) =>
+      /shaped like lines of writing|Lettering May Not Be Real Text/i.test(allFindings(r))
+        ? null
+        : "line-shaped images not called possible lettering",
+  },
+  {
+    file: "synthetic-88-word-whitespace-table.pdf",
+    truth:
+      "A 'table' drawn with spaces — columns aligned by whitespace inside ordinary paragraphs, no table tag anywhere. The checker must not hallucinate a table where none is declared.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 10 Tf 72 740 Td (Category        Amount     Change) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 10 Tf 72 720 Td (Training        12,400     +8 percent) Tj ET\nEMC\n` +
+        `/P << /MCID 2 >> BDC\nBT /F1 10 Tf 72 700 Td (Outreach        9,100      -2 percent) Tj ET\nEMC\n` +
+        `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 660 Td (${LONG("Notes on the figures")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R 11 0 R 12 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 10 0 R 11 0 R 12 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Whitespace Columns) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("table_markup")(r);
+      if (c && c.score !== null && c.score < 100)
+        return `no declared table, yet table score ${c.score}`;
+      const bad = r.categories.filter((x) => x.severity === "Critical");
+      return bad.length ? `accused of ${bad.map((x) => x.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-89-word-boilerplate-alt.pdf",
+    truth:
+      "Word's auto-generated description: 'A picture containing text, screenshot'. Automation can verify a description exists; judging whether it says anything useful is the human share of the work — the report's own coverage disclosure carries that.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Quarterly memo")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 80 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /Alt (A picture containing text, screenshot) >>",
+        ],
+        "<< /Title (Auto Generated Description) >>",
+      );
+    },
+    check: (r) => {
+      const alt = cat("alt_text")(r);
+      if (!alt) return "no alt_text category";
+      if (alt.severity === "Critical" || alt.severity === "Moderate")
+        return `present boilerplate alt accused: ${alt.severity}`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-90-word-empty-spacers.pdf",
+    truth:
+      "Sixteen empty paragraphs used as vertical spacing between six real ones — the Enter-key school of layout. Spacer paragraphs must not crash, distort, or zero the report.",
+    build: () => {
+      let content = `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 750 Td (Spacing By Enter Key) Tj ET\nEMC\n`;
+      const refs: string[] = ["9 0 R"];
+      let mcid = 1;
+      for (let i = 0; i < 6; i++) {
+        content += `/P << /MCID ${mcid} >> BDC\nBT /F1 11 Tf 72 ${720 - i * 60} Td (${LONG(`Real paragraph ${i + 1}`)}) Tj ET\nEMC\n`;
+        refs.push(`${10 + i} 0 R`);
+        mcid++;
+        for (let j = 0; j < 3 && i < 5; j++) {
+          content += `/P << /MCID ${mcid} >> BDC\nEMC\n`;
+          refs.push(`${16 + i * 3 + j} 0 R`);
+          mcid++;
+        }
+      }
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${refs.join(" ")}] >>`,
+        FONT,
+        `<< /Nums [0 [${refs.join(" ")}]] >>`,
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+      ];
+      let m2 = 1;
+      const spacerObjs: string[] = [];
+      for (let i = 0; i < 6; i++) {
+        objs.push(`<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K ${m2} >>`);
+        m2++;
+        for (let j = 0; j < 3 && i < 5; j++) {
+          spacerObjs.push(`<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K ${m2} >>`);
+          m2++;
+        }
+      }
+      return buildPdf([...objs, ...spacerObjs], "<< /Title (Spacing By Enter Key) >>");
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      if (r.overallScore === 0) return "spacer paragraphs zeroed the document";
+      const bad = r.categories.filter((c) => c.severity === "Critical");
+      return bad.length ? `accused of ${bad.map((c) => c.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-91-word-track-changes.pdf",
+    truth:
+      "Review leftovers: a highlight and a popup comment shipped in the final PDF. Non-link annotations must not crash the checker or be mistaken for links.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 740 Td (Final Draft) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("The reviewed text")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [9 0 R 10 0 R] >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 11 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          FONT,
+          "<< /Type /Annot /Subtype /Highlight /Rect [72 697 220 713] /QuadPoints [72 713 220 713 72 697 220 697] /C [1 1 0] /T (Reviewer 1) /Contents (Please verify this number.) >>",
+          "<< /Type /Annot /Subtype /Popup /Rect [400 640 560 700] /Parent 9 0 R >>",
+          "<< /Nums [0 [7 0 R 12 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Final Draft With Comments) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const c = cat("link_quality")(r);
+      if (c && (c.severity === "Critical" || c.severity === "Moderate"))
+        return `comments mistaken for links: ${c.severity}`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-92-word-styles-good.pdf",
+    truth:
+      "Word used correctly: real heading styles exported as a clean H1, H2, H3 ladder. The census must read all three, and nothing may be accused.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 20 Tf 72 750 Td (Policy Manual) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("This manual")}) Tj ET\nEMC\n` +
+        `/H2 << /MCID 2 >> BDC\nBT /F1 15 Tf 72 680 Td (Hiring Procedures) Tj ET\nEMC\n` +
+        `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 650 Td (${LONG("Hiring begins")}) Tj ET\nEMC\n` +
+        `/H3 << /MCID 4 >> BDC\nBT /F1 13 Tf 72 610 Td (Interview Panels) Tj ET\nEMC\n` +
+        `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 580 Td (${LONG("Panels include")}) Tj ET\nEMC\n`;
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${Array.from({ length: 6 }, (_, i) => `${9 + i} 0 R`).join(" ")}] >>`,
+        FONT,
+        `<< /Nums [0 [${Array.from({ length: 6 }, (_, i) => `${9 + i} 0 R`).join(" ")}]] >>`,
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        "<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K 2 >>",
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+        "<< /Type /StructElem /S /H3 /P 6 0 R /Pg 3 0 R /K 4 >>",
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 5 >>",
+      ];
+      return buildPdf(objs, "<< /Title (Policy Manual) >>");
+    },
+    check: (r) => {
+      const m =
+        allFindings(r).match(/Found (\d+) heading tags?/i) ??
+        allFindings(r).match(/(\d+) heading tag/);
+      if (!m || m[1] !== "3") return `heading census says ${m?.[1] ?? "none"} of 3`;
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      return bad.length ? `styled Word doc accused: ${bad.map((c) => c.id).join(", ")}` : null;
+    },
+  },
+  {
+    file: "synthetic-93-word-fake-and-real-list.pdf",
+    truth:
+      "A real tagged list beside a hand-typed dash 'list' on the same page. Having done it right once does not excuse the fake one; the dash habit must still be named.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Two lists")}) Tj ET\nEMC\n` +
+        `/LBody << /MCID 1 >> BDC\nBT /F1 11 Tf 90 700 Td (First real item in the list) Tj ET\nEMC\n` +
+        `/LBody << /MCID 2 >> BDC\nBT /F1 11 Tf 90 680 Td (Second real item in the list) Tj ET\nEMC\n` +
+        `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 640 Td (- typed dash item one) Tj ET\nEMC\n` +
+        `/P << /MCID 4 >> BDC\nBT /F1 11 Tf 72 620 Td (- typed dash item two) Tj ET\nEMC\n` +
+        `/P << /MCID 5 >> BDC\nBT /F1 11 Tf 72 600 Td (- typed dash item three) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R 15 0 R 16 0 R 17 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 13 0 R 14 0 R 15 0 R 16 0 R 17 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /L /P 6 0 R /K [11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /LI /P 10 0 R /K 13 0 R >>",
+          "<< /Type /StructElem /S /LI /P 10 0 R /K 14 0 R >>",
+          "<< /Type /StructElem /S /LBody /P 11 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /LBody /P 12 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 5 >>",
+        ],
+        "<< /Title (Real And Fake Lists) >>",
+      );
+    },
+    check: (r) => (/list/i.test(allFindings(r)) ? null : "typed dash list not named"),
+  },
+  {
+    file: "synthetic-94-word-merged-cells.pdf",
+    truth:
+      "A table with a merged header spanning two columns — Word's everyday layout. Cell spans must not crash the checker, and the properly headed table must not be zeroed.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Span table")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (Budget by Quarter) Tj ET\nEMC\n` +
+        `/TH << /MCID 2 >> BDC\nBT /F1 10 Tf 72 680 Td (Q1) Tj ET\nEMC\n` +
+        `/TH << /MCID 3 >> BDC\nBT /F1 10 Tf 200 680 Td (Q2) Tj ET\nEMC\n` +
+        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 72 660 Td (4,100) Tj ET\nEMC\n` +
+        `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 200 660 Td (5,300) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R 12 0 R 13 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [14 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [15 0 R 16 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [17 0 R 18 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 /A << /O /Table /Scope /Column /ColSpan 2 >> >>",
+          "<< /Type /StructElem /S /TH /P 12 0 R /Pg 3 0 R /K 2 /A << /O /Table /Scope /Column >> >>",
+          "<< /Type /StructElem /S /TH /P 12 0 R /Pg 3 0 R /K 3 /A << /O /Table /Scope /Column >> >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 5 >>",
+        ],
+        "<< /Title (Merged Header Table) >>",
+      );
+    },
+    check: (r) => {
+      if (!r.grade) return "no grade computed";
+      const c = cat("table_markup")(r);
+      if (!c) return "no table category";
+      if (c.severity === "Critical") return "merged header zeroed the table";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-95-word-info-title-only.pdf",
+    truth:
+      "A title stored only in the classic metadata slot, no modern XMP packet — how older Word saves. A title is a title; it must not be reported missing.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 720 Td (Records Retention Memo) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (${LONG("Retention rules")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 10 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+        ],
+        "<< /Title (Records Retention Memo) >>",
+      );
+    },
+    check: (r) =>
+      /No document title found in metadata/i.test(allFindings(r))
+        ? "an Info-dictionary title was reported missing"
+        : null,
+  },
+  {
+    file: "synthetic-96-word-print-to-pdf.pdf",
+    truth:
+      "'Print to PDF' instead of exporting: no tags, no title, no language — three losses in one habit, and all three must be named on one report.",
+    build: () => {
+      const content =
+        `BT /F1 16 Tf 72 740 Td (Staff Announcement) Tj ET\n` +
+        `BT /F1 11 Tf 72 700 Td (${LONG("Please note")}) Tj ET\n` +
+        `BT /F1 11 Tf 72 680 Td (${LONG("Also note")}) Tj ET\n`;
+      return buildPdf([
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        stream(content),
+        FONT,
+      ]);
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/outside tagged content|not.*tagged|untagged|no structure/i.test(text))
+        return "untagged printout not called untagged";
+      if (!/No document title found in metadata/i.test(text)) return "missing title not named";
+      if (!/No language declaration found/i.test(text)) return "missing language not named";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-97-word-done-right.pdf",
+    truth:
+      "Word used the way the training says: styles for headings, a described picture, a real list, a properly headed table, title and language set. Ordinary care must earn a high grade.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 20 Tf 72 750 Td (Office Move Guide) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("We are moving")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 80 0 0 60 72 620 cm /Im1 Do Q\nEMC\n` +
+        `/LBody << /MCID 3 >> BDC\nBT /F1 11 Tf 90 580 Td (Pack your desk by Friday) Tj ET\nEMC\n` +
+        `/LBody << /MCID 4 >> BDC\nBT /F1 11 Tf 90 560 Td (Label every box with your floor) Tj ET\nEMC\n` +
+        `/TH << /MCID 5 >> BDC\nBT /F1 10 Tf 72 520 Td (Floor) Tj ET\nEMC\n` +
+        `/TH << /MCID 6 >> BDC\nBT /F1 10 Tf 200 520 Td (Move Date) Tj ET\nEMC\n` +
+        `/TD << /MCID 7 >> BDC\nBT /F1 10 Tf 72 500 Td (Third) Tj ET\nEMC\n` +
+        `/TD << /MCID 8 >> BDC\nBT /F1 10 Tf 200 500 Td (October 12) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [10 0 R 11 0 R 12 0 R 13 0 R 18 0 R] >>",
+          FONT,
+          GRAY_IMG(8),
+          "<< /Nums [0 [10 0 R 11 0 R 12 0 R 16 0 R 17 0 R 21 0 R 22 0 R 23 0 R 24 0 R]] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (A map of the third floor with numbered zones.) >>",
+          "<< /Type /StructElem /S /L /P 6 0 R /K [14 0 R 15 0 R] >>",
+          "<< /Type /StructElem /S /LI /P 13 0 R /K 16 0 R >>",
+          "<< /Type /StructElem /S /LI /P 13 0 R /K 17 0 R >>",
+          "<< /Type /StructElem /S /LBody /P 14 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /LBody /P 15 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [19 0 R 20 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 18 0 R /K [21 0 R 22 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 18 0 R /K [23 0 R 24 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 19 0 R /Pg 3 0 R /K 5 /A << /O /Table /Scope /Column >> >>",
+          "<< /Type /StructElem /S /TH /P 19 0 R /Pg 3 0 R /K 6 /A << /O /Table /Scope /Column >> >>",
+          "<< /Type /StructElem /S /TD /P 20 0 R /Pg 3 0 R /K 7 >>",
+          "<< /Type /StructElem /S /TD /P 20 0 R /Pg 3 0 R /K 8 >>",
+        ],
+        "<< /Title (Office Move Guide) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `careful Word doc accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-98-tool-soup.pdf",
+    truth:
+      "Three tools' habits stapled into one file: a Canva-style untagged art page, an InDesign-style mapped page with an undescribed image, a Word-style body. One report must catch the untagged page AND the missing description together.",
+    build: () => {
+      const pgRes = (extra: string) => `/Resources << /Font << /F1 12 0 R >> ${extra}>> `;
+      const p1 =
+        `q 306 0 0 200 0 592 cm /Im1 Do Q\n` +
+        `BT /F1 20 Tf 72 540 Td (Big Untagged Splash Page) Tj ET\n` +
+        `BT /F1 11 Tf 72 500 Td (${LONG("Painted outside any tag")}) Tj ET\n`;
+      const p2 =
+        `/Head-A << /MCID 0 >> BDC\nBT /F1 16 Tf 72 740 Td (Mapped Section) Tj ET\nEMC\n` +
+        `/Body-Text << /MCID 1 >> BDC\nBT /F1 11 Tf 72 710 Td (${LONG("Mapped body")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 60 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
+      const p3 = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Ordinary final page")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 9 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>",
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ${pgRes("/XObject << /Im1 13 0 R >> ")}/Contents 6 0 R >>`,
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ${pgRes("/XObject << /Im1 13 0 R >> ")}/Contents 7 0 R /StructParents 0 >>`,
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ${pgRes("")}/Contents 8 0 R /StructParents 1 >>`,
+          stream(p1),
+          stream(p2),
+          stream(p3),
+          "<< /Type /StructTreeRoot /K 10 0 R /ParentTree 11 0 R /RoleMap << /Head-A /H1 /Body-Text /P >> >>",
+          "<< /Type /StructElem /S /Document /P 9 0 R /K [14 0 R 15 0 R 16 0 R 17 0 R] >>",
+          "<< /Nums [0 [14 0 R 15 0 R 16 0 R] 1 [17 0 R]] >>",
+          FONT,
+          GRAY_IMG(13),
+          "<< /Type /StructElem /S /Head-A /P 10 0 R /Pg 4 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Body-Text /P 10 0 R /Pg 4 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Figure /P 10 0 R /Pg 4 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 10 0 R /Pg 5 0 R /K 0 >>",
+        ],
+        "<< /Title (Three Tools One File) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/outside tagged content|not.*tagged|untagged|Outside the Tag Structure/i.test(text))
+        return "untagged splash page not caught";
+      const m = text.match(/(\d+) of (\d+) image\(s\) have alternative text/);
+      if (!m) return "no image census — undescribed figure missed";
+      if (r.overallScore > 79) return `tool soup scored ${r.overallScore} — too kind`;
+      return null;
+    },
+  },
+  {
+    file: "synthetic-99-remediated-brochure.pdf",
+    truth:
+      "A four-page brochure that has been through remediation: heading on the first page, described figure, a linked and labeled navigation line, clean paragraphs throughout. Repair must be recognized across a whole document, not just a single page.",
+    build: () => {
+      const pageObj = (i: number) => 3 + i * 2;
+      const objs: string[] = [
+        "{{CAT}}",
+        `<< /Type /Pages /Kids [${Array.from({ length: 4 }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count 4 >>`,
+      ];
+      const p1 =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 20 Tf 72 740 Td (Community Services Brochure) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("Our services")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 80 0 0 60 72 600 cm /Im1 Do Q\nEMC\n`;
+      objs.push(
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 16 0 R >> /XObject << /Im1 17 0 R >> >> /Contents 4 0 R /StructParents 0 >>`,
+      );
+      objs.push(stream(p1));
+      for (let i = 1; i < 4; i++) {
+        objs.push(
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 16 0 R >> >> /Contents ${4 + i * 2} 0 R /StructParents ${i} >>`,
+        );
+        objs.push(
+          stream(
+            `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG(`Service area ${i}`)}) Tj ET\nEMC\n`,
+          ),
+        );
+      }
+      objs.push("<< /Type /StructTreeRoot /K 12 0 R /ParentTree 15 0 R >>"); // 11
+      objs.push(
+        "<< /Type /StructElem /S /Document /P 11 0 R /K [13 0 R 14 0 R 18 0 R 19 0 R 20 0 R 21 0 R] >>",
+      ); // 12
+      objs.push(`<< /Type /StructElem /S /H1 /P 12 0 R /Pg ${pageObj(0)} 0 R /K 0 >>`); // 13
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(0)} 0 R /K 1 >>`); // 14
+      objs.push("<< /Nums [0 [13 0 R 14 0 R 18 0 R] 1 [19 0 R] 2 [20 0 R] 3 [21 0 R]] >>"); // 15
+      objs.push(FONT); // 16
+      objs.push(GRAY_IMG(17)); // 17
+      objs.push(
+        `<< /Type /StructElem /S /Figure /P 12 0 R /Pg ${pageObj(0)} 0 R /K 2 /Alt (Staff greeting families at the service center.) >>`,
+      ); // 18
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(1)} 0 R /K 0 >>`); // 19
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(2)} 0 R /K 0 >>`); // 20
+      objs.push(`<< /Type /StructElem /S /P /P 12 0 R /Pg ${pageObj(3)} 0 R /K 0 >>`); // 21
+      objs[0] =
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 11 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>";
+      return buildPdf(objs, "<< /Title (Community Services Brochure) >>");
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `remediated brochure accused: ${bad.map((c) => c.id).join(", ")}`;
+      return r.overallScore >= 89 ? null : `scored ${r.overallScore}`;
+    },
+  },
+  {
+    file: "synthetic-100-the-hundredth.pdf",
+    truth:
+      "Trap number one hundred does everything right — headings, a described figure, directed table headers, a labeled tagged form field, tab order, title, language. The hundredth answer, like the first, must be exactly 100 out of 100.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 750 Td (One Hundred Documents) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("The hundredth trap")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 40 0 0 40 72 640 cm /Im1 Do Q\nEMC\n` +
+        `/TH << /MCID 3 >> BDC\nBT /F1 10 Tf 72 580 Td (Batch) Tj ET\nEMC\n` +
+        `/TH << /MCID 4 >> BDC\nBT /F1 10 Tf 162 580 Td (Documents) Tj ET\nEMC\n` +
+        `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 72 560 Td (Four) Tj ET\nEMC\n` +
+        `/TD << /MCID 6 >> BDC\nBT /F1 10 Tf 162 560 Td (Fifty) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> /AcroForm << /Fields [17 0 R] >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 15 0 R >> /XObject << /Im1 16 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [17 0 R] /Tabs /S >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 14 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 18 0 R 9 0 R 19 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [10 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 9 0 R /K [12 0 R 13 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 9 0 R /K [20 0 R 21 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 10 0 R /Pg 3 0 R /K 3 /A << /O /Table /Scope /Column >> >>",
+          "<< /Type /StructElem /S /TH /P 10 0 R /Pg 3 0 R /K 4 /A << /O /Table /Scope /Column >> >>",
+          "<< /Nums [0 [7 0 R 8 0 R 18 0 R 12 0 R 13 0 R 20 0 R 21 0 R]] >>",
+          FONT,
+          GRAY_IMG(16),
+          "<< /Type /Annot /Subtype /Widget /FT /Tx /T (batch_number) /TU (Which batch is this document from) /Rect [72 500 300 520] /F 4 /P 3 0 R /StructParent 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (A gray square marking the hundredth trap document.) >>",
+          "<< /Type /StructElem /S /Form /P 6 0 R /Pg 3 0 R /K << /Type /OBJR /Obj 17 0 R >> >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 6 >>",
+        ],
+        "<< /Title (One Hundred Documents) >>",
+      );
+    },
+    check: (r) =>
+      r.overallScore === 100 && r.grade === "A"
+        ? null
+        : `the hundredth document scored ${r.overallScore}/${r.grade}, not 100/A`,
+  },
 ];
+
+// ---------------------------------------------------------------------------
+// Reader-facing manifest: one short plain-language label + verdict chip per
+// trap, keyed by file. Rendered into the trust page's "all 100 documents"
+// modal by scripts/build-brief.mjs (via scripts/trap-manifest.json, written
+// at the end of a successful run). main() fails if this drifts from SAMPLES.
+//   caught = the designed defect was flagged · held = a correct document or
+//   hostile input passed/survived clean · bug = the battery caught a real
+//   bug in the checker itself.
+// ---------------------------------------------------------------------------
+type TrapChip = "caught" | "held" | "bug";
+const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: string }> = {
+  "synthetic-01-well-built.pdf": {
+    label: "A correctly built document — no false accusations allowed",
+    chip: "held",
+  },
+  "synthetic-02-scanned-lie.pdf": {
+    label: "Perfect title & language — secretly one big photo",
+    chip: "caught",
+    chipText: "CAUGHT \u00b7 SCORED 0",
+  },
+  "synthetic-03-hollow-alt.pdf": {
+    label: 'Image "description" of nothing but blank spaces',
+    chip: "bug",
+  },
+  "synthetic-04-gibberish-lang.pdf": {
+    label: "Language declared as meaningless gibberish",
+    chip: "caught",
+  },
+  "synthetic-05-tag-cycle.pdf": {
+    label: "Internal structure that loops back on itself forever",
+    chip: "held",
+  },
+  "synthetic-06-sixty-deep.pdf": { label: "Tags nested sixty levels deep", chip: "held" },
+  "synthetic-07-paragraphs-as-headings.pdf": {
+    label: "Whole paragraphs disguised as headings",
+    chip: "caught",
+  },
+  "synthetic-08-headerless-table.pdf": {
+    label: "A data table with no header row at all",
+    chip: "caught",
+  },
+  "synthetic-09-empty-table.pdf": { label: "A table tag with no rows inside it", chip: "held" },
+  "synthetic-10-orphan-decoy.pdf": {
+    label: "A detached decoy stuffed with fake problems",
+    chip: "held",
+  },
+  "synthetic-11-untagged-text.pdf": {
+    label: "Real text painted outside every tag",
+    chip: "caught",
+  },
+  "synthetic-12-hostile-strings.pdf": {
+    label: "Hostile computer code hidden in the text",
+    chip: "held",
+  },
+  "synthetic-13-bold-fake-headings.pdf": {
+    label: "Big bold text instead of real headings",
+    chip: "caught",
+  },
+  "synthetic-14-indesign-rolemap.pdf": {
+    label: "InDesign naming soup with a one-letter typo",
+    chip: "caught",
+  },
+  "synthetic-15-canva-empty-pairs.pdf": {
+    label: "A page built the way Canva builds them — unreadable inside",
+    chip: "held",
+  },
+  "synthetic-16-form-unlabeled.pdf": {
+    label: "A form with no labels on any field",
+    chip: "caught",
+  },
+  "synthetic-17-form-labeled.pdf": { label: "The same form, fully labeled", chip: "held" },
+  "synthetic-18-rasterized-lettering.pdf": {
+    label: "A letterhead line that is a picture of type",
+    chip: "caught",
+  },
+  "synthetic-19-skipped-heading-levels.pdf": {
+    label: "Heading levels that skip steps",
+    chip: "caught",
+  },
+  "synthetic-20-generic-h-only.pdf": {
+    label: "Generic headings with no levels at all",
+    chip: "caught",
+  },
+  "synthetic-21-mixed-h-conventions.pdf": {
+    label: "Two heading conventions mixed together",
+    chip: "caught",
+  },
+  "synthetic-22-filename-title.pdf": {
+    label: "A filename where the title should be",
+    chip: "caught",
+  },
+  "synthetic-23-title-display-off.pdf": {
+    label: "A good title the viewer is told not to show",
+    chip: "caught",
+  },
+  "synthetic-24-th-without-scope.pdf": {
+    label: "Header cells with no declared direction",
+    chip: "caught",
+  },
+  "synthetic-25-fake-bullet-list.pdf": {
+    label: "Bullets typed as plain text, no list structure",
+    chip: "caught",
+  },
+  "synthetic-26-nested-table.pdf": { label: "A table inside a table cell", chip: "caught" },
+  "synthetic-27-ragged-table.pdf": { label: "Rows whose columns do not line up", chip: "caught" },
+  "synthetic-28-link-bare-url.pdf": {
+    label: "Link text that is just the raw web address",
+    chip: "caught",
+  },
+  "synthetic-29-link-click-here.pdf": {
+    label: 'A link that says only "click here"',
+    chip: "caught",
+  },
+  "synthetic-30-untagged-link.pdf": { label: "A clickable link no tag claims", chip: "caught" },
+  "synthetic-31-empty-headings.pdf": {
+    label: "Eight headings, six holding no text at all",
+    chip: "caught",
+  },
+  "synthetic-32-note-without-id.pdf": {
+    label: "A footnote no reader can trace back",
+    chip: "caught",
+  },
+  "synthetic-33-unnamed-layer.pdf": {
+    label: "A layer switch with no name to announce",
+    chip: "caught",
+  },
+  "synthetic-34-rolemap-circular.pdf": {
+    label: "A naming loop that could hang a parser",
+    chip: "caught",
+  },
+  "synthetic-35-rolemap-remaps-standard.pdf": {
+    label: "The standard rulebook words redefined",
+    chip: "caught",
+  },
+  "synthetic-36-javascript-action.pdf": {
+    label: "JavaScript actions hidden in the document",
+    chip: "caught",
+  },
+  "synthetic-37-no-tab-order.pdf": { label: "No keyboard tab order on any page", chip: "caught" },
+  "synthetic-38-actualtext-figure.pdf": {
+    label: "A figure described the other legal way",
+    chip: "held",
+  },
+  "synthetic-39-artifact-decoration.pdf": {
+    label: "Decoration properly marked invisible",
+    chip: "held",
+  },
+  "synthetic-40-language-span-good.pdf": {
+    label: "A French passage properly declared",
+    chip: "held",
+  },
+  "synthetic-41-long-doc-no-bookmarks.pdf": {
+    label: "Twelve pages and no bookmarks",
+    chip: "caught",
+  },
+  "synthetic-42-long-doc-with-bookmarks.pdf": {
+    label: "The same twelve pages, with bookmarks",
+    chip: "held",
+  },
+  "synthetic-43-cover-sheet.pdf": {
+    label: "A one-page cover sheet — small is not a defect",
+    chip: "held",
+  },
+  "synthetic-44-artifact-figure-conflict.pdf": {
+    label: "Marked decorative, yet tagged as content, undescribed",
+    chip: "caught",
+  },
+  "synthetic-45-rotated-pages.pdf": { label: "Pages rotated sideways", chip: "held" },
+  "synthetic-46-link-good-twin.pdf": { label: "A link that says where it goes", chip: "held" },
+  "synthetic-47-formula-no-alt.pdf": { label: "A formula with no spoken form", chip: "caught" },
+  "synthetic-48-formula-good-twin.pdf": {
+    label: "The same formula, spoken form included",
+    chip: "held",
+  },
+  "synthetic-49-three-failures-one-file.pdf": {
+    label: "Three unrelated defects in one file — all three flagged",
+    chip: "caught",
+  },
+  "synthetic-50-kitchen-sink-good.pdf": {
+    label: "Everything right at once — the grand good twin",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
+  },
+  "synthetic-51-canva-flat-poster.pdf": {
+    label: "Canva default export: gorgeous and completely untagged",
+    chip: "caught",
+  },
+  "synthetic-52-canva-missing-title.pdf": {
+    label: "Never given a name — no title anywhere",
+    chip: "caught",
+  },
+  "synthetic-53-canva-decorative-swarm.pdf": {
+    label: "Twelve decorative shapes tagged as content, undescribed",
+    chip: "caught",
+  },
+  "synthetic-54-canva-artifact-twin.pdf": {
+    label: "The same shapes properly made invisible",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
+  },
+  "synthetic-55-canva-headline-image.pdf": {
+    label: "A stylized headline that is a picture of words",
+    chip: "caught",
+  },
+  "synthetic-56-canva-mixed-links.pdf": {
+    label: 'Three links: one good, one raw address, one "here"',
+    chip: "caught",
+  },
+  "synthetic-57-canva-no-language.pdf": { label: "No language declared anywhere", chip: "caught" },
+  "synthetic-58-canva-square-page.pdf": {
+    label: "A social-media square page, tagged right",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
+  },
+  "synthetic-59-canva-decorated-heading.pdf": {
+    label: "A heading dressed in template ornaments",
+    chip: "held",
+  },
+  "synthetic-60-canva-one-giant-p.pdf": {
+    label: "Four pages of visual style, zero heading tags",
+    chip: "caught",
+  },
+  "synthetic-61-canva-dangling-pg.pdf": { label: "A tag pointing at a deleted page", chip: "held" },
+  "synthetic-62-canva-double-tagged.pdf": {
+    label: "One passage claimed by two tags at once",
+    chip: "held",
+  },
+  "synthetic-63-canva-blank-pages.pdf": { label: "Blank pages used as padding", chip: "held" },
+  "synthetic-64-canva-h1-forest.pdf": {
+    label: "Every text box its own H1 — reported honestly",
+    chip: "held",
+  },
+  "synthetic-65-canva-story-no-bookmarks.pdf": {
+    label: "A twelve-page photo story with no navigation",
+    chip: "caught",
+  },
+  "synthetic-66-canva-vector-decor.pdf": {
+    label: "Forty drawn shapes beneath properly tagged text",
+    chip: "held",
+  },
+  "synthetic-67-canva-emoticon-alt.pdf": {
+    label: 'An image described as ":-)" — the human share of the work',
+    chip: "held",
+  },
+  "synthetic-68-canva-done-right.pdf": { label: "A Canva layout remediated by hand", chip: "held" },
+  "synthetic-69-indesign-untagged-book.pdf": {
+    label: "InDesign with tagging unchecked — pretty, not accessible",
+    chip: "caught",
+  },
+  "synthetic-70-indesign-rolemap-styles.pdf": {
+    label: "Custom style names, mapped correctly",
+    chip: "held",
+  },
+  "synthetic-71-indesign-unmapped-tag.pdf": {
+    label: "A custom tag with no mapping at all",
+    chip: "held",
+  },
+  "synthetic-72-indesign-figures-no-alt.pdf": {
+    label: "Three images, alt panel never opened",
+    chip: "caught",
+  },
+  "synthetic-73-indesign-master-artifacts.pdf": {
+    label: "Running headers properly made invisible",
+    chip: "held",
+  },
+  "synthetic-74-indesign-toc-unlinked.pdf": {
+    label: "A contents page with no links — nothing to punish",
+    chip: "held",
+  },
+  "synthetic-75-indesign-toc-linked.pdf": {
+    label: "A contents page properly linked",
+    chip: "held",
+  },
+  "synthetic-76-indesign-bold-not-th.pdf": {
+    label: "A header row that is only styled bold",
+    chip: "caught",
+  },
+  "synthetic-77-indesign-threaded-reverse.pdf": {
+    label: "Threaded frames tagged in reverse order",
+    chip: "held",
+  },
+  "synthetic-78-indesign-spread-page.pdf": {
+    label: "A facing-page spread, double wide",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
+  },
+  "synthetic-79-indesign-dangling-bookmark.pdf": {
+    label: "A bookmark to a deleted page",
+    chip: "held",
+  },
+  "synthetic-80-indesign-figure-caption.pdf": {
+    label: "A figure grouped with its caption",
+    chip: "held",
+  },
+  "synthetic-81-indesign-span-explosion.pdf": {
+    label: "One paragraph shattered into 120 style runs",
+    chip: "held",
+  },
+  "synthetic-82-indesign-empty-frames.pdf": {
+    label: "Headings emptied in a late edit",
+    chip: "caught",
+  },
+  "synthetic-83-indesign-crop-marks.pdf": {
+    label: "Crop marks outside the trim box",
+    chip: "held",
+  },
+  "synthetic-84-indesign-form-xobject-text.pdf": {
+    label: "Text inside a placed drawing object",
+    chip: "held",
+  },
+  "synthetic-85-indesign-soft-hyphens.pdf": {
+    label: "Soft hyphens through justified text",
+    chip: "held",
+  },
+  "synthetic-86-indesign-done-right.pdf": {
+    label: "InDesign at its best — mapped, described, linked",
+    chip: "held",
+  },
+  "synthetic-87-word-rasterized-effects.pdf": {
+    label: "Word text effects: every styled line a picture",
+    chip: "caught",
+  },
+  "synthetic-88-word-whitespace-table.pdf": {
+    label: 'A "table" drawn with spaces — none hallucinated',
+    chip: "held",
+  },
+  "synthetic-89-word-boilerplate-alt.pdf": {
+    label: "Word's auto-alt: present, judged by the human share",
+    chip: "held",
+  },
+  "synthetic-90-word-empty-spacers.pdf": {
+    label: "Sixteen empty paragraphs as vertical spacing",
+    chip: "held",
+  },
+  "synthetic-91-word-track-changes.pdf": {
+    label: "Review comments shipped in the final file",
+    chip: "held",
+  },
+  "synthetic-92-word-styles-good.pdf": {
+    label: "Word styles used correctly: a clean H1-H2-H3 ladder",
+    chip: "held",
+  },
+  "synthetic-93-word-fake-and-real-list.pdf": {
+    label: 'A real list beside a typed dash "list"',
+    chip: "caught",
+  },
+  "synthetic-94-word-merged-cells.pdf": {
+    label: "A merged header spanning two columns",
+    chip: "held",
+  },
+  "synthetic-95-word-info-title-only.pdf": {
+    label: "A title in the classic metadata slot only",
+    chip: "held",
+  },
+  "synthetic-96-word-print-to-pdf.pdf": {
+    label: '"Print to PDF": three losses in one habit',
+    chip: "caught",
+  },
+  "synthetic-97-word-done-right.pdf": { label: "Word done right, end to end", chip: "held" },
+  "synthetic-98-tool-soup.pdf": {
+    label: "Three tools' bad habits stapled into one file",
+    chip: "caught",
+  },
+  "synthetic-99-remediated-brochure.pdf": {
+    label: "A remediated four-page brochure",
+    chip: "held",
+  },
+  "synthetic-100-the-hundredth.pdf": {
+    label: "The hundredth document — perfect, and graded perfect",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
+  },
+};
 
 // ---------------------------------------------------------------------------
 async function main() {
@@ -1712,6 +3839,29 @@ async function main() {
   }
   console.log(`\nSynthetic adversarial controls — ${SAMPLES.length} documents in ${OUT_DIR}\n`);
   for (const row of rows) console.log(row);
+  const missing = SAMPLES.filter((x) => !TRAP_MANIFEST[x.file]).map((x) => x.file);
+  const extra = Object.keys(TRAP_MANIFEST).filter((f) => !SAMPLES.some((x) => x.file === f));
+  if (missing.length || extra.length) {
+    console.error(
+      `manifest drift — missing: ${missing.join(", ") || "none"}; extra: ${extra.join(", ") || "none"}`,
+    );
+    hardFailures++;
+  } else if (hardFailures === 0) {
+    // Only a fully verified run may refresh the reader-facing manifest.
+    fs.writeFileSync(
+      path.join(import.meta.dirname, "trap-manifest.json"),
+      JSON.stringify(
+        {
+          count: SAMPLES.length,
+          generated: new Date().toISOString().slice(0, 10),
+          items: SAMPLES.map((x) => ({ file: x.file, ...TRAP_MANIFEST[x.file] })),
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    console.log(`trap-manifest.json refreshed (${SAMPLES.length} entries)`);
+  }
   console.log(`\n${hardFailures === 0 ? "ALL TRUTHS HELD" : `${hardFailures} TRUTH(S) VIOLATED`}`);
   process.exit(hardFailures === 0 ? 0 : 1);
 }

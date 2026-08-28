@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "hundred-trap-documents-2026-08-28",
+    badge: "Verified",
+    text: "The battery of trap documents built to fool this checker has doubled again: one hundred of them, every designed answer returned correctly. The second fifty are modeled on what Canva, InDesign, and Word actually export — flat untagged posters, decorative-shape swarms, custom naming soup, titles that are pictures of words, 'Print to PDF'. The Can I trust this? page (now the first link in the menu) lists all one hundred with what each one tries and how it was judged, and the whole battery re-runs before any change ships — a broken promise stops the release.",
+    linkText: "See all 100 trap documents",
+    /** In-app route since v1.119.0 — an ordinary router link. */
+    linkTo: "/trust",
+    linkExternal: false,
+    date: "August 28, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "can-i-trust-this-2026-08-28",
     badge: "New page",
     text: "A fair question deserves its own page: Can I trust this? The new link at the top and bottom of every screen answers it in plain English — the laws this checker serves (Title II of the ADA, the Illinois IITAA, and the WCAG rulebook both point to), the independent referee program that co-signs every report, the battery of trap documents built specifically to fool the checker (now 50 of them — all judged correctly), the working sessions with internal and external accessibility specialists, and the grade disputes the checker lost in public and fixed the same day. Every number on the page is pulled from the live system, under a big dated stamp so you can see exactly how fresh it is.",

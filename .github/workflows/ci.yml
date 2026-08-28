@@ -54,3 +54,11 @@ jobs:
       # Runs all three suites (api, web, cli) via scripts/test.ts.
       - name: Test
         run: pnpm test
+
+      # The adversarial trap battery: 100 synthetic documents with designed
+      # truths, rebuilt from scratch and pushed through the real analyzer.
+      # A violated truth is a DEFECT — in a sample or in the checker — and
+      # fails the build, the same way it caught the whitespace-only-/Alt bug.
+      # Needs qpdf (installed above); veraPDF is optional and skipped here.
+      - name: Trap battery (100 synthetic controls)
+        run: pnpm synthetic-controls
