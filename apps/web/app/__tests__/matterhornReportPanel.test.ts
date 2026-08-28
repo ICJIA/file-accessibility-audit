@@ -566,74 +566,55 @@ describe("MatterhornReportPanel.vue — the honesty contract", () => {
   });
 
   // Layout, reported 2026-08-28 from a real report: "for files with lots of
-  // errors, it can be difficult to see what goes with what". In a two-column
-  // grid every row is as tall as its tallest cell, so checkpoint 01 with two
-  // long veraPDF clauses sat beside an empty 02, and 06's five clauses sat
-  // beside a one-line 05 — leaving the reader to guess which heading a block
-  // of findings belonged to. A checkpoint that HAS findings now takes the full
-  // width, so its evidence can only sit under its own heading; the one-line
-  // clean ones keep tiling two-up.
-  it("gives a checkpoint with findings the full width, and leaves clean ones tiled", async () => {
+  // errors, it can be difficult to see what goes with what". The panel tiled
+  // its 31 checkpoints two-up, and a grid row is as tall as its tallest cell,
+  // so a checkpoint with five veraPDF clauses sat beside an empty one. Giving
+  // the ones WITH findings the full row fixed the association but left a mixed
+  // rhythm — one column here, two there, and a lone checkpoint carrying a band
+  // across only half the panel. It is one column throughout now: every
+  // checkpoint is its own row, top to bottom.
+  it("renders exactly one checkpoint per row", async () => {
     const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
     await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
 
+    const list = w.get('[data-testid="matterhorn-list"]');
+    expect(list.classes().join(" ")).not.toMatch(/grid-cols-2/);
+
     const rows = w.findAll('[data-testid="matterhorn-row"]');
-    expect(rows.length).toBeGreaterThan(10);
-
-    const withEvidence = rows.filter((r) => r.find('[data-testid="matterhorn-evidence"]').exists());
-    const withoutEvidence = rows.filter(
-      (r) => !r.find('[data-testid="matterhorn-evidence"]').exists(),
-    );
-    expect(withEvidence.length).toBeGreaterThan(0);
-    expect(withoutEvidence.length).toBeGreaterThan(0);
-
-    for (const row of withEvidence) expect(row.classes()).toContain("sm:col-span-2");
-    for (const row of withoutEvidence) expect(row.classes()).not.toContain("sm:col-span-2");
+    expect(rows.length).toBe(31);
+    // One checkpoint per row means the row index IS the list index: no pairing
+    // left to compute, and no half-width band left behind.
+    rows.forEach((row, i) => expect(Number(row.attributes("data-visual-row"))).toBe(i));
   });
 
-  // Zebra striping, requested 2026-08-28 after the full-width change landed:
-  // "can you zebra stripe this in a subtle way so it's clear what's a distinct
-  // row". The catch is that a row here is a VISUAL row, not a list item: a
-  // checkpoint with findings occupies a whole row on its own, while two clean
-  // ones share one. Striping by nth-child would band one half of a pair and
-  // leave the other bare, which reads as a rendering fault rather than a
-  // stripe. The band therefore follows the computed visual row.
-  it("bands alternate visual rows, and both halves of a shared row match", async () => {
+  it("shows each checkpoint number at display size, as a step marker", async () => {
+    const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
+    await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
+
+    const numbers = w.findAll('[data-testid="matterhorn-number"]');
+    expect(numbers).toHaveLength(31);
+    expect(numbers[0]!.text()).toBe("01");
+    expect(numbers[30]!.text()).toBe("31");
+    // Large, monospaced and tabular, so the column of numerals lines up.
+    const cls = numbers[0]!.classes().join(" ");
+    expect(cls).toMatch(/text-(2xl|3xl)/);
+    expect(cls).toMatch(/tabular-nums/);
+  });
+
+  it("bands alternate rows", async () => {
     const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
     await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
 
     const rows = w.findAll('[data-testid="matterhorn-row"]');
-    const seen = rows.map((r) => ({
-      visualRow: Number(r.attributes("data-visual-row")),
-      // --surface-raised, the token the rest of the report uses for a lifted
-      // surface: #16191f on #111111 in dark, #eef2f7 on #ffffff in light.
-      // --surface-card-alt was tried first and is three levels of grey — too
-      // faint on screen to tell one row from the next, which is the job.
-      banded: r.classes().some((c) => c.includes("surface-raised")),
-      fullWidth: r.classes().includes("sm:col-span-2"),
-    }));
+    // --surface-raised, the token the rest of the report uses for a lifted
+    // surface: #16191f on #111111 in dark, #eef2f7 on #ffffff in light.
+    // --surface-card-alt was tried first and is three levels of grey — too
+    // faint on screen to tell one row from the next, which is the job.
+    const banded = rows.map((r) => r.classes().some((c) => c.includes("surface-raised")));
 
-    // Every item sits in a real row, and rows advance by at most one.
-    expect(seen.every((x) => Number.isInteger(x.visualRow))).toBe(true);
-    for (let i = 1; i < seen.length; i++) {
-      const step = seen[i]!.visualRow - seen[i - 1]!.visualRow;
-      expect(step === 0 || step === 1).toBe(true);
-    }
-
-    // The band is a property of the row, so both halves of a pair agree.
-    const byRow = new Map<number, typeof seen>();
-    for (const x of seen) byRow.set(x.visualRow, [...(byRow.get(x.visualRow) ?? []), x]);
-    for (const [visualRow, items] of byRow) {
-      expect(new Set(items.map((i) => i.banded)).size).toBe(1);
-      expect(items[0]!.banded).toBe(visualRow % 2 === 1);
-      // A checkpoint with findings never shares its row.
-      if (items.some((i) => i.fullWidth)) expect(items).toHaveLength(1);
-      else expect(items.length).toBeLessThanOrEqual(2);
-    }
-
-    // And striping is actually happening — not every row unbanded.
-    expect(seen.some((x) => x.banded)).toBe(true);
-    expect(seen.some((x) => !x.banded)).toBe(true);
+    banded.forEach((isBanded, i) => expect(isBanded).toBe(i % 2 === 1));
+    expect(banded.some(Boolean)).toBe(true);
+    expect(banded.some((b) => !b)).toBe(true);
   });
 
   it("attaches findings to their checkpoint with a rail rather than loose indentation", async () => {

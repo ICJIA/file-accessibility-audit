@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.115.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: laying one panel out in a single column with larger step numbers. No wording, scoring, or data changed.",
+    body: [
+      {
+        kind: "p",
+        html: "The last of three passes over the checklist panel described below. The first two settled which findings belong to which checkpoint and shaded alternate rows, but left the page reading unevenly &mdash; one column in places, two in others, and in one spot a shaded row that stopped halfway across. It now runs as a single column from the first checkpoint to the thirty-first, so every checkpoint is plainly its own row and the shading always crosses the full width.",
+      },
+      {
+        kind: "p",
+        html: "Each checkpoint&rsquo;s number is now printed large enough to see at a glance. That is worth the space here because the checklist is a numbered standard: the number is how someone matches a finding in this report against the same checkpoint in the industry document, or in the professional tools that evaluators use. The panel is longer than it was, which is the trade &mdash; thirty-one rows read top to bottom instead of tiled two across, and on a document with many findings that is what makes each step visible.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: appearance only. The same checkpoints, the same wording, the same evidence, and the same rule that this section never shows a total or a pass mark. No new information is shown, collected, sent, or stored; no score moved; and no web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.114.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: shading alternate rows of one panel so each row reads as one thing. No wording, scoring, or data changed.",
     body: [

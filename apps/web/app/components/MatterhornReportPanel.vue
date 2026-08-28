@@ -52,38 +52,6 @@ const STATUS_STYLES: Record<MatterhornRowStatus, StatusStyle> = {
 };
 
 const MAX_EVIDENCE_PER_ROW = 5;
-
-/**
- * Which VISUAL row each checkpoint lands in, mirroring how the grid places
- * them: a checkpoint with findings takes a whole row to itself, clean ones
- * pair up two per row, and a full-width item that meets a half-filled row
- * starts the next one (CSS auto-placement leaves that gap; `dense` would fill
- * it by reordering, which would scramble the checkpoint numbering).
- *
- * The zebra band is a property of the ROW, not of the list item. Striping by
- * nth-child would band one half of a pair and leave the other bare — which
- * reads as a rendering fault rather than a stripe.
- */
-const placedRows = computed(() => {
-  let visualRow = 0;
-  let filledInRow = 0;
-  return (projection.value?.rows ?? []).map((row) => {
-    const fullWidth = row.evidence.length > 0;
-    if (fullWidth) {
-      if (filledInRow > 0) {
-        visualRow++;
-        filledInRow = 0;
-      }
-      return { row, fullWidth, visualRow: visualRow++ };
-    }
-    const placed = { row, fullWidth, visualRow };
-    if (++filledInRow === 2) {
-      visualRow++;
-      filledInRow = 0;
-    }
-    return placed;
-  });
-});
 </script>
 
 <template>
@@ -153,39 +121,48 @@ const placedRows = computed(() => {
            so a checkpoint with five veraPDF clauses used to sit beside an
            empty one and the reader had to work out which heading a block of
            findings belonged to. Reported from a real report, 2026-08-28. -->
-      <!-- No grid gaps: the zebra bands have to meet edge to edge, so the
-           spacing lives in each cell's padding instead. The negative margin
-           cancels that padding at the edges, so a band bleeds to the card's
-           inner edge and no cell loses width to it — without it the longer
-           checkpoint names wrap their status chip onto a second line. -->
-      <ol class="mt-4 -mx-3 grid sm:grid-cols-2 list-none p-0">
+      <!-- ONE column, top to bottom (v1.115.0). Two columns meant a grid row
+           was as tall as its tallest cell, so a checkpoint with five veraPDF
+           clauses sat beside an empty one; giving those the full row fixed the
+           association but left a mixed rhythm — one column here, two there,
+           and a lone checkpoint banded across half the panel. A single column
+           makes every checkpoint its own row: the band always spans the whole
+           width, and the row index IS the visual row.
+
+           No row gap, because the zebra bands have to meet edge to edge; the
+           spacing lives in each row's padding, and the negative margin lets a
+           band bleed to the card's inner edge rather than eat the row's
+           width. -->
+      <ol class="mt-4 -mx-3 list-none p-0" data-testid="matterhorn-list">
         <li
-          v-for="placed in placedRows"
-          :key="placed.row.checkpoint.id"
-          class="border-t border-[var(--border-subtle,var(--border))] px-3 py-3"
-          :class="[
-            placed.fullWidth ? 'sm:col-span-2' : '',
-            placed.visualRow % 2 === 1 ? 'bg-[var(--surface-raised)]' : '',
-          ]"
-          :data-visual-row="placed.visualRow"
+          v-for="(row, index) in projection.rows"
+          :key="row.checkpoint.id"
+          class="grid grid-cols-[2.25rem_1fr] items-baseline gap-x-3 border-t border-[var(--border-subtle,var(--border))] px-3 py-2.5"
+          :class="index % 2 === 1 ? 'bg-[var(--surface-raised)]' : ''"
+          :data-visual-row="index"
           data-testid="matterhorn-row"
         >
-          <div class="flex items-start gap-3">
-            <span
-              class="mt-px shrink-0 font-mono text-[11px] text-[var(--text-muted)]"
-              aria-hidden="true"
-              >{{ placed.row.checkpoint.id }}</span
-            >
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-[var(--text-heading)]">
-                {{ placed.row.checkpoint.name }}
-                <span
-                  class="ml-1.5 inline-block align-middle rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                  :class="STATUS_STYLES[placed.row.status].chipClass"
-                  >{{ STATUS_STYLES[placed.row.status].label }}</span
-                >
-              </p>
-              <!-- The rail is what ties these lines to the heading above
+          <!-- The checkpoint's own number, at display size: this is a
+               numbered standard, and the numeral is how a reader crossreferences
+               a finding with PAC or the Matterhorn document. Tabular figures so
+               the column of numerals lines up; quiet in colour so it marks the
+               step without competing with the checkpoint's name. -->
+          <span
+            class="font-mono text-2xl leading-none tabular-nums text-right text-[var(--text-muted)]"
+            aria-hidden="true"
+            data-testid="matterhorn-number"
+            >{{ row.checkpoint.id }}</span
+          >
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-[var(--text-heading)]">
+              {{ row.checkpoint.name }}
+              <span
+                class="ml-1.5 inline-block align-middle rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                :class="STATUS_STYLES[row.status].chipClass"
+                >{{ STATUS_STYLES[row.status].label }}</span
+              >
+            </p>
+            <!-- The rail is what ties these lines to the heading above
                    them. Each line is a two-column grid so a wrapped clause
                    hangs under its own text instead of under the veraPDF tag —
                    the clauses run long, and a ragged left edge is what made a
@@ -194,28 +171,27 @@ const placedRows = computed(() => {
                    auto column would size to its own row and every description
                    would start at a different x — including the plain-language
                    findings, which carry no tag at all. -->
-              <ul
-                v-if="placed.row.evidence.length"
-                class="mt-1.5 space-y-1.5 border-l border-[var(--border)] pl-3 text-xs text-[var(--text-muted)] leading-relaxed list-none"
-                data-testid="matterhorn-evidence"
+            <ul
+              v-if="row.evidence.length"
+              class="mt-1.5 space-y-1.5 border-l border-[var(--border)] pl-3 text-xs text-[var(--text-muted)] leading-relaxed list-none"
+              data-testid="matterhorn-evidence"
+            >
+              <li
+                v-for="ev in row.evidence.slice(0, MAX_EVIDENCE_PER_ROW)"
+                :key="ev.label"
+                class="grid grid-cols-[3.75rem_1fr] gap-x-1"
               >
-                <li
-                  v-for="ev in placed.row.evidence.slice(0, MAX_EVIDENCE_PER_ROW)"
-                  :key="ev.label"
-                  class="grid grid-cols-[3.75rem_1fr] gap-x-1"
+                <span
+                  class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-300/80"
+                  >{{ ev.source === "verapdf" ? "veraPDF" : "" }}</span
                 >
-                  <span
-                    class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-300/80"
-                    >{{ ev.source === "verapdf" ? "veraPDF" : "" }}</span
-                  >
-                  <span>{{ ev.label }}</span>
-                </li>
-                <li v-if="placed.row.evidence.length > MAX_EVIDENCE_PER_ROW" class="pl-1 italic">
-                  … and {{ placed.row.evidence.length - MAX_EVIDENCE_PER_ROW }} more finding(s) —
-                  see the categories above.
-                </li>
-              </ul>
-            </div>
+                <span>{{ ev.label }}</span>
+              </li>
+              <li v-if="row.evidence.length > MAX_EVIDENCE_PER_ROW" class="pl-1 italic">
+                … and {{ row.evidence.length - MAX_EVIDENCE_PER_ROW }} more finding(s) — see the
+                categories above.
+              </li>
+            </ul>
           </div>
         </li>
       </ol>

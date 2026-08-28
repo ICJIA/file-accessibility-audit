@@ -1266,12 +1266,18 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.115.0 — 2026-08-28 · The Matterhorn checklist is one column, with display-size checkpoint numbers (layout only)
+
+Third and final pass on the panel, closing what the previous two left behind. v1.113.0 gave checkpoints WITH findings the full row and v1.114.0 banded alternate rows, which together produced a mixed rhythm — one column here, two there — and, where a lone checkpoint sat in a row of its own, a zebra band that stopped halfway across the panel. Reported as exactly that. It is now **one column top to bottom**: every checkpoint is its own row, a band always spans the full width, and there is no pairing left to reason about — the row index simply *is* the visual row, so the placement computation that mirrored CSS auto-placement is gone with it. Each checkpoint number is now a **step marker**: 24px, monospaced, tabular figures so the column of numerals lines up, and quiet in colour so it marks the step without competing with the checkpoint's name. That is worth the pixels here because this is a numbered standard — the numeral is how a reader crossreferences a finding against PAC or the Matterhorn document itself. The panel is taller than before, and that is the trade: 31 rows read top to bottom rather than tiled, which is what makes each step visible on a document with many findings. **No new attack surface**: CSS classes and one `data-testid`; no route, parameter, dependency, stored field, or retention change, and the honesty contract (no aggregate count, no bare "Pass") is untouched and still pinned. Tests 2,896 → 2,897.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.114.0 → v1.33.0) — click to expand</summary>
+
 ### v1.114.0 — 2026-08-28 · The Matterhorn checklist is zebra striped by visual row (layout only)
 
 Follow-on to v1.113.0, which fixed *which* findings belong to which checkpoint; this makes the boundary between checkpoints visible rather than something the reader traces. The subtlety is that a row here is a **visual** row, not a list item: a checkpoint with findings occupies a whole row alone while two clean ones share one, so `nth-child` striping would band one half of a pair and leave the other bare — a rendering fault, not a stripe. The band follows the row the grid actually places each checkpoint in (computed the same way CSS auto-placement does, including a full-width item meeting a half-filled row and starting the next), and both halves of a shared row always match. Grid gaps became cell padding so the bands meet edge to edge, with a matching negative margin on the list so a band bleeds to the card's inner edge instead of eating cell width — without it the longer checkpoint names wrapped their status chip onto a second line. The band is `--surface-raised` (#16191f on #111111 dark, #eef2f7 on #ffffff light); `--surface-card-alt` was tried first and is three levels of grey — correct in principle, invisible in practice, which fails the stripe's only job, and it was rejected on the rendered page rather than in review. **No new attack surface**: CSS classes and one `data-visual-row` attribute; no route, parameter, dependency, stored field, or retention change, and the panel's honesty contract (no aggregate count, no bare "Pass") is untouched and still pinned. Tests 2,895 → 2,896.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.113.0 → v1.33.0) — click to expand</summary>
+
 
 ### v1.113.0 — 2026-08-28 · The Matterhorn checklist reads properly on a document with many findings (layout only)
 

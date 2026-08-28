@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.115.0] - 2026-08-28
+
+### Changed
+
+- **The Matterhorn checklist is one column, with its checkpoint numbers at display size.** The two previous passes fixed which findings belong to which checkpoint, but left a mixed rhythm: one column where a checkpoint had findings, two where it did not, and — where a lone checkpoint sat in a row of its own — a zebra band that stopped halfway across the panel. Every checkpoint is now its own row, top to bottom, so a band always spans the full width and there is no pairing left to reason about. The row index simply is the visual row; the placement computation that mirrored CSS auto-placement is gone with it.
+- **Each checkpoint number is now a step marker** — 24px, monospaced, tabular figures so the column of numerals lines up, and quiet in colour so it marks the step without competing with the checkpoint's name. This is a numbered standard, and the numeral is how a reader crossreferences a finding against PAC or the Matterhorn document itself.
+
+### Notes
+
+- Layout only, for the third time: same checkpoints, statuses, evidence, and the honesty contract (no aggregate count, no bare "Pass").
+- The panel is taller than before. That is the trade: 31 rows read top to bottom rather than tiled, which is what makes each step visible on a document with many findings.
+- Tests: API 1,583 · web 1,265 · CLI 49 (**2,897**), 1 new — one checkpoint per row (the list is never a two-column grid), numerals at display size, and bands alternating on the row index.
+
+<details>
+<summary><strong>v1.114.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.114.0] - 2026-08-28
 
 ### Changed
@@ -18,8 +34,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Checked by eye at both token choices before settling — the faint one was rejected on the rendered page, not in review.
 - Tests: API 1,583 · web 1,264 · CLI 49 (**2,896**), 1 new: bands alternate by visual row, both halves of a pair agree, and a checkpoint with findings never shares its row.
 
-<details>
-<summary><strong>v1.113.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.113.0] - 2026-08-28
 

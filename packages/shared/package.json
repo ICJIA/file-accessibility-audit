@@ -1,6 +1,6 @@
 {
   "name": "@file-audit/shared",
-  "version": "1.114.0",
+  "version": "1.115.0",
   "private": true,
   "type": "module",
   "description": "Browser-safe scoring constants and report-payload types shared by api, web, and cli. No Node APIs, no process.env — pure data and pure functions only.",
