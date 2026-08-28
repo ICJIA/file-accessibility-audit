@@ -539,6 +539,51 @@ describe("table detection", () => {
 // phantom <L> and 3 phantom <Table> reported as "incomplete structure".)
 // ---------------------------------------------------------------------------
 
+// Found by the adversarial synthetic corpus (synthetic-03-hollow-alt.pdf,
+// 2026-08-28): /Alt () was correctly treated as missing, but /Alt (   ) —
+// whitespace only — passed the emptiness check and was counted as real
+// alternative text. A screen reader reading three spaces announces nothing:
+// hollow alt is missing alt. Same doctrine for /ActualText and for formulas.
+describe("hollow alternative text", () => {
+  const doc = (alt: string) => ({
+    qpdf: [
+      null,
+      {
+        "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+        "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+        "3 0 R": { "/S": "/Document", "/P": "2 0 R", "/K": ["4 0 R"] },
+        "4 0 R": { "/S": "/Figure", "/P": "3 0 R", "/Alt": alt },
+      },
+    ],
+  });
+
+  it("whitespace-only /Alt is not alt text", () => {
+    const result = parseJson(doc("u:   "));
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0]!.hasAlt).toBe(false);
+  });
+
+  it("empty /Alt stays not-alt-text, and real alt stays real", () => {
+    expect(parseJson(doc("u:")).images[0]!.hasAlt).toBe(false);
+    expect(parseJson(doc("u:A described image.")).images[0]!.hasAlt).toBe(true);
+  });
+
+  it("whitespace-only /ActualText does not rescue a figure either", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/Document", "/P": "2 0 R", "/K": ["4 0 R"] },
+          "4 0 R": { "/S": "/Figure", "/P": "3 0 R", "/ActualText": "u: \t " },
+        },
+      ],
+    });
+    expect(result.images[0]!.hasAlt).toBe(false);
+  });
+});
+
 describe("orphaned struct pruning", () => {
   it("drops orphaned phantom <L> lists but keeps the reachable one", () => {
     const result = parseJson({

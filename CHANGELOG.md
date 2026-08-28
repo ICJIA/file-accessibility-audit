@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.117.0] - 2026-08-28
+
+### Fixed
+
+- **Whitespace-only alternative text no longer counts as alternative text.** `/Alt (   )` — three spaces — passed the figure census's emptiness check and was counted as a real description; a screen reader reading it announces nothing. The formula branch has trimmed before testing since v1.92.0; the figure branch predated it and never caught up. Both now share the doctrine: hollow alt is missing alt, for `/Alt` and the `/ActualText` fallback alike. Swept against every real control document: **none carries hollow alt, so no existing score moves** — this closes a door, it does not re-grade anything.
+
+### Added
+
+- **An adversarial synthetic corpus: 18 hand-built PDFs, each constructed around one designed truth, all 18 held.** The real-document corpus proves the checker agrees with itself; it cannot prove the checker is *right*, because nobody knows a real 246-page report's ground truth to the last tag. These are the opposite trade — tiny, synthetic, truth designed in: a document that lies about being scanned (0/F held), hollow alt (the one that caught the bug above), gibberish `/Lang`, a structure-tree **cycle** (no hang, no double-count), sixty levels of nesting, paragraphs wearing `<H1>` tags (caught), a headerless table, an empty `<Table>` shell (no crash), the Colton-shape **detached decoy subtree** (ignored, as v1.111.0 promises), text painted outside any tag (flagged), hostile `<script>`/mustache strings in headings and alt (inert), the lazy-author bold-text-instead-of-headings document (flagged), **InDesign RoleMap soup** with a misspelled `/Lbody` (named as a spelling slip, headings recognized through the map), the **Canva empty-pairs page** (headings NOT reported empty — the v1.110.0 guard's first end-to-end fixture), an **unlabeled form** (flagged) beside its **properly labeled twin** (clean, and reading order reported-not-scored per v1.107.0), and a **rasterized letterhead line** (the v1.105.0 lettering warning fires). Run with `pnpm synthetic-controls`; the PDFs regenerate deterministically into `controls/` with a `synthetic-` prefix so each can also be uploaded to audit.icjia.app by hand.
+- `scripts/tsconfig.json` + `pnpm verify-controls`: the `#config` alias never resolved for scripts, which had silently broken `verify-controls.ts` since the analyzer extraction. Both harnesses now run from the repo root.
+
+### Notes
+
+- **Building the suite validated the checker's judgment more than its code.** Three of the four initial failures were the *samples* being wrong, and the checker's definitions won the argument each time: a TAGGED image-only document is deliberately not "scanned" (its text may legitimately live in `/Alt` — blanket-zeroing would punish a properly described poster); a 12-paragraph one-pager is deliberately excused from the heading requirement (the substantive gate asks for 4+ pages or 20+ paragraphs); and the third exposed a pdf.js extraction quirk — a single unbroken `Tj` run wider than the page loses text (~112 chars at 11pt) — which no real exporter ever produces, so the sample now paints line by line as real tools do.
+- Full corpus after the change: **54 documents (36 real + 18 synthetic), zero invariant failures, zero real-document score changes.**
+- Tests: API 1,592 · web 1,269 · CLI 49 (**2,910**), 3 new.
+
+<details>
+<summary><strong>v1.116.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.116.0] - 2026-08-28
 
 ### Fixed
@@ -21,8 +41,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Today's security review of v1.105.0→v1.115.0 (13 commits, 59 files) found no new vulnerabilities; the two items it surfaced below the reporting bar are both closed by this release.
 - Tests: API 1,589 · web 1,269 · CLI 49 (**2,907**), 10 new.
 
-<details>
-<summary><strong>v1.115.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.115.0] - 2026-08-28
 

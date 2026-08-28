@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.116.0",
+  "version": "1.117.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,13 +14,15 @@
     "test:web": "pnpm --filter web test",
     "test:scoring": "pnpm --filter api test:scoring",
     "test:coverage": "pnpm --filter api test:coverage && pnpm --filter web test:coverage && pnpm --filter @icjia/a11y-audit test:coverage",
-    "start:all": "kill-port 5103 5102 && sleep 1 && echo '\\n[start:all] API → http://localhost:5103  |  WEB → http://localhost:5102\\n' && PORT=5103 pnpm --filter api start & PORT=5102 pnpm --filter web start & wait",
+    "start:all": "kill-port 5103 5102 && sleep 1 && echo '\\n[start:all] API \u2192 http://localhost:5103  |  WEB \u2192 http://localhost:5102\\n' && PORT=5103 pnpm --filter api start & PORT=5102 pnpm --filter web start & wait",
     "clean": "rm -rf apps/web/.nuxt apps/web/.output apps/web/node_modules/.vite apps/api/dist node_modules/.cache && echo 'Cleaned all caches'",
     "rebrand": "tsx scripts/rebrand.ts",
     "a11y-audit": "cd apps/cli && tsx src/index.ts publist",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,mts,cts,js,mjs,cjs,vue,css,json}\"",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "synthetic-controls": "tsx --tsconfig scripts/tsconfig.json scripts/synthetic-controls.ts",
+    "verify-controls": "tsx --tsconfig scripts/tsconfig.json scripts/verify-controls.ts"
   },
   "engines": {
     "node": ">=22"

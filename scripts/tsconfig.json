@@ -1,0 +1,16 @@
+{
+  "//": "Lets tsx resolve the #config alias (root audit.config.ts) for scripts that import the analyzer — same mapping apps/api and packages/analyzer carry. Without it, every script importing the analysis pipeline dies with ERR_INVALID_PACKAGE_TARGET (verify-controls.ts had been broken this way since the package extraction).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": { "#config": ["../audit.config.ts"] }
+  },
+  "include": ["./**/*", "../audit.config.ts"]
+}

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.117.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: a new battery of trap documents built to catch this checker being wrong, one real bug it caught, and the fix. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "A fair question was put to us: how do we know this checker actually works? Running it on real documents only proves it agrees with itself. So we built eighteen small PDF documents designed to trick it, each one constructed so the correct answer is known in advance: a document with a perfect title and language that is secretly just one big photograph; a description field filled with nothing but spaces; internal structure that loops back on itself; headings that are really whole paragraphs in disguise; a form with no labels next to an identical form with proper ones; the leftovers design tools leave behind; and text carrying hostile computer code, to prove it stays harmless. The checker was tested against all eighteen, and the battery can be re-run by anyone at any time &mdash; the documents are rebuilt from scratch on every run, so there is nothing to go stale.",
+      },
+      {
+        kind: "p",
+        html: "The battery caught one real bug, which is exactly what it is for. A picture description consisting only of blank spaces was being counted as a real description, because the check asked &ldquo;is there anything in the field?&rdquo; rather than &ldquo;is there anything a person would hear?&rdquo;. A screen reader reading three spaces says nothing. Fixed the same day, for both of the two fields a PDF can carry a description in &mdash; and we checked every real document in our test set: none of them has this defect, so no existing score changes. Three other traps initially failed and turned out to be OUR traps built wrong, not the checker &mdash; in each case the checker&rsquo;s existing judgment held up under scrutiny, including its deliberate choice not to call a fully-tagged image document &ldquo;a scan&rdquo;, since such a document can legitimately carry its text in its descriptions.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the fix is one word&rsquo;s worth of logic (trim before testing emptiness) in the reading of documents, plus two developer-only scripts that never run on the server. After the change, all 54 test documents &mdash; 36 real and 18 synthetic &mdash; pass every bookkeeping check, and not one real document&rsquo;s score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.116.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: a full security review of the day&rsquo;s thirteen releases, the two small things it turned up, and a complete re-verification of every test document. Nothing new is received, sent, or stored.",
     body: [

@@ -1127,11 +1127,19 @@ function parseQpdfJson(json: any): QpdfResult {
         if (tag === "/Figure" && structReachable) {
           const rawAlt = o["/Alt"];
           const rawActual = o["/ActualText"];
+          // TRIMMED emptiness, matching the formula branch below (v1.92.0) —
+          // this branch predated it and never caught up: /Alt (   ) passed the
+          // bare !== "" check and a whitespace-only "description" was counted
+          // as real alternative text. A screen reader reading three spaces
+          // announces nothing; hollow alt is missing alt. Found by the
+          // adversarial synthetic corpus (synthetic-03-hollow-alt.pdf).
+          const decodedAlt = typeof rawAlt === "string" ? decodeQpdfString(rawAlt) : "";
+          const decodedActual = typeof rawActual === "string" ? decodeQpdfString(rawActual) : "";
           const altText =
-            typeof rawAlt === "string" && decodeQpdfString(rawAlt) !== ""
-              ? decodeQpdfString(rawAlt)
-              : typeof rawActual === "string" && decodeQpdfString(rawActual) !== ""
-                ? decodeQpdfString(rawActual)
+            decodedAlt.trim() !== ""
+              ? decodedAlt
+              : decodedActual.trim() !== ""
+                ? decodedActual
                 : undefined;
           const hasAlt = altText !== undefined;
           result.images.push({ ref: normRef(ref), hasAlt, altText });

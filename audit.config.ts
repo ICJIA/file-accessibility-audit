@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "synthetic-trap-corpus-2026-08-28",
+    badge: "Verified",
+    text: "How do we know this checker actually works? Fair question — running it on real documents only proves it agrees with itself. So we built eighteen small trap documents designed to fool it, each constructed so the correct answer is known in advance: a document with a perfect title that is secretly one big photograph, a picture description made only of blank spaces, internal structure that loops back on itself, headings that are really whole paragraphs, a form with no labels beside an identical one with proper labels, the leftovers design tools like Canva and InDesign leave behind, and text carrying hostile computer code to prove it stays harmless. The checker passed all eighteen — after the battery caught one real bug, which is exactly what it is for: a description of only blank spaces was counted as a real description. That is fixed; a check now asks what a person would hear, not whether the field has something in it. No real document in our test set had the defect, so no existing score changes. The battery is rebuilt from scratch on every run and anyone can re-run it.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 28, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "detached-tag-leftovers-2026-08-28",
     badge: "Fixed",
     text: "If a report marked images as missing a description and you could not find those images, this was why — and your score may now be higher. The remediator of a document told us that two pictures we flagged simply were not in it. That was correct: the document has four pictures and every one already had a description. The two we complained about were leftovers from a page that had been rebuilt — a scrap of an older version left inside the file, on no page, connected to nothing, and unreachable by a screen reader. We had been counting them as real content. That report scores 100 out of 100; we had given it 79. Leftovers like this are completely ordinary — design and layout programs leave them behind whenever a page is remade after being prepared for accessibility — so nothing about the submitted document needed fixing. We now follow the path back to the top of a document to decide whether a piece is really part of it, rather than trusting a single step.",
