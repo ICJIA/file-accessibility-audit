@@ -24,10 +24,10 @@ const ROOT = resolve(HERE, "..");
 const apiRequire = createRequire(resolve(ROOT, "apps/api/package.json"));
 const puppeteer = apiRequire("puppeteer");
 const OUT_DIR = resolve(ROOT, "apps/web/app/assets/diagrams");
-const MERMAID_BUNDLE = resolve(
-  ROOT,
-  "node_modules/.pnpm/mermaid@11.15.0/node_modules/mermaid/dist/mermaid.min.js",
-);
+// Resolved through require so the path survives version bumps (a hardcoded
+// .pnpm/mermaid@x.y.z path broke silently on the 11.17.2 update).
+const rootRequire = createRequire(resolve(ROOT, "package.json"));
+const MERMAID_BUNDLE = rootRequire.resolve("mermaid/dist/mermaid.min.js");
 
 // const-name → output filename
 const NAME_MAP = {

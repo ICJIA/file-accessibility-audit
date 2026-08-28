@@ -882,7 +882,8 @@ export const defaultProbes: EngineProbes = {
     // probe would be disproportionate to the question being asked; an
     // executable check answers "could we launch one if we needed to".
     const puppeteer = (await import("puppeteer")).default;
-    const bin = puppeteer.executablePath();
+    // puppeteer ≥24 resolves the browser install asynchronously.
+    const bin = await puppeteer.executablePath();
     if (!bin) return { ok: false, reason: "not_configured" };
     await access(bin, constants.X_OK);
     return { ok: true };

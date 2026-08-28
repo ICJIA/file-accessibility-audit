@@ -26,7 +26,7 @@
     "helmet": "^8.1.0",
     "jszip": "^3.10.1",
     "multer": "^2.2.0",
-    "puppeteer": "^23.0.0"
+    "puppeteer": "^25.9.0"
   },
   "devDependencies": {
     "@opendataloader/pdf": "^2.4.3",

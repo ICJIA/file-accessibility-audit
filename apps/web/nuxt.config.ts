@@ -152,7 +152,7 @@ export default defineNuxtConfig({
         ...(ANALYTICS.PLAUSIBLE_HOST
           ? [
               {
-                rel: "preconnect",
+                rel: "preconnect" as const,
                 href: ANALYTICS.PLAUSIBLE_HOST,
                 crossorigin: "anonymous" as const,
               },
