@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.113.0] - 2026-08-28
+
+### Changed
+
+- **The Matterhorn checklist is readable on a document with many findings.** Reported from a real report: _"for files with lots of errors, it can be difficult to see what goes with what."_ The 31 checkpoints tiled two-up, and a grid row is as tall as its tallest cell — so checkpoint 01 with two long veraPDF clauses sat beside an empty 02, and 06 with three clauses sat beside a one-line 05, leaving a column of dead space and the reader to work out which heading a block of findings belonged to. **A checkpoint that has findings now takes the full width**, so its evidence can only sit under its own heading; the one-line clean checkpoints keep tiling two-up, which is what they are good for.
+- **Findings are tied to their checkpoint and share one left edge.** The evidence list gained a rail — a left border running down the block — and each line is a two-column grid with a fixed-width tag column, so the `veraPDF` markers stack in their own column and every description starts at the same x, including the plain-language findings that carry no marker. A wrapped clause now hangs under its own text instead of running back to the margin, which is what made a list of five long ISO clauses hard to read.
+
+### Notes
+
+- No change to what the panel says: same checkpoints, same statuses, same evidence, same honesty contract (no aggregate count, no bare "Pass"). This is layout only.
+- Verified by eye, not only by test: rendered against a 246-page report carrying the exact veraPDF clauses from the report that prompted this, and screenshotted at full-panel and single-checkpoint zoom.
+- Tests: API 1,583 · web 1,263 · CLI 49 (**2,895**), 2 new — one pinning that a checkpoint with findings spans the full width while a clean one does not, one pinning the rail.
+
+<details>
+<summary><strong>v1.112.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.112.0] - 2026-08-28
 
 ### Added
@@ -20,8 +36,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - `statusPrivacy.test.ts` pins the exact key set of `payload.disk`, so the two new keys are an explicit, reviewed addition rather than a silent one: both are the same numbers already published, formatted, and disclose nothing further about the machine.
 - Tests: API 1,583 · web 1,261 · CLI 49 (**2,893**), 9 new.
 
-<details>
-<summary><strong>v1.111.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.111.0] - 2026-08-28
 

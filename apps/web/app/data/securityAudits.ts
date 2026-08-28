@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.113.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: the layout of one panel on the report, so a document with many findings can be read. No wording, scoring, or data changed.",
+    body: [
+      {
+        kind: "p",
+        html: "Reports carry a section that lays this tool&rsquo;s findings out against the PDF industry&rsquo;s 31-point checklist. It was arranged in two columns, and a document with a lot of problems became hard to follow: a checkpoint carrying five long technical findings sat beside one carrying none, so half the page was empty and it took effort to see which findings belonged to which heading. A reader told us exactly that. A checkpoint that has findings now takes the full width of the page, with its findings directly underneath it and a line down the left tying them together; the short, clean checkpoints still sit two to a row, which is what they suit.",
+      },
+      {
+        kind: "p",
+        html: "The findings themselves now line up in columns, so the long technical quotations start at the same place and a sentence that runs onto a second line stays indented instead of returning to the far left. Nothing about the content changed &mdash; the same checkpoints, the same wording, the same evidence, and the same rule that this section never shows a total or a pass mark, because a second number beside a grade is read as a second grade.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: this release changes appearance only &mdash; no new information is shown, collected, sent, or stored, and no score moved. It was checked by eye as well as by test, rendered against a 246-page report carrying the same findings as the one that prompted the report. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.112.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: making the machine-readable version of this page easier for a person to read. Nothing new is received, sent, or stored.",
     body: [

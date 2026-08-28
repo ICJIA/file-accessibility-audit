@@ -565,6 +565,43 @@ describe("MatterhornReportPanel.vue — the honesty contract", () => {
     expect(text).toContain("Needs human review");
   });
 
+  // Layout, reported 2026-08-28 from a real report: "for files with lots of
+  // errors, it can be difficult to see what goes with what". In a two-column
+  // grid every row is as tall as its tallest cell, so checkpoint 01 with two
+  // long veraPDF clauses sat beside an empty 02, and 06's five clauses sat
+  // beside a one-line 05 — leaving the reader to guess which heading a block
+  // of findings belonged to. A checkpoint that HAS findings now takes the full
+  // width, so its evidence can only sit under its own heading; the one-line
+  // clean ones keep tiling two-up.
+  it("gives a checkpoint with findings the full width, and leaves clean ones tiled", async () => {
+    const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
+    await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
+
+    const rows = w.findAll('[data-testid="matterhorn-row"]');
+    expect(rows.length).toBeGreaterThan(10);
+
+    const withEvidence = rows.filter((r) => r.find('[data-testid="matterhorn-evidence"]').exists());
+    const withoutEvidence = rows.filter(
+      (r) => !r.find('[data-testid="matterhorn-evidence"]').exists(),
+    );
+    expect(withEvidence.length).toBeGreaterThan(0);
+    expect(withoutEvidence.length).toBeGreaterThan(0);
+
+    for (const row of withEvidence) expect(row.classes()).toContain("sm:col-span-2");
+    for (const row of withoutEvidence) expect(row.classes()).not.toContain("sm:col-span-2");
+  });
+
+  it("attaches findings to their checkpoint with a rail rather than loose indentation", async () => {
+    const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
+    await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
+
+    const evidence = w.find('[data-testid="matterhorn-evidence"]');
+    expect(evidence.exists()).toBe(true);
+    // A left border ties the block to the heading above it; without it the
+    // findings float between two columns of headings.
+    expect(evidence.classes().join(" ")).toMatch(/border-l/);
+  });
+
   it("renders the unmapped bucket and the veraPDF-missing note in their respective states", async () => {
     const w1 = mount(MatterhornReportPanel, { props: { result: issuesReport } });
     await w1.get('[data-testid="matterhorn-report-toggle"]').trigger("click");

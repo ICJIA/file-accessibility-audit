@@ -116,11 +116,18 @@ const MAX_EVIDENCE_PER_ROW = 5;
         engine's checks alone.
       </p>
 
+      <!-- Two columns for the one-line checkpoints; FULL WIDTH the moment a
+           checkpoint has findings. A grid row is as tall as its tallest cell,
+           so a checkpoint with five veraPDF clauses used to sit beside an
+           empty one and the reader had to work out which heading a block of
+           findings belonged to. Reported from a real report, 2026-08-28. -->
       <ol class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2 list-none p-0">
         <li
           v-for="row in projection.rows"
           :key="row.checkpoint.id"
           class="border-t border-[var(--border-subtle,var(--border))] pt-3"
+          :class="row.evidence.length ? 'sm:col-span-2' : ''"
+          data-testid="matterhorn-row"
         >
           <div class="flex items-start gap-3">
             <span
@@ -137,19 +144,32 @@ const MAX_EVIDENCE_PER_ROW = 5;
                   >{{ STATUS_STYLES[row.status].label }}</span
                 >
               </p>
+              <!-- The rail is what ties these lines to the heading above
+                   them. Each line is a two-column grid so a wrapped clause
+                   hangs under its own text instead of under the veraPDF tag —
+                   the clauses run long, and a ragged left edge is what made a
+                   list of five of them hard to read. The tag column is a FIXED
+                   width rather than auto: each line is its own grid, so an
+                   auto column would size to its own row and every description
+                   would start at a different x — including the plain-language
+                   findings, which carry no tag at all. -->
               <ul
                 v-if="row.evidence.length"
-                class="mt-1 space-y-0.5 text-xs text-[var(--text-muted)] leading-relaxed list-none p-0"
+                class="mt-1.5 space-y-1.5 border-l border-[var(--border)] pl-3 text-xs text-[var(--text-muted)] leading-relaxed list-none"
+                data-testid="matterhorn-evidence"
               >
-                <li v-for="ev in row.evidence.slice(0, MAX_EVIDENCE_PER_ROW)" :key="ev.label">
+                <li
+                  v-for="ev in row.evidence.slice(0, MAX_EVIDENCE_PER_ROW)"
+                  :key="ev.label"
+                  class="grid grid-cols-[3.75rem_1fr] gap-x-1"
+                >
                   <span
-                    v-if="ev.source === 'verapdf'"
-                    class="font-mono text-[10px] uppercase tracking-wider text-amber-300/80"
-                    >veraPDF</span
+                    class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-amber-300/80"
+                    >{{ ev.source === "verapdf" ? "veraPDF" : "" }}</span
                   >
-                  {{ ev.label }}
+                  <span>{{ ev.label }}</span>
                 </li>
-                <li v-if="row.evidence.length > MAX_EVIDENCE_PER_ROW">
+                <li v-if="row.evidence.length > MAX_EVIDENCE_PER_ROW" class="pl-1 italic">
                   … and {{ row.evidence.length - MAX_EVIDENCE_PER_ROW }} more finding(s) — see the
                   categories above.
                 </li>
