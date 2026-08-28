@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "can-i-trust-this-2026-08-28",
+    badge: "New page",
+    text: "A fair question deserves its own page: Can I trust this? The new link at the top and bottom of every screen answers it in plain English — the laws this checker serves (Title II of the ADA, the Illinois IITAA, and the WCAG rulebook both point to), the independent referee program that co-signs every report, the battery of trap documents built specifically to fool the checker (now 39 of them — all judged correctly), the near-daily tuning with the agency's file accessibility specialist, and the grade disputes the checker lost in public and fixed the same day. Every number on the page is pulled from the live system, under a big dated stamp so you can see exactly how fresh it is.",
+    linkText: "Can I trust this?",
+    /** Static file in public/, NOT a Vue route — plain <a> semantics. */
+    linkTo: "/trust.html",
+    linkExternal: true,
+    date: "August 28, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "synthetic-trap-corpus-2026-08-28",
     badge: "Verified",
     text: "How do we know this checker actually works? Fair question — running it on real documents only proves it agrees with itself. So we built eighteen small trap documents designed to fool it, each constructed so the correct answer is known in advance: a document with a perfect title that is secretly one big photograph, a picture description made only of blank spaces, internal structure that loops back on itself, headings that are really whole paragraphs, a form with no labels beside an identical one with proper labels, the leftovers design tools like Canva and InDesign leave behind, and text carrying hostile computer code to prove it stays harmless. The checker passed all eighteen — after the battery caught one real bug, which is exactly what it is for: a description of only blank spaces was counted as a real description. That is fixed; a check now asks what a person would hear, not whether the field has something in it. No real document in our test set had the defect, so no existing score changes. The battery is rebuilt from scratch on every run and anyone can re-run it.",

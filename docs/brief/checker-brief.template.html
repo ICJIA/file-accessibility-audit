@@ -1,0 +1,257 @@
+<title>Built to Be Checked</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#14181d; --panel2:#181d23; --line:#232a32;
+    --text:#e8ebee; --muted:#9aa3ad;
+    --good:#34d399; --bad:#f87171; --ext:#fbbf24; --act:#67e8f9;
+    --good-dim:rgba(52,211,153,.12); --bad-dim:rgba(248,113,113,.12);
+    --ext-dim:rgba(251,191,36,.12); --act-dim:rgba(103,232,249,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:"Public Sans",system-ui,sans-serif;
+    line-height:1.5; padding:0 20px 80px;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+  .display{font-family:"Archivo Black",system-ui,sans-serif;line-height:1.05;text-wrap:balance}
+  .mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+  section{padding:56px 0;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:none}
+  .kicker{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  .kicker b{color:var(--act);font-weight:700}
+  h2.display{font-size:clamp(28px,4.6vw,44px);margin-bottom:14px}
+  .lede{font-size:clamp(17px,2.1vw,21px);color:var(--muted);max-width:64ch}
+  .lede strong{color:var(--text)}
+
+  /* ---------- date stamp ---------- */
+  .stamp{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:34px;
+    border:2px solid var(--ext);background:var(--ext-dim);border-radius:14px;padding:16px 22px}
+  .stamp .lbl{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ext);max-width:30ch;line-height:1.4}
+  .stamp .date{font-family:"Archivo Black";font-size:clamp(26px,4.2vw,40px);color:var(--ext);white-space:nowrap;margin-left:auto}
+  /* ---------- hero ---------- */
+  .hero{padding:72px 0 56px}
+  .hero h1{font-size:clamp(38px,7vw,74px);margin:10px 0 18px}
+  .hero h1 .good{color:var(--good)}
+  .hero .sub{font-size:clamp(18px,2.4vw,23px);color:var(--muted);max-width:56ch}
+  .statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:44px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 24px}
+  .stat .n{font-family:"Archivo Black";font-size:clamp(40px,5.5vw,58px);line-height:1;white-space:nowrap}
+  .stat .n.good{color:var(--good)} .stat .n.ext{color:var(--ext)} .stat .n.act{color:var(--act)}
+  .stat .l{margin-top:10px;font-size:15px;color:var(--muted);font-weight:600}
+
+  /* ---------- pipeline ---------- */
+  .pipe{display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;margin-top:34px}
+  .pipe .node{flex:1 1 200px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .pipe .arrow{align-self:center;color:var(--muted);font-size:26px;font-family:"IBM Plex Mono"}
+  .node .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    padding:4px 10px;border-radius:999px;margin-bottom:12px}
+  .tag.ours{background:var(--act-dim);color:var(--act);border:1px solid var(--act)}
+  .tag.theirs{background:var(--ext-dim);color:var(--ext);border:1px solid var(--ext)}
+  .tag.rule{background:var(--good-dim);color:var(--good);border:1px solid var(--good)}
+  .node h3{font-size:19px;margin-bottom:6px}
+  .node p{font-size:14.5px;color:var(--muted)}
+  .verdicts{display:flex;flex-direction:column;gap:10px;justify-content:center}
+  .verdicts .v{border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px}
+  .v.a{background:var(--act-dim);border:1px solid var(--act);color:var(--act)}
+  .v.b{background:var(--ext-dim);border:1px solid var(--ext);color:var(--ext)}
+  .agree{margin-top:22px;font-size:16px;color:var(--muted)}
+  .agree strong{color:var(--text)}
+
+  /* ---------- trap grid ---------- */
+  .traps{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px;margin-top:32px}
+  .trap{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+  .trap .name{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+  .trap .what{font-size:16px;font-weight:700;line-height:1.3}
+  .chip{align-self:flex-start;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    padding:4px 11px;border-radius:999px}
+  .chip.held{background:var(--good-dim);color:var(--good);border:1px solid var(--good)}
+  .chip.caught{background:var(--bad-dim);color:var(--bad);border:1px solid var(--bad)}
+  .trap.more{justify-content:center;align-items:center;border-style:dashed}
+  .trap.more .what{color:var(--muted);text-align:center;font-weight:600}
+  .bugcard{margin-top:26px;background:linear-gradient(90deg,var(--bad-dim),var(--good-dim));
+    border:1px solid var(--line);border-radius:14px;padding:24px 26px}
+  .bugcard h3{font-size:clamp(19px,2.4vw,24px);margin-bottom:8px}
+  .bugcard h3 .bad{color:var(--bad)} .bugcard h3 .good{color:var(--good)}
+  .bugcard p{color:var(--muted);max-width:70ch}
+
+  /* ---------- disputes ---------- */
+  .disputes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:32px}
+  .dis{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .dis .who{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .dis .grade{font-family:"Archivo Black";font-size:34px;margin:6px 0 10px}
+  .grade .from{color:var(--bad)} .grade .to{color:var(--good)}
+  .grade .arrow{color:var(--muted);font-size:24px;font-family:"Public Sans";font-weight:400}
+  .grade .right{color:var(--good);font-size:26px}
+  .dis p{font-size:14.5px;color:var(--muted)}
+
+  /* ---------- timeline ---------- */
+  .timeline{margin-top:34px;display:flex;flex-direction:column;gap:0}
+  .tl{display:grid;grid-template-columns:110px 16px 1fr;gap:0 16px;align-items:start}
+  .tl .ver{font-family:"IBM Plex Mono";font-size:13.5px;color:var(--act);font-weight:600;padding-top:2px;text-align:right}
+  .tl .rail{position:relative;display:flex;justify-content:center}
+  .tl .rail::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--line)}
+  .tl .dot{position:relative;width:12px;height:12px;border-radius:50%;background:var(--good);margin-top:5px;border:2px solid var(--bg)}
+  .tl:nth-child(odd) .dot{background:var(--act)}
+  .tl .body{padding:0 0 26px}
+  .tl .body b{font-size:16.5px}
+  .tl .body span{display:block;color:var(--muted);font-size:14.5px;margin-top:2px;max-width:66ch}
+
+  /* ---------- closer ---------- */
+  .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:32px}
+  .check{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .check .big{font-family:"Archivo Black";font-size:21px;color:var(--good);margin-bottom:8px}
+  .check p{font-size:14.5px;color:var(--muted)}
+  .check p .mono{color:var(--text);font-size:13px}
+  .finalline{margin-top:40px;font-size:clamp(20px,3vw,28px)}
+  .finalline .good{color:var(--good)}
+  footer{margin-top:26px;padding-top:22px;border-top:1px solid var(--line);display:flex;gap:26px;flex-wrap:wrap;
+    font-size:14px;color:var(--muted)}
+  footer a{color:var(--act);text-decoration:none;font-weight:600}
+  footer a:hover,footer a:focus-visible{text-decoration:underline;outline:none}
+  @media (max-width:560px){ .tl{grid-template-columns:70px 14px 1fr} .tl .ver{font-size:11.5px} }
+</style>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="kicker">audit.icjia.app &middot; built for <b>Title II ADA</b> &middot; <b>WCAG</b> &middot; <b>Illinois IITAA</b></div>
+    <h1 class="display">Don't trust the person<br>who built it. <span class="good">Check it.</span></h1>
+    <p class="sub">Every claim on this page can be verified without taking anyone's word for it &mdash; including ours.</p>
+    <div class="stamp"><span class="lbl">Every number below was pulled live from the running system on</span><span class="date">{{DATE_BIG}}</span></div>
+    <div class="statrow">
+      <div class="stat"><div class="n good mono">{{AUDITS_TOTAL}}</div><div class="l">check-ups run for Illinois agencies &mdash; and, as word has spread, outside clients too. {{AUDITS_30D}} in the last 30 days alone</div></div>
+      <div class="stat"><div class="n good mono">{{TESTS}}</div><div class="l">self-checks the software runs on itself before it goes live &mdash; one failure blocks the change</div></div>
+      <div class="stat"><div class="n act mono">{{TRAPS}} / {{TRAPS}}</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div></div>
+      <div class="stat"><div class="n ext mono">{{COMMITS}}</div><div class="l">saved, dated, public changes over {{WEEKS}} weeks &mdash; every step on the record</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">what it does</div>
+    <h2 class="display">One job: is this document readable by everyone?</h2>
+    <p class="lede">Many people who are blind or can't see well use a <strong>screen reader</strong> &mdash; software that reads what's on the screen out loud. A document is <strong>accessible</strong> when a screen reader can read it correctly. Upload a PDF, Word, PowerPoint, or Excel file and in about a minute this tool reports everything that would trip a screen reader up &mdash; <strong>and exactly how to fix each one.</strong> <strong>Title II of the ADA</strong> and the <strong>Illinois Information Technology Accessibility Act (IITAA)</strong> require this of every public body &mdash; and both point to the same rulebook: <strong>WCAG</strong>.</p>
+  </section>
+
+  <section>
+    <div class="kicker">the law &middot; three names, one idea</div>
+    <h2 class="display">Title II. IITAA. WCAG.</h2>
+    <p class="lede">Government information must work for everyone. Two laws say so; one rulebook defines "works."</p>
+    <div class="pipe">
+      <div class="node"><span class="tag theirs">Federal law</span><h3><a href="https://www.ada.gov/resources/2024-03-08-web-rule/" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">Title II of the ADA</a></h3><p>The Department of Justice rule for state and local government. It names <strong style="color:var(--text)">WCAG 2.1 Level AA</strong> as the standard &mdash; and its compliance deadlines began in <strong style="color:var(--text)">April 2026</strong>. This is not optional, and it is not in the future.</p></div>
+      <div class="node"><span class="tag ours">Illinois law</span><h3><a href="https://doit.illinois.gov/initiatives/accessibility.html" style="color:inherit;text-decoration:underline;text-decoration-color:var(--act)">IITAA</a></h3><p>The Illinois Information Technology Accessibility Act &mdash; our state's own accessibility law, older than the federal rule, also built on <strong style="color:var(--text)">WCAG 2.1 AA</strong>. It applies to every Illinois public body, including this one.</p></div>
+      <div class="node"><span class="tag rule">The rulebook</span><h3><a href="https://www.w3.org/WAI/standards-guidelines/wcag/" style="color:inherit;text-decoration:underline;text-decoration-color:var(--good)">WCAG</a></h3><p>The Web Content Accessibility Guidelines &mdash; the international rulebook both laws point to. This checker tests the newer <strong style="color:var(--text)">WCAG 2.2 AA</strong>, which contains <strong style="color:var(--text)">everything in 2.1</strong> plus the newest requirements. Pass here and you have passed the version the law names.</p></div>
+    </div>
+    <p class="agree">Every finding on every report names the <strong>WCAG rule behind it</strong>, so a reviewer can trace any grade straight back to the law's own standard.</p>
+  </section>
+
+  <section>
+    <div class="kicker">the tests</div>
+    <h2 class="display">What every check-up looks at.</h2>
+    <p class="lede">Up to <strong>nine graded areas per document</strong>, matched against the PDF industry's official 31-point checklist &mdash; the same one professional human reviewers work from. Every finding cites the <strong>WCAG</strong> rule behind it &mdash; plus an honest list of what only a person can judge.</p>
+    <div class="traps" style="margin-top:28px">
+      <div class="trap"><span class="what">Real, selectable text</span><span class="name">words, not pictures of words</span></div>
+      <div class="trap"><span class="what">Title &amp; language</span><span class="name">what a screen reader announces first</span></div>
+      <div class="trap"><span class="what">True headings</span><span class="name">levels, order &mdash; and whether they say anything</span></div>
+      <div class="trap"><span class="what">Image descriptions</span><span class="name">every picture a reader can't see</span></div>
+      <div class="trap"><span class="what">Table structure</span><span class="name">header cells, and which way they point</span></div>
+      <div class="trap"><span class="what">Reading order</span><span class="name">is it read aloud in the order a person would read it?</span></div>
+      <div class="trap"><span class="what">Links &amp; navigation</span><span class="name">bookmarks, link text that means something</span></div>
+      <div class="trap"><span class="what">Forms</span><span class="name">labeled fields, keyboard order</span></div>
+      <div class="trap"><span class="what">Word &middot; PowerPoint &middot; Excel</span><span class="name">their own check suites, same scoring rules</span></div>
+    </div>
+    <p class="agree">Every report also states plainly what automation <strong>cannot</strong> check &mdash; about 60&ndash;70% of accessibility is human judgment, and the report says so on every grade.</p>
+  </section>
+
+  <section>
+    <div class="kicker">the referee &middot; <b>PDF/UA</b> &amp; <b>veraPDF</b></div>
+    <h2 class="display">It doesn't grade its own homework.</h2>
+    <p class="lede"><strong>PDF/UA</strong> is the international rulebook for PDFs a screen reader can use &mdash; an official standard, like a building code for documents. <strong>veraPDF</strong> is a separate referee program that checks files against that rulebook, built by the PDF industry's own association &mdash; not by us, and used by national libraries worldwide. It runs beside our checker <strong>on every single report</strong>, as an independent second opinion.</p>
+    <div class="pipe">
+      <div class="node"><h3>Your document</h3><p>Checked, never stored. Deleted the moment the report is built.</p></div>
+      <div class="arrow" aria-hidden="true">&rarr;</div>
+      <div class="node"><span class="tag ours">Built in-house</span><h3>Our checker</h3><p>Structure, headings, image descriptions, tables, forms, reading order.</p></div>
+      <div class="node"><span class="tag theirs">PDF Association</span><h3>veraPDF</h3><p>The industry's own PDF/UA validator. We did not write one line of it.</p></div>
+      <div class="arrow" aria-hidden="true">&rarr;</div>
+      <div class="node verdicts"><div class="v a">Our verdict</div><div class="v b">Their verdict</div></div>
+    </div>
+    <p class="agree">Two independent referees on every report. <strong>If ours were wrong, theirs would say so &mdash; in public, on every audit.</strong> And one precision the experts will appreciate: <strong>Title II and IITAA require WCAG, not a PDF/UA badge</strong> &mdash; the two overlap heavily by design, and this report checks both, telling you plainly which rulebook each finding belongs to.</p>
+  </section>
+
+  <section>
+    <div class="kicker">the trap test</div>
+    <h2 class="display">We built {{TRAPS}} documents designed to fool it.</h2>
+    <p class="lede">Real documents can't prove a checker is right &mdash; nobody knows their ground truth. So we built trap PDFs where <strong>the correct answer is known in advance</strong>, including the exact tricks Canva, InDesign, and lazy shortcuts produce. Anyone can re-run the whole battery; the traps are rebuilt from scratch every time.</p>
+    <div class="traps">
+      <div class="trap"><span class="name">synthetic-02</span><span class="what">Perfect title &amp; language &mdash; secretly one big photo</span><span class="chip held">Caught &middot; scored 0</span></div>
+      <div class="trap"><span class="name">synthetic-03</span><span class="what">Image "description" of nothing but blank spaces</span><span class="chip caught">Found a real bug</span></div>
+      <div class="trap"><span class="name">synthetic-07</span><span class="what">Whole paragraphs disguised as headings</span><span class="chip held">Caught</span></div>
+      <div class="trap"><span class="name">synthetic-13</span><span class="what">Big bold text instead of real headings</span><span class="chip held">Caught</span></div>
+      <div class="trap"><span class="name">synthetic-14</span><span class="what">InDesign's custom naming soup, one typo deep</span><span class="chip held">Read correctly</span></div>
+      <div class="trap"><span class="name">synthetic-15</span><span class="what">A page built the way Canva sometimes builds them &mdash; unreadable inside</span><span class="chip held">Said "can't judge" instead of guessing</span></div>
+      <div class="trap"><span class="name">synthetic-16</span><span class="what">A form with no labels on any field</span><span class="chip held">Caught</span></div>
+      <div class="trap"><span class="name">synthetic-12</span><span class="what">Hostile computer code hidden in the text</span><span class="chip held">Stayed harmless</span></div>
+      <div class="trap"><span class="name">synthetic-05</span><span class="what">Internal structure that loops forever</span><span class="chip held">No crash, no hang</span></div>
+      <div class="trap more"><span class="what">&hellip;and {{TRAPS_REST}} more &mdash; skipped and empty and generic headings, ragged and nested tables, &ldquo;click here&rdquo; links, unlabeled forms, looping internal maps, hidden scripts &mdash; plus the good twins it must NOT flag. All {{TRAPS}} held.</span></div>
+    </div>
+    <div class="bugcard">
+      <h3><span class="bad">The battery caught one real bug</span> &mdash; <span class="good">which is exactly what it's for.</span></h3>
+      <p>A description made only of blank spaces was being counted as a real description. Fixed the same day, documented publicly, and verified against every real document in the test set: none had the defect, so no score changed. A checker that only pretends to work doesn't catch itself.</p>
+      <p style="margin-top:10px">And the battery is not just spelling tests. It re-proves, on every run, the hard cases real documents taught this checker the hard way: <strong style="color:var(--text)">Canva's phantom leftovers</strong> that once cost a clean report a grade, <strong style="color:var(--text)">InDesign's custom naming soup</strong>, the rubble Acrobat's page-combining leaves behind, headings that exist but say nothing, tables whose headers point nowhere, forms with no labels &mdash; document structure errors, not typos.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">the feedback loop &middot; research &amp; analysis unit</div>
+    <h2 class="display">Honed with the agency's own file accessibility specialist.</h2>
+    <p class="lede">The checker is tuned in <strong>near-daily working sessions with ICJIA's file accessibility specialist</strong> in the Research &amp; Analysis unit &mdash; real documents, real disputes, fixes shipped the same day. Three grade challenges from document experts this week alone, each settled by <strong>reading the file itself</strong>, never by defending the tool.</p>
+    <div class="disputes">
+      <div class="dis"><div class="who">State accessibility team &middot; a form</div>
+        <div class="grade"><span class="from">65 D</span> <span class="arrow">&rarr;</span> <span class="to">100 A</span></div>
+        <p>The expert was right. The checker mis-measured forms. Fixed and published the same day.</p></div>
+      <div class="dis"><div class="who">A document-repair specialist &middot; two "missing" images</div>
+        <div class="grade"><span class="from">79 C</span> <span class="arrow">&rarr;</span> <span class="to">100 A</span></div>
+        <p>Right again &mdash; the "images" were leftovers from a rebuilt page, on no page at all. Fixed the same day.</p></div>
+      <div class="dis"><div class="who">Another expert &middot; table headers</div>
+        <div class="grade"><span class="right">Checker was right &#10003;</span></div>
+        <p>Verified against the file's internals &mdash; the flag was real. The advice was made clearer instead.</p></div>
+    </div>
+    <p class="agree" style="margin-top:26px"><strong>Software that only pretends to work can't afford to lose an argument in public.</strong> This one has &mdash; twice &mdash; and got better both times. And the loop closes: <strong>{{REAUDITED}} documents came back re-audited after repairs in the last 30 days; {{REACHED_A}} reached an A.</strong></p>
+  </section>
+
+  <section>
+    <div class="kicker">the evolution &middot; march to august 2026</div>
+    <h2 class="display">{{MONTHS_WORD}} months. {{COMMITS}} commits. {{VERSIONS}} versions.</h2>
+    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>{{COMMITS_30D}} saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. Every strange document an agency has thrown at it became a documented fix.</p>
+    <div class="timeline">
+      <div class="tl"><div class="ver mono">v1.24</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Adopted WCAG 2.2 AA</b><span>Everything in WCAG 2.1 &mdash; the version Title II ADA and IITAA name &mdash; plus the newest requirements.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.68</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Removed all accounts and identity</b><span>No logins, no emails, nothing stored about who uses it.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.91&ndash;95</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Covered all 31 industry checkpoints</b><span>The Matterhorn Protocol &mdash; the PDF industry's own test model &mdash; mapped on every report.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.107&ndash;111</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Lost two public arguments, fixed both</b><span>Expert challenges resolved by reading the files. Grades corrected the same day.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.110</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Made itself stricter</b><span>Headings now judged by what they say, not just how they're numbered &mdash; scores went down, not up.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.109</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Fixed the outlier that refused big reports</b><span>A 246-page annual report was wrongly called "too complex" &mdash; traced to the server, not the file, and fixed with proof.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.117</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Passes its own trap test, {{TRAPS}} / {{TRAPS}}</b><span>And caught one of its own bugs doing it.</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">the objection</div>
+    <h2 class="display">"But one person built it."</h2>
+    <p class="lede">Fair. So ignore the person entirely &mdash; <strong>every claim here is checkable by anyone:</strong></p>
+    <div class="checks">
+      <div class="check"><div class="big">The recipe is public</div><p>Every line of code and every change is published on GitHub, for anyone to read &mdash; a kitchen that cooks with the door open.</p></div>
+      <div class="check"><div class="big">Independent referee</div><p>veraPDF &mdash; the PDF industry's own validator &mdash; co-signs or contradicts every report.</p></div>
+      <div class="check"><div class="big">{{TESTS}} self-checks</div><p>Before any change goes live, the software re-tests every promise it has ever made. One failure blocks the change.</p></div>
+      <div class="check"><div class="big">Public paper trail</div><p>{{VERSIONS}} version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
+    </div>
+    <p class="finalline display">Microsoft's checker won't show you its evidence.<br><span class="good">This one is made of it.</span></p>
+    <footer>
+      <span>Try it: <a href="https://audit.icjia.app">audit.icjia.app</a></span>
+      <span>Read the code: <a href="https://github.com/ICJIA/file-accessibility-audit">github.com/ICJIA/file-accessibility-audit</a></span>
+      <span>Live status: <a href="https://audit.icjia.app/status?html">audit.icjia.app/status</a></span>
+      <span>Report generated <b style="color:var(--ext)">{{DATE_LONG}}</b> &mdash; regenerated with fresh numbers at every release</span>
+    </footer>
+  </section>
+
+</div>

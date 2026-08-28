@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.117.0",
+  "version": "1.118.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -22,7 +22,8 @@
     "format": "prettier --write \"**/*.{ts,mts,cts,js,mjs,cjs,vue,css,json}\"",
     "format:check": "prettier --check .",
     "synthetic-controls": "tsx --tsconfig scripts/tsconfig.json scripts/synthetic-controls.ts",
-    "verify-controls": "tsx --tsconfig scripts/tsconfig.json scripts/verify-controls.ts"
+    "verify-controls": "tsx --tsconfig scripts/tsconfig.json scripts/verify-controls.ts",
+    "build-brief": "node scripts/build-brief.mjs"
   },
   "engines": {
     "node": ">=22"

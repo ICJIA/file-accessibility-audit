@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.118.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: a new &ldquo;Can I trust this?&rdquo; page on the site, and the trap-document battery doubled. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "The site now answers its own hardest question. A new page &mdash; <strong>&ldquo;Can I trust this?&rdquo;</strong> in the menu at the top and bottom of every screen &mdash; lays out, in plain English, how this checker is verified: the laws it serves (Title II of the ADA, the Illinois IITAA, and the WCAG rulebook both point to, each linked to its official source), the independent referee program that co-signs every report, the battery of trap documents built to fool it, the near-daily tuning with the agency&rsquo;s file accessibility specialist, and the grade disputes it lost in public and fixed the same day. A large dated stamp shows exactly when its numbers were pulled from the live system, so a reader can always see how fresh the page is; it is regenerated with current numbers at every release.",
+      },
+      {
+        kind: "p",
+        html: "The trap battery described in the previous entry more than doubled, from 18 documents to <strong>39</strong> &mdash; adding, among others: headings that skip levels, headings that exist but say nothing, a title that is really a filename, header cells that point in no direction, bullets typed as plain text, tables nested inside tables, rows that do not line up, links that read &ldquo;click here&rdquo;, links no structure claims, footnotes that cannot be linked to, internal maps that loop in a circle, and hidden scripted actions &mdash; plus two &ldquo;good twin&rdquo; documents built CORRECTLY in unusual ways, which the checker must praise, not flag. <strong>All 39 held on the first run.</strong>",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the new page is a plain, static page &mdash; it runs no code, collects nothing, and has no form; the program that refreshes it runs only on the developer&rsquo;s machine, never on the server. A test now guarantees the page served by the site is byte-for-byte identical to the document version shared by email, so the two can never quietly disagree. No score changed, and no web address, stored record, or retention period changed beyond the one new page.",
+      },
+    ],
+  },
+  {
     version: "v1.117.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: a new battery of trap documents built to catch this checker being wrong, one real bug it caught, and the fix. Nothing new is received, sent, or stored.",
     body: [

@@ -67,6 +67,29 @@ const GRAY_IMG = (_n: number) =>
 const LONG = (seed: string) =>
   `${seed} is a sentence long enough to be body text rather than a label and it keeps going with plain words so the extractor sees a real paragraph of ordinary running prose here.`;
 
+/** A one-page document whose single tagged link carries the given text. */
+function linkDoc(linkText: string): Buffer {
+  const content =
+    `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Link doc")}) Tj ET\nEMC\n` +
+    `/Link << /MCID 1 >> BDC\nBT /F1 11 Tf 72 680 Td (${linkText}) Tj ET\nEMC\n`;
+  return buildPdf(
+    [
+      "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [9 0 R] >>",
+      stream(content),
+      "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+      "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 11 0 R] >>",
+      "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+      "<< /Nums [0 [7 0 R 11 0 R]] >>",
+      "<< /Type /Annot /Subtype /Link /Rect [72 675 260 692] /A << /S /URI /URI (https://example.com/page) >> /F 4 /StructParent 1 >>",
+      FONT,
+      "<< /Type /StructElem /S /Link /P 6 0 R /Pg 3 0 R /K [1 << /Type /OBJR /Obj 9 0 R >>] >>",
+    ],
+    "<< /Title (Link Text Sample) >>",
+  );
+}
+
 interface Sample {
   file: string;
   truth: string;
@@ -698,6 +721,602 @@ const SAMPLES: Sample[] = [
       const text = allFindings(r);
       if (/shaped like lines of writing|Lettering May Not Be Real Text/i.test(text)) return null;
       return "OBSERVE: line-shaped image did not trigger the lettering warning (thresholds may require more signals)";
+    },
+  },
+  // -------------------------------------------------------------------------
+  // Batch two (39 samples total): coverage of everything a non-accessible
+  // document plausibly does — heading pathologies, table pathologies, link
+  // pathologies, the Matterhorn advisories, RoleMap abuse, document
+  // behaviors — plus the GOOD twins the checker must never flag.
+  // -------------------------------------------------------------------------
+  {
+    file: "synthetic-19-skipped-heading-levels.pdf",
+    truth:
+      "H1 -> H3 -> H5 with nothing between: level skips break the outline (Matterhorn 13-004).",
+    build: () => {
+      const lv = [1, 3, 5, 1, 3, 5];
+      let content = "";
+      lv.forEach((l, i) => {
+        content += `/H${l} << /MCID ${i} >> BDC\nBT /F1 ${18 - l} Tf 72 ${740 - i * 40} Td (Section heading number ${i + 1}) Tj ET\nEMC\n`;
+      });
+      content += `/P << /MCID 6 >> BDC\nBT /F1 11 Tf 72 480 Td (${LONG("Level skips")}) Tj ET\nEMC\n`;
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 15 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 14 0 R >>",
+        "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R] >>",
+      ];
+      lv.forEach((l, i) =>
+        objs.push(`<< /Type /StructElem /S /H${l} /P 6 0 R /Pg 3 0 R /K ${i} >>`),
+      );
+      objs.push("<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 6 >>");
+      objs.push("<< /Nums [0 [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R]] >>");
+      objs.push(FONT);
+      return buildPdf(objs, "<< /Title (Skipped Heading Levels) >>");
+    },
+    check: (r) => {
+      const c = cat("heading_structure")(r)!;
+      if (c.score === 100) return "level skips scored 100";
+      if (!/skip/i.test(c.findings.join("\n"))) return "no skip finding";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-20-generic-h-only.pdf",
+    truth: "Only generic <H> tags, no levels at all — an outline with no hierarchy to navigate.",
+    build: () => {
+      let content = "";
+      for (let i = 0; i < 3; i++)
+        content += `/H << /MCID ${i} >> BDC\nBT /F1 15 Tf 72 ${740 - i * 60} Td (Generic heading ${i + 1}) Tj ET\nEMC\n`;
+      content += `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 540 Td (${LONG("Generic H")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 11 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 9 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /H /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /H /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Nums [0 [7 0 R 8 0 R 9 0 R 10 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Generic H Only) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("heading_structure")(r)!;
+      return c.score !== null && c.score < 100 ? null : `generic-only <H> scored ${c.score}`;
+    },
+  },
+  {
+    file: "synthetic-21-mixed-h-conventions.pdf",
+    truth:
+      "Numbered H1/H2 mixed with generic <H> — PDF/UA forbids mixing the two conventions (Matterhorn 14-002).",
+    build: () => {
+      let content = "";
+      ["H1", "H", "H2"].forEach((_, i) => {
+        content += `/T${i} << /MCID ${i} >> BDC\nBT /F1 15 Tf 72 ${740 - i * 60} Td (Mixed heading ${i + 1}) Tj ET\nEMC\n`;
+      });
+      content += `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 540 Td (${LONG("Mixed conventions")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 11 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 9 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /H /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Nums [0 [7 0 R 8 0 R 9 0 R 10 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Mixed Heading Conventions) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      return /generic <H>|mixing|14-002|convention/i.test(text)
+        ? null
+        : "mixed conventions not flagged";
+    },
+  },
+  {
+    file: "synthetic-22-filename-title.pdf",
+    truth:
+      "A title of 'report_v3_final.pdf' is a filename, not a title — flagged as such, not accepted quietly.",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Filename title")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (report_v3_final.pdf) >>",
+      );
+    },
+    check: (r) => (/filename/i.test(allFindings(r)) ? null : "filename-shaped title not flagged"),
+  },
+  {
+    file: "synthetic-23-title-display-off.pdf",
+    truth:
+      "A good title the viewer is told NOT to display — DisplayDocTitle unset means readers hear the filename anyway.",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Display off")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (A Perfectly Good Title) >>",
+      );
+    },
+    check: (r) =>
+      /DisplayDocTitle|title display|document title/i.test(allFindings(r))
+        ? null
+        : "OBSERVE: DisplayDocTitle-unset not mentioned",
+  },
+  {
+    file: "synthetic-24-th-without-scope.pdf",
+    truth:
+      "Header cells present but no /Scope and no /Headers — the exact defect from the v1.108 dispute; flagged with direction-by-position advice.",
+    build: () => {
+      let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Scope test")}) Tj ET\nEMC\n`;
+      let mcid = 1;
+      for (let row = 0; row < 2; row++)
+        for (let col = 0; col < 2; col++) {
+          const tag = row === 0 ? "TH" : "TD";
+          content += `/${tag} << /MCID ${mcid} >> BDC\nBT /F1 10 Tf ${72 + col * 120} ${660 - row * 24} Td (${tag} ${row}-${col}) Tj ET\nEMC\n`;
+          mcid++;
+        }
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 16 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 15 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [14 0 R 7 0 R] >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [8 0 R 9 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 7 0 R /K [10 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 7 0 R /K [12 0 R 13 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 8 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /TH /P 8 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [14 0 R 10 0 R 11 0 R 12 0 R 13 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Headers Without Direction) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/Scope/i.test(text)) return "missing-Scope not flagged";
+      if (!/top|Column.*Row|position/i.test(text)) return "no direction-by-position advice";
+      return null;
+    },
+  },
+  {
+    file: "synthetic-25-fake-bullet-list.pdf",
+    truth:
+      "Bullets typed as plain text with no list structure — a lazy-author move automation may not see; recorded honestly either way.",
+    build: () => {
+      let content = "";
+      const lines = [
+        "- First fake bullet item here",
+        "- Second fake bullet item here",
+        "- Third fake bullet item here",
+      ];
+      lines.forEach((l, i) => {
+        content += `/P << /MCID ${i} >> BDC\nBT /F1 11 Tf 72 ${720 - i * 20} Td (${l}) Tj ET\nEMC\n`;
+      });
+      content += `/P << /MCID 3 >> BDC\nBT /F1 11 Tf 72 640 Td (${LONG("Fake bullets")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 12 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 11 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 9 0 R 10 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Nums [0 [7 0 R 8 0 R 9 0 R 10 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Fake Bullet List) >>",
+      );
+    },
+    check: (r) =>
+      /list/i.test(allFindings(r))
+        ? null
+        : "OBSERVE: dash-bullets in plain paragraphs pass silently — a documented automation limit (no tag structure to inspect)",
+  },
+  {
+    file: "synthetic-26-nested-table.pdf",
+    truth:
+      "A table inside a table cell — extremely difficult for screen readers; must be flagged, and the inner one must not double the table count.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Nested table")}) Tj ET\nEMC\n` +
+        `/TD << /MCID 1 >> BDC\nBT /F1 10 Tf 80 660 Td (Outer cell) Tj ET\nEMC\n` +
+        `/TD << /MCID 2 >> BDC\nBT /F1 10 Tf 200 660 Td (Inner cell) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 13 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 12 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [14 0 R 7 0 R] >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [8 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 7 0 R /K [9 0 R] >>",
+          "<< /Type /StructElem /S /TD /P 8 0 R /Pg 3 0 R /K [1 10 0 R] >>",
+          "<< /Type /StructElem /S /Table /P 9 0 R /K [11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [15 0 R] >>",
+          "<< /Nums [0 [14 0 R 9 0 R 15 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 2 >>",
+        ],
+        "<< /Title (Nested Table) >>",
+      );
+    },
+    check: (r) => (/nested/i.test(allFindings(r)) ? null : "nested table not flagged"),
+  },
+  {
+    file: "synthetic-27-ragged-table.pdf",
+    truth:
+      "Rows covering different numbers of columns (2 then 5) with no spans declared — the grid does not line up for a reader.",
+    build: () => {
+      let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Ragged table")}) Tj ET\nEMC\n`;
+      for (let i = 1; i <= 7; i++)
+        content += `/TD << /MCID ${i} >> BDC\nBT /F1 10 Tf ${72 + ((i - 1) % 5) * 90} ${660 - Math.floor((i - 1) / 5) * 24} Td (Cell ${i}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 18 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 17 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [16 0 R 7 0 R] >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [8 0 R 9 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 7 0 R /K [10 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 7 0 R /K [12 0 R 13 0 R 14 0 R 15 0 R 19 0 R] >>",
+          "<< /Type /StructElem /S /TD /P 8 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /TD /P 8 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 6 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [16 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 19 0 R]] >>",
+          FONT,
+          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 7 >>",
+        ],
+        "<< /Title (Ragged Table) >>",
+      );
+    },
+    check: (r) => (/inconsistent/i.test(allFindings(r)) ? null : "ragged columns not flagged"),
+  },
+  {
+    file: "synthetic-28-link-bare-url.pdf",
+    truth:
+      "Link text that is just the raw web address — a screen reader spells the whole thing out.",
+    build: () => linkDoc("https://example.com/very/long/path/document.pdf"),
+    check: (r) => {
+      const text = allFindings(r);
+      return /URL|address|link text/i.test(text) || cat("link_quality")(r)!.score !== 100
+        ? null
+        : "OBSERVE: bare-URL link text not scored down";
+    },
+  },
+  {
+    file: "synthetic-29-link-click-here.pdf",
+    truth: "'click here' tells a reader jumping link-to-link nothing about the destination.",
+    build: () => linkDoc("click here"),
+    check: (r) =>
+      cat("link_quality")(r)!.score !== 100 ||
+      /click here|generic|descriptive/i.test(allFindings(r))
+        ? null
+        : "OBSERVE: 'click here' passed link quality silently",
+  },
+  {
+    file: "synthetic-30-untagged-link.pdf",
+    truth:
+      "A clickable link no tag claims — invisible to the structure a screen reader navigates (Matterhorn 28).",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Untagged link")}) Tj ET\nEMC\nBT /F1 11 Tf 72 680 Td (Visit our site today) Tj ET\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [8 0 R] >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          "<< /Type /Annot /Subtype /Link /Rect [72 675 220 692] /A << /S /URI /URI (https://example.com) >> /F 4 >>",
+          FONT,
+        ],
+        "<< /Title (Untagged Link) >>",
+      );
+    },
+    check: (r) =>
+      /untagged|no structure element|not.*tag/i.test(allFindings(r))
+        ? null
+        : "untagged link annotation not flagged",
+  },
+  {
+    file: "synthetic-31-empty-headings.pdf",
+    truth:
+      "Eight heading tags, six holding no text at all — a reader jumping by heading lands on silence (the v1.110 check, on a page attribution CAN read).",
+    build: () => {
+      let content = "";
+      content += `/H1 << /MCID 0 >> BDC\nBT /F1 16 Tf 72 750 Td (Real Heading One) Tj ET\nEMC\n`;
+      content += `/H2 << /MCID 1 >> BDC\nBT /F1 13 Tf 72 720 Td (Real Heading Two) Tj ET\nEMC\n`;
+      for (let i = 2; i < 8; i++) content += `/H2 << /MCID ${i} >> BDC\nEMC\n`;
+      content += `/P << /MCID 8 >> BDC\nBT /F1 11 Tf 72 690 Td (Short body line) Tj ET\nEMC\n`;
+      const kids = Array.from({ length: 9 }, (_, i) => `${7 + i} 0 R`);
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 17 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 16 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${kids.join(" ")}] >>`,
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+        "<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K 1 >>",
+      ];
+      for (let i = 2; i < 8; i++)
+        objs.push(`<< /Type /StructElem /S /H2 /P 6 0 R /Pg 3 0 R /K ${i} >>`);
+      objs.push("<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 8 >>");
+      objs.push(`<< /Nums [0 [${kids.join(" ")}]] >>`);
+      objs.push(FONT);
+      return buildPdf(objs, "<< /Title (Empty Headings) >>");
+    },
+    check: (r) => {
+      const c = cat("heading_structure")(r)!;
+      if (!/carry no text at all/i.test(c.findings.join("\n"))) return "empty headings not named";
+      return c.score !== null && c.score <= 60 ? null : `empty-heading outline scored ${c.score}`;
+    },
+  },
+  {
+    file: "synthetic-32-note-without-id.pdf",
+    truth:
+      "A footnote tagged <Note> with no /ID — assistive technology cannot link the reference to the note (Matterhorn 19-003, advisory).",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Note test")}) Tj ET\nEMC\n` +
+        `/Note << /MCID 1 >> BDC\nBT /F1 9 Tf 72 100 Td (1. The footnote text sits here.) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Note /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Nums [0 [7 0 R 8 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Note Without ID) >>",
+      );
+    },
+    check: (r) =>
+      /19-003|no \/ID|Note/i.test(allFindings(r)) ? null : "ID-less <Note> not mentioned",
+  },
+  {
+    file: "synthetic-33-unnamed-layer.pdf",
+    truth:
+      "An optional-content layer configuration with no name — assistive technology cannot announce which view is active (Matterhorn 20-001, advisory).",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Layer test")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /OCProperties << /OCGs [8 0 R] /D << /Order [8 0 R] >> >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          "<< /Type /OCG /Name (Layer 1) >>",
+          FONT,
+        ],
+        "<< /Title (Unnamed Layer Config) >>",
+      );
+    },
+    check: (r) =>
+      /layer|20-001|configuration/i.test(allFindings(r))
+        ? null
+        : "OBSERVE: unnamed layer config not mentioned",
+  },
+  {
+    file: "synthetic-34-rolemap-circular.pdf",
+    truth:
+      "A RoleMap where A maps to B and B maps back to A — a loop that must not hang the checker (Matterhorn 02-003).",
+    build: () => {
+      const content = `/AA << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Circular map")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R /RoleMap << /AA /BB /BB /AA >> >>",
+          "<< /Type /StructElem /S /AA /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Circular RoleMap) >>",
+      );
+    },
+    check: (r) =>
+      /circular|02-003/i.test(allFindings(r))
+        ? null
+        : "OBSERVE: circular RoleMap chain not named (analysis completed, which is the hard truth)",
+  },
+  {
+    file: "synthetic-35-rolemap-remaps-standard.pdf",
+    truth:
+      "The RoleMap redefines the STANDARD type /P to mean /Figure — PDF/UA forbids remapping standard types; viewers may honor either meaning (Matterhorn 02-004).",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Standard remap")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R /RoleMap << /P /Figure >> >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Standard Type Remapped) >>",
+      );
+    },
+    check: (r) =>
+      /remap|02-004|standard.*type/i.test(allFindings(r))
+        ? null
+        : "standard-type remap not flagged",
+  },
+  {
+    file: "synthetic-36-javascript-action.pdf",
+    truth:
+      "A document carrying JavaScript actions — behavior a reader cannot predict; disclosed, never silent.",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Script test")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /OpenAction 8 0 R >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          "<< /S /JavaScript /JS (app.alert\\(1\\);) >>",
+          FONT,
+        ],
+        "<< /Title (JavaScript Action) >>",
+      );
+    },
+    check: (r) =>
+      /JavaScript/i.test(allFindings(r))
+        ? null
+        : "OBSERVE: JavaScript action not surfaced in findings",
+  },
+  {
+    file: "synthetic-37-no-tab-order.pdf",
+    truth:
+      "No tab order set on any page — keyboard users walk the visual order, not the logical one.",
+    build: () => {
+      const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Tab order")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (No Tab Order) >>",
+      );
+    },
+    check: (r) => (/tab order/i.test(allFindings(r)) ? null : "missing tab order not mentioned"),
+  },
+  {
+    file: "synthetic-38-actualtext-figure.pdf",
+    truth:
+      "GOOD TWIN: a figure described via /ActualText instead of /Alt — ISO 32000 allows either; it must count as described, not flagged.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("ActualText twin")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 1 >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> /XObject << /Im1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R 11 0 R]] >>",
+          FONT,
+          GRAY_IMG(10),
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 /ActualText (Company wordmark in gray.) >>",
+        ],
+        "<< /Title (ActualText Twin) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("alt_text")(r)!;
+      return c.score === 100 || c.score === null
+        ? null
+        : `ActualText-described figure flagged (alt ${c.score})`;
+    },
+  },
+  {
+    file: "synthetic-39-artifact-decoration.pdf",
+    truth:
+      "GOOD TWIN: decorative content properly marked /Artifact — headers, footers, rules. It must be EXCLUDED, never demanded a description for.",
+    build: () => {
+      const content =
+        `/Artifact << /Type /Pagination >> BDC\nBT /F1 8 Tf 72 770 Td (Running header decoration) Tj ET\nEMC\n` +
+        `/Artifact << /Type /Layout >> BDC\nq 40 0 0 40 500 700 cm /Im1 Do Q\nEMC\n` +
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 700 Td (${LONG("Artifact twin")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> /XObject << /Im1 9 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 7 0 R >>",
+          "<< /Type /StructElem /S /P /P 5 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [6 0 R]] >>",
+          FONT,
+          GRAY_IMG(9),
+        ],
+        "<< /Title (Artifact Twin) >>",
+      );
+    },
+    check: (r) => {
+      const alt = cat("alt_text")(r)!;
+      if (alt.score !== null && alt.score < 100)
+        return `decorative artifact demanded a description (alt ${alt.score})`;
+      return null;
     },
   },
 ];

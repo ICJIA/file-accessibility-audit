@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.118.0] - 2026-08-28
+
+### Added
+
+- **"Can I trust this?" — a plain-English trust page, served by the site itself and linked from both navs.** Written for the reader who knows the words *Title II ADA*, *WCAG* and *IITAA* and doubts a checker built in-house: what the tool is, what every check-up looks at, the law in three linked cards (Title II's April-2026 deadlines; IITAA; WCAG 2.2 AA containing everything in the 2.1 both laws name), the veraPDF second-opinion referee, the trap-document battery, the near-daily collaboration with the agency's file accessibility specialist, the grade disputes it lost in public and fixed the same day, and a **big amber date stamp** so anyone can see the numbers are at most days old. Lives at `/trust.html` as a static file — every link to it is a plain `<a>`, never NuxtLink (the twice-shipped `/status` trap), pinned by test.
+- **`pnpm build-brief`** regenerates the page with live numbers in one command: production totals from `/status`, commit counts and project age from git, the version count from `package.json`, today's date — writing `docs/brief/checker-brief.{html,docx}` (the emailable twins; docx verified free of Word field codes), `apps/web/public/trust.html` (the served copy, **byte-identical** to the brief by construction and pinned so), and `~/Downloads` copies. Run before every release commit, so the page can never silently go stale.
+- **The adversarial trap corpus more than doubled: 18 → 39 documents, all 39 truths held.** Batch two covers the rest of what a non-accessible document plausibly does: skipped heading levels, generic-only and mixed heading conventions, empty headings, a filename-shaped title, a title the viewer is told not to display, header cells with no direction (the v1.108 dispute, as a permanent fixture), fake typed bullets, nested and ragged tables, bare-URL and "click here" and untagged links, ID-less footnotes, unnamed layers, a circular RoleMap (no hang), a standard type remapped, JavaScript actions, missing tab order — plus two good twins that must NOT be flagged (`/ActualText` descriptions; proper `/Artifact` decoration). Every one passed on the first run.
+
+### Notes
+
+- Tests: API 1,592 · web 1,274 · CLI 49 (**2,915**), 5 new — the trust page's static-file/plain-anchor rules and the byte-identity guarantee.
+- Generated outputs joined `.prettierignore`: formatting a byte-identical twin would break the identity and be overwritten on the next regeneration.
+
+<details>
+<summary><strong>v1.117.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.117.0] - 2026-08-28
 
 ### Fixed
@@ -21,8 +37,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Full corpus after the change: **54 documents (36 real + 18 synthetic), zero invariant failures, zero real-document score changes.**
 - Tests: API 1,592 · web 1,269 · CLI 49 (**2,910**), 3 new.
 
-<details>
-<summary><strong>v1.116.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.116.0] - 2026-08-28
 
