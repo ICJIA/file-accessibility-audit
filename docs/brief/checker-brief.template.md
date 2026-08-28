@@ -28,7 +28,7 @@ Real documents can't prove a checker is right — nobody knows their ground trut
 
 ## Honed with the agency's own file accessibility specialist
 
-The checker is tuned in **near-daily working sessions with ICJIA's file accessibility specialist** in the Research & Analysis unit — real documents, real disputes, fixes shipped the same day. Three grade challenges from document experts this week alone, each settled by **reading the file itself**, never by defending the tool:
+The checker is tuned in **working sessions with ICJIA's file accessibility specialist** in the Research & Analysis unit — real documents, real disputes, fixes shipped the same day. Three grade challenges from document experts this week alone, each settled by **reading the file itself**, never by defending the tool:
 
 - **A state accessibility team's form: 65 D → 100 A.** The expert was right; the checker mis-measured forms. Fixed same day.
 - **A document-repair specialist's two "missing" images: 79 C → 100 A.** Right again — the "images" were leftovers from a rebuilt page, on no page at all. Fixed same day.
