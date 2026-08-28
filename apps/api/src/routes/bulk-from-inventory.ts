@@ -1,4 +1,5 @@
 import { Router, Request, Response, type IRouter } from "express";
+import { AUDIT_TIMEOUT_SUMMARY } from "@file-audit/shared";
 import crypto from "node:crypto";
 import { reportsLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument, detectFileType } from "../services/analyzer.js";
@@ -174,6 +175,36 @@ function parseInventory(
 // inventories with many files this endpoint is slow by design — a
 // background job model is the long-term answer for large fleets.
 // ---------------------------------------------------------------------------
+
+/**
+ * The per-document error line for one inventory entry, or null when nothing
+ * matched — the caller logs that case server-side and records a generic line,
+ * because a raw err.message can carry library internals and filesystem paths.
+ *
+ * Exported so the mapping is TESTED RATHER THAN RE-IMPLEMENTED: its test used
+ * to keep a hand-copied duplicate of this chain, which had already drifted
+ * from production on the unmatched case.
+ */
+export function mapEntryError(err: any): string | null {
+  if (err?.name === "AbortError") return `fetch timed out after ${FETCH_TIMEOUT_MS}ms`;
+  if (err?.status === 503) return "server busy — analysis queue full, try again";
+  if (err?.code === "DOCX_DISABLED")
+    return "Word (.docx) auditing is currently disabled on this server";
+  if (err?.code === "PPTX_DISABLED")
+    return "PowerPoint (.pptx) auditing is currently disabled on this server";
+  if (err?.code === "XLSX_DISABLED")
+    return "Excel (.xlsx) auditing is currently disabled on this server";
+  if (err?.code === "DOCX_PARSE_FAILED")
+    return "the Word (.docx) file could not be read (corrupt or not a valid Word document)";
+  if (err?.code === "PPTX_PARSE_FAILED")
+    return "the PowerPoint (.pptx) file could not be read (corrupt or not a valid PowerPoint presentation)";
+  if (err?.code === "XLSX_PARSE_FAILED")
+    return "the Excel (.xlsx) file could not be read (corrupt or not a valid Excel workbook)";
+  if (err?.code === "ETIMEDOUT" || err?.killed) return AUDIT_TIMEOUT_SUMMARY;
+  if (err?.message?.includes("encrypted") || err?.message?.includes("password"))
+    return "PDF is password-protected and cannot be analyzed";
+  return null;
+}
 
 router.post(
   "/bulk-from-inventory",
@@ -389,30 +420,9 @@ router.post(
           // per-file result.error string here (mirroring how audit-url.ts /
           // analyze-url.ts map the same codes to HTTP statuses) instead of
           // aborting the batch.
-          if (err?.name === "AbortError") {
-            result.error = `fetch timed out after ${FETCH_TIMEOUT_MS}ms`;
-          } else if (err?.status === 503) {
-            result.error = "server busy — analysis queue full, try again";
-          } else if (err?.code === "DOCX_DISABLED") {
-            result.error = "Word (.docx) auditing is currently disabled on this server";
-          } else if (err?.code === "PPTX_DISABLED") {
-            result.error = "PowerPoint (.pptx) auditing is currently disabled on this server";
-          } else if (err?.code === "XLSX_DISABLED") {
-            result.error = "Excel (.xlsx) auditing is currently disabled on this server";
-          } else if (err?.code === "DOCX_PARSE_FAILED") {
-            result.error =
-              "the Word (.docx) file could not be read (corrupt or not a valid Word document)";
-          } else if (err?.code === "PPTX_PARSE_FAILED") {
-            result.error =
-              "the PowerPoint (.pptx) file could not be read (corrupt or not a valid PowerPoint presentation)";
-          } else if (err?.code === "XLSX_PARSE_FAILED") {
-            result.error =
-              "the Excel (.xlsx) file could not be read (corrupt or not a valid Excel workbook)";
-          } else if (err?.code === "ETIMEDOUT" || err?.killed) {
-            result.error =
-              "analysis timed out — this document is too complex to analyze within the time limit";
-          } else if (err?.message?.includes("encrypted") || err?.message?.includes("password")) {
-            result.error = "PDF is password-protected and cannot be analyzed";
+          const mapped = mapEntryError(err);
+          if (mapped) {
+            result.error = mapped;
           } else {
             // F2 [MEDIUM, pre-merge re-audit finding]: never echo the raw
             // err.message to the client — it can leak library internals /

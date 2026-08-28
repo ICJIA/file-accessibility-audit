@@ -252,6 +252,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "long-documents-timeout-2026-08-28",
+    badge: "Fixed",
+    text: "Long documents are no longer refused for being \u201Ctoo complex\u201D. If you audit big reports \u2014 annual reports, budget books, anything over a hundred pages \u2014 you may have seen the tool give up and tell you the file was too complex to check in the time allowed. That was our fault, not your document's. The tool was starting several checking programs at the same moment on one small server, and they crowded each other out until one was cut off while it was waiting rather than working; a 246-page annual report that our own reader gets through in under two seconds was being turned away. The checks now run in order, the heaviest one runs a single pass at a time, and big documents get up to two minutes instead of one. The waiting screen says so, and if an audit does run out of time the message now tells you the truth \u2014 that it is usually about timing, and that trying again is normally enough. The same crowding was behind the \u201Cserver offline\u201D and \u201Cdegraded\u201D notices some of you saw at the top of the page: the server was fine, and that warning now clears itself.",
+    linkText: "Service status",
+    /** `?html` asks the Nitro route for the human view; a bare /status is
+     *  reserved for uptime monitors. NOT an in-app page, so linkExternal. */
+    linkTo: "/status?html",
+    linkExternal: true,
+    date: "August 28, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "table-scope-guidance-2026-08-27",
     badge: "Clearer",
     text: "Table findings now tell you which way your headers point. A header cell can be marked correctly and still not say whether it labels the column beneath it or the row beside it — and the report used to ask you to set that without saying which value to use where. It now gives the rule: cells along the top label what is beneath them, cells down the left label what is across from them, and the empty corner cell needs nothing. In Word you rarely need to do it by hand — tick the Header Row box and Word writes it for you. We have also explained something that confuses people regularly: your accessibility expert may say a file is fully compliant while this report says something is missing, and both can be right, because the PDF standard and the web guidelines set different bars here. Doing it satisfies both.",
@@ -1464,11 +1476,17 @@ export const ANALYSIS = {
    * timeout the analysis is abandoned (HTTP 504) and the slot is freed so a
    * single adversarial upload can't starve the queue.
    *
+   * 120s since 2026-08-28 (was 60s), for breathing room on the long reports
+   * this tool exists to check. Measured on the production droplet, a 246-page
+   * annual report needs ~15s of pdfjs work idle and ~41s while a veraPDF pass
+   * competes for the two cores — 60s left almost no margin on exactly the
+   * documents that matter most. The overlay's "up to two minutes" copy is
+   * pinned to this number by ProcessingOverlay.test.ts: move them together.
+   *
    * SAFE TO CHANGE: Yes — raise if legitimate large documents time out;
-   * lower for faster failure on adversarial inputs. 60s comfortably covers
-   * real government reports while bounding abuse.
+   * lower for faster failure on adversarial inputs.
    */
-  PDFJS_TIMEOUT_MS: 60_000,
+  PDFJS_TIMEOUT_MS: 120_000,
 
   /**
    * Maximum number of PDFs being analyzed simultaneously.
@@ -1831,6 +1849,30 @@ export const STATUS = {
   ENGINE_PROBE_TTL_MS: 10 * 60 * 1000, // 10 minutes
 
   /**
+   * How long a FAILED engine probe stays cached, in ms. Much shorter than
+   * ENGINE_PROBE_TTL_MS, and deliberately so.
+   *
+   * WHY (2026-08-28): a failed probe used to be cached for the same 10
+   * minutes as a passing one. A 246-page report saturated the two-core
+   * droplet for ~40 seconds, the veraPDF probe timed out along with
+   * everything else, and /status then reported veraPDF "down (timed out)"
+   * for the remaining ten minutes — while veraPDF was in fact answering
+   * `--version` in 2.4 seconds. Visitors saw a degraded badge that would not
+   * clear, for a server that was fine. A stale failure is worse than a stale
+   * success: it accuses.
+   *
+   * Applies ONLY to failures that can clear on their own (`timeout`,
+   * `error`). A `not_configured` / `not_executable` engine keeps the full
+   * TTL — that state needs a deploy to change, and re-probing it every
+   * minute would spend a JVM start per minute for as long as it is broken.
+   * Worst case here is one probe per minute per transiently-failing engine,
+   * itself capped by PROBE_TIMEOUT_MS.
+   *
+   * SAFE TO CHANGE: Yes.
+   */
+  ENGINE_PROBE_FAILURE_TTL_MS: 60 * 1000, // 1 minute
+
+  /**
    * Per-probe timeout in ms. A probe that exceeds it is reported as
    * { ok: false, reason: "timeout" } and never delays the response —
    * reporting a broken engine is the feature, not an error condition.
@@ -2168,8 +2210,15 @@ export const REMEDIATION = {
    * path (runVeraPdfOnBuffer), so an interactive audit isn't stalled by a
    * pathological tagged PDF. The background remediation job keeps the longer
    * VERAPDF_TIMEOUT_MS. On timeout the verdict degrades to "could not validate".
+   *
+   * 45s since 2026-08-28 (was 30s). One PDF/UA pass over a 246-page annual
+   * report measured 25.3s on an IDLE production droplet, and a real audit runs
+   * it while pdfjs works alongside — so 30s was losing the verdict on exactly
+   * the documents whose conformance is most worth reporting. With the passes
+   * now serialized (VERAPDF_MAX_CONCURRENT: 1) the worst-case veraPDF stretch
+   * is 45 + 45 = 90s, inside the two minutes the overlay promises.
    */
-  VERAPDF_AUDIT_TIMEOUT_MS: 30_000,
+  VERAPDF_AUDIT_TIMEOUT_MS: 45_000,
 
   /**
    * Maximum veraPDF JVMs running at once across the whole process.
@@ -2181,14 +2230,26 @@ export const REMEDIATION = {
    * a 4GB droplet can afford two ~50MB analyses; a JVM is several times that,
    * and the analyze rate limiter (500/hour/IP) bounds RATE, not CONCURRENCY.
    *
-   * Defaults to the analysis cap so every ADMITTED analysis can still get a
-   * verdict (no user-visible "panel appeared for them but not me"), while
-   * requests queued behind the analysis semaphore can no longer spawn JVMs.
+   * WHY 1 (2026-08-28): every PDF audit starts a PDF/UA pass and a WCAG pass,
+   * and at 2 they ran SIMULTANEOUSLY. Measured on the production droplet, one
+   * pass over a 246-page report costs 785 MB RSS and 191% CPU — two of them is
+   * ~1.5 GB and four cores' worth of demand on a 2-vCPU / 3.9 GB box already
+   * in swap. The audit's own qpdf pass was starved past QPDF_TIMEOUT_MS and
+   * the upload failed with "this file is too complex" (it was not), while the
+   * health endpoint could not answer either, so visitors saw "audit server
+   * offline" with nothing actually down. At 1 the passes serialize: half the
+   * peak memory, each pass gets the cores to itself, and the second verdict
+   * waits out the first inside VERAPDF_QUEUE_TIMEOUT_MS.
    *
-   * SAFE TO CHANGE: Yes — lower to 1 to be more frugal on a small droplet;
-   * raise only alongside MAX_CONCURRENT_ANALYSES and the RAM budget.
+   * The cost is real but small: two SIMULTANEOUS uploads now queue for the one
+   * JVM slot, and a pass that waits longer than VERAPDF_QUEUE_TIMEOUT_MS
+   * degrades to an honest "Did not run" instead of failing the audit.
+   *
+   * SAFE TO CHANGE: Yes — but raise it only alongside MAX_CONCURRENT_ANALYSES
+   * and the RAM budget, on a box with cores to spare. Pinned by
+   * veraPdfJvmBudget.test.ts, which carries the measurements.
    */
-  VERAPDF_MAX_CONCURRENT: 2,
+  VERAPDF_MAX_CONCURRENT: 1,
 
   /**
    * How long a veraPDF check waits for a concurrency slot before giving up.
@@ -2196,9 +2257,14 @@ export const REMEDIATION = {
    * simply hidden) rather than failing the audit — the check is supplementary,
    * so it must never take the whole upload down with it.
    *
+   * MUST stay comfortably above VERAPDF_AUDIT_TIMEOUT_MS: with the passes
+   * serialized, an audit's WCAG pass waits out its own UA pass, so a queue
+   * budget below one pass's budget would drop the second verdict by
+   * construction. 90s against a 45s pass. Pinned by veraPdfJvmBudget.test.ts.
+   *
    * SAFE TO CHANGE: Yes.
    */
-  VERAPDF_QUEUE_TIMEOUT_MS: 60_000,
+  VERAPDF_QUEUE_TIMEOUT_MS: 90_000,
 
   /**
    * Run veraPDF's machine-testable WCAG 2.2 validation profile alongside the

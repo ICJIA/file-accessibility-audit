@@ -575,6 +575,78 @@ describe("independent cache TTLs", () => {
     expect(calls.verapdf).toBe(2);
   });
 
+  // A FAILED probe is a different thing from a passing one, and caching the
+  // two for the same 10 minutes is what made a heavy audit look like a broken
+  // server. On 2026-08-28 a 246-page report saturated the box for ~40s; the
+  // veraPDF probe timed out with it, and /status went on reporting veraPDF
+  // "down (timed out)" for the rest of the 10 minutes — long after veraPDF was
+  // answering --version in 2.4s again. Nothing was down; the snapshot was old.
+  // Failures re-probe on a short TTL so the badge clears itself.
+  it("re-probes a FAILED engine well before the full engine TTL", async () => {
+    const calls = { verapdf: 0 };
+    let healthy = false;
+    const probes: EngineProbes = {
+      qpdf: async () => ({ ok: true, version: "11.9.0" }),
+      verapdf: async () => {
+        calls.verapdf++;
+        return healthy ? { ok: true, version: "1.30.1" } : { ok: false, reason: "timeout" };
+      },
+      chromium: async () => ({ ok: true }),
+    };
+    const clock = { now: T0 };
+    const service = makeService(freshDb(), probes, clock);
+
+    const first = await service.getStatus();
+    expect(first.engines.verapdf.ok).toBe(false);
+
+    // The engine recovered the moment the box was free again.
+    healthy = true;
+    clock.now = T0 + STATUS.ENGINE_PROBE_FAILURE_TTL_MS + 1000;
+    const second = await service.getStatus();
+
+    expect(calls.verapdf).toBe(2);
+    expect(second.engines.verapdf.ok).toBe(true);
+    // Still deep inside the healthy-result TTL, which must not have applied.
+    expect(clock.now - T0).toBeLessThan(STATUS.ENGINE_PROBE_TTL_MS);
+  });
+
+  it("does not re-probe a MISCONFIGURED engine on the short TTL — that never fixes itself", async () => {
+    // The short TTL is for failures that clear on their own (a probe starved
+    // by a busy box). An engine that is absent or unconfigured stays that way
+    // until someone deploys, and re-probing it every minute would spend a JVM
+    // start per minute for the whole time it is broken.
+    const calls = { verapdf: 0 };
+    const probes: EngineProbes = {
+      qpdf: async () => ({ ok: true, version: "11.9.0" }),
+      verapdf: async () => {
+        calls.verapdf++;
+        return { ok: false, reason: "not_configured" };
+      },
+      chromium: async () => ({ ok: true }),
+    };
+    const clock = { now: T0 };
+    const service = makeService(freshDb(), probes, clock);
+
+    await service.getStatus();
+    clock.now = T0 + STATUS.ENGINE_PROBE_FAILURE_TTL_MS + 1000;
+    await service.getStatus();
+
+    expect(calls.verapdf).toBe(1);
+  });
+
+  it("still caches a HEALTHY snapshot for the full engine TTL", async () => {
+    const { calls, probes } = countingProbes();
+    const clock = { now: T0 };
+    const service = makeService(freshDb(), probes, clock);
+
+    await service.getStatus();
+    // Past the short failure TTL, but everything passed, so no JVM restarts.
+    clock.now = T0 + STATUS.ENGINE_PROBE_FAILURE_TTL_MS + 1000;
+    await service.getStatus();
+
+    expect(calls.verapdf).toBe(1);
+  });
+
   it("serves cached aggregates inside the aggregate TTL", async () => {
     const db = freshDb();
     const service = makeService(db);

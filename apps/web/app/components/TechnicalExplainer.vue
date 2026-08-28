@@ -223,7 +223,7 @@
         <h3 class="font-semibold text-[var(--text-heading)] mb-2 mt-5">How It Works</h3>
         <p class="text-[var(--text-muted)] mb-3">
           When you upload a <strong>PDF</strong>, the server runs three independent, open-source
-          checks <strong>in parallel</strong> — one reads the PDF's internal structure (tags,
+          checks <strong>one after another</strong> — one reads the PDF's internal structure (tags,
           bookmarks, form fields), one extracts text and metadata from every page, and veraPDF
           validates the file against the PDF/UA standard — PDF/UA-1 (ISO 14289-1), or PDF/UA-2 (ISO
           14289-2) when the document declares it — and, since v1.97.0, against its machine-testable
@@ -283,7 +283,7 @@
           <DiagramFigure
             name="audit-flow"
             title="Audit pipeline — visual flow"
-            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure and pdfjs extracts its content, in parallel, and veraPDF runs two concurrent checks: PDF/UA conformance (PDF/UA-1, or PDF/UA-2 when the document declares it) and its machine-testable WCAG 2.2 profile. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
+            desc="Browser uploads a file; the server validates magic bytes and size. A PDF is written to a short-lived temp copy: qpdf analyzes its structure, pdfjs then extracts its content, and veraPDF runs two checks one after the other: PDF/UA conformance (PDF/UA-1, or PDF/UA-2 when the document declares it) and its machine-testable WCAG 2.2 profile. A Word, PowerPoint, or Excel file is unzipped in memory with JSZip and parsed with fast-xml-parser instead — no temp file, no external tools. Either path feeds the scorer, which returns a grade, WCAG verdict, and findings to the browser, then discards the memory buffer."
           />
         </div>
       </div>
@@ -728,15 +728,18 @@
           By cross-referencing both outputs, the scorer can answer questions that neither tool could
           answer alone. For example: "Does this image have alt text?" requires QPDF to find the
           image object and its Figure tag, while "Is there any readable text on this page at all?"
-          requires PDF.js to attempt text extraction. Running both tools in parallel hides their
-          individual processing time.
+          requires PDF.js to attempt text extraction. The two run one after the other rather than at
+          once: PDF.js works through a document page by page and holds the server's attention while
+          it does, which used to leave qpdf waiting long enough to be cut off as if it had stalled —
+          on documents it actually reads in a second or two. Running them in order costs almost
+          nothing on a long report and removes that failure entirely.
         </p>
 
         <div class="mt-4">
           <DiagramFigure
             name="two-tool"
-            title="Two-tool parallel analysis (PDF)"
-            desc="For a PDF, the uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and pdfjs (text, metadata, content order) in parallel; their results combine in the scorer for a weighted score across 9 categories. Word, PowerPoint, and Excel files don't need this two-tool split — a single JavaScript parser (JSZip + fast-xml-parser, in a short-lived child process) reads their XML directly."
+            title="Two-tool analysis (PDF)"
+            desc="For a PDF, the uploaded buffer runs through qpdf (structure tree, language, outlines, images, tables) and then pdfjs (text, metadata, content order); their results combine in the scorer for a weighted score across 9 categories. Word, PowerPoint, and Excel files don't need this two-tool split — a single JavaScript parser (JSZip + fast-xml-parser, in a short-lived child process) reads their XML directly."
           />
         </div>
       </div>

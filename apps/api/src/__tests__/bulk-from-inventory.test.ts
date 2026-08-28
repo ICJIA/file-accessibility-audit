@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Response } from "express";
 import { detectFileType } from "../services/analyzer.js";
+import { mapEntryError } from "../routes/bulk-from-inventory.js";
+import { AUDIT_TIMEOUT_SUMMARY } from "@file-audit/shared";
 import { buildPdf, MINIMAL_DOC } from "./helpers/minimalPdf.js";
 import { buildDocx } from "./helpers/minimalDocx.js";
 import { buildPptx } from "./helpers/minimalPptx.js";
@@ -547,27 +549,12 @@ describe("bulk-from-inventory: per-file content-type detection gate", () => {
 // semantics.
 // ---------------------------------------------------------------------------
 
-function mapErrorToResultError(err: any): string {
-  if (err?.name === "AbortError") return "fetch timed out after 30000ms";
-  if (err?.status === 503) return "server busy — analysis queue full, try again";
-  if (err?.code === "DOCX_DISABLED")
-    return "Word (.docx) auditing is currently disabled on this server";
-  if (err?.code === "PPTX_DISABLED")
-    return "PowerPoint (.pptx) auditing is currently disabled on this server";
-  if (err?.code === "XLSX_DISABLED")
-    return "Excel (.xlsx) auditing is currently disabled on this server";
-  if (err?.code === "DOCX_PARSE_FAILED")
-    return "the Word (.docx) file could not be read (corrupt or not a valid Word document)";
-  if (err?.code === "PPTX_PARSE_FAILED")
-    return "the PowerPoint (.pptx) file could not be read (corrupt or not a valid PowerPoint presentation)";
-  if (err?.code === "XLSX_PARSE_FAILED")
-    return "the Excel (.xlsx) file could not be read (corrupt or not a valid Excel workbook)";
-  if (err?.code === "ETIMEDOUT" || err?.killed)
-    return "analysis timed out — this document is too complex to analyze within the time limit";
-  if (err?.message?.includes("encrypted") || err?.message?.includes("password"))
-    return "PDF is password-protected and cannot be analyzed";
-  return err?.message ?? String(err);
-}
+// v1.109.0: the duplicate that used to live here is gone. It had already
+// drifted from production on the unmatched case (it echoed err.message, which
+// the route deliberately never does), and it would have kept asserting the old
+// "too complex" wording after production stopped using it. The route now
+// exports the mapping, so these tests run the real thing.
+const mapErrorToResultError = (err: any) => mapEntryError(err);
 
 describe("bulk-from-inventory: per-file error-code mapping", () => {
   it("DOCX_DISABLED maps to a per-file disabled message", () => {
@@ -607,13 +594,11 @@ describe("bulk-from-inventory: per-file error-code mapping", () => {
   });
 
   it("ETIMEDOUT maps to a timeout message (the OOXML child-process wall-clock timeout)", () => {
-    expect(mapErrorToResultError({ code: "ETIMEDOUT", killed: true })).toMatch(
-      /too complex to analyze/,
-    );
+    expect(mapErrorToResultError({ code: "ETIMEDOUT", killed: true })).toBe(AUDIT_TIMEOUT_SUMMARY);
   });
 
   it("a killed child process without an ETIMEDOUT code also maps to the timeout message (err.killed alone)", () => {
-    expect(mapErrorToResultError({ killed: true })).toMatch(/too complex to analyze/);
+    expect(mapErrorToResultError({ killed: true })).toBe(AUDIT_TIMEOUT_SUMMARY);
   });
 
   it("existing branches are unchanged: 503 semaphore-full, AbortError fetch timeout, password-protected PDF", () => {
@@ -624,10 +609,13 @@ describe("bulk-from-inventory: per-file error-code mapping", () => {
     );
   });
 
-  it("falls back to err.message for anything unrecognized (never silently swallowed)", () => {
-    expect(mapErrorToResultError({ message: "weird one-off failure" })).toBe(
-      "weird one-off failure",
-    );
+  it("answers null for anything unrecognized, so the raw err.message never reaches the client", () => {
+    // The hand-copied duplicate this file used to carry claimed the opposite
+    // — that an unmatched error echoes err.message back. The route has never
+    // done that (F2, a pre-merge security finding: a raw message can carry
+    // library internals and filesystem paths). null is the signal for the
+    // caller to log it server-side and record "Analysis failed for this item."
+    expect(mapErrorToResultError({ message: "weird one-off failure" })).toBeNull();
   });
 
   it("one bad entry does not abort the batch: a *_PARSE_FAILED entry carries only `error`, never score fields", () => {

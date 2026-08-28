@@ -84,15 +84,32 @@ describe("ProcessingOverlay — the rotating check queue", () => {
     expect(el.text()).toContain("run together on the server");
   });
 
-  it("reassurance escalates truthfully: nothing early, the 30–60s expectation at 15s, the hard-timeout promise at 60s", async () => {
+  it("reassurance escalates truthfully: nothing early, the wait expectation at 15s, the hard-timeout promise at 60s", async () => {
     const w = mount(ProcessingOverlay, { props: { stage: "", rotate: true, fileType: "pdf" } });
     expect(w.find('[data-testid="overlay-reassurance"]').exists()).toBe(false);
     await vi.advanceTimersByTimeAsync(15_000);
-    expect(w.find('[data-testid="overlay-reassurance"]').text()).toContain("30–60 seconds");
+    expect(w.find('[data-testid="overlay-reassurance"]').text()).toContain("two minutes");
     await vi.advanceTimersByTimeAsync(45_000);
     const late = w.find('[data-testid="overlay-reassurance"]').text();
     expect(late).toContain("hard timeouts");
     expect(late).toContain("never hangs forever");
+  });
+
+  // The waiting copy is a promise about how long the server will keep trying.
+  // It must not outlive the budget that actually enforces it: on 2026-08-28
+  // the overlay told visitors "30–60 seconds" while the analysis budget was
+  // 60s and a 246-page report needed more, so the honest wait and the real
+  // ceiling disagreed. Read the ceiling from the config rather than restating
+  // it, so raising one without the other fails here.
+  it("never promises a shorter wait than the analysis budget actually allows", async () => {
+    const { ANALYSIS } = await import("../../../../audit.config");
+    const budgetMinutes = ANALYSIS.PDFJS_TIMEOUT_MS / 60_000;
+    expect(budgetMinutes).toBe(2);
+
+    const w = mount(ProcessingOverlay, { props: { stage: "", rotate: true, fileType: "pdf" } });
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    expect(w.find('[data-testid="overlay-reassurance"]').text()).toContain("two minutes");
   });
 
   it("screen readers get a SPARSE cadence: the rotating line is aria-hidden and the live region updates on ~15s milestones only", async () => {
@@ -123,11 +140,12 @@ describe("wiring — index.vue's single-file path drives the rotation", () => {
 });
 
 describe("DropZone — the timing expectation (v1.99.0, user request)", () => {
-  it("tells users up front that analysis is not instantaneous and can take up to a minute", () => {
+  it("tells users up front that analysis is not instantaneous and can take up to two minutes", () => {
     const src = readFileSync(resolve(__dirname, "../components/DropZone.vue"), "utf8");
     const m = src.match(/data-testid="dropzone-timing-note"[\s\S]{0,400}?<\/p>/);
     expect(m).toBeTruthy();
     expect(m![0]).toContain("isn't instant");
-    expect(m![0]).toContain("up to a minute");
+    // Same ceiling the overlay promises and the analysis budget enforces.
+    expect(m![0]).toContain("up to two minutes");
   });
 });

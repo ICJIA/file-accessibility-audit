@@ -10,6 +10,7 @@
  * util signals with `jobUnsupported` instead of guessing.
  */
 import type { AnalysisResult } from "@file-audit/shared";
+import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 
 export type AnalyzeJobStepKey = "analysis" | "veraPdfUa" | "veraPdfWcag";
 export interface AnalyzeJobStepInfo {
@@ -84,8 +85,6 @@ export async function analyzeWithProgress(
     }
   }
   const timedOut = new Error("Analysis timed out") as Error & { data?: unknown };
-  timedOut.data = {
-    error: "This file is too complex to analyze within the time limit.",
-  };
+  timedOut.data = { ...AUDIT_TIMEOUT_MESSAGE };
   throw timedOut;
 }

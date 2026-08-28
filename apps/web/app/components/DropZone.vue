@@ -116,7 +116,7 @@
                wait that long reads as "stuck". -->
           <p class="text-xs text-[var(--text-muted)] mt-2" data-testid="dropzone-timing-note">
             Analysis isn't instant — most files finish in seconds, but large or design-heavy
-            documents can take up to a minute while the full check suite runs.
+            documents can take up to two minutes while the full check suite runs.
           </p>
         </div>
       </div>

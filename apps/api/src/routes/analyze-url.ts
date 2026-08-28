@@ -1,4 +1,5 @@
 import { Router, Request, Response, type IRouter } from "express";
+import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
@@ -141,11 +142,7 @@ router.post("/analyze-url", analyzeLimiter, async (req: Request, res: Response) 
 
     // Timeout
     if (err?.code === "ETIMEDOUT" || err?.killed) {
-      res.status(504).json({
-        error: "This file is too complex to analyze within the time limit.",
-        details:
-          "This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.",
-      });
+      res.status(504).json({ ...AUDIT_TIMEOUT_MESSAGE });
       return;
     }
 

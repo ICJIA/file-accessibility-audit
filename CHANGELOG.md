@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.109.0] - 2026-08-28
+
+### Fixed
+
+- **A 246-page annual report was told it was "too complex to analyze within the time limit". It was not — the audit was competing with itself for the server.** Measured on the production droplet: qpdf parses that document in **1.7s**, pdfjs in **14.2s**. What timed out was qpdf's 30-second clock, and qpdf was not doing 30 seconds of work. The two passes ran under one `Promise.all`, but pdfjs runs **in-process**, so Node only drained qpdf's 3.1 MB of JSON off its stdout pipe between pdfjs page chunks — qpdf sat blocked on a full pipe while its own timeout ran. Add the two veraPDF JVMs (**785 MB RSS and 191% CPU each**, on a 2-vCPU / 3.9 GB box already in swap) and pdfjs stretched to 41s, dragging qpdf past 30s. Reproduced end to end: qpdf alone 1.7s → beside pdfjs 15.7s → with both JVMs **killed at 30s**.
+- **qpdf now runs to completion before pdfjs starts**, so its timeout measures its own work. The overlap was never real on long documents (15.7s concurrent vs 1.7 + 14.2 sequential), and under full contention the qpdf phase now measures **2.7s against a 30s limit**.
+- **The two veraPDF passes run one after the other** (`VERAPDF_MAX_CONCURRENT: 2 → 1`), halving peak memory from ~1.5 GB to 785 MB. Each pass gets the cores to itself instead of both being starved into losing their verdicts.
+- **`/status` stops reporting a healthy engine as down.** A failed probe was cached for the same 10 minutes as a passing one, so a 40-second saturation left "veraPDF down (timed out)" on the page long after veraPDF was answering `--version` in 2.4s — which is what visitors were seeing as a degraded badge that would not clear. Failures that can clear on their own now re-probe after 60s (`STATUS.ENGINE_PROBE_FAILURE_TTL_MS`); a `not_configured` / `not_executable` engine keeps the long TTL, because that state needs a deploy and re-probing it every minute would spend a JVM start per minute.
+
+### Changed
+
+- **The timeout message no longer diagnoses the document.** It was reached from a catch-all on `err.killed` — any killed subprocess, whatever the cause — and it told authors their file was too complex. It now reads *"This audit could not be finished in time."*, says the cause is usually timing rather than a fault in the document, asks for a retry first, and offers splitting the document **last**. One constant (`AUDIT_TIMEOUT_MESSAGE`) shared by all six surfaces that can produce it.
+- **PDFs now get up to two minutes** (`PDFJS_TIMEOUT_MS` 60s → 120s), with veraPDF's per-pass budget 30s → 45s and its queue budget 60s → 90s — one PDF/UA pass over the 246-page report measured 25.3s on an idle server, so 30s was losing the verdict on exactly the documents where conformance matters most. The waiting screen and drop zone now say "up to two minutes", and a test reads that ceiling from the config so the promise cannot outlive the budget again.
+
+### Notes
+
+- The document now audits in 1.95s locally: 246 pages, **56/100, grade F**. It does have real accessibility problems — it simply could not be graded before.
+- Technical Details described a pipeline that no longer exists; five passages and the `two-tool` diagram (which had a node reading "Run in parallel") were corrected.
+- The fleet inventory route's per-entry error mapping was **duplicated inside its own test and had drifted** — the copy asserted that an unmatched error echoes `err.message`, which the route has never done (an earlier security finding forbids it). The mapping is now exported and the test runs the real thing.
+- Only 17 timeout failures exist in the whole audit log, three of them this document today, so no archive of silently mis-flagged reports needs re-running.
+- Tests: API 1,552 · web 1,259 · CLI 49 (**2,860**), 17 new.
+
+<details>
+<summary><strong>v1.108.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
+
 ## [1.108.0] - 2026-08-27
 
 ### Changed
@@ -18,8 +43,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **No scoring change** — the finding was already correct, so this release adds explanation rather than leniency. That document still scores 89/B with table markup at 85/Minor, and the 185-test calibration passes unchanged. Reported as a PDF/UA readiness gap, never as a confirmed WCAG failure: the tool's conformance verdict for that file remains "no automated failures", which is what the new copy now says out loud.
 - Tests: API 1,536 · web 1,258 · CLI 49 (**2,843**), 5 new.
 
-<details>
-<summary><strong>v1.107.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
 
 ## [1.107.0] - 2026-08-27
 

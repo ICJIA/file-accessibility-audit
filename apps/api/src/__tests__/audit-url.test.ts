@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { randomBytes } from "node:crypto";
 import { detectFileType } from "../services/analyzer.js";
+import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 
 // ---------------------------------------------------------------------------
 // Unit tests for /api/audit-url
@@ -391,21 +392,19 @@ describe("audit-url: error-code → HTTP-status mapping", () => {
     const res = makeRes();
     const err: any = { code: "ETIMEDOUT", killed: true };
     if (err?.code === "ETIMEDOUT" || err?.killed) {
-      res.status(504).json({
-        error: "This document is too complex to analyze within the time limit.",
-      });
+      res.status(504).json({ ...AUDIT_TIMEOUT_MESSAGE });
     }
     expect(res._status).toBe(504);
-    expect(res._json.error).toMatch(/too complex/);
+    // The wording itself is pinned at its source by timeoutMessage.test.ts;
+    // what this asserts is the branch that reaches it.
+    expect(res._json).toEqual(AUDIT_TIMEOUT_MESSAGE);
   });
 
   it("a killed child process without an ETIMEDOUT code also maps to 504 (err.killed alone)", () => {
     const res = makeRes();
     const err: any = { killed: true };
     if (err?.code === "ETIMEDOUT" || err?.killed) {
-      res.status(504).json({
-        error: "This document is too complex to analyze within the time limit.",
-      });
+      res.status(504).json({ ...AUDIT_TIMEOUT_MESSAGE });
     }
     expect(res._status).toBe(504);
   });

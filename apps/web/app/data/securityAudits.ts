@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.109.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: why some long documents were refused instead of graded, and why the site sometimes reported itself as unwell when it was not. No scoring rule changed. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Someone asked us to check a 246-page annual report and the tool refused it, saying the file was <em>&ldquo;too complex to analyze within the time limit&rdquo;</em>. That was wrong, and it was our fault rather than the document&rsquo;s. We timed the document on the live server: the part that reads a PDF&rsquo;s structure finished it in <strong>under two seconds</strong>. Nothing about the file was difficult. What actually happened is that the tool runs several checking programs on one small server, and it had been starting them all at the same moment. They crowded each other out, and one of them was stopped by its own stopwatch while it was sitting waiting for a turn &mdash; not while it was working. The message the author then received blamed their document, and an author who believes that goes off and breaks up a perfectly good report for no reason.",
+      },
+      {
+        kind: "p",
+        html: "The same crowding explains something visitors saw at the top of the page: a red <em>&ldquo;audit server offline&rdquo;</em> mark, or an amber <em>&ldquo;degraded&rdquo;</em> one, during and after a large document was checked. The server was not offline. It was busy enough that its own health check could not get a word in, and &mdash; this is the part that made it look worse than it was &mdash; a failed health check was remembered for ten minutes, so the warning stayed up long after everything was working again. We confirmed that directly: one of the programs was answering normally in about two seconds while the page was still describing it as down.",
+      },
+      {
+        kind: "p",
+        html: "Four things changed. The checks now run <strong>in order</strong> rather than all at once, so none of them can starve another. The heaviest program &mdash; the independent validator that checks a file against the PDF accessibility standard &mdash; now runs its two checks one after the other instead of together, which halves the memory a single audit needs. Long documents are given <strong>up to two minutes</strong> rather than one, and the waiting screen says so. And a failed health check is now re-tested after a minute instead of being remembered for ten, so the warning clears itself once the server is free. The refusal message was rewritten as well: it no longer tells you your document is too complex, it explains that this is usually about timing, and it asks you to try again before it suggests anything else.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: this release adds nothing that receives, sends, or stores information. There is no new page, no new form field, no new address the tool talks to, no new program installed, and no change to what is recorded or how long it is kept. <strong>No scoring rule changed</strong> &mdash; a document that scored 78 yesterday scores 78 today. What changed is that documents which were previously refused now get a grade at all. The report in question now completes in about two seconds and scores 56 out of 100; it does have real accessibility problems, it simply could never be told so. We also checked our own records: only 17 audits have ever failed this way, three of them this document while we were investigating, so there is no backlog of wrongly-refused files to re-check.",
+      },
+    ],
+  },
+  {
     version: "v1.108.0",
     meta: "Reviewed <strong>2026-08-27</strong> · scope: better wording on one table finding, and an explanation of why two experts can disagree about it. No score changed. Nothing new is received, sent, or stored.",
     body: [

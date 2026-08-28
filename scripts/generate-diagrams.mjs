@@ -83,6 +83,20 @@ function extractSources() {
 // when the client mermaid runtime was dropped (v1.28.0). Entries here take
 // precedence over page-extracted sources; add one to (re)generate that diagram.
 const INLINE_SOURCES = {
+  // The two-tool PDF path. qpdf runs FIRST, to completion, and pdfjs follows
+  // (v1.109.0): the two used to share one Promise.all, but pdfjs runs
+  // in-process and starved qpdf of the event loop it needed to drain its own
+  // output, so qpdf hit its timeout on documents it parses in under two
+  // seconds. The overlap was never real on long documents anyway.
+  "two-tool": `flowchart TD
+  U[Uploaded PDF buffer] --> Q[qpdf: structure tree, language, outlines, images, tables]
+  Q --> R1[QpdfResult]
+  Q --> J[Then pdfjs: text, metadata, content order, per-page details]
+  J --> R2[PdfjsResult]
+  R1 --> S[Scorer]
+  R2 --> S
+  S --> W[Weighted score across 9 categories]`,
+
   // Audit pipeline, PDF + Office (.docx/.pptx/.xlsx) branch. PDF fans out to
   // the two-tool (qpdf + pdfjs) path; the Office formats run fully in-process
   // (JSZip + fast-xml-parser).

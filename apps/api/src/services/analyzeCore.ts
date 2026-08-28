@@ -11,7 +11,7 @@
  */
 import type { AnalysisResult } from "@file-audit/analyzer";
 import { analyzeDocument, detectFileType, detectLegacyFormat } from "./analyzer.js";
-import { unsupportedFormatMessage } from "@file-audit/shared";
+import { AUDIT_TIMEOUT_MESSAGE, unsupportedFormatMessage } from "@file-audit/shared";
 import { runVeraPdfChecksOnBuffer } from "./veraPdfBuffer.js";
 import { REMEDIATION } from "#config";
 import {
@@ -234,15 +234,11 @@ export function mapAnalyzeError(
     };
   }
 
+  // A killed analysis is NOT evidence that the document is at fault — this
+  // branch catches any killed subprocess, and server contention is the more
+  // common cause. See AUDIT_TIMEOUT_MESSAGE for the incident behind the copy.
   if (err.code === "ETIMEDOUT" || err.killed) {
-    return {
-      status: 504,
-      body: {
-        error: "This file is too complex to analyze within the time limit.",
-        details:
-          "This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.",
-      },
-    };
+    return { status: 504, body: { ...AUDIT_TIMEOUT_MESSAGE } };
   }
 
   return {

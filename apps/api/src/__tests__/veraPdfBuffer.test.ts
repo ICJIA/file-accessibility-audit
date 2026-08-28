@@ -26,7 +26,13 @@ const { cfg } = vi.hoisted(() => ({
       // veraPDF now takes a concurrency slot before writing its temp file
       // (see veraPdfBuffer.ts). These must mirror the real config or every
       // call queues forever and silently reports available:false.
-      VERAPDF_MAX_CONCURRENT: 2,
+      //
+      // 1 since 2026-08-28 (veraPdfJvmBudget.test.ts carries the why), which
+      // makes the UA and WCAG passes of one audit SERIALIZE. Kept in step with
+      // production deliberately: the pool hands the released slot to the
+      // waiting pass, and this suite is what proves that still returns two
+      // verdicts rather than deadlocking or degrading one to "Did not run".
+      VERAPDF_MAX_CONCURRENT: 1,
       VERAPDF_QUEUE_TIMEOUT_MS: 60_000,
     },
   },

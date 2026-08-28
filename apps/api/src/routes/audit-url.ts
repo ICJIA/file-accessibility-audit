@@ -1,6 +1,7 @@
 import { Router, Request, Response, type IRouter } from "express";
 import crypto from "node:crypto";
 import { regradeStoredReport } from "@file-audit/analyzer";
+import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 import { analyzeLimiter, isPrivilegedRequest } from "../middleware/rateLimiter.js";
 import { analyzeDocument } from "../services/analyzer.js";
 import { recordAudit, recordAuditFailure } from "../services/auditLog.js";
@@ -302,11 +303,7 @@ router.post("/audit-url", analyzeLimiter, async (req: Request, res: Response) =>
     // which rejects with { killed: true, code: 'ETIMEDOUT' }.
     // analyze-url.ts has the matching branch too (analyze-url.ts:~180).
     if (err?.code === "ETIMEDOUT" || err?.killed) {
-      res.status(504).json({
-        error: "This document is too complex to analyze within the time limit.",
-        details:
-          "This can happen with very large or complex files. Try splitting the document into smaller sections and analyzing each separately.",
-      });
+      res.status(504).json({ ...AUDIT_TIMEOUT_MESSAGE });
       return;
     }
 

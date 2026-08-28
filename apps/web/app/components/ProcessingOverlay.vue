@@ -190,12 +190,14 @@ const currentLine = computed(() => lines.value[idx.value % lines.value.length]!)
 
 // Escalating, truthful reassurance — thresholds tuned to real timings (a
 // complex InDesign PDF measured ~26 s in production; the veraPDF passes are
-// the slow part and are hard-timeout-bounded server-side).
+// the slow part and are hard-timeout-bounded server-side). The stated ceiling
+// tracks ANALYSIS.PDFJS_TIMEOUT_MS, which is two minutes — pinned by
+// ProcessingOverlay.test.ts so the promise cannot outlive the budget.
 const reassurance = computed(() => {
   if (elapsedSeconds.value >= 60)
     return "Still working. The server enforces hard timeouts on every step, so this will finish or fail with a clear message — it never hangs forever.";
   if (elapsedSeconds.value >= 15)
-    return "Large or design-heavy PDFs (InDesign exports, many images) can take 30–60 seconds — the two veraPDF engine passes are the slow part.";
+    return "Large or design-heavy PDFs (InDesign exports, many images) can take up to two minutes — the two veraPDF engine passes run one after the other and are the slow part.";
   return "";
 });
 
@@ -216,7 +218,7 @@ onMounted(() => {
     nowMs.value = Date.now();
     if (elapsedSeconds.value % 15 === 0) {
       liveAnnouncement.value = `Analysis still running — about ${elapsedSeconds.value} seconds so far. ${
-        reassurance.value || "Large documents can take a minute."
+        reassurance.value || "Large documents can take up to two minutes."
       }`;
     }
   }, 1_000);

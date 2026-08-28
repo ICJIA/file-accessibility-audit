@@ -43,6 +43,7 @@ vi.mock("../services/veraPdfBuffer.js", () => ({ runVeraPdfChecksOnBuffer }));
 
 import analyzeJobRouter from "../routes/analyzeJob.js";
 import { _resetAnalyzeJobs, _jobCount, createAnalyzeJob } from "../services/analyzeJobs.js";
+import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 
 function makeRes() {
   const res: any = {
@@ -193,7 +194,7 @@ describe("POST /api/analyze-job", () => {
     const poll = pollRes(res._json.jobId, res._json.token);
     expect(poll._json.done).toBe(true);
     expect(poll._json.error.status).toBe(504);
-    expect(poll._json.error.body.error).toContain("too complex to analyze");
+    expect(poll._json.error.body).toEqual(AUDIT_TIMEOUT_MESSAGE);
   });
 });
 

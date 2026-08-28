@@ -18,6 +18,7 @@
  */
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { AnalysisResult } from "@file-audit/analyzer";
+import { AUDIT_TIMEOUT_MESSAGE } from "@file-audit/shared";
 import type { AnalyzeStep, MappedAnalyzeError } from "./analyzeCore.js";
 
 export type JobStepState = "pending" | "running" | "done" | "skipped";
@@ -61,14 +62,7 @@ function sweep(now = Date.now()): void {
       // timeout, so this is a backstop): fail the job honestly rather than
       // letting the page poll a zombie forever.
       job.status.done = true;
-      job.status.error = {
-        status: 504,
-        body: {
-          error: "This file is too complex to analyze within the time limit.",
-          details:
-            "This can happen with very large documents that contain many embedded images or complex structure trees. To work around this, try splitting the document into smaller sections and analyzing each section separately.",
-        },
-      };
+      job.status.error = { status: 504, body: { ...AUDIT_TIMEOUT_MESSAGE } };
     }
   }
 }

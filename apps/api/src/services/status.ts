@@ -890,6 +890,31 @@ export interface EngineSnapshot {
   chromium: EngineResult;
 }
 
+/** Failure reasons that can clear WITHOUT a deploy: a probe starved by a busy
+ *  box, or one that errored transiently. `not_configured` / `not_executable`
+ *  describe the installation, not the moment, so they are not in here. */
+const TRANSIENT_PROBE_FAILURES: ReadonlySet<ProbeFailureReason> = new Set(["timeout", "error"]);
+
+/**
+ * How long THIS snapshot may be served from cache.
+ *
+ * A passing snapshot keeps the full TTL, because re-probing costs a veraPDF
+ * JVM. A snapshot carrying a transient failure gets the short one: on
+ * 2026-08-28 a heavy audit starved the veraPDF probe for ~40 seconds and
+ * /status went on calling the engine "down (timed out)" for the remaining ten
+ * minutes, while veraPDF was answering in 2.4s. A stale failure accuses a
+ * healthy server; a stale success only delays good news.
+ *
+ * Exported for tests.
+ */
+export function cacheTtlFor(snapshot: EngineSnapshot): number {
+  const transientlyFailing = [...CORE_ENGINES, ...OPTIONAL_ENGINES].some((name) => {
+    const engine = snapshot[name];
+    return !engine.ok && engine.reason !== undefined && TRANSIENT_PROBE_FAILURES.has(engine.reason);
+  });
+  return transientlyFailing ? STATUS.ENGINE_PROBE_FAILURE_TTL_MS : STATUS.ENGINE_PROBE_TTL_MS;
+}
+
 /** Engines whose absence stops the service from auditing at all. A failure
  *  here is an outage (503); anything else is degraded (200). */
 export const CORE_ENGINES = ["qpdf"] as const;
@@ -1042,7 +1067,7 @@ export function createStatusService(deps: StatusDeps) {
   }
 
   async function getEngines(nowMs: number): Promise<EngineSnapshot> {
-    if (engines && nowMs - engines.atMs < STATUS.ENGINE_PROBE_TTL_MS) {
+    if (engines && nowMs - engines.atMs < cacheTtlFor(engines.value)) {
       return engines.value;
     }
     if (enginesInFlight) return enginesInFlight;
