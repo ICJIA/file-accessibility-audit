@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.121.0] - 2026-08-28
+
+### Security
+
+- **Every open Dependabot alert cleared** — GitHub's automatic advisory watcher had flagged three third-party components; all three are now current:
+  - **puppeteer ^23 → ^25.9.0** (api). The high-severity alert was on `extract-zip`, a helper with **no patched version anywhere** — the only cure was removal, and puppeteer 25's browser installer no longer uses it at all. The package is gone from the dependency tree entirely.
+  - **@nuxt/ui ^4.5.1 → ^4.8.1** (web, resolves 4.11.0). Clears the form-component advisory; the affected components were never used here, but the patched line now exists and we are on it.
+  - **mermaid 11.15.0 → 11.17.2** (root, development-only — used to pre-render the documentation diagrams). Clears five advisories.
+- Rode-along fixes the bumps required: puppeteer ≥24 resolves its browser path asynchronously, so the `/status` engine probe now awaits it; Nuxt UI 4.11's stricter head types wanted a literal `rel` on the analytics preconnect hint; and `scripts/generate-diagrams.mjs` now resolves the mermaid bundle through `require` instead of a hardcoded version path that broke on any bump.
+
+### Notes
+
+- Verified before release: all five gates green (**2,922 tests unchanged**); a live page render + axe pass on the new Chrome 152; the `/status` chromium probe healthy locally **and on production after deploy**; landing and What's New pages screenshotted intact on Nuxt UI 4.11; all four documentation diagrams re-rendered pixel-identical on mermaid 11.17.2; `fast-xml-parser` unmoved at 5.10.1, so document scores cannot shift.
+- The first deploy after this change downloads puppeteer's Chrome (~180 MB) during install — a few extra minutes, one time. (Already done: production deployed and verified.)
+
+<details>
+<summary><strong>v1.120.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.120.0] - 2026-08-28
 
 ### Added
@@ -21,8 +39,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Two of batch three's initial failures were the samples again, and the checker's floors won both arguments: a 48-character "cover sheet" was honestly called textless (the real-text floor is 50 characters — the sample was too spartan, not the checker too harsh), and a good-twin sample was docked for genuinely lacking `DisplayDocTitle`, the exact advisory another trap exists to prove. The third was a test regex missing the finding's actual wording.
 - Tests: API 1,592 · web 1,281 · CLI 49 (**2,922**), unchanged — this release is trap documents and generated-page content.
 
-<details>
-<summary><strong>v1.119.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
 
 ## [1.119.0] - 2026-08-28
 

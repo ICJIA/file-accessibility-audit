@@ -1,9 +1,9 @@
 {
   "name": "@file-audit/shared",
-  "version": "1.120.0",
+  "version": "1.121.0",
   "private": true,
   "type": "module",
-  "description": "Browser-safe scoring constants and report-payload types shared by api, web, and cli. No Node APIs, no process.env — pure data and pure functions only.",
+  "description": "Browser-safe scoring constants and report-payload types shared by api, web, and cli. No Node APIs, no process.env \u2014 pure data and pure functions only.",
   "exports": {
     ".": {
       "types": "./src/index.ts",

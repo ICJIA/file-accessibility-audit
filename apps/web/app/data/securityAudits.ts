@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.121.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: routine dependency safety update — the third-party building blocks the software stands on, brought current. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "GitHub runs an automatic advisory watcher over every project it hosts; it had flagged three third-party components this software builds on, and all three are now updated. The most serious flag was on a small file-unpacking helper that has <strong>no fixed version anywhere</strong> &mdash; so the cure was removal: the browser engine that renders web pages for page check-ups was updated to a version that no longer uses that helper at all, and it is gone from the software entirely. The toolkit the site&rsquo;s buttons and menus are built from was brought to its patched line (the affected pieces were never used here to begin with), and a diagram-drawing tool used only while writing documentation &mdash; it never runs on the server &mdash; was updated past five advisories of its own.",
+      },
+      {
+        kind: "p",
+        html: "How this was verified before release: the full battery of 2,922 self-checks passed; a real web page was rendered end-to-end on the updated browser engine with the accessibility scan completing cleanly; the site&rsquo;s own pages were checked visually on the updated toolkit; and the component that reads Word, PowerPoint, and Excel files was deliberately left untouched &mdash; so no document&rsquo;s score can shift from this update.",
+      },
+      {
+        kind: "p",
+        html: "No code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.120.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: the trap-document battery grown to 50, and the trust page teaching the industry checklist by name. Nothing new is received, sent, or stored.",
     body: [
