@@ -642,7 +642,11 @@ export function censusHeadingContent(
     fragments: fragmentTexts.length,
     paragraphs,
     unusable: empty + fragmentTexts.length + paragraphs,
-    samples: fragmentTexts.slice(0, 3),
+    // Embedded double quotes are replaced: the finding wraps each sample in
+    // double quotes, and a sample carrying its own would nest them unbalanced
+    // — which is also what would let document text bleed past the icon
+    // classifier's quoted-span stripping (apps/web findings.ts).
+    samples: fragmentTexts.slice(0, 3).map((t) => t.replace(/"/g, "'")),
   };
 }
 

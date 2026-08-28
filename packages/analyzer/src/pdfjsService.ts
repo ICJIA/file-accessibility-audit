@@ -304,6 +304,27 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         if (tree) textById = buildMarkedContentTextMap(textContent.items);
       } catch {}
 
+      // Whether this page's text could be attributed to its tags at all —
+      // computed ONCE and honored by every census that reads textById: the
+      // heading outline (v1.110.0), tagged-link text, and the figure-text
+      // census (both v1.116.0). One page, one verdict; a census that judged
+      // unattributable text would be reporting our limit as the document's.
+      const pageTextReliable =
+        !textById ||
+        markedContentAttributionReliable({
+          textItems: (textContent.items as any[]).filter(
+            (it: any) => typeof it?.str === "string" && it.str,
+          ).length,
+          idsSeen: (textContent.items as any[]).filter(
+            (it: any) =>
+              typeof it?.type === "string" &&
+              it.type.startsWith("beginMarkedContent") &&
+              typeof it.id === "string" &&
+              it.id,
+          ).length,
+          idsWithText: textById.size,
+        });
+
       // Link annotations. A link's text is what its <Link> element contains —
       // exact marked-content runs, not "whatever text starts inside the
       // rectangle" (which bled "here . FOID statistics are available" into a
@@ -321,7 +342,10 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
           if (id) annotById.set(id, a);
         }
         const claimed = new Set<any>();
-        const structLinks = tree && textById ? collectStructTreeLinks(tree, textById) : [];
+        const structLinks =
+          tree && textById
+            ? collectStructTreeLinks(tree, textById, { textReliable: pageTextReliable })
+            : [];
         for (const sl of structLinks) {
           const annots = sl.annotationIds.map((id) => annotById.get(id)).filter(Boolean);
           for (const a of annots) claimed.add(a);
@@ -369,19 +393,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       // about the document.
       try {
         if (tree && textById) {
-          const reliable = markedContentAttributionReliable({
-            textItems: (textContent.items as any[]).filter(
-              (it: any) => typeof it?.str === "string" && it.str,
-            ).length,
-            idsSeen: (textContent.items as any[]).filter(
-              (it: any) =>
-                typeof it?.type === "string" &&
-                it.type.startsWith("beginMarkedContent") &&
-                typeof it.id === "string" &&
-                it.id,
-            ).length,
-            idsWithText: textById.size,
-          });
+          const reliable = pageTextReliable;
           const { entries, withoutText } = collectStructTreeHeadings(tree, textById);
           if (result.headingOutline!.length < MAX_HEADING_OUTLINE_ENTRIES) {
             result.headingOutline!.push(
@@ -397,7 +409,9 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
       // Figures that contain text (see PdfjsResult.textBearingFigures).
       try {
         if (tree && textById && result.textBearingFigures!.length < MAX_TEXT_BEARING_FIGURES) {
-          result.textBearingFigures!.push(...collectTextBearingFigures(tree, textById, i));
+          result.textBearingFigures!.push(
+            ...collectTextBearingFigures(tree, textById, i, pageTextReliable),
+          );
         }
       } catch {}
     }
@@ -863,7 +877,14 @@ function isHiddenAnnotation(annot: any): boolean {
 export function collectStructTreeLinks(
   tree: unknown,
   textById: Map<string, string>,
+  // v1.116.0: on a page whose attribution failed, struct-derived text can be
+  // a fragment of somebody else's sentence — worse than no text, because a
+  // non-empty fragment suppresses the geometry fallback that served links
+  // before this census existed. The annotation claim and the author-given
+  // /Alt both come from the structure tree itself and are unaffected.
+  opts: { textReliable?: boolean } = {},
 ): Array<{ text: string; annotationIds: string[] }> {
+  const textReliable = opts.textReliable !== false;
   const out: Array<{ text: string; annotationIds: string[] }> = [];
   const annotationIds = (node: any): string[] => {
     const ids: string[] = [];
@@ -885,7 +906,10 @@ export function collectStructTreeLinks(
     if (!node || typeof node !== "object") return;
     if (node.role === "Link") {
       const alt = typeof node.alt === "string" ? normalizeWhitespace(node.alt) : "";
-      out.push({ text: structNodeText(node, textById) || alt, annotationIds: annotationIds(node) });
+      out.push({
+        text: (textReliable ? structNodeText(node, textById) : "") || alt,
+        annotationIds: annotationIds(node),
+      });
       return;
     }
     if (Array.isArray(node.children)) for (const c of node.children) visit(c);
@@ -905,8 +929,15 @@ export function collectTextBearingFigures(
   tree: unknown,
   textById: Map<string, string>,
   page: number,
+  // v1.116.0: whether this page's marked-content attribution held (see
+  // markedContentAttributionReliable). On a page where it did not, the map's
+  // text can belong to anything — asserting "this figure contains text" on it
+  // would be a false positive with retag-don't-describe advice attached, so
+  // the census stays silent there. A miss beats a false accusation.
+  textReliable = true,
 ): Array<{ page: number; hasAlt: boolean; textLength: number; preview: string }> {
   const out: Array<{ page: number; hasAlt: boolean; textLength: number; preview: string }> = [];
+  if (!textReliable) return out;
   const visit = (node: any): void => {
     if (!node || typeof node !== "object") return;
     if (node.role === "Figure") {

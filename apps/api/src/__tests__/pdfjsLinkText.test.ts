@@ -260,3 +260,79 @@ describe("analyzeWithPdfjs — link text and tagging census", () => {
     expect(r.links).toHaveLength(2);
   }, 30_000);
 });
+
+// ---------------------------------------------------------------------------
+// The attribution guard, extended past headings (v1.116.0).
+//
+// v1.110.0 established that some pages defeat marked-content attribution
+// entirely — pdf.js emits every boundary as an immediately-closed empty pair
+// and delivers the text separately — and taught the HEADING census to treat
+// those pages as unreadable rather than as evidence. The figure-text census
+// and tagged-link text read the same map and were left on the raw data: a
+// mis-attributed page could call a plain photo a "figure containing text"
+// (with a garbled preview driving retag-don't-describe advice), or hand a
+// tagged link a fragment of somebody else's sentence. On an unreliable page
+// the census now stays silent and link text falls back to the geometry path,
+// exactly as it did before the census existed.
+// ---------------------------------------------------------------------------
+
+describe("attribution reliability — figures", () => {
+  const tree = {
+    role: "Root",
+    children: [{ role: "Figure", children: [{ type: "content", id: "p3R_mc0" }] }],
+  };
+  const byId = new Map([["p3R_mc0", "Detox Under 1% Toxicology or assessment 31%"]]);
+
+  it("collects text-bearing figures from a page whose attribution held", () => {
+    expect(collectTextBearingFigures(tree, byId, 34, true)).toHaveLength(1);
+  });
+
+  it("stays silent on a page whose text could not be attributed", () => {
+    // The map may hold text, but on such a page it can belong to anything —
+    // asserting "this figure contains text" on it would be a false positive.
+    expect(collectTextBearingFigures(tree, byId, 34, false)).toEqual([]);
+  });
+});
+
+describe("attribution reliability — link text", () => {
+  const tree = {
+    role: "Root",
+    children: [
+      {
+        role: "Link",
+        children: [
+          { type: "content", id: "p3R_mc0" },
+          { type: "object", id: "9R" },
+        ],
+      },
+    ],
+  };
+  const byId = new Map([["p3R_mc0", "PA"]]);
+
+  it("keeps struct-tree text on a reliable page", () => {
+    const links = collectStructTreeLinks(tree, byId, { textReliable: true });
+    expect(links[0]!.text).toBe("PA");
+  });
+
+  it("blanks the struct text on an unreliable page so geometry takes over, keeping the annotation claim", () => {
+    const links = collectStructTreeLinks(tree, byId, { textReliable: false });
+    expect(links[0]!.text).toBe("");
+    // The claim ("this annotation belongs to a tag") comes from the structure
+    // tree, not the text map — it stays, so the link is never misreported as
+    // untagged.
+    expect(links[0]!.annotationIds).toEqual(["9R"]);
+  });
+
+  it("still falls back to the author-given /Alt on an unreliable page", () => {
+    // /Alt lives on the Link ELEMENT — struct-tree data, not marked-content
+    // attribution — so unreliability must not discard it.
+    const altTree = {
+      role: "Root",
+      children: [
+        { role: "Link", alt: "Annual report portal", children: [{ type: "object", id: "9R" }] },
+      ],
+    };
+    const links = collectStructTreeLinks(altTree, byId, { textReliable: false });
+    expect(links[0]!.text).toBe("Annual report portal");
+  });
+});

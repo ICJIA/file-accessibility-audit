@@ -149,4 +149,22 @@ describe("headings that are not really headings", () => {
     );
     expect(cat.score).toBe(100);
   });
+
+  it("strips double quotes from quoted samples, so the finding's own quoting stays balanced", async () => {
+    // The finding wraps each sample in double quotes; a fragment carrying its
+    // own quote would nest them unbalanced, which is also what lets document
+    // text bleed past the icon classifier's quoted-span stripping downstream.
+    const { censusHeadingContent } = await import("@file-audit/analyzer/scoring/pdf");
+    const census = censusHeadingContent(
+      [
+        { level: "H2", text: 'he said "advisory" and th' },
+        { level: "H2", text: "plain fragment thi" },
+        { level: "H2", text: "another cut off wo" },
+      ],
+      0,
+    );
+    expect(census).not.toBeNull();
+    for (const sample of census!.samples) expect(sample).not.toContain('"');
+    expect(census!.samples.join(" ")).toContain("advisory");
+  });
 });

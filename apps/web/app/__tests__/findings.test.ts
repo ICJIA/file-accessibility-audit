@@ -246,3 +246,36 @@ describe("isNeutralFinding — a measurement is not a failure", () => {
     expect(isNeutralFinding("   ")).toBe(false);
   });
 });
+
+describe("isNeutralFinding — quoted document text cannot flip the icon", () => {
+  // Findings quote text from the DOCUMENT verbatim — heading samples, alt
+  // text, link text — inside double quotes. The neutral-keyword test used to
+  // run over the whole line, so a heading that happened to contain the word
+  // "advisory" turned its own failure line into a neutral bullet. Display
+  // only, the author's own report only — but the classifier should judge OUR
+  // words, never the document's.
+  it("a fragment sample containing a neutral keyword keeps its failure icon", () => {
+    expect(
+      isNeutralFinding(
+        '32 heading tag(s) hold a fragment rather than a heading — the tag caught part of a sentence, often cut off mid-word: "advisory committee repo", "la".',
+      ),
+    ).toBe(false);
+  });
+
+  it("quoted alt text carrying a keyword does not neutralise its line", () => {
+    expect(isNeutralFinding('  Image 42: "advisory board photo, does not affect the score"')).toBe(
+      false,
+    );
+  });
+
+  it("the report's own unquoted caveats stay neutral", () => {
+    expect(
+      isNeutralFinding(
+        "Found 27 H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading.",
+      ),
+    ).toBe(true);
+    expect(
+      isNeutralFinding("  Advisory — not scored: 1 note(s) have no /ID (Matterhorn 19-003)."),
+    ).toBe(true);
+  });
+});

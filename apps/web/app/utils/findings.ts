@@ -31,7 +31,16 @@ export function isNeutralFinding(finding: string): boolean {
   // Methodology and self-caveat prose — the card explaining how it measured,
   // or explicitly saying the measurement is not a verdict.
   if (/^compared the /i.test(f)) return true;
-  if (/is not automatically wrong|does not affect the score|advisory|not required by/i.test(f)) {
+  // The keyword test judges OUR wording, never the document's: findings quote
+  // document text verbatim inside double quotes (heading samples, alt text,
+  // link text), and a heading that happens to contain "advisory" must not
+  // turn its own failure line into a neutral bullet. Balanced quoted spans
+  // are removed before matching; the quoting side keeps them balanced by
+  // stripping embedded quotes from samples at the source (censusHeadingContent).
+  const ownWords = f.replace(/"[^"]*"/g, '""');
+  if (
+    /is not automatically wrong|does not affect the score|advisory|not required by/i.test(ownWords)
+  ) {
     return true;
   }
   return false;

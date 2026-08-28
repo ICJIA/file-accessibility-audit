@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.116.0] - 2026-08-28
+
+### Fixed
+
+- **The attribution guard now covers everything that reads the marked-content map, not only headings.** v1.110.0 established that some pages defeat pdf.js's text-to-tag attribution entirely, and taught the heading census to treat those pages as unreadable rather than as evidence. Two censuses were left on the raw data: **figure text** (a mis-attributed page could call a plain photo a "figure containing text", with a garbled preview driving retag-don't-describe advice) and **tagged-link text** (a link could be handed a fragment of somebody else's sentence, and a non-empty fragment suppresses the geometry fallback that served links before the census existed). Both now honor the same per-page verdict, computed once: on an unreliable page the figure census stays silent, and link text falls back to geometry — with the annotation's tagged status and any author-given `/Alt` preserved, since both come from the structure tree rather than the attribution map.
+- **A document cannot flip its own finding's icon by containing the right word.** The neutral-icon classifier keyword-matched whole finding lines, and findings quote document text verbatim — so a heading containing "advisory" turned its own failure line into a neutral bullet (display only, the author's own report only; flagged in today's security review as below the exploitability bar and fixed anyway). The classifier now strips balanced quoted spans before matching, so it judges the report's wording and never the document's; and heading samples replace embedded double quotes at the source, so the quoting stays balanced.
+
+### Changed
+
+- **The Matterhorn "Issues found" chip is red.** Green good, red bad — against a page of emerald "no issues" chips, amber did not read as the bad one. The `veraPDF` source tag stays amber: it labels provenance, not a verdict.
+
+### Notes
+
+- **Full control-corpus verification ran with this release: 36 documents, zero invariant failures.** Every PDF, Word, PowerPoint and Excel control was pushed through the real pipeline with per-document assertions — grade always equals the grade its score implies, every category weight matches its format's authored table (PDF, DOCX, PPTX and XLSX each carry their own, each summing to exactly 1.0), severity caps are never exceeded, and the legacy `.xls` is refused as designed. The corpus was swept before and after this release's changes: **no control document's score, grade, or category moved.**
+- Today's security review of v1.105.0→v1.115.0 (13 commits, 59 files) found no new vulnerabilities; the two items it surfaced below the reporting bar are both closed by this release.
+- Tests: API 1,589 · web 1,269 · CLI 49 (**2,907**), 10 new.
+
+<details>
+<summary><strong>v1.115.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.115.0] - 2026-08-28
 
 ### Changed
@@ -17,8 +37,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - The panel is taller than before. That is the trade: 31 rows read top to bottom rather than tiled, which is what makes each step visible on a document with many findings.
 - Tests: API 1,583 · web 1,265 · CLI 49 (**2,897**), 1 new — one checkpoint per row (the list is never a two-column grid), numerals at display size, and bands alternating on the row index.
 
-<details>
-<summary><strong>v1.114.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.114.0] - 2026-08-28
 

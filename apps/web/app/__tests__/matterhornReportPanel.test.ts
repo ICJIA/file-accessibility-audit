@@ -601,6 +601,25 @@ describe("MatterhornReportPanel.vue — the honesty contract", () => {
     expect(cls).toMatch(/tabular-nums/);
   });
 
+  // Requested 2026-08-28: green good, red bad. "Issues found" wore amber,
+  // which against a page of emerald chips did not read as the bad one.
+  it("colours the verdict chips green-good / red-bad", async () => {
+    const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
+    await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
+
+    const chips = w.findAll('[data-testid="matterhorn-row"] span.uppercase');
+    const classesFor = (label: string) =>
+      chips.filter((c) => c.text() === label).map((c) => c.classes().join(" "));
+
+    const issue = classesFor("Issues found");
+    expect(issue.length).toBeGreaterThan(0);
+    for (const cls of issue) {
+      expect(cls).toMatch(/red/);
+      expect(cls).not.toMatch(/amber/);
+    }
+    for (const cls of classesFor("No machine-detected issues")) expect(cls).toMatch(/emerald/);
+  });
+
   it("bands alternate rows", async () => {
     const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
     await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");

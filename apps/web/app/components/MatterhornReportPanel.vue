@@ -35,7 +35,12 @@ interface StatusStyle {
 const STATUS_STYLES: Record<MatterhornRowStatus, StatusStyle> = {
   issues: {
     label: "Issues found",
-    chipClass: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+    // Red, not amber (2026-08-28, user request): against a page of emerald
+    // "no issues" chips, amber did not read as the bad one. Green good, red
+    // bad — the same pairing the grade colours already teach (--grade-f is
+    // red-500). The veraPDF source tag stays amber: it labels provenance,
+    // not a verdict.
+    chipClass: "border-red-500/40 bg-red-500/10 text-red-300",
   },
   clean: {
     label: "No machine-detected issues",

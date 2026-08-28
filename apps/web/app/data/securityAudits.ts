@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.116.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: a full security review of the day&rsquo;s thirteen releases, the two small things it turned up, and a complete re-verification of every test document. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "At the end of a day with many releases, we reviewed all of them together as one body of change &mdash; every new way document content flows into a report was traced from the file to the screen, to the saved copy, and to the downloadable export. <strong>No security problem was found</strong>: text quoted from a document is always displayed through escaping that prevents it acting as code, the new internal walks over document structure are strictly bounded, and the additions to the status page are the same numbers it already published, written out readably. The two current advisories in our third-party libraries were checked and neither applies: one concerns a login form component this site does not use (and there are no logins), the other only runs while installing developer tooling, never while serving visitors.",
+      },
+      {
+        kind: "p",
+        html: "The review did surface two small things, both fixed the same day. First, an earlier safeguard &mdash; ignoring pages whose text our reader provably cannot match to the document&rsquo;s structure &mdash; protected headings but not two other checks, which could in principle describe a photo as text or misquote a link on such a page. Those checks now respect the same page-by-page verdict. Second, a purely cosmetic quirk: a document containing a particular word in a heading could make one line of <em>its own report</em> display a neutral marker instead of a failure mark, with the score and grade unaffected. The report now judges only its own wording, never the document&rsquo;s, when choosing icons.",
+      },
+      {
+        kind: "p",
+        html: "Alongside the review, every one of the 36 documents we keep for testing was run through the full pipeline with the bookkeeping checked document by document: the letter grade always matches the score, every category&rsquo;s weighting matches the published table for its format, no score ever exceeds the ceiling its worst finding imposes, and the one deliberately-unsupported legacy file is refused exactly as designed. The same set was run before and after today&rsquo;s fixes: <strong>not one document&rsquo;s score or grade moved</strong>. One visible change rides along: on the checklist panel, &ldquo;Issues found&rdquo; is now marked in red rather than amber, so good and bad read at a glance. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.115.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: laying one panel out in a single column with larger step numbers. No wording, scoring, or data changed.",
     body: [
