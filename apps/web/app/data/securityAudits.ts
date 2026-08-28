@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.114.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: shading alternate rows of one panel so each row reads as one thing. No wording, scoring, or data changed.",
+    body: [
+      {
+        kind: "p",
+        html: "A follow-on to the change described below. That one settled which findings belong to which checkpoint; this one makes the line between checkpoints visible, by shading every other row very lightly. The care needed here is that a row on this panel is not simply a list item: a checkpoint with findings fills a row on its own, while two short ones sit side by side. Shading every other <em>item</em> would have tinted one half of a pair and left the other plain, which looks like a fault rather than a stripe, so the shading follows the actual row instead &mdash; both halves of a pair always match.",
+      },
+      {
+        kind: "p",
+        html: "Worth recording because it is the kind of detail that gets waved through: the first shade we tried was three shades of grey away from the background, which is correct in principle and invisible in practice. It was rejected by looking at the rendered page rather than by reading the code, and replaced with the slightly stronger tone the rest of the report already uses for raised panels. Nothing else changed: the same checkpoints, the same wording, the same evidence, and the same rule that this section never shows a total or a pass mark.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: appearance only &mdash; no new information is shown, collected, sent, or stored, and no score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.113.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: the layout of one panel on the report, so a document with many findings can be read. No wording, scoring, or data changed.",
     body: [

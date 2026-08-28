@@ -591,6 +591,51 @@ describe("MatterhornReportPanel.vue — the honesty contract", () => {
     for (const row of withoutEvidence) expect(row.classes()).not.toContain("sm:col-span-2");
   });
 
+  // Zebra striping, requested 2026-08-28 after the full-width change landed:
+  // "can you zebra stripe this in a subtle way so it's clear what's a distinct
+  // row". The catch is that a row here is a VISUAL row, not a list item: a
+  // checkpoint with findings occupies a whole row on its own, while two clean
+  // ones share one. Striping by nth-child would band one half of a pair and
+  // leave the other bare, which reads as a rendering fault rather than a
+  // stripe. The band therefore follows the computed visual row.
+  it("bands alternate visual rows, and both halves of a shared row match", async () => {
+    const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
+    await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");
+
+    const rows = w.findAll('[data-testid="matterhorn-row"]');
+    const seen = rows.map((r) => ({
+      visualRow: Number(r.attributes("data-visual-row")),
+      // --surface-raised, the token the rest of the report uses for a lifted
+      // surface: #16191f on #111111 in dark, #eef2f7 on #ffffff in light.
+      // --surface-card-alt was tried first and is three levels of grey — too
+      // faint on screen to tell one row from the next, which is the job.
+      banded: r.classes().some((c) => c.includes("surface-raised")),
+      fullWidth: r.classes().includes("sm:col-span-2"),
+    }));
+
+    // Every item sits in a real row, and rows advance by at most one.
+    expect(seen.every((x) => Number.isInteger(x.visualRow))).toBe(true);
+    for (let i = 1; i < seen.length; i++) {
+      const step = seen[i]!.visualRow - seen[i - 1]!.visualRow;
+      expect(step === 0 || step === 1).toBe(true);
+    }
+
+    // The band is a property of the row, so both halves of a pair agree.
+    const byRow = new Map<number, typeof seen>();
+    for (const x of seen) byRow.set(x.visualRow, [...(byRow.get(x.visualRow) ?? []), x]);
+    for (const [visualRow, items] of byRow) {
+      expect(new Set(items.map((i) => i.banded)).size).toBe(1);
+      expect(items[0]!.banded).toBe(visualRow % 2 === 1);
+      // A checkpoint with findings never shares its row.
+      if (items.some((i) => i.fullWidth)) expect(items).toHaveLength(1);
+      else expect(items.length).toBeLessThanOrEqual(2);
+    }
+
+    // And striping is actually happening — not every row unbanded.
+    expect(seen.some((x) => x.banded)).toBe(true);
+    expect(seen.some((x) => !x.banded)).toBe(true);
+  });
+
   it("attaches findings to their checkpoint with a rail rather than loose indentation", async () => {
     const w = mount(MatterhornReportPanel, { props: { result: issuesReport } });
     await w.get('[data-testid="matterhorn-report-toggle"]').trigger("click");

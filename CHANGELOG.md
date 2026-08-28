@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.114.0] - 2026-08-28
+
+### Changed
+
+- **The Matterhorn checklist is zebra striped, so each row reads as one thing.** The full-width change in v1.113.0 fixed which findings belong to which checkpoint; this makes the boundary between checkpoints visible without the reader having to trace it. The catch is that a row here is a **visual** row, not a list item: a checkpoint with findings takes a whole row alone, while two clean ones share one — so `nth-child` striping would band one half of a pair and leave the other bare, which reads as a rendering fault rather than a stripe. The band therefore follows the row the grid actually places each checkpoint in, and both halves of a shared row always match.
+- Grid gaps became cell padding, so the bands meet edge to edge, with a matching negative margin on the list so a band bleeds to the card's inner edge instead of eating each cell's width — without it the longer checkpoint names ("Stretchable Characters") wrapped their status chip onto a second line.
+- The band is `--surface-raised`, the token the rest of the report uses for a lifted surface — #16191f on #111111 in dark, #eef2f7 on #ffffff in light. `--surface-card-alt` was tried first and is three levels of grey: correct in principle, invisible in practice, which fails the one job the stripe has.
+
+### Notes
+
+- Layout only, again: same checkpoints, statuses, evidence, and the honesty contract (no aggregate count, no bare "Pass") untouched.
+- Checked by eye at both token choices before settling — the faint one was rejected on the rendered page, not in review.
+- Tests: API 1,583 · web 1,264 · CLI 49 (**2,896**), 1 new: bands alternate by visual row, both halves of a pair agree, and a checkpoint with findings never shares its row.
+
+<details>
+<summary><strong>v1.113.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.113.0] - 2026-08-28
 
 ### Changed
@@ -17,8 +34,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Verified by eye, not only by test: rendered against a 246-page report carrying the exact veraPDF clauses from the report that prompted this, and screenshotted at full-panel and single-checkpoint zoom.
 - Tests: API 1,583 · web 1,263 · CLI 49 (**2,895**), 2 new — one pinning that a checkpoint with findings spans the full width while a clean one does not, one pinning the rail.
 
-<details>
-<summary><strong>v1.112.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.112.0] - 2026-08-28
 
