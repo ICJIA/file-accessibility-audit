@@ -4,7 +4,7 @@
 
 **audit.icjia.app — built for Title II ADA · WCAG · Illinois IITAA compliance.** Every claim in this brief can be verified without taking anyone's word for it — including ours.
 
-**{{AUDITS_TOTAL}}** check-ups run for Illinois agencies — and, as word has spread, outside clients too. {{AUDITS_30D}} in the last 30 days alone. · **{{TESTS}}** self-checks the software runs on itself before it goes live; one failure blocks any change. · **{{TRAPS}} / {{TRAPS}}** trap documents built to fool it, every one judged correctly. · **{{COMMITS}}** saved, dated, public changes over {{WEEKS}} weeks.
+**{{AUDITS_TOTAL}}** check-ups run for internal and external agencies — the quick per-file check-up that has caught on beyond ICJIA: easier than SiteImprove, clearer than PAC. {{AUDITS_30D}} in the last 30 days alone. · **{{TESTS}}** self-checks the software runs on itself before anything goes live — all must pass, or nothing ships. · **{{TRAPS}} / {{TRAPS}}** trap documents built to fool it, every one judged correctly. · **{{COMMITS}}** saved, dated, public changes over {{WEEKS}} weeks.
 
 ## What it does
 
@@ -17,6 +17,8 @@ Three names, one idea — government information must work for everyone. **Title
 ## What every check-up looks at
 
 Up to **nine graded areas per document**, matched against the PDF industry's official 31-point checklist — the same one professional human reviewers work from: real selectable text (words, not pictures of words) · title and language · true headings · image descriptions · table structure · reading order · links and navigation · labeled forms · plus separate check suites for Word, PowerPoint, and Excel. Every report also states plainly what automation **cannot** check — roughly 60–70% of accessibility is human judgment, and the report says so on every grade.
+
+**The 31-point checklist has a name: the Matterhorn Protocol.** Published by the PDF Association — the same industry body that builds the veraPDF referee — it is the test model professional evaluators and tools like PAC work through. How the pieces fit: **Title II and IITAA** name the law's standard, **WCAG** — rules for what must be true of *any* content; **Matterhorn** translates those rules into 31 PDF-specific, testable checkpoints — where inside a PDF to look. The law, our checker, veraPDF, and a human evaluator's checklist all read from connected pages, and every report maps its findings onto all 31: 01 Real content tagged · 02 Role Mapping · 03 Flicker · 04 Color and Contrast · 05 Sound · 06 Metadata · 07 Dictionary · 08 OCR-generated content · 09 Appropriate Tags · 10 Character Mappings · 11 Declared Natural Language · 12 Stretchable Characters · 13 Graphics · 14 Headings · 15 Tables · 16 Lists · 17 Mathematical Expressions · 18 Page Headers and Footers · 19 Notes and References · 20 Optional Content · 21 Embedded Files · 22 Article Threads · 23 Digital Signatures · 24 Non-Interactive Forms · 25 XFA · 26 Security · 27 Navigation · 28 Annotations · 29 Actions · 30 XObjects · 31 Fonts.
 
 ## It doesn't grade its own homework
 
@@ -34,11 +36,19 @@ This is not an internal experiment. The checker is **used every day — by ICJIA
 - **A document-repair specialist's two "missing" images: 79 C → 100 A.** Right again — the "images" were leftovers from a rebuilt page, on no page at all. Fixed same day.
 - **Table headers: the checker was right** — verified against the file's internals; the advice was made clearer instead.
 
-Software that only pretends to work can't afford to lose an argument in public. This one has — twice — and got better both times. And the loop closes: **{{REAUDITED}} documents came back re-audited after repairs in the last 30 days; {{REACHED_A}} reached an A.**
+Software that only pretends to work can't afford to lose an argument in public. This one has — twice — and got better both times.
+
+## Does it actually work? Fail. Fix. Re-check. Pass.
+
+The strongest evidence is not a promise — it is the same document graded twice. A grade here is a **to-do list, not a verdict**: the first check-up fails the file and names every problem with exact fix-it steps; the author repairs it; the re-check runs the same rules with no memory of the first attempt. In the last 30 days alone, **{{REAUDITED}} documents came back for a re-check after repairs — and {{REACHED_A}} of them climbed all the way to an A**: failed, fixed, and passed under the same rules. This is the question behind every other question, and the answer no sales pitch can fake: the same file, failed and then passed.
+
+## Different tools, different jobs: SiteImprove and this checker
+
+Many agencies already have SiteImprove, and being honest about both is the fastest way to trust either. **SiteImprove does well:** it watches an entire *website* — crawling every page on a schedule, tracking trends over months, with dashboards and governance for a whole organization. **What it isn't built for:** the document in your hand right now (single-file answers wait on crawl cycles); its scores mix the legal AA requirements with stricter AAA and best-practice items the law does not name, so a sub-100 is not necessarily a legal problem; and it is a paid enterprise subscription. **This checker does well:** one file, answered in about a minute — free, no account, nothing stored; scored against the legal standard with every finding labeled by its rulebook; fix-by-fix instructions and two independent verdicts. **What it isn't built for:** crawling websites, watching trends, or dashboards; and like every automated checker — SiteImprove and Acrobat included — it sees only the 30–40% a machine can judge. **Use SiteImprove to watch the whole site. Use this when a document is in your hand and you need an answer now.** The advantage here is simple: it is faster, and it is free.
 
 ## {{MONTHS_WORD}} months. {{COMMITS}} changes. {{VERSIONS}} versions.
 
-Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. Milestones, newest first: passes its own trap test {{TRAPS}}/{{TRAPS}} · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · made its own grading **stricter** on itself · lost two public arguments and fixed both · covered all 31 industry checkpoints · removed all accounts and identity (nothing stored about who uses it) · adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements.
+Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. All of it is public, on GitHub: [the full change log](https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md) and [every numbered version](https://github.com/ICJIA/file-accessibility-audit/tags), open for anyone to read. Milestones, newest first: passes its own trap test {{TRAPS}}/{{TRAPS}} · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · made its own grading **stricter** on itself · lost two public arguments and fixed both · covered all 31 industry checkpoints · removed all accounts and identity (nothing stored about who uses it) · adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements.
 
 ## "But one person built it."
 
@@ -46,9 +56,12 @@ Fair. So ignore the person entirely — every claim here is checkable by anyone:
 
 - **The recipe is public.** Every line of code and every change is on GitHub — a kitchen that cooks with the door open.
 - **Independent referee.** veraPDF co-signs or contradicts every report.
-- **{{TESTS}} self-checks.** Before any change goes live, the software re-tests every promise it has ever made.
+- **{{TESTS}} self-checks.** Before anything new goes live, the software re-runs every promise it has ever made — all {{TESTS}} must pass. A single failure stops the release cold: fix it, then run the full battery again from the top. A few of those promises, in plain words: a scanned page with no readable text must score zero (no partial credit for a picture of words); a file with no tables must never be graded on tables; the grade on screen and the grade in the downloaded report must match, digit for digit; an image description made of nothing but blank spaces must be caught as empty; and all {{TRAPS}} trap documents must still be judged correctly, every release.
 - **Public paper trail.** {{VERSIONS}} version notes plus a plain-language security log written for records auditors — mistakes included.
+- **The world's own tools.** Inside it run qpdf, veraPDF, and the Matterhorn Protocol — the same open tools and test model used every day by professional remediators and certified accessibility specialists worldwide. One person assembled them; the world builds and checks them.
 
-**Microsoft's checker won't show you its evidence. This one is made of it.**
+To be precise about the rivals: "Microsoft's checker" is the Accessibility Checker built into Word, PowerPoint and Excel; Adobe Acrobat Pro has one too — 32 pass/fail rules. Both are respectable, and both are closed: you cannot read their code, their tests, or their history of mistakes. This document *is* that reading, for this tool. And rather than asking you to choose, every PDF report here includes an Acrobat-parity panel — the same 32 rules Acrobat runs, shown beside our verdict, so you can compare checkers without leaving the page.
+
+**The built-in checkers ask for your trust. This one hands you its evidence.**
 
 Try it: audit.icjia.app · Read the code: github.com/ICJIA/file-accessibility-audit · Live status: audit.icjia.app/status

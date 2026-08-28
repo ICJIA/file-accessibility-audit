@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.120.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: the trap-document battery grown to 50, and the trust page teaching the industry checklist by name. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "The battery of trap documents grew from 39 to <strong>50, with every designed answer still returned correctly</strong>. The new traps round out coverage: a twelve-page document with no bookmarks beside an identical one with them (only the first is flagged); a one-page cover sheet that must not be punished for being small; an image marked decorative yet also tagged as content with no description (the tag is the author&rsquo;s claim, so the missing description is flagged); pages rotated sideways; a mathematical formula with no spoken form beside one with it; a file carrying <strong>three unrelated defects at once</strong>, all three caught in one report; and a &ldquo;grand good twin&rdquo; that does everything right &mdash; and scores a perfect 100, proving the checker recognizes complete work, not just mistakes.",
+      },
+      {
+        kind: "p",
+        html: "Worth recording, again, because it is the honest part: two of the three traps that initially failed were OUR traps built wrong, and the checker&rsquo;s own rules won both arguments &mdash; a 48-character &ldquo;cover sheet&rdquo; really is too little text to call a readable document, and a &ldquo;good&rdquo; sample genuinely lacked the title-display setting another trap exists to catch. The third was a wording mismatch in the test itself. The trust page also now teaches the industry checklist by name: all 31 points of the <strong>Matterhorn Protocol</strong>, with the chain spelled out &mdash; the laws name WCAG, and Matterhorn (published by the same industry body that builds the veraPDF referee) translates WCAG into the 31 PDF-specific checks professionals test. The closing section now also says plainly what the app is built from: qpdf, veraPDF, and Matterhorn &mdash; tools used daily by remediators and certified specialists worldwide.",
+      },
+      {
+        kind: "p",
+        html: "The trust page also gained three sections managers asked for. <strong>&ldquo;Does it actually work?&rdquo;</strong> shows the fail &rarr; fix &rarr; re-check &rarr; pass loop with live numbers &mdash; how many documents came back for a second check-up after repairs in the last 30 days, and how many climbed to an A: the same file failed and then passed is evidence no sales pitch can fake. An <strong>honest SiteImprove comparison</strong>: what SiteImprove does well (watching whole websites over time), what this does well (one file, one minute, free), and what each is not built for &mdash; both viable, different jobs. And the <strong>self-checks are now shown with examples</strong> in plain words (a scanned page with no readable text must score zero; the on-screen grade must match the downloaded report digit for digit), with the release rule stated: all must pass, one failure stops a release cold. The project-history section now links to the public change log and every numbered version on GitHub.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the new traps are files produced by a developer-only script that never runs on the server; the page changes are generated content. No code path that receives, sends, or stores anything changed; no score moved on any real document. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.119.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: the trust page joined the app properly, menu rows stopped breaking words in half, and the site gained a sitemap. Nothing new is received, sent, or stored.",
     body: [

@@ -283,6 +283,28 @@ useHead({
 .trust-page .agree strong {
   color: var(--tp-text);
 }
+.trust-page .m31 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 7px 16px;
+  margin-top: 18px;
+  background: var(--tp-panel);
+  border: 1px solid var(--tp-line);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.trust-page .m31 span {
+  font-size: 12.5px;
+  color: var(--tp-muted);
+  line-height: 1.35;
+}
+.trust-page .m31 b {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--tp-act);
+  margin-right: 7px;
+  font-weight: 600;
+  font-size: 11.5px;
+}
 .trust-page .traps {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -405,6 +427,86 @@ useHead({
 .trust-page .dis p {
   font-size: 14px;
   color: var(--tp-muted);
+}
+.trust-page .versus {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 30px;
+}
+.trust-page .versus .dis h4 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+.trust-page .versus .dis h4.pro {
+  color: var(--tp-good);
+}
+.trust-page .versus .dis h4.con {
+  color: var(--tp-muted);
+}
+.trust-page .versus .dis ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.trust-page .versus .dis li {
+  font-size: 14px;
+  color: var(--tp-muted);
+  padding-left: 14px;
+  position: relative;
+}
+.trust-page .versus .dis li::before {
+  content: "\2022";
+  position: absolute;
+  left: 0;
+  color: var(--tp-line);
+}
+.trust-page .versus .dis .whoV {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--tp-text);
+}
+.trust-page .loopflow .lg {
+  font-family: "Archivo Black", "Public Sans", sans-serif;
+  font-size: 36px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.trust-page .loopflow .lg.bad {
+  color: var(--tp-bad);
+}
+.trust-page .loopflow .lg.good {
+  color: var(--tp-good);
+}
+.trust-page .loopflow .lg.act {
+  color: var(--tp-act);
+}
+.trust-page .check ul {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.trust-page .check li {
+  font-size: 13.5px;
+  color: var(--tp-muted);
+  padding-left: 16px;
+  position: relative;
+}
+.trust-page .check li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: var(--tp-good);
+  font-weight: 700;
 }
 .trust-page .timeline {
   margin-top: 30px;

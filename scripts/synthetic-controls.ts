@@ -90,6 +90,46 @@ function linkDoc(linkText: string): Buffer {
   );
 }
 
+/** A minimal N-page document: one tagged <P> of real text per page. Returns
+ *  the object array and the index bases so callers can extend it. */
+function multiPageObjs(pageCount: number): { objs: string[]; catalogExtra: string } {
+  // Layout: 1 catalog, 2 pages-node, then per page: page + content stream,
+  // then structroot, document elem, per-page P elems, parenttree, font.
+  const pageObj = (i: number) => 3 + i * 2;
+  const contentObj = (i: number) => 4 + i * 2;
+  const structRoot = 3 + pageCount * 2;
+  const docElem = structRoot + 1;
+  const pElem = (i: number) => docElem + 1 + i;
+  const parentTree = docElem + 1 + pageCount;
+  const font = parentTree + 1;
+  const objs: string[] = [];
+  objs.push("{{CATALOG}}");
+  objs.push(
+    `<< /Type /Pages /Kids [${Array.from({ length: pageCount }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count ${pageCount} >>`,
+  );
+  for (let i = 0; i < pageCount; i++) {
+    const content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG(`Page ${i + 1}`)}) Tj ET\nEMC\n`;
+    objs.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${contentObj(i)} 0 R /StructParents ${i} >>`,
+    );
+    objs.push(stream(content));
+  }
+  objs.push(`<< /Type /StructTreeRoot /K ${docElem} 0 R /ParentTree ${parentTree} 0 R >>`);
+  objs.push(
+    `<< /Type /StructElem /S /Document /P ${structRoot} 0 R /K [${Array.from({ length: pageCount }, (_, i) => `${pElem(i)} 0 R`).join(" ")}] >>`,
+  );
+  for (let i = 0; i < pageCount; i++)
+    objs.push(`<< /Type /StructElem /S /P /P ${docElem} 0 R /Pg ${pageObj(i)} 0 R /K 0 >>`);
+  objs.push(
+    `<< /Nums [${Array.from({ length: pageCount }, (_, i) => `${i} [${pElem(i)} 0 R]`).join(" ")}] >>`,
+  );
+  objs.push(FONT);
+  return {
+    objs,
+    catalogExtra: `/Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US)`,
+  };
+}
+
 interface Sample {
   file: string;
   truth: string;
@@ -1316,6 +1356,329 @@ const SAMPLES: Sample[] = [
       const alt = cat("alt_text")(r)!;
       if (alt.score !== null && alt.score < 100)
         return `decorative artifact demanded a description (alt ${alt.score})`;
+      return null;
+    },
+  },
+  // -------------------------------------------------------------------------
+  // Batch three (50 samples total): navigation, formulas, languages, rotated
+  // pages, cross-category integration, and the grand good twin.
+  // -------------------------------------------------------------------------
+  {
+    file: "synthetic-40-language-span-good.pdf",
+    truth:
+      "GOOD TWIN: a French passage properly declared with its own /Lang span inside an English document — recorded, never penalized.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Language span")}) Tj ET\nEMC\n` +
+        `/Span << /MCID 1 >> BDC\nBT /F1 11 Tf 72 690 Td (Liberte, egalite, fraternite pour tous les documents.) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          // DisplayDocTitle set: this is a GOOD twin, and without it the
+          // title-display advisory (see synthetic-23) is what docks the score
+          // — the first run of this sample proved exactly that.
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Span /P 6 0 R /Pg 3 0 R /K 1 /Lang (fr-FR) >>",
+          "<< /Nums [0 [7 0 R 8 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Declared Language Span) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("title_language")(r)!;
+      return c.score === 100
+        ? null
+        : `properly declared span penalized (title_language ${c.score})`;
+    },
+  },
+  {
+    file: "synthetic-41-long-doc-no-bookmarks.pdf",
+    truth:
+      "Twelve pages and no bookmarks — a long document without a navigable outline must lose navigation points.",
+    build: () => {
+      const { objs, catalogExtra } = multiPageObjs(12);
+      objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
+      return buildPdf(objs, "<< /Title (Twelve Pages No Bookmarks) >>");
+    },
+    check: (r) => {
+      const c = cat("bookmarks")(r);
+      if (!c || c.score === null) return "bookmarks unscored on a 12-page document";
+      return c.score < 100 ? null : "12 pages without bookmarks scored 100";
+    },
+  },
+  {
+    file: "synthetic-42-long-doc-with-bookmarks.pdf",
+    truth: "GOOD TWIN: the same twelve pages WITH bookmarks — navigation must score clean.",
+    build: () => {
+      const { objs, catalogExtra } = multiPageObjs(12);
+      const outlines = objs.length + 1; // next object number after current list
+      const item = (n: number) => outlines + n;
+      objs[0] = `<< /Type /Catalog ${catalogExtra} /Outlines ${outlines} 0 R >>`;
+      objs.push(
+        `<< /Type /Outlines /First ${item(1)} 0 R /Last ${item(3)} 0 R /Count 3 >>`,
+        `<< /Title (Introduction) /Parent ${outlines} 0 R /Next ${item(2)} 0 R /Dest [3 0 R /Fit] >>`,
+        `<< /Title (Findings) /Parent ${outlines} 0 R /Prev ${item(1)} 0 R /Next ${item(3)} 0 R /Dest [9 0 R /Fit] >>`,
+        `<< /Title (Appendix) /Parent ${outlines} 0 R /Prev ${item(2)} 0 R /Dest [19 0 R /Fit] >>`,
+      );
+      return buildPdf(objs, "<< /Title (Twelve Pages With Bookmarks) >>");
+    },
+    check: (r) => {
+      const c = cat("bookmarks")(r)!;
+      return c.score === 100 || c.score === null ? null : `bookmarked 12-pager docked (${c.score})`;
+    },
+  },
+  {
+    file: "synthetic-43-cover-sheet.pdf",
+    truth:
+      "A one-page cover sheet that is a single H1 and one line — small honest documents must not be punished for being small.",
+    build: () => {
+      // A realistic cover: title plus one full descriptive line — the first
+      // cut had ~48 characters total, under the 50-char real-text floor, and
+      // was honestly called textless. That floor is correct; the sample was
+      // too spartan to be a fair "small honest document".
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 22 Tf 72 700 Td (Annual Report 2026) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 12 Tf 72 660 Td (${LONG("Prepared by the research unit")}) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Nums [0 [7 0 R 8 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Cover Sheet) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      return bad.length === 0 ? null : `cover sheet accused of ${bad.map((c) => c.id).join(", ")}`;
+    },
+  },
+  {
+    file: "synthetic-44-artifact-figure-conflict.pdf",
+    truth:
+      "Contradictory authoring: the image is painted as decorative /Artifact, yet ALSO tagged <Figure> with no alt. The tag is the author's claim that it is content — the missing description must be flagged.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Conflict test")}) Tj ET\nEMC\n` +
+        `/Artifact << /Type /Layout >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> /XObject << /Im1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Nums [0 [7 0 R]] >>",
+          FONT,
+          GRAY_IMG(10),
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R >>",
+        ],
+        "<< /Title (Artifact Figure Conflict) >>",
+      );
+    },
+    check: (r) => {
+      const c = cat("alt_text")(r)!;
+      return c.score !== null && c.score < 100
+        ? null
+        : "a tagged alt-less <Figure> was excused because its paint was marked decorative";
+    },
+  },
+  {
+    file: "synthetic-45-rotated-pages.pdf",
+    truth:
+      "Pages rotated 90 degrees — a scanner-and-editor commonplace. Text must still extract; the analysis must not care which way is up.",
+    build: () => {
+      const { objs, catalogExtra } = multiPageObjs(2);
+      objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
+      objs[2] = objs[2]!.replace("/StructParents 0", "/StructParents 0 /Rotate 90");
+      objs[4] = objs[4]!.replace("/StructParents 1", "/StructParents 1 /Rotate 270");
+      return buildPdf(objs, "<< /Title (Rotated Pages) >>");
+    },
+    check: (r) => {
+      const text = cat("text_extractability")(r)!;
+      return text.score !== null && text.score >= 85 && !r.isScanned
+        ? null
+        : `rotation broke extraction (text ${text.score}, scanned ${r.isScanned})`;
+    },
+  },
+  {
+    file: "synthetic-46-link-good-twin.pdf",
+    truth:
+      "GOOD TWIN: a properly tagged link whose text says where it goes — link quality must score clean.",
+    build: () => linkDoc("Read the 2025 annual report"),
+    check: (r) => {
+      const c = cat("link_quality")(r)!;
+      return c.score === 100 || c.score === null
+        ? null
+        : `descriptive tagged link docked (${c.score}): ${c.findings.slice(0, 2).join(" | ")}`;
+    },
+  },
+  {
+    file: "synthetic-47-formula-no-alt.pdf",
+    truth:
+      "A <Formula> with no text alternative — formula glyphs rarely extract as speakable text, so a screen reader gets nothing (Matterhorn 17).",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Formula test")}) Tj ET\nEMC\n` +
+        `/Formula << /MCID 1 >> BDC\nBT /F1 14 Tf 72 680 Td (E = mc2) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Formula /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Nums [0 [7 0 R 8 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Formula Without Alt) >>",
+      );
+    },
+    check: (r) => (/formula/i.test(allFindings(r)) ? null : "alt-less <Formula> not flagged"),
+  },
+  {
+    file: "synthetic-48-formula-good-twin.pdf",
+    truth: "GOOD TWIN: the same formula carrying its spoken form as /ActualText — no complaint.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Formula twin")}) Tj ET\nEMC\n` +
+        `/Formula << /MCID 1 >> BDC\nBT /F1 14 Tf 72 680 Td (E = mc2) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 9 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Formula /P 6 0 R /Pg 3 0 R /K 1 /ActualText (E equals m c squared) >>",
+          "<< /Nums [0 [7 0 R 8 0 R]] >>",
+          FONT,
+        ],
+        "<< /Title (Formula With Spoken Form) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      return /formula\(s\) tagged <Formula> have no text alternative/i.test(text)
+        ? "described formula still flagged"
+        : null;
+    },
+  },
+  {
+    file: "synthetic-49-three-failures-one-file.pdf",
+    truth:
+      "Integration: one document carrying THREE unrelated defects at once — untagged text, an alt-less figure, and a headerless table. All three must be flagged in one report.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Integration")}) Tj ET\nEMC\n` +
+        `BT /F1 11 Tf 72 700 Td (${LONG("This untagged sentence is invisible to a reader")}) Tj ET\n` +
+        `BT /F1 11 Tf 72 682 Td (${LONG("And so is this second one which no tag claims")}) Tj ET\n` +
+        `/Figure << /MCID 1 >> BDC\nq 40 0 0 40 72 600 cm /Im1 Do Q\nEMC\n` +
+        `/TD << /MCID 2 >> BDC\nBT /F1 10 Tf 72 540 Td (Cell A) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 162 540 Td (Cell B) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 13 0 R >> /XObject << /Im1 14 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 12 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 9 0 R] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [10 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 9 0 R /K [11 0 R 15 0 R] >>",
+          "<< /Type /StructElem /S /TD /P 10 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Nums [0 [7 0 R 8 0 R 11 0 R 15 0 R]] >>",
+          FONT,
+          GRAY_IMG(14),
+          "<< /Type /StructElem /S /TD /P 10 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Three Failures One File) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      const missing: string[] = [];
+      if (!/outside the tagged content|Outside the Tag Structure|untagged/i.test(text))
+        missing.push("untagged text");
+      if (!(cat("alt_text")(r)!.score! < 100)) missing.push("alt-less figure");
+      if (!(cat("table_markup")(r)!.score! < 100)) missing.push("headerless table");
+      return missing.length === 0
+        ? null
+        : `not all defects flagged together: missed ${missing.join(", ")}`;
+    },
+  },
+  {
+    file: "synthetic-50-kitchen-sink-good.pdf",
+    truth:
+      "THE GRAND GOOD TWIN: headings, a described figure, a table with directed headers (/Scope), a labeled tagged form field, tab order, title, language — everything right at once. No Critical or Moderate accusation is permitted.",
+    build: () => {
+      const content =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 750 Td (Complete Document) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 720 Td (${LONG("Kitchen sink")}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 40 0 0 40 72 640 cm /Im1 Do Q\nEMC\n` +
+        `/TH << /MCID 3 >> BDC\nBT /F1 10 Tf 72 580 Td (Year) Tj ET\nEMC\n` +
+        `/TH << /MCID 4 >> BDC\nBT /F1 10 Tf 162 580 Td (Total) Tj ET\nEMC\n` +
+        `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 72 560 Td (2026) Tj ET\nEMC\n` +
+        `/TD << /MCID 6 >> BDC\nBT /F1 10 Tf 162 560 Td (12) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> /AcroForm << /Fields [17 0 R] >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 15 0 R >> /XObject << /Im1 16 0 R >> >> /Contents 4 0 R /StructParents 0 /Annots [17 0 R] /Tabs /S >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 14 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [7 0 R 8 0 R 18 0 R 9 0 R 19 0 R] >>",
+          "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [10 0 R 11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 9 0 R /K [12 0 R 13 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 9 0 R /K [20 0 R 21 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 10 0 R /Pg 3 0 R /K 3 /A << /O /Table /Scope /Column >> >>",
+          "<< /Type /StructElem /S /TH /P 10 0 R /Pg 3 0 R /K 4 /A << /O /Table /Scope /Column >> >>",
+          "<< /Nums [0 [7 0 R 8 0 R 18 0 R 12 0 R 13 0 R 20 0 R 21 0 R]] >>",
+          FONT,
+          GRAY_IMG(16),
+          "<< /Type /Annot /Subtype /Widget /FT /Tx /T (contact_email) /TU (Contact email address) /Rect [72 500 300 520] /F 4 /P 3 0 R /StructParent 1 >>",
+          "<< /Type /StructElem /S /Figure /P 6 0 R /Pg 3 0 R /K 2 /Alt (A gray decorative square used for testing.) >>",
+          "<< /Type /StructElem /S /Form /P 6 0 R /Pg 3 0 R /K << /Type /OBJR /Obj 17 0 R >> >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 6 >>",
+        ],
+        "<< /Title (The Complete Document) >>",
+      );
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length) return `accused of ${bad.map((c) => `${c.id}(${c.severity})`).join(", ")}`;
+      const table = cat("table_markup")(r)!;
+      if (table.score !== null && table.score < 100)
+        return `directed headers still docked (table ${table.score})`;
       return null;
     },
   },

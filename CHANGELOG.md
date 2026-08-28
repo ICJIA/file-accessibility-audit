@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.120.0] - 2026-08-28
+
+### Added
+
+- **The adversarial corpus grows again: 39 → 50 trap documents, all 50 truths held.** Batch three rounds out coverage with navigation and the remaining structures: a twelve-page document with no bookmarks (flagged) beside its bookmarked twin (clean), a one-page cover sheet that must not be punished for being small, the contradictory image painted as decoration yet tagged `<Figure>` with no alt (the tag is the author's claim — flagged), rotated pages (extraction unbothered), a formula with no spoken form (flagged) beside its `/ActualText` twin (clean), a properly-declared French language span (never penalized), a descriptive tagged link (clean), an integration file carrying **three unrelated defects at once** — untagged text, an alt-less figure, a headerless table — all three flagged in one report, and **the grand good twin**: headings, described figure, a table with directed headers, a labeled tagged form field, tab order, title, language — **100/A**, proving the checker recognizes complete work, not just fragments of it.
+- **The trust page now names and explains the Matterhorn Protocol** — all 31 checkpoints listed in a scannable grid, with the tandem spelled out: Title II and IITAA name WCAG (rules for *any* content); Matterhorn, published by the same PDF Association that builds veraPDF, translates those rules into 31 PDF-specific testable checkpoints; so the law, this checker, veraPDF, and a human evaluator's checklist all read from connected pages. The "one person built it" closer gains its strongest card: **qpdf, veraPDF, and Matterhorn are the world's own tools** — used daily by professional remediators and certified accessibility specialists everywhere. One person assembled them; the world builds and checks them.
+- Hero copy sharpened: check-ups run for **internal and external agencies** — the quick per-file check-up that has caught on beyond ICJIA: easier than SiteImprove, clearer than PAC. The two verdict pills now say what each verdict *is* (ours: the score, grade, and fix-it list; theirs: veraPDF's pass/fail against PDF/UA).
+- **New trust-page section: "Does it actually work? Fail. Fix. Re-check. Pass."** — the same document graded twice is evidence no sales pitch can fake. An infographic loop (D → FIX → A) with live numbers: documents re-checked after repairs in the last 30 days, and how many climbed to an A. A grade is a to-do list, not a verdict.
+- **New trust-page section: an honest SiteImprove comparison.** What SiteImprove does well (whole-website monitoring, trends, governance), what it isn't built for (the single document in your hand; scores that mix legal AA with stricter best-practice items; subscription cost), and the same honesty about this checker (no crawling, no dashboards, the 30–40% automation ceiling everyone shares). Both viable — different jobs. The advantage here: faster, and free.
+- **The self-checks explained with examples**: the 2,922 promises re-tested before every release now include plain-word samples — a scanned page with no readable text must score zero; a file with no tables must never be graded on tables; the on-screen grade and the downloaded report must match digit for digit; a blank-spaces image description must be caught as empty; all 50 traps must still be judged correctly. And the release rule stated plainly: all must pass — one failure stops the release cold, fix and re-run the full battery.
+- **The evolution section now links the receipts**: the full change log and every numbered version on GitHub, open for anyone to read. The objection section answers its unspoken half head-on — *"it can't be serious software if one person built it"* — it is, and here's why, with every claim checkable.
+
+### Notes
+
+- Two of batch three's initial failures were the samples again, and the checker's floors won both arguments: a 48-character "cover sheet" was honestly called textless (the real-text floor is 50 characters — the sample was too spartan, not the checker too harsh), and a good-twin sample was docked for genuinely lacking `DisplayDocTitle`, the exact advisory another trap exists to prove. The third was a test regex missing the finding's actual wording.
+- Tests: API 1,592 · web 1,281 · CLI 49 (**2,922**), unchanged — this release is trap documents and generated-page content.
+
+<details>
+<summary><strong>v1.119.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.119.0] - 2026-08-28
 
 ### Changed
@@ -21,8 +41,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Tests: API 1,592 · web 1,281 · CLI 49 (**2,922**), 7 new.
 - The generated `apps/web/public/trust.html` from v1.118.0 is gone; `app/data/trustBody.ts` replaced it in `.prettierignore`.
 
-<details>
-<summary><strong>v1.118.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.118.0] - 2026-08-28
 

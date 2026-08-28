@@ -65,6 +65,11 @@
   .agree{margin-top:22px;font-size:16px;color:var(--muted)}
   .agree strong{color:var(--text)}
 
+  /* ---------- matterhorn 31 ---------- */
+  .m31{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:7px 16px;margin-top:18px;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .m31 span{font-size:12.5px;color:var(--muted);line-height:1.35}
+  .m31 b{font-family:"IBM Plex Mono",monospace;color:var(--act);margin-right:7px;font-weight:600;font-size:11.5px}
   /* ---------- trap grid ---------- */
   .traps{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px;margin-top:32px}
   .trap{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
@@ -92,6 +97,20 @@
   .grade .right{color:var(--good);font-size:26px}
   .dis p{font-size:14.5px;color:var(--muted)}
 
+  /* ---------- versus ---------- */
+  .versus{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:30px}
+  .versus .dis h4{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:14px 0 6px}
+  .versus .dis h4.pro{color:var(--good)} .versus .dis h4.con{color:var(--muted)}
+  .versus .dis ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:5px}
+  .versus .dis li{font-size:14px;color:var(--muted);padding-left:14px;position:relative}
+  .versus .dis li::before{content:"\2022";position:absolute;left:0;color:var(--line)}
+  .versus .dis .whoV{font-size:17px;font-weight:800;color:var(--text)}
+  /* ---------- fail-fix-pass loop ---------- */
+  .loopflow .lg{font-family:"Archivo Black";font-size:36px;line-height:1;margin-bottom:10px}
+  .loopflow .lg.bad{color:var(--bad)} .loopflow .lg.good{color:var(--good)} .loopflow .lg.act{color:var(--act)}
+  .check ul{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+  .check li{font-size:13.5px;color:var(--muted);padding-left:16px;position:relative}
+  .check li::before{content:"\2713";position:absolute;left:0;color:var(--good);font-weight:700}
   /* ---------- timeline ---------- */
   .timeline{margin-top:34px;display:flex;flex-direction:column;gap:0}
   .tl{display:grid;grid-template-columns:110px 16px 1fr;gap:0 16px;align-items:start}
@@ -129,10 +148,10 @@
     <p class="sub">Every claim on this page can be verified without taking anyone's word for it &mdash; including ours.</p>
     <div class="stamp"><span class="lbl">Every number below was pulled live from the running system on</span><span class="date">AUG 28, 2026</span></div>
     <div class="statrow">
-      <div class="stat"><div class="n good mono">12,268</div><div class="l">check-ups run for Illinois agencies &mdash; and, as word has spread, outside clients too. 8,164 in the last 30 days alone</div></div>
-      <div class="stat"><div class="n good mono">2,922</div><div class="l">self-checks the software runs on itself before it goes live &mdash; one failure blocks the change</div></div>
-      <div class="stat"><div class="n act mono">39 / 39</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div></div>
-      <div class="stat"><div class="n ext mono">676</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
+      <div class="stat"><div class="n good mono">12,268</div><div class="l">check-ups run for internal and external agencies &mdash; the quick per-file check-up that has caught on beyond ICJIA: easier than SiteImprove, clearer than PAC. 8,162 in the last 30 days alone</div></div>
+      <div class="stat"><div class="n good mono">2,922</div><div class="l">self-checks the software runs on itself before anything goes live &mdash; all must pass, or nothing ships</div></div>
+      <div class="stat"><div class="n act mono">50 / 50</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div></div>
+      <div class="stat"><div class="n ext mono">677</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
     </div>
   </section>
 
@@ -170,6 +189,8 @@
       <div class="trap"><span class="what">Word &middot; PowerPoint &middot; Excel</span><span class="name">their own check suites, same scoring rules</span></div>
     </div>
     <p class="agree">Every report also states plainly what automation <strong>cannot</strong> check &mdash; about 60&ndash;70% of accessibility is human judgment, and the report says so on every grade.</p>
+    <p class="lede" style="margin-top:30px"><strong>The 31-point checklist has a name: the Matterhorn Protocol.</strong> It is published by the PDF Association &mdash; the same industry body that builds the veraPDF referee &mdash; and it is the test model professional evaluators and tools like PAC work through. Here is how the pieces fit: <strong>Title II and IITAA</strong> name the law&rsquo;s standard, <strong>WCAG</strong> &mdash; rules for what must be true of <em>any</em> content. <strong>Matterhorn</strong> translates those rules into 31 PDF-specific, testable checkpoints &mdash; where inside a PDF to look. So the law, our checker, veraPDF, and a human evaluator&rsquo;s checklist are all reading from connected pages, and every report maps its findings onto all 31:</p>
+    <div class="m31"><span><b>01</b>Real content tagged</span><span><b>02</b>Role Mapping</span><span><b>03</b>Flicker</span><span><b>04</b>Color and Contrast</span><span><b>05</b>Sound</span><span><b>06</b>Metadata</span><span><b>07</b>Dictionary</span><span><b>08</b>OCR-generated content</span><span><b>09</b>Appropriate Tags</span><span><b>10</b>Character Mappings</span><span><b>11</b>Declared Natural Language</span><span><b>12</b>Stretchable Characters</span><span><b>13</b>Graphics</span><span><b>14</b>Headings</span><span><b>15</b>Tables</span><span><b>16</b>Lists</span><span><b>17</b>Mathematical Expressions</span><span><b>18</b>Page Headers and Footers</span><span><b>19</b>Notes and References</span><span><b>20</b>Optional Content</span><span><b>21</b>Embedded Files</span><span><b>22</b>Article Threads</span><span><b>23</b>Digital Signatures</span><span><b>24</b>Non-Interactive Forms</span><span><b>25</b>XFA</span><span><b>26</b>Security</span><span><b>27</b>Navigation</span><span><b>28</b>Annotations</span><span><b>29</b>Actions</span><span><b>30</b>XObjects</span><span><b>31</b>Fonts</span></div>
   </section>
 
   <section>
@@ -189,7 +210,7 @@
 
   <section>
     <div class="kicker">the trap test</div>
-    <h2 class="display">We built 39 documents designed to fool it.</h2>
+    <h2 class="display">We built 50 documents designed to fool it.</h2>
     <p class="lede">Real documents can't prove a checker is right &mdash; nobody knows their ground truth. So we built trap PDFs where <strong>the correct answer is known in advance</strong>, including the exact tricks Canva, InDesign, and lazy shortcuts produce. Anyone can re-run the whole battery; the traps are rebuilt from scratch every time.</p>
     <div class="traps">
       <div class="trap"><span class="name">synthetic-02</span><span class="what">Perfect title &amp; language &mdash; secretly one big photo</span><span class="chip held">Caught &middot; scored 0</span></div>
@@ -201,7 +222,7 @@
       <div class="trap"><span class="name">synthetic-16</span><span class="what">A form with no labels on any field</span><span class="chip held">Caught</span></div>
       <div class="trap"><span class="name">synthetic-12</span><span class="what">Hostile computer code hidden in the text</span><span class="chip held">Stayed harmless</span></div>
       <div class="trap"><span class="name">synthetic-05</span><span class="what">Internal structure that loops forever</span><span class="chip held">No crash, no hang</span></div>
-      <div class="trap more"><span class="what">&hellip;and 30 more &mdash; skipped and empty and generic headings, ragged and nested tables, &ldquo;click here&rdquo; links, unlabeled forms, looping internal maps, hidden scripts &mdash; plus the good twins it must NOT flag. All 39 held.</span></div>
+      <div class="trap more"><span class="what">&hellip;and 41 more &mdash; skipped and empty and generic headings, ragged and nested tables, &ldquo;click here&rdquo; links, unlabeled forms, looping internal maps, hidden scripts &mdash; plus the good twins it must NOT flag. All 50 held.</span></div>
     </div>
     <div class="bugcard">
       <h3><span class="bad">The battery caught one real bug</span> &mdash; <span class="good">which is exactly what it's for.</span></h3>
@@ -225,15 +246,71 @@
         <div class="grade"><span class="right">Checker was right &#10003;</span></div>
         <p>Verified against the file's internals &mdash; the flag was real. The advice was made clearer instead.</p></div>
     </div>
-    <p class="agree" style="margin-top:26px"><strong>Software that only pretends to work can't afford to lose an argument in public.</strong> This one has &mdash; twice &mdash; and got better both times. And the loop closes: <strong>33 documents came back re-audited after repairs in the last 30 days; 9 reached an A.</strong></p>
+    <p class="agree" style="margin-top:26px"><strong>Software that only pretends to work can't afford to lose an argument in public.</strong> This one has &mdash; twice &mdash; and got better both times.</p>
+  </section>
+
+  <section>
+    <div class="kicker">does it actually work? &middot; the same document, measured twice</div>
+    <h2 class="display">Fail. Fix. <span class="good">Re-check. Pass.</span></h2>
+    <p class="lede">The strongest evidence is not a promise &mdash; it is the same document graded twice. A grade here is a <strong>to-do list, not a verdict</strong>: the report names every problem and the exact steps to repair it, and the re-check runs the same rules with no memory of the first attempt.</p>
+    <div class="pipe loopflow">
+      <div class="node"><div class="lg bad">D</div><h3>First check-up: fails</h3><p>The report lists every problem found &mdash; and the exact fix-it steps for each one.</p></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node"><div class="lg act">FIX</div><h3>The author repairs it</h3><p>Headings, image descriptions, table labels, reading order &mdash; following the steps in the report.</p></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node"><div class="lg good">A</div><h3>Re-checked: passes</h3><p>Same document, same rules. The grade moved because the file did.</p></div>
+    </div>
+    <div class="statrow" style="margin-top:26px">
+      <div class="stat"><div class="n act mono">33</div><div class="l">documents came back for a re-check after repairs &mdash; in the last 30 days alone</div></div>
+      <div class="stat"><div class="n good mono">9</div><div class="l">of them climbed all the way to an A &mdash; failed, fixed, and passed under the same rules</div></div>
+    </div>
+    <p class="agree"><strong>This is the question behind every other question &mdash; and the answer no sales pitch can fake:</strong> the same file, failed and then passed.</p>
+  </section>
+
+  <section>
+    <div class="kicker">the comparison &middot; siteimprove</div>
+    <h2 class="display">Different tools, different jobs. Both viable.</h2>
+    <p class="lede">Many agencies already have SiteImprove. Being honest about both is the fastest way to trust either.</p>
+    <div class="versus">
+      <div class="dis">
+        <div class="whoV">SiteImprove</div>
+        <h4 class="pro">What it does well</h4>
+        <ul>
+          <li>Watches an entire <strong style="color:var(--text)">website</strong> &mdash; crawls every page on a schedule, tracks trends over months</li>
+          <li>Governance at scale: dashboards, policies, history for a whole organization</li>
+        </ul>
+        <h4 class="con">What it isn't built for</h4>
+        <ul>
+          <li>The document in your hand right now &mdash; single-file answers wait on crawl cycles</li>
+          <li>Its scores mix the legal AA requirements with stricter AAA and best-practice items the law does not name &mdash; a sub-100 is not necessarily a legal problem</li>
+          <li>It is a paid enterprise subscription</li>
+        </ul>
+      </div>
+      <div class="dis">
+        <div class="whoV">This checker</div>
+        <h4 class="pro">What it does well</h4>
+        <ul>
+          <li>One file, answered in about a minute &mdash; <strong style="color:var(--text)">free</strong>, no account, nothing stored</li>
+          <li>Scores against the legal standard, with every finding labeled by the rulebook it belongs to</li>
+          <li>Fix-by-fix instructions, plus two independent verdicts on every report</li>
+        </ul>
+        <h4 class="con">What it isn't built for</h4>
+        <ul>
+          <li>It does not crawl websites, watch trends, or keep dashboards</li>
+          <li>One document at a time, on demand</li>
+          <li>Like every automated checker &mdash; SiteImprove and Acrobat included &mdash; it sees only the 30&ndash;40% a machine can judge</li>
+        </ul>
+      </div>
+    </div>
+    <p class="agree"><strong>Use SiteImprove to watch the whole site. Use this when a document is in your hand and you need an answer now.</strong> The advantage here is simple: it is faster, and it is free.</p>
   </section>
 
   <section>
     <div class="kicker">the evolution &middot; march to august 2026</div>
-    <h2 class="display">Six months. 676 commits. 119 versions.</h2>
-    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>236 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 2,922 today. Every strange document an agency has thrown at it became a documented fix.</p>
+    <h2 class="display">Six months. 677 commits. 120 versions.</h2>
+    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>237 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 2,922 today. Every strange document an agency has thrown at it became a documented fix. All of it is public, on GitHub: <a href="https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">the full change log</a> and <a href="https://github.com/ICJIA/file-accessibility-audit/tags" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">every numbered version</a>, open for anyone to read.</p>
     <!-- Newest first (user request 2026-08-28). --><div class="timeline">
-      <div class="tl"><div class="ver mono">v1.117</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Passes its own trap test, 39 / 39</b><span>And caught one of its own bugs doing it.</span></div></div>
+      <div class="tl"><div class="ver mono">v1.117</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Passes its own trap test, 50 / 50</b><span>And caught one of its own bugs doing it.</span></div></div>
       <div class="tl"><div class="ver mono">v1.109</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Fixed the outlier that refused big reports</b><span>A 246-page annual report was wrongly called "too complex" &mdash; traced to the server, not the file, and fixed with proof.</span></div></div>
       <div class="tl"><div class="ver mono">v1.110</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Made itself stricter</b><span>Headings now judged by what they say, not just how they're numbered &mdash; scores went down, not up.</span></div></div>
       <div class="tl"><div class="ver mono">v1.107&ndash;111</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Lost two public arguments, fixed both</b><span>Expert challenges resolved by reading the files. Grades corrected the same day.</span></div></div>
@@ -246,14 +323,22 @@
   <section>
     <div class="kicker">the objection</div>
     <h2 class="display">"But one person built it."</h2>
-    <p class="lede">Fair. So ignore the person entirely &mdash; <strong>every claim here is checkable by anyone:</strong></p>
+    <p class="lede">The unspoken half of that objection: <em>it can&rsquo;t be serious software if one person built it.</em> <strong>It is &mdash; and here is why.</strong> Ignore the person entirely; every claim below is checkable by anyone:</p>
     <div class="checks">
       <div class="check"><div class="big">The recipe is public</div><p>Every line of code and every change is published on GitHub, for anyone to read &mdash; a kitchen that cooks with the door open.</p></div>
       <div class="check"><div class="big">Independent referee</div><p>veraPDF &mdash; the PDF industry's own validator &mdash; co-signs or contradicts every report.</p></div>
-      <div class="check"><div class="big">2,922 self-checks</div><p>Before any change goes live, the software re-tests every promise it has ever made. One failure blocks the change.</p></div>
-      <div class="check"><div class="big">Public paper trail</div><p>119 version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
+      <div class="check"><div class="big">2,922 self-checks</div><p>Before anything new goes live, the software re-runs every promise it has ever made &mdash; all 2,922 must pass. A single failure stops the release cold: fix it, then run the full battery again from the top. A few of those promises, in plain words:</p><ul>
+<li>A scanned page with no readable text must score zero &mdash; no partial credit for a picture of words.</li>
+<li>A file with no tables must never be graded on tables.</li>
+<li>The grade on screen and the grade in the downloaded report must match, digit for digit.</li>
+<li>An image description made of nothing but blank spaces must be caught as empty.</li>
+<li>All 50 trap documents must still be judged correctly, every release.</li>
+</ul></div>
+      <div class="check"><div class="big">Public paper trail</div><p>120 version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
+      <div class="check"><div class="big">The world's own tools</div><p>Inside it run qpdf, veraPDF, and the Matterhorn Protocol &mdash; the same open tools and test model used every day by professional remediators and certified accessibility specialists worldwide. One person assembled them; the world builds and checks them.</p></div>
     </div>
-    <p class="finalline display">Microsoft's checker won't show you its evidence.<br><span class="good">This one is made of it.</span></p>
+    <p class="agree" style="margin-top:30px">To be precise about the rivals: <strong>&ldquo;Microsoft&rsquo;s checker&rdquo;</strong> is the Accessibility Checker built into Word, PowerPoint and Excel; <strong>Adobe Acrobat Pro</strong> has one too &mdash; 32 pass/fail rules. Both are respectable, and both are closed: you cannot read their code, their tests, or their history of mistakes. This page <em>is</em> that reading, for this tool. And rather than asking you to choose, <strong>every PDF report here includes an Acrobat-parity panel</strong> &mdash; the same 32 rules Acrobat runs, shown beside our verdict, so you can compare checkers without leaving the page.</p>
+    <p class="finalline display">The built-in checkers ask for your trust.<br><span class="good">This one hands you its evidence.</span></p>
     <footer>
       <span>Try it: <a href="https://audit.icjia.app">audit.icjia.app</a></span>
       <span>Read the code: <a href="https://github.com/ICJIA/file-accessibility-audit">github.com/ICJIA/file-accessibility-audit</a></span>
