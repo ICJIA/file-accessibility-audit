@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.109.1] - 2026-08-28
+
+### Fixed
+
+- **The proxy in front of the app was still enforcing the old one-minute limit.** v1.109.0 raised the audit's own budget to two minutes, but nginx's `location /api/` block carried `proxy_read_timeout 60s`. Verifying the release on production, the same 246-page report came back as an nginx HTML `504 Gateway Time-out` at 61.9s — one the application never saw, never logged, and left no failed-audit row for, because the proxy hung up on a request the server was still legitimately working on. With `proxy_read_timeout 180s` the same file returns **HTTP 200 in 59.8s**, complete with both veraPDF verdicts. It was finishing within a second of the old ceiling, which is precisely why it kept failing.
+- The browser's audit page was never affected — it creates a job and polls, so every request is short. The exposed callers were the **synchronous** ones: `/api/analyze` (the fallback path) and `/api/audit-url`, **which the fleet scanner uses** on documents of exactly this size.
+
+### Added
+
+- `DEPLOY.NGINX_PROXY_READ_TIMEOUT_S` (180) and `DEPLOY.PROXY_TIMEOUT_HEADROOM_S` (30), recording a contract this repository cannot enforce — nginx is configured through Forge. `deployLimits.test.ts` now fails the build if the audit's own budget outgrows the documented proxy patience, the same guard the 2026-08-13 `client_max_body_size` incident left behind. One of the new tests exists specifically because v1.109.0 changed the arithmetic: qpdf and pdfjs no longer overlap, so their budgets **add** (30s + 120s = 150s) rather than max — restoring the `Promise.all` would silently make this ceiling over-generous, and now fails loudly instead.
+
+### Notes
+
+- No runtime behaviour changed in this release: it is one configuration contract, its guard tests, and the documentation of both. The fix itself was a one-line nginx change made on the server.
+- Tests: API 1,557 · web 1,259 · CLI 49 (**2,865**), 5 new.
+
+<details>
+<summary><strong>v1.109.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.109.0] - 2026-08-28
 
 ### Fixed
@@ -26,8 +45,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Only 17 timeout failures exist in the whole audit log, three of them this document today, so no archive of silently mis-flagged reports needs re-running.
 - Tests: API 1,552 · web 1,259 · CLI 49 (**2,860**), 17 new.
 
-<details>
-<summary><strong>v1.108.0 → v1.88.0</strong> (2026-08-27 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.108.0] - 2026-08-27
 

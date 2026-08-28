@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.109.1",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: a one-minute limit on the server&rsquo;s front door that was cutting off long audits. One configuration line. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "The release described below gave long documents up to two minutes to be checked. When we tested that on the live site rather than assuming it, we found a second limit we had not changed: the program that answers web requests before passing them to the audit tool was still hanging up after one minute. A 246-page annual report that the tool now finishes in <strong>59.8 seconds</strong> was being cut off at 61 &mdash; failing by a margin of about one second, which is why it looked intermittent. Nothing in our own records showed this, because the request was ended by the front door rather than by the tool, so there was nothing for the tool to write down.",
+      },
+      {
+        kind: "p",
+        html: "The waiting screen people see in a browser was never affected: it asks for the work to start and then checks back every second, so no single request is ever long. What was affected is the way our own scanner &mdash; the one that checks published documents across agency websites &mdash; asks for an audit, because it waits for the whole answer in one go. The limit is now three minutes, and the same report comes back complete, with both of the independent standards checks included.",
+      },
+      {
+        kind: "p",
+        html: "This is the second time a limit sitting <em>in front of</em> the tool has quietly broken something that worked, so we have recorded it the same way we recorded the first: the required setting is written down in the code alongside a test that fails the build if the audit is ever allowed to take longer than the front door will wait. The setting itself lives on the server rather than in the code, so the test cannot check the server &mdash; what it can do is make sure the two are never designed to disagree. No web address, stored record, or retention period changed, and no score changed.",
+      },
+    ],
+  },
+  {
     version: "v1.109.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: why some long documents were refused instead of graded, and why the site sometimes reported itself as unwell when it was not. No scoring rule changed. Nothing new is received, sent, or stored.",
     body: [

@@ -1019,6 +1019,49 @@ export const DEPLOY = {
    * file that is legally sized but whose envelope pushes it over.
    */
   UPLOAD_HEADROOM_MB: 10,
+
+  /**
+   * The `proxy_read_timeout` that nginx's `location /api/` block MUST carry,
+   * in seconds.
+   *
+   * THIS VALUE LIVES OUTSIDE THIS REPOSITORY, exactly like
+   * NGINX_CLIENT_MAX_BODY_SIZE_MB above: nginx is configured through Forge, so
+   * nothing here can enforce it. This constant records the contract, and
+   * deployLimits.test.ts fails the build if the audit's own budget ever
+   * outgrows it.
+   *
+   * Found in production on 2026-08-28, while verifying the v1.109.0 timeout
+   * fix. The app had just been raised to allow a long document up to two
+   * minutes; the proxy still carried `proxy_read_timeout 60s`. A 246-page
+   * annual report the server audits in ~60-70s came back as an nginx HTML
+   * `504 Gateway Time-out` — one the application never saw, never logged, and
+   * left no failed-audit row for, because nginx hung up on a request the app
+   * was still legitimately working on. Precisely the 2026-08-13 shape: a limit
+   * in front of the app, invisible to every test.
+   *
+   * The browser's audit page is NOT affected — it creates a job and polls, so
+   * each request is short. The exposed callers are the synchronous ones:
+   * /api/analyze (the fallback path) and /api/audit-url, which the fleet
+   * scanner uses on documents of exactly this size.
+   *
+   * 180s covers the worst case the app permits: since v1.109.0 qpdf and pdfjs
+   * run in sequence, so their budgets ADD — QPDF_TIMEOUT_MS (30s) +
+   * PDFJS_TIMEOUT_MS (120s) = 150s — plus headroom for the upload and the
+   * response, which are outside that budget.
+   *
+   * SAFE TO CHANGE: Only together with the real nginx config. Raise nginx
+   * FIRST, then this constant — never the other way round.
+   */
+  NGINX_PROXY_READ_TIMEOUT_S: 180,
+
+  /**
+   * Slack between the longest audit the app permits and the proxy's patience,
+   * covering the upload itself and the response write — neither of which is
+   * inside the analysis budget.
+   *
+   * SAFE TO CHANGE: Yes, upward.
+   */
+  PROXY_TIMEOUT_HEADROOM_S: 30,
 } as const;
 
 // ---------------------------------------------------------------------------
