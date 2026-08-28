@@ -577,6 +577,56 @@ describe("orphaned struct pruning", () => {
     expect(result.tables).toHaveLength(1);
   });
 
+  // The shape that defeated the first version of this pruning, found on a real
+  // report (coltons-task-force-2025-A0.pdf) whose author said the two figures
+  // we marked as missing alt text "aren't in the text". She was right. The file
+  // carries a detached <Part> — no /P, named by no /K — holding two <Figure>
+  // elements that DO carry /P back to it. Judged one element at a time, each
+  // figure looks reachable ("it has a parent"); the parent is itself an orphan,
+  // so the whole subtree hangs off nothing, appears in no ParentTree, and has
+  // no /Pg. Reachability has to be traced to the StructTreeRoot, not inferred
+  // from a back-pointer. Cost that document a C.
+  it("drops figures inside a DETACHED subtree, even though each carries a /P", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/Document", "/P": "2 0 R", "/K": ["4 0 R"] },
+          "4 0 R": { "/S": "/Figure", "/P": "3 0 R", "/Alt": "u:A described image." },
+          // Detached: nothing names 10 0 R, and it has no /P of its own.
+          "10 0 R": { "/S": "/Part", "/K": ["11 0 R", "12 0 R"] },
+          "11 0 R": { "/S": "/Figure", "/P": "10 0 R" },
+          "12 0 R": { "/S": "/Figure", "/P": "10 0 R" },
+        },
+      ],
+    });
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0].hasAlt).toBe(true);
+    expect(result.images.filter((i) => !i.hasAlt)).toEqual([]);
+  });
+
+  it("keeps a figure nested deep inside the LIVE tree", () => {
+    // The mirror image: reachability must survive several levels of nesting,
+    // or pruning would start eating real content.
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog", "/StructTreeRoot": "2 0 R" },
+          "2 0 R": { "/Type": "/StructTreeRoot", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/Document", "/P": "2 0 R", "/K": ["4 0 R"] },
+          "4 0 R": { "/S": "/Part", "/P": "3 0 R", "/K": ["5 0 R"] },
+          "5 0 R": { "/S": "/Sect", "/P": "4 0 R", "/K": ["6 0 R"] },
+          "6 0 R": { "/S": "/Figure", "/P": "5 0 R" },
+        },
+      ],
+    });
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0].hasAlt).toBe(false);
+  });
+
   it("without a StructTreeRoot, structs are not pruned (no live tree to judge against)", () => {
     const result = parseJson({
       qpdf: [

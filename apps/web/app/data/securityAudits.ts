@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.111.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: images that are not in a document were being counted against it. One report goes from a C to an A. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "An author told us that two images we had marked as needing a description &ldquo;aren&rsquo;t in the text&rdquo;. She was right. Her document contains four pictures, and every one of them already carries a description. The two we complained about are not pictures in her report at all: they are leftovers from a page that was rebuilt at some point &mdash; a scrap of an older version left inside the file, sitting on no page, connected to nothing, and impossible for a screen reader to reach. We were counting them as if they were real content. Her report scores <strong>100 out of 100</strong>; we had given it 79.",
+      },
+      {
+        kind: "p",
+        html: "The mistake was in how we decided whether a piece of a document is really part of it. We had been asking each piece on its own &mdash; <em>does this one say who its parent is?</em> &mdash; which is true even when the parent is itself an abandoned scrap. Whether something is really in a document depends on the path back to the top, so we now follow that path instead of taking a single step. This kind of leftover is completely ordinary: it is what design and layout programs leave behind when a page is remade after being prepared for accessibility, and this file was made in Canva. Nothing about the author&rsquo;s document needed fixing.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: we read the file&rsquo;s own internal structure before changing any code, and confirmed the picture exactly &mdash; ten leftover markers of this kind in total, four belonging to real images, four already correctly ignored, and exactly two being wrongly counted. Because this changes scores, all 29 documents we keep for testing were re-measured: <strong>not one of them moved</strong>, because none of them carries leftovers like these. This is the second time in two days that someone questioned a grade and turned out to be right; both times we read the document rather than defending the score. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.110.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: how headings are judged, and one piece of advice that pointed the wrong way. Some documents will score lower. Nothing new is received, sent, or stored.",
     body: [

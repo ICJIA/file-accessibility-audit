@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.111.0] - 2026-08-28
+
+### Fixed
+
+- **Figures that are not in the document were being counted against it — a report graded C is in fact an A.** An author was told two of her images lacked alternative text and replied that "the two figures aren't in the text". She was right, and reading the file settles it: `coltons-task-force-2025-A0.pdf` has **four** `<Figure>` elements in its live tag tree and **all four carry `/Alt`**. The two the report complained about live in a **detached `<Part>`** — an object with no `/P` that nothing references, holding a leftover paragraph, two headings ("J.B. Pritzker, Governor State of Illinois", "Delrice Adams, Executive Director…") and the two figures. That subtree hangs off nothing, appears in no ParentTree, and has no `/Pg`: it is on no page and no screen reader can reach it. The document scores **100/A, up from 79/C**.
+- **Root cause: reachability was inferred instead of traced.** Orphan pruning (added for InDesign leftovers) asked of each element alone, _"does it carry a `/P`, or does some `/K` name it?"_ Both are true of an element inside a subtree that is itself detached — the figures point at their orphaned parent, and the parent names them. Reachability is a property of the path to the root, so it is now computed **from** the root: `collectLiveStructRefs` walks `/K` transitively (iterative, visited-guarded, bounded) and membership in that set is the test. The old check remains as a fallback for the case the walk yields nothing at all, so a parse quirk can never prune an entire document.
+- The file was made in **Canva**, and the leftover is the shape editors leave when a page is rebuilt: the new tags are written and the old subtree stays behind. Nothing about the author's document needed fixing.
+
+### Notes
+
+- **Swept all 29 control documents: not one score or grade moved.** The fix only stops counting structure that is genuinely detached, and no control carries any — the change is visible solely on documents with leftovers like this one.
+- The gate covers figures, tables, lists, formulas and notes. Headings were already safe by a different route (they are re-collected by a live tree walk), which is why this document's two phantom `<H2>` tags never reached its heading count.
+- Verified against the PDF's own object graph before any code changed: 10 objects carry `/S /Figure`, 4 are in the live tree, 4 more are unreferenced with no `/P` (already pruned correctly), and exactly 2 sat in the detached subtree — the two the report named.
+- Tests: API 1,576 · web 1,259 · CLI 49 (**2,884**), 2 new.
+
+<details>
+<summary><strong>v1.110.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.110.0] - 2026-08-28
 
 ### Changed
@@ -22,8 +40,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Everything reported here was verified against the PDF's own structures first — the tag tree, the RoleMap, and the page content streams — rather than by re-running the tool and trusting it.
 - Tests: API 1,574 · web 1,259 · CLI 49 (**2,882**), 17 new.
 
-<details>
-<summary><strong>v1.109.1 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.109.1] - 2026-08-28
 

@@ -15,6 +15,7 @@ import {
   resolveRef,
   mapToStandardTag,
   collectDescendantTableRefs,
+  collectLiveStructRefs,
   collectHeadingsInOrder,
   findStructTreeRoot,
   analyzeTable,
@@ -782,6 +783,14 @@ function parseQpdfJson(json: any): QpdfResult {
       }
     }
 
+    // The elements the live tree actually reaches, walked from the root. A
+    // back-pointer is not reachability: an element inside a DETACHED subtree
+    // carries a /P and is named by its orphaned parent's /K, and both of the
+    // weaker tests above accept it. See collectLiveStructRefs.
+    const liveStructRefs = docHasStructTree
+      ? collectLiveStructRefs(findStructTreeRoot(objects), objects)
+      : new Set<string>();
+
     // Walk all objects looking for key structures
     for (const [ref, obj] of Object.entries(objects)) {
       if (!obj || typeof obj !== "object") continue;
@@ -1056,8 +1065,15 @@ function parseQpdfJson(json: any): QpdfResult {
         // phantom table). Headings/paragraphs/MCIDs etc. are not gated: no
         // control document carries orphaned ones, and they are signal counts,
         // not container-level findings.
+        // Reachable = the root's /K chain actually arrives here. The older
+        // "has a /P, or somebody's /K names it" test stays as a fallback for
+        // the case the walk found nothing at all (a root whose /K is absent or
+        // unresolvable), so a parse quirk can never prune a whole document.
         const structReachable =
-          !docHasStructTree || o["/P"] !== undefined || referencedStructRefs.has(normRef(ref));
+          !docHasStructTree ||
+          (liveStructRefs.size > 0
+            ? liveStructRefs.has(normRef(ref))
+            : o["/P"] !== undefined || referencedStructRefs.has(normRef(ref)));
         // Headings
         if (
           tag === "/H" ||

@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "detached-tag-leftovers-2026-08-28",
+    badge: "Fixed",
+    text: "If a report marked images as missing a description and you could not find those images, this was why — and your score may now be higher. An author told us that two pictures we flagged in her report simply were not in it. She was right: her document has four pictures and every one already had a description. The two we complained about were leftovers from a page that had been rebuilt — a scrap of an older version left inside the file, on no page, connected to nothing, and unreachable by a screen reader. We had been counting them as real content. Her report scores 100 out of 100; we had given it 79. Leftovers like this are completely ordinary — design and layout programs leave them behind whenever a page is remade after being prepared for accessibility — so nothing about her document needed fixing. We now follow the path back to the top of a document to decide whether a piece is really part of it, rather than trusting a single step.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 28, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "heading-quality-scored-2026-08-28",
     badge: "Scoring",
     text: "Headings are now judged on what they say, not just how they are numbered — some reports will score lower. Someone asked us to prove that a report's findings were right, so we read the document itself instead of trusting our own tool. They were right, but one finding was far too kind: it noted that the headings “skipped levels” and marked the file down gently, when in truth 19 of its 96 headings contained no words at all, 14 were whole paragraphs marked as headings, and 29 stopped in the middle of a word — things like “Population d”. Headings are how most screen-reader users move around a long document, so an outline like that leaves them landing on silence and half-sentences. We were already showing those broken headings on screen and giving them no weight. Now they count. We also retired a piece of advice that pointed the wrong way: a document was told its lists were missing the part that holds each item's text and to go and add them, when all 43 were already there, spelled with one letter in the wrong case. That is a one-line fix, not hours of rebuilding, and the report now says so.",

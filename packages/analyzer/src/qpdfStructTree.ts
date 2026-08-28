@@ -43,6 +43,62 @@ export function resolveRef(ref: string, objects: any): any {
 }
 
 /**
+ * Every structure element actually reachable from the structure-tree root, by
+ * walking /K transitively.
+ *
+ * WHY THIS AND NOT A BACK-POINTER TEST (2026-08-28): orphan pruning used to
+ * ask, of each element alone, "does it carry a /P, or does some /K name it?"
+ * That is true of an element inside a subtree that is ITSELF detached, and
+ * such subtrees are common leftovers from editors that assemble or replace
+ * pages (Canva, InDesign, Word round-trips). coltons-task-force-2025-A0.pdf
+ * carries a <Part> with no /P that nothing names, holding two <Figure>
+ * elements that point back to it: each figure looked reachable, the subtree
+ * hangs off nothing, and the document lost a grade for two images that are on
+ * no page, in no ParentTree, and reachable by no screen reader. Its author
+ * said the figures "aren't in the text" and she was right.
+ *
+ * Reachability is a property of the path to the root, so it is computed from
+ * the root. Iterative and visited-guarded: a malformed tree can contain
+ * cycles, and a large report has tens of thousands of nodes.
+ */
+export function collectLiveStructRefs(root: any, objects: any): Set<string> {
+  const live = new Set<string>();
+  if (!root || typeof root !== "object") return live;
+  const queue: unknown[] = [root["/K"]];
+  let visits = 0;
+  while (queue.length > 0 && visits < MAX_LIVE_STRUCT_NODES) {
+    const node = queue.pop();
+    visits++;
+    if (node === null || node === undefined) continue;
+    if (Array.isArray(node)) {
+      for (const child of node) queue.push(child);
+      continue;
+    }
+    if (typeof node === "string" && /^(obj:)?\d+ \d+ R$/.test(node)) {
+      const ref = normRef(node);
+      if (live.has(ref)) continue; // also the cycle guard
+      live.add(ref);
+      const resolved = resolveRef(ref, objects);
+      if (resolved && typeof resolved === "object" && resolved["/K"] !== undefined) {
+        queue.push(resolved["/K"]);
+      }
+      continue;
+    }
+    // An inline kid dictionary: no ref of its own, but its children count.
+    if (typeof node === "object" && (node as any)["/K"] !== undefined) {
+      queue.push((node as any)["/K"]);
+    }
+    // Anything else (an MCID integer, an /MCR or /OBJR dict) is content, not a
+    // structure element, and needs no entry here.
+  }
+  return live;
+}
+
+/** Bound on the reachability walk — far above any real document's tag count,
+ *  so it never truncates a genuine tree, and finite on a malformed one. */
+const MAX_LIVE_STRUCT_NODES = 500_000;
+
+/**
  * Locate the structure tree root.
  *
  * The Catalog's /StructTreeRoot entry is the authoritative pointer, and it may
