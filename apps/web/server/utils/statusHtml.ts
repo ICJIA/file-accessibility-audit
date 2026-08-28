@@ -18,6 +18,7 @@
 import { GRADE_THRESHOLDS } from "@file-audit/shared";
 import { STATUS } from "../../../../audit.config";
 import { CORE_ENGINE_NAMES } from "./status";
+import { formatBytes as sharedFormatBytes } from "@file-audit/shared";
 
 /** HTML-escape. Applied to every key and value without exception.
  *
@@ -140,21 +141,21 @@ function asCount(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
-/** Human-readable byte size. One decimal, binary units.
+/** Human-readable byte size for display, from the SAME helper that fills the
+ *  payload's free_human / total_human / size_human (v1.112.0).
  *
- *  Originally capped at MB, which was fine while its only caller was the
- *  backup row (~28 MB). The disk line then reused it and rendered a 76 GB
- *  volume as "78284.0 MB free of ..." — technically correct and unreadable,
- *  on the page written for people who do not think in megabytes. Caught on
- *  production, not by test, because nothing asserted a gigabyte-scale value.
- */
+ *  This file used to carry its own copy. Two implementations of one format is
+ *  how a page ends up reading "54.1 GB" beside a payload reading "54.2 GB", so
+ *  the copy is gone and shared owns it. The history is worth keeping: the
+ *  original capped at MB, which was fine while the backup row (~28 MB) was its
+ *  only caller, and then rendered a 76 GB volume as "78284.0 MB free of ..." —
+ *  technically correct and unreadable, on a page written for people who do not
+ *  think in megabytes. Caught in production, not by test.
+ *
+ *  A value that cannot be read as a byte count renders as "unknown" rather
+ *  than "0 B": an unreadable size must not look like an empty one. */
 function formatBytes(value: unknown): string {
-  const n = asCount(value);
-  if (n >= 1_099_511_627_776) return `${(n / 1_099_511_627_776).toFixed(1)} TB`;
-  if (n >= 1_073_741_824) return `${(n / 1_073_741_824).toFixed(1)} GB`;
-  if (n >= 1_048_576) return `${(n / 1_048_576).toFixed(1)} MB`;
-  if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${n} B`;
+  return sharedFormatBytes(typeof value === "number" ? value : null) ?? "unknown";
 }
 
 /** Collapsible card shell around a section. Native <details> — same

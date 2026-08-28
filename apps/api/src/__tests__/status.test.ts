@@ -34,7 +34,9 @@ import {
   type EngineSnapshot,
   type GradeCounts,
   type StatusDb,
+  readBackupStatus,
 } from "../services/status.js";
+import { formatBytes } from "@file-audit/shared";
 
 type DB = InstanceType<typeof Database>;
 
@@ -525,6 +527,53 @@ describe("tiered failure semantics", () => {
     expect(payload.degraded).toContain("database");
     expect(payloadIsCoreFailure(payload)).toBe(true);
     expect(payload.documents_audited.total).toBe(0);
+  });
+});
+
+describe("byte counters carry a human-readable twin", () => {
+  // Requested 2026-08-28 after reading the raw payload: `free_bytes:
+  // 58131922944` tells you nothing at a glance, and the HTML page had been
+  // formatting exactly these numbers for display all along. Same pairing the
+  // payload already uses for time (`finished_at` / `finished_at_chicago`).
+  it("disk publishes free_human and total_human beside the byte counts", async () => {
+    const service = makeService(freshDb());
+    const payload = await service.getStatus();
+
+    if (payload.disk.free_bytes !== null) {
+      expect(payload.disk.free_human).toBe(formatBytes(payload.disk.free_bytes));
+      expect(payload.disk.total_human).toBe(formatBytes(payload.disk.total_bytes));
+    } else {
+      // An unreadable filesystem stays honestly unknown on both fields.
+      expect(payload.disk.free_human).toBeNull();
+      expect(payload.disk.total_human).toBeNull();
+    }
+  });
+
+  it("backup publishes size_human beside size_bytes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "backup-human-"));
+    const file = join(dir, "last-backup.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        finishedAt: new Date(T0 - HOUR).toISOString(),
+        bytes: 89_382_608,
+        rows: 20_380,
+        integrity: "ok",
+      }),
+    );
+    try {
+      const status = readBackupStatus(file, T0);
+      expect(status.size_bytes).toBe(89_382_608);
+      expect(status.size_human).toBe("85.2 MB");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("an unreadable backup reports no size at all, never a formatted zero", () => {
+    const status = readBackupStatus(join(tmpdir(), "does-not-exist-", "last-backup.json"), T0);
+    expect(status.size_bytes).toBeNull();
+    expect(status.size_human).toBeNull();
   });
 });
 

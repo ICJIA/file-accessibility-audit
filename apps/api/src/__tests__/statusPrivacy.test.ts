@@ -199,7 +199,10 @@ describe("/status never discloses identifying data", () => {
     const serialized = JSON.stringify(payload.disk);
     expect(serialized).not.toMatch(/[/\\]/);
     expect(Object.keys(payload.disk).sort()).toEqual(
-      ["free_bytes", "free_pct", "status", "total_bytes"].sort(),
+      // free_human/total_human (2026-08-28) are the SAME two numbers formatted
+      // for a reader; they derive from the counters beside them and disclose
+      // nothing further about the machine.
+      ["free_bytes", "free_human", "free_pct", "status", "total_bytes", "total_human"].sort(),
     );
   });
 

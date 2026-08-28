@@ -27,7 +27,7 @@ import { access, constants } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEPLOY, REMEDIATION, STATUS } from "#config";
-import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, formatBytes } from "@file-audit/shared";
 import { QPDF_BIN } from "./qpdfService.js";
 import { defaultDataDir } from "./dataDir.js";
 import { sqliteUtcToIso } from "./sqliteTime.js";
@@ -253,6 +253,13 @@ export interface DiskStatus {
   status: "ok" | "low" | "unavailable";
   free_bytes: number | null;
   total_bytes: number | null;
+  /** The same two figures as people read them ("54.1 GB"). The raw counters
+   *  stay authoritative; these exist so the payload needs no arithmetic to be
+   *  understood, and they come from the SAME helper the HTML page uses, so the
+   *  two can never disagree. `null` mirrors an unreadable byte count — never
+   *  "0 B", which would read as an empty disk. */
+  free_human: string | null;
+  total_human: string | null;
   /** Whole percent, so the number a reader sees is the number the threshold
    *  compares — no rounding disagreement between the payload and the rule. */
   free_pct: number | null;
@@ -267,6 +274,9 @@ export interface BackupStatus {
   finished_at_chicago: string | null;
   age_hours: number | null;
   size_bytes: number | null;
+  /** `size_bytes` as people read it ("85.2 MB") — the same pairing the payload
+   *  already uses for time (`finished_at` / `finished_at_chicago`). */
+  size_human: string | null;
   rows: number | null;
 }
 
@@ -1265,17 +1275,33 @@ export function readDiskStatus(dirPath: string): DiskStatus {
     const total = Number(fs.blocks) * Number(fs.bsize);
     const free = Number(fs.bavail) * Number(fs.bsize);
     if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(free) || free < 0) {
-      return { status: "unavailable", free_bytes: null, total_bytes: null, free_pct: null };
+      return {
+        status: "unavailable",
+        free_bytes: null,
+        total_bytes: null,
+        free_human: null,
+        total_human: null,
+        free_pct: null,
+      };
     }
     const freePct = Math.round((free / total) * 100);
     return {
       status: freePct < STATUS.DISK_LOW_FREE_PCT ? "low" : "ok",
       free_bytes: free,
       total_bytes: total,
+      free_human: formatBytes(free),
+      total_human: formatBytes(total),
       free_pct: freePct,
     };
   } catch {
-    return { status: "unavailable", free_bytes: null, total_bytes: null, free_pct: null };
+    return {
+      status: "unavailable",
+      free_bytes: null,
+      total_bytes: null,
+      free_human: null,
+      total_human: null,
+      free_pct: null,
+    };
   }
 }
 
@@ -1300,6 +1326,7 @@ export function readBackupStatus(filePath: string, nowMs: number): BackupStatus 
     finished_at_chicago: null,
     age_hours: null,
     size_bytes: null,
+    size_human: null,
     rows: null,
   };
 
@@ -1325,6 +1352,8 @@ export function readBackupStatus(filePath: string, nowMs: number): BackupStatus 
     finished_at_chicago: chicagoTime(finishedMs),
     age_hours: ageHours,
     size_bytes: typeof rec.bytes === "number" && Number.isFinite(rec.bytes) ? rec.bytes : null,
+    size_human:
+      typeof rec.bytes === "number" && Number.isFinite(rec.bytes) ? formatBytes(rec.bytes) : null,
     rows:
       typeof rec.auditLogRows === "number" && Number.isFinite(rec.auditLogRows)
         ? rec.auditLogRows

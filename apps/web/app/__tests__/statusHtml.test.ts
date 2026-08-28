@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GRADE_THRESHOLDS } from "@file-audit/shared";
+import { GRADE_THRESHOLDS, formatBytes } from "@file-audit/shared";
 import {
   renderStatusHtml,
   renderGradeDistribution,
@@ -930,6 +930,37 @@ describe("formatBytes — scales past the backup row's megabytes", () => {
   // on production because nothing here asserted a gigabyte-scale value.
   const render = (bytes: number) =>
     renderDiskLine({ status: "ok", free_pct: 78, free_bytes: bytes, total_bytes: bytes });
+
+  // The payload publishes these figures formatted too (free_human /
+  // total_human / size_human, v1.112.0), and both surfaces now read ONE helper
+  // in @file-audit/shared. Asserted against that helper rather than against a
+  // literal, so reintroducing a local formatter here fails the moment its
+  // output differs — which is exactly how a page ends up saying "54.1 GB"
+  // beside a payload saying "54.2 GB".
+  it("prints the same strings the payload publishes", () => {
+    const free = 58_131_922_944;
+    const total = 82_086_711_296;
+    const html = renderDiskLine({
+      status: "ok",
+      free_pct: 71,
+      free_bytes: free,
+      total_bytes: total,
+    });
+
+    expect(html).toContain(`${formatBytes(free)} free of ${formatBytes(total)}`);
+    expect(html).toContain("54.1 GB free of 76.4 GB"); // the production figures, spelled out
+  });
+
+  it("says a size is unknown rather than rendering it as 0 B", () => {
+    // An unreadable figure must not look like an empty disk.
+    const html = renderDiskLine({
+      status: "ok",
+      free_pct: 71,
+      free_bytes: "not a number",
+      total_bytes: 82_086_711_296,
+    });
+    expect(html).not.toContain("0 B");
+  });
 
   it("renders a disk-sized volume in GB, not five-digit MB", () => {
     const html = render(82_057_216_000); // ~76 GB, the real production volume

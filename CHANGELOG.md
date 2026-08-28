@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.112.0] - 2026-08-28
+
+### Added
+
+- **Byte counters on `/status` now carry a human-readable twin.** The JSON published `free_bytes: 58131922944`, `total_bytes: 82086711296` and `size_bytes: 89382608` and left the reader to do arithmetic the HTML page had already done for years. The payload now pairs each with the formatted figure — `free_human: "54.1 GB"`, `total_human: "76.4 GB"`, `size_human: "85.2 MB"` — the same way `finished_at` has always been paired with `finished_at_chicago`. Raw counters are unchanged and stay authoritative.
+
+### Changed
+
+- **One byte formatter, in `@file-audit/shared`, used by both surfaces.** The HTML page had carried its own copy; the payload would have needed a second. Two implementations of one format is how a page ends up reading "54.1 GB" beside a payload reading "54.2 GB", so the copy is gone and the page's test now asserts against the shared helper rather than a literal — reintroducing a local formatter fails the moment its output differs.
+- **An unreadable size renders as "unknown" rather than "0 B".** The old display formatter coerced anything unusable to zero, so a size that could not be read looked like an empty disk. `null` in, `null` out, and the page prints "unknown".
+
+### Notes
+
+- `statusPrivacy.test.ts` pins the exact key set of `payload.disk`, so the two new keys are an explicit, reviewed addition rather than a silent one: both are the same numbers already published, formatted, and disclose nothing further about the machine.
+- Tests: API 1,583 · web 1,261 · CLI 49 (**2,893**), 9 new.
+
+<details>
+<summary><strong>v1.111.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.111.0] - 2026-08-28
 
 ### Fixed
@@ -19,8 +38,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Verified against the PDF's own object graph before any code changed: 10 objects carry `/S /Figure`, 4 are in the live tree, 4 more are unreferenced with no `/P` (already pruned correctly), and exactly 2 sat in the detached subtree — the two the report named.
 - Tests: API 1,576 · web 1,259 · CLI 49 (**2,884**), 2 new.
 
-<details>
-<summary><strong>v1.110.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.110.0] - 2026-08-28
 

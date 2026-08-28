@@ -94,6 +94,7 @@ describe("readBackupStatus", () => {
     expect(r.finished_at).toBe(new Date(NOW - 6 * 3_600_000).toISOString());
     expect(r.age_hours).toBe(6);
     expect(r.size_bytes).toBe(574850);
+    expect(r.size_human).toBe("561.4 KB");
     expect(r.rows).toBe(4143);
     expect(typeof r.finished_at_chicago).toBe("string");
   });
@@ -115,6 +116,9 @@ describe("readBackupStatus", () => {
       finished_at_chicago: null,
       age_hours: null,
       size_bytes: null,
+      // Formatted twin of size_bytes: null when there is no size to format,
+      // never "0 B" — an unread backup must not look like an empty one.
+      size_human: null,
       rows: null,
     });
   });

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.112.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: making the machine-readable version of this page easier for a person to read. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "This page has a plain-data version that monitoring tools read, and anyone can open it. It reported sizes only as exact byte counts &mdash; <em>58131922944</em> for the free space on the server&rsquo;s disk, for instance &mdash; while the page you are reading has always shown the same figure as &ldquo;54.1 GB&rdquo;. The data version now carries both: the exact number, and the same number written the way people read it. Nothing was removed, and the exact counts remain the authoritative ones.",
+      },
+      {
+        kind: "p",
+        html: "The two versions now share a single piece of code for turning a byte count into words, rather than each having its own. That is the whole point of the change: two separate versions of the same calculation eventually disagree, and a page saying one thing beside data saying another is worse than either alone. One consequence worth naming: a size that cannot be read now says &ldquo;unknown&rdquo; instead of showing as zero, because an unreadable figure should never look like an empty disk.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the added values are the same numbers already published, simply written out &mdash; they reveal nothing further about the server. This page&rsquo;s privacy test pins the exact list of fields it is allowed to publish, so the two additions had to be reviewed and approved deliberately rather than slipping in unnoticed. No web address, stored record, or retention period changed, and no score changed.",
+      },
+    ],
+  },
+  {
     version: "v1.111.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: images that are not in a document were being counted against it. One report goes from a C to an A. Nothing new is received, sent, or stored.",
     body: [
