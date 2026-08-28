@@ -17,6 +17,7 @@ import {
   analyzeWithPdfjs,
   buildMarkedContentTextMap,
   collectStructTreeHeadings,
+  markedContentAttributionReliable,
 } from "../services/pdfjsService.js";
 import { buildPdf } from "./helpers/minimalPdf.js";
 
@@ -81,7 +82,7 @@ describe("collectStructTreeHeadings", () => {
         },
       ],
     };
-    expect(collectStructTreeHeadings(tree, textById)).toEqual([
+    expect(collectStructTreeHeadings(tree, textById).entries).toEqual([
       { level: "H1", text: "Annual Report" },
       { level: "H2", text: "Introduction" },
     ]);
@@ -98,7 +99,7 @@ describe("collectStructTreeHeadings", () => {
         },
       ],
     };
-    expect(collectStructTreeHeadings(tree, textById)).toEqual([
+    expect(collectStructTreeHeadings(tree, textById).entries).toEqual([
       { level: "H1", text: "Spelled Out Heading" },
     ]);
   });
@@ -116,7 +117,7 @@ describe("collectStructTreeHeadings", () => {
         },
       ],
     };
-    expect(collectStructTreeHeadings(tree, textById)).toEqual([
+    expect(collectStructTreeHeadings(tree, textById).entries).toEqual([
       { level: "H2", text: "Annual Report Introduction" },
     ]);
   });
@@ -129,9 +130,27 @@ describe("collectStructTreeHeadings", () => {
         { role: "H3", children: [{ type: "content", id: "p9R_mc99" }] },
       ],
     };
-    expect(collectStructTreeHeadings(tree, textById)).toEqual([
+    expect(collectStructTreeHeadings(tree, textById).entries).toEqual([
       { level: "H", text: "Annual Report" },
     ]);
+  });
+
+  // The outline still drops them — a list of blank lines helps nobody — but
+  // "this document has 19 heading tags containing no text" is a finding in its
+  // own right, and it was invisible while the walker simply skipped them.
+  it("counts the headings it had to skip, rather than losing them silently", () => {
+    const tree = {
+      role: "Root",
+      children: [
+        { role: "H1", children: [{ type: "content", id: "p3R_mc0" }] },
+        { role: "H2", children: [{ type: "content", id: "p9R_mc98" }] },
+        { role: "H2", children: [] },
+        { role: "H3", children: [{ type: "content", id: "p9R_mc99" }] },
+      ],
+    };
+    const { entries, withoutText } = collectStructTreeHeadings(tree, textById);
+    expect(entries).toEqual([{ level: "H1", text: "Annual Report" }]);
+    expect(withoutText).toBe(3);
   });
 });
 
@@ -166,4 +185,43 @@ describe("analyzeWithPdfjs — headingOutline", () => {
     const r = await analyzeWithPdfjs(readFileSync(join(FIXTURES, "inaccessible.pdf")));
     expect(r.headingOutline).toEqual([]);
   }, 30_000);
+});
+
+// ---------------------------------------------------------------------------
+// Whether a page's text can be attributed to its tags AT ALL (v1.110.0).
+//
+// On some pages pdf.js emits every marked-content boundary as an immediately
+// closed empty pair and delivers the text separately, so nothing can be
+// matched to a tag. controls/DVFR_Biennial_Report_2024 page 2 does exactly
+// that: 168 text items, 17 marked-content ids, and text for ONE of them —
+// which made five perfectly ordinary <H1> tags look empty and dropped a
+// conformance-clean document from 100/A to 79/C. "We could not attribute this
+// page" must never be reported as "these headings are empty".
+// ---------------------------------------------------------------------------
+describe("markedContentAttributionReliable", () => {
+  it("rejects a page whose text could not be attached to its tags", () => {
+    expect(markedContentAttributionReliable({ textItems: 168, idsSeen: 17, idsWithText: 1 })).toBe(
+      false,
+    );
+  });
+
+  it("accepts a page where most tags did receive their text", () => {
+    expect(markedContentAttributionReliable({ textItems: 93, idsSeen: 33, idsWithText: 26 })).toBe(
+      true,
+    );
+  });
+
+  it("accepts a page with little text, where the ratio means nothing", () => {
+    // A cover page or a divider: too small to judge, and nothing to gain by
+    // second-guessing it.
+    expect(markedContentAttributionReliable({ textItems: 8, idsSeen: 24, idsWithText: 7 })).toBe(
+      true,
+    );
+  });
+
+  it("accepts a page with no marked content at all", () => {
+    expect(markedContentAttributionReliable({ textItems: 0, idsSeen: 0, idsWithText: 0 })).toBe(
+      true,
+    );
+  });
 });

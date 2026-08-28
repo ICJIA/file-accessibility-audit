@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.110.0] - 2026-08-28
+
+### Changed
+
+- **Heading structure is now scored on what the headings SAY, not only on their levels — some documents will score lower.** A 246-page annual report scored 60/Moderate for "the hierarchy has gaps", a deduction earned by six level skips. Reading its page content streams told a much worse story: of 96 heading tags, 19 carried no text at all, 14 held an entire paragraph, and 29 were cut mid-word — _"Population d"_, _"property crime a"_, _"la"_, _"the rate of formal p"_. Only about a third were headings in any useful sense. **The report was already printing those fragments in its outline and scoring none of them**, so an author would have fixed six skips and left the outline unusable for the screen-reader users who navigate a long report by heading. That file now scores 40/Moderate for headings (53/F overall, from 56/F).
+
+### Fixed
+
+- **A finding that sent authors looking for content that was already in the file.** The same report was told _"13 list(s) have items missing `<LBody>` elements"_ and advised to add them. Nothing was missing: it contains **43 list bodies spelled `/Lbody`** — one lowercase letter off the standard `/LBody` — with no RoleMap entry to say what they are. Both halves were true and separately reported (the missing bodies in one category, an unmapped custom tag in an advisory far below), and nothing joined them. The report now says the bodies are almost certainly present under the wrong name and gives the actual repair: one RoleMap line. Any tag a capital letter away from a standard type is now named that way, not only `LBody`.
+- **A page whose text cannot be attributed to its tags is no longer counted against the document.** Building the check above turned up a real extraction limit: on some pages pdf.js emits every marked-content boundary as an immediately-closed empty pair and delivers the text separately, so nothing can be matched to a tag. `controls/DVFR_Biennial_Report_2024` page 2 does exactly that — 168 text items, 17 marked-content ids, text for **one** of them — which made five perfectly ordinary `<H1>` tags look empty. The first cut of this feature dropped that conformance-clean document from **100/A to 79/C** on the strength of it. Such pages are now excluded from the census rather than held against the file: _"we could not attribute this page"_ and _"these headings are empty"_ are different statements, and only one of them is ours to make.
+
+### Notes
+
+- **Scope, measured rather than asserted**: swept all 27 control documents — **26 come out with the identical score and grade**, and the only one that moved is the report this began with (56/F → 53/F). Two further "accessible" example fixtures added during the session also score 100 on headings, untouched.
+- The check is deliberately reluctant, because any sub-100 category becomes a severity and a severity caps the whole grade. It needs at least six headings to judge, at least three of them bad, and a fifth of the outline affected before it deducts anything; it ignores pages it could not read; and "fragment" is written to leave ordinary English alone — _"What we do"_ ends in a two-letter word, _"iPhone adoption"_ starts lowercase, and neither is a fragment.
+- Everything reported here was verified against the PDF's own structures first — the tag tree, the RoleMap, and the page content streams — rather than by re-running the tool and trusting it.
+- Tests: API 1,574 · web 1,259 · CLI 49 (**2,882**), 17 new.
+
+<details>
+<summary><strong>v1.109.1 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.109.1] - 2026-08-28
 
 ### Fixed
@@ -20,8 +41,7 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - No runtime behaviour changed in this release: it is one configuration contract, its guard tests, and the documentation of both. The fix itself was a one-line nginx change made on the server.
 - Tests: API 1,557 · web 1,259 · CLI 49 (**2,865**), 5 new.
 
-<details>
-<summary><strong>v1.109.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 
 ## [1.109.0] - 2026-08-28
 

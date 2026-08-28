@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "heading-quality-scored-2026-08-28",
+    badge: "Scoring",
+    text: "Headings are now judged on what they say, not just how they are numbered — some reports will score lower. Someone asked us to prove that a report's findings were right, so we read the document itself instead of trusting our own tool. They were right, but one finding was far too kind: it noted that the headings “skipped levels” and marked the file down gently, when in truth 19 of its 96 headings contained no words at all, 14 were whole paragraphs marked as headings, and 29 stopped in the middle of a word — things like “Population d”. Headings are how most screen-reader users move around a long document, so an outline like that leaves them landing on silence and half-sentences. We were already showing those broken headings on screen and giving them no weight. Now they count. We also retired a piece of advice that pointed the wrong way: a document was told its lists were missing the part that holds each item's text and to go and add them, when all 43 were already there, spelled with one letter in the wrong case. That is a one-line fix, not hours of rebuilding, and the report now says so.",
+    linkText: "How scoring works",
+    linkTo: "/technical-details",
+    /** In-app route — an ordinary router link. */
+    linkExternal: false,
+    date: "August 28, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "long-documents-timeout-2026-08-28",
     badge: "Fixed",
     text: "Long documents are no longer refused for being \u201Ctoo complex\u201D. If you audit big reports \u2014 annual reports, budget books, anything over a hundred pages \u2014 you may have seen the tool give up and tell you the file was too complex to check in the time allowed. That was our fault, not your document's. The tool was starting several checking programs at the same moment on one small server, and they crowded each other out until one was cut off while it was waiting rather than working; a 246-page annual report that our own reader gets through in under two seconds was being turned away. The checks now run in order, the heaviest one runs a single pass at a time, and big documents get up to two minutes instead of one. The waiting screen says so, and if an audit does run out of time the message now tells you the truth \u2014 that it is usually about timing, and that trying again is normally enough. The same crowding was behind the \u201Cserver offline\u201D and \u201Cdegraded\u201D notices some of you saw at the top of the page: the server was fine, and that warning now clears itself.",

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.110.0",
+    meta: "Reviewed <strong>2026-08-28</strong> · scope: how headings are judged, and one piece of advice that pointed the wrong way. Some documents will score lower. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Someone asked us to check whether a report&rsquo;s findings were actually correct, so we read the document itself rather than re-running the tool and trusting it. The findings held up &mdash; but one of them was far too kind. The report noted that the document&rsquo;s headings &ldquo;skip levels&rdquo; and marked it down modestly for that. In truth, of its 96 headings, 19 contained no words at all, 14 were entire paragraphs marked as though they were headings, and 29 stopped in the middle of a word &mdash; things like &ldquo;Population d&rdquo; and &ldquo;property crime a&rdquo;. Only about a third were headings in any useful sense. Headings are how most screen-reader users move around a long document, in the way a sighted reader skims for bold titles; an outline like that leaves them landing on silence and half-sentences. The report was already listing those broken headings on screen and giving them no weight in the score. Now it weighs them.",
+      },
+      {
+        kind: "p",
+        html: "The second fix is a piece of advice that sent people the wrong way. The same document was told that 13 of its lists were &ldquo;missing&rdquo; the part that holds each item&rsquo;s text, and to go and add them. Nothing was missing: all 43 of them are there, spelled with one letter in the wrong case, and the document never tells software what that spelling means. Following the old advice would have meant hours of work rebuilding something that already existed. The report now says the parts are almost certainly present under the wrong name, and gives the actual repair &mdash; a single line in the document&rsquo;s tag dictionary.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed, and one thing worth admitting. This release changes scores, so it was checked as one: all 27 documents we keep for exactly this purpose were re-measured, and 26 came out with precisely the same score and grade &mdash; the only one that moved is the report that prompted the question. Along the way our first attempt got it wrong: it dropped one of our known-good documents from a perfect score to a middling one. Rather than accept that, we looked, and found the cause was on our side &mdash; on certain pages the software we use to read PDFs cannot tell us which words belong to which heading, and five perfectly ordinary headings had looked empty as a result. Pages we cannot read properly are now left out of the count instead of being held against the document, because &ldquo;we could not check this&rdquo; and &ldquo;this is broken&rdquo; are different statements. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.109.1",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: a one-minute limit on the server&rsquo;s front door that was cutting off long audits. One configuration line. Nothing new is received, sent, or stored.",
     body: [

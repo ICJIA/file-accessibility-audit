@@ -2,6 +2,90 @@ import type { QpdfResult } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
 import type { CategoryResult } from "../scorer.js";
 
+// ---------------------------------------------------------------------------
+// Tags that are one capital letter away from a standard structure type.
+//
+// A 246-page annual report was told "13 list(s) have items missing <LBody>
+// elements" and advised to add them. Nothing was missing: the document holds
+// 43 list bodies spelled `/Lbody`, lowercase b, with no RoleMap entry. Both
+// halves were reported — the missing bodies here, an unmapped custom tag in an
+// advisory far below — and nothing joined them, so the author was sent looking
+// for content that was already in the file. The repair is one RoleMap line.
+// ---------------------------------------------------------------------------
+
+/** ISO 32000-1 Table 333 — the standard structure types, exact spellings. */
+const STANDARD_STRUCTURE_TYPES = [
+  "Document",
+  "Part",
+  "Art",
+  "Sect",
+  "Div",
+  "BlockQuote",
+  "Caption",
+  "TOC",
+  "TOCI",
+  "Index",
+  "NonStruct",
+  "Private",
+  "P",
+  "H",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "L",
+  "LI",
+  "Lbl",
+  "LBody",
+  "Table",
+  "TR",
+  "TH",
+  "TD",
+  "THead",
+  "TBody",
+  "TFoot",
+  "Span",
+  "Quote",
+  "Note",
+  "Reference",
+  "BibEntry",
+  "Code",
+  "Link",
+  "Annot",
+  "Ruby",
+  "RB",
+  "RT",
+  "RP",
+  "Warichu",
+  "WT",
+  "WP",
+  "Figure",
+  "Formula",
+  "Form",
+  "Artifact",
+];
+const STANDARD_BY_FOLDED = new Map(
+  STANDARD_STRUCTURE_TYPES.map((t) => [t.toLowerCase(), t] as const),
+);
+
+/** The standard type this tag name is a near-miss for, or null if it is a
+ *  genuinely custom name. "Lbody" → "LBody"; "CoverPanel" → null. Exported
+ *  for tests. */
+export function nearMissStandardTag(tag: string): string | null {
+  const std = STANDARD_BY_FOLDED.get(tag.trim().toLowerCase());
+  if (!std || std === tag) return null;
+  return std;
+}
+
+/** Every near-miss among a document's unmapped tags, as "Lbody" → "LBody". */
+function nearMissPairs(unmapped: string[]): Array<{ tag: string; standard: string }> {
+  return unmapped
+    .map((tag) => ({ tag, standard: nearMissStandardTag(tag) }))
+    .filter((x): x is { tag: string; standard: string } => x.standard !== null);
+}
+
 // Adobe Acrobat Accessibility Checker rule names and step-by-step fix paths
 // per category (new UI: Check for accessibility; classic UI: Full Check).
 // Appended to failing categories so users have a concrete remediation path.
@@ -123,12 +207,26 @@ export function appendSupplementaryFindings(
       }
     } else {
       const malformed = qpdf.lists.length - wellFormed;
-      readingCatForLists.findings.push(
-        `${malformed} list(s) have items missing <LBody> elements — screen readers may not announce list item content correctly`,
+      // Before advising anyone to add the missing bodies, check whether they
+      // are already there under a misspelt name.
+      const lbodyNearMiss = nearMissPairs(qpdf.roleMapUnmappedTags ?? []).find(
+        (m) => m.standard === "LBody",
       );
-      readingCatForLists.findings.push(
-        "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
-      );
+      if (lbodyNearMiss) {
+        readingCatForLists.findings.push(
+          `${malformed} list(s) look as though their items have no <LBody>, but the bodies are almost certainly present under the wrong name: this document uses a <${lbodyNearMiss.tag}> tag, which differs from the standard <LBody> only in capitalization, and the RoleMap does not say what it is. Software that reads the file sees an unrecognised container rather than a list item's text.`,
+        );
+        readingCatForLists.findings.push(
+          `Fix: this is a one-line repair, not a retagging job. In Adobe Acrobat's Tags panel, open the RoleMap (Tags panel → Options → Edit Role Map) and map <${lbodyNearMiss.tag}> to <${lbodyNearMiss.standard}>. Check the list items afterwards to confirm the text is there; only add bodies if any item really has none.`,
+        );
+      } else {
+        readingCatForLists.findings.push(
+          `${malformed} list(s) have items missing <LBody> elements — screen readers may not announce list item content correctly`,
+        );
+        readingCatForLists.findings.push(
+          "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
+        );
+      }
     }
   } else if (readingCatForLists && qpdf.lists.length === 0 && qpdf.hasStructTree) {
     readingCatForLists.findings.push(`--- List Structure Analysis ---`);
@@ -265,6 +363,20 @@ export function appendSupplementaryFindings(
       readingCat.findings.push(
         `  Advisory — not scored: ${unmapped.length} custom tag name(s) carry no mapping to a standard structure type (${unmapped.slice(0, 8).join(", ")}${unmapped.length > 8 ? ", …" : ""}) — assistive technology treats them as anonymous containers (Matterhorn 02-001). Map each to its closest standard type in the RoleMap.`,
       );
+      // A tag one capital away from a standard name is a typo with a one-line
+      // fix, and it is worth saying so — the alternative reading ("this
+      // content is missing") sends people looking for something that is there.
+      const nearMisses = nearMissPairs(unmapped);
+      if (nearMisses.length > 0) {
+        readingCat.findings.push(
+          `  ${nearMisses.length} of them differ${nearMisses.length === 1 ? "s" : ""} from a standard tag only in capitalization or spacing: ${nearMisses
+            .slice(0, 6)
+            .map((m) => `<${m.tag}> looks like <${m.standard}>`)
+            .join(
+              "; ",
+            )}${nearMisses.length > 6 ? "; …" : ""}. Almost certainly a spelling slip in the tag names rather than missing content — mapping each one to the standard name in the RoleMap is the whole repair.`,
+        );
+      }
     }
 
     if (qpdf.totalPageCount > 0) {

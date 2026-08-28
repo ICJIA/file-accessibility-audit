@@ -97,7 +97,17 @@ export interface PdfjsResult {
   // content leaves and getTextContent({includeMarkedContent: true}) items
   // share the same "p{pageObjId}_mc{mcid}" id format. Optional: absent on
   // stored reports from before this field existed.
-  headingOutline?: Array<{ level: string; text: string }>;
+  // `textReliable: false` marks an entry from a page whose marked content
+  // could not be attributed (see markedContentAttributionReliable) — the text
+  // shown may be partial, so the scorer must not judge it. Absent means fine.
+  headingOutline?: Array<{ level: string; text: string; textReliable?: boolean }>;
+  // Heading tags whose text could not be resolved at all — no /Alt, no
+  // /ActualText, no content leaves. They are deliberately absent from
+  // headingOutline (blank outline rows help nobody) and counted here instead,
+  // because "19 of this document's 96 headings contain no text" is a finding.
+  // Absent (undefined) on stored reports predating the census, which the
+  // scorer must read as "unknown", never as zero.
+  headingsWithoutText?: number;
   // -------------------------------------------------------------------------
   // v1.94.0 text censuses (Matterhorn 10 and 01), computed from the SAME
   // getTextContent({includeMarkedContent: true}) item stream the heading
@@ -349,10 +359,38 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
         result.untaggedLinkAnnotationCount = (result.untaggedLinkAnnotationCount ?? 0) + untagged;
       } catch {}
 
-      // Heading text.
+      // Heading text. The outline is capped, but the text-less COUNT is not
+      // gated on that cap — the proportion the scorer works from has to stay
+      // honest on a document with more headings than the outline can hold.
+      //
+      // A page whose text could not be attributed to its tags contributes its
+      // headings MARKED, never counted: on such a page every heading looks
+      // empty and every resolved one may be partial, and neither is a fact
+      // about the document.
       try {
-        if (tree && textById && result.headingOutline!.length < MAX_HEADING_OUTLINE_ENTRIES) {
-          result.headingOutline!.push(...collectStructTreeHeadings(tree, textById));
+        if (tree && textById) {
+          const reliable = markedContentAttributionReliable({
+            textItems: (textContent.items as any[]).filter(
+              (it: any) => typeof it?.str === "string" && it.str,
+            ).length,
+            idsSeen: (textContent.items as any[]).filter(
+              (it: any) =>
+                typeof it?.type === "string" &&
+                it.type.startsWith("beginMarkedContent") &&
+                typeof it.id === "string" &&
+                it.id,
+            ).length,
+            idsWithText: textById.size,
+          });
+          const { entries, withoutText } = collectStructTreeHeadings(tree, textById);
+          if (result.headingOutline!.length < MAX_HEADING_OUTLINE_ENTRIES) {
+            result.headingOutline!.push(
+              ...(reliable ? entries : entries.map((e) => ({ ...e, textReliable: false }))),
+            );
+          }
+          if (reliable) {
+            result.headingsWithoutText = (result.headingsWithoutText ?? 0) + withoutText;
+          }
         }
       } catch {}
 
@@ -683,6 +721,40 @@ export function censusTextItems(items: unknown[]): TextCensus {
 // nest; a text run belongs to the NEAREST enclosing run that has an id (BMC
 // runs have none — their text still belongs to the enclosing MCID run for
 // struct-tree purposes). Exported for tests.
+/**
+ * Could this page's text be attached to its tags at all?
+ *
+ * On some pages pdf.js emits every marked-content boundary as an immediately
+ * closed empty pair and delivers the text separately, so no run can be matched
+ * to a tag. controls/DVFR_Biennial_Report_2024 page 2 is the case that taught
+ * us: 168 text items, 17 marked-content ids, text for exactly ONE of them.
+ * Five ordinary <H1> tags looked empty, and a conformance-clean document went
+ * from 100/A to 79/C on the strength of it.
+ *
+ * "We could not attribute this page" and "these headings are empty" are
+ * different statements and only one of them is ours to make. A page that fails
+ * this test is excluded from the heading census rather than counted against
+ * the document. Deliberately narrow: it needs enough text for the ratio to
+ * mean anything, and enough ids to average over. Exported for tests.
+ */
+export function markedContentAttributionReliable(page: {
+  textItems: number;
+  idsSeen: number;
+  idsWithText: number;
+}): boolean {
+  const { textItems, idsSeen, idsWithText } = page;
+  if (textItems <= MIN_TEXT_ITEMS_TO_JUDGE_ATTRIBUTION) return true;
+  if (idsSeen <= MIN_IDS_TO_JUDGE_ATTRIBUTION) return true;
+  return idsWithText / idsSeen >= MIN_ATTRIBUTED_ID_SHARE;
+}
+
+/** Below this much text on the page, the attribution ratio is noise. */
+const MIN_TEXT_ITEMS_TO_JUDGE_ATTRIBUTION = 20;
+/** And below this many marked-content ids there is nothing to average. */
+const MIN_IDS_TO_JUDGE_ATTRIBUTION = 2;
+/** Share of ids that must have received text for the page to be judged. */
+const MIN_ATTRIBUTED_ID_SHARE = 0.5;
+
 export function buildMarkedContentTextMap(items: unknown[]): Map<string, string> {
   const map = new Map<string, string>();
   const stack: Array<string | null> = [];
@@ -736,26 +808,33 @@ export function structNodeText(node: unknown, textById: Map<string, string>): st
 
 // Walk a serialized struct tree (page.getStructTree()) and resolve each
 // heading node's text: the node's /Alt or /ActualText when the author
-// provided one, else the concatenated text of its content leaves. Headings
-// whose text cannot be resolved are skipped — an outline of blank lines
-// helps nobody. Exported for tests.
+// provided one, else the concatenated text of its content leaves.
+//
+// Headings whose text cannot be resolved stay OUT of the outline — a list of
+// blank lines helps nobody — but they are COUNTED (v1.110.0). A heading tag
+// containing no text is a defect in its own right, and while this walker
+// merely skipped them it was one the report could not see: a 246-page annual
+// report carried 19 of them and scored only for its level skips. Exported for
+// tests.
 export function collectStructTreeHeadings(
   tree: unknown,
   textById: Map<string, string>,
-): Array<{ level: string; text: string }> {
-  const out: Array<{ level: string; text: string }> = [];
+): { entries: Array<{ level: string; text: string }>; withoutText: number } {
+  const entries: Array<{ level: string; text: string }> = [];
+  let withoutText = 0;
   const visit = (node: any): void => {
     if (!node || typeof node !== "object") return;
     if (typeof node.role === "string" && HEADING_ROLE.test(node.role)) {
       const alt = typeof node.alt === "string" ? normalizeWhitespace(node.alt) : "";
       const text = alt || structNodeText(node, textById);
-      if (text) out.push({ level: node.role, text });
+      if (text) entries.push({ level: node.role, text });
+      else withoutText++;
       return;
     }
     if (Array.isArray(node.children)) for (const c of node.children) visit(c);
   };
   visit(tree);
-  return out;
+  return { entries, withoutText };
 }
 
 // pdf.js serializes an OBJR kid as {type:"object", id:"<ref>"} — or, when

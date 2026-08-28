@@ -510,6 +510,184 @@ function getHeadingLikeParagraphMappings(qpdf: QpdfResult): string[] {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Heading CONTENT quality (v1.110.0).
+//
+// A heading tag can sit at a perfectly legal level and still be useless: it
+// can hold no text, hold half a sentence, or hold an entire paragraph. A
+// 246-page annual report scored 60 for six level skips while 62 of its 96
+// heading tags were one of those three things — 19 empty, 29 cut mid-word
+// ("Population d", "property crime a", "la"), 14 whole paragraphs. The outline
+// printed the evidence and nothing scored it.
+//
+// Conservative by design, because ANY sub-100 category becomes a severity and
+// a severity caps the whole grade. It needs enough headings to judge, enough
+// of them affected to be a pattern, and it must not mistake ordinary English
+// for a fragment.
+// ---------------------------------------------------------------------------
+
+/** Longer than this is a paragraph wearing a heading's tag, not a heading. */
+const HEADING_PARAGRAPH_CHARS = 120;
+/** Below this many inspected headings, one bad entry would swing the share. */
+const HEADING_MIN_INSPECTED = 6;
+/** And a pattern needs more than one or two stragglers. */
+const HEADING_MIN_UNUSABLE = 3;
+/** Share of unusable headings that costs the same as a broken hierarchy. */
+const HEADING_UNUSABLE_SHARE = 0.2;
+/** Share at which the outline is effectively unusable for navigation. */
+const HEADING_MOSTLY_UNUSABLE_SHARE = 0.5;
+
+/** Short words that legitimately end a heading — "What we do", "How to apply".
+ *  Without this list the truncation rule flags perfectly good English. */
+const ORDINARY_SHORT_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "do",
+  "for",
+  "go",
+  "he",
+  "her",
+  "him",
+  "his",
+  "how",
+  "i",
+  "if",
+  "in",
+  "is",
+  "it",
+  "its",
+  "me",
+  "my",
+  "no",
+  "not",
+  "of",
+  "off",
+  "on",
+  "or",
+  "our",
+  "out",
+  "she",
+  "so",
+  "the",
+  "to",
+  "up",
+  "us",
+  "was",
+  "we",
+  "who",
+  "why",
+  "you",
+]);
+
+/** Ends mid-word: a trailing one-to-three-letter lowercase scrap that is not a
+ *  word, with no closing punctuation to suggest the heading meant to stop. */
+function endsMidWord(text: string): boolean {
+  if (/[.!?:;)\]"'’”]$/.test(text)) return false;
+  const last = text.split(/\s+/).pop() ?? "";
+  if (last.length === 0 || last.length > 3) return false;
+  if (!/^[a-z]+$/.test(last)) return false;
+  return !ORDINARY_SHORT_WORDS.has(last);
+}
+
+/** Starts mid-sentence: a lowercase opening that is not a lowercase-initial
+ *  name ("iPhone", "eFiling", "e-Filing"). */
+function startsMidSentence(text: string): boolean {
+  if (!/^[a-z]/.test(text)) return false;
+  const first = text.split(/\s+/)[0] ?? "";
+  if (/^[a-z][A-Z]/.test(first)) return false;
+  if (/^[a-z]-[A-Z]/.test(first)) return false;
+  return true;
+}
+
+export interface HeadingContentCensus {
+  inspected: number;
+  empty: number;
+  fragments: number;
+  paragraphs: number;
+  unusable: number;
+  /** A few offenders, verbatim, so the author can check the claim. */
+  samples: string[];
+}
+
+/** Census of heading tags that do not read as headings. Exported for tests. */
+export function censusHeadingContent(
+  outline: Array<{ level: string; text: string; textReliable?: boolean }> | undefined,
+  withoutText: number | undefined,
+): HeadingContentCensus | null {
+  // Entries from a page whose text could not be attributed are not evidence
+  // either way — judging them would mean calling a heading a fragment because
+  // WE could not read it.
+  const entries = (outline ?? []).filter((e) => e.textReliable !== false);
+  const empty = withoutText ?? 0;
+  const inspected = entries.length + empty;
+  // No outline at all is "we could not look", never "the headings are bad".
+  if (entries.length === 0) return null;
+  const fragmentTexts: string[] = [];
+  let paragraphs = 0;
+  for (const e of entries) {
+    const text = e.text.trim();
+    if (text.length > HEADING_PARAGRAPH_CHARS) paragraphs++;
+    else if (endsMidWord(text) || startsMidSentence(text)) fragmentTexts.push(text);
+  }
+  return {
+    inspected,
+    empty,
+    fragments: fragmentTexts.length,
+    paragraphs,
+    unusable: empty + fragmentTexts.length + paragraphs,
+    samples: fragmentTexts.slice(0, 3),
+  };
+}
+
+/** The score this census justifies (100 = nothing to say), plus its findings. */
+function headingContentVerdict(census: HeadingContentCensus | null): {
+  score: number;
+  findings: string[];
+} {
+  if (!census || census.unusable === 0) return { score: 100, findings: [] };
+  const { inspected, empty, fragments, paragraphs, unusable, samples } = census;
+  const findings: string[] = ["--- Do the Headings Read Like Headings? ---"];
+  if (empty > 0) {
+    findings.push(
+      `  ${empty} heading tag(s) carry no text at all — a screen-reader user who jumps to one lands on silence.`,
+    );
+  }
+  if (fragments > 0) {
+    findings.push(
+      `  ${fragments} heading tag(s) hold a fragment rather than a heading — the tag caught part of a sentence, often cut off mid-word${samples.length ? `: ${samples.map((t) => `"${t}"`).join(", ")}` : ""}.`,
+    );
+  }
+  if (paragraphs > 0) {
+    findings.push(
+      `  ${paragraphs} heading tag(s) hold an entire paragraph. A heading is a signpost; a paragraph read out as one tells a listener nothing about where they are.`,
+    );
+  }
+  const usable = inspected - unusable;
+  const pct = Math.round((100 * usable) / inspected);
+  findings.push(
+    `  ${usable} of ${inspected} heading tag(s) (${pct}%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.`,
+  );
+  findings.push(
+    "  This is the signature of automatic tagging applied after the fact (Acrobat's Autotag, or combining files that were tagged separately): the tags were placed by shape on the page rather than by meaning. Re-exporting from the source document with its real heading styles fixes it wholesale; repairing it in Acrobat means retagging each one by hand in the Tags panel.",
+  );
+
+  if (inspected < HEADING_MIN_INSPECTED || unusable < HEADING_MIN_UNUSABLE) {
+    // Reported, not scored: too few to call it a pattern.
+    return { score: 100, findings };
+  }
+  const share = unusable / inspected;
+  if (share >= HEADING_MOSTLY_UNUSABLE_SHARE) return { score: 40, findings };
+  if (share >= HEADING_UNUSABLE_SHARE) return { score: 60, findings };
+  return { score: 100, findings };
+}
+
 function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
   const findings: string[] = [];
   const headingExplanation =
@@ -598,6 +776,12 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     findings.push(...headingOutlineLines(pdfjs.headingOutline));
   }
 
+  // Do those headings read like headings? Levels are only half the outline.
+  const contentVerdict = headingContentVerdict(
+    censusHeadingContent(pdfjs.headingOutline, pdfjs.headingsWithoutText),
+  );
+  findings.push(...contentVerdict.findings);
+
   const hasNumberedHeadings = qpdf.headings.some((h) => /^H[1-6]$/.test(h.level));
 
   if (!hasNumberedHeadings) {
@@ -676,13 +860,32 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
         "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
       );
     }
+    const score = Math.min(60, contentVerdict.score);
     return {
       id: "heading_structure",
       label: "Heading Structure",
       weight: SCORING_WEIGHTS.heading_structure,
-      score: 60,
-      grade: getGrade(60),
-      severity: getSeverity(60),
+      score,
+      grade: getGrade(score),
+      severity: getSeverity(score),
+      findings,
+      explanation: headingExplanation,
+      helpLinks: headingLinks,
+    };
+  }
+
+  if (contentVerdict.score < 100) {
+    // The levels are sound; what they contain is not.
+    findings.unshift(
+      `Found ${levels.length} heading tags in a sound level order, but most of them do not read as headings`,
+    );
+    return {
+      id: "heading_structure",
+      label: "Heading Structure",
+      weight: SCORING_WEIGHTS.heading_structure,
+      score: contentVerdict.score,
+      grade: getGrade(contentVerdict.score),
+      severity: getSeverity(contentVerdict.score),
       findings,
       explanation: headingExplanation,
       helpLinks: headingLinks,
