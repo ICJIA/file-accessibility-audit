@@ -30,7 +30,7 @@ Real documents can't prove a checker is right — nobody knows their ground trut
 
 ## Honed with internal and external accessibility specialists
 
-This is not an internal experiment. The checker is **used every day — by ICJIA and by outside agencies and document specialists** — and tuned in working sessions with accessibility specialists inside and outside the agency: real documents, real disputes, fixes shipped the same day. Don't take the "every day" on faith: the public stats page (audit.icjia.app/status) counts every check-up as it happens. Three grade challenges from document experts this week alone, each settled by **reading the file itself**, never by defending the tool:
+This is not an internal experiment. The checker is **used every day — by ICJIA and by outside agencies and document specialists** — and tuned in working sessions with accessibility specialists inside and outside the agency: real documents, real disputes, fixes shipped the same day. Don't take the "every day" on faith: the public stats page (audit.icjia.app/status) counts every check-up as it happens. Three grade challenges from document experts in one week alone, each settled by **reading the file itself**, never by defending the tool:
 
 - **A state accessibility team's form: 65 D → 100 A.** The expert was right; the checker mis-measured forms. Fixed same day.
 - **A document-repair specialist's two "missing" images: 79 C → 100 A.** Right again — the "images" were leftovers from a rebuilt page, on no page at all. Fixed same day.
