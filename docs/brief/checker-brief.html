@@ -59,6 +59,7 @@
   .node p{font-size:14.5px;color:var(--muted)}
   .verdicts{display:flex;flex-direction:column;gap:10px;justify-content:center}
   .verdicts .v{border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px}
+  .verdicts .v small{display:block;font-weight:400;font-size:12px;margin-top:3px;opacity:.85;line-height:1.35}
   .v.a{background:var(--act-dim);border:1px solid var(--act);color:var(--act)}
   .v.b{background:var(--ext-dim);border:1px solid var(--ext);color:var(--ext)}
   .agree{margin-top:22px;font-size:16px;color:var(--muted)}
@@ -131,7 +132,7 @@
       <div class="stat"><div class="n good mono">12,268</div><div class="l">check-ups run for Illinois agencies &mdash; and, as word has spread, outside clients too. 8,164 in the last 30 days alone</div></div>
       <div class="stat"><div class="n good mono">2,922</div><div class="l">self-checks the software runs on itself before it goes live &mdash; one failure blocks the change</div></div>
       <div class="stat"><div class="n act mono">39 / 39</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div></div>
-      <div class="stat"><div class="n ext mono">675</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
+      <div class="stat"><div class="n ext mono">676</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
     </div>
   </section>
 
@@ -181,7 +182,7 @@
       <div class="node"><span class="tag ours">Built in-house</span><h3>Our checker</h3><p>Structure, headings, image descriptions, tables, forms, reading order.</p></div>
       <div class="node"><span class="tag theirs">PDF Association</span><h3>veraPDF</h3><p>The industry's own PDF/UA validator. We did not write one line of it.</p></div>
       <div class="arrow" aria-hidden="true">&rarr;</div>
-      <div class="node verdicts"><div class="v a">Our verdict</div><div class="v b">Their verdict</div></div>
+      <div class="node verdicts"><div class="v a">Our verdict<small>The 0&ndash;100 score, the letter grade, and the fix-it list</small></div><div class="v b">Their verdict<small>veraPDF&rsquo;s independent pass / fail against the PDF/UA rulebook</small></div></div>
     </div>
     <p class="agree">Two independent referees on every report. <strong>If ours were wrong, theirs would say so &mdash; in public, on every audit.</strong> And one precision the experts will appreciate: <strong>Title II and IITAA require WCAG, not a PDF/UA badge</strong> &mdash; the two overlap heavily by design, and this report checks both, telling you plainly which rulebook each finding belongs to.</p>
   </section>
@@ -229,8 +230,8 @@
 
   <section>
     <div class="kicker">the evolution &middot; march to august 2026</div>
-    <h2 class="display">Six months. 675 commits. 119 versions.</h2>
-    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>235 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 2,922 today. Every strange document an agency has thrown at it became a documented fix.</p>
+    <h2 class="display">Six months. 676 commits. 119 versions.</h2>
+    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>236 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 2,922 today. Every strange document an agency has thrown at it became a documented fix.</p>
     <!-- Newest first (user request 2026-08-28). --><div class="timeline">
       <div class="tl"><div class="ver mono">v1.117</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Passes its own trap test, 39 / 39</b><span>And caught one of its own bugs doing it.</span></div></div>
       <div class="tl"><div class="ver mono">v1.109</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Fixed the outlier that refused big reports</b><span>A 246-page annual report was wrongly called "too complex" &mdash; traced to the server, not the file, and fixed with proof.</span></div></div>

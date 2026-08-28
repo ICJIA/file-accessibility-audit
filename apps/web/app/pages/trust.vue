@@ -257,6 +257,14 @@ useHead({
   font-weight: 700;
   font-size: 14px;
 }
+.trust-page .verdicts .v small {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  margin-top: 3px;
+  opacity: 0.85;
+  line-height: 1.35;
+}
 .trust-page .v.a {
   background: var(--tp-act-dim);
   border: 1px solid var(--tp-act);

@@ -20,7 +20,7 @@ Up to **nine graded areas per document**, matched against the PDF industry's off
 
 ## It doesn't grade its own homework
 
-**PDF/UA** is the international rulebook for PDFs a screen reader can use — an official standard, like a building code for documents. **veraPDF** is a separate referee program that checks files against that rulebook, built by the PDF industry's own association — not by us, and used by national libraries worldwide. It runs beside our checker **on every single report**, as an independent second opinion. If ours were wrong, theirs would say so — in public, on every audit. One precision the experts will appreciate: **Title II and IITAA require WCAG, not a PDF/UA badge** — the two overlap heavily by design, and this report checks both, saying plainly which rulebook each finding belongs to.
+**PDF/UA** is the international rulebook for PDFs a screen reader can use — an official standard, like a building code for documents. **veraPDF** is a separate referee program that checks files against that rulebook, built by the PDF industry's own association — not by us, and used by national libraries worldwide. It runs beside our checker **on every single report**, as an independent second opinion — so every report carries two verdicts: ours (the 0–100 score, the letter grade, and the fix-it list) and theirs (veraPDF's independent pass/fail against the PDF/UA rulebook). If ours were wrong, theirs would say so — in public, on every audit. One precision the experts will appreciate: **Title II and IITAA require WCAG, not a PDF/UA badge** — the two overlap heavily by design, and this report checks both, saying plainly which rulebook each finding belongs to.
 
 ## We built {{TRAPS}} documents designed to fool it
 

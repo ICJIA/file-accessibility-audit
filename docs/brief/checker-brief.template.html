@@ -54,6 +54,7 @@
   .node p{font-size:14.5px;color:var(--muted)}
   .verdicts{display:flex;flex-direction:column;gap:10px;justify-content:center}
   .verdicts .v{border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px}
+  .verdicts .v small{display:block;font-weight:400;font-size:12px;margin-top:3px;opacity:.85;line-height:1.35}
   .v.a{background:var(--act-dim);border:1px solid var(--act);color:var(--act)}
   .v.b{background:var(--ext-dim);border:1px solid var(--ext);color:var(--ext)}
   .agree{margin-top:22px;font-size:16px;color:var(--muted)}
@@ -174,7 +175,7 @@
       <div class="node"><span class="tag ours">Built in-house</span><h3>Our checker</h3><p>Structure, headings, image descriptions, tables, forms, reading order.</p></div>
       <div class="node"><span class="tag theirs">PDF Association</span><h3>veraPDF</h3><p>The industry's own PDF/UA validator. We did not write one line of it.</p></div>
       <div class="arrow" aria-hidden="true">&rarr;</div>
-      <div class="node verdicts"><div class="v a">Our verdict</div><div class="v b">Their verdict</div></div>
+      <div class="node verdicts"><div class="v a">Our verdict<small>The 0&ndash;100 score, the letter grade, and the fix-it list</small></div><div class="v b">Their verdict<small>veraPDF&rsquo;s independent pass / fail against the PDF/UA rulebook</small></div></div>
     </div>
     <p class="agree">Two independent referees on every report. <strong>If ours were wrong, theirs would say so &mdash; in public, on every audit.</strong> And one precision the experts will appreciate: <strong>Title II and IITAA require WCAG, not a PDF/UA badge</strong> &mdash; the two overlap heavily by design, and this report checks both, telling you plainly which rulebook each finding belongs to.</p>
   </section>
