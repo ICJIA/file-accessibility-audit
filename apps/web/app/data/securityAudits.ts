@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.141.3",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the last staled bug-count on the page, made historical and countless; the automated guard now catches its whole class.",
+    body: [
+      {
+        kind: "p",
+        html: "One more dated announcement still said the battery had &ldquo;caught one real bug&rdquo; &mdash; true when written, staled by the five bugs found since. It now reads as history (&ldquo;the first of its own bugs&rdquo;), and the automated check that already forbids stale trap totals in announcements now also rejects word-number status claims and any &ldquo;one real bug&rdquo; phrasing. Writing that check exposed a small flaw in its own pattern, which is fixed and pinned. No score changed; nothing else changed.",
+      },
+    ],
+  },
+  {
     version: "v1.141.2",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: two staled counts in the trust timeline rewritten so they can never stale; the page generator now rejects that class of sentence outright.",
     body: [

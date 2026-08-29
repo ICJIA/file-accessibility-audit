@@ -407,10 +407,16 @@ describe("announcement copy can never carry a stale trap total (v1.138.2)", () =
 
   it("a body naming a trap total marks it as historical", () => {
     for (const a of ANNOUNCEMENTS as unknown as Array<{ id: string; text: string }>) {
-      const m = a.text.match(/[Aa]ll (\d+) traps\b(?! then in the battery)/);
+      // Digit totals ("All 115 traps") and word-number status claims
+      // ("passed all eighteen") both stale the same way; and "one real bug"
+      // staled the moment bug #2 landed — countless phrasing only.
+      const m =
+        a.text.match(/[Aa]ll (\d+) traps\b(?! then in the battery)/) ??
+        a.text.match(/passed all (\w+)\b(?! then in the battery)/) ??
+        a.text.match(/\b(one) real bug\b/);
       expect(
         m,
-        `${a.id}: says "All ${m?.[1]} traps" without the "then in the battery" qualifier — reads as a live total and will go stale`,
+        `${a.id}: "${m?.[0]}" is a fixed count that will go stale — qualify it as historical ("then in the battery") or write it countless`,
       ).toBeNull();
     }
   });

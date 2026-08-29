@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.141.3] - 2026-08-29
+
+### Fixed
+
+- **The last staled bug-count on the live page**: the original trap-battery announcement (dated 2026-08-28, riding the app bundle onto every page) still said *"passed all eighteen — after the battery caught one real bug."* Now historically qualified and countless: *"passed all eighteen then in the battery — after it caught the first of its own bugs."*
+- **The announcement guard now catches this class too**: word-number status claims ("passed all eighteen") and any "one real bug" phrasing fail the suite alongside digit totals — and fixing the guard caught its own regex backtracking hole ("eightee" sneaking past the lookahead; a word boundary closes it).
+
+### Notes
+
+- Tests 3,011.
+
+<details>
+<summary><strong>v1.141.2 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.141.2] - 2026-08-29
 
 ### Fixed
@@ -15,8 +29,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,011.
 
-<details>
-<summary><strong>v1.141.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.141.1] - 2026-08-29
 

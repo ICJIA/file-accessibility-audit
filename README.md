@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.141.3 — 2026-08-29 · The last staled count, and the guard that now catches its class (no new attack surface)
+
+The original trap-battery announcement still said "caught one real bug"; now historically qualified and countless, and the announcement guard bans word-number status claims and "one real bug" phrasing outright — with its own regex backtracking hole fixed in the process. Tests 3,011.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.141.2 → v1.33.0) — click to expand</summary>
+
 ### v1.141.2 — 2026-08-29 · Timeline stats made countless; staled-once phrasings banned at build time (no new attack surface)
 
 Two more staled counts found in the trust timeline ("caught one of its own bugs" under six chips; "Lost two public arguments" after the third loss) — both rewritten countless, and `build-brief` now fails the build if any staled-once phrasing class returns to the templates, per the new standing rule: every trust-page count is placeholder-driven or countless. Tests 3,011.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.141.1 → v1.33.0) — click to expand</summary>
 
 ### v1.141.1 — 2026-08-29 · "in 1 category" (no new attack surface)
 
