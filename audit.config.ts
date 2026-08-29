@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "verapdf-fix-routes-2026-08-29",
+    badge: "New",
+    text: "Every PDF/UA rule veraPDF flags on your document now carries its own 'How to fix' — collapsed until you want it, and written both ways: how to prevent the issue in the source file (Word or InDesign) before you export, and how to repair it in the finished PDF with Acrobat. So if you choose to go beyond what WCAG 2.1 requires, each item gives you a place to start on whichever side of the export you work. Advice appears only for rules we can speak to confidently — an unfamiliar rule shows veraPDF's words alone, because wrong advice under the referee's verdict would be worse than none.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "wcag21-named-and-verapdf-in-full-2026-08-29",
     badge: "Changed",
     text: "Reports now name the standard precisely: every required item says 'Required by WCAG 2.1' — the standard Illinois (IITAA) and federal law (ADA Title II) actually name — instead of the vaguer 'required by law', and everything optional is labelled a PDF/UA best practice. The action plan's 'Above and beyond' section now carries veraPDF's complete verdict for your document: every failing PDF/UA rule with its ISO clause and occurrence count, plainly marked as not affecting your grade. A same-day review of the new scoring also fixed one genuine blind spot before any file hit it: a one-row table with a leading header cell was being read as a two-axis crosstab and docked for a missing direction — it now correctly passes, and a trap document pins it forever.",

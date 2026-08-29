@@ -419,3 +419,117 @@ describe("the Detailed view opens with the two-standards strip (v1.133.0)", () =
     expect(hidden.find('[data-testid="two-standards-strip"]').exists()).toBe(false);
   });
 });
+
+describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
+  const step = {
+    rank: 1,
+    categoryId: "alt_text",
+    title: "Describe your images",
+    why: "Screen readers announce alt text in place of the image.",
+    severity: "Critical" as const,
+    wcagRefs: [{ sc: "1.1.1", name: "Non-text Content" }],
+    routes: [],
+    detailAnchor: "#cat-alt_text",
+  };
+  const verdict = (failures: unknown[]) =>
+    ({ available: true, passed: false, totalFailureCount: 9, failures }) as never;
+
+  it("gives a mapped rule a collapsed expander with BOTH routes — source and PDF", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: verdict([
+          {
+            clause: "7.1",
+            description: "Content shall be marked as Artifact or tagged as real content",
+            count: 247,
+          },
+        ]),
+      },
+    });
+    const fix = w.find('[data-testid="vera-fix-0"]');
+    expect(fix.exists()).toBe(true);
+    expect(fix.text()).toMatch(/How to fix/);
+    expect(fix.text()).toMatch(/In the source file \(Word, InDesign\):/);
+    expect(fix.text()).toMatch(/In the exported PDF \(Acrobat\):/);
+    expect(fix.text()).toMatch(/Document structure tags for accessibility/);
+    expect(fix.text()).toMatch(/Automatically tag PDF/);
+    // Collapsed by default — a <details> without the open attribute.
+    expect(fix.attributes("open")).toBeUndefined();
+  });
+
+  it("renders an unmappable rule as a plain row — no advice is better than wrong advice", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: verdict([
+          {
+            clause: "9.9",
+            description: "Some future rule this build has never heard of",
+            count: 1,
+          },
+        ]),
+      },
+    });
+    expect(w.find('[data-testid="vera-fix-0"]').exists()).toBe(false);
+    expect(w.find('[data-testid="plan-vera-detail"]').text()).toMatch(/future rule/);
+    expect(w.find('[data-testid="plan-vera-detail"]').text()).not.toMatch(/How to fix/);
+  });
+
+  it("keyword ordering: the Form/widget rule maps to form advice, not annotation advice", () => {
+    // Its description contains "widget annotation" — a naive match order
+    // would send it to the annotation route.
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: verdict([
+          {
+            clause: "7.18.4",
+            description:
+              "If the Form element omits a Role attribute (Table 348), it shall have only one child: an object reference identifying the widget annotation",
+            count: 2,
+          },
+        ]),
+      },
+    });
+    const fix = w.find('[data-testid="vera-fix-0"]');
+    expect(fix.text()).toMatch(/Tooltip/);
+    expect(fix.text()).not.toMatch(/review annotations/);
+  });
+
+  it("keyword ordering: the Tabs rule maps to tab-order advice, not annotation advice", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: verdict([
+          {
+            clause: "7.18.3",
+            description:
+              "Every page on which there is an annotation shall contain in its page dictionary the key Tabs, and its value shall be S",
+            count: 1,
+          },
+        ]),
+      },
+    });
+    expect(w.find('[data-testid="vera-fix-0"]').text()).toMatch(/tab order/);
+  });
+
+  it("the PDF/UA identifier's advice warns it is a claim, not a repair", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: verdict([
+          {
+            clause: "5",
+            description:
+              "The PDF/UA version and conformance level of a file shall be specified using the PDF/UA Identification extension schema",
+            count: 1,
+          },
+        ]),
+      },
+    });
+    expect(w.find('[data-testid="vera-fix-0"]').text()).toMatch(
+      /claim of conformance, not a repair/,
+    );
+  });
+});

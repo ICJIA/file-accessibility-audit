@@ -248,16 +248,62 @@
             >.
           </p>
           <ul class="mt-2 space-y-1.5">
-            <li v-for="(f, i) in veraFailures" :key="`vera-${i}`" class="text-xs flex gap-2">
-              <span class="flex-shrink-0 font-mono text-sky-400">{{
-                f.clause || f.ruleId || "—"
-              }}</span>
-              <span class="text-[var(--text-muted)] min-w-0">
-                {{ f.description || "(no description provided)" }}
-                <span class="text-[var(--text-secondary)] whitespace-nowrap"
-                  >× {{ f.count ?? 1 }}</span
+            <li v-for="(row, i) in veraRows" :key="`vera-${i}`" class="text-xs">
+              <!-- A rule we can advise on gets a collapsed per-rule expander
+                   with BOTH routes — fix it in the source file, or fix it in
+                   the exported PDF (user request 2026-08-29: "a place to
+                   start — either with the source file or with the PDF
+                   export"). A rule pdfUaFixRoutes cannot map renders as a
+                   plain row: wrong advice under the referee's words would be
+                   worse than none. -->
+              <details v-if="row.routes" :data-testid="`vera-fix-${i}`" class="group/vera">
+                <summary
+                  class="flex gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden"
                 >
-              </span>
+                  <span class="flex-shrink-0 font-mono text-sky-400">{{
+                    row.f.clause || row.f.ruleId || "—"
+                  }}</span>
+                  <span class="text-[var(--text-muted)] min-w-0">
+                    {{ row.f.description || "(no description provided)" }}
+                    <span class="text-[var(--text-secondary)] whitespace-nowrap"
+                      >× {{ row.f.count ?? 1 }}</span
+                    >
+                    <span class="text-[var(--link)] whitespace-nowrap">
+                      · How to fix
+                      <span
+                        aria-hidden="true"
+                        class="inline-block transition-transform group-open/vera:rotate-90"
+                        >▸</span
+                      >
+                    </span>
+                  </span>
+                </summary>
+                <div class="mt-1.5 mb-1 ml-5 pl-3 border-l border-sky-500/25 space-y-1.5">
+                  <p class="m-0">
+                    <span class="font-semibold text-[var(--text-secondary)]"
+                      >In the source file (Word, InDesign):</span
+                    >
+                    <span class="text-[var(--text-muted)]"> {{ row.routes.source }}</span>
+                  </p>
+                  <p class="m-0">
+                    <span class="font-semibold text-[var(--text-secondary)]"
+                      >In the exported PDF (Acrobat):</span
+                    >
+                    <span class="text-[var(--text-muted)]"> {{ row.routes.pdf }}</span>
+                  </p>
+                </div>
+              </details>
+              <div v-else class="flex gap-2">
+                <span class="flex-shrink-0 font-mono text-sky-400">{{
+                  row.f.clause || row.f.ruleId || "—"
+                }}</span>
+                <span class="text-[var(--text-muted)] min-w-0">
+                  {{ row.f.description || "(no description provided)" }}
+                  <span class="text-[var(--text-secondary)] whitespace-nowrap"
+                    >× {{ row.f.count ?? 1 }}</span
+                  >
+                </span>
+              </div>
             </li>
           </ul>
           <p
@@ -281,6 +327,7 @@ import { computed, ref, watch } from "vue";
 const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
+import { pdfUaFixRoutes } from "./pdfUaFixHint";
 import { partitionCardFindings } from "~/utils/findings";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
@@ -326,6 +373,10 @@ const veraFailures = computed(() => {
 /** The group renders whenever there is anything optional to say: our own
  *  unscored findings, a failed veraPDF run, or veraPDF's error — silence only
  *  when there is genuinely nothing beyond the legal floor to report. */
+/** Each failing rule paired with its two-route fix advice (null = no
+ *  advice, rendered plain). */
+const veraRows = computed(() => veraFailures.value.map((f) => ({ f, routes: pdfUaFixRoutes(f) })));
+
 const showBeyondGroup = computed(() => {
   const v = props.pdfUaVerdict;
   return beyondItems.value.length > 0 || Boolean(v?.available && (v.error || v.passed === false));

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.134.0] - 2026-08-29
+
+### Added
+
+- **Per-rule fix routes in the "Above and beyond" group.** Every veraPDF failure the plan lists now carries a collapsed **"How to fix"** expander with two routes: **in the source file** (Word/InDesign — prevent it before export) and **in the exported PDF** (Acrobat — repair it after). A reader who chooses to go past the legal floor gets a starting point on whichever side of the export they work, without the list growing any taller until they ask.
+- The mapping (`pdfUaFixRoutes` in `pdfUaFixHint.ts`) follows the module's existing doctrine: keyword matching on the stable English descriptions (clause numbers drift across veraPDF versions), **most-specific first, and conservative — an unmapped rule renders as a plain row with no advice**, because wrong advice under the referee's words is worse than none. Ordering is load-bearing and pinned by tests: the Form/widget rule contains "annotation", the Tabs rule contains "annotation", the annotation rule contains "Alt", both `7.18.5` link rules must reach *different* advice, and the PDF/UA identifier's advice warns it is **"a claim of conformance, not a repair"** to be applied last.
+- **Verified against the real document that prompted the request** (an agency annual report, 68/D, 281 occurrences across 10 rules): every one of its rules maps — untagged content, figure alt, CIDSet, dc:title, DisplayDocTitle, both link rules, annotation Contents, page Tabs, and the PDF/UA identifier.
+
+### Notes
+
+- Tests 2,991 → **2,996** (mapped-rule expander with both routes; unmapped rule renders plain; three keyword-ordering pins).
+
+<details>
+<summary><strong>v1.133.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.133.0] - 2026-08-29
 
 ### Changed
@@ -28,8 +43,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - veraPDF on the server is **1.30.1 — the current stable release** (1.30 shipped 2026-06-03; the 1.31.x line is the development stream). No update needed.
 - Tests 2,985 → **2,991**.
 
-<details>
-<summary><strong>v1.132.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.132.0] - 2026-08-29
 

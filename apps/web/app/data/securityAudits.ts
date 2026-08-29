@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.134.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: each optional PDF/UA finding now opens into two fix routes — source file or exported PDF. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "The optional-work section of the action plan lists what veraPDF — the PDF industry&rsquo;s own validator — found on your document. Each of those findings now opens, only when you ask, into a short <strong>&ldquo;How to fix&rdquo;</strong> written both ways: <strong>in the source file</strong> (Word or InDesign, preventing the issue before export) and <strong>in the finished PDF</strong> (Adobe Acrobat, repairing it after). Whichever side of the export you work on, each item gives you a place to start.",
+      },
+      {
+        kind: "p",
+        html: "The advice is deliberately cautious. It appears only for rules this tool can speak to confidently; a rule it does not recognize shows veraPDF&rsquo;s own words and nothing more, because wrong advice underneath the referee&rsquo;s verdict would be worse than none. The guidance for the PDF/UA identification flag says explicitly that it is <strong>a claim of conformance to be added last, not a repair</strong>. The feature was verified against the real agency report that prompted it: every one of its ten failing rules received both routes.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: one pure text-mapping function and one template change, both exercised by new tests, including pins on the keyword ordering (several of veraPDF&rsquo;s rule texts contain each other&rsquo;s keywords). No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.133.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the required standard is named precisely (WCAG 2.1), veraPDF&rsquo;s full verdict appears in the plan, and a same-day self-review fixed a scoring blind spot before any file hit it.",
     body: [
