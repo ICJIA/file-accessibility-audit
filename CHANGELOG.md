@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.142.0] - 2026-08-29
+
+### Security — red/blue audit of the entire day's changes (v1.130.0 → v1.141.3)
+
+- **Full audit documented in [`docs/security-audit-2026-08-29-legal-only-sweep.md`](docs/security-audit-2026-08-29-legal-only-sweep.md).** Verdict: **no critical, high, or medium findings, and no new attack surface** — zero new routes, zero storage changes, zero new parsers of user input, zero new outbound requests, zero `v-html` added. The three red-sweep hits (one qpdf round-trip in a dev/CI-only script) verified safe; the newly rendered veraPDF `error` field can only ever be one of three fixed literal strings; the v-html'd trust body's data-driven fields all pass through `escHtml`. Two robustness items surfaced during the day were already fixed in-flight (a guard-regex backtracking hole; the missing-category guard on the criteria bridge). One pre-existing, by-design behavior is documented as accepted: the copy-for-AI block quotes document text into a prompt the user pastes into their own assistant.
+
+### Changed
+
+- **"Good twins" explained for non-technical readers** (user-caught jargon): the trust page now says *"for each flawed file, a matching corrected copy — the same document with the mistake fixed — that the checker must NOT flag,"* and the pair rule reads *"the broken version may never outscore the corrected one."* The dated announcement's "done-right twins" phrasing gets the same treatment.
+
+<details>
+<summary><strong>v1.141.3 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.141.3] - 2026-08-29
 
 ### Fixed
@@ -15,8 +28,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,011.
 
-<details>
-<summary><strong>v1.141.2 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.141.2] - 2026-08-29
 

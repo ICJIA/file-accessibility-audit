@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.142.0 — 2026-08-29 · Red/blue audit of the day's thirty releases: no findings, no new attack surface (documented)
+
+A requested red/blue security audit of everything shipped on 2026-08-29 (75 files, +4,369/−881 across v1.130.0 → v1.141.3), fully documented in `docs/security-audit-2026-08-29-legal-only-sweep.md`. **Zero critical/high/medium findings; zero new attack surface** — no new routes, storage, input parsers, outbound requests, or `v-html`. The three mechanical red-sweep hits verified safe (a dev-only qpdf round-trip with array args on self-built input); the newly rendered veraPDF error field is fixed-literal-only; the v-html'd trust body's data fields are escaped. Also: "good twins" explained in plain language on the trust page. Tests 3,011.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.141.3 → v1.33.0) — click to expand</summary>
+
 ### v1.141.3 — 2026-08-29 · The last staled count, and the guard that now catches its class (no new attack surface)
 
 The original trap-battery announcement still said "caught one real bug"; now historically qualified and countless, and the announcement guard bans word-number status claims and "one real bug" phrasing outright — with its own regex backtracking hole fixed in the process. Tests 3,011.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.141.2 → v1.33.0) — click to expand</summary>
 
 ### v1.141.2 — 2026-08-29 · Timeline stats made countless; staled-once phrasings banned at build time (no new attack surface)
 

@@ -172,7 +172,7 @@
       <div class="stat"><div class="n good mono">12,365</div><div class="l">check-ups run for internal and external agencies &mdash; the quick per-file check-up that has caught on beyond ICJIA: easier than SiteImprove, clearer than PAC. 8,255 in the last 30 days alone</div></div>
       <div class="stat"><div class="n good mono">3,011</div><div class="l">self-checks the software runs on itself before anything goes live &mdash; all must pass, or nothing ships</div><a class="statlink" href="#all-tests">How it&rsquo;s tested &rarr;</a></div>
       <div class="stat"><div class="n act mono">124 / 124</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div><a class="statlink" href="#all-traps">See all 124 &rarr;</a></div>
-      <div class="stat"><div class="n ext mono">723</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
+      <div class="stat"><div class="n ext mono">724</div><div class="l">saved, dated, public changes over 25 weeks &mdash; every step on the record</div></div>
     </div>
   </section>
 
@@ -243,7 +243,7 @@
       <div class="trap"><span class="name">synthetic-16</span><span class="what">A form with no labels on any field</span><span class="chip held">Caught</span></div>
       <div class="trap"><span class="name">synthetic-12</span><span class="what">Hostile computer code hidden in the text</span><span class="chip held">Stayed harmless</span></div>
       <div class="trap"><span class="name">synthetic-05</span><span class="what">Internal structure that loops forever</span><span class="chip held">No crash, no hang</span></div>
-      <div class="trap more"><span class="what">&hellip;and 115 more &mdash; modeled on what Canva, InDesign, and Word actually export (flat untagged posters, decorative-shape swarms, naming soup, picture-of-words titles, &ldquo;Print to PDF&rdquo;), plus fifteen native <strong>Word, PowerPoint, and Excel</strong> traps &mdash; unmarked header rows, alt panels never opened, slides with no titles, &ldquo;Sheet1&rdquo; &mdash; and the good twins it must NOT flag. All 124 held, and for every matched pair, the flawed twin may never outscore the correct one.</span></div>
+      <div class="trap more"><span class="what">&hellip;and 115 more &mdash; modeled on what Canva, InDesign, and Word actually export (flat untagged posters, decorative-shape swarms, naming soup, picture-of-words titles, &ldquo;Print to PDF&rdquo;), plus fifteen native <strong>Word, PowerPoint, and Excel</strong> traps &mdash; unmarked header rows, alt panels never opened, slides with no titles, &ldquo;Sheet1&rdquo; &mdash; and, for each flawed file, a matching corrected copy (the same document with the mistake fixed) that the checker must NOT flag. All 124 held, and for every such pair the broken version may never outscore the corrected one.</span></div>
     </div>
     <div class="bugcard">
       <h3><span class="bad">6 real bugs in this checker, found and fixed</span> &mdash; <span class="good">every one on this page, because that is exactly what all this machinery is for.</span></h3>
@@ -393,8 +393,8 @@
 
   <section>
     <div class="kicker">the evolution &middot; march to august 2026</div>
-    <h2 class="display">Six months. 723 commits. 141 versions.</h2>
-    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>283 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 3,011 today. Every strange document an agency has thrown at it became a documented fix. All of it is public, on GitHub: <a href="https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">the full change log</a> and <a href="https://github.com/ICJIA/file-accessibility-audit/tags" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">every numbered version</a>, open for anyone to read.</p>
+    <h2 class="display">Six months. 724 commits. 142 versions.</h2>
+    <p class="lede">This is not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files &mdash; <strong>284 saved changes in the last 30 days alone</strong>, its battery of self-checks grown from about 1,500 in June to 3,011 today. Every strange document an agency has thrown at it became a documented fix. All of it is public, on GitHub: <a href="https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">the full change log</a> and <a href="https://github.com/ICJIA/file-accessibility-audit/tags" style="color:inherit;text-decoration:underline;text-decoration-color:var(--ext)">every numbered version</a>, open for anyone to read.</p>
     <!-- Newest first (user request 2026-08-28). --><div class="timeline">
       <div class="tl"><div class="ver mono">v1.117</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Passes its own trap test, 124 / 124</b><span>And caught the first of its own bugs doing it &mdash; every one since is documented above, chips and all.</span></div></div>
       <div class="tl"><div class="ver mono">v1.109</div><div class="rail"><div class="dot"></div></div><div class="body"><b>Fixed the outlier that refused big reports</b><span>A 246-page annual report was wrongly called "too complex" &mdash; traced to the server, not the file, and fixed with proof.</span></div></div>
@@ -421,7 +421,7 @@
 <li>A re-saved copy of a document must receive the identical grade, digit for digit.</li>
 <li>All 124 trap documents must still be judged correctly, every release.</li>
 </ul></div>
-      <div class="check"><div class="big">Public paper trail</div><p>141 version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
+      <div class="check"><div class="big">Public paper trail</div><p>142 version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
       <div class="check"><div class="big">The best analysis tools</div><p>Inside it runs qpdf and veraPDF &mdash; the accessibility field&rsquo;s own best-of-breed analysis tools, used every day by professional remediators and certified specialists worldwide &mdash; and it checks all 31 points of the Matterhorn Protocol, the PDF industry&rsquo;s official test model. One person assembled them; the world builds and checks them.</p></div>
       <div class="check"><div class="big">Free &amp; open source</div><p>No license, no subscription, no per-seat fee &mdash; run as many check-ups as you like, from any agency. And the whole thing is open source: the code can be read, copied, run on your own servers, and checked line by line. There is nothing to buy, and nothing hidden to sell.</p></div>
     </div>

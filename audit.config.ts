@@ -344,7 +344,7 @@ export const ANNOUNCEMENTS = [
   {
     id: "office-traps-and-twin-rule-2026-08-29",
     badge: "Verified",
-    text: "The trap battery now covers all four formats this checker grades. Fifteen new trap documents were hand-built in Word, PowerPoint, and Excel's own file formats — bold text posing as headings, pictures whose alt panel was never opened, header rows never marked, slides with no titles, sheets still named 'Sheet1' — beside done-right twins that must pass clean. All 115 traps then in the battery held, and a new twin rule is enforced on every matched pair: the flawed version may never outscore the correct one. Every control's exact score is also now pinned in the public ledger — 151 documents whose grades cannot move without a person approving the change.",
+    text: "The trap battery now covers all four formats this checker grades. Fifteen new trap documents were hand-built in Word, PowerPoint, and Excel's own file formats — bold text posing as headings, pictures whose alt panel was never opened, header rows never marked, slides with no titles, sheets still named 'Sheet1' — beside matching corrected copies of the same files that must pass clean. All 115 traps then in the battery held, and a new rule is enforced on every flawed/corrected pair: the broken version may never outscore the corrected one. Every control's exact score is also now pinned in the public ledger — 151 documents whose grades cannot move without a person approving the change.",
     linkText: "See the trap documents",
     /** Deep-links the trap-inventory modal — real hash navigation for :target. */
     linkTo: "/trust#all-traps",

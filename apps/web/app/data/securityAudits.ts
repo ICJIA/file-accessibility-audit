@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.142.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: a requested red/blue security audit of every change shipped today (thirty releases). Verdict: no findings, no new attack surface.",
+    body: [
+      {
+        kind: "p",
+        html: "Today&rsquo;s thirty releases &mdash; the legal-only scoring change and everything that followed &mdash; were audited as one body of work: 75 files and roughly 4,400 added lines, swept mechanically for dangerous patterns and then verified by hand at every seam where new code touches data an attacker could influence. <strong>Verdict: no critical, high, or medium findings, and no new attack surface</strong> &mdash; no new web addresses, no storage changes, no new parsing of uploaded content, no new outbound requests, and no new raw-HTML rendering anywhere.",
+      },
+      {
+        kind: "p",
+        html: "The specifics worth stating: the one new shell invocation lives in a developer-only test gate, takes no user input, and passes arguments as a list (no shell interpretation); the validator error message newly shown on reports can only ever be one of three fixed sentences written by this project (never text from a document); and every new on-page field renders through the framework&rsquo;s escaping. One pre-existing behavior is documented as accepted by design: the &ldquo;For Use with AI Assistants&rdquo; text quotes passages from the analyzed document, which is its purpose &mdash; and its new standing instruction narrows what a malicious document could talk an assistant into claiming. The full audit &mdash; method, seams, verifications, and the accepted item &mdash; is published in the repository at <code>docs/security-audit-2026-08-29-legal-only-sweep.md</code>.",
+      },
+      {
+        kind: "p",
+        html: "In the same release, the trust page&rsquo;s &ldquo;good twins&rdquo; jargon was rewritten in plain language: for each flawed test file there is a matching corrected copy the checker must not flag, and the broken version may never outscore the corrected one.",
+      },
+    ],
+  },
+  {
     version: "v1.141.3",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the last staled bug-count on the page, made historical and countless; the automated guard now catches its whole class.",
     body: [
