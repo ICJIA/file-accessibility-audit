@@ -1,5 +1,19 @@
 <template>
   <div>
+    <!-- Which rulebook produced the grade — the Detailed view opens with the
+         same two-standards strip as the Visual view, so switching views never
+         changes the story. Suppressed (show-standards-strip=false) when this
+         component is embedded inside TechnicalReport on the Visual page,
+         which already opens with it. -->
+    <TwoStandardsStrip
+      v-if="showStandardsStrip"
+      :conformance="result.conformance"
+      :wcag-version="wcag.version"
+      :file-type="result.fileType"
+      :pdf-ua-verdict="result.pdfUaVerdict"
+      class="mb-8"
+    />
+
     <!-- Score Table -->
     <div
       v-if="showScoreTable"
@@ -272,7 +286,7 @@
           v-if="partitionCardFindings(cat.findings).notScored.length"
           class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1.5"
         >
-          Required by law — WCAG 2.2 AA · ADA Title II · IITAA
+          Required by WCAG 2.1 — ADA Title II · Illinois IITAA
           <span class="font-normal normal-case">(this is what your score measures)</span>
         </p>
         <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
@@ -320,7 +334,7 @@
           class="mt-4 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-deep)] px-4 py-3"
         >
           <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-            Also recommended — PDF/UA readiness
+            Also recommended — PDF/UA best practice
             <span class="font-normal normal-case">(not counted in your score)</span>
           </p>
           <ul class="mt-2 space-y-1.5">
@@ -613,6 +627,8 @@ import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
 import { pdfUaFailuresByCategory } from "./pdfUaCategory";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { useWcag } from "~/composables/useWcag";
+import TwoStandardsStrip from "./TwoStandardsStrip.vue";
+import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
 /**
  * The shared report subtree: Score Table, Document Metadata, Detailed
@@ -624,6 +640,8 @@ import { useWcag } from "~/composables/useWcag";
  */
 interface ReportLike {
   categories: CategoryResult[];
+  /** WCAG conformance verdict — read only by the two-standards strip. */
+  conformance?: ConformanceVerdict | null;
   /** veraPDF's own verdict, when this report has one (PDFs where it ran).
    *  Read only to quote the referee's exact words beside the matching
    *  evidence card — never to score anything. */
@@ -669,9 +687,13 @@ interface ReportLike {
   fileType?: string;
 }
 
-const props = withDefaults(defineProps<{ result: ReportLike; showScoreTable?: boolean }>(), {
-  showScoreTable: true,
-});
+const props = withDefaults(
+  defineProps<{ result: ReportLike; showScoreTable?: boolean; showStandardsStrip?: boolean }>(),
+  {
+    showStandardsStrip: true,
+    showScoreTable: true,
+  },
+);
 
 const wcag = useWcag();
 

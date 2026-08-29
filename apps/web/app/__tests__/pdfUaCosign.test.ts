@@ -189,7 +189,7 @@ describe("the same co-sign appears in the DETAILED view's evidence card", () => 
   });
 });
 
-describe("the two tiers: required by law vs PDF/UA readiness (v1.130.0)", () => {
+describe("the two tiers: required by WCAG 2.1 vs PDF/UA best practice (v1.130.0, renamed v1.133.0)", () => {
   // The objection this answers: "you are grading our file against PDF/UA,
   // and PDF/UA is not the law." Now the grade measures only the legal
   // standard, and PDF/UA work is shown beside it, plainly not counted.
@@ -217,7 +217,7 @@ describe("the two tiers: required by law vs PDF/UA readiness (v1.130.0)", () => 
     const w = mount(ReportContent, { props: { result: withBothTiers as never } });
     const tier = w.find('[data-testid="not-scored-tier"]');
     expect(tier.exists()).toBe(true);
-    expect(tier.html()).toMatch(/PDF\/UA readiness/i);
+    expect(tier.html()).toMatch(/PDF\/UA best practice/i);
     expect(tier.html()).toMatch(/not counted in your score/i);
     expect(tier.html()).toMatch(/no \/Scope/);
     // The optional fix line travels with it, not with the scored findings.
@@ -226,8 +226,8 @@ describe("the two tiers: required by law vs PDF/UA readiness (v1.130.0)", () => 
 
   it("labels the scored findings as the legal standard when a second tier exists", () => {
     const html = mount(ReportContent, { props: { result: withBothTiers as never } }).html();
-    expect(html).toMatch(/Required by law/i);
-    expect(html).toMatch(/WCAG 2\.2 AA/);
+    expect(html).toMatch(/Required by WCAG 2\.1/i);
+    expect(html).toMatch(/ADA Title II/);
   });
 
   it("adds no headings at all to an ordinary card with nothing unscored", () => {
@@ -242,7 +242,7 @@ describe("the two tiers: required by law vs PDF/UA readiness (v1.130.0)", () => 
     };
     const w = mount(ReportContent, { props: { result: plain as never } });
     expect(w.find('[data-testid="not-scored-tier"]').exists()).toBe(false);
-    expect(w.html()).not.toMatch(/Required by law/i);
+    expect(w.html()).not.toMatch(/Required by WCAG 2\.1 —/i);
   });
 });
 
@@ -263,7 +263,7 @@ describe("the action plan labels legal work and separates the optional (v1.132.0
     // which is exactly why the chip can be unconditional.
     const w = mount(ActionPlan, { props: { steps: [step] } });
     expect(w.find('[data-testid="step-law-chip"]').exists()).toBe(true);
-    expect(w.find('[data-testid="step-law-chip"]').text()).toMatch(/REQUIRED BY LAW/);
+    expect(w.find('[data-testid="step-law-chip"]').text()).toMatch(/REQUIRED BY WCAG 2\.1/);
   });
 
   it("lists unscored PDF/UA work separately, never as a numbered step", () => {
@@ -283,7 +283,8 @@ describe("the action plan labels legal work and separates the optional (v1.132.0
     });
     const beyond = w.find('[data-testid="plan-beyond-group"]');
     expect(beyond.exists()).toBe(true);
-    expect(beyond.text()).toMatch(/Above and beyond — not required by law/i);
+    expect(beyond.text()).toMatch(/Above and beyond — not required by WCAG 2\.1/i);
+    expect(beyond.text()).toMatch(/PDF\/UA BEST PRACTICE/);
     expect(beyond.text()).toMatch(/no \/Scope/);
     // Still exactly one numbered step: the optional item did not become one.
     expect(w.findAll('[data-testid="step-law-chip"]')).toHaveLength(1);
@@ -308,5 +309,113 @@ describe("the strip's failing-verdict link points at the fixes", () => {
     expect(src).not.toContain('href="#technical-report"');
     const plan = readFileSync(resolve(__dirname, "../components/ActionPlan.vue"), "utf8");
     expect(plan).toContain('id="action-plan"');
+  });
+});
+
+describe("the beyond group carries veraPDF's verdict in full (v1.133.0)", () => {
+  const step = {
+    rank: 1,
+    categoryId: "alt_text",
+    title: "Describe your images",
+    why: "Screen readers announce alt text in place of the image.",
+    severity: "Critical" as const,
+    wcagRefs: [{ sc: "1.1.1", name: "Non-text Content" }],
+    routes: [],
+    detailAnchor: "#cat-alt_text",
+  };
+  const failedVerdict = {
+    available: true,
+    passed: false,
+    profile: "PDF/UA-1",
+    totalFailureCount: 106,
+    distinctRuleCount: 7,
+    failures: [
+      { clause: "7.1", description: "Content shall be marked as Artifact or tagged", count: 63 },
+      { clause: "7.21.4.1", description: "Fonts shall be embedded", count: 7 },
+      { clause: "7.5", description: "Table header cells shall have Scope", count: 36 },
+    ],
+  };
+
+  it("lists every failing rule with its ISO clause and occurrence count, plus the totals line", () => {
+    // The DoIT newsletter case: 100/A on the legal standard, 106 veraPDF
+    // items — the reader must be able to see the referee's full list without
+    // leaving the plan.
+    const w = mount(ActionPlan, { props: { steps: [step], pdfUaVerdict: failedVerdict } });
+    const vera = w.find('[data-testid="plan-vera-detail"]');
+    expect(vera.exists()).toBe(true);
+    expect(vera.text()).toMatch(/What veraPDF found/);
+    expect(vera.text()).toMatch(/106 occurrences across 7 failing rules of PDF\/UA-1/);
+    expect(vera.text()).toMatch(/7\.21\.4\.1/);
+    expect(vera.text()).toMatch(/Fonts shall be embedded/);
+    expect(vera.text()).toMatch(/× 7/);
+    expect(vera.text()).toMatch(/Table header cells shall have Scope/);
+  });
+
+  it("shows the group on veraPDF failures alone — even with no unscored findings of our own", () => {
+    const w = mount(ActionPlan, { props: { steps: [step], pdfUaVerdict: failedVerdict } });
+    expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(true);
+  });
+
+  it("reports a clean veraPDF pass as such, with no rule list", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: { available: true, passed: true, failures: [] },
+        categories: [
+          {
+            label: "Table Markup",
+            findings: ["PDF/UA only — not scored: 2 header cell(s) have no /Scope."],
+          },
+        ],
+      },
+    });
+    const vera = w.find('[data-testid="plan-vera-detail"]');
+    expect(vera.text()).toMatch(/no machine-checkable PDF\/UA failures/);
+    expect(vera.text()).not.toMatch(/occurrences across/);
+  });
+
+  it("surfaces a veraPDF error instead of pretending the check ran clean", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: { available: true, passed: false, error: "JVM timed out", failures: [] },
+      },
+    });
+    expect(w.find('[data-testid="plan-vera-detail"]').text()).toMatch(
+      /could not complete[^]*JVM timed out/,
+    );
+  });
+
+  it("carries the optional-fix line with its unscored finding (partition parity)", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        categories: [
+          {
+            label: "Table Markup",
+            findings: [
+              "PDF/UA only — not scored: 2 header cell(s) have no /Scope.",
+              "How to fix (optional): set Scope in the Tags panel.",
+            ],
+          },
+        ],
+      },
+    });
+    const beyond = w.find('[data-testid="plan-beyond-group"]');
+    expect(beyond.text()).toMatch(/How to fix \(optional\)/);
+  });
+});
+
+describe("the Detailed view opens with the two-standards strip (v1.133.0)", () => {
+  it("renders it by default and suppresses it when embedded in TechnicalReport", () => {
+    const result = {
+      categories: [],
+      fileType: "pdf",
+      conformance: { status: "pass", failures: [], notAssessed: [], headline: "" },
+    } as never;
+    const shown = mount(ReportContent, { props: { result } });
+    expect(shown.find('[data-testid="two-standards-strip"]').exists()).toBe(true);
+    const hidden = mount(ReportContent, { props: { result, showStandardsStrip: false } });
+    expect(hidden.find('[data-testid="two-standards-strip"]').exists()).toBe(false);
   });
 });

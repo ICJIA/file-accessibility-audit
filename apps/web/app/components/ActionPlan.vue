@@ -41,14 +41,16 @@
               <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
                 step.title
               }}</span>
-              <!-- Every numbered step is a legal requirement: a PDF/UA-only
-                   item carries no severity, so it never becomes a step (see
-                   the "above and beyond" group below). Saying so on each step
-                   is what a compliance reviewer is scanning for. -->
+              <!-- Every numbered step is a WCAG 2.1 requirement — the
+                   standard Illinois (IITAA) and federal law (ADA Title II)
+                   name. A PDF/UA-only item carries no severity, so it never
+                   becomes a step (see the "above and beyond" group below).
+                   Saying so on each step is what a compliance reviewer is
+                   scanning for. -->
               <span
                 data-testid="step-law-chip"
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-error-red)]/40 text-[var(--status-error-red)] hidden sm:inline"
-                >REQUIRED BY LAW</span
+                >REQUIRED BY WCAG 2.1</span
               >
               <span
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -178,30 +180,95 @@
       </p>
     </div>
 
-    <!-- ABOVE AND BEYOND — what the report found that the law does not
-         require. Kept out of the numbered steps on purpose. -->
+    <!-- ABOVE AND BEYOND — everything reported that WCAG 2.1 does not
+         require. Kept out of the numbered steps on purpose: a number in this
+         plan means a WCAG 2.1 obligation. Deliberately visible (user request
+         2026-08-29): this is where a reader who wants to go past the legal
+         floor finds the full PDF/UA picture, including veraPDF's own verdict
+         verbatim — every failing rule, its ISO clause, its count, and any
+         error. -->
     <div
-      v-if="beyondItems.length"
+      v-if="showBeyondGroup"
       data-testid="plan-beyond-group"
-      class="mt-5 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-deep)] px-4 py-3"
+      class="mt-6 rounded-xl border border-sky-500/30 bg-sky-500/5 px-4 sm:px-5 py-4"
     >
-      <p class="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
-        Above and beyond — not required by law
+      <h3 class="text-sm font-bold text-[var(--text-heading)] m-0">
+        Above and beyond — not required by WCAG 2.1
+        <span
+          class="ml-2 align-middle text-[10px] font-bold px-2 py-0.5 rounded-full border border-sky-500/40 text-sky-400 whitespace-nowrap"
+          >PDF/UA BEST PRACTICE</span
+        >
+      </h3>
+      <p class="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+        WCAG 2.1 is what Illinois (IITAA) and federal law (ADA Title II) require, and it is all your
+        grade measures. PDF/UA (ISO 14289) is the PDF industry's own standard — a best practice, not
+        a legal requirement. Everything below is PDF/UA work:
+        <strong class="font-semibold text-[var(--text-secondary)]"
+          >none of it affected your grade.</strong
+        >
       </p>
-      <p class="text-xs text-[var(--text-muted)] mt-1">
-        None of these affected your grade. They are worth doing if you are aiming at PDF/UA
-        conformance as well as WCAG, ADA Title II and IITAA.
-      </p>
-      <ul class="mt-2 space-y-2">
+
+      <ul v-if="beyondItems.length" class="mt-3 space-y-2">
         <li v-for="(item, i) in beyondItems" :key="`beyond-${i}`" class="text-xs flex gap-2">
-          <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-[var(--text-muted)]">○</span>
-          <span class="text-[var(--text-muted)]">
-            <span v-if="item.label" class="font-semibold text-[var(--text-secondary)]"
-              >{{ item.label }}: </span
-            >{{ item.text }}
+          <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-sky-400">○</span>
+          <span class="text-[var(--text-secondary)]">
+            <span v-if="item.label" class="font-semibold">{{ item.label }}: </span>{{ item.text }}
           </span>
         </li>
       </ul>
+
+      <!-- veraPDF's verdict, verbatim and in full. The referee's words, not
+           our judgment — same doctrine as the per-step co-sign. -->
+      <div
+        v-if="pdfUaVerdict?.available"
+        data-testid="plan-vera-detail"
+        class="mt-4 border-t border-sky-500/20 pt-3"
+      >
+        <p class="text-xs font-semibold text-[var(--text-secondary)] m-0">
+          What veraPDF found
+          <span class="font-normal text-[var(--text-muted)]"
+            >— the PDF Association's own PDF/UA validator, run on this document</span
+          >
+        </p>
+        <p v-if="pdfUaVerdict.error" class="text-xs text-[var(--status-warning-orange)] mt-1.5">
+          veraPDF could not complete its check: {{ pdfUaVerdict.error }}
+        </p>
+        <p v-else-if="pdfUaVerdict.passed" class="text-xs text-[var(--text-secondary)] mt-1.5">
+          <span aria-hidden="true">✓</span> veraPDF found no machine-checkable PDF/UA failures in
+          this document.
+        </p>
+        <template v-else>
+          <p class="text-xs text-[var(--text-muted)] mt-1">
+            {{ (pdfUaVerdict.totalFailureCount ?? 0).toLocaleString() }} occurrence{{
+              (pdfUaVerdict.totalFailureCount ?? 0) === 1 ? "" : "s"
+            }}
+            across {{ pdfUaVerdict.distinctRuleCount ?? veraFailures.length }} failing rule{{
+              (pdfUaVerdict.distinctRuleCount ?? veraFailures.length) === 1 ? "" : "s"
+            }}<template v-if="pdfUaVerdict.profile"> of {{ pdfUaVerdict.profile }}</template
+            >.
+          </p>
+          <ul class="mt-2 space-y-1.5">
+            <li v-for="(f, i) in veraFailures" :key="`vera-${i}`" class="text-xs flex gap-2">
+              <span class="flex-shrink-0 font-mono text-sky-400">{{
+                f.clause || f.ruleId || "—"
+              }}</span>
+              <span class="text-[var(--text-muted)] min-w-0">
+                {{ f.description || "(no description provided)" }}
+                <span class="text-[var(--text-secondary)] whitespace-nowrap"
+                  >× {{ f.count ?? 1 }}</span
+                >
+              </span>
+            </li>
+          </ul>
+          <p
+            v-if="(pdfUaVerdict.distinctRuleCount ?? 0) > veraFailures.length"
+            class="text-xs text-[var(--text-muted)] mt-1.5"
+          >
+            Showing the first {{ veraFailures.length }} rules — the complete list is in the full
+            technical report's PDF/UA panel.
+          </p>
+        </template>
+      </div>
     </div>
   </section>
 </template>
@@ -214,7 +281,7 @@ import { computed, ref, watch } from "vue";
 const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
-import { isNotScoredFinding } from "~/utils/findings";
+import { partitionCardFindings } from "~/utils/findings";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
@@ -223,24 +290,46 @@ const props = defineProps<{
   conformance?: ConformanceVerdict | null;
   /** The document's OWN veraPDF verdict. When it independently flagged the
    *  same defect, the step says so in veraPDF's words — see pdfUaCategory.ts. */
-  pdfUaVerdict?: { available?: boolean; failures?: PdfUaFailureLike[] } | null;
+  pdfUaVerdict?: {
+    available?: boolean;
+    passed?: boolean;
+    profile?: string;
+    totalFailureCount?: number;
+    distinctRuleCount?: number;
+    error?: string;
+    failures?: PdfUaFailureLike[];
+  } | null;
   /** Scored categories, read ONLY to collect the reported-but-unscored items
    *  for the "above and beyond" group. The plan itself is built from steps. */
   categories?: Array<{ label?: string; findings?: string[] }> | null;
 }>();
 
-/** PDF/UA work the report shows but never scored. Deliberately NOT numbered
- *  steps: a number in this plan means a legal obligation, and mixing optional
- *  work into that list is exactly the conflation this release removed. Listed
- *  after the steps so an author aiming at full PDF/UA conformance still has
- *  everything in one place. */
+/** PDF/UA work the report shows but never scored — the analyzer's
+ *  "not scored" prefix lines plus each one's optional-fix line, bucketed by
+ *  the SAME partition the Detailed view uses, so the two views can never
+ *  disagree about what is optional. Deliberately NOT numbered steps: a number
+ *  in this plan means a WCAG 2.1 obligation. */
 const beyondItems = computed(() =>
   (props.categories ?? []).flatMap((c) =>
-    (c.findings ?? [])
-      .filter((f) => typeof f === "string" && isNotScoredFinding(f))
-      .map((f) => ({ label: c.label ?? "", text: f })),
+    partitionCardFindings(c.findings).notScored.map((f) => ({ label: c.label ?? "", text: f })),
   ),
 );
+
+/** Every failing veraPDF rule, largest count first — the referee's full list,
+ *  not our summary of it. */
+const veraFailures = computed(() => {
+  const v = props.pdfUaVerdict;
+  if (!v?.available) return [];
+  return [...(v.failures ?? [])].sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+});
+
+/** The group renders whenever there is anything optional to say: our own
+ *  unscored findings, a failed veraPDF run, or veraPDF's error — silence only
+ *  when there is genuinely nothing beyond the legal floor to report. */
+const showBeyondGroup = computed(() => {
+  const v = props.pdfUaVerdict;
+  return beyondItems.value.length > 0 || Boolean(v?.available && (v.error || v.passed === false));
+});
 
 // Grouped once per verdict, not per step render.
 const veraByCategory = computed(() => pdfUaFailuresByCategory(props.pdfUaVerdict));

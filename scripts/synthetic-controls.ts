@@ -3735,6 +3735,146 @@ const SAMPLES: Sample[] = [
         : `scored ${r.overallScore}/${r.grade} — the grade must follow the law, not PDF/UA`;
     },
   },
+  {
+    file: "synthetic-122-unembedded-font-unscored.pdf",
+    truth:
+      "An unembedded ArialMT paints visible text, everything else perfect. No WCAG success criterion requires font embedding — a substituted font still renders and still extracts — so since v1.131.0 this must score 100/A while the census still names the font and a 'PDF/UA only — not scored' line explains the line the industry standard draws (PDF/UA 7.21). The trap that keeps the removed 85-cap from quietly coming back.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Font census")}) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F2 11 Tf 72 700 Td (Quarterly figures rendered in a font the file does not carry.) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R /F2 10 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 11 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 11 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          // The census walks FontDescriptor chains (a descriptor with no
+          // /FontFile* = not embedded) — a bare font dict with no descriptor
+          // never enters it, which is exactly how real files carry the defect:
+          // Word writes the descriptor and omits the font program.
+          "<< /Type /Font /Subtype /TrueType /BaseFont /ArialMT /Encoding /WinAnsiEncoding /FontDescriptor 12 0 R /FirstChar 32 /LastChar 122 >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /FontDescriptor /FontName /ArialMT /Flags 32 /FontBBox [-665 -325 2000 1006] /ItalicAngle 0 /Ascent 905 /Descent -212 /CapHeight 716 /StemV 80 >>",
+        ],
+        "<< /Title (Unembedded Font Census) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/non-embedded font/i.test(text)) return "the unembedded font was not named";
+      if (!/PDF\/UA only — not scored:[^]*non-embedded font/i.test(text))
+        return "the font finding lost its not-scored prefix";
+      const t = cat("text_extractability")(r);
+      if (t && t.score !== null && t.score < 100)
+        return `text_extractability docked (${t.score}) for a requirement no WCAG criterion makes`;
+      return r.overallScore === 100 && r.grade === "A"
+        ? null
+        : `scored ${r.overallScore}/${r.grade} — the 85-cap for unembedded fonts is back`;
+    },
+  },
+  {
+    file: "synthetic-123-nested-table-unscored.pdf",
+    truth:
+      "A properly tagged table nested inside a table cell, both with clean single-axis header rows. Hard to navigate — genuinely — but its relationships are still programmatically determinable, so 1.3.1 is satisfied and since v1.131.0 this must score 100/A while the nesting is still reported as an unscored item. Guards the removed 10-point nested-table deduction.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Nested table")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 72 700 Td (Region) Tj ET\nEMC\n` +
+        `/TH << /MCID 2 >> BDC\nBT /F1 10 Tf 260 700 Td (Detail) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 72 680 Td (North) Tj ET\nEMC\n` +
+        `/TH << /MCID 4 >> BDC\nBT /F1 9 Tf 260 680 Td (Month) Tj ET\nEMC\n` +
+        `/TH << /MCID 5 >> BDC\nBT /F1 9 Tf 340 680 Td (Visits) Tj ET\nEMC\n` +
+        `/TD << /MCID 6 >> BDC\nBT /F1 9 Tf 260 664 Td (January) Tj ET\nEMC\n` +
+        `/TD << /MCID 7 >> BDC\nBT /F1 9 Tf 340 664 Td (412) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 13 0 R 14 0 R 15 0 R 19 0 R 20 0 R 21 0 R 22 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          // Outer table: header row + one data row whose second cell HOLDS a table.
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [13 0 R 14 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [15 0 R 16 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /K [17 0 R] >>",
+          // Inner table, itself clean: one header row, one data row.
+          "<< /Type /StructElem /S /Table /P 16 0 R /K [18 0 R 23 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 17 0 R /K [19 0 R 20 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 18 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /TH /P 18 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 23 0 R /Pg 3 0 R /K 6 >>",
+          "<< /Type /StructElem /S /TD /P 23 0 R /Pg 3 0 R /K 7 >>",
+          "<< /Type /StructElem /S /TR /P 17 0 R /K [21 0 R 22 0 R] >>",
+        ],
+        "<< /Title (Nested Table Reported Not Scored) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/nested/i.test(text)) return "the nested table was not reported";
+      if (!/PDF\/UA only — not scored:[^]*nested/i.test(text))
+        return "the nested-table note lost its not-scored prefix";
+      return r.overallScore === 100 && r.grade === "A"
+        ? null
+        : `scored ${r.overallScore}/${r.grade} — the removed nested-table deduction is back`;
+    },
+  },
+  {
+    file: "synthetic-124-single-row-table.pdf",
+    truth:
+      "A ONE-ROW table: a TH leading a single row of data cells, no /Scope. There is exactly one relationship the header could express — it labels its own row — so it is programmatically determinable and the law is satisfied: must score 100/A with the missing scope reported as an unscored PDF/UA item. Written to expose (and then pin) the single-axis test's blind spot: a one-row table puts its only header in row 0 AND column 0 at once, which naive exactly-one-axis logic reads as a two-axis crosstab. (One-COLUMN tables never reach scoring at all — the layout-scaffold rule excludes them.)",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("One row")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 72 700 Td (Total) Tj ET\nEMC\n` +
+        `/TD << /MCID 2 >> BDC\nBT /F1 10 Tf 200 700 Td (412) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 320 700 Td (455) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 12 0 R 13 0 R 14 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [12 0 R 13 0 R 14 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /TD /P 11 0 R /Pg 3 0 R /K 3 >>",
+        ],
+        "<< /Title (Single Row Table) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/PDF\/UA only — not scored/.test(text))
+        return "the missing scope was not reported as an unscored PDF/UA item";
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      if (t.score < 100) return `a one-row table was docked (table ${t.score})`;
+      return r.overallScore === 100 && r.grade === "A"
+        ? null
+        : `scored ${r.overallScore}/${r.grade} — a single-row header is always determinable`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4133,6 +4273,20 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-121-simple-table-no-scope.pdf": {
     label:
       "A plain grid with no scope — PDF/UA asks for it, the law does not, and the grade follows the law",
+    chip: "held",
+  },
+  "synthetic-122-unembedded-font-unscored.pdf": {
+    label:
+      "A font left unembedded — PDF/UA requires embedding, the law does not; reported, never scored",
+    chip: "held",
+  },
+  "synthetic-123-nested-table-unscored.pdf": {
+    label:
+      "A table nested in a table cell — hard to navigate, still determinable; reported, never scored",
+    chip: "held",
+  },
+  "synthetic-124-single-row-table.pdf": {
+    label: "A one-row table with no scope — only one relationship its header could mean",
     chip: "held",
   },
 };

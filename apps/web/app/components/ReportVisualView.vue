@@ -12,8 +12,11 @@
 
     <VerdictStrip :conformance="result.conformance" :wcag-version="wcag.version" class="mb-3" />
 
-    <!-- Which rulebook produced the grade, stated before anyone scrolls. -->
+    <!-- Which rulebook produced the grade, stated before anyone scrolls.
+         Gated like the plan/tiles: a page-audit row (no categories[]) must
+         not get a green legal-verdict box the axe results could contradict. -->
     <TwoStandardsStrip
+      v-if="hasCategories"
       :conformance="result.conformance"
       :wcag-version="wcag.version"
       :file-type="result.fileType"

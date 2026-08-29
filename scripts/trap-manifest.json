@@ -1,5 +1,5 @@
 {
-  "count": 106,
+  "count": 109,
   "generated": "2026-08-29",
   "items": [
     {
@@ -536,6 +536,21 @@
     {
       "file": "synthetic-121-simple-table-no-scope.pdf",
       "label": "A plain grid with no scope — PDF/UA asks for it, the law does not, and the grade follows the law",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-122-unembedded-font-unscored.pdf",
+      "label": "A font left unembedded — PDF/UA requires embedding, the law does not; reported, never scored",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-123-nested-table-unscored.pdf",
+      "label": "A table nested in a table cell — hard to navigate, still determinable; reported, never scored",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-124-single-row-table.pdf",
+      "label": "A one-row table with no scope — only one relationship its header could mean",
       "chip": "held"
     }
   ]

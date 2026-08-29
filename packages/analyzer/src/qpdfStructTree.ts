@@ -612,12 +612,21 @@ export function analyzeTable(
   // Headers confined to ONE axis, nothing spanned, grid regular.
   const headersInFirstRowOnly = headerRowIdx.size === 1 && headerRowIdx.has(0);
   const headersInFirstColOnly = headerColIdx.size === 1 && headerColIdx.has(0);
+  // A one-row (or one-column) table sets BOTH flags at once — its only header
+  // position is row 0 AND column 0 simultaneously — yet there is exactly one
+  // relationship such a header could express, so it is simple, not a
+  // crosstab. The genuinely ambiguous both-flags case is a lone corner header
+  // over a real 2-D grid, which stays complex. Caught by trap
+  // synthetic-124-single-row-table (a one-row [TH TD TD] was docked 89/B).
+  const singleRow = trNodes.length === 1;
+  const singleColumn = result.columnCounts.length > 0 && result.columnCounts.every((c) => c <= 1);
   result.simpleHeaderLayout =
     !anySpannedCell &&
     result.headerCount > 0 &&
     // Exactly one axis — a table with headers along the top AND down the side
     // needs /Scope to say which is which.
-    headersInFirstRowOnly !== headersInFirstColOnly;
+    (headersInFirstRowOnly !== headersInFirstColOnly ||
+      (headersInFirstRowOnly && headersInFirstColOnly && (singleRow || singleColumn)));
 
   if (result.columnCounts.length > 0) {
     const first = result.columnCounts[0];

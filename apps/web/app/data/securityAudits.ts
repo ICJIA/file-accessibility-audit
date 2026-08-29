@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.133.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the required standard is named precisely (WCAG 2.1), veraPDF&rsquo;s full verdict appears in the plan, and a same-day self-review fixed a scoring blind spot before any file hit it.",
+    body: [
+      {
+        kind: "p",
+        html: "Precision over vagueness: what reports called &ldquo;required by law&rdquo; now says <strong>&ldquo;Required by WCAG 2.1&rdquo;</strong> &mdash; the exact standard the federal ADA Title II rule and the Illinois IITAA name &mdash; and everything optional is labelled a <strong>PDF/UA best practice</strong>. The action plan&rsquo;s &ldquo;Above and beyond&rdquo; section now shows <strong>veraPDF&rsquo;s complete verdict</strong> for the document: every failing PDF/UA rule with its ISO clause and how many times it occurs, a clean pass stated plainly, and an incomplete check&rsquo;s error shown rather than hidden. None of it is counted in the grade, and the section says so.",
+      },
+      {
+        kind: "p",
+        html: "The same day&rsquo;s scoring changes were then re-reviewed line by line, and the review found and fixed four of its own mistakes. The most important: <strong>a one-row table with a leading header cell was being misread as a two-axis grid</strong> and docked for a missing header direction &mdash; exactly the kind of false positive this week&rsquo;s work exists to prevent. A trap document was written first, confirmed to fail, and the fix confirmed against all 124 traps; a deliberate sabotage run proved the battery goes red if the new scoring rule is ever disabled. No stored document&rsquo;s score changed. The other fixes: the two-standards summary was missing from the Detailed view it claimed to be in, optional fix advice was dropped from the plan&rsquo;s optional-work list, and printing lost the collapsed document-properties table.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: presentation and scoring-rule changes, three new test documents, and two extra encodings in an existing local test gate (the same file re-saved by qpdf two more ways, which must not change any verdict). No new input is parsed from visitors, no new request is made, and no code path that receives, sends, or stores anything changed. The server&rsquo;s veraPDF was verified current (1.30.1, the latest stable release). No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.132.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: each fix step now states whether the law requires it, and optional work is listed apart from the numbered steps. Nothing new is received, sent, or stored.",
     body: [

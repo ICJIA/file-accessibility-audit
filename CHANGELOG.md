@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.133.0] - 2026-08-29
+
+### Changed
+
+- **"Required by law" is now "Required by WCAG 2.1" everywhere** — the strip, the per-step chips, and the Detailed view's tier heading. WCAG 2.1 AA is the standard the ADA Title II rule and the Illinois IITAA actually name, so the precise claim is stronger than the vague one; when the audit basis is WCAG 2.2 the strip says so in the same breath ("Audited here against WCAG 2.2 AA — everything 2.1 requires, and more"). Everything optional is now consistently labelled a **PDF/UA best practice**, never "readiness".
+- **The plan's "Above and beyond" group now carries veraPDF's verdict in full.** Every failing PDF/UA rule with its ISO clause, description, and occurrence count; the totals line ("106 occurrences across 7 failing rules of PDF/UA-1"); a clean pass stated positively; an incomplete run's error surfaced instead of hidden. The group also renders on veraPDF failures alone — the DoIT-newsletter shape, 100/A on the legal standard with 106 PDF/UA items, previously showed nothing here. Visually promoted from a muted footnote to a bordered section with a PDF/UA BEST PRACTICE badge.
+
+### Fixed — from a same-day self-review of the v1.130–v1.132 changes
+
+- **A one-row table was read as a crosstab** (`[TH TD TD]` in a single row puts its only header in row 0 AND column 0 at once, which the exactly-one-axis test called two-axis) and docked for missing `/Scope` — the exact false positive the split exists to prevent. Found by writing **trap 124** first and watching it fail at 89/B; the fix makes one-row (and one-column) layouts simple, and a lone corner header over a real 2-D grid stays complex. No stored score moved — no real corpus document had the shape.
+- **The two-standards strip was not actually in the Detailed view** (it sat in the Visual page's technical expander instead — v1.131's "both views" claim was wrong). It now opens `ReportContent` itself, so both standalone Detailed views carry it, suppressed inside the expander where the Visual page already shows it. It is also now **gated off page-audit rows**, where a green document-law verdict could have sat above failing axe results.
+- **The plan's optional items dropped their "How to fix (optional)" lines** — the group now buckets findings through the same `partitionCardFindings` the Detailed view uses, so the two views cannot disagree.
+- **Printing no longer loses the collapsed metadata table**: `beforeprint` force-opens the disclosure and `afterprint` restores it, keeping the reorder's "no details removed" promise in print.
+
+### Added
+
+- **Traps 122–124** (corpus **124**): an unembedded ArialMT that must stay 100/A while the census names it; a properly tagged nested table that must stay 100/A while the nesting is reported; the one-row table above. A sabotage run (temporarily disabling `simpleHeaderLayout`) confirmed traps 121, 123, and 124 all go red — the battery has teeth, not just coverage.
+- **Two qpdf-transformed encodings in the encoding-invariance gate** (now nine): the same document packed into compressed **object streams** (how modern exporters actually save) and expanded to **QDF form** (renumbered objects, normalized dictionaries). Both must produce the identical verdict, catching whole classes of parser-subset bugs before a real file does.
+
+### Notes
+
+- veraPDF on the server is **1.30.1 — the current stable release** (1.30 shipped 2026-06-03; the 1.31.x line is the development stream). No update needed.
+- Tests 2,985 → **2,991**.
+
+<details>
+<summary><strong>v1.132.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.132.0] - 2026-08-29
 
 ### Fixed
@@ -19,8 +46,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 2,981 → **2,985**, including one that pins the link target in both directions (the plan's anchor must exist; the strip must not point at the technical report again).
 
-<details>
-<summary><strong>v1.131.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.131.0] - 2026-08-29
 

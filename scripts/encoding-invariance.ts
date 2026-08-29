@@ -33,6 +33,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
 
@@ -73,6 +74,22 @@ interface Encoding {
   name: string;
   why: string;
   build: () => Buffer;
+}
+
+/** Round-trip a built document through qpdf with the given write options.
+ *  qpdf is a REQUIRED tool for this repo (CI apt-installs it; the analyzer
+ *  shells out to it), so its absence here is a hard failure, not a skip. */
+function qpdfTransform(src: Buffer, args: string[]): Buffer {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "enc-inv-qpdf-"));
+  try {
+    const inFile = path.join(dir, "in.pdf");
+    const outFile = path.join(dir, "out.pdf");
+    fs.writeFileSync(inFile, src);
+    execFileSync("qpdf", [...args, inFile, outFile]);
+    return fs.readFileSync(outFile);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 const CONTENT =
@@ -259,6 +276,16 @@ const ENCODINGS: Encoding[] = [
         ],
         INFO,
       ),
+  },
+  {
+    name: "qpdf-object-streams",
+    why: "the baseline rewritten by qpdf with every object packed into compressed object streams — how modern exporters actually save PDFs; a parser that only reads uncompressed object tables goes blind here",
+    build: () => qpdfTransform(ENCODINGS[0]!.build(), ["--object-streams=generate"]),
+  },
+  {
+    name: "qpdf-qdf-expanded",
+    why: "the baseline expanded to QDF form (uncompressed streams, normalized dictionaries, renumbered objects) — the opposite extreme of object streams; object NUMBERS change while meaning does not, so anything keyed to a literal object id diverges here",
+    build: () => qpdfTransform(ENCODINGS[0]!.build(), ["--qdf"]),
   },
 ];
 

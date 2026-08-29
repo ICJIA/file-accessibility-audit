@@ -26,11 +26,13 @@ const failing = {
 const strip = (props: Record<string, unknown>) =>
   mount(TwoStandardsStrip, { props: { wcagVersion: "2.2", ...props } as never });
 
-describe("the legal side — what the grade measures", () => {
+describe("the WCAG 2.1 side — what the grade measures", () => {
   it("names the three legal instruments and says the grade follows them", () => {
     const html = strip({ conformance: clean, fileType: "pdf" }).html();
-    expect(html).toMatch(/Required by law/i);
-    expect(html).toMatch(/WCAG 2\.2 AA/);
+    expect(html).toMatch(/Required by WCAG 2\.1/i);
+    // The audit basis is reconciled, not hidden: 2.2 contains everything 2.1
+    // requires, and the strip says so when the audited version is 2.2.
+    expect(html).toMatch(/Audited here against WCAG 2\.2 AA/);
     expect(html).toMatch(/ADA Title II/);
     expect(html).toMatch(/IITAA/);
     expect(html).toMatch(/only this — is what your grade measures/i);
@@ -50,7 +52,7 @@ describe("the PDF/UA side — reported, never counted", () => {
       pdfUaVerdict: { available: true, passed: false, failures: [{ count: 5 }] },
     }).html();
     expect(html).toMatch(/not counted in your score/i);
-    expect(html).toMatch(/not law/i);
+    expect(html).toMatch(/not\s+required by WCAG 2\.1/i);
   });
 
   it("counts items across rules when veraPDF failed the document", () => {

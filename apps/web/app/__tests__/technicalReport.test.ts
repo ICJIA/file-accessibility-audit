@@ -48,11 +48,11 @@ const result = {
 
 describe("ReportContent showScoreTable prop", () => {
   it("still renders the score table by default (Detailed view unchanged)", () => {
-    const w = mount(ReportContent, { props: { result } });
+    const w = mount(ReportContent, { props: { result: result as never } });
     expect(w.text()).toContain("Category Scores");
   });
   it("hides only the score table when showScoreTable=false", () => {
-    const w = mount(ReportContent, { props: { result, showScoreTable: false } });
+    const w = mount(ReportContent, { props: { result: result as never, showScoreTable: false } });
     expect(w.text()).not.toContain("Category Scores");
     expect(w.text()).toContain("Detailed Findings");
   });

@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,985 tests** across 195 test files (API 1,622 · Web 1,314 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,991 tests** across 195 test files (API 1,622 · Web 1,320 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.133.0 — 2026-08-29 · "Required by WCAG 2.1" named precisely; veraPDF's verdict in full; a same-day self-review fixes its own blind spot (no new attack surface)
+
+Reports now name the standard the law actually cites — **"Required by WCAG 2.1"** (the ADA Title II rule and Illinois IITAA both name WCAG 2.1 AA) replaces the vaguer "required by law" on the strip, the per-step chips, and the Detailed tier; optional items are consistently a **PDF/UA best practice**. The plan's "Above and beyond" section now carries **veraPDF's complete verdict** — every failing rule with ISO clause and count — and renders even when the only findings are veraPDF's (the DoIT-newsletter shape: 100/A legally, 106 PDF/UA items). A same-day self-review of v1.130–v1.132 then fixed four of its own mistakes, TDD-style: a **one-row table** read as a crosstab and docked (trap 124 written first, watched fail at 89/B, then fixed); the strip missing from the actual Detailed view; optional fix lines dropped from the plan's group; the collapsed metadata table lost in print. Traps 122–124 pin the unscoring decisions (corpus **124**), a sabotage run proved the battery goes red when the split is disabled, and the encoding-invariance gate gained qpdf **object-stream** and **QDF** transforms (nine encodings, one verdict). veraPDF on the server confirmed current stable (1.30.1). **No new attack surface**: scoring logic, presentation, tests, and two qpdf round-trips inside an existing local gate. Tests 2,991.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.132.0 → v1.33.0) — click to expand</summary>
+
 ### v1.132.0 — 2026-08-29 · The plan says which steps the law requires, and keeps optional work out of the numbers (no new attack surface)
 
 The legal verdict's link scrolled to the technical report — evidence, not action — and now targets the action plan itself (**"Go to the fixes"**, new `#action-plan` anchor). Each numbered step carries a **REQUIRED BY LAW** chip beside its severity, which is true by construction rather than assertion: a PDF/UA-only item has no severity, so it never becomes a step. Everything optional is collected in a closing **"Above and beyond — not required by law"** group, stating that none of it affected the grade. **A number in this plan means a legal obligation** — mixing optional work back into the list would undo the separation of the previous two releases. Tests 2,985.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.131.0 → v1.33.0) — click to expand</summary>
 
 ### v1.131.0 — 2026-08-29 · The legal verdict leads every report; two non-legal deductions removed (scoring audit)
 

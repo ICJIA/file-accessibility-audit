@@ -29,7 +29,10 @@
         </span>
       </p>
 
-      <details class="mt-2 group">
+      <!-- The collapse must not LOSE detail in print (the reorder's contract
+           was "no details removed"): beforeprint force-opens the disclosure,
+           afterprint restores the reader's state. -->
+      <details ref="propsDisclosure" class="mt-2 group">
         <summary
           class="cursor-pointer text-xs text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors select-none"
         >
@@ -70,7 +73,7 @@
 // where the plan is read instead of only inside the collapsed technical
 // expander. Same field inventory as the Detailed view's metadata panel,
 // built by the same util.
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
 
 const props = defineProps<{
@@ -93,5 +96,25 @@ const headlineFacts = computed(() => {
     pages ? `${pages} ${pages === "1" ? "page" : "pages"}` : null,
     created ? `created ${created}` : null,
   ].filter((x): x is string => !!x);
+});
+
+const propsDisclosure = ref<HTMLDetailsElement | null>(null);
+let openBeforePrint = false;
+const onBeforePrint = () => {
+  if (propsDisclosure.value) {
+    openBeforePrint = propsDisclosure.value.open;
+    propsDisclosure.value.open = true;
+  }
+};
+const onAfterPrint = () => {
+  if (propsDisclosure.value) propsDisclosure.value.open = openBeforePrint;
+};
+onMounted(() => {
+  window.addEventListener("beforeprint", onBeforePrint);
+  window.addEventListener("afterprint", onAfterPrint);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeprint", onBeforePrint);
+  window.removeEventListener("afterprint", onAfterPrint);
 });
 </script>

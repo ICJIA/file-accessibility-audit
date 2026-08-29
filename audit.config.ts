@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "wcag21-named-and-verapdf-in-full-2026-08-29",
+    badge: "Changed",
+    text: "Reports now name the standard precisely: every required item says 'Required by WCAG 2.1' — the standard Illinois (IITAA) and federal law (ADA Title II) actually name — instead of the vaguer 'required by law', and everything optional is labelled a PDF/UA best practice. The action plan's 'Above and beyond' section now carries veraPDF's complete verdict for your document: every failing PDF/UA rule with its ISO clause and occurrence count, plainly marked as not affecting your grade. A same-day review of the new scoring also fixed one genuine blind spot before any file hit it: a one-row table with a leading header cell was being read as a two-axis crosstab and docked for a missing direction — it now correctly passes, and a trap document pins it forever.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "law-verdict-first-2026-08-29",
     badge: "Changed",
     text: "Every report now opens by answering the compliance question directly: what the law requires, and whether this document meets it. WCAG 2.2 AA, ADA Title II and the Illinois IITAA get the headline; PDF/UA — the PDF industry's own standard, which is good practice and not law — sits underneath as a footnote, clearly marked as not counted in your score. We also audited every deduction the score is made of and removed two that no law requires: font embedding and nested tables. Both are still reported; neither affects your grade any more. Seven documents in our own test set scored slightly higher as a result, and none changed letter grade.",

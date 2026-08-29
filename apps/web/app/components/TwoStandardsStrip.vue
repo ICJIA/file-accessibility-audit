@@ -30,7 +30,7 @@
       "
     >
       <p class="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-        Required by law · WCAG {{ wcagVersion }} AA · ADA Title II · Illinois IITAA
+        Required by WCAG 2.1 · ADA Title II · Illinois IITAA
       </p>
       <p class="text-lg sm:text-xl font-bold text-[var(--text-heading)] mt-1 leading-snug">
         <span aria-hidden="true">{{ lawFailing ? "✕" : "✓" }}</span>
@@ -38,6 +38,10 @@
       </p>
       <p class="text-sm text-[var(--text-secondary)] mt-1">
         <strong class="font-semibold">This — and only this — is what your grade measures.</strong>
+        <template v-if="wcagVersion !== '2.1'">
+          {{ " " }}Audited here against WCAG {{ wcagVersion }} AA — everything 2.1 requires, and
+          more.
+        </template>
         <template v-if="lawFailing">
           {{ " " }}
           <a href="#action-plan" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -52,9 +56,12 @@
       class="rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-deep)] px-4 py-3"
     >
       <p class="text-xs text-[var(--text-muted)] leading-relaxed">
-        <span class="font-semibold uppercase tracking-wide">Extra credit — PDF/UA readiness:</span>
+        <span class="font-semibold uppercase tracking-wide"
+          >PDF/UA best practice — extra credit:</span
+        >
         {{ " " }}<span class="text-[var(--text-secondary)]">{{ pdfUaVerdictLine }}</span
-        >. The PDF industry's own standard (ISO 14289), checked by veraPDF — good practice, not law.
+        >. The PDF industry's own standard (ISO 14289), checked by veraPDF — a best practice, not
+        required by WCAG 2.1.
         <strong class="font-semibold text-[var(--text-secondary)]"
           >Not counted in your score.</strong
         >

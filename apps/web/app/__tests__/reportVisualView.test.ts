@@ -249,5 +249,9 @@ describe("ReportVisualView", () => {
     expect(w.find("[data-testid='bar-row']").exists()).toBe(false);
     expect(w.find("#technical-report").exists()).toBe(false);
     expect(w.text()).not.toContain("Nothing to fix");
+    // The two-standards strip is a DOCUMENT verdict — on a page-audit row a
+    // green "no automated failures" legal box could sit above failing axe
+    // results. Gated with the plan/tiles.
+    expect(w.html()).not.toContain("two-standards-strip");
   });
 });
