@@ -84,7 +84,8 @@
   .tm-head{display:flex;align-items:flex-start;gap:18px;justify-content:space-between;position:sticky;top:0;background:rgba(6,8,10,.97);padding:12px 0 14px;border-bottom:1px solid var(--line)}
   .tm-title{font-family:"Archivo Black";font-size:clamp(22px,3.4vw,32px)}
   .tm-sub{color:var(--muted);font-size:14px;margin-top:6px;max-width:75ch}
-  .tm-close{white-space:nowrap;font-weight:700;color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px 16px;text-decoration:none;background:var(--panel)}
+  .tm-close{white-space:nowrap;font-weight:800;color:#07130c;border:1px solid var(--good);border-radius:999px;padding:10px 20px;text-decoration:none;background:var(--good);font-size:15px}
+  .tm-close:hover{filter:brightness(1.12)}
   .tm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:18px}
   .trapm{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
   .trapm .name{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted)}
@@ -245,7 +246,7 @@
           <div class="tm-title">All {{TRAPS}} trap documents</div>
           <div class="tm-sub">{{TRAPS_CAUGHT}} designed defects caught &middot; {{TRAPS_HELD}} correct or hostile documents passed clean &middot; 1 real bug found in the checker itself &mdash; and fixed. Rebuilt from scratch and re-verified on every run, and the whole battery runs again before any change ships; a broken promise here stops the release. That is what these are for: every failure is a defect to fix &mdash; in the document, or in the checker.</div>
         </div>
-        <a class="tm-close" href="#trap-section">&#10005; Close</a>
+        <a class="tm-close" href="#trap-section">&#10005; Close &mdash; back to the page</a>
       </div>
       <div class="tm-grid">{{TRAP_CARDS}}</div>
     </div>
@@ -356,7 +357,7 @@
 <li>All {{TRAPS}} trap documents must still be judged correctly, every release.</li>
 </ul></div>
       <div class="check"><div class="big">Public paper trail</div><p>{{VERSIONS}} version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>
-      <div class="check"><div class="big">The world's own tools</div><p>Inside it run qpdf, veraPDF, and the Matterhorn Protocol &mdash; the same open tools and test model used every day by professional remediators and certified accessibility specialists worldwide. One person assembled them; the world builds and checks them.</p></div>
+      <div class="check"><div class="big">The world's own tools</div><p>Inside it runs qpdf, veraPDF, and the Matterhorn Protocol &mdash; the same open tools and test model used every day by professional remediators and certified accessibility specialists worldwide. One person assembled them; the world builds and checks them.</p></div>
     </div>
     <p class="agree" style="margin-top:30px">To be precise about the rivals: <strong>&ldquo;Microsoft&rsquo;s checker&rdquo;</strong> is the Accessibility Checker built into Word, PowerPoint and Excel; <strong>Adobe Acrobat Pro</strong> has one too &mdash; 32 pass/fail rules. Both are respectable, and both are closed: you cannot read their code, their tests, or their history of mistakes. This page <em>is</em> that reading, for this tool. And rather than asking you to choose, <strong>every PDF report here includes an Acrobat-parity panel</strong> &mdash; the same 32 rules Acrobat runs, shown beside our verdict, so you can compare checkers without leaving the page.</p>
     <p class="finalline display">The built-in checkers ask for your trust.<br><span class="good">This one hands you its evidence.</span></p>

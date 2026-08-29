@@ -1,6 +1,6 @@
 {
   "name": "ICJIA File Accessibility Audit",
-  "short_name": "Accessibility Audit",
+  "short_name": "ICJIA Accessibility Audit",
   "description": "Upload a PDF, Word, PowerPoint, or Excel document and get an instant accessibility score across WCAG 2.2 AA and ADA Title II categories with detailed findings and remediation guidance.",
   "start_url": "/",
   "display": "standalone",

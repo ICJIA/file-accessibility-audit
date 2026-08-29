@@ -558,13 +558,17 @@ useHead({
 }
 .trust-page .tm-close {
   white-space: nowrap;
-  font-weight: 700;
-  color: var(--tp-text);
-  border: 1px solid var(--tp-line);
+  font-weight: 800;
+  color: #07130c;
+  border: 1px solid var(--tp-good);
   border-radius: 999px;
-  padding: 8px 16px;
+  padding: 10px 20px;
   text-decoration: none;
-  background: var(--tp-panel);
+  background: var(--tp-good);
+  font-size: 15px;
+}
+.trust-page .tm-close:hover {
+  filter: brightness(1.12);
 }
 .trust-page .tm-grid {
   display: grid;

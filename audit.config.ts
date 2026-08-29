@@ -36,7 +36,7 @@ export const BRANDING = {
   APP_NAME: "ICJIA File Accessibility Audit",
 
   /** Short app name (for PWA manifest, browser tabs when space is limited). */
-  APP_SHORT_NAME: "Accessibility Audit",
+  APP_SHORT_NAME: "ICJIA Accessibility Audit",
 
   /** Organization name shown in Schema.org, meta tags, and export footers. */
   ORG_NAME: "Illinois Criminal Justice Information Authority",
@@ -256,9 +256,12 @@ export const ANNOUNCEMENTS = [
     badge: "Verified",
     text: "The battery of trap documents built to fool this checker has doubled again: one hundred of them, every designed answer returned correctly. The second fifty are modeled on what Canva, InDesign, and Word actually export — flat untagged posters, decorative-shape swarms, custom naming soup, titles that are pictures of words, 'Print to PDF'. The Can I trust this? page (now the first link in the menu) lists all one hundred with what each one tries and how it was judged, and the whole battery re-runs before any change ships — a broken promise stops the release.",
     linkText: "See all 100 trap documents",
-    /** In-app route since v1.119.0 — an ordinary router link. */
-    linkTo: "/trust",
-    linkExternal: false,
+    /** Deep-links into the trap-inventory modal. linkExternal on purpose:
+     *  the modal opens via CSS :target, which only re-evaluates on a REAL
+     *  hash navigation — the router's pushState does not reliably trigger
+     *  it. A plain <a> full-page load does, in every browser. */
+    linkTo: "/trust#all-traps",
+    linkExternal: true,
     date: "August 28, 2026",
     requiresWcagVersion: null as "2.1" | "2.2" | null,
   },

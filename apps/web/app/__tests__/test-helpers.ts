@@ -59,7 +59,7 @@ _global.useAuditInProgress = () => _global.useState("audit-in-progress", () => f
 _global.useColorMode = () => ({ value: "dark", preference: "dark" });
 _global.useRuntimeConfig = () => ({
   public: {
-    appName: "Accessibility Audit",
+    appName: "ICJIA Accessibility Audit",
     siteUrl: "https://audit.example.test",
     orgName: "Test Org",
     orgUrl: "https://example.test",

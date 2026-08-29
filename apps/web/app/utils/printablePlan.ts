@@ -51,7 +51,7 @@ export interface PrintablePlanOptions {
   wcagQuickref?: string;
   /** "WCAG 2.2 Level AA" — names the quick reference in the footer. */
   wcagLabel?: string;
-  /** "Accessibility Audit" — passed in so it follows a rebrand. */
+  /** "ICJIA Accessibility Audit" — passed in so it follows a rebrand. */
   appName?: string;
   /** Absolute URL of the report this was generated from, if there is one. */
   reportUrl?: string | null;
@@ -156,7 +156,7 @@ function renderStep(step: PlanStep, criterionHref: (sc: string) => string | null
 }
 
 export function buildPrintablePlan(o: PrintablePlanOptions): string {
-  const appName = o.appName || "Accessibility Audit";
+  const appName = o.appName || "ICJIA Accessibility Audit";
   const when = (o.generatedAt ?? new Date()).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
