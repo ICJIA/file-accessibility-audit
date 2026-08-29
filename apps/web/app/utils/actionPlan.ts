@@ -708,11 +708,82 @@ const TABLE_MARKUP_VARIANTS: Array<{
   },
 ];
 
+/**
+ * title_language splits by what actually failed (2026-08-29, the copy audit):
+ * a step titled "…and set its language" on a document whose language IS set
+ * tells the reader to do something already done — the exact class of copy
+ * error a compliance reviewer pokes. Matchers key on the analyzer's own
+ * finding strings; anything unrecognized keeps the combined default.
+ */
+const TITLE_PROBLEM = (f: string): boolean =>
+  /No document title found|looks like a filename or tool-generated string/.test(f);
+const LANG_PROBLEM = (f: string): boolean =>
+  /No language declaration found|not a usable language code|declares its language as/.test(f);
+const TITLE_LANGUAGE_VARIANTS: Array<{
+  matches: (findings: string[]) => boolean;
+  entry: PlanCopyEntry;
+}> = [
+  {
+    // Title missing/weak, language demonstrably fine → say only what's left.
+    matches: (strs) =>
+      strs.some(TITLE_PROBLEM) &&
+      !strs.some(LANG_PROBLEM) &&
+      strs.some((f) => /^Language declared:/.test(f)),
+    entry: {
+      title: "Give the document a title",
+      why: "Without a title, screen readers announce the raw filename when the document opens. (This document's language is already set — nothing to do there.)",
+      source: {
+        pdf: ["In Word: File → Info → set Title", "Re-export the PDF (File → Save As → PDF)"],
+        docx: ["File → Info → set Title"],
+        pptx: ["File → Info → set Title"],
+        xlsx: ["File → Info → set Title"],
+      },
+      sourceInDesign: [
+        "In InDesign: File → File Info → enter a descriptive Document Title",
+        'When exporting (File → Export → Adobe PDF (Print)): on the Advanced tab, set Display Title to "Document Title"',
+      ],
+      acrobat: [
+        "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties)",
+        "Description tab → enter a descriptive Title",
+        "Initial View tab → set Show: Document Title",
+      ],
+    },
+  },
+  {
+    // Language wrong/unusable/missing, title demonstrably fine.
+    matches: (strs) =>
+      strs.some(LANG_PROBLEM) &&
+      !strs.some(TITLE_PROBLEM) &&
+      strs.some((f) => /^Document title: "/.test(f)),
+    entry: {
+      title: "Fix the document's language declaration",
+      why: "Screen readers follow the declared language to choose pronunciation rules — a missing, unusable, or wrong declaration makes the whole document read with the wrong voice. (This document's title is already set.)",
+      source: {
+        pdf: [
+          "In Word: Review → Language → Set Proofing Language for the whole document",
+          "Re-export the PDF (File → Save As → PDF)",
+        ],
+        docx: ["Review → Language → Set Proofing Language"],
+        pptx: ["Review → Language → Set Proofing Language"],
+        xlsx: ["Review → Language → Set Proofing Language"],
+      },
+      sourceInDesign: [
+        "When exporting (File → Export → Adobe PDF (Print)): on the Advanced tab, set the document's Language",
+      ],
+      acrobat: [
+        "Open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties)",
+        "Advanced tab → Reading Options → set the Language dropdown",
+      ],
+    },
+  },
+];
+
 const FINDINGS_VARIANTS: Record<
   string,
   Array<{ matches: (findings: string[]) => boolean; entry: PlanCopyEntry }>
 > = {
   text_extractability: TEXT_EXTRACTABILITY_VARIANTS,
+  title_language: TITLE_LANGUAGE_VARIANTS,
   alt_text: ALT_TEXT_VARIANTS,
   link_quality: LINK_QUALITY_VARIANTS,
   table_markup: TABLE_MARKUP_VARIANTS,

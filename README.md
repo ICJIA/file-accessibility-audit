@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,997 tests** across 196 test files (API 1,624 · Web 1,324 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,000 tests** across 196 test files (API 1,624 · Web 1,327 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.138.1 — 2026-08-29 · The hero fix reaches the page; fix steps say only what failed (no new attack surface)
+
+Two follow-ups caught by checking the live deploy: the softened trust hero ("See for yourself.") had been changed in the markdown template while the rendered `<h1>` lives in the HTML template — fixed at the real source, both twins regenerated. And the title/language fix step gains findings-keyed variants so a document whose language is already set is never told to set it — title-only, language-only, and combined forms, each with only the relevant Acrobat/source steps. Tests 3,000.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.138.0 → v1.33.0) — click to expand</summary>
+
 ### v1.138.0 — 2026-08-29 · The full-copy audit: every scoring claim now matches the legal-only model (no new attack surface)
 
 A sweep of every user-facing surface after the scoring change, on the principle that one error in copy sinks the whole tool. Killed a **flatly false legal claim in two places** (bookmarks "required by ADA Title II" — no law requires them); rewrote all nine "How it's scored" explainer blocks from the pre-sweep model to the legal-only one; corrected every "score based on WCAG 2.2" claim (landing hero, stat tile, README, Scoring Rubric, AI-block framing) to the consistent truth — **the score counts only WCAG 2.1 A/AA; WCAG 2.2's additions are disclosed, never counted**; fixed the table step's "experts may disagree" hedge that contradicted its own REQUIRED chip; and softened the trust hero to "See for yourself." Also **verified veraPDF end-to-end**: designed-defect traps fired exactly the right clauses (7.21.4.1, 7.5, and — correctly — nothing for a *wrong* language), the vendored WCAG 2.2 machine profile runs live, and **1.30.1 is the current stable** (1.31.x is the dev stream) — no update needed. No scores moved. Tests 2,997.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.137.0 → v1.33.0) — click to expand</summary>
 
 ### v1.137.0 — 2026-08-29 · The failing verdict names WCAG 2.1; one verdict banner, not two (no new attack surface)
 

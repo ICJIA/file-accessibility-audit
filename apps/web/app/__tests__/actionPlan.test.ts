@@ -865,3 +865,47 @@ describe("table_markup variant — headers exist but have no direction", () => {
     expect(noHeaders.why).toBe(today.why);
   });
 });
+
+describe("title_language step titles match what actually failed (v1.138.1)", () => {
+  const cat = (findings: string[]) => ({
+    id: "title_language",
+    label: "Document Title & Language",
+    score: 50,
+    severity: "Moderate",
+    findings,
+  });
+
+  it("title missing, language set → the step never tells the reader to set the language", () => {
+    // The SFY25 report showed "Give the document a title and set its
+    // language" on a file whose language was already declared.
+    const steps = buildActionPlan(
+      [cat(["No document title found", "Language declared: en"])] as never,
+      "pdf",
+    );
+    expect(steps[0]!.title).toBe("Give the document a title");
+    expect(steps[0]!.title).not.toMatch(/language/i);
+    expect(steps[0]!.why).toMatch(/language is already set/i);
+  });
+
+  it("language wrong, title set → the step is about the language only", () => {
+    const steps = buildActionPlan(
+      [
+        cat([
+          'Document title: "Annual Report" (shown by viewers — DisplayDocTitle is set)',
+          'The document declares its language as "fr-FR" (French), but the text reads as English.',
+        ]),
+      ] as never,
+      "pdf",
+    );
+    expect(steps[0]!.title).toBe("Fix the document's language declaration");
+    expect(steps[0]!.why).toMatch(/title is already set/i);
+  });
+
+  it("both missing → the combined default step survives", () => {
+    const steps = buildActionPlan(
+      [cat(["No document title found", "No language declaration found"])] as never,
+      "pdf",
+    );
+    expect(steps[0]!.title).toBe("Give the document a title and set its language");
+  });
+});

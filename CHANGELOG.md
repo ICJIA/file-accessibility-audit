@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.138.1] - 2026-08-29
+
+### Fixed
+
+- **The softened trust hero never reached the page.** v1.138.0 changed "So check it." → "See for yourself." in the *markdown* template — but the hero `<h1>` lives in the *HTML* template (`checker-brief.template.html`), which is what `build-brief` renders into both the brief and the `/trust` page's `trustBody.ts`. Caught by checking the live page after deploy; the HTML template is now fixed and both twins regenerated.
+- **The title/language fix step now says only what actually failed.** The SFY25 report showed *"Give the document a title and set its language"* on a file whose language was already declared — a step telling the reader to do something already done. The step now has findings-keyed variants (the same mechanism alt-text and links use): title-only ("Give the document a title", noting the language is already set — with the language rows removed from its Acrobat/source steps), language-only ("Fix the document's language declaration"), and the combined default when both are missing.
+
+### Notes
+
+- Tests 2,997 → **3,000** (three variant tests — coincidentally restoring the pre-v1.137 count; the earlier drop to 2,997 was the retired VerdictStrip's three tests, verified against the commit diff).
+
+<details>
+<summary><strong>v1.138.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.138.0] - 2026-08-29
 
 ### Fixed — the full-copy audit ("one error in copy sinks the whole tool")
@@ -24,8 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 2,997 — the ledger and legal-basis gates confirm no score moved.
 
-<details>
-<summary><strong>v1.137.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.137.0] - 2026-08-29
 

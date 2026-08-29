@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.138.1",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: two copy follow-ups caught on the live site — the trust-page heading, and fix steps that now say only what actually failed.",
+    body: [
+      {
+        kind: "p",
+        html: "Two small corrections, both caught by re-checking the live site after the previous release. The trust page&rsquo;s new heading (&ldquo;Built to be checked. <strong>See for yourself.</strong>&rdquo;) had been edited in one template while the page renders from another; it is now fixed at the real source and both outputs are regenerated together.",
+      },
+      {
+        kind: "p",
+        html: "And a fix step could tell a reader to do something already done: a document with a missing title but a correctly declared language was shown &ldquo;Give the document a title <em>and set its language</em>.&rdquo; The step now adapts to the findings — title-only, language-only, or both — and each form lists only the repair steps that apply.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: template and wording changes, pinned by three new tests. No score changed, no new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.138.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: every description of how scoring works was audited against the new legal-only model, and one false legal claim was removed. No scores changed.",
     body: [
