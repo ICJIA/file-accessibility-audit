@@ -40,10 +40,8 @@
         <strong class="font-semibold">This — and only this — is what your grade measures.</strong>
         <template v-if="lawFailing">
           {{ " " }}
-          <a
-            href="#technical-report"
-            class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
-            >See the failing criteria</a
+          <a href="#action-plan" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"
+            >Go to the fixes</a
           >.
         </template>
       </p>

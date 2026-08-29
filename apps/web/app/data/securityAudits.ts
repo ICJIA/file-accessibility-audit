@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.132.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: each fix step now states whether the law requires it, and optional work is listed apart from the numbered steps. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Two refinements to the report&rsquo;s fix list. First, the link on a failing legal verdict pointed at the technical evidence rather than the fixes; it now goes straight to the action plan, where a reader who has just been told their document does not meet the law actually needs to be. Second, <strong>every numbered step now says REQUIRED BY LAW</strong> beside it. That label is true by construction rather than by promise: an item that only the PDF industry standard asks for carries no severity, so it can never become a numbered step in the first place.",
+      },
+      {
+        kind: "p",
+        html: "Anything optional is now gathered at the end of the plan under <strong>&ldquo;Above and beyond &mdash; not required by law&rdquo;</strong>, with a plain statement that none of it affected the grade and that it is worth doing only if the author is also aiming at PDF/UA conformance. Keeping it out of the numbered list is the whole point: <strong>a number in this plan means a legal obligation</strong>, and folding optional work back in would undo the separation the last two releases established.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the change adds one anchor, one label and one grouped list, all rendering data the report already carried. No new input is parsed, no new request is made, no scoring rule changed and no document&rsquo;s score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.131.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the legal verdict now leads every report, and two deductions no law requires were removed from the score. Seven documents score slightly higher; none score lower.",
     body: [

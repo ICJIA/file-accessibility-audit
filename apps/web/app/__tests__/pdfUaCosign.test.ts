@@ -245,3 +245,68 @@ describe("the two tiers: required by law vs PDF/UA readiness (v1.130.0)", () => 
     expect(w.html()).not.toMatch(/Required by law/i);
   });
 });
+
+describe("the action plan labels legal work and separates the optional (v1.132.0)", () => {
+  const step = {
+    rank: 1,
+    categoryId: "alt_text",
+    title: "Describe your images",
+    why: "Screen readers announce alt text in place of the image.",
+    severity: "Critical" as const,
+    wcagRefs: [{ sc: "1.1.1", name: "Non-text Content" }],
+    routes: [],
+    detailAnchor: "#cat-alt_text",
+  };
+
+  it("marks every numbered step as required by law", () => {
+    // A PDF/UA-only item carries no severity, so it never becomes a step —
+    // which is exactly why the chip can be unconditional.
+    const w = mount(ActionPlan, { props: { steps: [step] } });
+    expect(w.find('[data-testid="step-law-chip"]').exists()).toBe(true);
+    expect(w.find('[data-testid="step-law-chip"]').text()).toMatch(/REQUIRED BY LAW/);
+  });
+
+  it("lists unscored PDF/UA work separately, never as a numbered step", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        categories: [
+          {
+            label: "Table Markup",
+            findings: [
+              "All 1 table(s) have header cells (TH)",
+              "PDF/UA only — not scored: 2 header cell(s) have no /Scope.",
+            ],
+          },
+        ],
+      },
+    });
+    const beyond = w.find('[data-testid="plan-beyond-group"]');
+    expect(beyond.exists()).toBe(true);
+    expect(beyond.text()).toMatch(/Above and beyond — not required by law/i);
+    expect(beyond.text()).toMatch(/no \/Scope/);
+    // Still exactly one numbered step: the optional item did not become one.
+    expect(w.findAll('[data-testid="step-law-chip"]')).toHaveLength(1);
+  });
+
+  it("shows no 'above and beyond' group when there is nothing optional", () => {
+    const w = mount(ActionPlan, {
+      props: { steps: [step], categories: [{ label: "Table Markup", findings: ["All good"] }] },
+    });
+    expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
+  });
+});
+
+describe("the strip's failing-verdict link points at the fixes", () => {
+  it("targets the action plan, not the technical report", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "../components/TwoStandardsStrip.vue"), "utf8");
+    // The plan is what a reader with failures needs next; the technical
+    // report is evidence, not action.
+    expect(src).toContain('href="#action-plan"');
+    expect(src).not.toContain('href="#technical-report"');
+    const plan = readFileSync(resolve(__dirname, "../components/ActionPlan.vue"), "utf8");
+    expect(plan).toContain('id="action-plan"');
+  });
+});

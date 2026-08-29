@@ -1,5 +1,6 @@
 <template>
   <section
+    id="action-plan"
     class="action-plan rounded-xl border border-[var(--border)] bg-[var(--surface-card)] p-4 sm:p-6"
     aria-labelledby="action-plan-title"
   >
@@ -40,6 +41,15 @@
               <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
                 step.title
               }}</span>
+              <!-- Every numbered step is a legal requirement: a PDF/UA-only
+                   item carries no severity, so it never becomes a step (see
+                   the "above and beyond" group below). Saying so on each step
+                   is what a compliance reviewer is scanning for. -->
+              <span
+                data-testid="step-law-chip"
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-error-red)]/40 text-[var(--status-error-red)] hidden sm:inline"
+                >REQUIRED BY LAW</span
+              >
               <span
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
                 :style="sevChipStyle(step.severity)"
@@ -167,6 +177,32 @@
         what a person still needs to confirm.
       </p>
     </div>
+
+    <!-- ABOVE AND BEYOND — what the report found that the law does not
+         require. Kept out of the numbered steps on purpose. -->
+    <div
+      v-if="beyondItems.length"
+      data-testid="plan-beyond-group"
+      class="mt-5 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-deep)] px-4 py-3"
+    >
+      <p class="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+        Above and beyond — not required by law
+      </p>
+      <p class="text-xs text-[var(--text-muted)] mt-1">
+        None of these affected your grade. They are worth doing if you are aiming at PDF/UA
+        conformance as well as WCAG, ADA Title II and IITAA.
+      </p>
+      <ul class="mt-2 space-y-2">
+        <li v-for="(item, i) in beyondItems" :key="`beyond-${i}`" class="text-xs flex gap-2">
+          <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-[var(--text-muted)]">○</span>
+          <span class="text-[var(--text-muted)]">
+            <span v-if="item.label" class="font-semibold text-[var(--text-secondary)]"
+              >{{ item.label }}: </span
+            >{{ item.text }}
+          </span>
+        </li>
+      </ul>
+    </div>
   </section>
 </template>
 
@@ -178,6 +214,7 @@ import { computed, ref, watch } from "vue";
 const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
+import { isNotScoredFinding } from "~/utils/findings";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
@@ -187,7 +224,23 @@ const props = defineProps<{
   /** The document's OWN veraPDF verdict. When it independently flagged the
    *  same defect, the step says so in veraPDF's words — see pdfUaCategory.ts. */
   pdfUaVerdict?: { available?: boolean; failures?: PdfUaFailureLike[] } | null;
+  /** Scored categories, read ONLY to collect the reported-but-unscored items
+   *  for the "above and beyond" group. The plan itself is built from steps. */
+  categories?: Array<{ label?: string; findings?: string[] }> | null;
 }>();
+
+/** PDF/UA work the report shows but never scored. Deliberately NOT numbered
+ *  steps: a number in this plan means a legal obligation, and mixing optional
+ *  work into that list is exactly the conflation this release removed. Listed
+ *  after the steps so an author aiming at full PDF/UA conformance still has
+ *  everything in one place. */
+const beyondItems = computed(() =>
+  (props.categories ?? []).flatMap((c) =>
+    (c.findings ?? [])
+      .filter((f) => typeof f === "string" && isNotScoredFinding(f))
+      .map((f) => ({ label: c.label ?? "", text: f })),
+  ),
+);
 
 // Grouped once per verdict, not per step render.
 const veraByCategory = computed(() => pdfUaFailuresByCategory(props.pdfUaVerdict));

@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,981 tests** across 195 test files (API 1,622 · Web 1,310 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,985 tests** across 195 test files (API 1,622 · Web 1,314 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.132.0 — 2026-08-29 · The plan says which steps the law requires, and keeps optional work out of the numbers (no new attack surface)
+
+The legal verdict's link scrolled to the technical report — evidence, not action — and now targets the action plan itself (**"Go to the fixes"**, new `#action-plan` anchor). Each numbered step carries a **REQUIRED BY LAW** chip beside its severity, which is true by construction rather than assertion: a PDF/UA-only item has no severity, so it never becomes a step. Everything optional is collected in a closing **"Above and beyond — not required by law"** group, stating that none of it affected the grade. **A number in this plan means a legal obligation** — mixing optional work back into the list would undo the separation of the previous two releases. Tests 2,985.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.131.0 → v1.33.0) — click to expand</summary>
+
 ### v1.131.0 — 2026-08-29 · The legal verdict leads every report; two non-legal deductions removed (scoring audit)
 
 **"Just tell me the WCAG/IITAA failures"** is the first question a reviewer asks, so every report now opens with it. A two-standard strip sits under the grade in both views: the legal verdict (**WCAG 2.2 AA · ADA Title II · Illinois IITAA**) in full width and large type, stating *"This — and only this — is what your grade measures"*, with PDF/UA readiness beneath it as a quiet footnote marked *"Not counted in your score."* Then, because that claim is only worth making if it is true everywhere, **every scoring operation was audited against WCAG 2.2** — and two were removed: **font embedding** (no success criterion requires it; a substituted font still renders and reads aloud) and **nested tables** (properly tagged, relationships remain determinable). Both are still reported, now as unscored PDF/UA items. Seven real documents scored higher, none changed letter grade, all blessed through the ledger. Mixed heading conventions, generic `<H>`, and skipped levels were deliberately left scored and named in the CHANGELOG as a visible open decision. **No new attack surface**: scoring rules, one presentational component, tests. Tests 2,981.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.130.0 → v1.33.0) — click to expand</summary>
 
 ### v1.130.0 — 2026-08-29 · The grade measures the law; PDF/UA is reported beside it (scoring change)
 

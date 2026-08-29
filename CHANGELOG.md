@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.132.0] - 2026-08-29
+
+### Fixed
+
+- **The strip's failing-verdict link scrolled to the wrong place.** It pointed at `#technical-report` — evidence, not action. A reader who has just been told their document fails the law wants the fixes, so it now targets a new `#action-plan` anchor and reads **"Go to the fixes"**.
+
+### Changed
+
+- **Every numbered step is now labelled REQUIRED BY LAW**, beside its severity chip. This is honest by construction rather than by assertion: a PDF/UA-only item carries no severity, so it never becomes a step in the first place — the chip simply says out loud what the plan already is. A compliance reviewer scanning the page can now see, per step, that each one is a legal obligation.
+- **Optional work is listed separately, never as a numbered step.** A new "Above and beyond — not required by law" group closes the plan, collecting every reported-but-unscored item with the note that none of them affected the grade and that they are worth doing if the author is aiming at PDF/UA conformance as well as WCAG, ADA Title II and IITAA. Keeping them out of the numbered list is the point: **a number in this plan means a legal obligation**, and mixing optional work back into it would re-create the exact conflation the previous two releases removed.
+
+### Notes
+
+- Tests 2,981 → **2,985**, including one that pins the link target in both directions (the plan's anchor must exist; the strip must not point at the technical report again).
+
+<details>
+<summary><strong>v1.131.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.131.0] - 2026-08-29
 
 ### Changed
@@ -20,8 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Deliberately left scored, and worth a decision later**: mixed heading conventions (Matterhorn 14-002), generic `<H>` with no levels, and skipped heading levels. Each is defensible under WCAG 1.3.1 via a W3C sufficient technique rather than a bare criterion, so reclassifying them is a judgment call rather than an audit finding — they are named here so the choice is visible rather than buried.
 - Tests 2,974 → **2,981**.
 
-<details>
-<summary><strong>v1.130.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.130.0] - 2026-08-29
 
