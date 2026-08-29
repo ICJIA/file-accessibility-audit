@@ -123,6 +123,29 @@ const trapManifest = {
   items: [...pdfManifest.items, ...officeManifest.items].sort((a, b) => trapNum(a) - trapNum(b)),
 };
 const trapBugs = trapManifest.items.filter((i) => i.chip === "bug").length;
+// Fixed-number claims that history has already staled once are BANNED from
+// the templates (user rule 2026-08-29: "always seek and fix these stats
+// throughout the trust page"): counts must be {{PLACEHOLDER}}-driven or the
+// sentence must be written countless. This list grows every time one slips.
+{
+  const banned = [
+    /caught one of its own bugs/i,
+    /\bone real bug\b/i,
+    /\b1 real bug\b/,
+    /Lost (one|two|three|four|five|\d+) public arguments/i,
+    /See all \d+ trap documents/i,
+    /All \d+ traps held(?!.*then in the battery)/i,
+  ];
+  for (const t of ["checker-brief.template.html", "checker-brief.template.md"]) {
+    const src = fs.readFileSync(path.join(BRIEF, t), "utf8");
+    for (const re of banned) {
+      if (re.test(src))
+        throw new Error(
+          `${t} contains a fixed-number claim matching ${re} — make it {{PLACEHOLDER}}-driven or countless`,
+        );
+    }
+  }
+}
 // The transparency list is hand-written prose; the chips are data. They must
 // agree, or the page understates its own record — fail the build, don't drift
 // (the "caught one real bug" headline sat under five bug chips for a week).

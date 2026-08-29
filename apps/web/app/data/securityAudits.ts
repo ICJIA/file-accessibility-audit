@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.141.2",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: two staled counts in the trust timeline rewritten so they can never stale; the page generator now rejects that class of sentence outright.",
+    body: [
+      {
+        kind: "p",
+        html: "Two milestone lines on the trust page still carried counts from the moment they were written: &ldquo;caught <em>one</em> of its own bugs&rdquo; (the record is six, all detailed on the same page) and &ldquo;lost <em>two</em> public arguments&rdquo; (the record is three). Both are rewritten without numbers — &ldquo;caught the first of its own bugs; every one since is documented above&rdquo; — so growth can never silently falsify them.",
+      },
+      {
+        kind: "p",
+        html: "And the fix is enforced, not remembered: the page generator now refuses to build if any once-staled phrasing returns to the source — hard-coded bug counts, argument counts, or trap totals — with instructions to compute the number from live data or write the sentence without one. The banned list grows every time a new pattern slips.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: wording and one build-time check. No score changed, no new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.141.1",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: one grammar fix in the verdict summary (&ldquo;in 1 category&rdquo;).",
     body: [

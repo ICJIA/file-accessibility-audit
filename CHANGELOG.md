@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.141.2] - 2026-08-29
+
+### Fixed
+
+- **Two more staled counts in the trust timeline** (user-caught, then made a standing rule: *"always seek and fix these stats throughout the trust page"*): the v1.117 milestone said "caught **one** of its own bugs" beneath six bug chips, and the v1.107 milestone said "Lost **two** public arguments" after the third loss. Both rewritten **countless** — "caught the first of its own bugs… every one since is documented above" / "Loses public arguments — and fixes them" — so they can never stale again; the docx brief's milestone line matches.
+- **`build-brief` now carries a banned-pattern list**: any template sentence matching a staled-once phrasing class (one real bug, caught one of its own bugs, Lost N public arguments, See all N trap documents, All N traps held without the historical qualifier) fails the build with instructions to make it placeholder-driven or countless. The list grows each time a new one slips.
+
+### Notes
+
+- Tests 3,011.
+
+<details>
+<summary><strong>v1.141.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.141.1] - 2026-08-29
 
 ### Fixed
@@ -14,8 +28,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,010 → **3,011**.
 
-<details>
-<summary><strong>v1.141.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.141.0] - 2026-08-29
 
