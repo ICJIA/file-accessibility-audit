@@ -53,9 +53,9 @@ Many agencies already have SiteImprove, and being honest about both is the faste
 
 Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. All of it is public, on GitHub: [the full change log](https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md) and [every numbered version](https://github.com/ICJIA/file-accessibility-audit/tags), open for anyone to read. Milestones, newest first: passes its own trap test {{TRAPS}}/{{TRAPS}} · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · made its own grading **stricter** on itself · lost two public arguments and fixed both · covered all 31 industry checkpoints · removed all accounts and identity (nothing stored about who uses it) · adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements.
 
-## "But one person built it."
+## "But... but one person built it. It's not Google or Microsoft. It's just a developer at an Illinois agency. The developer is not even on executive staff!"
 
-Fair. So ignore the person entirely — every claim here is checkable by anyone:
+**True — every word of it.** Which is exactly why nothing here asks for trust: every claim here is checkable by anyone:
 
 - **The recipe is public.** Every line of code and every change is on GitHub — a kitchen that cooks with the door open.
 - **Independent referee.** veraPDF co-signs or contradicts every report.
