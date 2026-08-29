@@ -46,6 +46,14 @@ export function isNeutralFinding(finding: string): boolean {
   return false;
 }
 
+/** A finding the analyzer marked as reported-but-unscored. The analyzer owns
+ *  the wording; these two prefixes are its contract with the UI. */
+export function isNotScoredFinding(finding: string): boolean {
+  if (!finding) return false;
+  const f = finding.trim().toLowerCase();
+  return f.startsWith("pdf/ua only — not scored") || f.startsWith("advisory — not scored");
+}
+
 export function isGuidanceFinding(finding: string): boolean {
   if (!finding) return false;
   const f = finding.toLowerCase();
@@ -80,6 +88,12 @@ export interface CardFindings {
   signals: TechnicalGroup[];
   signalCount: number;
   acrobat: string[];
+  /** Items the report shows but deliberately does NOT score: PDF/UA readiness
+   *  work that the law (WCAG 2.2 AA / ADA Title II / IITAA) does not require.
+   *  Split out so a reader can see at a glance which findings moved the grade
+   *  and which are optional — and so an agency can say truthfully "this file
+   *  meets the legal standard" while still being shown the extra work. */
+  notScored: string[];
 }
 
 export function partitionCardFindings(findings: string[] | undefined | null): CardFindings {
@@ -87,7 +101,7 @@ export function partitionCardFindings(findings: string[] | undefined | null): Ca
   // report whose `findings` is a non-array truthy — `.findIndex` on a string
   // would throw and 500 the shared-report page during SSR.
   if (!Array.isArray(findings) || findings.length === 0) {
-    return { main: [], signals: [], signalCount: 0, acrobat: [] };
+    return { main: [], signals: [], signalCount: 0, acrobat: [], notScored: [] };
   }
 
   // Narrow to strings: a forged/corrupted stored report can smuggle
@@ -102,6 +116,7 @@ export function partitionCardFindings(findings: string[] | undefined | null): Ca
   const acrobat = acrobatIdx === -1 ? [] : strs.slice(acrobatIdx + 1);
 
   const main: string[] = [];
+  const notScored: string[] = [];
   const signals: TechnicalGroup[] = [];
   let current: TechnicalGroup | null = null;
   let signalCount = 0;
@@ -123,10 +138,16 @@ export function partitionCardFindings(findings: string[] | undefined | null): Ca
       }
       current.items.push(item);
       signalCount++;
+    } else if (isNotScoredFinding(f)) {
+      notScored.push(f);
+      // Its "How to fix (optional)" line belongs with it, not with the
+      // scored findings — captured by the guidance check on the next pass.
+    } else if (notScored.length > 0 && /^how to fix \(optional\)/i.test(f)) {
+      notScored.push(f);
     } else {
       main.push(f);
     }
   }
 
-  return { main, signals, signalCount, acrobat };
+  return { main, signals, signalCount, acrobat, notScored };
 }

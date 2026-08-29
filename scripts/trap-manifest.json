@@ -1,5 +1,5 @@
 {
-  "count": 105,
+  "count": 106,
   "generated": "2026-08-29",
   "items": [
     {
@@ -532,6 +532,11 @@
       "file": "synthetic-120-classmap-attributes.pdf",
       "label": "Header directions attached by class — the third legal route, caught before any file used it",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-121-simple-table-no-scope.pdf",
+      "label": "A plain grid with no scope — PDF/UA asks for it, the law does not, and the grade follows the law",
+      "chip": "held"
     }
   ]
 }

@@ -69,12 +69,14 @@ describe("partitionCardFindings", () => {
       signals: [],
       signalCount: 0,
       acrobat: [],
+      notScored: [],
     });
     expect(partitionCardFindings(undefined as any)).toEqual({
       main: [],
       signals: [],
       signalCount: 0,
       acrobat: [],
+      notScored: [],
     });
   });
 
@@ -86,12 +88,14 @@ describe("partitionCardFindings", () => {
       signals: [],
       signalCount: 0,
       acrobat: [],
+      notScored: [],
     });
     expect(partitionCardFindings({} as any)).toEqual({
       main: [],
       signals: [],
       signalCount: 0,
       acrobat: [],
+      notScored: [],
     });
   });
 

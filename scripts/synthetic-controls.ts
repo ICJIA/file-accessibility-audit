@@ -925,43 +925,53 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-24-th-without-scope.pdf",
     truth:
-      "Header cells present but no /Scope and no /Headers — the exact defect from the v1.108 dispute; flagged with direction-by-position advice.",
+      "The COMPLEX side of the WCAG/PDF-UA line, and the shape behind the v1.108 dispute: headers run along the TOP and down the LEFT, with no /Scope and no /Headers. Nothing in the file says whether a left-hand cell labels its row or is data, so the header-to-data relationship is genuinely not determinable — a WCAG 1.3.1 failure, not merely a PDF/UA readiness item. Must be SCORED (unlike its simple twin, synthetic-121).",
     build: () => {
       let content = `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Scope test")}) Tj ET\nEMC\n`;
       let mcid = 1;
-      for (let row = 0; row < 2; row++)
-        for (let col = 0; col < 2; col++) {
-          const tag = row === 0 ? "TH" : "TD";
+      // Row 0 is all headers; column 0 is all headers — two axes.
+      for (let row = 0; row < 3; row++)
+        for (let col = 0; col < 3; col++) {
+          const tag = row === 0 || col === 0 ? "TH" : "TD";
           content += `/${tag} << /MCID ${mcid} >> BDC\nBT /F1 10 Tf ${72 + col * 120} ${660 - row * 24} Td (${tag} ${row}-${col}) Tj ET\nEMC\n`;
           mcid++;
         }
-      return buildPdf(
-        [
-          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>",
-          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 16 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
-          stream(content),
-          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 15 0 R >>",
-          "<< /Type /StructElem /S /Document /P 5 0 R /K [14 0 R 7 0 R] >>",
-          "<< /Type /StructElem /S /Table /P 6 0 R /K [8 0 R 9 0 R] >>",
-          "<< /Type /StructElem /S /TR /P 7 0 R /K [10 0 R 11 0 R] >>",
-          "<< /Type /StructElem /S /TR /P 7 0 R /K [12 0 R 13 0 R] >>",
-          "<< /Type /StructElem /S /TH /P 8 0 R /Pg 3 0 R /K 1 >>",
-          "<< /Type /StructElem /S /TH /P 8 0 R /Pg 3 0 R /K 2 >>",
-          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 3 >>",
-          "<< /Type /StructElem /S /TD /P 9 0 R /Pg 3 0 R /K 4 >>",
-          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
-          "<< /Nums [0 [14 0 R 10 0 R 11 0 R 12 0 R 13 0 R]] >>",
-          FONT,
-        ],
-        "<< /Title (Headers Without Direction) >>",
-      );
+      const cellObj = (i: number) => 11 + i; // 9 cells: objects 11..19
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+        FONT,
+        `<< /Nums [0 [9 0 R ${Array.from({ length: 9 }, (_, i) => `${cellObj(i)} 0 R`).join(" ")}]] >>`,
+        "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+        "<< /Type /StructElem /S /Table /P 6 0 R /K [20 0 R 21 0 R 22 0 R] >>",
+      ];
+      for (let row = 0; row < 3; row++)
+        for (let col = 0; col < 3; col++) {
+          const tag = row === 0 || col === 0 ? "/TH" : "/TD";
+          objs.push(
+            `<< /Type /StructElem /S ${tag} /P ${20 + row} 0 R /Pg 3 0 R /K ${row * 3 + col + 1} >>`,
+          );
+        }
+      for (let row = 0; row < 3; row++)
+        objs.push(
+          `<< /Type /StructElem /S /TR /P 10 0 R /K [${[0, 1, 2].map((c) => `${cellObj(row * 3 + c)} 0 R`).join(" ")}] >>`,
+        );
+      return buildPdf(objs, "<< /Title (Two Axis Headers Without Scope) >>");
     },
     check: (r) => {
       const text = allFindings(r);
       if (!/Scope/i.test(text)) return "missing-Scope not flagged";
+      if (/PDF\/UA only — not scored/.test(text))
+        return "a two-axis table's missing scope was excused as PDF/UA-only — it is a WCAG failure";
       if (!/top|Column.*Row|position/i.test(text)) return "no direction-by-position advice";
-      return null;
+      const t = cat("table_markup")(r);
+      return t && t.score !== null && t.score < 100
+        ? null
+        : "a two-axis table with no scope was not scored down";
     },
   },
   {
@@ -3674,6 +3684,57 @@ const SAMPLES: Sample[] = [
       return t.score === 100 ? null : `class-map scoped table docked (table ${t.score})`;
     },
   },
+  {
+    file: "synthetic-121-simple-table-no-scope.pdf",
+    truth:
+      "THE WCAG / PDF-UA LINE. A plain grid: one header row along the top, nothing spanned, no /Scope anywhere. PDF/UA calls that a defect; WCAG 1.3.1 does not, because a marked <TH> row already makes the header-to-data relationship determinable — there is only one axis it could refer to. So this must score 100/A (the grade follows the law) AND still report the missing /Scope as an explicitly unscored PDF/UA item. The twin of synthetic-24, whose headers run along BOTH edges and which therefore IS a WCAG failure.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Simple grid")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 72 700 Td (Month) Tj ET\nEMC\n` +
+        `/TH << /MCID 2 >> BDC\nBT /F1 10 Tf 200 700 Td (Visits) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 72 680 Td (January) Tj ET\nEMC\n` +
+        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 200 680 Td (412) Tj ET\nEMC\n` +
+        `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 72 660 Td (February) Tj ET\nEMC\n` +
+        `/TD << /MCID 6 >> BDC\nBT /F1 10 Tf 200 660 Td (455) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R 12 0 R 13 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [14 0 R 15 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [16 0 R 17 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [18 0 R 19 0 R] >>",
+          // Header cells with NO /A at all — the whole point.
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 2 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 6 >>",
+        ],
+        "<< /Title (Simple Grid Without Scope) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (!/PDF\/UA only — not scored/.test(text))
+        return "the missing scope was not reported as an unscored PDF/UA item";
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      if (t.score < 100) return `a WCAG-conformant simple table was docked (table ${t.score})`;
+      return r.overallScore === 100 && r.grade === "A"
+        ? null
+        : `scored ${r.overallScore}/${r.grade} — the grade must follow the law, not PDF/UA`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4068,6 +4129,11 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
     label:
       "Header directions attached by class — the third legal route, caught before any file used it",
     chip: "bug",
+  },
+  "synthetic-121-simple-table-no-scope.pdf": {
+    label:
+      "A plain grid with no scope — PDF/UA asks for it, the law does not, and the grade follows the law",
+    chip: "held",
   },
 };
 

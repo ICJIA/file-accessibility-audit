@@ -1543,6 +1543,8 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       `${t.headerCount} <TH>, ${t.dataCellCount} <TD>`,
     ];
     if (t.hasScope) parts.push("scope: present");
+    else if (t.headerCount > 0 && t.simpleHeaderLayout)
+      parts.push(`scope: absent (not required — single-axis headers)`);
     else if (t.headerCount > 0) parts.push(`scope: missing on ${t.scopeMissingCount} header(s)`);
     if (t.hasCaption) parts.push("caption: yes");
     if (t.hasNestedTable) parts.push("NESTED TABLE");
@@ -1646,8 +1648,29 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   //    and advisory only, matching how the conformance gate (and PAC)
   //    already treat Scope-or-Headers as equivalent.
   const associated = (t: TableAnalysis): boolean => t.hasScope || t.hasHeaderAssociation;
-  const withAssociation = dataTables.filter((t) => t.hasHeaders && associated(t)).length;
+  // THE WCAG / PDF/UA LINE (2026-08-29, drawn where the standards draw it).
+  //
+  // WCAG 1.3.1 asks that the header-to-data relationship be *programmatically
+  // determinable*. In a plain grid whose headers sit on ONE axis with nothing
+  // spanned, a marked <TH> row already makes it determinable — /Scope adds
+  // nothing a screen reader needs, and its absence is a PDF/UA readiness item,
+  // not a legal failure. When headers run along BOTH axes, or cells span, the
+  // association genuinely is NOT determinable without /Scope or /Headers, and
+  // that IS a 1.3.1 failure.
+  //
+  // So a simple table counts as associated for SCORING, and its missing Scope
+  // is reported as an unscored PDF/UA item. This is what lets an agency say
+  // truthfully "this file meets WCAG and IITAA" while the report still asks
+  // for Scope — the grade now reflects only the law, and the PDF/UA work is
+  // shown beside it rather than folded into the number.
+  const scoredAsAssociated = (t: TableAnalysis): boolean => associated(t) || t.simpleHeaderLayout;
+  const withAssociation = dataTables.filter((t) => t.hasHeaders && scoredAsAssociated(t)).length;
   const tablesWithHeaders = dataTables.filter((t) => t.hasHeaders);
+  // Simple tables that would have been penalised under the old rule — reported,
+  // never scored.
+  const pdfUaOnlyScope = tablesWithHeaders.filter(
+    (t) => !associated(t) && t.simpleHeaderLayout && t.scopeMissingCount > 0,
+  );
   if (tablesWithHeaders.length === 0) {
     findings.push("Scope attributes: N/A (no header cells to check)");
   } else if (withAssociation === tablesWithHeaders.length) {
@@ -1658,6 +1681,15 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
         ? "All <TH> cells have Scope attributes (/Column, /Row, or /Both)"
         : "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)",
     );
+    if (pdfUaOnlyScope.length > 0) {
+      const cells = pdfUaOnlyScope.reduce((n, t) => n + t.scopeMissingCount, 0);
+      findings.push(
+        `PDF/UA only — not scored: ${cells} header cell(s) across ${pdfUaOnlyScope.length} table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.`,
+      );
+      findings.push(
+        'How to fix (optional): In Adobe Acrobat, All tools → Prepare for accessibility → Fix reading order → select the table → Table Editor → right-click the header cells → Table Cell Properties → set Scope ("Column" for headers along the top, "Row" for headers down the side). In Word, tick Table Design → Header Row before exporting and Word writes them for you.',
+      );
+    }
     const headersOnly = tablesWithHeaders.filter((t) => !t.hasScope && t.hasHeaderAssociation);
     if (headersOnly.length > 0) {
       findings.push(
@@ -1666,15 +1698,15 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     }
   } else {
     const totalMissing = dataTables.reduce(
-      (sum, t) => (associated(t) ? sum : sum + t.scopeMissingCount),
+      (sum, t) => (scoredAsAssociated(t) ? sum : sum + t.scopeMissingCount),
       0,
     );
     if (withAssociation > 0) score += 5;
     findings.push(
-      `${totalMissing} <TH> cell(s) missing Scope attribute (with no /Headers association either) — screen readers may not correctly associate headers with data`,
+      `${totalMissing} <TH> cell(s) missing Scope attribute (with no /Headers association either) — and these tables need it: their headers run along more than one edge or contain spanned cells, so which header belongs to which cell cannot be worked out from the table's shape alone. That makes the relationship not programmatically determinable, which is a WCAG 1.3.1 failure, not only a PDF/UA one.`,
     );
     for (const { t, i } of scored) {
-      if (t.headerCount > 0 && t.scopeMissingCount > 0 && !associated(t)) {
+      if (t.headerCount > 0 && t.scopeMissingCount > 0 && !scoredAsAssociated(t)) {
         findings.push(
           `  Table ${i + 1}: ${t.scopeMissingCount} of ${t.headerCount} <TH> missing /Scope`,
         );
@@ -1692,7 +1724,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     // against different rulebooks. Saying so is more useful than letting the
     // reader assume one of the two is simply wrong.
     findings.push(
-      "Which rule does this break? Worth being precise, because the two standards disagree here. PDF/UA — the PDF-specific standard — treats a header cell with no Scope and no explicit header link as a defect outright, so a document missing these is not fully PDF/UA conformant. WCAG is less clear-cut: it asks that the header-to-data relationship be determinable by software, without naming Scope as the only way to do it, so a simple table whose header row is already marked as a header row may satisfy WCAG while still failing PDF/UA. That is why this is scored as a readiness gap rather than reported as a confirmed WCAG failure — and why an author can honestly say a file passes WCAG while this report still asks for Scope. Setting it satisfies both, which is why it is worth doing either way.",
+      'Which rule does this break? Both, for these tables. PDF/UA — the PDF-specific standard — treats any header cell without Scope as a defect. WCAG asks only that the header-to-data relationship be determinable by software — but in a table with headers on more than one edge, or with spanned cells, it genuinely is not determinable without Scope or Headers. That is why these particular tables are scored: this is a WCAG 1.3.1 failure and not merely a PDF/UA readiness item. (Where a table\'s headers sit along a single edge with nothing spanned, this report says so and does NOT affect your grade — see any "PDF/UA only" note above.)',
     );
   }
 
@@ -1763,15 +1795,27 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   // /Headers attribute is intended for complex tables. Crediting only /Headers
   // would wrongly dock a fully-conformant scope-based simple table 5 points.
   const withExplicitHeaders = dataTables.filter((t) => t.hasHeaderAssociation).length;
-  const withAssoc = dataTables.filter((t) => t.hasHeaderAssociation || t.hasScope).length;
+  // A third technique counts here too, and it is the one the standards leave
+  // implicit: a plain single-axis grid associates its headers BY SHAPE. There
+  // is only one direction a marked header row can refer to, so the
+  // relationship is programmatically determinable without /Scope or /Headers —
+  // which is precisely what SC 1.3.1 asks for. (PDF/UA still wants /Scope; that
+  // is reported above as an unscored PDF/UA item.)
+  const withAssoc = dataTables.filter(
+    (t) => t.hasHeaderAssociation || t.hasScope || t.simpleHeaderLayout,
+  ).length;
   if (withAssoc > 0) {
     score += 5;
     if (withExplicitHeaders > 0) {
       findings.push(
         `${withExplicitHeaders} table(s) use explicit header-cell associations (/Headers attribute)`,
       );
-    } else {
+    } else if (dataTables.some((t) => t.hasScope)) {
       findings.push("Header cells are programmatically associated with data cells via /Scope");
+    } else {
+      findings.push(
+        "Header cells are programmatically associated with data cells by the table's shape: the headers run along a single edge with nothing spanned, so there is only one relationship they can express.",
+      );
     }
   }
 

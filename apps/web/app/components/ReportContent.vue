@@ -265,6 +265,16 @@
           </ul>
         </div>
 
+        <!-- TIER 1 — what the law requires. These findings are what the score
+             is made of. The heading only appears when there is also a second
+             tier to distinguish it from, so an ordinary card is unchanged. -->
+        <p
+          v-if="partitionCardFindings(cat.findings).notScored.length"
+          class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1.5"
+        >
+          Required by law — WCAG 2.2 AA · ADA Title II · IITAA
+          <span class="font-normal normal-case">(this is what your score measures)</span>
+        </p>
         <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
           <li
             v-for="(finding, i) in partitionCardFindings(cat.findings).main"
@@ -299,6 +309,31 @@
             </template>
           </li>
         </ul>
+
+        <!-- TIER 2 — beyond the law. Reported in full, visually quieter, and
+             stated plainly as not counted. This is what lets an agency say
+             truthfully "this file meets WCAG and IITAA" while still being
+             shown the PDF/UA work worth doing. -->
+        <div
+          v-if="partitionCardFindings(cat.findings).notScored.length"
+          data-testid="not-scored-tier"
+          class="mt-4 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-deep)] px-4 py-3"
+        >
+          <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            Also recommended — PDF/UA readiness
+            <span class="font-normal normal-case">(not counted in your score)</span>
+          </p>
+          <ul class="mt-2 space-y-1.5">
+            <li
+              v-for="(finding, i) in partitionCardFindings(cat.findings).notScored"
+              :key="`ns-${i}`"
+              class="text-sm text-[var(--text-muted)] flex gap-2"
+            >
+              <span aria-hidden="true" class="flex-shrink-0 mt-0.5">○</span>
+              <span>{{ finding }}</span>
+            </li>
+          </ul>
+        </div>
 
         <div
           v-if="isAdvanced(cat.id) && partitionCardFindings(cat.findings).signalCount > 0"

@@ -67,6 +67,7 @@ function makeTable(overrides: Partial<TableAnalysis> = {}): TableAnalysis {
     hasConsistentColumns: null,
     columnCounts: [],
     hasHeaderAssociation: false,
+    simpleHeaderLayout: false,
     ...overrides,
   };
 }

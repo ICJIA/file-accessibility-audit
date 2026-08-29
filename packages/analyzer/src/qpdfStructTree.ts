@@ -25,6 +25,20 @@ export interface TableAnalysis {
   hasCaption: boolean;
   hasConsistentColumns: boolean | null;
   columnCounts: number[];
+  /** True when the header-to-data relationship is determinable from the
+   *  table's SHAPE alone — headers confined to one axis (a single header row,
+   *  or a single header column), no spanned cells, consistent columns.
+   *
+   *  This is the WCAG-vs-PDF/UA line, drawn where the standards actually draw
+   *  it (2026-08-29). WCAG 1.3.1 asks that relationships be *programmatically
+   *  determinable*; in a plain one-header-row grid a marked <TH> row already
+   *  makes them so, and /Scope adds nothing a screen reader needs. PDF/UA
+   *  requires /Scope regardless. So a missing /Scope on a table like this is a
+   *  PDF/UA readiness item, not a legal failure, and must not move the grade.
+   *  When headers run along BOTH axes, or cells span, the association is NOT
+   *  determinable without /Scope or /Headers — and then it is a real 1.3.1
+   *  failure and is scored. */
+  simpleHeaderLayout: boolean;
   hasHeaderAssociation: boolean;
 }
 
@@ -323,6 +337,7 @@ export function analyzeTable(
     hasCaption: false,
     hasConsistentColumns: null,
     columnCounts: [],
+    simpleHeaderLayout: false,
     hasHeaderAssociation: false,
   };
 
@@ -559,8 +574,13 @@ export function analyzeTable(
     }
   }
 
+  // Header geometry, for simpleHeaderLayout (see the field's comment).
+  const headerRowIdx = new Set<number>();
+  const headerColIdx = new Set<number>();
+  let anySpannedCell = false;
+
   let rowSpanCarry: Array<{ rowsLeft: number; cols: number }> = [];
-  for (const trNode of trNodes) {
+  for (const [rowIdx, trNode] of trNodes.entries()) {
     let effectiveCols = rowSpanCarry.reduce((sum, c) => sum + c.cols, 0);
     rowSpanCarry = rowSpanCarry
       .map((c) => ({ rowsLeft: c.rowsLeft - 1, cols: c.cols }))
@@ -575,6 +595,11 @@ export function analyzeTable(
         if (tag !== "/TH" && tag !== "/TD") continue;
         const colSpan = spanOf(item, "/ColSpan");
         const rowSpan = spanOf(item, "/RowSpan");
+        if (colSpan > 1 || rowSpan > 1) anySpannedCell = true;
+        if (tag === "/TH") {
+          headerRowIdx.add(rowIdx);
+          headerColIdx.add(effectiveCols); // column position before this cell
+        }
         effectiveCols += colSpan;
         if (rowSpan > 1) {
           rowSpanCarry.push({ rowsLeft: rowSpan - 1, cols: colSpan });
@@ -583,6 +608,16 @@ export function analyzeTable(
     }
     result.columnCounts.push(effectiveCols);
   }
+
+  // Headers confined to ONE axis, nothing spanned, grid regular.
+  const headersInFirstRowOnly = headerRowIdx.size === 1 && headerRowIdx.has(0);
+  const headersInFirstColOnly = headerColIdx.size === 1 && headerColIdx.has(0);
+  result.simpleHeaderLayout =
+    !anySpannedCell &&
+    result.headerCount > 0 &&
+    // Exactly one axis — a table with headers along the top AND down the side
+    // needs /Scope to say which is which.
+    headersInFirstRowOnly !== headersInFirstColOnly;
 
   if (result.columnCounts.length > 0) {
     const first = result.columnCounts[0];

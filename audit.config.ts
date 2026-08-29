@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "law-vs-pdfua-split-2026-08-29",
+    badge: "Changed",
+    text: "Your grade now measures only what the law requires. Reports are split into two clearly labelled parts: what Illinois and federal law require (WCAG 2.2 AA, ADA Title II, IITAA) — which is what the score is made of — and, separately, what would additionally meet PDF/UA, the PDF industry's own standard, marked as not counted in your score. The clearest example is table header directions: where a table's headers run along a single edge, the relationship is already determinable and the law is satisfied, so a missing direction no longer costs you points; where headers run along two edges, it genuinely cannot be worked out, and that stays a real WCAG failure. Some documents will score slightly higher than before, for a defensible reason.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "language-and-indirect-values-2026-08-29",
     badge: "Fixed",
     text: "Two fixes and one new check, all found in documents published as accessible examples. First: a table's header directions and cell spans can be stored as references to shared values rather than written out in place — legal, and how Word often writes them. This checker read the reference instead of the value, which made correctly built tables look like they were missing header directions and had ragged columns. Both are fixed. Second, and new: a document can declare the wrong language. One reference syllabus written in English declared itself French, because a single French sentence in the Word source became the language of the whole PDF on export. Every conformance checker passes that file — the tag is present and correctly formed — but a screen reader reads the entire English document with French pronunciation. Reports now say so when the declared language plainly contradicts the text.",

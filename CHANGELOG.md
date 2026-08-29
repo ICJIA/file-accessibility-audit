@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.130.0] - 2026-08-29
+
+### Changed
+
+- **The grade now measures only what the law requires; PDF/UA work is reported beside it, never folded into the number.** The objection this answers is a fair one and was going to be raised: *WCAG 2.2 AA / ADA Title II / IITAA are the law, PDF/UA is not — so do not mark a document down for a PDF/UA-only requirement.* The scoring profile was already WCAG-anchored (`pdf_ua_compliance: 0`, "strict mode does not use PDF/UA conformance as the primary document-level score"), but one deduction leaked across the line, and the report's own copy admitted the contradiction — calling a finding "a readiness gap rather than a confirmed WCAG failure" while deducting points that moved the letter grade.
+- **The line is drawn where the standards actually draw it, not as a compromise.** WCAG 1.3.1 asks that header-to-data relationships be *programmatically determinable*. In a plain grid whose headers sit along ONE edge with nothing spanned, a marked `<TH>` row already makes them determinable — there is only one relationship they can express — so a missing `/Scope` is PDF/UA readiness and **no longer affects the score**. Where headers run along BOTH edges, or cells span, the association genuinely cannot be worked out, and that remains a scored **WCAG 1.3.1 failure**. New analyzer signal `simpleHeaderLayout` decides it from the table's own shape.
+- **Both report views now show the two tiers explicitly**: findings that make up the score sit under **"Required by law — WCAG 2.2 AA · ADA Title II · IITAA"**, and unscored items under **"Also recommended — PDF/UA readiness (not counted in your score)"**, visually quieter and dashed. The headings appear only when a card actually has both tiers, so ordinary cards are unchanged. Driven by a prefix contract the analyzer owns (`PDF/UA only — not scored:` / `Advisory — not scored:`), so old stored reports render exactly as before.
+
+### Added
+
+- **Trap 121** (`synthetic-121-simple-table-no-scope.pdf`): a plain one-header-row grid with no `/Scope` — must score **100/A** *and* still report the missing Scope as an explicitly unscored PDF/UA item. **Trap 24 is now its complex twin**: headers along the top *and* down the left, which must still be scored, because there the relationship really is indeterminable. The two traps hold the line from both sides. Corpus **121**.
+
+### Notes
+
+- **Two real documents moved, both defensibly**: `ARIFactSheet` 55 → 56 (table 75 → 90) and the 246-page `Juvenile Justice` annual report 53 → 54 (table 55 → 70) — simple grids that were being marked down for a PDF/UA-only requirement. Neither changes letter grade. Blessed through the ledger (**165 rows**) in this commit, which is exactly the workflow that exists for a deliberate scoring change.
+- Tests 2,971 → **2,974**. This also strengthens the position rather than softening it: where a table IS scored now, the report can say precisely why it is a legal failure and not standards pedantry — and veraPDF's co-signature still appears beside PDF/UA items in both tiers.
+
+<details>
+<summary><strong>v1.129.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.129.0] - 2026-08-29
 
 ### Added
@@ -16,8 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Every one of the six encodings now agrees with the baseline, and no existing document's score moved (ledger unchanged at 163 rows, all 119 traps hold). Tests 2,971 — the gate is a script, like its siblings.
 - Worth stating for the record: this is the first bug in this class the project found **preemptively** rather than being handed by an agency whose file we had graded wrongly.
 
-<details>
-<summary><strong>v1.128.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.128.0] - 2026-08-29
 

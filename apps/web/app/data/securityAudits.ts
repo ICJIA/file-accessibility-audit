@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.130.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the score now measures only what the law requires; PDF/UA work is shown beside it and not counted. Some documents score slightly higher.",
+    body: [
+      {
+        kind: "p",
+        html: "Two different rulebooks apply to a PDF, and only one of them is the law. <strong>WCAG 2.2 AA, ADA Title II and the Illinois IITAA are legally required</strong>; <strong>PDF/UA is the PDF industry&rsquo;s own standard</strong> &mdash; excellent practice, not a legal obligation. This report was already built on the legal standard, but one deduction had drifted across the line, and the wording admitted it: a finding was described as &ldquo;a readiness gap rather than a confirmed failure&rdquo; while still costing points. That is now resolved. <strong>Your grade measures the law. PDF/UA work is listed beside it, clearly marked as not counted.</strong>",
+      },
+      {
+        kind: "p",
+        html: "The clearest case is the direction of table headers. The law asks that software be able to work out which header belongs to which cell. In a plain table whose headers run along a single edge, that is already clear from the table&rsquo;s shape &mdash; so a missing direction is now reported as optional PDF/UA work and <strong>does not affect the grade</strong>. In a table with headers along the top <em>and</em> down the side, it genuinely cannot be worked out, and that remains a real legal failure and is still scored. Both report views now show the two groups under plain headings, and two test documents were added to hold the line from both sides. <strong>Two real documents scored one point higher</strong> as a result; neither changed letter grade, and the change was approved through the locked score ledger in the same commit.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the change adjusts scoring rules and how findings are grouped on the page. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed. <strong>Some documents score higher on re-analysis; none score lower.</strong> No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.129.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: a new self-check that writes the same document every legal way and requires the same answer for all of them. Nothing new is received, sent, or stored.",
     body: [

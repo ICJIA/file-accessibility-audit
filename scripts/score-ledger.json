@@ -102,7 +102,7 @@
       }
     },
     "ARIFactSheet-SFY26-20260427T20572257.pdf": {
-      "score": 55,
+      "score": 56,
       "grade": "F",
       "categories": {
         "text_extractability": "85|Minor",
@@ -110,7 +110,7 @@
         "heading_structure": "0|Critical",
         "alt_text": "42|Moderate",
         "bookmarks": "null|none",
-        "table_markup": "75|Minor",
+        "table_markup": "90|Minor",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
         "reading_order": "65|Moderate",
@@ -358,7 +358,7 @@
       }
     },
     "Juvenile Justice System and Risk Factor Data 2007 Annual Report.pdf": {
-      "score": 53,
+      "score": 54,
       "grade": "F",
       "categories": {
         "text_extractability": "85|Minor",
@@ -366,7 +366,7 @@
         "heading_structure": "40|Moderate",
         "alt_text": "2|Critical",
         "bookmarks": "100|No issues found",
-        "table_markup": "55|Moderate",
+        "table_markup": "70|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
         "reading_order": "90|Minor",
@@ -1211,6 +1211,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-121-simple-table-no-scope.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-13-bold-fake-headings.pdf": {
       "score": 69,
       "grade": "D",
@@ -1392,7 +1408,7 @@
       "grade": "B",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",

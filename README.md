@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,971 tests** across 194 test files (API 1,622 · Web 1,300 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,974 tests** across 194 test files (API 1,622 · Web 1,303 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.130.0 — 2026-08-29 · The grade measures the law; PDF/UA is reported beside it (scoring change)
+
+**Answers a fair objection before it is raised: WCAG 2.2 AA / ADA Title II / IITAA are the law, PDF/UA is not — so a document must not be marked down for a PDF/UA-only requirement.** The scoring profile was already WCAG-anchored (`pdf_ua_compliance: 0`), but one deduction leaked across, and the copy admitted it — calling a finding "a readiness gap rather than a confirmed WCAG failure" while deducting points that moved the grade. The line is now drawn where the standards draw it: WCAG 1.3.1 asks that header-to-data relationships be *programmatically determinable*, so in a grid whose headers sit along one edge with nothing spanned, a missing `/Scope` is PDF/UA readiness and **no longer scored**; where headers run along both edges or cells span, the association genuinely cannot be worked out and it stays a scored **WCAG failure** (new `simpleHeaderLayout` signal). Both views now label the tiers — **"Required by law"** vs **"Also recommended — PDF/UA readiness (not counted in your score)"** — driven by a prefix contract, so stored reports are unaffected. Trap 121 holds the simple side; trap 24 became its complex twin. Two real documents moved defensibly (ARIFactSheet 55→56, Juvenile Justice 53→54; no letter changed), blessed through the ledger in the same commit. **No new attack surface**: scoring logic, rendering, tests. Tests 2,974. Corpus 121.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.129.0 → v1.33.0) — click to expand</summary>
+
 ### v1.129.0 — 2026-08-29 · Encoding invariance: the gate that stops waiting for the next dispute (no new attack surface)
 
 Five author disputes in two days shared one shape: **the same meaning, encoded a legal way we did not anticipate.** Each was found by a real agency file *after* a wrong grade was published. `pnpm encoding-invariance` ends that pattern: one document re-emitted in every legal encoding of the same semantics — attributes inline, behind a reference, as an array, via a class map; values direct and indirect; role-mapped custom tags; single-kid shorthand — all of which must produce an **identical verdict**. It is re-save invariance generalized from *different bytes* to *different legal structure*, and it runs in CI on every push. **It found a real gap on its first run, before any file arrived**: class-map attributes (`/C` + `/ClassMap`) were unsupported, so a table scoped that way scored 89/B instead of 100/A. All three attribute readers now share one resolution path covering both `/A` and `/C`. **No new attack surface**: one dev/CI script and a widened attribute lookup. Tests 2,971.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.128.0 → v1.33.0) — click to expand</summary>
 
 ### v1.128.0 — 2026-08-29 · Indirect attribute values; a declared language that contradicts the text (scoring fix + new check)
 

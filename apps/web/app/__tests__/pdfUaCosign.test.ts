@@ -188,3 +188,60 @@ describe("the same co-sign appears in the DETAILED view's evidence card", () => 
     expect(w.findAll('[data-testid="pdfua-cosign"]')).toHaveLength(0);
   });
 });
+
+describe("the two tiers: required by law vs PDF/UA readiness (v1.130.0)", () => {
+  // The objection this answers: "you are grading our file against PDF/UA,
+  // and PDF/UA is not the law." Now the grade measures only the legal
+  // standard, and PDF/UA work is shown beside it, plainly not counted.
+  const withBothTiers = {
+    fileType: "pdf",
+    grade: "A",
+    overallScore: 100,
+    categories: [
+      {
+        id: "table_markup",
+        label: "Table Markup",
+        score: 100,
+        severity: null,
+        explanation: "A designated header row lets screen readers announce the header.",
+        findings: [
+          "All 1 table(s) have header cells (TH) — 2 header cell(s) total",
+          "PDF/UA only — not scored: 2 header cell(s) across 1 table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected.",
+          "How to fix (optional): In Adobe Acrobat, set Scope on the header cells.",
+        ],
+      },
+    ],
+  };
+
+  it("shows the PDF/UA items in their own tier, marked not counted", () => {
+    const w = mount(ReportContent, { props: { result: withBothTiers as never } });
+    const tier = w.find('[data-testid="not-scored-tier"]');
+    expect(tier.exists()).toBe(true);
+    expect(tier.html()).toMatch(/PDF\/UA readiness/i);
+    expect(tier.html()).toMatch(/not counted in your score/i);
+    expect(tier.html()).toMatch(/no \/Scope/);
+    // The optional fix line travels with it, not with the scored findings.
+    expect(tier.html()).toMatch(/How to fix \(optional\)/i);
+  });
+
+  it("labels the scored findings as the legal standard when a second tier exists", () => {
+    const html = mount(ReportContent, { props: { result: withBothTiers as never } }).html();
+    expect(html).toMatch(/Required by law/i);
+    expect(html).toMatch(/WCAG 2\.2 AA/);
+  });
+
+  it("adds no headings at all to an ordinary card with nothing unscored", () => {
+    const plain = {
+      ...withBothTiers,
+      categories: [
+        {
+          ...withBothTiers.categories[0],
+          findings: ["All 1 table(s) have header cells (TH) — 2 header cell(s) total"],
+        },
+      ],
+    };
+    const w = mount(ReportContent, { props: { result: plain as never } });
+    expect(w.find('[data-testid="not-scored-tier"]').exists()).toBe(false);
+    expect(w.html()).not.toMatch(/Required by law/i);
+  });
+});
