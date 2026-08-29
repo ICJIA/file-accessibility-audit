@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.139.1] - 2026-08-29
+
+### Fixed
+
+- **"4 + 1 = 5 … but this says 6 criteria failing"** — a reader adding the severity tiles (categories) against the strip (criteria) had no bridge between the two true numbers: one category can fail two criteria (a missing title AND a missing language both live in Title & Language). Verified on the Violence Prevention Plan report that raised it: 5 categories below 100, 6 failing criteria — both correct.
+- The strip now bridges them whenever they differ: **"6 criteria failing in 5 categories"** (terse as before when they agree, and never shown when a legacy stored report's failures lack category data). The plan's subtitle completes the arithmetic when there are more criteria than fixes: *"Together they clear all 6 failing WCAG 2.1 criteria — fix № 1 clears more than one."*
+
+### Notes
+
+- Tests 3,002 → **3,005**. No scores moved.
+
+<details>
+<summary><strong>v1.139.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.139.0] - 2026-08-29
 
 ### Fixed
@@ -23,8 +37,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,000 → **3,002**. Named for later, still uncovered: `/ActualText` substitution over unmapped glyphs, Type3 (glyph-procedure) fonts, and incremental-update saves — each buildable in the same harness when wanted.
 
-<details>
-<summary><strong>v1.138.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.138.1] - 2026-08-29
 

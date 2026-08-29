@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.139.1",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the failing-criteria count and the severity tiles now reconcile on sight. No scores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader added up the severity tiles (4 critical + 1 moderate = 5) and saw the verdict say <strong>6 criteria failing</strong>. Both numbers were right: the tiles count <em>categories</em>, and one category can break two laws at once — a document with no title and no language declaration fails both rules inside the single Title &amp; Language category. What was missing was the bridge.",
+      },
+      {
+        kind: "p",
+        html: "The verdict now reads <strong>&ldquo;6 criteria failing in 5 categories&rdquo;</strong> whenever the two counts differ, and the action plan finishes the arithmetic: <em>&ldquo;Together they clear all 6 failing WCAG 2.1 criteria &mdash; fix № 1 clears more than one.&rdquo;</em> Reports saved before category data existed never show the bridge rather than showing a wrong number.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: two sentences of presentation logic, pinned by new tests; the score ledger confirms no document&rsquo;s score changed. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.139.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: four more legal PDF encodings verified identical (13 total), and announcement links can never carry a stale trap count again.",
     body: [

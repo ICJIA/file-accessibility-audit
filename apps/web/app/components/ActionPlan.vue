@@ -460,11 +460,28 @@ const subtitle = computed(() => {
   if (!props.conformance || n === 0) return start;
   const req = requiredCount.value;
   const rec = n - req;
-  if (rec === 0) return start;
+  // One fix can clear MORE than one failing criterion (the title-and-language
+  // step clears 2.4.2 and 3.1.1 at once), so the criteria count above the
+  // plan can exceed the step count. Say so, or "6 criteria failing" over
+  // "5 fixes" reads as a lost fix.
+  const failures = props.conformance.failures ?? [];
+  const critCount = failures.length;
+  const multiSteps = props.steps.filter(
+    (st) => failures.filter((f) => f.category === st.categoryId).length > 1,
+  );
+  const criteriaBridge =
+    req > 0 && critCount > req
+      ? ` Together they clear all ${critCount} failing WCAG 2.1 criteria — ${
+          multiSteps.length === 1
+            ? `fix № ${multiSteps[0]!.rank} clears more than one`
+            : "some fixes clear more than one"
+        }.`
+      : "";
+  if (rec === 0) return `${start}${criteriaBridge}`;
   if (req === 0) {
     return `${start} No WCAG 2.1 criterion is failing — ${n === 1 ? "this fix is" : "these fixes are"} recommended: ${n === 1 ? "it raises" : "they raise"} your score and ${n === 1 ? "helps" : "help"} real readers.`;
   }
-  return `${start} ${req} of the ${n} clear WCAG 2.1 criterion failures; the other ${rec} ${rec === 1 ? "is" : "are"} recommended — ${rec === 1 ? "it raises" : "they raise"} your score and ${rec === 1 ? "helps" : "help"} real readers, but ${rec === 1 ? "is not a WCAG 2.1 failure" : "are not WCAG 2.1 failures"}.`;
+  return `${start} ${req} of the ${n} clear WCAG 2.1 criterion failures; the other ${rec} ${rec === 1 ? "is" : "are"} recommended — ${rec === 1 ? "it raises" : "they raise"} your score and ${rec === 1 ? "helps" : "help"} real readers, but ${rec === 1 ? "is not a WCAG 2.1 failure" : "are not WCAG 2.1 failures"}.${criteriaBridge}`;
 });
 
 function sevIcon(s: PlanSeverity): string {

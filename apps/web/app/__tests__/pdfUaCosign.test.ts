@@ -578,3 +578,36 @@ describe("per-rule fix routes in the veraPDF list (v1.134.0)", () => {
     );
   });
 });
+
+describe("the plan reconciles fixes to criteria when one fix clears two (v1.139.1)", () => {
+  it("says the fixes together clear all criteria, naming the double-clearing fix", () => {
+    const mk = (rank: number, categoryId: string, severity: "Critical" | "Moderate") => ({
+      rank,
+      categoryId,
+      title: categoryId,
+      why: "x",
+      severity,
+      wcagRefs: [],
+      routes: [],
+      detailAnchor: `#cat-${categoryId}`,
+    });
+    const conformance = {
+      status: "fail",
+      failures: [
+        { sc: "1.1.1", name: "", level: "A", category: "alt_text", issue: "", url: "" },
+        { sc: "2.4.2", name: "", level: "A", category: "title_language", issue: "", url: "" },
+        { sc: "3.1.1", name: "", level: "A", category: "title_language", issue: "", url: "" },
+      ],
+      notAssessed: [],
+      headline: "",
+    } as never;
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [mk(1, "alt_text", "Critical"), mk(2, "title_language", "Moderate")],
+        conformance,
+      },
+    });
+    expect(w.text()).toMatch(/Together they clear all 3 failing WCAG 2\.1 criteria/);
+    expect(w.text()).toMatch(/fix № 2 clears more than one/);
+  });
+});

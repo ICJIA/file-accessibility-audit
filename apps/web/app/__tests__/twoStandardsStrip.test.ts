@@ -89,3 +89,31 @@ describe("the PDF/UA side — reported, never counted", () => {
     expect(html).toMatch(/No PDF\/UA failures found/i);
   });
 });
+
+describe("the criteria count bridges to categories when they differ (v1.139.1)", () => {
+  it("says 'in N categories' when one category fails two criteria", () => {
+    // The Violence Prevention Plan case: 4 Critical + 1 Moderate tiles = 5
+    // categories, but title_language fails 2.4.2 AND 3.1.1 → 6 criteria.
+    const conformance = {
+      status: "fail",
+      failures: [
+        { sc: "1.3.1", category: "text_extractability" },
+        { sc: "1.1.1", category: "alt_text" },
+        { sc: "3.1.1", category: "title_language" },
+        { sc: "2.4.2", category: "title_language" },
+        { sc: "1.3.1", category: "heading_structure" },
+        { sc: "1.3.2", category: "reading_order" },
+      ],
+      notAssessed: [],
+      headline: "",
+    } as never;
+    const html = strip({ conformance, fileType: "pdf" }).html();
+    expect(html).toMatch(/6 criteria failing in 5 categories/);
+  });
+
+  it("stays terse when the two counts agree", () => {
+    const html = strip({ conformance: failing }).html();
+    expect(html).toMatch(/2 criteria failing/);
+    expect(html).not.toMatch(/in \d+ categor/);
+  });
+});

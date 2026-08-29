@@ -94,7 +94,17 @@ const lawVerdict = computed(() => {
   if (!c) return "Checked against the legal standard";
   if (c.status === "fail") {
     const n = c.failures.length;
-    return `${n} ${n === 1 ? "criterion" : "criteria"} failing`;
+    // One category can fail two criteria (a missing title AND a missing
+    // language both live in Title & Language), so the criteria count can
+    // exceed the severity tiles a reader just added up. Bridge the two
+    // numbers whenever they differ (user report 2026-08-29: "4+1 = 5 …
+    // but this says 6").
+    const catList = c.failures.map((f) => f.category).filter(Boolean);
+    const cats = new Set(catList).size;
+    // Bridge only when every failure carries a category (old stored reports
+    // may not) — never let missing data fabricate a smaller-looking number.
+    const bridge = catList.length === n && cats !== n ? ` in ${cats} categories` : "";
+    return `${n} ${n === 1 ? "criterion" : "criteria"} failing${bridge}`;
   }
   return "No automated failures found";
 });
