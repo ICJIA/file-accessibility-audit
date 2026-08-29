@@ -327,7 +327,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-07-paragraphs-as-headings.pdf",
     truth:
-      "Six of seven H1 tags wrap entire paragraphs. Level order is perfect — a checker that only reads levels calls this clean; the content check must not.",
+      "Six of seven H1 tags wrap entire paragraphs — level order perfect, content wrong. Since the legal-only sweep (2026-08-29) content QUALITY is a judgment no automated check can confirm (and pdf.js has misread heading text before — v1.110.0), so it must be reported as an advisory and never scored: the outline census still names every suspect heading, the grade stays 100/A.",
     build: () => {
       // Painted line by line, as every real exporter does — a paragraph as
       // ONE 371-char Tj is wider than the page and pdf.js hands back only
@@ -363,8 +363,15 @@ const SAMPLES: Sample[] = [
       return buildPdf(objs, "<< /Title (Paragraphs Wearing Heading Tags) >>");
     },
     check: (r) => {
-      const c = cat("heading_structure")(r)!;
-      return c.score <= 60 ? null : `heading_structure ${c.score} — paragraph-headings not caught`;
+      const text = allFindings(r);
+      if (
+        !/Advisory — not scored:.*(do not read as headings|may not read as headings)/is.test(text)
+      )
+        return "paragraph-headings not reported as advisory";
+      const h = cat("heading_structure")(r);
+      if (h && h.score !== null && h.score < 100)
+        return `content judgment still scored (${h.score})`;
+      return null;
     },
   },
   {
@@ -778,7 +785,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-19-skipped-heading-levels.pdf",
     truth:
-      "H1 -> H3 -> H5 with nothing between: level skips break the outline (Matterhorn 13-004).",
+      "Heading levels that skip (H1 → H3). W3C's own guidance says skipped levels are not a WCAG failure — it is PDF/UA / best-practice territory (Matterhorn 13-004) — so since the legal-only sweep it must be reported as a PDF/UA-only item and never scored: 100/A with the skip named.",
     build: () => {
       const lv = [1, 3, 5, 1, 3, 5];
       let content = "";
@@ -803,15 +810,20 @@ const SAMPLES: Sample[] = [
       return buildPdf(objs, "<< /Title (Skipped Heading Levels) >>");
     },
     check: (r) => {
-      const c = cat("heading_structure")(r)!;
-      if (c.score === 100) return "level skips scored 100";
-      if (!/skip/i.test(c.findings.join("\n"))) return "no skip finding";
-      return null;
+      const text = allFindings(r);
+      if (!/PDF\/UA only — not scored:.*gaps/is.test(text) && !/Heading hierarchy skip/i.test(text))
+        return "the level skip vanished from the report";
+      const h = cat("heading_structure")(r);
+      if (h && h.score !== null && h.score < 100) return `a level skip was scored (${h.score})`;
+      return r.overallScore === 100
+        ? null
+        : `scored ${r.overallScore} — skips are not WCAG failures`;
     },
   },
   {
     file: "synthetic-20-generic-h-only.pdf",
-    truth: "Only generic <H> tags, no levels at all — an outline with no hierarchy to navigate.",
+    truth:
+      "Only generic <H> tags, no H1–H6. The headings are identifiable — only their LEVELS are missing, which ISO 32000 permits and PDF/UA 7.4 forbids — so since the legal-only sweep it is a PDF/UA-only item: reported, never scored, 100/A.",
     build: () => {
       let content = "";
       for (let i = 0; i < 3; i++)
@@ -836,8 +848,12 @@ const SAMPLES: Sample[] = [
       );
     },
     check: (r) => {
-      const c = cat("heading_structure")(r)!;
-      return c.score !== null && c.score < 100 ? null : `generic-only <H> scored ${c.score}`;
+      const text = allFindings(r);
+      if (!/PDF\/UA only — not scored:.*generic <H>/is.test(text))
+        return "generic-<H> not reported as a PDF/UA-only item";
+      const h = cat("heading_structure")(r);
+      if (h && h.score !== null && h.score < 100) return `generic <H> was scored (${h.score})`;
+      return null;
     },
   },
   {
@@ -1130,7 +1146,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-31-empty-headings.pdf",
     truth:
-      "Eight heading tags, six holding no text at all — a reader jumping by heading lands on silence (the v1.110 check, on a page attribution CAN read).",
+      "Eight heading tags, six holding no text. A reader jumping by heading lands on silence — but 'this element resolved no text' has been OUR extraction limit before (v1.110.0 cost a clean control 21 points), so an empty-heading verdict cannot be CONFIRMED mechanically. Since the legal-only sweep: reported as an advisory with every empty heading named, never scored.",
     build: () => {
       let content = "";
       content += `/H1 << /MCID 0 >> BDC\nBT /F1 16 Tf 72 750 Td (Real Heading One) Tj ET\nEMC\n`;
@@ -1156,9 +1172,12 @@ const SAMPLES: Sample[] = [
       return buildPdf(objs, "<< /Title (Empty Headings) >>");
     },
     check: (r) => {
-      const c = cat("heading_structure")(r)!;
-      if (!/carry no text at all/i.test(c.findings.join("\n"))) return "empty headings not named";
-      return c.score !== null && c.score <= 60 ? null : `empty-heading outline scored ${c.score}`;
+      const text = allFindings(r);
+      if (!/Advisory — not scored:/i.test(text)) return "empty headings not reported as advisory";
+      const h = cat("heading_structure")(r);
+      if (h && h.score !== null && h.score < 100)
+        return `empty headings scored (${h.score}) — the v1.110 lesson forbids confirming this`;
+      return null;
     },
   },
   {
@@ -1416,16 +1435,21 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-41-long-doc-no-bookmarks.pdf",
     truth:
-      "Twelve pages and no bookmarks — a long document without a navigable outline must lose navigation points.",
+      "Twelve substantive pages, no bookmarks, and no headings either. Since the legal-only sweep the missing BOOKMARKS may not move the grade (no WCAG 2.1 criterion requires them — reported as an advisory); the missing HEADINGS are the real 1.3.1 failure and still score 0/Critical, capping the document at 69/D. The trap now proves both halves: the advisory appears, and the grade that remains comes from the law.",
     build: () => {
       const { objs, catalogExtra } = multiPageObjs(12);
       objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
       return buildPdf(objs, "<< /Title (Twelve Pages No Bookmarks) >>");
     },
     check: (r) => {
-      const c = cat("bookmarks")(r);
-      if (!c || c.score === null) return "bookmarks unscored on a 12-page document";
-      return c.score < 100 ? null : "12 pages without bookmarks scored 100";
+      const text = allFindings(r);
+      if (!/Advisory — not scored:.*no bookmarks/is.test(text))
+        return "missing bookmarks not reported as advisory";
+      const b = cat("bookmarks")(r);
+      if (b && b.score !== null && b.score < 100) return `bookmarks scored (${b.score})`;
+      const h = cat("heading_structure")(r);
+      if (!h || h.score !== 0) return "the real failure (no headings) was not scored";
+      return null;
     },
   },
   {
@@ -2142,16 +2166,19 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-65-canva-story-no-bookmarks.pdf",
     truth:
-      "A twelve-page photo story with no bookmarks. Past ten pages the checker asks for navigation; a long Canva export never has any.",
+      "A Canva-style 12-page story export: no bookmarks (now an unscored advisory — no WCAG 2.1 criterion requires them) and no headings (the real 1.3.1 failure, still scored). The grade that remains comes from the law, not the best practice.",
     build: () => {
       const { objs, catalogExtra } = multiPageObjs(12);
       objs[0] = `<< /Type /Catalog ${catalogExtra} >>`;
       return buildPdf(objs, "<< /Title (Twelve Page Story) >>");
     },
     check: (r) => {
-      const c = cat("bookmarks")(r);
-      if (!c || c.score === null) return "bookmarks unscored on a 12-page document";
-      return c.score < 100 ? null : "12 bookmark-less pages scored 100";
+      const text = allFindings(r);
+      if (!/Advisory — not scored:.*no bookmarks/is.test(text))
+        return "missing bookmarks not reported as advisory";
+      const b = cat("bookmarks")(r);
+      if (b && b.score !== null && b.score < 100) return `bookmarks scored (${b.score})`;
+      return null;
     },
   },
   {
@@ -3836,7 +3863,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-124-single-row-table.pdf",
     truth:
-      "A ONE-ROW table: a TH leading a single row of data cells, no /Scope. There is exactly one relationship the header could express — it labels its own row — so it is programmatically determinable and the law is satisfied: must score 100/A with the missing scope reported as an unscored PDF/UA item. Written to expose (and then pin) the single-axis test's blind spot: a one-row table puts its only header in row 0 AND column 0 at once, which naive exactly-one-axis logic reads as a two-axis crosstab. (One-COLUMN tables never reach scoring at all — the layout-scaffold rule excludes them.)",
+      "A ONE-ROW table: a TH leading a single row of data cells. Both conformance gates have always classified sub-2×2 constructs as layout scaffolds ('overwhelmingly layout constructs'), and since the legal-only sweep the score follows the same rule the gates do: the construct is excluded from table scoring entirely and the document is 100/A. (Written originally to expose the single-axis test's blind spot, which it did — the deeper fix removed the whole class from scoring.)",
     build: () => {
       const content =
         `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("One row")}) Tj ET\nEMC\n` +
@@ -3864,15 +3891,12 @@ const SAMPLES: Sample[] = [
       );
     },
     check: (r) => {
-      const text = allFindings(r);
-      if (!/PDF\/UA only — not scored/.test(text))
-        return "the missing scope was not reported as an unscored PDF/UA item";
       const t = cat("table_markup")(r);
-      if (!t || t.score === null) return "table_markup unscored";
-      if (t.score < 100) return `a one-row table was docked (table ${t.score})`;
+      if (t && t.score !== null && t.score < 100)
+        return `a one-row layout construct was scored down (table ${t.score})`;
       return r.overallScore === 100 && r.grade === "A"
         ? null
-        : `scored ${r.overallScore}/${r.grade} — a single-row header is always determinable`;
+        : `scored ${r.overallScore}/${r.grade} — a one-row strip is page furniture, not a data table`;
     },
   },
 ];

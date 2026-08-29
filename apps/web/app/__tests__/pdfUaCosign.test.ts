@@ -329,7 +329,7 @@ describe("the action plan labels legal work and separates the optional (v1.132.0
     const beyond = w.find('[data-testid="plan-beyond-group"]');
     expect(beyond.exists()).toBe(true);
     expect(beyond.text()).toMatch(/Above and beyond — not required by WCAG 2\.1/i);
-    expect(beyond.text()).toMatch(/PDF\/UA BEST PRACTICE/);
+    expect(beyond.text()).toMatch(/BEST PRACTICE — NOT SCORED/);
     expect(beyond.text()).toMatch(/no \/Scope/);
     // Still exactly one numbered step: the optional item did not become one.
     expect(w.findAll(".plan-step-body")).toHaveLength(1);

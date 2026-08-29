@@ -328,9 +328,11 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
         "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.",
       );
     } else if (unmappedChars >= 20) {
-      score = Math.min(score, 85);
+      // NOT SCORED (2026-08-29, the legal-only sweep): below the failure
+      // band this is usually symbol-font bullets and dingbats — a judgment a
+      // person has to make, not a confirmed 1.1.1 failure.
       findings.push(
-        "  Verify the affected passages read correctly with a screen reader. If they are decorative symbols or bullets, no action is needed; if they are real words, re-export from the source application.",
+        "Advisory — not scored: a count this size is often symbol-font bullets or dingbats, which read as decoration — your grade is not affected. Verify the affected passages read correctly with a screen reader; if they are real words, re-export from the source application.",
       );
     } else {
       findings.push(
@@ -412,8 +414,10 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
   let score = 0;
   const findings: string[] = [];
 
-  // Title check (50 points; 25 when the title looks like a filename —
-  // present, so not a conformance failure, but weak for screen reader users)
+  // Title check (50 points; 25 when the title looks like a filename — a
+  // 2.4.2 failure in WCAG's own catalogue (F25: the title does not identify
+  // the document), attributed by the conformance gate since the legal-only
+  // sweep)
   if (pdfjs.title && pdfjs.title.trim().length > 0) {
     if (pdfjs.titleLooksLikeFilename) {
       score += 25;
@@ -425,17 +429,19 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
         'How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Description tab → replace it with a descriptive Title (e.g., "2024 Annual Crime Report").',
       );
     } else if (qpdf.displayDocTitle !== true) {
-      // Title present but /ViewerPreferences /DisplayDocTitle is unset or
-      // false — conforming viewers show the FILENAME, not this title. This
-      // is the exact flag professional remediation sets (WCAG 2.4.2's PDF
-      // technique requires both), so partial credit with a targeted fix.
-      score += 35;
+      // NOT SCORED (2026-08-29, the legal-only sweep): DisplayDocTitle is
+      // PDF/UA clause 7.1's requirement, checked by veraPDF under that
+      // clause. WCAG 2.1's 2.4.2 asks for a describing title, which this
+      // document HAS — the viewer-preference flag is how one PDF technique
+      // exposes it, not the criterion itself. Full credit; reported as an
+      // unscored PDF/UA item.
+      score += 50;
       findings.push(`Document title: "${pdfjs.title}"`);
       findings.push(
-        "The title is set, but the DisplayDocTitle viewer preference is not — viewers will show the filename in the title bar instead of this title.",
+        "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off, so viewers show the FILENAME in the title bar instead of this title. WCAG 2.1 asks for a describing title, which this document has — your grade is not affected. PDF/UA (clause 7.1) requires the flag as well.",
       );
       findings.push(
-        "How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
+        "How to fix (optional): In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Initial View tab → set Show: Document Title, then save.",
       );
     } else {
       score += 50;
@@ -818,19 +824,24 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   const hasNumberedHeadings = qpdf.headings.some((h) => /^H[1-6]$/.test(h.level));
 
   if (!hasNumberedHeadings) {
+    // NOT SCORED (2026-08-29, the legal-only sweep): headings exist and are
+    // programmatically identifiable — the outline's LEVELS are what generic
+    // <H> withholds. ISO 32000 itself permits <H> in strongly structured
+    // documents; requiring numbered levels is PDF/UA 7.4 / Matterhorn 14,
+    // not a WCAG 2.1 criterion.
     findings.push(
-      "Only generic /H tags found (not H1–H6). Generic heading tags don't convey hierarchy.",
+      "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.",
     );
     findings.push(
-      "How to fix: In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
+      "How to fix (optional): In the Tags panel, change each /H tag to a specific level (H1, H2, etc.) that matches the document outline.",
     );
     return {
       id: "heading_structure",
       label: "Heading Structure",
       weight: SCORING_WEIGHTS.heading_structure,
-      score: 40,
-      grade: getGrade(40),
-      severity: getSeverity(40),
+      score: 100,
+      grade: "A",
+      severity: "No issues found",
       findings,
       explanation: headingExplanation,
       helpLinks: headingLinks,
@@ -849,7 +860,7 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
     if (levels[i] > levels[i - 1] + 1) {
       hierarchyBroken = true;
       findings.push(
-        `Heading hierarchy skip: H${levels[i - 1]} → H${levels[i]} (skipped H${levels[i - 1] + 1})`,
+        `  Heading hierarchy skip: H${levels[i - 1]} → H${levels[i]} (skipped H${levels[i - 1] + 1})`,
       );
     }
   }
@@ -879,50 +890,35 @@ function scoreHeadingStructure(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryRe
   const mixedConventions = genericHCount > 0;
   if (mixedConventions) {
     findings.push(
-      `${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002): a generic <H> carries no level, so screen-reader users lose their place in an otherwise numbered outline.`,
+      `PDF/UA only — not scored: ${genericHCount} generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.`,
     );
     findings.push(
-      "How to fix: In the Tags panel, change each generic <H> tag to the specific level (H1–H6) that matches its place in the outline.",
+      "How to fix (optional): In the Tags panel, change each generic <H> tag to the specific level (H1–H6) that matches its place in the outline.",
     );
   }
 
-  if (hierarchyBroken || mixedConventions) {
-    if (hierarchyBroken) {
-      findings.unshift(`Found ${levels.length} heading tags, but the hierarchy has gaps`);
-      findings.push(
-        "Heading levels should not skip — e.g., don't jump from H1 to H3 without an H2 in between.",
-      );
-    }
-    const score = Math.min(60, contentVerdict.score);
-    return {
-      id: "heading_structure",
-      label: "Heading Structure",
-      weight: SCORING_WEIGHTS.heading_structure,
-      score,
-      grade: getGrade(score),
-      severity: getSeverity(score),
-      findings,
-      explanation: headingExplanation,
-      helpLinks: headingLinks,
-    };
+  // NOT SCORED (2026-08-29, the legal-only sweep). Hierarchy SKIPS and mixed
+  // conventions were scored via Matterhorn 13-004 / 14-002 and WCAG
+  // technique G141 — a PDF/UA condition and a *technique*, not a criterion.
+  // W3C's own guidance says skipped levels are not a WCAG failure. The
+  // headings exist, are identifiable, and carry levels: 1.3.1 is satisfied.
+  // Reported, never counted.
+  if (hierarchyBroken) {
+    findings.unshift(
+      `PDF/UA only — not scored: found ${levels.length} heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.`,
+    );
+    findings.push(
+      "How to fix (optional): renumber the heading tags so levels never skip — e.g., don't jump from H1 to H3 without an H2 in between.",
+    );
   }
 
   if (contentVerdict.score < 100) {
-    // The levels are sound; what they contain is not.
+    // The levels are sound; what they contain may not be — but the content
+    // judgment is a heuristic (and pdf.js has misattributed heading text
+    // before: v1.110.0), so it advises, never scores.
     findings.unshift(
-      `Found ${levels.length} heading tags in a sound level order, but most of them do not read as headings`,
+      `Advisory — not scored: found ${levels.length} heading tags in a sound level order, but some of them may not read as headings — review the outline above by hand. Heuristic judgment only; your grade is not affected.`,
     );
-    return {
-      id: "heading_structure",
-      label: "Heading Structure",
-      weight: SCORING_WEIGHTS.heading_structure,
-      score: contentVerdict.score,
-      grade: getGrade(contentVerdict.score),
-      severity: getSeverity(contentVerdict.score),
-      findings,
-      explanation: headingExplanation,
-      helpLinks: headingLinks,
-    };
   }
 
   findings.push(`Found ${levels.length} heading tags with logical hierarchy`);
@@ -1466,17 +1462,16 @@ function scoreBookmarks(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult {
     id: "bookmarks",
     label: "Bookmarks / Navigation",
     weight: SCORING_WEIGHTS.bookmarks,
-    score: 45,
-    grade: getGrade(45),
-    severity: getSeverity(45),
+    // NOT SCORED (2026-08-29, the legal-only sweep — the user's ruling made
+    // explicit): no WCAG 2.1 criterion requires bookmarks inside a single
+    // document, so their absence may not move the grade. Reported loudly,
+    // counted never.
+    score: 100,
+    grade: "A",
+    severity: "No issues found",
     findings: [
-      `Document has ${pdfjs.pageCount} pages but no bookmarks`,
-      // Deliberately NOT cited as a WCAG requirement: 2.4.5 Multiple Ways is
-      // scoped to a SET of web pages, and no criterion mandates bookmarks
-      // inside a single document. The honest precedent is Acrobat's own
-      // checker, which flags long documents without them.
-      "No WCAG criterion strictly requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages, and W3C's PDF2 technique lists bookmarks as one way to satisfy it). But Adobe Acrobat's own accessibility checker flags long documents without them, and they remain the fastest way for every reader — screen-reader users included — to move around a long PDF, so their absence is treated as a moderate readiness issue.",
-      "How to fix: In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks From Structure).",
+      `Advisory — not scored: this document has ${pdfjs.pageCount} pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them, and they remain the fastest way for every reader, screen-reader users included, to move around a long PDF.`,
+      "How to fix (optional): In Adobe Acrobat, go to the Bookmarks panel. Create bookmarks for each major section, or auto-generate them from heading tags (Options → New Bookmarks From Structure).",
     ],
     explanation: bookmarkExplanation,
     helpLinks: bookmarkLinks,
@@ -1528,7 +1523,13 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
   // tables and scored 75 for header markup on constructs this tool itself
   // classifies as layout. One-column tables still appear in the overview,
   // marked, so nothing is silently hidden.
-  const isDataTable = (t: TableAnalysis): boolean => (t.columnCounts[0] ?? 2) >= 2;
+  // Single-ROW constructs join single-column ones as layout scaffolds
+  // (2026-08-29): both conformance gates have always excluded sub-2×2 tables
+  // from failure assertions ("overwhelmingly layout constructs"), and the
+  // score now follows the same rule the gates do — a one-row [TD TD TD]
+  // strip is page furniture, not a data table owed a header.
+  const isDataTable = (t: TableAnalysis): boolean =>
+    (t.columnCounts[0] ?? 2) >= 2 && t.rowCount >= 2;
   const scored = qpdf.tables.map((t, i) => ({ t, i })).filter(({ t }) => isDataTable(t));
   const dataTables = scored.map(({ t }) => t);
   const layoutCount = qpdf.tables.length - dataTables.length;
@@ -1924,16 +1925,19 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   const rawUrls = classified.filter((c) => c.cls === "rawUrl");
   const descriptive = classified.filter((c) => c.cls === "descriptive");
 
-  // Only genuinely non-descriptive text (empty / vague phrase / 1–2 chars)
-  // and untagged links are penalized. A visible raw URL satisfies WCAG 2.4.4
-  // (the destination is determinable) and is surfaced as advisory only — it
-  // does not lower the score. This keeps the verdict aligned with WCAG and
-  // with PAC.
-  const failing = needsFix.length + untagged.length;
+  // Only UNTAGGED links are penalized (2026-08-29, the legal-only sweep) —
+  // that failure is mechanical and 1.3.1-certain: the annotation exists and
+  // no <Link> element claims it. Vague link TEXT ("click here") is NOT
+  // scored: WCAG 2.4.4 (Level A) explicitly allows the link's purpose to
+  // come from its programmatically determined context — the sentence around
+  // it — which no automated text-only check can weigh. Judging the text
+  // alone is 2.4.9 Link Purpose (Link Only), a AAA criterion. A visible raw
+  // URL likewise satisfies 2.4.4 and stays advisory.
+  const failing = untagged.length;
   const score = Math.floor(((total - failing) / total) * 100);
   const findings: string[] = [];
 
-  if (failing === 0 && rawUrls.length === 0) {
+  if (failing === 0 && rawUrls.length === 0 && needsFix.length === 0) {
     findings.push(`All ${total} link(s) use descriptive text`);
     findings.push(`--- Link Details ---`);
     for (const { link } of classified.slice(0, 20)) {
@@ -1945,7 +1949,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
   } else {
     if (needsFix.length > 0) {
       findings.push(
-        `${needsFix.length} of ${total} link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything`,
+        `Advisory — not scored: ${needsFix.length} of ${total} link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link's purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.`,
       );
       findings.push(`--- Links With Non-Descriptive Text ---`);
       for (const { link } of needsFix.slice(0, 15)) {
@@ -1982,7 +1986,7 @@ function scoreLinkQuality(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult 
         "The text shown for an untagged link is read from the page around it and may include neighbouring words.",
       );
       findings.push(
-        'How to fix: In Word, links inside text boxes, shapes, and SmartArt are exported without tags — move that content into the main text flow (or a table) and re-export. In Acrobat: open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element, which wraps the link in a <Link> tag; repeat until no unmarked links remain, then confirm each link\'s text sits inside its <Link> tag.',
+        'How to fix (optional): In Word, links inside text boxes, shapes, and SmartArt are exported without tags — move that content into the main text flow (or a table) and re-export. In Acrobat: open the Tags panel → Options menu (⋮) → Find → choose "Unmarked Links" → Find → Tag Element, which wraps the link in a <Link> tag; repeat until no unmarked links remain, then confirm each link\'s text sits inside its <Link> tag.',
       );
     }
     if (rawUrls.length > 0) {
@@ -2192,19 +2196,23 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
 
   // Check tree depth (flat = bad)
   if (qpdf.structTreeDepth <= 1) {
+    // NOT SCORED (2026-08-29, the legal-only sweep): a flat tree still IS a
+    // programmatic reading sequence — every item in order under one parent —
+    // so 1.3.2 is satisfiable and nothing here is a confirmed WCAG failure.
+    // Depth is a quality signal, reported, never counted.
     findings.push(
-      "Structure tree is flat (no meaningful nesting) — the document has tags but they don't define a nested hierarchy.",
+      "Advisory — not scored: the structure tree is flat (no meaningful nesting) — the document has tags in a single sequence rather than a nested hierarchy of sections. That sequence still gives assistive technology a reading order, so your grade is not affected, but nesting makes long documents far easier to navigate.",
     );
     findings.push(
-      "How to fix: Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
+      "How to fix (optional): Use Acrobat's Fix reading order tool (All tools → Prepare for accessibility → Fix reading order; classic UI: Tools → Accessibility → Reading Order) to reorganize the tag structure into proper sections, headings, and content blocks.",
     );
     return {
       id: "reading_order",
       label: "Reading Order",
       weight: SCORING_WEIGHTS.reading_order,
-      score: 30,
-      grade: getGrade(30),
-      severity: getSeverity(30),
+      score: 100,
+      grade: "A",
+      severity: "No issues found",
       findings,
       explanation: readingExplanation,
       helpLinks: readingLinks,
@@ -2271,17 +2279,24 @@ function scoreReadingOrder(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResult
       };
     }
     if (rigorous.score < 100) {
+      // NOT SCORED (2026-08-29, the legal-only sweep — completing the
+      // v1.107.0 form doctrine for every document): the comparison proves
+      // the tag order and the DRAW order disagree, not which side is wrong.
+      // Professional remediation re-orders tags away from a bad draw order
+      // on purpose, and the card's own copy has always admitted "divergence
+      // is not automatically wrong" — so the measurement cannot support a
+      // deduction. Reported for manual review, never counted.
       findings.push(
-        `Reading order scored ${rigorous.score}/100 — the tagged order agreed with the content stream's draw order on ${rigorous.similarityPct}% of comparable content (a perfect 100 requires ≥ 97%). Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.`,
+        `Advisory — not scored: the tagged order agreed with the content stream's draw order on ${rigorous.similarityPct}% of comparable content. Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so this cannot be scored automatically and your grade is not affected. Verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.`,
       );
     }
     return {
       id: "reading_order",
       label: "Reading Order",
       weight: SCORING_WEIGHTS.reading_order,
-      score: rigorous.score,
-      grade: getGrade(rigorous.score),
-      severity: getSeverity(rigorous.score),
+      score: 100,
+      grade: "A",
+      severity: "No issues found",
       findings,
       explanation: readingExplanation,
       helpLinks: readingLinks,

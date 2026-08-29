@@ -83,26 +83,26 @@ describe("link_quality — untagged links in a tagged document", () => {
     expect(findings.slice(start).join("\n")).not.toMatch(/Unmarked Links/);
   });
 
-  it("in an UNTAGGED document, links fall back to text classification — no second penalty for the missing tree", () => {
+  it("in an UNTAGGED document, text classification is advisory — no penalty at all", () => {
     const { qpdf, pdfjs } = taggedBaseline();
     qpdf.hasStructTree = false;
     pdfjs.links = links.map((l) => ({ ...l, tagged: false }));
     pdfjs.linkAnnotationCount = 4;
     pdfjs.untaggedLinkAnnotationCount = 4;
     const cat = linkCategory(scoreDocument(qpdf, pdfjs));
-    // "PA" is too short to describe a destination; the other three are fine.
-    expect(cat.score).toBe(75);
+    // Wording is advisory since the legal-only sweep — nothing here scores.
+    expect(cat.score).toBe(100);
     expect(cat.findings.join("\n")).not.toContain("Links Not Tagged");
   });
 
-  it("stored and legacy link entries with no tagging flag score exactly as before", () => {
+  it("stored and legacy link entries with no tagging flag: wording stays advisory", () => {
     const { qpdf, pdfjs } = taggedBaseline();
     pdfjs.links = [
       { url: "https://a.example", text: "Annual Report 2024" },
       { url: "https://b.example", text: "click here" },
     ];
     const cat = linkCategory(scoreDocument(qpdf, pdfjs));
-    expect(cat.score).toBe(50);
+    expect(cat.score).toBe(100); // legacy entries follow the same rule: wording never scores
     expect(cat.findings.join("\n")).not.toContain("Links Not Tagged");
   });
 

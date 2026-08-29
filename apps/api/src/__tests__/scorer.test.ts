@@ -403,7 +403,7 @@ describe("scoreDocument — mixed results", () => {
     expect(findCategory(result, "title_language").score).toBe(50);
   });
 
-  it("filename-like title earns partial credit (25 of 50) with an advisory", () => {
+  it("filename-like title earns partial credit (25 of 50) and a 2.4.2/F25 attribution", () => {
     const qpdf = makeQpdf({ hasLang: true, lang: "en" });
     const pdfjs = makePdfjs({
       title: "report_v3_final.pdf",
@@ -415,7 +415,11 @@ describe("scoreDocument — mixed results", () => {
     expect(cat.findings.join(" ")).toContain("filename");
     // The title EXISTS — it must never be reported as a confirmed 2.4.2
     // "no title in metadata" conformance failure.
-    expect(result.conformance.failures.some((f) => f.sc === "2.4.2")).toBe(false);
+    // Attributed since the legal-only sweep: filename-as-title is WCAG's own
+    // documented failure F25 for 2.4.2.
+    expect(
+      result.conformance.failures.some((f) => f.sc === "2.4.2" && f.category === "title_language"),
+    ).toBe(true);
   });
 
   it("filename-like title still beats no title at all", () => {
@@ -563,7 +567,7 @@ describe("weight renormalization", () => {
     expect(findCategory(result, "heading_structure").score).toBe(0);
   });
 
-  it("title credit is docked when DisplayDocTitle is not set (viewers show the filename)", () => {
+  it("DisplayDocTitle off → full credit with a PDF/UA-only advisory (legal-only sweep)", () => {
     const base = {
       hasStructTree: true,
       hasLang: true,
@@ -582,8 +586,10 @@ describe("weight renormalization", () => {
 
     const withoutFlag = scoreDocument(makeQpdf(base), pdfjs);
     const cat = findCategory(withoutFlag, "title_language");
-    expect(cat.score).toBe(85); // 35 (title without DDT) + 50 (language)
-    expect(cat.findings.join(" ")).toContain("filename");
+    expect(cat.score).toBe(100); // 50 title (DDT is PDF/UA 7.1, unscored) + 50 language
+    expect(cat.findings.some((f) => /PDF\/UA only — not scored:.*DisplayDocTitle/i.test(f))).toBe(
+      true,
+    );
   });
 
   it("counts painted images beyond the tagged figures against coverage, not as full coverage", () => {
@@ -625,7 +631,7 @@ describe("weight renormalization", () => {
     expect(findCategory(result, "text_extractability").findings.join(" ")).toContain("suspect");
   });
 
-  it("mid-band order divergence scores 65 (Moderate manual-review), not 40 (Critical)", () => {
+  it("mid-band order divergence is an advisory at 100, never a graded band", () => {
     // ~70% LCS agreement between tag order and DRAW order — a correctly
     // tagged form routinely diverges this much (fields painted in creation
     // order, tags ordered logically). The metric cannot say which side is
@@ -642,7 +648,11 @@ describe("weight renormalization", () => {
       contentStreamMcidsByPage: { 1: [2, 0, 1, 5, 3, 4, 8, 6, 7, 9] },
     });
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "reading_order").score).toBe(65);
+    // Advisory since the legal-only sweep — the measurement cannot support
+    // a verdict at any band.
+    const roCat = findCategory(result, "reading_order");
+    expect(roCat.score).toBe(100);
+    expect(roCat.findings.some((f) => /Advisory — not scored:/i.test(f))).toBe(true);
   });
 
   it("static XFA forms get a disclosure advisory in form accessibility", () => {
@@ -1089,7 +1099,7 @@ describe("scoreHeadingStructure edge cases", () => {
     ).toBe(true);
   });
 
-  it("only generic /H tags → score 40", () => {
+  it("only generic /H tags → 100, reported as PDF/UA-only", () => {
     const qpdf = makeQpdf({
       headings: [
         { level: "H", tag: "/H" },
@@ -1098,7 +1108,11 @@ describe("scoreHeadingStructure edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "heading_structure").score).toBe(40);
+    // Generic <H> withholds LEVELS, not the headings themselves — PDF/UA 7.4
+    // territory, reported as a PDF/UA-only item, never scored.
+    const cat = findCategory(result, "heading_structure");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /PDF\/UA only — not scored:.*generic <H>/i.test(f))).toBe(true);
   });
 
   it("proper hierarchy H1→H2→H3 → score 100", () => {
@@ -1114,7 +1128,7 @@ describe("scoreHeadingStructure edge cases", () => {
     expect(findCategory(result, "heading_structure").score).toBe(100);
   });
 
-  it("H1→H3 skip → score 60, findings mention skip", () => {
+  it("H1→H3 skip → 100, the skip reported as PDF/UA-only", () => {
     const qpdf = makeQpdf({
       headings: [
         { level: "H1", tag: "/H1" },
@@ -1123,9 +1137,12 @@ describe("scoreHeadingStructure edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
+    // W3C's own guidance: skipped levels are not a WCAG failure. Reported as
+    // a PDF/UA-only item (Matterhorn 13-004), never scored.
     const cat = findCategory(result, "heading_structure");
-    expect(cat.score).toBe(60);
+    expect(cat.score).toBe(100);
     expect(cat.findings.some((f) => f.includes("skip"))).toBe(true);
+    expect(cat.findings.some((f) => /PDF\/UA only — not scored:/i.test(f))).toBe(true);
   });
 
   // v1.92.0 (Matterhorn 14-002): mixing generic /H with numbered /H1–/H6 is a
@@ -1133,7 +1150,7 @@ describe("scoreHeadingStructure edge cases", () => {
   // "proper hierarchy → 100"). A generic <H> conveys no level, so the outline
   // has holes exactly where those headings sit — scored at the hierarchy-skip
   // tier (60), above the all-generic 40 but never a clean 100.
-  it("mixed generic /H and numbered headings → 60 with a Matterhorn 14-002 finding (v1.92.0)", () => {
+  it("mixed generic /H and numbered headings → 100 with a PDF/UA-only 14-002 finding", () => {
     const qpdf = makeQpdf({
       headings: [
         { level: "H", tag: "/H" },
@@ -1143,10 +1160,11 @@ describe("scoreHeadingStructure edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
+    // Matterhorn 14-002 is PDF/UA by name — reported, never scored.
     const cat = findCategory(result, "heading_structure");
-    expect(cat.score).toBe(60);
+    expect(cat.score).toBe(100);
     expect(cat.findings.some((f) => f.includes("14-002"))).toBe(true);
-    expect(cat.findings.some((f) => f.includes("generic <H>"))).toBe(true);
+    expect(cat.findings.some((f) => /PDF\/UA only — not scored:/i.test(f))).toBe(true);
   });
 
   it("all-numbered headings with proper hierarchy still score 100 (no mixed-convention false positive)", () => {
@@ -1265,7 +1283,7 @@ describe("scoreBookmarks edge cases", () => {
     expect(findCategory(result, "bookmarks").score).toBe(40);
   });
 
-  it("20 pages, no outlines → score 45 (moderate, not critical)", () => {
+  it("20 pages, no outlines → 100 with a loud advisory (the legal-only sweep)", () => {
     const qpdf = makeQpdf({ hasOutlines: false, outlineCount: 0 });
     const pdfjs = makePdfjs({
       pageCount: 20,
@@ -1273,11 +1291,11 @@ describe("scoreBookmarks edge cases", () => {
       outlineCount: 0,
     });
     const result = scoreDocument(qpdf, pdfjs);
-    // Missing bookmarks maps to WCAG 2.4.5 (Level AA), satisfiable other
-    // ways — so it is a moderate issue, not a critical 0.
-    expect(findCategory(result, "bookmarks").score).toBe(45);
-    expect(findCategory(result, "bookmarks").grade).toBe("F");
-    expect(findCategory(result, "bookmarks").severity).toBe("Moderate");
+    // No WCAG 2.1 criterion requires bookmarks in a single document, so
+    // their absence may not move the grade — reported, never counted.
+    const cat = findCategory(result, "bookmarks");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /Advisory — not scored:.*no bookmarks/i.test(f))).toBe(true);
   });
 
   it("9 pages → N/A", () => {
@@ -1959,24 +1977,27 @@ describe("reading_order — rigorous struct-tree vs. content-stream check", () =
     expect(findCategory(result, "reading_order").score).toBe(100);
   });
 
-  it("scores below 100 when the two sequences diverge", () => {
+  it("divergent sequences report an advisory, never a deduction", () => {
     const struct = [0, 1, 2, 3, 4, 5, 6, 7];
     const stream = [0, 2, 1, 3, 5, 4, 6, 7]; // a few local swaps
     const { qpdf, pdfjs } = buildBase({ 1: struct }, { 1: stream });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "reading_order");
-    expect(cat.score).not.toBeNull();
-    expect(cat.score!).toBeLessThan(100);
-    expect(cat.score!).toBeGreaterThan(0);
+    // Divergence proves the orders DISAGREE, not which side is wrong —
+    // advisory since the legal-only sweep (the v1.107 form doctrine applied
+    // to every document).
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /Advisory — not scored:/i.test(f))).toBe(true);
   });
 
-  it("scores 10 or low when the stream order is the reverse of the tree order", () => {
+  it("even fully reversed stream order is an advisory, not a verdict", () => {
     const struct = [0, 1, 2, 3, 4, 5, 6, 7];
     const stream = [7, 6, 5, 4, 3, 2, 1, 0];
     const { qpdf, pdfjs } = buildBase({ 1: struct }, { 1: stream });
     const result = scoreDocument(qpdf, pdfjs);
     const cat = findCategory(result, "reading_order");
-    expect(cat.score).toBeLessThanOrEqual(40);
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /Advisory — not scored:/i.test(f))).toBe(true);
   });
 
   it("falls back to N/A in Strict when fewer than 2 MCIDs overlap per page", () => {
@@ -2098,7 +2119,7 @@ describe("scoreLinkQuality edge cases", () => {
     expect(cat.findings.some((f) => /raw URL|advisory|not penalized/i.test(f))).toBe(true);
   });
 
-  it("mix of descriptive and vague → proportional score (vague penalized)", () => {
+  it("mix of descriptive and vague → 100; wording is advisory, tagging is what scores", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs({
       links: [
@@ -2107,7 +2128,8 @@ describe("scoreLinkQuality edge cases", () => {
       ],
     });
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "link_quality").score).toBe(50);
+    // Wording quality no longer moves the score; only untagged links do.
+    expect(findCategory(result, "link_quality").score).toBe(100);
   });
 
   it("raw URLs do not drag the score when mixed with descriptive links", () => {
@@ -2122,7 +2144,7 @@ describe("scoreLinkQuality edge cases", () => {
     expect(findCategory(result, "link_quality").score).toBe(100);
   });
 
-  it("vague phrases ('click here', 'read more') count as non-descriptive (WCAG 2.4.4)", () => {
+  it("vague phrases ('click here') are advisories — 2.4.4 allows context, 2.4.9 is AAA", () => {
     const qpdf = makeQpdf();
     const pdfjs = makePdfjs({
       links: [
@@ -2132,8 +2154,11 @@ describe("scoreLinkQuality edge cases", () => {
       ],
     });
     const result = scoreDocument(qpdf, pdfjs);
-    // Only the third link is genuinely descriptive → 1 of 3.
-    expect(findCategory(result, "link_quality").score).toBe(33);
+    // 2.4.4 (Level A) allows purpose-from-context, which text alone cannot
+    // judge — vague wording is an advisory since the legal-only sweep.
+    const cat = findCategory(result, "link_quality");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /Advisory — not scored:.*non-descriptive/i.test(f))).toBe(true);
   });
 });
 
@@ -2225,7 +2250,7 @@ describe("scoreReadingOrder edge cases", () => {
     expect(cat.severity).toBe("Critical");
   });
 
-  it("flat struct tree (depth 1) → score 30", () => {
+  it("flat struct tree (depth 1) → 100 with a flatness advisory", () => {
     const qpdf = makeQpdf({
       hasStructTree: true,
       structTreeDepth: 1,
@@ -2233,7 +2258,10 @@ describe("scoreReadingOrder edge cases", () => {
     });
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
-    expect(findCategory(result, "reading_order").score).toBe(30);
+    // A flat tree still IS a programmatic sequence — advisory, never scored.
+    const cat = findCategory(result, "reading_order");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /Advisory — not scored:.*flat/i.test(f))).toBe(true);
   });
 
   it("deep tree with ordered MCIDs → advisory/N-A", () => {
@@ -2453,13 +2481,13 @@ describe("reading_order — noise tolerance & deduction transparency", () => {
     expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(100);
   });
 
-  it("explains the point deduction when fidelity is below the 100 threshold", () => {
+  it("explains the advisory when fidelity is below the 100 threshold", () => {
     const struct = range(20);
     const stream = withSwaps(struct, [[10, 11]]); // 19/20 = 95% → below 100
     const { qpdf, pdfjs } = build(struct, stream);
     const cat = findCategory(scoreDocument(qpdf, pdfjs), "reading_order");
-    expect(cat.score).not.toBe(100);
-    expect(cat.findings.some((f) => /reading order scored/i.test(f))).toBe(true);
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /Advisory — not scored:.*agreed with/i.test(f))).toBe(true);
   });
 
   it("does not contradict itself by claiming it cannot compare order when it just did", () => {
@@ -2489,23 +2517,23 @@ describe("reading_order — noise tolerance & deduction transparency", () => {
     expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(100);
   });
 
-  it("keeps the legacy deduction when the figure census is absent (old stored payloads)", () => {
+  it("keeps the legacy advisory when the figure census is absent (old stored payloads)", () => {
     const text = range(27);
     const struct = [41, ...text];
     const stream = [...text, 41];
     const { qpdf, pdfjs } = build(struct, stream);
     // No figureMcidsByPage — the pre-v1.81.0 stored-payload shape.
-    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(90);
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(100);
   });
 
-  it("still deducts for displaced TEXT even when figures are excluded", () => {
+  it("still reports displaced TEXT as an advisory even when figures are excluded", () => {
     const text = range(20);
     const struct = [41, ...text];
     const stream = [...withSwaps(text, [[10, 11]]), 41]; // real text swap + moved figure
     const { qpdf, pdfjs } = build(struct, stream);
     qpdf.figureMcidsByPage = { 1: [41] };
     // Figure excluded; the text swap alone is 19/20 = 95% → below the band.
-    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(90);
+    expect(findCategory(scoreDocument(qpdf, pdfjs), "reading_order").score).toBe(100);
   });
 });
 
@@ -2729,7 +2757,7 @@ describe("multiple H1s are advisory, not scored", () => {
     expect(cat.findings.some((f) => f.includes("6 H1 headings"))).toBe(true);
   });
 
-  it("hierarchy skips still score 60, and multiple H1s no longer compound to 55", () => {
+  it("hierarchy skips are PDF/UA-only advisories, and multiple H1s never compound", () => {
     // The skip penalty keeps its technique basis (G141); the H1 count no
     // longer stacks a second penalty on top.
     const qpdf = makeQpdf({
@@ -2739,7 +2767,9 @@ describe("multiple H1s are advisory, not scored", () => {
         { level: "H1", tag: "/H1" },
       ],
     });
-    expect(findCategory(scoreDocument(qpdf, makePdfjs()), "heading_structure").score).toBe(60);
+    const cat = findCategory(scoreDocument(qpdf, makePdfjs()), "heading_structure");
+    expect(cat.score).toBe(100);
+    expect(cat.findings.some((f) => /PDF\/UA only — not scored:.*gaps/i.test(f))).toBe(true);
   });
 });
 
@@ -2804,16 +2834,18 @@ describe("single-column tables are layout, not data", () => {
 });
 
 describe("bookmarks framing — best practice, not a WCAG requirement", () => {
-  it("missing bookmarks on a long PDF keeps its score but stops citing 2.4.5 as the rule", () => {
+  it("missing bookmarks on a long PDF: 100 with an advisory, never citing 2.4.5 as the rule", () => {
     // 2.4.5 Multiple Ways is scoped to a SET of web pages; no criterion
     // requires bookmarks inside a single document. Acrobat's own checker
     // flags them on long documents, which is the honest precedent to cite.
     const qpdf = makeQpdf({ hasStructTree: true, paragraphCount: 30 });
     const pdfjs = makePdfjs({ pageCount: 40, hasText: true, textLength: 9000 });
     const cat = findCategory(scoreDocument(qpdf, pdfjs), "bookmarks");
-    expect(cat.score).toBe(45);
+    expect(cat.score).toBe(100);
     expect(cat.findings.some((f) => f.includes("map to WCAG 2.4.5"))).toBe(false);
-    expect(cat.findings.some((f) => /no WCAG criterion strictly requires/i.test(f))).toBe(true);
+    expect(cat.findings.some((f) => /no WCAG 2\.1 criterion requires bookmarks/i.test(f))).toBe(
+      true,
+    );
     expect(cat.findings.some((f) => /Acrobat/.test(f))).toBe(true);
   });
 });

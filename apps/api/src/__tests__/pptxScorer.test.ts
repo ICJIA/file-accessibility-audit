@@ -64,7 +64,7 @@ describe("scorePptx", () => {
     expect(ids).not.toContain("bookmarks");
   });
 
-  it("slide_titles scores proportionally (floor 40 / cap 85) and deducts duplicates", () => {
+  it("slide_titles reports untitled and duplicate slides as advisories at 100", () => {
     const r = scorePptx(
       baseAnalysis({
         slides: [
@@ -76,12 +76,13 @@ describe("scorePptx", () => {
     );
     const cat = r.categories.find((c) => c.id === "slide_titles")!;
     // 2 of 3 titled → clamp(67, 40..85) = 67, minus 10 for one duplicate group.
-    expect(cat.score).toBe(57);
-    expect(cat.findings.join(" ")).toContain("Slide 1");
+    expect(cat.score).toBe(100); // untitled + duplicate titles advise, never score
+    expect(cat.findings.join(" ")).toContain("slide 1");
+    expect(cat.findings.join(" ")).toMatch(/Advisory — not scored:/);
     expect(cat.findings.join(" ")).toContain('"Update"');
   });
 
-  it("slide_titles: a large mostly-titled deck is Minor, not zero", () => {
+  it("slide_titles: a large mostly-titled deck is 100 with advisories", () => {
     const slides = Array.from({ length: 100 }, (_, i) => ({
       index: i + 1,
       title: i < 95 ? `Topic ${i + 1}` : null,
@@ -90,7 +91,7 @@ describe("scorePptx", () => {
     }));
     const r = scorePptx(baseAnalysis({ slides }));
     // 95% titled — the old linear −20/slide scored this 0/Critical.
-    expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(85);
+    expect(r.categories.find((c) => c.id === "slide_titles")!.score).toBe(100);
   });
 
   it("hidden slides are excluded from slide-title judgment", () => {

@@ -3,11 +3,11 @@
   "note": "Golden scores for the control corpus. Regenerate ONLY deliberately, in the same commit as the scoring change that moves them: pnpm score-ledger --bless",
   "entries": {
     "2009 MV Annual Report.pdf": {
-      "score": 40,
+      "score": 43,
       "grade": "F",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "35|Critical",
+        "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "0|Critical",
         "bookmarks": "100|No issues found",
@@ -26,7 +26,7 @@
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
         "alt_text": "50|Moderate",
-        "bookmarks": "45|Moderate",
+        "bookmarks": "100|No issues found",
         "table_markup": "75|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
@@ -62,7 +62,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "90|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -102,8 +102,8 @@
       }
     },
     "ARIFactSheet-SFY26-20260427T20572257.pdf": {
-      "score": 59,
-      "grade": "F",
+      "score": 63,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
@@ -113,12 +113,12 @@
         "table_markup": "90|Minor",
         "color_contrast": "null|none",
         "link_quality": "0|Critical",
-        "reading_order": "65|Moderate",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "COVID arrests PDF to post on web-210305T17262965.pdf": {
-      "score": 67,
+      "score": 69,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
@@ -129,7 +129,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "85|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -214,7 +214,7 @@
       }
     },
     "FINAL REPORT PDF FOR POSTING-230207T16344430.pdf": {
-      "score": 68,
+      "score": 69,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
@@ -225,7 +225,7 @@
         "table_markup": "85|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "90|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -241,23 +241,23 @@
         "table_markup": "45|Moderate",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "85|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "FY_22_ICJIA_Annual_Report_7c7ba4f4f0.pdf": {
-      "score": 53,
+      "score": 57,
       "grade": "F",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "0|Critical",
-        "bookmarks": "45|Moderate",
+        "bookmarks": "100|No issues found",
         "table_markup": "45|Moderate",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "85|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -289,7 +289,7 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "85|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -299,7 +299,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "heading_structure": "85|Minor",
+        "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "100|No issues found",
@@ -358,18 +358,18 @@
       }
     },
     "Juvenile Justice System and Risk Factor Data 2007 Annual Report.pdf": {
-      "score": 57,
-      "grade": "F",
+      "score": 67,
+      "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "0|Critical",
-        "heading_structure": "40|Moderate",
+        "heading_structure": "100|No issues found",
         "alt_text": "2|Critical",
         "bookmarks": "100|No issues found",
         "table_markup": "70|Minor",
         "color_contrast": "null|none",
         "link_quality": "100|No issues found",
-        "reading_order": "90|Minor",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -679,7 +679,7 @@
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
-        "slide_titles": "80|Minor",
+        "slide_titles": "100|No issues found",
         "alt_text": "85|Minor",
         "reading_order": "100|No issues found",
         "table_markup": "null|none",
@@ -710,7 +710,7 @@
       "grade": "F",
       "categories": {
         "text_extractability": "0|Critical",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -726,7 +726,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "33|Critical",
         "bookmarks": "null|none",
@@ -738,27 +738,27 @@
       }
     },
     "synthetic-04-gibberish-lang.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 89,
+      "grade": "B",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "60|Moderate",
+        "title_language": "75|Minor",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-05-tag-cycle.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -770,11 +770,11 @@
       }
     },
     "synthetic-06-sixty-deep.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -786,12 +786,12 @@
       }
     },
     "synthetic-07-paragraphs-as-headings.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
-        "heading_structure": "40|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -806,7 +806,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "25|Critical",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -818,15 +818,15 @@
       }
     },
     "synthetic-09-empty-table.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
-        "table_markup": "15|Critical",
+        "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "null|none",
@@ -834,11 +834,11 @@
       }
     },
     "synthetic-10-orphan-decoy.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -994,12 +994,12 @@
       }
     },
     "synthetic-109-pptx-untitled-slides.pptx": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "slide_titles": "40|Moderate",
+        "slide_titles": "100|No issues found",
         "alt_text": "null|none",
         "reading_order": "null|none",
         "table_markup": "null|none",
@@ -1010,18 +1010,18 @@
       }
     },
     "synthetic-11-untagged-text.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 89,
+      "grade": "B",
       "categories": {
         "text_extractability": "85|Minor",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -1074,12 +1074,12 @@
       }
     },
     "synthetic-113-xlsx-default-sheet-names.xlsx": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "100|No issues found",
-        "sheet_names": "40|Moderate",
+        "sheet_names": "100|No issues found",
         "table_markup": "null|none",
         "alt_text": "null|none",
         "color_contrast": "null|none",
@@ -1180,11 +1180,11 @@
       }
     },
     "synthetic-12-hostile-strings.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -1268,7 +1268,7 @@
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
-        "table_markup": "100|No issues found",
+        "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
@@ -1280,7 +1280,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1292,11 +1292,11 @@
       }
     },
     "synthetic-14-indesign-rolemap.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1312,7 +1312,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1328,23 +1328,23 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "0|Critical"
       }
     },
     "synthetic-17-form-labeled.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1360,7 +1360,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -1372,12 +1372,12 @@
       }
     },
     "synthetic-19-skipped-heading-levels.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
-        "heading_structure": "60|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1388,12 +1388,12 @@
       }
     },
     "synthetic-20-generic-h-only.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
-        "heading_structure": "40|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1404,12 +1404,12 @@
       }
     },
     "synthetic-21-mixed-h-conventions.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
-        "heading_structure": "60|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1420,8 +1420,8 @@
       }
     },
     "synthetic-22-filename-title.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 89,
+      "grade": "B",
       "categories": {
         "text_extractability": "100|No issues found",
         "title_language": "75|Minor",
@@ -1431,23 +1431,23 @@
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-23-title-display-off.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -1468,11 +1468,11 @@
       }
     },
     "synthetic-25-fake-bullet-list.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1484,11 +1484,11 @@
       }
     },
     "synthetic-26-nested-table.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1504,7 +1504,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1516,11 +1516,11 @@
       }
     },
     "synthetic-28-link-bare-url.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1532,11 +1532,27 @@
       }
     },
     "synthetic-29-link-click-here.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-30-untagged-link.pdf": {
       "score": 69,
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1547,29 +1563,13 @@
         "form_accessibility": "null|none"
       }
     },
-    "synthetic-30-untagged-link.pdf": {
-      "score": 69,
-      "grade": "D",
-      "categories": {
-        "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
-        "heading_structure": "null|none",
-        "alt_text": "null|none",
-        "bookmarks": "null|none",
-        "table_markup": "null|none",
-        "color_contrast": "null|none",
-        "link_quality": "0|Critical",
-        "reading_order": "30|Critical",
-        "form_accessibility": "null|none"
-      }
-    },
     "synthetic-31-empty-headings.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
-        "heading_structure": "40|Moderate",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
@@ -1580,11 +1580,11 @@
       }
     },
     "synthetic-32-note-without-id.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1596,34 +1596,34 @@
       }
     },
     "synthetic-33-unnamed-layer.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-34-rolemap-circular.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -1632,55 +1632,55 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-36-javascript-action.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-37-no-tab-order.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-38-actualtext-figure.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -1692,18 +1692,18 @@
       }
     },
     "synthetic-39-artifact-decoration.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "30|Critical",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -1728,10 +1728,10 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
-        "bookmarks": "45|Moderate",
+        "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -1744,7 +1744,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "100|No issues found",
@@ -1756,11 +1756,11 @@
       }
     },
     "synthetic-43-cover-sheet.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1776,7 +1776,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -1788,11 +1788,11 @@
       }
     },
     "synthetic-45-rotated-pages.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1804,11 +1804,11 @@
       }
     },
     "synthetic-46-link-good-twin.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -1824,7 +1824,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -1836,11 +1836,11 @@
       }
     },
     "synthetic-48-formula-good-twin.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -1856,11 +1856,11 @@
       "grade": "D",
       "categories": {
         "text_extractability": "85|Minor",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
-        "table_markup": "45|Moderate",
+        "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "100|No issues found",
@@ -1884,11 +1884,11 @@
       }
     },
     "synthetic-51-canva-flat-poster.pdf": {
-      "score": 63,
+      "score": 65,
       "grade": "D",
       "categories": {
         "text_extractability": "50|Moderate",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -1920,7 +1920,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "7|Critical",
         "bookmarks": "null|none",
@@ -1952,7 +1952,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -1964,27 +1964,27 @@
       }
     },
     "synthetic-56-canva-mixed-links.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
-        "link_quality": "66|Moderate",
+        "link_quality": "100|No issues found",
         "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
     "synthetic-57-canva-no-language.pdf": {
-      "score": 69,
-      "grade": "D",
+      "score": 79,
+      "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "35|Critical",
+        "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2012,11 +2012,11 @@
       }
     },
     "synthetic-59-canva-decorated-heading.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2032,7 +2032,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2048,7 +2048,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "50|Moderate",
         "bookmarks": "null|none",
@@ -2064,7 +2064,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2080,7 +2080,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2092,11 +2092,11 @@
       }
     },
     "synthetic-64-canva-h1-forest.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2112,10 +2112,10 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
-        "bookmarks": "45|Moderate",
+        "bookmarks": "100|No issues found",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
@@ -2140,11 +2140,11 @@
       }
     },
     "synthetic-67-canva-emoticon-alt.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2188,11 +2188,11 @@
       }
     },
     "synthetic-70-indesign-rolemap-styles.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2204,11 +2204,11 @@
       }
     },
     "synthetic-71-indesign-unmapped-tag.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2224,7 +2224,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2252,11 +2252,11 @@
       }
     },
     "synthetic-74-indesign-toc-unlinked.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2268,11 +2268,11 @@
       }
     },
     "synthetic-75-indesign-toc-linked.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2288,7 +2288,7 @@
       "grade": "C",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2300,18 +2300,18 @@
       }
     },
     "synthetic-77-indesign-threaded-reverse.pdf": {
-      "score": 79,
-      "grade": "C",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
         "table_markup": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
-        "reading_order": "65|Moderate",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },
@@ -2336,7 +2336,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2348,11 +2348,11 @@
       }
     },
     "synthetic-80-indesign-figure-caption.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2364,11 +2364,11 @@
       }
     },
     "synthetic-81-indesign-span-explosion.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2380,11 +2380,11 @@
       }
     },
     "synthetic-82-indesign-empty-frames.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2412,11 +2412,11 @@
       }
     },
     "synthetic-84-indesign-form-xobject-text.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2428,11 +2428,11 @@
       }
     },
     "synthetic-85-indesign-soft-hyphens.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2464,7 +2464,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",
@@ -2476,11 +2476,11 @@
       }
     },
     "synthetic-88-word-whitespace-table.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2492,11 +2492,11 @@
       }
     },
     "synthetic-89-word-boilerplate-alt.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "100|No issues found",
         "bookmarks": "null|none",
@@ -2508,11 +2508,11 @@
       }
     },
     "synthetic-90-word-empty-spacers.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2524,11 +2524,11 @@
       }
     },
     "synthetic-91-word-track-changes.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2556,11 +2556,11 @@
       }
     },
     "synthetic-93-word-fake-and-real-list.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2572,11 +2572,11 @@
       }
     },
     "synthetic-94-word-merged-cells.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "null|none",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2588,11 +2588,11 @@
       }
     },
     "synthetic-95-word-info-title-only.pdf": {
-      "score": 89,
-      "grade": "B",
+      "score": 100,
+      "grade": "A",
       "categories": {
         "text_extractability": "100|No issues found",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "null|none",
         "bookmarks": "null|none",
@@ -2640,7 +2640,7 @@
       "grade": "D",
       "categories": {
         "text_extractability": "85|Minor",
-        "title_language": "85|Minor",
+        "title_language": "100|No issues found",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
         "bookmarks": "null|none",

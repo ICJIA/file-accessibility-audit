@@ -67,7 +67,7 @@ describe("xlsx integration: inaccessible workbook", () => {
     // ≤50 (was ≤35): the v1.36.0 equity recalibration scores a missing title
     // 50 like every other format and stopped deducting for merged cells —
     // the verdict below still fails on all four confirmed criteria.
-    expect(r.overallScore).toBeLessThanOrEqual(50);
+    expect(r.overallScore).toBeLessThanOrEqual(65); // sheet-name deductions are advisory since the legal-only sweep
     expect(r.conformance.status).toBe("fail");
     expect(r.conformance.failures.map((f) => f.sc)).toEqual(
       expect.arrayContaining(["1.1.1", "2.4.2", "1.3.1", "1.4.3"]),

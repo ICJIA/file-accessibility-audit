@@ -353,7 +353,12 @@ describe("conformance gate — structure tree present but empty", () => {
       makePdfjs({ textLength: 9948 }),
       cleanCategories,
     );
-    expect(v.failures.some((x: any) => x.sc === "1.3.1")).toBe(false);
+    // Narrowed to the rule under test (the empty-tree claim): a fixture with
+    // 80 paragraphs and zero headings legitimately fails 1.3.1 for MISSING
+    // HEADINGS since the legal-only sweep — that is a different rule.
+    expect(
+      v.failures.some((x: any) => x.sc === "1.3.1" && x.category === "text_extractability"),
+    ).toBe(false);
   });
 
   it("does not fire when the tree carries only figures (no paragraphs, no MCIDs)", async () => {

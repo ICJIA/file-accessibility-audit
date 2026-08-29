@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "legal-only-scoring-2026-08-29",
+    badge: "Changed",
+    text: "Scores now measure WCAG 2.1 — and nothing else. Every check in the scoring engine was audited against one rule: a deduction must correspond to a failing WCAG 2.1 A/AA criterion the report can name, or it may not touch your grade. Fifteen checks that measured best practices rather than the law — bookmarks, reading-order heuristics, heading-level conventions, link wording, slide titles, sheet names, and more — now appear as clearly labelled advisories that never affect the score, while confirmed legal failures gained explicit citations they were missing (untagged content, missing headings in long documents, wrong or unusable language declarations, filename-as-title). Most documents will score the same or higher on re-analysis; none score lower. A new automated gate re-verifies the rule on every change: every point lost must name the law it broke.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "earned-required-chips-2026-08-29",
     badge: "Changed",
     text: "The action plan's labels now match the verdict's arithmetic. A report could say '3 criteria failing' while showing five fix steps, every one stamped 'Required by WCAG 2.1' — confusing, and for some steps wrong: bookmarks on a long document and the reading-order signal raise your score and genuinely help readers, but they are not WCAG 2.1 criterion failures. Now the REQUIRED label is earned — it appears only on steps whose category actually produced a failing criterion — the rest say RECOMMENDED, and the plan's opening line does the math for you: '3 of the 5 clear WCAG 2.1 criterion failures; the other 2 are recommended.' The summary also now guarantees in writing that nothing beyond WCAG 2.1 A/AA is counted — not the criteria WCAG 2.2 added, not PDF/UA — and tests enforce it.",

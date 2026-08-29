@@ -80,6 +80,15 @@ jobs:
       - name: Score ledger (no score moves unblessed)
         run: pnpm score-ledger
 
+      # The legal-basis gate (2026-08-29, the legal-only sweep): only WCAG
+      # 2.1 A/AA may move a score. Every scored category sitting below 100
+      # must have at least one failing WCAG criterion attributed to it in
+      # the conformance verdict — a deduction the report itself cannot tie
+      # to the law fails the build. This is the SiteImprove failure mode
+      # caught mechanically, forever.
+      - name: Legal basis (every point lost names the law it broke)
+        run: pnpm legal-basis
+
       # Byte layout must never change a grade: every trap is rewritten by
       # qpdf (new object order, new xref) and must grade identically, digit
       # for digit. Plus determinism: sentinel traps audited 5x (2 serial +

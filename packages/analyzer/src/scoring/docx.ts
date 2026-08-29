@@ -160,10 +160,13 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
   const findings: string[] = [];
   if (total > 0) {
     findings.push(`${total} real heading(s) found.`);
+    // NOT SCORED (2026-08-29, the legal-only sweep): starting below Heading 1
+    // and skipping levels are best practices (W3C's own guidance says skipped
+    // levels are not a WCAG failure), so they may not move the grade. The
+    // headings exist and are programmatic — 1.3.1 is satisfied.
     if (a.headings[0].level !== 1) {
-      score -= 15;
       findings.push(
-        `The first heading is Heading ${a.headings[0].level}, not Heading 1. Start the outline at Heading 1.`,
+        `Advisory — not scored: the first heading is Heading ${a.headings[0].level}, not Heading 1 — your grade is not affected, but starting the outline at Heading 1 gives it a single root.`,
       );
     }
     let skips = 0;
@@ -171,11 +174,8 @@ function scoreDocxHeadings(a: DocxAnalysis): CategoryResult {
       if (a.headings[i].level - a.headings[i - 1].level > 1) skips++;
     }
     if (skips > 0) {
-      // Capped: a long document with a recurring template quirk should read
-      // as "one systematic issue", not saturate the category to zero.
-      score -= Math.min(30, skips * 15);
       findings.push(
-        `${skips} place(s) skip a heading level (e.g. Heading 1 → Heading 3). Don't skip levels — screen-reader users infer structure from them.`,
+        `Advisory — not scored: ${skips} place(s) skip a heading level (e.g. Heading 1 → Heading 3) — not a WCAG 2.1 failure, so your grade is not affected, but screen-reader users may wonder what they missed at the skipped level.`,
       );
     }
   }
@@ -271,14 +271,21 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
     );
   }
   const perTable = a.tables.map((t) => {
-    const isData = t.rowCount >= 2 && t.colCount >= 2;
-    let s = !isData ? 100 : t.hasHeaderRow ? 100 : 30;
-    if (t.hasNestedTable) s = Math.min(s, 60);
+    // Mirrors the conformance gate's rule 4 EXACTLY (2026-08-29, the
+    // legal-only sweep): a bare grid with no table style, borders, shading,
+    // or header marks anywhere (looksLikeLayout) is overwhelmingly a layout
+    // construct — the gate has never asserted 1.3.1 on it, and the score
+    // now follows the same rule the gate does.
+    const isData = t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true;
+    const s = !isData ? 100 : t.hasHeaderRow ? 100 : 30;
     return s;
   });
   const score = Math.round(perTable.reduce((x, y) => x + y, 0) / perTable.length);
   const noHeader = a.tables.filter(
-    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2,
+    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout !== true,
+  ).length;
+  const layoutish = a.tables.filter(
+    (t) => !t.hasHeaderRow && t.rowCount >= 2 && t.colCount >= 2 && t.looksLikeLayout === true,
   ).length;
   const findings = [`${a.tables.length} table(s) found.`];
   if (noHeader > 0) {
@@ -286,9 +293,16 @@ function scoreDocxTables(a: DocxAnalysis): CategoryResult {
       `${noHeader} data table(s) have no header row. In Word: select the top row → Table Layout → Repeat Header Rows.`,
     );
   }
+  if (layoutish > 0) {
+    findings.push(
+      `Advisory — not scored: ${layoutish} bare grid(s) with no table style, borders, shading, or header marks anywhere — overwhelmingly a layout construct, so no header row is demanded and your grade is not affected. If it IS a data table, mark its header row (Table Layout → Repeat Header Rows) and give it a table style.`,
+    );
+  }
+  // Nested tables: reported, never scored (2026-08-29 — same rule as the
+  // PDF path since v1.131.0: properly built nesting is still determinable).
   if (a.tables.some((t) => t.hasNestedTable)) {
     findings.push(
-      "Nested tables were found — these are hard for screen readers to navigate. Flatten them where possible.",
+      "Advisory — not scored: nested tables were found — your grade is not affected, but they are hard for screen readers to navigate. Flatten them where possible.",
     );
   }
   const mergedTotal = a.tables.reduce((sum, t) => sum + (t.mergedCellCount ?? 0), 0);

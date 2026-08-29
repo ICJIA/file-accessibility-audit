@@ -88,7 +88,7 @@ describe("scoreDocx", () => {
     expect(r.overallScore).toBeGreaterThanOrEqual(90);
   });
 
-  it("caps the heading-skip deduction so many skips do not zero the category", () => {
+  it("heading skips advise at 100 — never scored (legal-only sweep)", () => {
     const r = scoreDocx(
       analysis({
         headings: [
@@ -103,7 +103,7 @@ describe("scoreDocx", () => {
       }),
     );
     // 4 skips × 15 = 60 uncapped; capped at 30 → 70.
-    expect(r.categories.find((c) => c.id === "heading_structure")!.score).toBe(70);
+    expect(r.categories.find((c) => c.id === "heading_structure")!.score).toBe(100); // skips advise
   });
 
   it("counts Title-only images as missing alt with a targeted advisory", () => {

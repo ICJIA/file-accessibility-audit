@@ -322,20 +322,20 @@ describe("title_language — /Lang value shape (Matterhorn 11)", () => {
     const cat = findCategory(result, "title_language");
     // Title present but DisplayDocTitle unset → 35; language declared but
     // unusable → 25.
-    expect(cat.score).toBe(60);
+    expect(cat.score).toBe(75); // 25 lang (unusable) + 50 title (DDT is PDF/UA-only now)
     expect(cat.findings.some((f) => f.includes("not a usable language code"))).toBe(true);
   });
 
   it('gives full language credit to a normal code ("en-US")', () => {
     const qpdf = makeQpdf({ hasLang: true, lang: "en-US", hasStructTree: true });
     const result = scoreDocument(qpdf, makePdfjs({ title: "T" }));
-    expect(findCategory(result, "title_language").score).toBe(85);
+    expect(findCategory(result, "title_language").score).toBe(100);
   });
 
-  it("never asserts a 3.1.1 conformance failure for an unusable value — a declaration exists", () => {
+  it("asserts 3.1.1 for an unusable value — a broken declaration determines nothing (legal-only sweep)", () => {
     const qpdf = makeQpdf({ hasLang: true, lang: "english", hasStructTree: true });
     const result = scoreDocument(qpdf, makePdfjs({ title: "T" }));
-    expect(result.conformance.failures.some((f) => f.sc === "3.1.1")).toBe(false);
+    expect(result.conformance.failures.some((f) => f.sc === "3.1.1")).toBe(true);
   });
 });
 

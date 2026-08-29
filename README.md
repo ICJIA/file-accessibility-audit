@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.136.0 — 2026-08-29 · The legal-only scoring sweep: only WCAG 2.1 can move a score, and a CI gate proves it (scoring change)
+
+The user's ruling implemented in full: *the ONLY guidelines are ADA Title II, WCAG 2.1, and IITAA — everything else is worth identifying but must not affect the score.* Every deduction in all four scorers was audited against one bright line — **a deduction must correspond to a failing WCAG 2.1 A/AA criterion the report can name, or it may not move the grade**. Fifteen best-practice checks became labelled advisories (bookmarks, reading-order heuristics, heading conventions, link wording, DisplayDocTitle, slide titles, sheet names…); confirmed legal failures gained the explicit citations they were missing (missing headings 1.3.1, untagged content 1.3.1, wrong/unusable language 3.1.1, filename-as-title 2.4.2/F25, untagged links 1.3.1…). A new **`pnpm legal-basis` CI gate** re-verifies the rule on every build — *every point lost names the law it broke* — sabotage-verified, first run 164 violations, now zero across 167 documents. **183 ledger rows moved, all upward, none down**; prod sentinels untouched. **No new attack surface**: scoring rules, conformance attributions, one gate script, tests. Tests 3,000. Corpus 124.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.135.0 → v1.33.0) — click to expand</summary>
+
 ### v1.135.0 — 2026-08-29 · The REQUIRED chip is earned, not stamped (no new attack surface)
 
 A user-reported contradiction: a report saying **"3 criteria failing"** above five steps all chipped REQUIRED BY WCAG 2.1 — and for bookmarks the chip sat an inch above the step's own finding saying no criterion strictly requires them. The chip is now **earned**: it appears only on steps whose category produced a failing criterion in the conformance verdict (matched on the finding's own category field, never on shared SC numbers); other scored steps say **RECOMMENDED**, old reports without a verdict show no chip, and the plan's opening line reconciles the arithmetic ("3 of the 5 clear WCAG 2.1 criterion failures; the other 2 are recommended"). Verified against the report that surfaced it: exactly 3 + 2. Also removed the strip's "…and more" tail — it read as if the grade might include WCAG 2.2 extras (the SiteImprove failure mode); the line now guarantees *"Nothing beyond WCAG 2.1 A/AA is counted"*, and new `wcag21Purity` tests make that an invariant: the build fails if scoring or conformance ever cites a WCAG 2.2-only criterion. This makes the open bookmarks/reading-order scoring decision visible instead of contradictory. **No new attack surface**: label logic and copy, pinned by tests. Tests 3,000.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.134.0 → v1.33.0) — click to expand</summary>
 
 ### v1.134.0 — 2026-08-29 · Every veraPDF finding gets a two-route fix — source file or exported PDF (no new attack surface)
 

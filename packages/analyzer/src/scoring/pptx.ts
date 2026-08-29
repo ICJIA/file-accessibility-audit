@@ -140,34 +140,32 @@ function scorePptxSlideTitles(a: PptxAnalysis): CategoryResult {
   }
   const duplicateGroups = [...titleGroups.entries()].filter(([, idx]) => idx.length > 1);
 
-  // Proportional with a floor and cap — the old linear −20/slide scored a
-  // 100-slide deck with 95 titled slides (95% compliant) an identical 0 to
-  // an all-untitled deck. Ratio-based mirrors the alt-text convention; the
-  // cap keeps any untitled slide out of "No issues found", the floor keeps
-  // small decks from cratering on one miss.
-  let score =
-    untitled.length > 0
-      ? Math.max(
-          40,
-          Math.min(85, Math.round((100 * (visible.length - untitled.length)) / visible.length)),
-        )
-      : 100;
+  // NOT SCORED (2026-08-29, the legal-only sweep). This file's own
+  // conformance gate has always ruled that a missing slide title is "not a
+  // confirmed WCAG violation on its own" — a slide can carry its heading in
+  // a body placeholder — and the score must now follow the same rule the
+  // gate does. Reported loudly, counted never.
+  const score = 100;
   const findings: string[] = [];
 
   if (untitled.length > 0) {
     const nums = untitled.map((s) => s.index).join(", ");
     findings.push(
-      `Slide${untitled.length > 1 ? "s" : ""} ${nums} ${
+      `Advisory — not scored: slide${untitled.length > 1 ? "s" : ""} ${nums} ${
         untitled.length > 1 ? "have" : "has"
-      } no title. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder so every slide has one.`,
+      } no title placeholder — your grade is not affected (a slide can carry its heading in a body placeholder), but titled slides give screen-reader users a navigable outline. In PowerPoint: use the Outline view (View → Outline) or a layout with a title placeholder.`,
     );
   }
 
+  // NOT SCORED (2026-08-29, the legal-only sweep): whether two identically
+  // titled slides "describe their purpose" (2.4.6) is a judgment about the
+  // slides' content that no automated check can make — a deck can honestly
+  // have two "Q3 results" slides. Reported, never counted. Missing titles
+  // stay scored: that is structural absence, attributed as 1.3.1.
   if (duplicateGroups.length > 0) {
-    score -= Math.min(30, 10 * duplicateGroups.length);
     for (const [title, idx] of duplicateGroups) {
       findings.push(
-        `${idx.length} slides share the title "${title}". Give each slide a distinct, descriptive title so screen-reader users can tell them apart in the outline.`,
+        `Advisory — not scored: ${idx.length} slides share the title "${title}" — your grade is not affected, but a distinct, descriptive title on each slide lets screen-reader users tell them apart in the outline.`,
       );
     }
   }

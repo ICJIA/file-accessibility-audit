@@ -159,12 +159,16 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
     );
   }
   const defaultNamed = visible.filter((s) => s.defaultNamed);
+  // NOT SCORED (2026-08-29, the legal-only sweep): whether "Sheet1" fails
+  // 2.4.6 is a judgment about labels' descriptiveness, not a mechanical
+  // WCAG 2.1 failure — so default names may not move the grade. Reported,
+  // never counted.
   const findings =
     defaultNamed.length === 0
       ? [`All ${visible.length} visible sheet(s) have descriptive names.`]
       : defaultNamed.map(
           (s) =>
-            `Rename "${s.name}" to describe its contents — sheet names are the workbook's navigation.`,
+            `Advisory — not scored: rename "${s.name}" to describe its contents — your grade is not affected, but sheet names are the workbook's navigation and screen-reader users hear them when switching sheets.`,
         );
   const hiddenCount = a.sheets.length - visible.length;
   if (hiddenCount > 0) {
@@ -172,16 +176,7 @@ function scoreXlsxSheetNames(a: XlsxAnalysis): CategoryResult {
       `Note: ${hiddenCount} hidden sheet(s) were excluded from this audit — hidden sheets are not presented to any reader, so their content, images, and styles do not drive findings (v1.95.0 disclosure).`,
     );
   }
-  // Proportional with floor/cap (mirrors slide titles): the old −25 per
-  // sheet zeroed a 20-sheet workbook over 4 leftover names while barely
-  // touching a 2-sheet one.
-  const score =
-    defaultNamed.length === 0
-      ? 100
-      : Math.max(
-          40,
-          Math.min(85, Math.round((100 * (visible.length - defaultNamed.length)) / visible.length)),
-        );
+  const score = 100;
   return xlsxCategory(
     "sheet_names",
     "Sheet Names",
@@ -228,13 +223,13 @@ function scoreXlsxTableMarkup(a: XlsxAnalysis): CategoryResult {
     (s) => !s.hidden && s.usedRangeCellCount >= 12 && !s.hasDefinedTable && !s.hasPivot,
   );
   if (datafulWithoutTable && a.tables.length === 0) {
-    // No header semantics in the whole workbook — the format's stated
-    // fundamental. The old "Advisory: −10" both under-penalized it and broke
-    // the advisory-means-unscored promise; 60 (Moderate) reflects the config's
-    // own weighting of table structure.
-    score = Math.min(score, 60);
+    // NOT SCORED (2026-08-29, the legal-only sweep): whether a used range of
+    // ≥12 cells IS a data table is a heuristic — a sheet of calculations or
+    // a list is not one — so this cannot be a confirmed 1.3.1 failure and
+    // may not move the grade. (Defined tables WITHOUT a header row remain
+    // scored and attributed: that is mechanical.) Reported, never counted.
     findings.push(
-      "Worksheet data is laid out as plain cell ranges with no defined Excel Table anywhere, so screen readers cannot announce column headers while navigating. In Excel: select each data range → Insert → Table.",
+      "Advisory — not scored: worksheet data is laid out as plain cell ranges with no defined Excel Table anywhere — your grade is not affected (whether a range is a data table is a judgment a person has to make), but a defined Table lets screen readers announce column headers while navigating. In Excel: select each data range → Insert → Table.",
     );
   } else if (datafulWithoutTable) {
     findings.push(

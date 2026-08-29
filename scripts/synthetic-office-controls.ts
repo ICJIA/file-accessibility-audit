@@ -90,7 +90,12 @@ function docxTable(withHeader: boolean): string {
   const cell = (t: string) => `<w:tc><w:p><w:r><w:t>${t}</w:t></w:r></w:p></w:tc>`;
   const row = (cells: string[], header: boolean) =>
     `<w:tr>${header ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${cells.map(cell).join("")}</w:tr>`;
-  return `<w:tbl>${row(["Category", "Amount"], withHeader)}${row(["Training", "12,400"], false)}${row(["Outreach", "9,100"], false)}</w:tbl>`;
+  // tblBorders makes this a REAL data table to the analyzer: a bare grid
+  // with no style/borders/shading is classified looksLikeLayout and is
+  // (correctly) neither scored nor gated — which would defang trap 105.
+  const borders =
+    '<w:tblPr><w:tblBorders><w:top w:val="single"/><w:bottom w:val="single"/><w:insideH w:val="single"/><w:insideV w:val="single"/></w:tblBorders></w:tblPr>';
+  return `<w:tbl>${borders}${row(["Category", "Amount"], withHeader)}${row(["Training", "12,400"], false)}${row(["Outreach", "9,100"], false)}</w:tbl>`;
 }
 
 function pptx(slides: string[], opts: { title?: string | null } = {}): Promise<Buffer> {
@@ -309,12 +314,16 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-109-pptx-untitled-slides.pptx",
     truth:
-      "Two slides with no title placeholder at all — a screen-reader user hears 'slide 1, slide 2' and nothing else. Must be flagged.",
+      "Slides with no title placeholder. NOT a confirmed WCAG failure — a slide can carry its heading in a body placeholder, and this battery's own conformance gate has always declined to assert 1.3.1 here — so since the legal-only sweep (2026-08-29) it must score 100 while the advisory still names every untitled slide.",
     build: () => pptx([SLIDE_BODY(BODY_TEXT), SLIDE_BODY(BODY_TEXT)]),
     check: (r) => {
+      const t = allFindings(r);
+      if (!/Advisory — not scored:.*no title placeholder/is.test(t))
+        return "untitled slides not reported as advisory";
       const c = cat("slide_titles")(r);
-      if (!c || c.score === null) return "slide_titles unscored";
-      return c.score < 100 ? null : "untitled slides scored 100";
+      if (c && c.score !== null && c.score < 100)
+        return `untitled slides docked (${c.score}) — not a confirmed WCAG failure`;
+      return null;
     },
   },
   {
@@ -359,7 +368,7 @@ const SAMPLES: Sample[] = [
   {
     file: "synthetic-113-xlsx-default-sheet-names.xlsx",
     truth:
-      "A workbook still named 'Sheet1' and 'Sheet2' — the names screen-reader users navigate by were never set. Must be flagged.",
+      "Workbook keeping Excel's default sheet names. Whether 'Sheet1' fails 2.4.6 is a judgment about label quality, not a mechanical WCAG 2.1 failure — so since the legal-only sweep (2026-08-29) it must score 100 while the advisory still tells the author to rename every default-named sheet.",
     build: () =>
       xlsx([
         {
@@ -372,9 +381,13 @@ const SAMPLES: Sample[] = [
         { name: "Sheet2", rows: [["Notes"], ["See sheet one"]] },
       ]),
     check: (r) => {
+      const t = allFindings(r);
+      if (!/Advisory — not scored:.*rename "Sheet1"/is.test(t))
+        return "default sheet names not reported as advisory";
       const c = cat("sheet_names")(r);
-      if (!c || c.score === null) return "sheet_names unscored";
-      return c.score < 100 ? null : "'Sheet1' scored 100";
+      if (c && c.score !== null && c.score < 100)
+        return `default names docked (${c.score}) — label quality is not a WCAG 2.1 failure`;
+      return null;
     },
   },
   {

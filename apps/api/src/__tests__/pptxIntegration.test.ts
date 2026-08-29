@@ -64,7 +64,7 @@ describe("pptx integration: inaccessible deck", () => {
       ],
     });
     const r = await analyzeDocument(buf, "inaccessible.pptx");
-    expect(r.overallScore).toBeLessThanOrEqual(35);
+    expect(r.overallScore).toBeLessThanOrEqual(45); // slide-title deductions are advisory since the legal-only sweep
     expect(["F", "D", "D-"]).toContain(r.grade);
     expect(r.conformance.status).toBe("fail");
     const scs = r.conformance.failures.map((f) => f.sc);

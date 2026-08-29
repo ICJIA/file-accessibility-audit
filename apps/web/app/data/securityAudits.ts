@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.136.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: scores now measure WCAG 2.1 and nothing else. Most documents score the same or higher on re-analysis; none score lower.",
+    body: [
+      {
+        kind: "p",
+        html: "The standard this tool is accountable to is the one the law names: <strong>WCAG 2.1 A/AA, via ADA Title II and the Illinois IITAA</strong>. This release audited every check in the scoring engine — for PDF, Word, PowerPoint, and Excel — against a single rule: <strong>a deduction must correspond to a failing WCAG 2.1 criterion the report can name, or it may not touch your grade.</strong> Fifteen checks measured best practices rather than the law — bookmarks in long documents, reading-order estimates, heading-level conventions, link wording such as &ldquo;click here&rdquo;, slide titles, sheet names, and similar. All of them still appear in your report, clearly labelled <em>not scored</em>, and none of them affect your grade any more.",
+      },
+      {
+        kind: "p",
+        html: "The same audit worked in the other direction too: several genuine legal failures were being deducted without the report naming the criterion they break. They now carry explicit citations — a long document with no headings (WCAG 1.3.1), text painted outside the reading structure (1.3.1), a wrong or unusable language declaration (3.1.1), a filename standing in for the title (2.4.2), links assistive technology cannot reach (1.3.1). And a new automated gate re-verifies the whole rule on every code change: <strong>every point lost must name the law it broke</strong>, across all 167 test documents, or the build fails. The gate was deliberately sabotaged once to prove it fires.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: scoring rules, criterion attributions, one new verification script, and updated tests — 183 pinned document scores moved, <strong>every one upward, none down</strong>, and each movement was reviewed and re-approved through the locked score ledger in the same commit. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.135.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the plan&rsquo;s REQUIRED label is now earned per step, and the fix list explains its own arithmetic. Nothing new is received, sent, or stored.",
     body: [

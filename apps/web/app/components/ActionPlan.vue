@@ -55,27 +55,36 @@
                    subtitle reconciles the arithmetic. No conformance verdict
                    (old stored reports) → no chip: never assert what cannot
                    be verified. -->
+              <!-- Fixed-width slot so every row's chip starts at the same x —
+                   the chips, severity pills, and Show-how links each form a
+                   clean vertical column (user request 2026-08-29). -->
+              <span v-if="conformance" class="hidden sm:flex w-[168px] justify-end flex-shrink-0">
+                <span
+                  v-if="isRequiredStep(step)"
+                  data-testid="step-law-chip"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-error-red)]/40 text-[var(--status-error-red)]"
+                  >REQUIRED BY WCAG 2.1</span
+                >
+                <span
+                  v-else
+                  data-testid="step-reco-chip"
+                  class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-warning-yellow)]/40 text-[var(--status-warning-yellow)]"
+                  >RECOMMENDED</span
+                >
+              </span>
+              <span class="flex w-[92px] justify-end flex-shrink-0">
+                <span
+                  class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+                  :style="sevChipStyle(step.severity)"
+                  ><span aria-hidden="true">{{ sevIcon(step.severity) }}</span>
+                  {{ step.severity }}</span
+                >
+              </span>
               <span
-                v-if="conformance && isRequiredStep(step)"
-                data-testid="step-law-chip"
-                class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-error-red)]/40 text-[var(--status-error-red)] hidden sm:inline"
-                >REQUIRED BY WCAG 2.1</span
+                class="text-xs text-[var(--link)] whitespace-nowrap w-[72px] text-right flex-shrink-0"
+                data-export-exclude
+                >{{ openId === step.categoryId ? "Hide" : "Show how" }}</span
               >
-              <span
-                v-else-if="conformance"
-                data-testid="step-reco-chip"
-                class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-warning-yellow)]/40 text-[var(--status-warning-yellow)] hidden sm:inline"
-                >RECOMMENDED</span
-              >
-              <span
-                class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
-                :style="sevChipStyle(step.severity)"
-                ><span aria-hidden="true">{{ sevIcon(step.severity) }}</span>
-                {{ step.severity }}</span
-              >
-              <span class="text-xs text-[var(--link)] whitespace-nowrap" data-export-exclude>{{
-                openId === step.categoryId ? "Hide" : "Show how"
-              }}</span>
             </button>
 
             <div
@@ -211,15 +220,15 @@
         Above and beyond — not required by WCAG 2.1
         <span
           class="ml-2 align-middle text-[10px] font-bold px-2 py-0.5 rounded-full border border-sky-500/40 text-sky-400 whitespace-nowrap"
-          >PDF/UA BEST PRACTICE</span
+          >BEST PRACTICE — NOT SCORED</span
         >
       </h3>
       <p class="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
         WCAG 2.1 is what Illinois (IITAA) and federal law (ADA Title II) require, and it is all your
-        grade measures. PDF/UA (ISO 14289) is the PDF industry's own standard — a best practice, not
-        a legal requirement. Everything below is PDF/UA work:
+        grade measures. Everything below goes past that floor — PDF/UA (ISO 14289) rules, and best
+        practices like bookmarks, heading conventions, and navigation labels.
         <strong class="font-semibold text-[var(--text-secondary)]"
-          >none of it affected your grade.</strong
+          >None of it affected your grade.</strong
         >
       </p>
 

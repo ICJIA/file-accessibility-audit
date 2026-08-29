@@ -30,6 +30,8 @@ import type { PptxAnalysis } from "../pptxService.js";
 import type { XlsxAnalysis } from "../xlsxService.js";
 import type { CategoryResult } from "../scorer.js";
 import { computeReadingOrderFidelity } from "./readingOrderFidelity.js";
+import { detectLanguageMismatch, LANGUAGE_NAMES } from "../languagePlausibility.js";
+import { isPlausibleLanguageTag } from "./common.js";
 import { structTreeIsContentFree, untaggedContentImageCount } from "./common.js";
 import { WCAG_UNDERSTANDING_SLUGS } from "@file-audit/shared";
 import { WCAG, WCAG_22_NEW_AA } from "#config";
@@ -368,10 +370,21 @@ export function evaluateConformance(
   //     annotation exists and no structure element references it. The
   //     census is absent on stored reports from before it existed, so this
   //     never fires on them.
-  const untaggedLinks =
+  // Mirrors scoreLinkQuality exactly (2026-08-29): the per-link census is
+  //     the same signal the score uses, so the two can never disagree. The
+  //     old content-free-tree guard suppressed this on remediated documents
+  //     whose trees reference little content while their links still scored
+  //     0 unattributed (ILHEALS, caught by scripts/legal-basis.ts).
+  const perLinkUntagged =
+    qpdf.hasStructTree && (pdfjs.links ?? []).some((l) => typeof l.tagged === "boolean")
+      ? (pdfjs.links ?? []).filter((l) => l.tagged === false).length
+      : 0;
+  const untaggedLinks = Math.max(
+    perLinkUntagged,
     qpdf.hasStructTree && !structTreeIsContentFree(qpdf, pdfjs)
       ? (pdfjs.untaggedLinkAnnotationCount ?? 0)
-      : 0;
+      : 0,
+  );
   if (untaggedLinks > 0) {
     add(
       "1.3.1",
@@ -379,6 +392,195 @@ export function evaluateConformance(
       "A",
       "link_quality",
       `${untaggedLinks} link(s) are not tagged — the link annotation is on the page, but no <Link> structure element wraps it, so assistive technology following the tag tree cannot identify it as a link or reach it. Wrap each one in a <Link> tag (Acrobat: Tags panel → Options → Find → Unmarked Links → Tag Element) or, in Word, move the link out of the text box or shape into the main text before re-exporting.`,
+    );
+  }
+
+  // --- Rules 7c–7f + 5b, 6b, 9b (2026-08-29, the legal-only sweep) --------
+  // The user's ruling: only WCAG 2.1 A/AA may move a score. That forces the
+  // score and this verdict to agree EXACTLY — every deduction that survived
+  // the sweep must be attributable here, and scripts/legal-basis.ts fails
+  // the build when any scored category sits below 100 without a failure
+  // attributed to it. Each condition below MIRRORS its scoring branch;
+  // change them together or the gate goes red.
+
+  // 2b. Tagged content that yields NO extractable text at all (and no images
+  //     to explain it as a scan) — the tags promise content the text layer
+  //     cannot deliver. Mirrors scoreTextExtractability's
+  //     no-text-but-structured branch.
+  if (
+    !pdfjs.error &&
+    pdfjs.textLength === 0 &&
+    (pdfjs.imageCount ?? 0) === 0 &&
+    (qpdf.imageObjectCount ?? 0) === 0 &&
+    ((qpdf.tables ?? []).length > 0 ||
+      (qpdf.paragraphCount ?? 0) > 0 ||
+      (qpdf.headings ?? []).length > 0)
+  ) {
+    add(
+      "1.1.1",
+      "Non-text Content",
+      "A",
+      "text_extractability",
+      "The document carries a tag structure (paragraphs/tables/headings) but no text could be extracted from any of it — assistive technology receives structure with nothing inside.",
+    );
+  }
+
+  // 4b/4c. Language declared but unusable, or contradicting the text — a
+  //     screen reader follows the declaration, so both defeat pronunciation
+  //     exactly as a missing tag does; 3.1.1 requires the determined
+  //     language to BE the document's language. Mirrors
+  //     scoreTitleLanguage's hasLang/langValue/mismatch branches.
+  {
+    const hasLangC = qpdf.hasLang || !!pdfjs.lang;
+    const langValueC = (qpdf.lang || pdfjs.lang || "").trim();
+    if (hasLangC && !isPlausibleLanguageTag(langValueC)) {
+      add(
+        "3.1.1",
+        "Language of Page",
+        "A",
+        "title_language",
+        `The declared language "${langValueC}" is not a usable language code, so the document's language cannot be programmatically determined — screen readers fall back to their default pronunciation. Use a standard code such as "en-US".`,
+      );
+    } else if (hasLangC && isPlausibleLanguageTag(langValueC)) {
+      const mismatchC = detectLanguageMismatch(pdfjs.textSample ?? "", langValueC);
+      if (mismatchC) {
+        add(
+          "3.1.1",
+          "Language of Page",
+          "A",
+          "title_language",
+          `The document declares its language as "${langValueC}" but the text reads as ${LANGUAGE_NAMES[mismatchC.detected] ?? mismatchC.detected} (${mismatchC.detectedHits} common ${LANGUAGE_NAMES[mismatchC.detected] ?? mismatchC.detected} words vs ${mismatchC.declaredHits} in the declared language, of ${mismatchC.wordCount.toLocaleString()} sampled). The programmatically determined language is not the language of the text, so screen readers pronounce the entire document with the wrong rules.`,
+        );
+      }
+    }
+  }
+
+  // 5b. Title present but it is the filename / a tool string — WCAG's own
+  //     documented failure F25 for 2.4.2 (the title does not identify the
+  //     document). Mirrors scoreTitleLanguage's titleLooksLikeFilename
+  //     branch.
+  if (pdfjs.title && pdfjs.title.trim().length > 0 && pdfjs.titleLooksLikeFilename) {
+    add(
+      "2.4.2",
+      "Page Titled",
+      "A",
+      "title_language",
+      `The document's title ("${pdfjs.title}") looks like a filename or tool-generated string rather than a description — screen readers announce it as the document's name. WCAG failure F25: a title that does not identify the document's topic or purpose fails 2.4.2. Replace it with a descriptive title (Acrobat: Document properties → Description → Title).`,
+    );
+  }
+
+  // 6b. A substantive document with NO heading tags at all. Mirrors
+  //     scoreHeadingStructure's zero-headings branch (same `substantive`
+  //     expression): multi-page or paragraph-heavy documents visually carry
+  //     section headings, and zero <H1>–<H6> tags means that structure is
+  //     conveyed by presentation only — the textbook 1.3.1 failure, and the
+  //     one Acrobat's own checker reports as an error.
+  if (
+    (qpdf.headings ?? []).length === 0 &&
+    ((qpdf.totalPageCount ?? 0) >= 4 ||
+      (qpdf.paragraphCount ?? 0) >= 20 ||
+      (qpdf.outlineCount ?? 0) > 0)
+  ) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "heading_structure",
+      "A document of this length has no heading tags (H1–H6) in its structure, so its sections exist only visually — assistive technology receives no outline to navigate by. Tag the section titles as headings (Acrobat: Tags panel, or re-export from the source with heading styles).",
+    );
+  }
+
+  // 7c. Structural table defects beyond missing <TH>: rows not grouped in
+  //     <TR>, irregular column counts (after row/col-span accounting), or a
+  //     complex table (two-axis headers or spans) whose cells carry neither
+  //     /Scope nor /Headers. Mirrors scoreTableMarkup's row-structure,
+  //     consistency, and scoredAsAssociated blocks, including the
+  //     layout-scaffold guard ((columnCounts[0] ?? 2) >= 2).
+  {
+    const scoredTables = (qpdf.tables ?? []).filter((t) => ((t.columnCounts ?? [])[0] ?? 2) >= 2);
+    const noRows = scoredTables.filter((t) => !t.hasRowStructure).length;
+    const irregular = scoredTables.filter((t) => t.hasConsistentColumns === false).length;
+    const complexUnassociated = scoredTables.filter(
+      (t) => t.hasHeaders && !t.hasScope && !t.hasHeaderAssociation && !t.simpleHeaderLayout,
+    ).length;
+    const parts: string[] = [];
+    if (noRows > 0)
+      parts.push(`${noRows} table(s) lack <TR> row structure (cells sit directly under <Table>)`);
+    if (irregular > 0)
+      parts.push(
+        `${irregular} table(s) have irregular column counts even after row/column spans are accounted for, so the grid's shape is ambiguous`,
+      );
+    if (complexUnassociated > 0)
+      parts.push(
+        `${complexUnassociated} table(s) have headers along more than one edge (or spanned cells) with neither /Scope nor /Headers, so which header governs which cell cannot be determined`,
+      );
+    if (parts.length > 0) {
+      add(
+        "1.3.1",
+        "Info and Relationships",
+        "A",
+        "table_markup",
+        `Table structure is not programmatically determinable: ${parts.join("; ")}.`,
+      );
+    }
+  }
+
+  // 7d. Visible text painted OUTSIDE the tag structure — partial tagging.
+  //     Mirrors the Matterhorn 01 scoring bands exactly (share ≥ 2% and
+  //     ≥ 50 characters): those characters are in nobody's reading order and
+  //     not artifacts, which is mechanical and certain.
+  {
+    const untaggedChars = pdfjs.untaggedVisibleChars;
+    const taggedChars = pdfjs.taggedVisibleChars ?? 0;
+    if (
+      qpdf.hasStructTree &&
+      typeof untaggedChars === "number" &&
+      untaggedChars > 0 &&
+      untaggedChars / Math.max(1, untaggedChars + taggedChars) >= 0.02 &&
+      untaggedChars >= 50
+    ) {
+      add(
+        "1.3.1",
+        "Info and Relationships",
+        "A",
+        "text_extractability",
+        `${untaggedChars.toLocaleString()} visible character(s) are painted outside the tagged content — neither in the reading order nor marked as decorative artifacts — so a screen reader following the tags never encounters them.`,
+      );
+    }
+  }
+
+  // 7e. A meaningful share of the text layer cannot be mapped to readable
+  //     characters. Mirrors the Character Mapping failure band exactly
+  //     (≥ 100 characters and ≥ 5% of the text layer): whatever the tagging
+  //     says, that text cannot be read aloud or searched.
+  {
+    const unmappedChars = pdfjs.unmappedTextCharCount;
+    if (
+      typeof unmappedChars === "number" &&
+      unmappedChars >= 100 &&
+      unmappedChars / Math.max(1, pdfjs.textLength ?? 0) >= 0.05
+    ) {
+      add(
+        "1.1.1",
+        "Non-text Content",
+        "A",
+        "text_extractability",
+        `${unmappedChars.toLocaleString()} extracted character(s) cannot be mapped to readable text — the glyphs paint on screen but extract as private-use symbols a screen reader cannot pronounce.`,
+      );
+    }
+  }
+
+  // 9b. No structure tree = no programmatic reading sequence AT ALL — the
+  //     one reading-order condition that is mechanical and certain (the
+  //     fidelity comparison never asserts 1.3.2; see rule 9's rationale).
+  //     Mirrors scoreReadingOrder's !hasStructTree branch.
+  if (!qpdf.hasStructTree) {
+    add(
+      "1.3.2",
+      "Meaningful Sequence",
+      "A",
+      "reading_order",
+      "The document has no tag structure, so no programmatic reading sequence exists — screen readers fall back to raw drawing order, which may not match the visual layout at all.",
     );
   }
 
@@ -681,6 +883,33 @@ export function evaluateDocxConformance(analysis: DocxAnalysis): ConformanceVerd
       "A",
       "title_language",
       "The document has no title in its properties; a screen reader announces the filename instead. In Word: File → Info → Properties → Title.",
+    );
+  }
+
+  // 3b. Paragraphs styled to LOOK like headings without Heading styles —
+  //     WCAG's documented failure F2 for 1.3.1 (styling conveys structure
+  //     the markup does not). Mirrors scoreDocxHeadings' `fakes` deduction.
+  if (analysis.fakeHeadings.length > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "heading_structure",
+      `${analysis.fakeHeadings.length} paragraph(s) are formatted to look like headings (bold/large text) without a real Heading style — the visual structure is not programmatically determinable (WCAG failure F2). Apply Heading 1–6 styles.`,
+    );
+  }
+
+  // 3c. Manually typed bullets/numbers instead of Word's list formatting —
+  //     the list structure exists visually but not programmatically (1.3.1;
+  //     W3C technique H48 is the sufficient path). Mirrors the
+  //     manualBulletParagraphs deduction.
+  if (analysis.lists.manualBulletParagraphs > 0) {
+    add(
+      "1.3.1",
+      "Info and Relationships",
+      "A",
+      "list_structure",
+      `${analysis.lists.manualBulletParagraphs} paragraph(s) use typed bullets or numbers instead of Word's list formatting, so they are not announced as a list. Use the Bullets/Numbering buttons.`,
     );
   }
 

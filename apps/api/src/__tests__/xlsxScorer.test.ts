@@ -36,7 +36,7 @@ describe("XLSX config", () => {
     expect(r.categories.find((c) => c.id === "title_language")!.score).toBe(50);
   });
 
-  it("sheet_names scores proportionally with floor 40 / cap 85", () => {
+  it("sheet_names reports default names as advisories at 100", () => {
     const mk = (name: string, defaultNamed: boolean) => ({
       name,
       hidden: false,
@@ -53,10 +53,10 @@ describe("XLSX config", () => {
         ],
       }),
     );
-    expect(many.categories.find((c) => c.id === "sheet_names")!.score).toBe(80);
+    expect(many.categories.find((c) => c.id === "sheet_names")!.score).toBe(100);
 
     const single = scoreXlsx(baseAnalysis({ sheets: [mk("Sheet1", true)] }));
-    expect(single.categories.find((c) => c.id === "sheet_names")!.score).toBe(40);
+    expect(single.categories.find((c) => c.id === "sheet_names")!.score).toBe(100);
   });
 
   it("table_markup: merged cells are a note, not a deduction", () => {
@@ -79,7 +79,7 @@ describe("XLSX config", () => {
     expect(cat.findings.join(" ")).toContain("merged");
   });
 
-  it("table_markup caps at 60 when dataful sheets have no defined table at all", () => {
+  it("table_markup advises at 100 when dataful sheets have no defined table (heuristic)", () => {
     const r = scoreXlsx(
       baseAnalysis({
         tables: [],
@@ -96,8 +96,8 @@ describe("XLSX config", () => {
       }),
     );
     const cat = r.categories.find((c) => c.id === "table_markup")!;
-    expect(cat.score).toBe(60);
-    expect(cat.findings.join(" ")).not.toContain("Advisory");
+    expect(cat.score).toBe(100); // dataful-without-table is a heuristic — advisory
+    expect(cat.findings.join(" ")).toMatch(/Advisory — not scored:/);
   });
 
   it("text_extractability is not assessed when the workbook has no cell values", () => {
@@ -170,7 +170,7 @@ describe("scoreXlsx", () => {
     expect(ids).not.toContain("heading_structure");
   });
 
-  it("sheet_names penalizes default-named visible sheets only", () => {
+  it("sheet_names advises on default-named visible sheets only", () => {
     const r = scoreXlsx(
       baseAnalysis({
         sheets: [
@@ -194,7 +194,7 @@ describe("scoreXlsx", () => {
       }),
     );
     // Proportional now: the single visible sheet is default-named → floor 40.
-    expect(r.categories.find((c) => c.id === "sheet_names")!.score).toBe(40);
+    expect(r.categories.find((c) => c.id === "sheet_names")!.score).toBe(100); // advisory
   });
 
   it("link_quality judges resolved links and excludes unresolved ones from the denominator", () => {

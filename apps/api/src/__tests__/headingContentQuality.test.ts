@@ -42,7 +42,7 @@ function goodOutline(n: number) {
 }
 
 describe("headings that are not really headings", () => {
-  it("scores down an outline that is mostly empty, fragmentary, or whole paragraphs", () => {
+  it("reports an unusable outline as an advisory, never a deduction", () => {
     const outline = [
       ...goodOutline(5),
       { level: "H1", text: "Population d" },
@@ -59,7 +59,7 @@ describe("headings that are not really headings", () => {
     );
 
     // 6 empty + 5 fragments + 2 paragraphs = 13 of 18 tags.
-    expect(cat.score).toBeLessThanOrEqual(40);
+    expect(cat.score).toBe(100); // content quality advises, never scores (legal-only sweep)
     expect(cat.findings.join("\n")).toMatch(/Population d/);
   });
 
@@ -124,12 +124,12 @@ describe("headings that are not really headings", () => {
     expect(cat.score).toBe(100);
   });
 
-  it("takes the worse of a broken hierarchy and an unusable outline", () => {
+  it("broken hierarchy and unusable outline both advise at 100", () => {
     const cat = headingCategory(
       { headings: levels(1, 3, 1, 3, 1, 3, 1, 3, 1, 3) }, // H1 → H3 skips
       { headingOutline: goodOutline(2), headingsWithoutText: 8 },
     );
-    expect(cat.score).toBeLessThan(60);
+    expect(cat.score).toBe(100); // both signals are advisory now — neither is a confirmed failure
   });
 
   it("ignores headings from pages whose text could not be attributed", () => {

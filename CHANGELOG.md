@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.136.0] - 2026-08-29
+
+### Changed — the legal-only scoring sweep
+
+- **The user's ruling, implemented in full:** *"anything recommended should not (a) be a WCAG 2.1 requirement and (b) not impact the score… DoIT has made clear that the ONLY guidelines now are Title II ADA, WCAG 2.1, and IITAA — everything else is interesting and useful but should not impact a user's score."* Every deduction in every scorer (PDF, Word, PowerPoint, Excel) was audited against one bright line: **a deduction must correspond to a failing WCAG 2.1 A/AA criterion the conformance verdict can name, or it may not move the grade.**
+- **Unscored (now labelled advisories, loudly reported, never counted):** bookmarks on long PDFs; the reading-order fidelity heuristic at every band (completing the v1.107 form doctrine — "where the measurement cannot support a verdict, report it"); flat structure trees; heading-level skips, mixed `<H>`/`<Hn>` conventions, generic-`<H>`-only outlines, and heading content-quality judgments; `DisplayDocTitle` (PDF/UA 7.1, not 2.4.2); vague link wording ("click here" — 2.4.4 Level A explicitly allows purpose-from-context; judging text alone is 2.4.9, a AAA rule); the small unmapped-character band; docx heading skips and first-heading level; pptx untitled and duplicate slide titles (the pptx gate's own doctrine, now honored by the score); xlsx default sheet names and the dataful-without-table heuristic; docx nested tables and bare unstyled grids (mirroring the gate's layout-construct rule).
+- **Attributed (kept scored, given the legal citation they were missing):** a substantive document with zero heading tags (1.3.1); structural table defects — missing `<TR>` rows, irregular grids, complex two-axis tables without `/Scope`/`/Headers` (1.3.1); visible text painted outside the tag structure (1.3.1); unpronounceable text at the failure band (1.1.1); tagged structure yielding no extractable text (1.1.1); untagged documents' missing reading sequence (1.3.2); untagged links via the same per-link census the score uses (1.3.1); filename-as-title (2.4.2, WCAG's own failure F25); unusable or **wrong** language declarations (3.1.1 — a broken declaration determines nothing, and a wrong one determines the wrong thing); Word paragraphs styled as headings (1.3.1, failure F2) and typed bullets (1.3.1).
+- **A permanent CI gate enforces the rule**: `pnpm legal-basis` walks every control document and fails the build if any scored category sits below 100 without a failing WCAG criterion attributed to it — *every point lost names the law it broke*. Sabotage-verified (re-adding the bookmarks penalty turned it red on 4 documents). First run found 164 violations; the sweep ended at **zero across 167 documents**.
+- **183 ledger rows moved, all upward, none down** — real documents modestly (the 246-page Juvenile Justice report 57/F → 67/D; ARIFactSheet 59/F → 63/D), advisory-defect traps to 100/A. The three prod sentinels' overall scores are untouched. Blessed in this commit.
+- The plan's "Above and beyond" badge is now **BEST PRACTICE — NOT SCORED** (its contents are no longer only PDF/UA items), and the step chips, severity pills, and Show-how links align into clean vertical columns.
+
+### Notes
+
+- Trap truths updated for the nine policy flips (bookmarks ×2, heading trio ×3, content quality, one-row table, pptx titles, xlsx names); docx trap fixtures gained real table borders so the headerless-table trap still tests a data table. Corpus 124, tests 3,000 — every one green under the new policy.
+
+<details>
+<summary><strong>v1.135.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.135.0] - 2026-08-29
 
 ### Fixed
@@ -21,8 +39,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - This makes the standing open decision **visible instead of contradictory**: bookmarks and the reading-order signal still affect the score while not being criterion failures — the same class as the heading-technique items deliberately left scored in v1.131. Whether they should remain scored is still an open product decision, now labeled honestly in the meantime.
 - Tests 2,996 → **3,000**.
 
-<details>
-<summary><strong>v1.134.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.134.0] - 2026-08-29
 
