@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.127.0] - 2026-08-29
+
+### Added
+
+- **The independent referee's verdict now appears beside the finding it corroborates — in both report views.** veraPDF (published by the PDF Association; this project did not write a line of it) has always run beside the checker on every PDF report, but its verdict lived only in its own panel. A reader looking at a fix step and asking *"says who?"* now gets the strongest possible answer: not us. Where veraPDF independently failed the same point on **this** document, the step quotes **veraPDF's own words, its ISO 14289-1 clause, and its failed-check count**. Rendered in the visual action plan and in the detailed report's evidence cards, so the two views tell the same story.
+- **And where veraPDF is *stricter* than this checker, the report says so too** — a category that passed our checks but failed a PDF/UA rule belonging to it shows "veraPDF is stricter here than this checker", explicitly marked as **not counted in the score** (we never score from another tool's verdict). This is the more valuable half for documents that look clean: the DoIT reference set passes our link and font checks while failing veraPDF's link-description and font-embedding rules.
+- **Silence is never dressed up as agreement.** The block renders only when veraPDF actually ran *and* actually failed a point mapping to that category. No verdict, an unavailable verdict, a clean verdict, or an unmapped rule all render nothing at all — pinned by tests in both directions.
+
+### Notes
+
+- Mapping lives in `apps/web/app/components/pdfUaCategory.ts`, keyed on veraPDF's **description keywords, not clause numbers** — the same doctrine as the existing `pdfUaFixHint.ts`, because clause numbers drift across veraPDF versions while the English is stable. Deliberately conservative: a rule that does not map cleanly to one of our categories returns null and stays in veraPDF's own panel, because an over-eager mapping would put words in the referee's mouth.
+- Tests 2,952 → **2,962** (10 new: the mapping's conservatism, the confirmation case, the stricter case, and four silence cases across both views). Verified end to end by driving a browser through a real report — the DoIT reference document, where clause 7.5 now appears verbatim beneath the table fix.
+
+<details>
+<summary><strong>v1.126.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.126.0] - 2026-08-29
 
 ### Fixed
@@ -22,8 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 2,949 → **2,952**. This is the **fourth** author dispute and the score is now 2–2: twice the checker was right, twice the file was. None of the 115 existing traps caught this, because every one of them used only `/Column` and `/Row` — a blind spot in the test corpus, not just the code. The trust page's dispute tally is updated accordingly (three lost arguments, all fixed).
 
-<details>
-<summary><strong>v1.125.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.125.0] - 2026-08-29
 

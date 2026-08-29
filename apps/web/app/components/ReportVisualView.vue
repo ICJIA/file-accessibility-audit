@@ -44,6 +44,7 @@
       <ActionPlan
         :steps="planSteps"
         :conformance="result.conformance"
+        :pdf-ua-verdict="result.pdfUaVerdict"
         class="mb-6"
         @show-evidence="revealEvidence"
       />

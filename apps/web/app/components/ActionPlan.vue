@@ -58,6 +58,45 @@
             >
               <p class="text-xs text-[var(--text-muted)] mb-2">{{ step.why }}</p>
 
+              <!-- "Says who?" — answered by someone else. When veraPDF (the
+                   PDF Association's own validator, which this project did not
+                   write) failed the same defect on THIS document, its verdict
+                   is quoted verbatim: its words, its clause, its count. Absent
+                   entirely when veraPDF did not run or did not flag this — a
+                   silence that is never dressed up as agreement. -->
+              <div
+                v-if="veraByCategory[step.categoryId]?.length"
+                data-testid="pdfua-cosign"
+                class="mb-2 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2"
+              >
+                <p class="text-xs font-semibold text-[var(--text-heading)]">
+                  <span aria-hidden="true">⚖️</span> Independently confirmed &mdash; this is
+                  veraPDF&rsquo;s finding, not ours
+                </p>
+                <p class="text-xs text-[var(--text-muted)] mt-1">
+                  veraPDF is the PDF industry&rsquo;s own validator, built by the PDF Association
+                  and not by us. Run against this document, it failed the same point:
+                </p>
+                <ul class="mt-1.5 space-y-1">
+                  <li
+                    v-for="f in veraByCategory[step.categoryId]"
+                    :key="f.ruleId + '|' + f.clause"
+                    class="text-xs text-[var(--text-muted)]"
+                  >
+                    <span class="italic">&ldquo;{{ f.description }}&rdquo;</span>
+                    <span class="whitespace-nowrap">
+                      &mdash; ISO 14289-1, clause
+                      <span class="font-mono text-[var(--text)]">{{ f.clause }}</span>
+                      <template v-if="f.count"
+                        >, {{ f.count }} failed check<template v-if="f.count !== 1"
+                          >s</template
+                        ></template
+                      >
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
               <div
                 class="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2.5 space-y-2.5"
               >
@@ -138,13 +177,20 @@ import { computed, ref, watch } from "vue";
 // Theme-aware: the dark palette fails AA on the light theme. See useTokenColors.
 const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
+import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
 const props = defineProps<{
   steps: PlanStep[];
   conformance?: ConformanceVerdict | null;
+  /** The document's OWN veraPDF verdict. When it independently flagged the
+   *  same defect, the step says so in veraPDF's words — see pdfUaCategory.ts. */
+  pdfUaVerdict?: { available?: boolean; failures?: PdfUaFailureLike[] } | null;
 }>();
+
+// Grouped once per verdict, not per step render.
+const veraByCategory = computed(() => pdfUaFailuresByCategory(props.pdfUaVerdict));
 
 defineEmits<{ (e: "show-evidence", categoryId: string): void }>();
 

@@ -223,6 +223,48 @@
           {{ cat.explanation }}
         </p>
 
+        <div
+          v-if="veraByCategory[cat.id]?.length"
+          data-testid="pdfua-cosign"
+          class="mb-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3"
+        >
+          <p class="text-sm font-semibold text-[var(--text-heading)]">
+            <span aria-hidden="true">⚖️</span>
+            <template v-if="cat.severity">
+              Independently confirmed &mdash; this is veraPDF&rsquo;s finding, not ours
+            </template>
+            <template v-else> veraPDF is stricter here than this checker </template>
+          </p>
+          <p class="text-sm text-[var(--text-muted)] mt-1">
+            veraPDF is the PDF industry&rsquo;s own validator, published by the PDF Association and
+            not written by us.
+            <template v-if="cat.severity">
+              Run against this document, it failed the same point:
+            </template>
+            <template v-else>
+              This category passed our checks &mdash; but veraPDF still failed this document on a
+              PDF/UA rule that belongs here. It is <strong>not counted in the score above</strong>
+              (we never score from another tool&rsquo;s verdict), and it is worth knowing about:
+            </template>
+          </p>
+          <ul class="mt-2 space-y-1.5">
+            <li
+              v-for="f in veraByCategory[cat.id]"
+              :key="f.ruleId + '|' + f.clause"
+              class="text-sm text-[var(--text-muted)]"
+            >
+              <span class="italic">&ldquo;{{ f.description }}&rdquo;</span>
+              <span class="whitespace-nowrap">
+                &mdash; ISO 14289-1, clause
+                <span class="font-mono text-[var(--text)]">{{ f.clause }}</span>
+                <template v-if="f.count"
+                  >, {{ f.count }} failed check<template v-if="f.count !== 1">s</template></template
+                >
+              </span>
+            </li>
+          </ul>
+        </div>
+
         <ul class="space-y-1.5 max-h-[32rem] overflow-y-auto">
           <li
             v-for="(finding, i) in partitionCardFindings(cat.findings).main"
@@ -533,6 +575,7 @@ import { categoriesForScoringMode } from "~/utils/scoringProfiles";
 import { metadataItemsFor, sourceTieInLine } from "~/utils/documentMetadata";
 import { partitionCardFindings, isGuidanceFinding, isNeutralFinding } from "~/utils/findings";
 import { getWcagCriteria, getWcagMeta } from "~/utils/wcag";
+import { pdfUaFailuresByCategory } from "./pdfUaCategory";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import { useWcag } from "~/composables/useWcag";
 
@@ -546,6 +589,13 @@ import { useWcag } from "~/composables/useWcag";
  */
 interface ReportLike {
   categories: CategoryResult[];
+  /** veraPDF's own verdict, when this report has one (PDFs where it ran).
+   *  Read only to quote the referee's exact words beside the matching
+   *  evidence card — never to score anything. */
+  pdfUaVerdict?: {
+    available?: boolean;
+    failures?: Array<{ clause?: string; ruleId?: string; description?: string; count?: number }>;
+  } | null;
   // ScoreProfileResult (the real API/shared shape) — was a hand-kept
   // partial copy missing label/overallScore/grade/executiveSummary, which
   // categoriesForScoringMode's ScoreProfile parameter type requires even
@@ -589,6 +639,13 @@ const props = withDefaults(defineProps<{ result: ReportLike; showScoreTable?: bo
 });
 
 const wcag = useWcag();
+
+// veraPDF's OWN failures for this document, grouped by the category each
+// corroborates. Same block as the action plan's (v1.127.0): where a fix is
+// asserted, the independent referee's exact words appear beside it — and
+// stay absent when veraPDF did not run or did not flag that point, because
+// silence must never read as agreement.
+const veraByCategory = computed(() => pdfUaFailuresByCategory(props.result?.pdfUaVerdict));
 
 // Coerce to an array before anything iterates it. The shared-report page
 // renders the raw stored JSON, so a forged report could set `categories` to

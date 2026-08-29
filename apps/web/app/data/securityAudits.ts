@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.127.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: reports now show which findings come from the independent validator rather than from this tool. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Every PDF report has always been checked twice: once by this tool, and once by <strong>veraPDF</strong> &mdash; the validator published by the PDF Association, which nobody here wrote. Until now that second opinion sat in its own panel further down the page. It now appears <strong>beside the finding it supports</strong>, in both the plain-language plan and the detailed report, quoting veraPDF&rsquo;s own sentence, its standard clause number, and how many checks failed. Anyone who wonders whether a finding is just this tool&rsquo;s opinion can now see, in place, that an independent validator reached the same conclusion about their document.",
+      },
+      {
+        kind: "p",
+        html: "Two safeguards keep that claim honest. First, where veraPDF is <em>stricter</em> than this tool &mdash; it fails something this tool does not even score &mdash; the report says exactly that, and marks it <strong>not counted in your score</strong>, because this tool never scores from another tool&rsquo;s verdict. Second, <strong>silence is never presented as agreement</strong>: if veraPDF did not run, or ran and did not flag that point, nothing at all is shown. Both behaviours are locked by tests.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the change reads data the report already contained and renders it; no new input is parsed, no new request is made, and no score changed. No code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.126.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: a real scoring bug, found in the state IT agency\u2019s own reference documents \u2014 their file was right. One document\u2019s grade improved; no other grade moved.",
     body: [

@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "verapdf-cosign-2026-08-29",
+    badge: "New",
+    text: "Reports now show you when the finding is not ours. veraPDF — the PDF industry's own validator, published by the PDF Association and not written here — runs beside this checker on every PDF report. Where it independently failed the same point, its exact words, its ISO clause, and its failed-check count now appear right beside the fix, in both the visual plan and the detailed report. And where veraPDF is stricter than this checker — it flags something we do not score — the report says that too, plainly marked as not counted in your score. Silence is never dressed up as agreement: when veraPDF did not run, or did not flag a point, nothing is shown.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "scope-both-fix-2026-08-29",
     badge: "Fixed",
     text: 'A real bug, found in reference documents published by the state\'s own IT agency — and their files were right. When a table has labels across the top AND down the side, the corner cell that labels both directions is marked with a third value the standard provides, "Both". This checker only recognised the other two, so a correctly built table was reported as missing header directions and its document was marked down. Fixed: all three values are now accepted, the fix-it advice now teaches the corner-cell case instead of steering around it, and a new trap document locks the behavior so it cannot come back. One document re-graded 89 to 100; nothing else moved.',
