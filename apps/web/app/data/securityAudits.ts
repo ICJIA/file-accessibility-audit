@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.138.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: every description of how scoring works was audited against the new legal-only model, and one false legal claim was removed. No scores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "After the scoring change, every page that <em>describes</em> the scoring was audited against it — on the principle that one error in copy undermines the whole tool. The audit found and removed <strong>one flatly false legal claim, stated in two places</strong>: that bookmarks are &ldquo;required by ADA Title II for documents over a certain length.&rdquo; No law requires bookmarks inside a single document, and both places now say so. The technical explainer&rsquo;s per-category &ldquo;How it&rsquo;s scored&rdquo; descriptions, the footer&rsquo;s Scoring Rubric, the front page, and the copy-this-for-AI block were all updated to state the same, consistent rule: <strong>the score counts only WCAG 2.1 Level A/AA — the standard ADA Title II and the Illinois IITAA name — and WCAG 2.2&rsquo;s added criteria are disclosed for manual review, never counted.</strong>",
+      },
+      {
+        kind: "p",
+        html: "The independent validator was also verified end-to-end. Test documents with <em>designed</em> defects were run through veraPDF, and it flagged exactly the right rules — an unembedded font, a table header without a direction — and, correctly, said nothing about a document whose declared language contradicts its text, because the PDF/UA standard checks that a language is <em>declared</em>, not that it is <em>true</em>. That gap is precisely what this tool&rsquo;s own language check covers. The installed veraPDF (1.30.1, server and development machines alike) is the current stable release; the 1.31 series is the project&rsquo;s development stream, so <strong>no update is needed</strong>.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: wording changes across explanatory pages, pinned by the existing tests; the locked score ledger and the legal-basis gate confirm <strong>no document&rsquo;s score changed</strong>. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.137.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: a failing verdict now names WCAG 2.1 — the standard the law cites — and the report shows one verdict banner instead of two. No scores changed.",
     body: [

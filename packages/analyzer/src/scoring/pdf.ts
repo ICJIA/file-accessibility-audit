@@ -1498,7 +1498,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     },
   ];
   const tableExplanation =
-    "Table markup tells screen readers how to navigate data tables. This checks seven aspects of table accessibility, weighted by importance: header cells (TH tags, 40 pts), row structure (TR tags, 20 pts), scope attributes linking headers to columns/rows (10 pts), nested table detection (10 pts), consistent column counts (10 pts), caption elements (5 pts), and header-cell associations (5 pts). Headers and row structure are the foundation; scope and captions are enhancements.";
+    "Table markup tells screen readers how to navigate data tables. What is scored is what WCAG 1.3.1 requires: header cells (TH tags), row structure (TR tags), a regular grid, and — for tables whose headers run along more than one edge or contain spanned cells — a Scope or Headers association, without which the header-to-data relationship cannot be determined. Missing Scope on a plain one-header-row table, nested tables, and captions are reported as best practices and never counted in the score.";
 
   if (qpdf.tables.length === 0) {
     return {

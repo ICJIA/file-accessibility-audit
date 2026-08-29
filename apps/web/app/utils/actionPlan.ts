@@ -668,7 +668,15 @@ const TABLE_MARKUP_VARIANTS: Array<{
     matches: (f) => f.some((s) => s.includes("missing Scope attribute")),
     entry: {
       title: "Say which way your table headers point",
-      why: 'This table already has its header cells marked, which is the hard part — but nothing in the file says whether each header labels the column beneath it or the row beside it. A sighted reader gets that from the layout. Someone listening to the table cell by cell does not: they hear "20" and need the file to tell them it means Post-its in January. Note that experts may disagree about whether this is a failure, and both can be right — the PDF-specific standard (PDF/UA) counts a header with no direction as a defect, while WCAG only asks that the relationship be determinable somehow and does not name this as the only way. Setting it satisfies both, so it is worth doing either way.',
+      // Post-split (v1.130.0/v1.136.0) this step fires ONLY for tables whose
+      // headers run along more than one edge (or contain spans) with neither
+      // /Scope nor /Headers — where the association genuinely cannot be
+      // worked out from the table's shape, a confirmed WCAG 1.3.1 failure
+      // the conformance verdict attributes. Simple single-axis tables never
+      // reach this step: their missing Scope is an unscored PDF/UA item in
+      // the "Above and beyond" group. The old "experts may disagree" hedge
+      // contradicted the earned REQUIRED chip one inch above it.
+      why: 'This table already has its header cells marked, which is the hard part — but its headers run along more than one edge (or its cells span), and nothing in the file says whether each header labels the column beneath it or the row beside it. A sighted reader gets that from the layout. Someone listening to the table cell by cell does not: they hear "20" and need the file to tell them it means Post-its in January. In a table shaped like this the relationship cannot be worked out any other way, so it is a WCAG 1.3.1 failure — not just a PDF/UA preference. (In plain one-header-row tables the shape already answers the question; those are never scored for this and appear under "Above and beyond" instead.)',
       source: {
         pdf: [
           "In Word this is usually automatic: click the table, then Table Design → check Header Row. If the left-hand cells are labels too, check First Column as well",

@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.138.0] - 2026-08-29
+
+### Fixed — the full-copy audit ("one error in copy sinks the whole tool")
+
+- **A flatly false legal claim, in two places**: the technical explainer and the footer's Scoring Rubric both said bookmarks are *"required by ADA Title II for documents over a certain length."* No law requires bookmarks in a single document. Both now say so plainly, and the rubric row explains the category can never subtract points.
+- **Every "How it's scored" block in the technical explainer described the pre-sweep model** — the font 85-cap, heading 75/60/55/40 tiers, bookmark 45s, reading-order bands, link-wording percentages, the seven-part table weights. All nine blocks rewritten to the legal-only model, each naming what scores (with its WCAG 2.1 criterion) and what is reported-never-scored.
+- **"Score based on WCAG 2.2" claims corrected everywhere they appeared as a scoring basis**: the landing hero and stat tile, two README sections, the Scoring Rubric intro, and the copy-for-AI block's framing (its per-category reference lists — 2.1-pure by construction — are now labelled "WCAG 2.1 references"). The consistent statement: **the score counts only WCAG 2.1 A/AA, the standard ADA Title II and the Illinois IITAA name; WCAG 2.2's added criteria are disclosed for manual review and never counted.** The trust brief gained the same sentence.
+- **The table-scope fix step's stale hedge** ("experts may disagree about whether this is a failure") contradicted its own earned REQUIRED chip: post-split, that step only fires for two-axis/spanned tables where the association genuinely cannot be determined — a confirmed 1.3.1 failure, which the copy now states plainly, pointing simple tables at the "Above and beyond" group instead.
+- **The trust-page hero softened** at the user's request: "Built to be checked. **See for yourself.**" (was "So check it.") — one source in the brief template, regenerated into both twins.
+
+### Verified — veraPDF is auditing correctly (no update needed)
+
+- **Ground-truth runs** against designed-defect traps on the local 1.30.1 (byte-identical role to prod): the unembedded-font trap fired **7.21.4.1**, the simple-table trap fired **7.5** (the split live: PDF/UA flags what the WCAG grade rightly doesn't), and the wrong-language trap fired **no** language rule — veraPDF checks `/Lang` presence, not truthfulness, which is exactly why this tool's own 3.1.1 mismatch check exists. The DoIT newsletter reproduces **106 occurrences across 7 rules** on every run, local and prod.
+- **The WCAG second opinion is live and correct**: the vendored `WCAG-2-2-Machine.xml` profile (byte-identical to upstream `rel/1.30`, commit-pinned in its README) runs on prod (`wcagVerdict` present on live reports) and fired sensible rules on the untagged-link trap.
+- **Version: current.** Server and local both run **1.30.1**; 1.30 (2026-06-03) is the latest stable release, and 1.31.x is the development stream. When 1.32 ships, the vendored WCAG profile must be re-fetched from the matching `rel/` branch — its README says exactly how.
+
+### Notes
+
+- Tests 2,997 — the ledger and legal-basis gates confirm no score moved.
+
+<details>
+<summary><strong>v1.137.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.137.0] - 2026-08-29
 
 ### Fixed — the last WCAG 2.2 leak, caught by the user from a live report
@@ -15,8 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - No scores moved (`score-ledger`: no movement; `legal-basis`: green across 167 documents). Tests 3,000 → **2,997** (the retired component's three tests).
 
-<details>
-<summary><strong>v1.136.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.136.0] - 2026-08-29
 

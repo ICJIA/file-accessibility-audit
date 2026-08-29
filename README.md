@@ -119,7 +119,7 @@ Each document is assessed across named accessibility categories based on [WCAG 2
 
 Every audit produces **two distinct things**, and the distinction is deliberate:
 
-**A 0–100 score (A–F grade).** A weighted, partial-credit *prioritised-readiness* metric across the WCAG-aligned categories scored for the file's format — 9 for PDF and PowerPoint, 8 for Word, 7 for Excel, plus always-"Not Assessed" rows for checks the tool doesn't yet automate — it shows how close a document is and what to fix first. The score is anchored to **WCAG 2.2 Level AA** (a strict superset of WCAG 2.1 AA, the legal minimum under **Illinois IITAA 2.1 §E205.4** and **ADA Title II**). Automated checks and score weights are unchanged from WCAG 2.1; the new 2.2 criteria are interactive/manual and are shown separately as "not assessed — manual review".
+**A 0–100 score (A–F grade).** A weighted, partial-credit *prioritised-readiness* metric across the WCAG-aligned categories scored for the file's format — 9 for PDF and PowerPoint, 8 for Word, 7 for Excel, plus always-"Not Assessed" rows for checks the tool doesn't yet automate — it shows how close a document is and what to fix first. The score counts only **WCAG 2.1 Level A/AA** criteria — the legal standard under **Illinois IITAA 2.1 §E205.4** and **ADA Title II** (enforced mechanically by the `wcag21Purity` tests and the `legal-basis` CI gate). The audit's disclosure checklist additionally covers **WCAG 2.2 AA** (a strict superset); the criteria 2.2 added are interactive/manual and are shown separately as "not assessed — manual review", never counted.
 
 **A WCAG 2.2 conformance verdict.** A separate, binary pass/fail. WCAG conformance is all-or-nothing per success criterion — one image without alt text fails 1.1.1 (Level A) outright — so a weighted score with partial credit *cannot* be a conformance claim. A document can score 90+ and still fail WCAG. The verdict reports confirmed, machine-checkable failures, each linked to its W3C "Understanding" page; when it finds none it says exactly that — **not** "conformant", because color contrast and the *correctness* of alt text, headings, reading order, and tags require manual review. When an analyzer cannot process a file (encrypted or damaged), the verdict honestly reports that no verdict could be determined rather than guessing.
 
@@ -249,7 +249,7 @@ Each category receives a severity based on its individual score:
 - [PDF/UA (ISO 14289-1)](https://pdfa.org/resource/pdfua-in-a-nutshell/)
 - [Matterhorn Protocol 1.1 (PDF Association)](https://pdfa.org/resource/the-matterhorn-protocol/) — 31 checkpoints / 136 failure conditions; the landing page's checkpoint-by-checkpoint coverage disclosure is measured against it
 
-Scoring aligns with WCAG 2.2 Level AA success criteria — a superset of the WCAG 2.1 AA that ADA Title II and the Illinois IITAA 2.1 standard require (WCAG 2.1 AA is the legal minimum; WCAG 2.2 is stricter and optional/forward-looking). ADA Title II digital accessibility requirements take effect April 2026. All scoring constants live in `audit.config.ts`. To revert the displayed standard to 2.1, set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; the web UI reverts on rebuild).
+Scoring counts only WCAG 2.1 Level A/AA success criteria — the standard ADA Title II and the Illinois IITAA 2.1 require. The audit also checks documents against WCAG 2.2 AA (a strict superset) for the manual-review disclosure list; nothing 2.2 added is ever counted in a score. ADA Title II digital accessibility requirements took effect April 2026. All scoring constants live in `audit.config.ts`. To revert the displayed standard to 2.1, set `WCAG_VERSION=2.1` and redeploy (API reverts on restart; the web UI reverts on rebuild).
 
 ## Batch Upload
 
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.138.0 — 2026-08-29 · The full-copy audit: every scoring claim now matches the legal-only model (no new attack surface)
+
+A sweep of every user-facing surface after the scoring change, on the principle that one error in copy sinks the whole tool. Killed a **flatly false legal claim in two places** (bookmarks "required by ADA Title II" — no law requires them); rewrote all nine "How it's scored" explainer blocks from the pre-sweep model to the legal-only one; corrected every "score based on WCAG 2.2" claim (landing hero, stat tile, README, Scoring Rubric, AI-block framing) to the consistent truth — **the score counts only WCAG 2.1 A/AA; WCAG 2.2's additions are disclosed, never counted**; fixed the table step's "experts may disagree" hedge that contradicted its own REQUIRED chip; and softened the trust hero to "See for yourself." Also **verified veraPDF end-to-end**: designed-defect traps fired exactly the right clauses (7.21.4.1, 7.5, and — correctly — nothing for a *wrong* language), the vendored WCAG 2.2 machine profile runs live, and **1.30.1 is the current stable** (1.31.x is the dev stream) — no update needed. No scores moved. Tests 2,997.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.137.0 → v1.33.0) — click to expand</summary>
+
 ### v1.137.0 — 2026-08-29 · The failing verdict names WCAG 2.1; one verdict banner, not two (no new attack surface)
 
 User-caught from a live report: the red banner said **"Does not meet WCAG 2.2 Level AA"** an inch above *"Nothing beyond WCAG 2.1 A/AA is counted."* Every failing criterion is a 2.1 criterion (gate-enforced), so failing verdicts now name **WCAG 2.1** everywhere — banner, conformance headline, executive summary, and the copy-for-AI block. The legacy `VerdictStrip` (a duplicate verdict stacked above the two-standards strip) is retired, its manual-review count absorbed into the strip. No scores moved. **No new attack surface**: copy and one component removal. Tests 2,997.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.136.0 → v1.33.0) — click to expand</summary>
 
 ### v1.136.0 — 2026-08-29 · The legal-only scoring sweep: only WCAG 2.1 can move a score, and a CI gate proves it (scoring change)
 

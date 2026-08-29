@@ -235,15 +235,8 @@
                 <div class="px-3 sm:px-6 pb-6 space-y-6 text-sm max-h-[70vh] overflow-y-auto">
                   <p class="text-[var(--text-muted)] leading-relaxed">
                     Each PDF, Word, PowerPoint, or Excel document is scored across accessibility
-                    categories based on
-                    <a
-                      href="https://www.w3.org/WAI/WCAG22/quickref/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-[var(--link)] hover:text-[var(--link-hover)]"
-                      >WCAG 2.2</a
-                    >
-                    and
+                    categories — and the score counts only WCAG 2.1 Level A/AA criteria, the
+                    standard named by
                     <a
                       href="https://www.ada.gov/resources/title-ii-rule/"
                       target="_blank"
@@ -251,18 +244,25 @@
                       class="text-[var(--link)] hover:text-[var(--link-hover)]"
                       >ADA Title II</a
                     >
-                    and
+                    and the Illinois
                     <a
                       href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-[var(--link)] hover:text-[var(--link-hover)]"
                       >IITAA 2.1</a
-                    >
-                    requirements. A category that doesn't apply to a document (e.g., tables in a
-                    document with no tables) counts as passing and keeps its weight — a document is
-                    never penalized for content it doesn't have. Only a category the tool could not
-                    assess (color contrast on PDFs) sits outside the weighted score.
+                    >. The audit also checks
+                    <a
+                      href="https://www.w3.org/WAI/WCAG22/quickref/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-[var(--link)] hover:text-[var(--link-hover)]"
+                      >WCAG 2.2</a
+                    >'s added criteria — disclosed for manual review, never counted. A category that
+                    doesn't apply to a document (e.g., tables in a document with no tables) counts
+                    as passing and keeps its weight — a document is never penalized for content it
+                    doesn't have. Only a category the tool could not assess (color contrast on PDFs)
+                    sits outside the weighted score.
                   </p>
 
                   <div class="rounded-lg border border-[var(--border)] overflow-x-auto">
@@ -575,7 +575,7 @@ const rubricCategories = [
     id: "reading_order",
     label: "Reading Order",
     rationale:
-      "WCAG 2.1/2.2 SC 1.3.2 — The tag structure must define a logical reading sequence. Without it, screen readers may announce sidebar content before the main body.",
+      "WCAG 2.1 SC 1.3.2 — Only a document with no structure tree at all scores here: no programmatic reading sequence exists. Measured divergence between tag order and draw order is reported for manual review, never deducted — remediated documents re-order tags on purpose.",
   },
   {
     id: "table_markup",
@@ -587,7 +587,7 @@ const rubricCategories = [
     id: "link_quality",
     label: "Link Quality",
     rationale:
-      "WCAG 2.1/2.2 SC 2.4.4 — Raw URLs are meaningless when read aloud. Descriptive link text tells users where a link goes without needing to see the URL.",
+      'WCAG 2.1 SC 1.3.1 & 2.4.4 — What scores here is a link no tag claims: assistive technology following the structure never reaches it. Link wording (raw URLs, "click here") is reported as an advisory only — 2.4.4 allows a link\'s purpose to come from its surrounding context.',
   },
   {
     id: "form_accessibility",
@@ -599,7 +599,7 @@ const rubricCategories = [
     id: "bookmarks",
     label: "Bookmarks",
     rationale:
-      "WCAG 2.1/2.2 SC 2.4.5 — For documents over 10 pages, bookmarks provide a navigable table of contents. Required under Title II for longer documents.",
+      "Not a WCAG 2.1 requirement — no criterion requires bookmarks inside a single document, so this category can never subtract points. Missing bookmarks on a 10+ page document are reported as a clearly labelled advisory; the category's weight only ever counts in a document's favour.",
   },
 ]
   .map((c) => ({

@@ -842,15 +842,17 @@ describe("table_markup variant — headers exist but have no direction", () => {
     expect(acrobat.steps.join(" ")).toMatch(/To add header cells/); // block kept
   });
 
-  it("explains the PDF/UA vs WCAG split, and that both experts can be right", () => {
-    // The point of the copy: an author told "100% compliant" by one expert
-    // and "something is missing" by this report should learn that the two
-    // are measuring against different rulebooks, not that someone is lying.
+  it("states the 1.3.1 failure plainly, and where simple tables went instead", () => {
+    // Post-split (v1.130/v1.136): this step only fires for two-axis or
+    // spanned tables where the association genuinely cannot be determined —
+    // a confirmed WCAG failure. The old "experts may disagree" hedge
+    // contradicted the earned REQUIRED chip an inch above it. The copy still
+    // names PDF/UA — but as the place the SIMPLE-table version of this
+    // finding lives, not as a competing verdict on this one.
     const why = step().why;
-    expect(why).toMatch(/PDF\/UA/);
-    expect(why).toMatch(/WCAG/);
-    expect(why).toMatch(/both can be right|experts may disagree/i);
-    expect(why).toMatch(/satisfies both|worth doing either way/i);
+    expect(why).toMatch(/WCAG 1\.3\.1 failure — not just a PDF\/UA preference/i);
+    expect(why).not.toMatch(/experts may disagree/i);
+    expect(why).toMatch(/Above and beyond/);
   });
 
   it("keeps today's copy for a table with no headers at all", () => {

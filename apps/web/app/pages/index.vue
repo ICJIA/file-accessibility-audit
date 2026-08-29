@@ -558,15 +558,15 @@
           {{ heroTitle }}
         </h2>
         <p class="text-[var(--text-secondary)] font-medium max-w-xl mx-auto leading-relaxed">
-          Upload a {{ heroUploadNoun }} to get an instant accessibility score based on
+          Upload a {{ heroUploadNoun }} to get an instant accessibility score that counts only
           <a
-            href="https://www.w3.org/WAI/WCAG22/quickref/"
+            href="https://www.w3.org/WAI/WCAG21/quickref/"
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
-            >WCAG 2.2</a
+            >WCAG 2.1</a
           >
-          and
+          A/AA — the standard
           <a
             href="https://www.ada.gov/resources/title-ii-rule/"
             target="_blank"
@@ -574,7 +574,7 @@
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >ADA Title II</a
           >
-          requirements (and the Illinois
+          and the Illinois
           <a
             href="https://doit.illinois.gov/initiatives/accessibility/iitaa/iitaa-2-1-standards.html"
             target="_blank"
@@ -582,9 +582,16 @@
             class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
             >IITAA 2.1</a
           >
-          standard). The audit checks up to nine categories — text extractability, heading
-          structure, alt text, table markup, and more — and returns a detailed report with
-          actionable findings.
+          require. The audit checks up to nine categories — text extractability, heading structure,
+          alt text, table markup, and more — plus
+          <a
+            href="https://www.w3.org/WAI/WCAG22/quickref/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--accent-orange)] hover:text-[var(--accent-orange)] font-semibold"
+            >WCAG 2.2</a
+          >'s newer criteria (disclosed for manual review, never counted), and returns a detailed
+          report with actionable findings.
         </p>
       </div>
 
@@ -645,10 +652,11 @@
                emitted it: the severities are Critical / Moderate / Minor. On a
                page whose job is telling staff what the grades mean, inventing a
                fourth level is the same class of error as the grade cap fixed. -->
-          Each document scored across up to 9 categories aligned with
-          <strong>WCAG 2.2 Level AA</strong> and ADA Title II. Critical / Moderate / Minor severity
-          per category so you know what to fix first, and an A–F letter grade capped by the worst
-          issue found — so a document is never graded above its most serious problem.
+          Each document scored across up to 9 categories, counting only
+          <strong>WCAG 2.1 Level A/AA</strong> criteria — the standard ADA Title II and the Illinois
+          IITAA require. Critical / Moderate / Minor severity per category so you know what to fix
+          first, and an A–F letter grade capped by the worst issue found — so a document is never
+          graded above its most serious problem.
         </p>
       </div>
 

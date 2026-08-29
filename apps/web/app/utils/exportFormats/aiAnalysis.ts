@@ -67,7 +67,7 @@ export function buildAiAnalysis(
   const formatLabel = fileTypeLabel(result.fileType);
   const isPdfResult = !result.fileType || result.fileType === "pdf";
   lines.push(
-    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks WCAG ${wcagVersion} Level AA and ADA Title II digital accessibility requirements. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
+    `I ran an automated ${formatLabel} accessibility audit and I'd like your help remediating the failing items listed below. The audit checks documents against WCAG ${wcagVersion} Level AA, but the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require. Only failing categories (Critical or Moderate severity) are included — passing items are omitted to keep the context focused on what needs to be fixed.`,
   );
   lines.push("");
   lines.push(
@@ -124,7 +124,9 @@ export function buildAiAnalysis(
     const wcagRefs = getWcagCriteriaStrings(c.id);
     if (wcagRefs.length) {
       lines.push("");
-      lines.push(`**WCAG ${wcagVersion} references:**`);
+      // The referenced criteria are 2.1-pure (wcag21Purity-enforced) — label
+      // them as what they are, whatever checklist basis the audit ran with.
+      lines.push(`**WCAG 2.1 references:**`);
       for (const ref of wcagRefs) lines.push(`- ${ref}`);
     }
     if (c.findings?.length) {

@@ -1,4 +1,4 @@
-# Built to be checked. So check it.
+# Built to be checked. See for yourself.
 
 **REPORT GENERATED: {{DATE_UPPER}} — every number below was pulled live from the running system on this date. Regenerated with fresh numbers at every release.**
 
@@ -12,7 +12,7 @@ Many people who are blind or can't see well use a **screen reader** — software
 
 ## The law: Title II. IITAA. WCAG.
 
-Three names, one idea — government information must work for everyone. **Title II of the ADA** (ada.gov/resources/2024-03-08-web-rule) is the federal rule for state and local government: it names **WCAG 2.1 Level AA** as the standard, and its compliance deadlines **began in April 2026**. **IITAA** (doit.illinois.gov/initiatives/accessibility.html) — the Illinois Information Technology Accessibility Act — is our state's own accessibility law, older than the federal rule, also built on WCAG 2.1 AA, and it applies to every Illinois public body. **WCAG** (w3.org/WAI/standards-guidelines/wcag) — the Web Content Accessibility Guidelines — is the rulebook both laws point to. This checker tests the newer **WCAG 2.2 AA, which contains everything in 2.1** plus the newest requirements: pass here, and you have passed the version the law names. Every finding on every report cites the WCAG rule behind it, so a reviewer can trace any grade straight back to the law's own standard.
+Three names, one idea — government information must work for everyone. **Title II of the ADA** (ada.gov/resources/2024-03-08-web-rule) is the federal rule for state and local government: it names **WCAG 2.1 Level AA** as the standard, and its compliance deadlines **began in April 2026**. **IITAA** (doit.illinois.gov/initiatives/accessibility.html) — the Illinois Information Technology Accessibility Act — is our state's own accessibility law, older than the federal rule, also built on WCAG 2.1 AA, and it applies to every Illinois public body. **WCAG** (w3.org/WAI/standards-guidelines/wcag) — the Web Content Accessibility Guidelines — is the rulebook both laws point to. This checker tests the newer **WCAG 2.2 AA, which contains everything in 2.1** plus the newest requirements: pass here, and you have passed the version the law names. And the grade itself counts **only WCAG 2.1 A/AA criteria** — nothing the newer version added, nothing from PDF/UA, and no best practice ever moves a score, a rule enforced by an automated gate on every code change: every point lost must name the WCAG criterion it broke. Every finding on every report cites the rule behind it, so a reviewer can trace any grade straight back to the law's own standard.
 
 ## What every check-up looks at
 

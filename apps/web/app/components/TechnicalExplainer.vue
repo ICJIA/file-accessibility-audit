@@ -990,20 +990,19 @@
               are completely invisible to assistive technology.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> <strong>100</strong> = extractable text + structure tags +
-              every font that displays text embedded. <strong>85 (cap)</strong> = a non-embedded
-              font is used for visible text (prevents Pass — non-embedded fonts can cause garbled
-              screen reader output; fonts that never display visible text, such as remediation
-              leftovers or whitespace-only runs, are exempt). <strong>50</strong> = text is present
-              but no tags (an untagged PDF). <strong>25</strong> = tags are present but no
-              extractable text (partially remediated scan). <strong>0</strong> = no text and no tags
-              (unremediated scanned image). Since v1.94.0, two text-layer censuses also cap this
-              category: a heavy share of <strong>unmapped glyphs</strong> (characters that extract
-              as unpronounceable symbols — Matterhorn 10) caps at 50 (smaller shares at 85), and a
-              heavy share of <strong>visible text outside every tagged run</strong> (Matterhorn
-              01-005/006, with the affected pages named) caps at 50 likewise; a handful of either
-              stays an advisory. This category carries the highest weight because if text can't be
-              extracted, nothing else matters.
+              <em>How it's scored:</em> <strong>100</strong> = extractable text + structure tags.
+              <strong>50</strong> = text is present but no tags (an untagged PDF).
+              <strong>25</strong> = tags are present but no extractable text (partially remediated
+              scan). <strong>0</strong> = no text and no tags (unremediated scanned image). Two
+              text-layer censuses also cap this category, each a confirmed WCAG failure: a heavy
+              share of <strong>unmapped glyphs</strong> (characters that extract as unpronounceable
+              symbols — 1.1.1, Matterhorn 10) caps at 50, and
+              <strong>visible text outside every tagged run</strong> (1.3.1, Matterhorn 01-005/006,
+              with the affected pages named) caps at 50 or 85 by share; a handful of either stays an
+              advisory. <strong>Non-embedded fonts are reported but never scored</strong> — no WCAG
+              criterion requires embedding (a substituted font still renders and reads aloud);
+              PDF/UA does, so they appear as a PDF/UA-only item. This category carries the highest
+              weight because if text can't be extracted, nothing else matters.
             </p>
           </div>
           <div
@@ -1017,12 +1016,16 @@
               making it incomprehensible.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> 50 points for a meaningful document title (filenames like
-              "report_final.pdf" are automatically rejected as non-meaningful), plus 50 points for a
-              declared language tag. Since v1.92.0 the language <em>value</em> is also
-              shape-checked: a declaration that is not a usable code ("english", "en_US") earns half
-              the language credit with a targeted fix, since screen readers may ignore it. Both are
-              checked in QPDF's catalog <code>/Lang</code> and PDF.js metadata.
+              <em>How it's scored:</em> 50 points for a meaningful document title — a
+              filename-as-title ("report_final.pdf") earns partial credit and is a confirmed 2.4.2
+              failure (WCAG's own documented failure F25) — plus 50 points for a usable language
+              declaration. The language <em>value</em> is checked two ways, each a confirmed 3.1.1
+              failure at half credit: a declaration that is not a usable code ("english", "en_US"),
+              and a declaration that <em>contradicts the text's actual language</em> (a
+              stopword-based check with four guards against false accusations). The
+              <code>DisplayDocTitle</code> viewer flag is PDF/UA clause 7.1, not a WCAG requirement
+              — reported, never scored. Checked in QPDF's catalog <code>/Lang</code>
+              and PDF.js metadata.
             </p>
           </div>
           <div
@@ -1036,15 +1039,14 @@
               to find the section they need.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> <strong>100</strong> = H1–H6 tags present with logical
-              hierarchy (no level skips, exactly one H1). <strong>75</strong> = multiple H1 headings
-              (a document should have exactly one H1 for the title). <strong>60</strong> = numbered
-              headings present but hierarchy is broken (e.g., jumps from H1 to H3 with no H2).
-              <strong>55</strong> = both multiple H1s and hierarchy gaps. <strong>60</strong> = the
-              document mixes the two heading conventions (generic <code>/H</code> alongside numbered
-              <code>/H1</code>&ndash;<code>/H6</code> — PDF/UA forbids mixing them; v1.92.0).
-              <strong>40</strong> = only generic <code>/H</code> tags (not properly numbered H1–H6).
-              <strong>0</strong> = no heading tags at all.
+              <em>How it's scored:</em> <strong>100</strong> = heading tags are present — the
+              outline exists and is programmatically identifiable. <strong>0</strong> = no heading
+              tags at all in a substantive document (multi-page or paragraph-heavy), a confirmed
+              1.3.1 failure: the sections exist only visually. Everything about the outline's
+              <em>shape</em> — level skips (W3C's own guidance: not a WCAG failure), multiple H1s,
+              generic <code>/H</code> tags, mixing conventions (PDF/UA 7.4 / Matterhorn 14-002), and
+              whether the headings' text reads like headings — is
+              <strong>reported as clearly labelled advisories and never scored</strong>.
             </p>
           </div>
           <div
@@ -1073,14 +1075,15 @@
             <p class="font-medium text-[var(--text-secondary)] mb-1">Bookmarks / Navigation (5%)</p>
             <p class="text-xs text-[var(--text-muted)] mb-2">
               <em>What it means:</em> Bookmarks act as a clickable table of contents in the PDF
-              viewer's sidebar. For longer documents, they're essential for all users — and required
-              by ADA Title II for documents over a certain length.
+              viewer's sidebar — for longer documents, a real navigation aid for every reader,
+              screen-reader users included. No WCAG 2.1 criterion requires them inside a single
+              document, so they can never affect the score.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> <strong>N/A</strong> for documents under 10 pages (short
-              documents don't require bookmarks). For longer documents: <strong>100</strong> =
-              outline entries present and populated. <strong>25</strong> = outline structure exists
-              but is empty. <strong>0</strong> = no outlines at all. Checked in both QPDF's
+              <em>How it's scored:</em> <strong>It isn't.</strong> Under 10 pages the category is
+              N/A; at 10+ pages a missing bookmark tree is reported as a clearly labelled advisory
+              that never affects the grade — no WCAG 2.1 criterion requires bookmarks in a single
+              document (2.4.5 Multiple Ways applies to sets of pages). Checked in both QPDF's
               <code>/Outlines</code> object chain and PDF.js's <code>getOutline()</code>.
             </p>
           </div>
@@ -1096,17 +1099,18 @@
               accessibility.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected. Seven
-              sub-checks contribute to the score: <strong>Header cells</strong> (40 pts) —
-              <code>/TH</code> tags present on header cells (most critical).
-              <strong>Row structure</strong> (20 pts) — cells are grouped in <code>/TR</code> rows.
-              <strong>Scope attributes</strong> (10 pts) — each <code>/TH</code> has a
-              <code>/Scope</code> (/Column or /Row) so screen readers know which axis the header
-              applies to. <strong>No nested tables</strong> (10 pts) — nested tables confuse screen
-              reader navigation. <strong>Column consistency</strong> (10 pts) — all rows have the
-              same number of cells. <strong>Caption</strong> (5 pts) — <code>/Caption</code> element
-              describes the table's purpose. <strong>Header associations</strong> (5 pts) — explicit
-              <code>/Headers</code> attributes on data cells for complex table navigation.
+              <em>How it's scored:</em> <strong>N/A</strong> if no tables are detected; one-row and
+              one-column constructs are layout scaffolds and are excluded (the same rule the
+              conformance gate has always applied). What is scored is what WCAG 1.3.1 requires:
+              <strong>header cells</strong> (<code>/TH</code> present),
+              <strong>row structure</strong> (cells grouped in <code>/TR</code>),
+              <strong>a regular grid</strong> (consistent column counts after row/column-span
+              accounting), and — <em>only</em> for tables whose headers run along more than one edge
+              or contain spanned cells — a <code>/Scope</code> or <code>/Headers</code> association,
+              without which the header-to-data relationship cannot be determined.
+              <strong>Reported but never scored:</strong> missing <code>/Scope</code> on plain
+              one-header-row tables (the shape already answers the question — a PDF/UA-only item),
+              nested tables, and captions.
             </p>
           </div>
           <div
@@ -1120,9 +1124,13 @@
               Annual Report" tells users where the link goes.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> <strong>N/A</strong> if no links. Percentage of links with
-              descriptive text. A link is flagged as non-descriptive if its visible text starts with
-              <code>http://</code>, <code>https://</code>, or <code>www.</code>. PDF.js extracts the
+              <em>How it's scored:</em> <strong>N/A</strong> if no links. What is scored is
+              <strong>untagged links</strong> — annotations no <code>/Link</code> structure element
+              claims, which a screen reader following the tags never encounters (a confirmed 1.3.1
+              failure). Link <em>wording</em> — raw URLs as text, or vague phrases like "click here"
+              — is <strong>reported as an advisory and never scored</strong>: WCAG 2.4.4 (Level A)
+              allows a link's purpose to come from its surrounding context, which no text-only check
+              can weigh; judging the text alone is 2.4.9, a AAA criterion. PDF.js extracts the
               visible text overlapping each link annotation using spatial coordinate matching.
             </p>
           </div>
@@ -1158,17 +1166,18 @@
               document becomes a jumble of unrelated sentences.
             </p>
             <p class="text-xs text-[var(--text-muted)]">
-              <em>How it's scored:</em> the tagged reading order (structure-tree MCID sequence) is
-              compared against the order the page's content is painted (content-stream MCID
-              sequence) using a longest-common-subsequence match. <strong>100</strong> = ≥97%
-              agreement. <strong>90</strong> / <strong>85</strong> = 90–96% / 80–89% — a Minor note,
-              because divergence means the two orders disagree, not that the tags are wrong
-              (remediated documents re-order tags away from a bad draw order on purpose).
-              <strong>65</strong> = 50–79%. <strong>30</strong> = heavier divergence.
-              <strong>0</strong> = no structure tree. Image (Figure) runs are excluded from the
-              comparison — exporters paint images by z-order (typically last), which says nothing
-              about reading order. A flat structure tree (depth ≤1) scores <strong>30</strong> and
-              no tree at all scores <strong>0</strong>; when a tree exists but the sequences are too
+              <em>How it's scored:</em> only one condition scores: <strong>0</strong> = no structure
+              tree at all, a confirmed 1.3.2 failure — no programmatic reading sequence exists.
+              Everything else is <strong>measured and reported, never scored</strong>: the tagged
+              order (structure-tree MCID sequence) is compared against the order the page's content
+              is painted (content-stream MCID sequence) using a longest-common-subsequence match,
+              and any divergence is disclosed with the affected pages named — but divergence proves
+              the two orders <em>disagree</em>, not which side is wrong (remediated documents
+              re-order tags away from a bad draw order on purpose), so it cannot support a
+              deduction. A flat structure tree is likewise an advisory: a single-sequence tree is
+              still a programmatic reading order. Image (Figure) runs are excluded from the
+              comparison — exporters paint images by z-order, which says nothing about reading
+              order. Forms are never measured on this metric at all, and when the sequences are too
               short to compare, the category reports no score rather than guessing.
             </p>
           </div>
@@ -1219,8 +1228,9 @@
                 <td class="px-4 py-2">Text Extractability</td>
                 <td class="px-4 py-2">
                   Per-font embedded/not-embedded listing —
-                  <strong>scored:</strong> non-embedded fonts that display visible text cap the
-                  category at 85 (Minor); fonts that never display visible text are exempt
+                  <strong>reported, never scored:</strong> no WCAG criterion requires embedding (a
+                  substituted font still renders and reads aloud), so non-embedded fonts appear as a
+                  PDF/UA-only item; fonts that never display visible text are noted as harmless
                 </td>
               </tr>
               <tr class="border-b border-[var(--border-subtle)]">
