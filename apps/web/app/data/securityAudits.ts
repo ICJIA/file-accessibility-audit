@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.129.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: a new self-check that writes the same document every legal way and requires the same answer for all of them. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Five times in two days, a document from an outside agency revealed the same kind of mistake: the file said something perfectly ordinary, but <em>wrote it a legal way this checker had not seen before</em> &mdash; and the checker read the packaging instead of the content. Each time, the wrong grade had already been given to a real person. The PDF standard allows many different ways to record the same fact, and every program that makes PDFs chooses differently, so waiting to be surprised is not a plan.",
+      },
+      {
+        kind: "p",
+        html: "There is now a self-check that stops waiting. It builds one document, then rewrites the <strong>same content in every legal form of it</strong>, and requires the checker to return the <strong>identical grade and identical per-area verdicts</strong> for all of them. A difference means the checker is reading the packaging, and the check names exactly which form it cannot read. <strong>It found a real gap on its very first run, before any outside document arrived</strong>: one of the three legal ways to attach table-header directions had never been supported, and a table using it was marked down. That is now fixed, and this is the first problem of this kind the project caught by itself rather than being handed by an agency it had graded wrongly.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the check is a build-machine script that generates its own files; the fix widens where the checker looks for information already inside the document. No code path that receives, sends, or stores anything changed, and no existing document&rsquo;s score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.128.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: two table findings corrected, and a new check for a document that declares the wrong language. One document\u2019s table score improves; a wrong language declaration now costs points.",
     body: [

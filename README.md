@@ -840,6 +840,7 @@ Beyond the unit suites, six corpus-level gates verify the **auditing itself** �
 | Trap battery (Office) | `pnpm synthetic-office-controls` | 15 hand-built `.docx`/`.pptx`/`.xlsx` traps with designed truths (fake bold headings, alt panels never opened, unmarked header rows, untitled slides, "Sheet1") plus done-right twins and the same twin-ordering rule. |
 | Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (151 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
 | Re-save invariance + determinism | `pnpm resave-invariance` | Every trap rewritten by qpdf must grade identically, digit for digit — byte layout can never change a grade — and sentinel documents audited five times (three concurrently) must return identical results. |
+| Encoding invariance | `pnpm encoding-invariance` | One document re-emitted in **every legal encoding of the same meaning** — attributes inline / behind a reference / as an array / via a class map, values direct or indirect, role-mapped custom tags, single-kid shorthand — must return an identical verdict. Generalizes re-save invariance from *different bytes* to *different legal structure*; found unsupported class-map attributes on its first run. |
 | Corpus sweep | `pnpm verify-controls` | Invariant verification across the full local corpus (real documents + traps) before releases. |
 | Live-site sentinels | `pnpm prod-sentinels` | After a deploy, three designed-answer traps are uploaded to the running site: the disguised scan must still score exactly 0/F, the hollow-alt census must read 1 of 3, the perfect document must still score exactly 100/A. CI proves the code; this proves the deployment. |
 
@@ -1286,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.129.0 — 2026-08-29 · Encoding invariance: the gate that stops waiting for the next dispute (no new attack surface)
+
+Five author disputes in two days shared one shape: **the same meaning, encoded a legal way we did not anticipate.** Each was found by a real agency file *after* a wrong grade was published. `pnpm encoding-invariance` ends that pattern: one document re-emitted in every legal encoding of the same semantics — attributes inline, behind a reference, as an array, via a class map; values direct and indirect; role-mapped custom tags; single-kid shorthand — all of which must produce an **identical verdict**. It is re-save invariance generalized from *different bytes* to *different legal structure*, and it runs in CI on every push. **It found a real gap on its first run, before any file arrived**: class-map attributes (`/C` + `/ClassMap`) were unsupported, so a table scoped that way scored 89/B instead of 100/A. All three attribute readers now share one resolution path covering both `/A` and `/C`. **No new attack surface**: one dev/CI script and a widened attribute lookup. Tests 2,971.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.128.0 → v1.33.0) — click to expand</summary>
+
 ### v1.128.0 — 2026-08-29 · Indirect attribute values; a declared language that contradicts the text (scoring fix + new check)
 
 **Two false findings from one root cause, and a real defect nobody's tool was catching.** ISO 32000 lets any value be indirect, and Word writes `/Scope`, `/ColSpan` and `/RowSpan` that way; this checker resolved the containing `/A` dictionary but not the value inside it, so a reference syllabus had all 19 scoped headers called "missing Scope" **and** a regular grid called ragged (every span read as 1). Fixed — that file goes 89/B → 100/A on tables, matching veraPDF, which passes it outright. Separately, the same file declares `/Lang FR` on English prose (its Word source is correct; the export promoted one French sentence to the whole document). Every conformance checker passes that — they verify a tag **exists**, not that it is **true** — while a screen reader reads the whole document with French pronunciation, WCAG 3.1.1 failing literally. Now reported, behind four guards (60-word floor, recognisable declared language, evidence floor, wide margin over both the declared language and the runner-up) so it is silent in any doubt. Three traps (**119** total) including a good twin carrying a real French passage that must never be accused, plus 9 unit tests. **Our own "accessible PDF" fixture is that syllabus** — a test had asserted `title_language === 100` for it all along; it now asserts 75 and says why. **No new attack surface**: value resolution, one read-only text heuristic, tests. Tests 2,971.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.127.0 → v1.33.0) — click to expand</summary>
 
 ### v1.127.0 — 2026-08-29 · veraPDF's verdict now appears beside the finding it corroborates (no new attack surface)
 

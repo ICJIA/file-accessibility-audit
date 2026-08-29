@@ -87,3 +87,13 @@ jobs:
       # class lived exactly here and nothing tested it.
       - name: Re-save invariance + determinism
         run: pnpm resave-invariance
+
+      # Encoding invariance: ONE document re-emitted in every legal encoding
+      # of the same meaning — attributes inline / behind a reference / as an
+      # array / via a class map, values direct or indirect, role-mapped custom
+      # tags, single-kid shorthand. All must return an identical verdict. This
+      # is the gate that stops the recurring class of bug where a real file
+      # uses a legal encoding nobody anticipated; it found class-map
+      # attributes on its first run, before any document arrived.
+      - name: Encoding invariance (same meaning, every legal form)
+        run: pnpm encoding-invariance

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.129.0] - 2026-08-29
+
+### Added
+
+- **A gate that stops waiting for the next dispute: `pnpm encoding-invariance`.** Five author disputes in two days, and every bug had one shape — *the same meaning, encoded a legal way we did not anticipate*: a `/Scope` value we did not accept, attributes behind a reference, a value behind a reference. Each was found by a real agency file, after a wrong grade had already been published. ISO 32000 permits many encodings of the same semantics and every exporter picks differently, so this gate builds **one document and re-emits it in every legal encoding of the same meaning** — attributes inline, behind a reference, as an array, and via a class map; values direct and indirect; role-mapped custom tags; the single-kid shorthand — then asserts the analyzer returns an **identical verdict** for all of them: score, grade, and the whole per-category vector. It is the re-save invariance gate generalized from *different bytes* to *different legal structure*. In CI on every push.
+- **It found a real gap on its first run, before any document arrived** — which is the entire point. **Class-map attributes** (`/C` naming a class, resolved through the structure tree root's `/ClassMap`) are the third legal way to attach attributes, beside an inline dictionary and a reference to one, and nothing had ever exercised them: a table scoped entirely through a class map scored **89/B instead of 100/A**, its headers reported as missing scope. All three attribute readers — scope, header association, and cell spans — now resolve `/A` and `/C` through one shared path, so any future attribute reader inherits both routes for free.
+
+### Notes
+
+- Every one of the six encodings now agrees with the baseline, and no existing document's score moved (ledger unchanged at 163 rows, all 119 traps hold). Tests 2,971 — the gate is a script, like its siblings.
+- Worth stating for the record: this is the first bug in this class the project found **preemptively** rather than being handed by an agency whose file we had graded wrongly.
+
+<details>
+<summary><strong>v1.128.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.128.0] - 2026-08-29
 
 ### Fixed
@@ -21,8 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Our own "accessible PDF" integration fixture is that syllabus**, and it has carried the wrong language declaration since the fixture was added — a test asserted `title_language === 100` for it all along. The test now asserts 75 and explains why. A checker's own reference documents deserve the same suspicion as anyone else's.
 - Tests 2,962 → **2,971**. No real document's score moved from the indirect-value fix; the ledger grew to **163 rows** (the three new traps plus three DoIT files added as ground truth).
 
-<details>
-<summary><strong>v1.127.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.127.0] - 2026-08-29
 

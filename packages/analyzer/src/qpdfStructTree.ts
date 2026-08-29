@@ -360,6 +360,43 @@ export function analyzeTable(
     return resolved === undefined || resolved === null ? v : resolved;
   };
 
+  // Attributes can ALSO be attached BY CLASS: an element names a class in /C,
+  // and the structure tree root's /ClassMap maps that name to an attribute
+  // dictionary (or an array of them). That is the third legal route, beside
+  // an inline /A dictionary and a reference to one — and nothing exercised it
+  // until scripts/encoding-invariance.ts did on its first run (2026-08-29),
+  // where a table scoped entirely through a class map scored 89/B instead of
+  // 100/A. Resolved lazily: only a document that actually uses /C pays for
+  // the structure-tree-root lookup.
+  let classMapCache: Record<string, any> | null = null;
+  const classMap = (): Record<string, any> => {
+    if (classMapCache) return classMapCache;
+    const root = findStructTreeRoot(objects);
+    const cm = root ? resolve(root["/ClassMap"]) : null;
+    const resolvedMap: Record<string, any> = cm && typeof cm === "object" ? cm : {};
+    classMapCache = resolvedMap;
+    return resolvedMap;
+  };
+
+  /** Every attribute dictionary that applies to a node: /A (an inline dict, a
+   *  reference, or an array of either) plus any classes named in /C. */
+  const attrDictsOf = (resolved: any): any[] => {
+    const out: any[] = [];
+    const push = (a: any) => {
+      const r = resolve(a);
+      if (r && typeof r === "object") out.push(r);
+    };
+    const attrs = resolved["/A"];
+    if (Array.isArray(attrs)) attrs.forEach(push);
+    else if (attrs) push(attrs);
+    const cls = resolved["/C"];
+    const names = Array.isArray(cls) ? cls : cls ? [cls] : [];
+    for (const n of names) {
+      if (typeof n === "string") push(classMap()[n]);
+    }
+    return out;
+  };
+
   // Get the tag of a node
   const getTag = (node: any): string | null => {
     const resolved = resolve(node);
@@ -381,19 +418,13 @@ export function analyzeTable(
   const hasNodeScope = (node: any): boolean => {
     const resolved = resolve(node);
     if (!resolved) return false;
-    const attrs = resolved["/A"];
-    if (!attrs) return false;
-    // /A can be a single dict, a ref, or an array
-    const checkAttr = (a: any): boolean => {
-      const r = resolve(a);
-      const scope = derefValue(r?.["/Scope"]);
+    return attrDictsOf(resolved).some((r) => {
+      const scope = derefValue(r["/Scope"]);
       // Case-folded: the value is a PDF name, and viewers treat names as
       // case-sensitive, but an exporter writing /column should be read as
       // scoped rather than silently reported as missing.
       return typeof scope === "string" && SCOPE_VALUES.has(scope.toLowerCase());
-    };
-    if (Array.isArray(attrs)) return attrs.some(checkAttr);
-    return checkAttr(attrs);
+    });
   };
 
   // Check if a TD node has /Headers association
@@ -401,14 +432,7 @@ export function analyzeTable(
     const resolved = resolve(node);
     if (!resolved) return false;
     if (derefValue(resolved["/Headers"])) return true;
-    const attrs = resolved["/A"];
-    if (!attrs) return false;
-    const checkAttr = (a: any): boolean => {
-      const r = resolve(a);
-      return !!derefValue(r?.["/Headers"]);
-    };
-    if (Array.isArray(attrs)) return attrs.some(checkAttr);
-    return checkAttr(attrs);
+    return attrDictsOf(resolved).some((r) => !!derefValue(r["/Headers"]));
   };
 
   // Read a cell's /ColSpan or /RowSpan. Spans live in the cell's /A
@@ -418,19 +442,13 @@ export function analyzeTable(
     const resolved = resolve(cellNode);
     if (!resolved) return 1;
     let v: any = derefValue(resolved[key]);
-    if (v === undefined && resolved["/A"]) {
-      const attrs = resolved["/A"];
-      const read = (a: any): any => derefValue(resolve(a)?.[key]);
-      if (Array.isArray(attrs)) {
-        for (const a of attrs) {
-          const c = read(a);
-          if (c !== undefined) {
-            v = c;
-            break;
-          }
+    if (v === undefined) {
+      for (const r of attrDictsOf(resolved)) {
+        const candidate = derefValue(r[key]);
+        if (candidate !== undefined) {
+          v = candidate;
+          break;
         }
-      } else {
-        v = read(attrs);
       }
     }
     return typeof v === "number" && v >= 1 ? Math.floor(v) : 1;
