@@ -251,6 +251,20 @@
       <div class="tm-grid">{{TRAP_CARDS}}</div>
     </div>
   </div>
+  <!-- Close goes BACK to the page the modal was opened from when the reader
+       came from within the site; a direct/emailed arrival falls through to
+       the href (close, stay here). The app strips this script from the
+       /trust body (v-html never executes scripts anyway) and implements the
+       same logic in its own bundle — the site's CSP allows nothing inline. -->
+  <script>
+    document.addEventListener("click", function (e) {
+      var a = e.target && e.target.closest ? e.target.closest("a.tm-close") : null;
+      if (a && document.referrer.indexOf(location.origin) === 0) {
+        e.preventDefault();
+        history.back();
+      }
+    });
+  </script>
   </section>
 
   <section>

@@ -25,19 +25,40 @@ useHead({
     { name: "description", content: DESCRIPTION },
     // Page-specific og/twitter overrides of the site-wide defaults, so a
     // shared link previews as THIS page's argument rather than the app's.
-    { property: "og:title", content: "Can I trust this? — Accessibility Audit" },
+    { property: "og:title", content: "Can I trust this? — ICJIA Accessibility Audit" },
     { property: "og:description", content: DESCRIPTION },
     { property: "og:url", content: "https://audit.icjia.app/trust" },
-    { name: "twitter:title", content: "Can I trust this? — Accessibility Audit" },
+    { name: "twitter:title", content: "Can I trust this? — ICJIA Accessibility Audit" },
     { name: "twitter:description", content: DESCRIPTION },
   ],
   link: [{ rel: "canonical", href: "https://audit.icjia.app/trust" }],
 });
+
+/** The trap-inventory modal's Close, made to keep its promise: a reader who
+ *  arrived from within the site (the What's New link is a FULL-PAGE
+ *  navigation into /trust#all-traps, so the homepage is the previous history
+ *  entry; an in-page open pushed one too) goes BACK to the page they were
+ *  on. A reader who landed here directly — an emailed link straight into the
+ *  modal, referrer elsewhere or empty — has nowhere sensible to go back to,
+ *  so the anchor's own href takes over: close the overlay, stay on this
+ *  page. Delegated from the container because the body is v-html (inline
+ *  onclick would also be dead on arrival: the site's CSP is nonce-based with
+ *  no unsafe-inline, so handlers must live in the app bundle — this one).
+ *  The standalone brief carries the same logic as a real <script>, which
+ *  build-brief strips from this app body. */
+function onTrustBodyClick(e: MouseEvent) {
+  const target = e.target as HTMLElement | null;
+  const closeLink = target?.closest?.("a.tm-close");
+  if (closeLink && document.referrer.startsWith(window.location.origin)) {
+    e.preventDefault();
+    window.history.back();
+  }
+}
 </script>
 
 <template>
   <!-- eslint-disable-next-line vue/no-v-html — repo-authored generated body, see header comment -->
-  <div class="trust-page -mx-3 sm:-mx-6" v-html="TRUST_BODY"></div>
+  <div class="trust-page -mx-3 sm:-mx-6" v-html="TRUST_BODY" @click="onTrustBodyClick"></div>
 </template>
 
 <style>

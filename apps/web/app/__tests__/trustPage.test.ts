@@ -45,9 +45,29 @@ describe("Can I trust this? — the /trust page", () => {
     // real one), which cuts a chunk out of the final section — so apply the
     // SAME strip to the standalone before asserting containment.
     const standalone = readFileSync(resolve(ROOT, "docs/brief/checker-brief.html"), "utf8");
-    const stripped = standalone.replace(/\s*<footer>[\s\S]*?<\/footer>/, "");
+    const stripped = standalone
+      .replace(/\s*<footer>[\s\S]*?<\/footer>/, "")
+      // The app body also drops the standalone's <script> blocks (v-html
+      // would never run them; trust.vue carries the behavior CSP-legally).
+      .replace(/\s*<!-- Close goes BACK[\s\S]*?<\/script>/g, "")
+      .replace(/\s*<script>[\s\S]*?<\/script>/g, "");
     expect(body.length).toBeGreaterThan(5_000);
     expect(stripped).toContain(body.trim());
+    // The rendered app body must stay script-free — behavior lives in the
+    // page component, where the nonce-based CSP can bless it.
+    expect(body).not.toContain("<script");
+  });
+
+  it("the modal Close goes back to the page it was opened from", () => {
+    // In the app: a delegated handler on the v-html container (inline
+    // onclick is dead under the nonce-based CSP). In the standalone brief:
+    // a real <script> with the same referrer-gated history.back().
+    const page = readFileSync(resolve(WEB, "pages/trust.vue"), "utf8");
+    expect(page).toMatch(/onTrustBodyClick/);
+    expect(page).toMatch(/a\.tm-close/);
+    expect(page).toMatch(/history\.back\(\)/);
+    const standalone = readFileSync(resolve(ROOT, "docs/brief/checker-brief.html"), "utf8");
+    expect(standalone).toMatch(/tm-close[\s\S]*history\.back\(\)/);
   });
 
   it("the trap-inventory modal lists every document the stats claim", () => {
