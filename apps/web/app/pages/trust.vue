@@ -620,6 +620,9 @@ function onTrustBodyClick(e: MouseEvent) {
   margin-top: auto;
   align-self: flex-start;
 }
+.trust-page .objection-h {
+  line-height: 1.22;
+}
 .trust-page .timeline {
   margin-top: 30px;
   display: flex;

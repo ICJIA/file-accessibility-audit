@@ -97,6 +97,8 @@
   .bugcard h3 .bad{color:var(--bad)} .bugcard h3 .good{color:var(--good)}
   .bugcard p{color:var(--muted);max-width:70ch}
 
+  /* the objection quote runs four lines — give it air (user request) */
+  .objection-h{line-height:1.22}
   /* ---------- disputes ---------- */
   .disputes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:32px}
   .dis{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
@@ -358,7 +360,7 @@
 
   <section>
     <div class="kicker">the objection</div>
-    <h2 class="display">"But... but one person built it. It's not Google or Microsoft. It's just a developer at an Illinois agency. The developer is not even on executive staff!"</h2>
+    <h2 class="display objection-h">"But... but one person built it. It's not Google or Microsoft. It's just a developer at a tiny Illinois agency. The developer is not even on executive staff!"</h2>
     <p class="lede"><strong>True &mdash; every word of it.</strong> Which is exactly why nothing here asks for trust: every claim below is checkable by anyone:</p>
     <div class="checks">
       <div class="check"><div class="big">The recipe is public</div><p>Every line of code and every change is published on GitHub, for anyone to read &mdash; a kitchen that cooks with the door open.</p></div>
