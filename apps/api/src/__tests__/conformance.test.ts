@@ -34,11 +34,14 @@ describe("conformance gate — WCAG 2.2", () => {
     else process.env.WCAG_VERSION = orig;
   });
 
-  it("uses WCAG22 Understanding URLs and a 2.2 headline by default", async () => {
+  it("uses WCAG22 Understanding URLs; the fail headline names WCAG 2.1", async () => {
     delete process.env.WCAG_VERSION; // default 2.2
     const evaluate = await loadGate();
     const v = evaluate(makeQpdf({ hasStructTree: false }), makePdfjs(), cleanCategories);
-    expect(v.headline).toContain("WCAG 2.2 Level AA");
+    // The fail headline names WCAG 2.1 regardless of the audit basis — the
+    // failing criteria are 2.1 criteria (wcag21Purity), and 2.1 is the
+    // standard the law cites. The Understanding URLs keep the audit basis.
+    expect(v.headline).toContain("does not meet WCAG 2.1 Level AA");
     expect(v.failures.some((f: any) => f.url.includes("/WCAG22/"))).toBe(true);
   });
 

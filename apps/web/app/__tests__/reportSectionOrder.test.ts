@@ -113,7 +113,10 @@ describe("ReportVisualView.vue — visual composition order", () => {
   it("hero → tiles → verdict → plan → bars → technical report", () => {
     const hero = at(src, "ReportGradeHero");
     const tiles = at(src, "SeverityTiles");
-    const verdict = at(src, "VerdictStrip");
+    // The one verdict is the TwoStandardsStrip (VerdictStrip retired
+    // v1.137.0 — two stacked verdict banners violated the one-verdict rule,
+    // and the old one said "WCAG 2.2" an inch above "only WCAG 2.1 counts").
+    const verdict = at(src, "TwoStandardsStrip");
     const plan = at(src, "ActionPlan");
     const bars = at(src, "CategoryBars");
     const tech = at(src, "TechnicalReport");

@@ -46,6 +46,10 @@
             >Go to the fixes</a
           >.
         </template>
+        <template v-else-if="conformance?.notAssessed?.length">
+          {{ " " }}{{ conformance.notAssessed.length }} criteria still need a quick manual review —
+          see "Still worth checking by hand" below.
+        </template>
       </p>
     </div>
 

@@ -1,6 +1,5 @@
 import type { CategoryResult } from "../scorer.js";
 import type { ConformanceVerdict } from "./conformance.js";
-import { WCAG } from "#config";
 
 /**
  * Build the one-paragraph executive summary shown alongside the score.
@@ -26,7 +25,9 @@ export function generateSummary(
   // grade with a confirmed failure is still a failure.
   if (conformance.status === "fail") {
     const n = conformance.failures.length;
-    return `This ${noun} scored ${score}/100 (grade ${grade}) for overall readiness, but automated checks confirmed ${n} WCAG ${WCAG.VERSION} ${n === 1 ? "failure" : "failures"} — so it does not yet meet WCAG ${WCAG.VERSION} Level AA. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
+    // 2.1 by name — the failing criteria are 2.1 criteria (wcag21Purity),
+    // and 2.1 is the standard the law cites.
+    return `This ${noun} scored ${score}/100 (grade ${grade}) for overall readiness, but automated checks confirmed ${n} WCAG 2.1 ${n === 1 ? "failure" : "failures"} — so it does not yet meet WCAG 2.1 Level AA, the standard the ADA Title II rule and the Illinois IITAA require. The conformance verdict above lists the exact criteria; correcting those is the priority before the document can be treated as accessible.`;
   }
 
   // Analysis could not complete — no honest verdict, and no readiness claim.

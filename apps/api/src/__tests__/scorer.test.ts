@@ -4,7 +4,6 @@ import type { QpdfResult, TableAnalysis } from "../services/qpdfService.js";
 import type { PdfjsResult } from "../services/pdfjsService.js";
 import { generateSummary } from "../services/scoring/summary.js";
 import type { ConformanceVerdict } from "../services/scoring/conformance.js";
-import { WCAG } from "#config";
 
 // ---------------------------------------------------------------------------
 // Helpers to build mock data
@@ -954,7 +953,7 @@ describe("executive summary", () => {
     pdfjs.title = null; // → WCAG 2.4.2 (Page Titled) failure
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("fail");
-    expect(result.executiveSummary).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
+    expect(result.executiveSummary).toContain(`does not yet meet WCAG 2.1 Level AA`);
   });
 
   it("a document with multiple confirmed failures gets a failure summary", () => {
@@ -971,8 +970,8 @@ describe("executive summary", () => {
     const result = scoreDocument(qpdf, pdfjs);
     expect(result.conformance.status).toBe("fail");
     expect(result.conformance.failures.length).toBeGreaterThan(1);
-    expect(result.executiveSummary).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
-    expect(result.executiveSummary).toContain(`WCAG ${WCAG.VERSION} failures`);
+    expect(result.executiveSummary).toContain(`does not yet meet WCAG 2.1 Level AA`);
+    expect(result.executiveSummary).toContain(`WCAG 2.1 failures`);
   });
 
   it("an unreadable document yields an incomplete-analysis summary", () => {
@@ -1025,14 +1024,14 @@ function summaryCat(severity: string | null, score: number | null): CategoryResu
 describe("generateSummary", () => {
   it("a confirmed conformance failure outranks a high grade", () => {
     const s = generateSummary(95, "A", false, [], summaryVerdict("fail", 1));
-    expect(s).toContain(`does not yet meet WCAG ${WCAG.VERSION} Level AA`);
-    expect(s).toContain(`1 WCAG ${WCAG.VERSION} failure`);
+    expect(s).toContain(`does not yet meet WCAG 2.1 Level AA`);
+    expect(s).toContain(`1 WCAG 2.1 failure`);
     expect(s).not.toContain("strong result");
   });
 
   it("pluralises multiple confirmed failures", () => {
     const s = generateSummary(70, "C", false, [], summaryVerdict("fail", 3));
-    expect(s).toContain(`3 WCAG ${WCAG.VERSION} failures`);
+    expect(s).toContain(`3 WCAG 2.1 failures`);
   });
 
   it("an incomplete verdict makes no readiness claim", () => {

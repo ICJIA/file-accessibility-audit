@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.137.0] - 2026-08-29
+
+### Fixed — the last WCAG 2.2 leak, caught by the user from a live report
+
+- **The verdict banner said "Does not meet WCAG 2.2 Level AA" one inch above the strip saying "Nothing beyond WCAG 2.1 A/AA is counted."** Since every criterion that can appear in the failures list is a WCAG 2.1 criterion (enforced by the `wcag21Purity` tests), failing them fails 2.1 — the standard the law actually cites — and that is now what every failing verdict says: the banner headline, the conformance verdict's own `headline` sentence, and the executive summary (which also feeds the copy-for-AI block). The Understanding links keep the audit-basis URLs.
+- **Two stacked verdict banners became one.** The legacy `VerdictStrip` duplicated the two-standards strip's verdict directly above it, violating the one-publish-verdict rule — it is retired, and the strip absorbed its one unique piece (the "N criteria still need a quick manual review" line on passing reports). The component and its tests are deleted, and the visual-composition order tests now anchor on the two-standards strip.
+
+### Notes
+
+- No scores moved (`score-ledger`: no movement; `legal-basis`: green across 167 documents). Tests 3,000 → **2,997** (the retired component's three tests).
+
+<details>
+<summary><strong>v1.136.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.136.0] - 2026-08-29
 
 ### Changed — the legal-only scoring sweep
@@ -19,8 +33,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Trap truths updated for the nine policy flips (bookmarks ×2, heading trio ×3, content quality, one-row table, pptx titles, xlsx names); docx trap fixtures gained real table borders so the headerless-table trap still tests a data table. Corpus 124, tests 3,000 — every one green under the new policy.
 
-<details>
-<summary><strong>v1.135.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.135.0] - 2026-08-29
 

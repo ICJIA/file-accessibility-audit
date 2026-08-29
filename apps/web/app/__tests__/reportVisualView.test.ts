@@ -72,7 +72,9 @@ describe("ReportVisualView", () => {
       // panel label is the stable anchor.
       html.indexOf("Fix progress"), // hero
       html.indexOf("severity-tile-critical"),
-      html.indexOf("verdict-strip"),
+      // The one verdict is the two-standards strip (VerdictStrip retired
+      // v1.137.0 — ONE publish verdict, and it names WCAG 2.1).
+      html.indexOf("two-standards-strip"),
       // The About-this-document card sits directly above the plan so the
       // reader sees what made the document (and when) before the steps that
       // depend on it (user request 2026-08-16). Its property TABLE folds away
@@ -86,10 +88,8 @@ describe("ReportVisualView", () => {
       // between a reader and the one thing they came for.
       html.indexOf("notice-slot-marker"),
       html.indexOf("Where the score comes from"),
-      // NOT html.indexOf("technical-report") — VerdictStrip's fail-branch
-      // renders href="#technical-report" (pinned by reportHeader.test.ts),
-      // which is an earlier, unrelated match for that substring. Anchor to
-      // the TechnicalReport section's own opening tag instead.
+      // Anchor to the TechnicalReport section's own opening tag, not the
+      // bare substring, which could match an earlier href.
       html.indexOf('id="technical-report"'),
     ];
     expect(order.every((i) => i > -1)).toBe(true);

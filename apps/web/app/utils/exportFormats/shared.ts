@@ -111,8 +111,11 @@ export function standardsBasis(wcagVersion: string): string {
   );
 }
 
-export function conformanceHeading(c: ConformanceVerdict, wcagVersion: string): string {
-  if (c.status === "fail") return `Does not meet WCAG ${wcagVersion} Level AA`;
+export function conformanceHeading(c: ConformanceVerdict, _wcagVersion: string): string {
+  // 2.1 by name regardless of the audit basis: every criterion that can
+  // appear in failures exists in WCAG 2.1 A/AA (wcag21Purity tests), so
+  // failing them fails 2.1 — the standard the law cites.
+  if (c.status === "fail") return `Does not meet WCAG 2.1 Level AA`;
   if (c.status === "incomplete") return "WCAG verdict could not be determined";
   return "No automated WCAG failures detected";
 }

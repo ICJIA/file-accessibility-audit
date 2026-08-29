@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,000 tests** across 196 test files (API 1,624 · Web 1,327 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,997 tests** across 196 test files (API 1,624 · Web 1,324 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.137.0 — 2026-08-29 · The failing verdict names WCAG 2.1; one verdict banner, not two (no new attack surface)
+
+User-caught from a live report: the red banner said **"Does not meet WCAG 2.2 Level AA"** an inch above *"Nothing beyond WCAG 2.1 A/AA is counted."* Every failing criterion is a 2.1 criterion (gate-enforced), so failing verdicts now name **WCAG 2.1** everywhere — banner, conformance headline, executive summary, and the copy-for-AI block. The legacy `VerdictStrip` (a duplicate verdict stacked above the two-standards strip) is retired, its manual-review count absorbed into the strip. No scores moved. **No new attack surface**: copy and one component removal. Tests 2,997.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.136.0 → v1.33.0) — click to expand</summary>
+
 ### v1.136.0 — 2026-08-29 · The legal-only scoring sweep: only WCAG 2.1 can move a score, and a CI gate proves it (scoring change)
 
 The user's ruling implemented in full: *the ONLY guidelines are ADA Title II, WCAG 2.1, and IITAA — everything else is worth identifying but must not affect the score.* Every deduction in all four scorers was audited against one bright line — **a deduction must correspond to a failing WCAG 2.1 A/AA criterion the report can name, or it may not move the grade**. Fifteen best-practice checks became labelled advisories (bookmarks, reading-order heuristics, heading conventions, link wording, DisplayDocTitle, slide titles, sheet names…); confirmed legal failures gained the explicit citations they were missing (missing headings 1.3.1, untagged content 1.3.1, wrong/unusable language 3.1.1, filename-as-title 2.4.2/F25, untagged links 1.3.1…). A new **`pnpm legal-basis` CI gate** re-verifies the rule on every build — *every point lost names the law it broke* — sabotage-verified, first run 164 violations, now zero across 167 documents. **183 ledger rows moved, all upward, none down**; prod sentinels untouched. **No new attack surface**: scoring rules, conformance attributions, one gate script, tests. Tests 3,000. Corpus 124.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.135.0 → v1.33.0) — click to expand</summary>
 
 ### v1.135.0 — 2026-08-29 · The REQUIRED chip is earned, not stamped (no new attack surface)
 

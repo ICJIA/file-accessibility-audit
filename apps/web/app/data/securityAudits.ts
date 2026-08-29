@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.137.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: a failing verdict now names WCAG 2.1 — the standard the law cites — and the report shows one verdict banner instead of two. No scores changed.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader of a live report caught the last inconsistency of the day: the red verdict banner said the document &ldquo;does not meet <strong>WCAG 2.2</strong> Level AA&rdquo; directly above the summary explaining that <strong>nothing beyond WCAG 2.1 is counted</strong>. Both statements were technically defensible; together they were confusing. Since every failure this tool can assert is a WCAG 2.1 criterion (a rule the test suite enforces mechanically), a failing verdict now says what matters plainly: <strong>&ldquo;Does not meet WCAG 2.1 Level AA&rdquo;</strong> &mdash; in the banner, in the verdict&rsquo;s explanation, and in the report summary.",
+      },
+      {
+        kind: "p",
+        html: "The report also showed two stacked verdict banners saying the same thing; the older one is retired, and its one unique line &mdash; how many criteria still need a quick manual review &mdash; moved into the summary that remains. One verdict, stated once, naming the standard the law names.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: wording changes and one component removal, pinned by tests; the locked score ledger confirms <strong>no document&rsquo;s score changed</strong>. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.136.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: scores now measure WCAG 2.1 and nothing else. Most documents score the same or higher on re-analysis; none score lower.",
     body: [

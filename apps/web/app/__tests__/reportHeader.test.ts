@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
 import ReportGradeHero from "../components/ReportGradeHero.vue";
 import SeverityTiles from "../components/SeverityTiles.vue";
-import VerdictStrip from "../components/VerdictStrip.vue";
 
 const sev = (severity: string | null) => ({ severity });
 
@@ -98,58 +97,6 @@ describe("SeverityTiles", () => {
   });
 });
 
-describe("VerdictStrip", () => {
-  it("fail → ✗ heading, failing count, and a link to the technical report", () => {
-    const w = mount(VerdictStrip, {
-      props: {
-        wcagVersion: "2.2",
-        conformance: {
-          status: "fail",
-          headline: "h",
-          failures: [
-            {
-              sc: "1.1.1",
-              name: "Non-text Content",
-              level: "A",
-              category: "alt_text",
-              issue: "x",
-              url: "https://w3.org",
-            },
-            {
-              sc: "2.4.2",
-              name: "Page Titled",
-              level: "A",
-              category: "title_language",
-              issue: "y",
-              url: "https://w3.org",
-            },
-          ],
-          notAssessed: [],
-        },
-      },
-    });
-    expect(w.text()).toContain("Does not meet WCAG 2.2 Level AA");
-    expect(w.text()).toContain("2 criteria failing");
-    expect(w.find("a").attributes("href")).toBe("#technical-report");
-  });
-
-  it("no-automated-failures → green ✓ wording", () => {
-    const w = mount(VerdictStrip, {
-      props: {
-        wcagVersion: "2.2",
-        conformance: {
-          status: "no-automated-failures",
-          headline: "h",
-          failures: [],
-          notAssessed: [],
-        },
-      },
-    });
-    expect(w.text()).toContain("No automated WCAG failures detected");
-  });
-
-  it("renders nothing without a conformance verdict (old stored reports)", () => {
-    const w = mount(VerdictStrip, { props: { wcagVersion: "2.2", conformance: null } });
-    expect(w.text()).toBe("");
-  });
-});
+// VerdictStrip was retired in v1.137.0 — the TwoStandardsStrip is the one
+// verdict (ONE publish verdict rule), and it names WCAG 2.1, the standard the
+// law cites. Its tests live in twoStandardsStrip.test.ts.

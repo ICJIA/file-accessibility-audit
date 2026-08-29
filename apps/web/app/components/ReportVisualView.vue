@@ -10,8 +10,6 @@
 
     <SeverityTiles v-if="hasCategories" :categories="displayedCategories" class="mb-4" />
 
-    <VerdictStrip :conformance="result.conformance" :wcag-version="wcag.version" class="mb-3" />
-
     <!-- Which rulebook produced the grade, stated before anyone scrolls.
          Gated like the plan/tiles: a page-audit row (no categories[]) must
          not get a green legal-verdict box the axe results could contradict. -->
@@ -108,8 +106,8 @@
 import { computed, nextTick, ref } from "vue";
 import ReportGradeHero from "~/components/ReportGradeHero.vue";
 import SeverityTiles from "~/components/SeverityTiles.vue";
-import VerdictStrip from "~/components/VerdictStrip.vue";
 import ActionPlan from "~/components/ActionPlan.vue";
+import TwoStandardsStrip from "~/components/TwoStandardsStrip.vue";
 import DocumentMetadataCard from "~/components/DocumentMetadataCard.vue";
 import PrintPlanButton from "~/components/PrintPlanButton.vue";
 import CategoryBars from "~/components/CategoryBars.vue";

@@ -750,7 +750,11 @@ export function evaluateConformance(
 
   const headline =
     status === "fail"
-      ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
+      ? // WCAG 2.1 by name, whatever the audit basis: every criterion that can
+        // appear in `failures` exists in WCAG 2.1 A/AA (enforced by the
+        // wcag21Purity tests), so failing them fails 2.1 — the standard the
+        // ADA Title II rule and the Illinois IITAA actually mandate.
+        `This document does not meet WCAG 2.1 Level AA — ${failBreakdown} confirmed by automated checks. WCAG 2.1 Level AA is the standard required by the Illinois IITAA and the ADA Title II rule, and it requires every Level A and Level AA success criterion to pass.`
       : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA also requires color contrast (not evaluated here) and the correctness of alt text, headings, reading order, and tags, all of which require manual review.`;
 
   return { status, failures, notAssessed, headline };
@@ -803,7 +807,11 @@ function finalizeVerdict(
   const contrastNote = contrastNotEvaluated ? ", and color contrast was not evaluated" : "";
   const headline =
     status === "fail"
-      ? `This document does not meet WCAG ${WCAG.VERSION} Level AA — ${failBreakdown} confirmed by automated checks. Level AA conformance (the standard required by the Illinois IITAA 2.1 and the ADA Title II rule, which mandate WCAG 2.1 AA — a subset of 2.2) requires every Level A and Level AA success criterion to pass.`
+      ? // WCAG 2.1 by name, whatever the audit basis: every criterion that can
+        // appear in `failures` exists in WCAG 2.1 A/AA (enforced by the
+        // wcag21Purity tests), so failing them fails 2.1 — the standard the
+        // ADA Title II rule and the Illinois IITAA actually mandate.
+        `This document does not meet WCAG 2.1 Level AA — ${failBreakdown} confirmed by automated checks. WCAG 2.1 Level AA is the standard required by the Illinois IITAA and the ADA Title II rule, and it requires every Level A and Level AA success criterion to pass.`
       : `No automated WCAG failures were detected. This is not a determination of conformance — WCAG ${WCAG.VERSION} Level AA still requires manual review of reading order and the correctness of alt text, headings, and table header associations${contrastNote}.`;
 
   return { status, failures, notAssessed, headline };
