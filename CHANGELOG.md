@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.139.2] - 2026-08-29
+
+### Fixed
+
+- **The trap modal really did end at "synthetic-115"** — the user was right to push back. All 124 cards were present, but the merge concatenated the PDF battery (…100, then 116–124) before the Office battery (101–115), so the list *ended* on 115 and a reader scrolling to the bottom read that as the total. The merged manifest is now sorted numerically across both batteries — the modal runs 01 → 124 and ends on the highest trap — and a new test pins the invariant: **card order strictly ascending, always ending on the highest-numbered trap.**
+
+### Notes
+
+- Tests 3,005 → **3,006**.
+
+<details>
+<summary><strong>v1.139.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.139.1] - 2026-08-29
 
 ### Fixed
@@ -15,8 +28,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,002 → **3,005**. No scores moved.
 
-<details>
-<summary><strong>v1.139.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.139.0] - 2026-08-29
 

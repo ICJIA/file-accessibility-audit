@@ -112,9 +112,15 @@ const pdfManifest = JSON.parse(
 const officeManifest = JSON.parse(
   fs.readFileSync(path.join(ROOT, "scripts", "trap-manifest-office.json"), "utf8"),
 );
+// Sorted NUMERICALLY across both batteries (2026-08-29): the PDF battery's
+// numbering resumed at 116 after the Office traps took 101–115, so a plain
+// concatenation ended the modal at "synthetic-115" — and a reader scrolling
+// to the bottom read that as the total ("this shows 115 — but there are nine
+// more"). The count was always right; the ORDER told a false story.
+const trapNum = (i) => Number(String(i.file ?? i.name ?? "").match(/synthetic-(\d+)/)?.[1] ?? 0);
 const trapManifest = {
   count: pdfManifest.count + officeManifest.count,
-  items: [...pdfManifest.items, ...officeManifest.items],
+  items: [...pdfManifest.items, ...officeManifest.items].sort((a, b) => trapNum(a) - trapNum(b)),
 };
 if (trapManifest.count !== manual.traps)
   throw new Error(

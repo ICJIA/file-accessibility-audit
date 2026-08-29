@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,005 tests** across 196 test files (API 1,624 · Web 1,332 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,006 tests** across 196 test files (API 1,624 · Web 1,333 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.139.2 — 2026-08-29 · The trap modal ends on the highest trap (no new attack surface)
+
+The user's second report was right where my first check was incomplete: all 124 cards existed, but the battery merge put the Office traps (101–115) *after* the PDF traps (…100, 116–124), so the modal ended on "synthetic-115" and read as a total of 115. The merge now sorts numerically across both batteries (01 → 124), pinned by a test requiring strictly ascending card order ending on the highest-numbered trap. Tests 3,006.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.139.1 → v1.33.0) — click to expand</summary>
+
 ### v1.139.1 — 2026-08-29 · Criteria and categories reconcile on sight (no new attack surface)
 
 User-caught arithmetic gap: severity tiles count *categories* (4+1=5) while the verdict counts *criteria* (6) — both true, since one category can fail two laws (missing title + missing language). The strip now says **"6 criteria failing in 5 categories"** whenever the counts differ (guarded off legacy reports lacking category data), and the plan's subtitle closes the loop: *"Together they clear all 6 failing WCAG 2.1 criteria — fix № 1 clears more than one."* Tests 3,005.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.139.0 → v1.33.0) — click to expand</summary>
 
 ### v1.139.0 — 2026-08-29 · Four more legal encodings pinned (13 total); announcement trap-counts can never go stale (no new attack surface)
 

@@ -132,3 +132,18 @@ describe("nav rows never wrap mid-label", () => {
     expect(mainTag).toMatch(/max-w-4xl/);
   });
 });
+
+describe("the trap modal's cards ascend numerically across both batteries (v1.139.2)", () => {
+  // The PDF battery resumed numbering at 116 after the Office traps took
+  // 101–115, and a plain concatenation ended the modal at "synthetic-115" —
+  // read by a scroller as the total. The order must end on the highest trap.
+  it("card order is strictly ascending and ends on the highest-numbered trap", () => {
+    const body = readFileSync(resolve(WEB, "data/trustBody.ts"), "utf8");
+    const nums = [...body.matchAll(/class=\\"trapm\\"><div class=\\"name\\">synthetic-(\d+)/g)].map(
+      (m) => Number(m[1]),
+    );
+    expect(nums.length).toBeGreaterThan(0);
+    expect(nums).toEqual([...nums].sort((a, b) => a - b));
+    expect(nums[nums.length - 1]).toBe(Math.max(...nums));
+  });
+});

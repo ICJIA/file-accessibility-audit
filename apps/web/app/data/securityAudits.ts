@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.139.2",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the trap-document list now runs in numeric order and ends on the highest-numbered trap.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader reported the trap list &ldquo;showing 115&rdquo; — and on the second look they were right in a way the first check missed. All 124 documents were listed, but the two test batteries were joined in the wrong order: the PDF documents (…100, then 116–124) came first and the Office documents (101–115) last, so the list <em>ended</em> on &ldquo;synthetic-115&rdquo; and scrolling to the bottom read like a total of 115.",
+      },
+      {
+        kind: "p",
+        html: "The list is now sorted numerically across both batteries — it runs 01 through 124 and always ends on the highest-numbered document — and an automated check enforces exactly that, so a future battery can never make the bottom of the list understate the count again.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: a sort in the page generator and one new test. No score changed, no new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.139.1",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the failing-criteria count and the severity tiles now reconcile on sight. No scores changed.",
     body: [
