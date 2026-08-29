@@ -1,5 +1,5 @@
 {
-  "count": 101,
+  "count": 104,
   "generated": "2026-08-29",
   "items": [
     {
@@ -512,6 +512,21 @@
       "file": "synthetic-116-crosstab-scope-both.pdf",
       "label": "A cross-tab table scoped Column, Row, and Both — the corner header done right",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-117-indirect-attr-values.pdf",
+      "label": "Scope and spans stored as references, the way Word writes them",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-118-language-mismatch.pdf",
+      "label": "English text declaring itself French — a tag that is present and wrong",
+      "chip": "bug"
+    },
+    {
+      "file": "synthetic-119-language-good-twin.pdf",
+      "label": "The same document declared correctly, with one real French passage",
+      "chip": "held"
     }
   ]
 }

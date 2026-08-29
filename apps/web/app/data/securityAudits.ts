@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.128.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: two table findings corrected, and a new check for a document that declares the wrong language. One document\u2019s table score improves; a wrong language declaration now costs points.",
+    body: [
+      {
+        kind: "p",
+        html: "A table&rsquo;s header directions and cell spans can be stored as <em>references</em> to shared values rather than written out in place &mdash; permitted by the PDF standard, and how Word often writes them. This checker was reading the reference instead of the value it points at, which produced two wrong findings on the same well-built document: every header direction reported missing, and a perfectly regular table reported as having uneven columns. Both are fixed, and that document&rsquo;s table score rises from 85 to 100 &mdash; matching the independent validator, which passed the file all along.",
+      },
+      {
+        kind: "p",
+        html: "New check, from the same document: <strong>a file can declare the wrong language</strong>. This one is written in English but declares itself French, because a single French sentence in the Word original became the language of the entire PDF when it was exported. Every conformance checker passes it, because they confirm a language tag is <em>present and correctly formed</em> &mdash; not that it is <em>true</em>. A screen reader obeys the declaration and reads the whole English document with French pronunciation. Reports now say so, and the check is deliberately hard to trigger: it needs a substantial amount of text, a language it can actually recognise, and overwhelming evidence before it will say anything &mdash; and it stays silent for a document that correctly marks a foreign passage, which is a locked test.",
+      },
+      {
+        kind: "p",
+        html: "Worth recording plainly: the document that exposed both problems is <strong>this project&rsquo;s own reference example of an accessible PDF</strong>, and a test had asserted its language was fine for as long as the fixture has existed. It now asserts the truth. How this was reviewed: the changes read values already present in the file and one text heuristic; no new input is parsed and no new request is made. No code path that receives, sends, or stores anything changed. <strong>One stored table score improves on re-analysis; a document that declares a contradicted language now scores lower on that one category.</strong> No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.127.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: reports now show which findings come from the independent validator rather than from this tool. Nothing new is received, sent, or stored.",
     body: [

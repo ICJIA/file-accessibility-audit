@@ -59,9 +59,22 @@ describe("integration: accessible PDF", () => {
     expect(cat.score).toBeGreaterThanOrEqual(80);
   });
 
-  it("has title and language (score 100)", () => {
+  // Title is set and DisplayDocTitle is on (50 points), but the language
+  // declaration is WRONG and now costs the other 25: this fixture — the same
+  // syllabus circulated as a "100% accessible" reference document — declares
+  // /Lang FR on unmistakably English text. Its Word source is correct
+  // (en-US, with one genuinely French sentence marked fr-FR); the export
+  // promoted that sentence's language to the whole file. The tag is present
+  // and well-formed, so veraPDF passes the document outright and this test
+  // asserted 100 for a year. It is a real WCAG 3.1.1 failure: a screen reader
+  // follows the declaration and reads the whole English document with French
+  // pronunciation. Detected 2026-08-29; see languagePlausibility.ts.
+  it("has a title, but its declared language contradicts the text (score 75)", () => {
     const cat = findCategory(result, "title_language");
-    expect(cat.score).toBe(100);
+    expect(cat.score).toBe(75);
+    expect(cat.findings.join("\n")).toMatch(
+      /declares its language as .*but the text reads as English/i,
+    );
   });
 
   it("has proper heading structure (score 100)", () => {

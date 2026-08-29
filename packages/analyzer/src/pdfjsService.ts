@@ -15,6 +15,10 @@ export interface PdfjsResult {
   pageCount: number;
   hasText: boolean;
   textLength: number;
+  /** First few thousand characters of extracted text, for the language
+   *  plausibility check only (scoring/pdf.ts). Bounded so a 246-page report
+   *  cannot balloon the result object. */
+  textSample?: string;
   title: string | null;
   // The title is present but looks like a filename / tool-generated string
   // ("report_v3_final.pdf", "Microsoft Word - …"). Advisory signal: the
@@ -592,6 +596,7 @@ export async function analyzeWithPdfjs(buffer: Buffer): Promise<PdfjsResult> {
 
     result.textLength = totalText.trim().length;
     result.hasText = result.textLength > 50; // Minimum meaningful text
+    result.textSample = totalText.trim().slice(0, 4000);
   } catch (err) {
     console.error("pdfjs-dist error:", err);
     result.error = "pdfjs-dist parsing failed";

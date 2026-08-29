@@ -3495,6 +3495,142 @@ const SAMPLES: Sample[] = [
         : `scored ${r.overallScore}/${r.grade}, not 100/A`;
     },
   },
+  {
+    file: "synthetic-117-indirect-attr-values.pdf",
+    truth:
+      "A spanned table whose /Scope, /ColSpan and /RowSpan VALUES are each stored as indirect references to shared scalar objects — legal under ISO 32000 and exactly how Word writes repeated values. Resolving the /A dictionary but not the value inside it reads the literal string '23 0 R' instead of /Column, which cost a correctly built DoIT syllabus TWO false findings at once: every scoped header called missing, and a regular grid called ragged because every span read as 1. Scope must be seen, and the 3-column grid (1+2, carry+2, 3) must come out consistent.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Spanned table")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 72 700 Td (Term) Tj ET\nEMC\n` +
+        `/TH << /MCID 2 >> BDC\nBT /F1 10 Tf 200 700 Td (Enrollment by campus) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 200 680 Td (410) Tj ET\nEMC\n` +
+        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 300 680 Td (395) Tj ET\nEMC\n` +
+        `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 72 660 Td (Spring) Tj ET\nEMC\n` +
+        `/TD << /MCID 6 >> BDC\nBT /F1 10 Tf 200 660 Td (388) Tj ET\nEMC\n` +
+        `/TD << /MCID 7 >> BDC\nBT /F1 10 Tf 300 660 Td (402) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R 12 0 R 13 0 R] >>",
+          // Row 1: a row-header spanning 2 rows, then a column-header spanning
+          // 2 columns → width 1 + 2 = 3.
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [14 0 R 15 0 R] >>",
+          // Row 2: two data cells + the carried row-span → 1 + 2 = 3.
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [16 0 R 17 0 R] >>",
+          // Row 3: three plain cells → 3.
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [18 0 R 19 0 R 20 0 R] >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 /A 21 0 R >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 2 /A 22 0 R >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 4 >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 6 >>",
+          "<< /Type /StructElem /S /TD /P 13 0 R /Pg 3 0 R /K 7 >>",
+          // Every attribute VALUE below is an indirect reference — the trap.
+          "<< /O /Table /Scope 23 0 R /RowSpan 25 0 R >>",
+          "<< /O /Table /Scope 24 0 R /ColSpan 25 0 R >>",
+          "/Row",
+          "/Column",
+          "2",
+        ],
+        "<< /Title (Indirect Attribute Values) >>",
+      );
+    },
+    check: (r) => {
+      const text = allFindings(r);
+      if (/missing Scope attribute/i.test(text))
+        return "scope stored as an indirect value was read as missing";
+      if (/inconsistent/i.test(text))
+        return "spans stored as indirect values were read as 1, making a regular grid look ragged";
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      return t.score === 100 ? null : `fully scoped spanned table docked (table ${t.score})`;
+    },
+  },
+  {
+    file: "synthetic-118-language-mismatch.pdf",
+    truth:
+      "English prose in a document that declares itself French. The tag is present and well-formed, so every conformance checker — veraPDF included — passes it; a screen reader following the declaration reads the whole document with French pronunciation. WCAG 3.1.1 asks for the language of the page to be correct, not merely stated. Must be flagged.",
+    build: () => {
+      const lines =
+        "The department publishes this course syllabus for students who are enrolled in the introductory physics sequence and for anyone who is considering the course. The text explains what the class will cover, how the work is graded, and where to find help when a problem set is difficult. Students should read it before the first meeting. The instructor holds office hours twice a week and answers questions by email within two working days. Laboratory sections meet in the science building, and each student is expected to bring the printed worksheet that is posted online before the session begins.".match(
+          /.{1,88}(\s|$)/g,
+        )!;
+      let content = `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 750 Td (Course Syllabus) Tj ET\nEMC\n`;
+      lines.forEach((ln, i) => {
+        content += `/P << /MCID ${i + 1} >> BDC\nBT /F1 11 Tf 72 ${720 - i * 16} Td (${ln.trim()}) Tj ET\nEMC\n`;
+      });
+      const kids = ["9 0 R", ...lines.map((_, i) => `${10 + i} 0 R`)];
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (fr-FR) /ViewerPreferences << /DisplayDocTitle true >> >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${kids.join(" ")}] >>`,
+        FONT,
+        `<< /Nums [0 [${kids.join(" ")}]] >>`,
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+      ];
+      lines.forEach((_, i) => {
+        objs.push(`<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K ${i + 1} >>`);
+      });
+      return buildPdf(objs, "<< /Title (Course Syllabus) >>");
+    },
+    check: (r) =>
+      /declares its language as .* but the text reads as English/i.test(allFindings(r))
+        ? null
+        : "English text declared French was not flagged",
+  },
+  {
+    file: "synthetic-119-language-good-twin.pdf",
+    truth:
+      "GOOD TWIN, and the guard against over-triggering: the same English document declared en-US, carrying one genuinely French sentence in its own /Lang span — precisely the shape of the correctly authored Word source this bug came from. A document must never be accused of a language mismatch for containing a properly marked foreign passage.",
+    build: () => {
+      const lines =
+        "The department publishes this course syllabus for students who are enrolled in the introductory physics sequence and for anyone who is considering the course. The text explains what the class will cover, how the work is graded, and where to find help when a problem set is difficult. Students should read it before the first meeting. The instructor holds office hours twice a week and answers questions by email within two working days. Laboratory sections meet in the science building, and each student is expected to bring the printed worksheet that is posted online before the session begins.".match(
+          /.{1,88}(\s|$)/g,
+        )!;
+      let content = `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 750 Td (Course Syllabus) Tj ET\nEMC\n`;
+      lines.forEach((ln, i) => {
+        content += `/P << /MCID ${i + 1} >> BDC\nBT /F1 11 Tf 72 ${720 - i * 16} Td (${ln.trim()}) Tj ET\nEMC\n`;
+      });
+      const frMcid = lines.length + 1;
+      content += `/P << /MCID ${frMcid} >> BDC\nBT /F1 11 Tf 72 ${720 - lines.length * 16} Td (Ce programme est egalement disponible en francais sur demande.) Tj ET\nEMC\n`;
+      const kids = ["9 0 R", ...lines.map((_, i) => `${10 + i} 0 R`), `${10 + lines.length} 0 R`];
+      const objs = [
+        "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+        stream(content),
+        "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+        `<< /Type /StructElem /S /Document /P 5 0 R /K [${kids.join(" ")}] >>`,
+        FONT,
+        `<< /Nums [0 [${kids.join(" ")}]] >>`,
+        "<< /Type /StructElem /S /H1 /P 6 0 R /Pg 3 0 R /K 0 >>",
+      ];
+      lines.forEach((_, i) => {
+        objs.push(`<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K ${i + 1} >>`);
+      });
+      objs.push(`<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K ${frMcid} /Lang (fr-FR) >>`);
+      return buildPdf(objs, "<< /Title (Course Syllabus) >>");
+    },
+    check: (r) => {
+      if (/but the text reads as/i.test(allFindings(r)))
+        return "a correctly declared document with one French passage was accused of a mismatch";
+      const c = cat("title_language")(r);
+      return c && c.score !== null && c.score < 100 ? `title_language docked (${c.score})` : null;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -3872,6 +4008,18 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-116-crosstab-scope-both.pdf": {
     label: "A cross-tab table scoped Column, Row, and Both — the corner header done right",
     chip: "bug",
+  },
+  "synthetic-117-indirect-attr-values.pdf": {
+    label: "Scope and spans stored as references, the way Word writes them",
+    chip: "bug",
+  },
+  "synthetic-118-language-mismatch.pdf": {
+    label: "English text declaring itself French — a tag that is present and wrong",
+    chip: "bug",
+  },
+  "synthetic-119-language-good-twin.pdf": {
+    label: "The same document declared correctly, with one real French passage",
+    chip: "held",
   },
 };
 

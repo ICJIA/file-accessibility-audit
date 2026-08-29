@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.128.0] - 2026-08-29
+
+### Fixed
+
+- **Attribute VALUES stored as indirect references were read as literal strings — two false findings from one root cause.** ISO 32000 lets any value be indirect, and Word uses that freely: `/Scope 65 0 R` → `/Column`, and the same for `/ColSpan` and `/RowSpan`. The checker resolved the containing `/A` dictionary but not the value inside it, so it compared the string `"65 0 R"` against `/Column` and against a number. On a reference syllabus that cost **two** wrong findings at once: all 19 correctly scoped headers reported as "missing Scope", and a perfectly regular 3-column grid reported as having inconsistent columns, because every span read as 1. (The RowSpan carry-over was right all along — it was being fed 1s.) Values now resolve, falling back to the original when a reference is dangling, since a dangling ref still proves the key was written. That file goes **89/B → 100/A on tables**, matching veraPDF, which passes it outright.
+
+### Added
+
+- **A declared language that contradicts the text is now reported.** The same syllabus declares `/Lang FR` on unmistakably English prose — its Word source is correct (`en-US`, with one genuinely French sentence marked `fr-FR`), and the export promoted that one sentence's language to the whole document. Every conformance checker passes it, veraPDF included, because they verify a language tag **exists and is well-formed**, not that it is **true**. A screen reader follows the declaration and reads the entire English document with French pronunciation — WCAG 3.1.1 failing in the most literal way. Scored like a malformed tag (partial credit: the declaration exists and defeats pronunciation just as thoroughly), with copy that names both languages, shows the evidence count, and explains the correct fix for a document that really does contain a foreign passage.
+- The detector is **deliberately hard to trigger** — four independent guards, all required: at least 60 words, a declared language the stopword table can actually recognise (never accuse a language we cannot read), an absolute evidence floor, and a wide margin over **both** the declared language and the runner-up (which is what stops Spanish, Portuguese and Italian, who share many function words, from accusing each other). Silence in every case of doubt.
+- **Three traps** (corpus now **119**): `synthetic-117-indirect-attr-values.pdf` (scope and spans as indirect references, sabotage-verified to fail against the old code with the exact production symptom), `synthetic-118-language-mismatch.pdf`, and `synthetic-119-language-good-twin.pdf` — the same English document declared correctly **with one real French passage**, which must never be accused. Plus 9 unit tests on the detector, mostly about its silence.
+
+### Notes
+
+- **Our own "accessible PDF" integration fixture is that syllabus**, and it has carried the wrong language declaration since the fixture was added — a test asserted `title_language === 100` for it all along. The test now asserts 75 and explains why. A checker's own reference documents deserve the same suspicion as anyone else's.
+- Tests 2,962 → **2,971**. No real document's score moved from the indirect-value fix; the ledger grew to **163 rows** (the three new traps plus three DoIT files added as ground truth).
+
+<details>
+<summary><strong>v1.127.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.127.0] - 2026-08-29
 
 ### Added
@@ -17,8 +37,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Mapping lives in `apps/web/app/components/pdfUaCategory.ts`, keyed on veraPDF's **description keywords, not clause numbers** — the same doctrine as the existing `pdfUaFixHint.ts`, because clause numbers drift across veraPDF versions while the English is stable. Deliberately conservative: a rule that does not map cleanly to one of our categories returns null and stays in veraPDF's own panel, because an over-eager mapping would put words in the referee's mouth.
 - Tests 2,952 → **2,962** (10 new: the mapping's conservatism, the confirmation case, the stricter case, and four silence cases across both views). Verified end to end by driving a browser through a real report — the DoIT reference document, where clause 7.5 now appears verbatim beneath the table fix.
 
-<details>
-<summary><strong>v1.126.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.126.0] - 2026-08-29
 

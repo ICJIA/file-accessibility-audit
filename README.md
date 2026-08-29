@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,962 tests** across 193 test files (API 1,613 · Web 1,300 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,971 tests** across 194 test files (API 1,622 · Web 1,300 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1286,12 +1286,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.128.0 — 2026-08-29 · Indirect attribute values; a declared language that contradicts the text (scoring fix + new check)
+
+**Two false findings from one root cause, and a real defect nobody's tool was catching.** ISO 32000 lets any value be indirect, and Word writes `/Scope`, `/ColSpan` and `/RowSpan` that way; this checker resolved the containing `/A` dictionary but not the value inside it, so a reference syllabus had all 19 scoped headers called "missing Scope" **and** a regular grid called ragged (every span read as 1). Fixed — that file goes 89/B → 100/A on tables, matching veraPDF, which passes it outright. Separately, the same file declares `/Lang FR` on English prose (its Word source is correct; the export promoted one French sentence to the whole document). Every conformance checker passes that — they verify a tag **exists**, not that it is **true** — while a screen reader reads the whole document with French pronunciation, WCAG 3.1.1 failing literally. Now reported, behind four guards (60-word floor, recognisable declared language, evidence floor, wide margin over both the declared language and the runner-up) so it is silent in any doubt. Three traps (**119** total) including a good twin carrying a real French passage that must never be accused, plus 9 unit tests. **Our own "accessible PDF" fixture is that syllabus** — a test had asserted `title_language === 100` for it all along; it now asserts 75 and says why. **No new attack surface**: value resolution, one read-only text heuristic, tests. Tests 2,971.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.127.0 → v1.33.0) — click to expand</summary>
+
 ### v1.127.0 — 2026-08-29 · veraPDF's verdict now appears beside the finding it corroborates (no new attack surface)
 
 Reports now answer *"says who?"* with someone other than us. Where **veraPDF** — the PDF Association's own validator, which this project did not write — independently failed the same point on the same document, the fix step and the evidence card quote **its words, its ISO 14289-1 clause, and its failed-check count**. Where veraPDF is *stricter* than this checker, the report says that too, explicitly marked **not counted in the score** (we never score from another tool's verdict). Silence is never presented as agreement: no verdict, an unavailable verdict, a clean verdict, or an unmapped rule all render nothing, pinned by tests in both directions. Mapping is on veraPDF's description keywords rather than clause numbers (clause numbers drift between versions), and is deliberately conservative — unmapped rules stay in veraPDF's own panel. **No new attack surface**: one read-only mapping of data the report already carried, plus rendering. Tests 2,962.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.126.0 → v1.33.0) — click to expand</summary>
 
 ### v1.126.0 — 2026-08-29 · `/Scope /Both` accepted: a correct table was being marked down (scoring fix)
 

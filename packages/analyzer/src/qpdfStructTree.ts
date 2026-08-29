@@ -335,6 +335,31 @@ export function analyzeTable(
     return node && typeof node === "object" ? node : null;
   };
 
+  // Resolve an attribute VALUE that may itself be an indirect reference.
+  //
+  // ISO 32000 lets ANY value be indirect, and real exporters use that freely:
+  // Word writes /Scope, /ColSpan and /RowSpan as references to shared scalar
+  // objects (`/Scope 65 0 R` → `/Column`) so that repeated values are stored
+  // once. Resolving only the containing /A dictionary and then reading the
+  // key straight out of it yields the literal string "65 0 R" — which is not
+  // "/Column", and not a number.
+  //
+  // That cost a correctly built DoIT syllabus TWO false findings at once
+  // (2026-08-29): all 19 of its scoped headers reported as "missing Scope",
+  // and its properly spanned 7x3 table reported as having inconsistent
+  // columns, because every span read as 1. The RowSpan carry-over below was
+  // right all along — it was being fed 1s.
+  //
+  // Falls back to the ORIGINAL value when a reference cannot be resolved: a
+  // dangling ref still proves the key was written, which is what presence
+  // checks like /Headers ask. (For /Scope the unresolved string simply is not
+  // a valid scope name, so it still reads as unscoped — correct either way.)
+  const derefValue = (v: any): any => {
+    if (typeof v !== "string" || !/^\d+\s+\d+\s+R$/.test(v)) return v;
+    const resolved = resolveRef(v, objects);
+    return resolved === undefined || resolved === null ? v : resolved;
+  };
+
   // Get the tag of a node
   const getTag = (node: any): string | null => {
     const resolved = resolve(node);
@@ -361,7 +386,7 @@ export function analyzeTable(
     // /A can be a single dict, a ref, or an array
     const checkAttr = (a: any): boolean => {
       const r = resolve(a);
-      const scope = r?.["/Scope"];
+      const scope = derefValue(r?.["/Scope"]);
       // Case-folded: the value is a PDF name, and viewers treat names as
       // case-sensitive, but an exporter writing /column should be read as
       // scoped rather than silently reported as missing.
@@ -375,12 +400,12 @@ export function analyzeTable(
   const hasNodeHeaders = (node: any): boolean => {
     const resolved = resolve(node);
     if (!resolved) return false;
-    if (resolved["/Headers"]) return true;
+    if (derefValue(resolved["/Headers"])) return true;
     const attrs = resolved["/A"];
     if (!attrs) return false;
     const checkAttr = (a: any): boolean => {
       const r = resolve(a);
-      return !!r?.["/Headers"];
+      return !!derefValue(r?.["/Headers"]);
     };
     if (Array.isArray(attrs)) return attrs.some(checkAttr);
     return checkAttr(attrs);
@@ -392,10 +417,10 @@ export function analyzeTable(
   const spanOf = (cellNode: any, key: "/ColSpan" | "/RowSpan"): number => {
     const resolved = resolve(cellNode);
     if (!resolved) return 1;
-    let v: any = resolved[key];
+    let v: any = derefValue(resolved[key]);
     if (v === undefined && resolved["/A"]) {
       const attrs = resolved["/A"];
-      const read = (a: any): any => resolve(a)?.[key];
+      const read = (a: any): any => derefValue(resolve(a)?.[key]);
       if (Array.isArray(attrs)) {
         for (const a of attrs) {
           const c = read(a);

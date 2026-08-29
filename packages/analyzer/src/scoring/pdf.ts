@@ -8,6 +8,7 @@ import { SCORING_WEIGHTS, ANALYSIS, WCAG, SCORING_PROFILES } from "#config";
 import type { CategoryResult, ScoringMode } from "@file-audit/shared";
 import type { QpdfResult, TableAnalysis } from "../qpdfService.js";
 import type { PdfjsResult } from "../pdfjsService.js";
+import { detectLanguageMismatch, LANGUAGE_NAMES } from "../languagePlausibility.js";
 import {
   getGrade,
   getSeverity,
@@ -453,7 +454,31 @@ function scoreTitleLanguage(qpdf: QpdfResult, pdfjs: PdfjsResult): CategoryResul
   // credit with a targeted fix. Never a conformance-gate failure.)
   const hasLang = qpdf.hasLang || !!pdfjs.lang;
   const langValue = (qpdf.lang || pdfjs.lang || "").trim();
-  if (hasLang && isPlausibleLanguageTag(langValue)) {
+  // A well-formed tag that CONTRADICTS the text is scored like a malformed
+  // one (partial credit): the declaration exists, and it defeats screen-reader
+  // pronunciation exactly as thoroughly. Deliberately hard to trigger — see
+  // languagePlausibility.ts for the four guards.
+  const mismatch =
+    hasLang && isPlausibleLanguageTag(langValue)
+      ? detectLanguageMismatch(pdfjs.textSample ?? "", langValue)
+      : null;
+  if (mismatch) {
+    score += 25;
+    const declaredName = LANGUAGE_NAMES[mismatch.declared] ?? mismatch.declared;
+    const detectedName = LANGUAGE_NAMES[mismatch.detected] ?? mismatch.detected;
+    findings.push(
+      `The document declares its language as "${langValue}" (${declaredName}), but the text reads as ${detectedName}. A screen reader follows the declaration, so it would pronounce this document with ${declaredName} pronunciation rules throughout — the words come out as ${declaredName} sounds, which is very hard to listen to and often unintelligible.`,
+    );
+    findings.push(
+      `What the check saw: of ${mismatch.wordCount.toLocaleString()} words sampled, ${mismatch.detectedHits} are common ${detectedName} words and only ${mismatch.declaredHits} are common ${declaredName} words.`,
+    );
+    findings.push(
+      `How to fix: In Adobe Acrobat, open Document properties (under the ☰ Menu on Windows, the File menu on Mac; classic UI: File → Properties) → Advanced tab → Reading Options → set Language to the language the document is actually written in, then save. In Word, set the proofing language for the whole document (Review → Language → Set Proofing Language) before exporting — a single passage marked in another language can otherwise be exported as the language of the entire file.`,
+    );
+    findings.push(
+      `If part of this document really is in ${declaredName}, that is handled differently: mark just those passages with their own language, and leave the document language as the one most of the text is written in.`,
+    );
+  } else if (hasLang && isPlausibleLanguageTag(langValue)) {
     score += 50;
     findings.push(`Language declared: ${qpdf.lang || pdfjs.lang}`);
   } else if (hasLang) {

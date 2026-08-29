@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "language-and-indirect-values-2026-08-29",
+    badge: "Fixed",
+    text: "Two fixes and one new check, all found in documents published as accessible examples. First: a table's header directions and cell spans can be stored as references to shared values rather than written out in place — legal, and how Word often writes them. This checker read the reference instead of the value, which made correctly built tables look like they were missing header directions and had ragged columns. Both are fixed. Second, and new: a document can declare the wrong language. One reference syllabus written in English declared itself French, because a single French sentence in the Word source became the language of the whole PDF on export. Every conformance checker passes that file — the tag is present and correctly formed — but a screen reader reads the entire English document with French pronunciation. Reports now say so when the declared language plainly contradicts the text.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "verapdf-cosign-2026-08-29",
     badge: "New",
     text: "Reports now show you when the finding is not ours. veraPDF — the PDF industry's own validator, published by the PDF Association and not written here — runs beside this checker on every PDF report. Where it independently failed the same point, its exact words, its ISO clause, and its failed-check count now appear right beside the fix, in both the visual plan and the detailed report. And where veraPDF is stricter than this checker — it flags something we do not score — the report says that too, plainly marked as not counted in your score. Silence is never dressed up as agreement: when veraPDF did not run, or did not flag a point, nothing is shown.",
