@@ -103,7 +103,10 @@ const lawVerdict = computed(() => {
     const cats = new Set(catList).size;
     // Bridge only when every failure carries a category (old stored reports
     // may not) — never let missing data fabricate a smaller-looking number.
-    const bridge = catList.length === n && cats !== n ? ` in ${cats} categories` : "";
+    const bridge =
+      catList.length === n && cats !== n
+        ? ` in ${cats} ${cats === 1 ? "category" : "categories"}`
+        : "";
     return `${n} ${n === 1 ? "criterion" : "criteria"} failing${bridge}`;
   }
   return "No automated failures found";

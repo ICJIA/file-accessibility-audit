@@ -54,6 +54,16 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.141.1",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: one grammar fix in the verdict summary (&ldquo;in 1 category&rdquo;).",
+    body: [
+      {
+        kind: "p",
+        html: "The verdict summary&rsquo;s new criteria-to-categories bridge did not singularize its noun &mdash; a live report read &ldquo;2 criteria failing in 1 <em>categories</em>.&rdquo; On a product whose credibility is its precision, grammar is copy. Fixed and pinned by a test in both directions. Nothing else changed.",
+      },
+    ],
+  },
+  {
     version: "v1.141.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: remediation reports open with the two-standards summary, and the copy-for-AI text can no longer blur required law with best practice.",
     body: [

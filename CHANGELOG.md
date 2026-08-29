@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.141.1] - 2026-08-29
+
+### Fixed
+
+- **"2 criteria failing in 1 categories"** — the criteria↔categories bridge never singularized its noun, caught live on the Elderabuse2 remediation report (title and language both failing inside the one Title & Language category). Now "in 1 category", pinned by a test in both directions.
+
+### Notes
+
+- Tests 3,010 → **3,011**.
+
+<details>
+<summary><strong>v1.141.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.141.0] - 2026-08-29
 
 ### Changed — the remediation page and the AI block join the two-standards story
@@ -19,8 +32,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,008 → **3,010**. No scores moved.
 
-<details>
-<summary><strong>v1.140.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.140.1] - 2026-08-29
 

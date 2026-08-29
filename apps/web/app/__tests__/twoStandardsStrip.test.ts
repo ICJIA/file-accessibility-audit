@@ -117,3 +117,23 @@ describe("the criteria count bridges to categories when they differ (v1.139.1)",
     expect(html).not.toMatch(/in \d+ categor/);
   });
 });
+
+describe("the bridge pluralizes its category noun (v1.141.1)", () => {
+  it('says "in 1 category", never "in 1 categories"', () => {
+    // Seen live on a remediation report: title AND language failing inside
+    // the single Title & Language category → "2 criteria failing in 1
+    // categories". On a product hunting copy errors, grammar is copy.
+    const conformance = {
+      status: "fail",
+      failures: [
+        { sc: "2.4.2", category: "title_language" },
+        { sc: "3.1.1", category: "title_language" },
+      ],
+      notAssessed: [],
+      headline: "",
+    } as never;
+    const html = strip({ conformance, fileType: "pdf" }).html();
+    expect(html).toMatch(/2 criteria failing in 1 category\b/);
+    expect(html).not.toMatch(/1 categories/);
+  });
+});
