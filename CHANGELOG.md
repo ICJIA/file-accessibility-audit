@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.139.0] - 2026-08-29
+
+### Fixed
+
+- **Two dated announcements still carried old trap totals** — the v1.124 entry said "All 115 traps held" with a link reading "See all 115 trap documents", and the v1.122 entry linked "See all 100 trap documents" — while the /trust modal itself (self-updating from the trap manifests) correctly shows all 124. The links are now count-free ("See the trap documents"), the historical body is marked as historical ("All 115 traps *then in the battery* held"), and **a new guard test makes the class impossible to repeat**: no announcement's linkText may ever hardcode a trap count, and a body naming a total must carry the historical qualifier.
+
+### Added — four more legal encodings in the invariance gate (now 13)
+
+- The answer to "can we find odd table and text configurations preemptively, without waiting for files": the encoding-invariance gate — the machinery that caught `/ClassMap` before any document arrived — now also re-emits the canonical document as:
+  - **`<THead>`/`<TBody>` row groups** (ISO 32000 Table 337) — a walker reading only a Table's direct `<TR>` children sees zero rows here;
+  - **attribute arrays with interleaved revision numbers** (`/A [<<…>> 0]`, ISO 32000 14.7.6.2) — a reader assuming every element is a dictionary trips on the bare integer;
+  - **the whole table vocabulary behind a RoleMap** (custom `/BodyRow`/`/HeadCell`/`/DataCell` mapped to TR/TH/TD);
+  - **the table painted inside a Form XObject** the page invokes with `/Do` — marked content in a *different stream*, keyed by the XObject's own `/StructParents`, referenced through `/MCR` dicts with `/Stm` (ISO 32000 14.7.4.2) — the cross-stream case every content-reusing exporter produces.
+- **All 13 encodings produce the identical verdict** — the analyzer already handled every one, and each is now pinned forever; any future parser change that goes blind to one of these shapes fails the build, not an agency's file.
+
+### Notes
+
+- Tests 3,000 → **3,002**. Named for later, still uncovered: `/ActualText` substitution over unmapped glyphs, Type3 (glyph-procedure) fonts, and incremental-update saves — each buildable in the same harness when wanted.
+
+<details>
+<summary><strong>v1.138.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.138.1] - 2026-08-29
 
 ### Fixed
@@ -15,8 +37,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 2,997 → **3,000** (three variant tests — coincidentally restoring the pre-v1.137 count; the earlier drop to 2,997 was the retired VerdictStrip's three tests, verified against the commit diff).
 
-<details>
-<summary><strong>v1.138.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.138.0] - 2026-08-29
 

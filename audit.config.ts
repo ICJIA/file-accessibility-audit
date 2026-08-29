@@ -344,8 +344,8 @@ export const ANNOUNCEMENTS = [
   {
     id: "office-traps-and-twin-rule-2026-08-29",
     badge: "Verified",
-    text: "The trap battery now covers all four formats this checker grades. Fifteen new trap documents were hand-built in Word, PowerPoint, and Excel's own file formats — bold text posing as headings, pictures whose alt panel was never opened, header rows never marked, slides with no titles, sheets still named 'Sheet1' — beside done-right twins that must pass clean. All 115 traps held, and a new twin rule is enforced on every matched pair: the flawed version may never outscore the correct one. Every control's exact score is also now pinned in the public ledger — 151 documents whose grades cannot move without a person approving the change.",
-    linkText: "See all 115 trap documents",
+    text: "The trap battery now covers all four formats this checker grades. Fifteen new trap documents were hand-built in Word, PowerPoint, and Excel's own file formats — bold text posing as headings, pictures whose alt panel was never opened, header rows never marked, slides with no titles, sheets still named 'Sheet1' — beside done-right twins that must pass clean. All 115 traps then in the battery held, and a new twin rule is enforced on every matched pair: the flawed version may never outscore the correct one. Every control's exact score is also now pinned in the public ledger — 151 documents whose grades cannot move without a person approving the change.",
+    linkText: "See the trap documents",
     /** Deep-links the trap-inventory modal — real hash navigation for :target. */
     linkTo: "/trust#all-traps",
     linkExternal: true,
@@ -368,7 +368,7 @@ export const ANNOUNCEMENTS = [
     id: "hundred-trap-documents-2026-08-28",
     badge: "Verified",
     text: "The battery of trap documents built to fool this checker has doubled again: one hundred of them, every designed answer returned correctly. The second fifty are modeled on what Canva, InDesign, and Word actually export — flat untagged posters, decorative-shape swarms, custom naming soup, titles that are pictures of words, 'Print to PDF'. The Can I trust this? page (now the first link in the menu) lists all one hundred with what each one tries and how it was judged, and the whole battery re-runs before any change ships — a broken promise stops the release.",
-    linkText: "See all 100 trap documents",
+    linkText: "See the trap documents",
     /** Deep-links into the trap-inventory modal. linkExternal on purpose:
      *  the modal opens via CSS :target, which only re-evaluates on a REAL
      *  hash navigation — the router's pushState does not reliably trigger

@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,000 tests** across 196 test files (API 1,624 · Web 1,327 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,002 tests** across 196 test files (API 1,624 · Web 1,329 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.139.0 — 2026-08-29 · Four more legal encodings pinned (13 total); announcement trap-counts can never go stale (no new attack surface)
+
+The preemptive answer to odd table/text configurations: the encoding-invariance gate now also re-emits the canonical document with **`<THead>`/`<TBody>` row groups**, **attribute arrays with interleaved revision integers**, **the whole table vocabulary behind a RoleMap**, and **the table painted inside a Form XObject** (cross-stream `/MCR`+`/Stm` references) — all 13 encodings must grade identically, so a parser blind spot for any of these shapes fails the build before a real file finds it. Also fixed two dated announcements still saying "all 115/100 trap documents" (the modal itself self-updates and correctly shows 124): links are count-free now, history is marked historical, and a guard test forbids hardcoded trap counts in announcement links forever. Tests 3,002.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.138.1 → v1.33.0) — click to expand</summary>
+
 ### v1.138.1 — 2026-08-29 · The hero fix reaches the page; fix steps say only what failed (no new attack surface)
 
 Two follow-ups caught by checking the live deploy: the softened trust hero ("See for yourself.") had been changed in the markdown template while the rendered `<h1>` lives in the HTML template — fixed at the real source, both twins regenerated. And the title/language fix step gains findings-keyed variants so a document whose language is already set is never told to set it — title-only, language-only, and combined forms, each with only the relevant Acrobat/source steps. Tests 3,000.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.138.0 → v1.33.0) — click to expand</summary>
 
 ### v1.138.0 — 2026-08-29 · The full-copy audit: every scoring claim now matches the legal-only model (no new attack surface)
 

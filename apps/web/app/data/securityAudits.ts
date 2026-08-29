@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.139.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: four more legal PDF encodings verified identical (13 total), and announcement links can never carry a stale trap count again.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader noticed old announcements still saying &ldquo;see all 115 trap documents&rdquo; while the trap list itself &mdash; which updates automatically &mdash; correctly shows all 124. The dated entries now read as history (&ldquo;all 115 traps <em>then in the battery</em>&rdquo;), their links no longer carry a number at all, and a new automated check forbids any future announcement link from hardcoding a trap count.",
+      },
+      {
+        kind: "p",
+        html: "The bigger addition answers a standing question: can unusual table and text constructions be caught <em>before</em> a real document exposes them? The same-document/many-encodings gate &mdash; which has already caught one such gap before any file arrived &mdash; now also rebuilds its test document with table rows wrapped in header/body groups, attribute lists interleaved with revision numbers, the entire table vocabulary renamed behind a role map, and the table&rsquo;s text painted inside a reusable form object referenced across streams. <strong>All thirteen constructions grade identically.</strong> Each is now locked in: a future change that goes blind to any of them fails the build, not an agency&rsquo;s file.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: test-document builders inside an existing local gate, two wording fixes to dated announcements, and new tests. No score changed, no new input is parsed from visitors, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.138.1",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: two copy follow-ups caught on the live site — the trust-page heading, and fix steps that now say only what actually failed.",
     body: [

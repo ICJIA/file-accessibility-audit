@@ -388,3 +388,30 @@ describe("layout stability — the banner must not appear after hydration", () =
     expect(w.find('[role="region"]').exists()).toBe(false);
   });
 });
+
+describe("announcement copy can never carry a stale trap total (v1.138.2)", () => {
+  // The user found /trust#all-traps "showing 115" — the modal itself was
+  // correct (124, self-updating from the trap manifests), but two DATED
+  // announcement entries still said "All 115 traps held" and linked with
+  // "See all 115 trap documents". A dated entry's body may state a count as
+  // history ONLY with the "then in the battery" qualifier; its link text may
+  // never carry a count at all, because the link points at a live page.
+  it("no linkText hardcodes a trap count", () => {
+    for (const a of ANNOUNCEMENTS as unknown as Array<{ id: string; linkText?: string }>) {
+      expect(
+        /\d+\s+trap/i.test(a.linkText ?? ""),
+        `${a.id}: linkText "${a.linkText}" hardcodes a trap count — it points at a live page and will go stale`,
+      ).toBe(false);
+    }
+  });
+
+  it("a body naming a trap total marks it as historical", () => {
+    for (const a of ANNOUNCEMENTS as unknown as Array<{ id: string; text: string }>) {
+      const m = a.text.match(/[Aa]ll (\d+) traps\b(?! then in the battery)/);
+      expect(
+        m,
+        `${a.id}: says "All ${m?.[1]} traps" without the "then in the battery" qualifier — reads as a live total and will go stale`,
+      ).toBeNull();
+    }
+  });
+});

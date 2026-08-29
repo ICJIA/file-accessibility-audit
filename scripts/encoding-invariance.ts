@@ -76,6 +76,12 @@ interface Encoding {
   build: () => Buffer;
 }
 
+/** A /Form XObject carrying marked content of its own, keyed by its
+ *  /StructParents entry — the cross-stream case /MCR + /Stm exists for. */
+function formXObject(content: string, structParents: number): string {
+  return `<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /StructParents ${structParents} /Length ${content.length} >>\nstream\n${content}endstream`;
+}
+
 /** Round-trip a built document through qpdf with the given write options.
  *  qpdf is a REQUIRED tool for this repo (CI apt-installs it; the analyzer
  *  shells out to it), so its absence here is a hard failure, not a skip. */
@@ -286,6 +292,110 @@ const ENCODINGS: Encoding[] = [
     name: "qpdf-qdf-expanded",
     why: "the baseline expanded to QDF form (uncompressed streams, normalized dictionaries, renumbered objects) — the opposite extreme of object streams; object NUMBERS change while meaning does not, so anything keyed to a literal object id diverges here",
     build: () => qpdfTransform(ENCODINGS[0]!.build(), ["--qdf"]),
+  },
+  {
+    name: "table-row-groups",
+    why: "the same table with its rows wrapped in <THead>/<TBody> row groups — ISO 32000's standard grouping elements (Table 337); a walker that only reads a Table's direct <TR> children sees zero rows here and invents a missing-row-structure failure",
+    build: () =>
+      buildPdf(
+        [
+          ...HEAD("<< /Type /StructTreeRoot /K 6 0 R /ParentTree 17 0 R >>"),
+          ...TAIL_COMMON,
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [20 0 R 21 0 R] >>", // 12
+          "<< /Type /StructElem /S /TR /P 20 0 R /K [15 0 R 16 0 R] >>", // 13
+          "<< /Type /StructElem /S /TR /P 21 0 R /K [18 0 R 19 0 R] >>", // 14
+          "<< /Type /StructElem /S /TH /P 13 0 R /Pg 3 0 R /K 3 /A << /O /Table /Scope /Column >> >>", // 15
+          "<< /Type /StructElem /S /TH /P 13 0 R /Pg 3 0 R /K 4 /A << /O /Table /Scope /Column >> >>", // 16
+          "<< /Nums [0 [9 0 R 10 0 R 11 0 R 15 0 R 16 0 R 18 0 R 19 0 R]] >>", // 17
+          "<< /Type /StructElem /S /TD /P 14 0 R /Pg 3 0 R /K 5 >>", // 18
+          "<< /Type /StructElem /S /TD /P 14 0 R /Pg 3 0 R /K 6 >>", // 19
+          "<< /Type /StructElem /S /THead /P 12 0 R /K [13 0 R] >>", // 20
+          "<< /Type /StructElem /S /TBody /P 12 0 R /K [14 0 R] >>", // 21
+        ],
+        INFO,
+      ),
+  },
+  {
+    name: "attr-array-with-revisions",
+    why: "attribute arrays may interleave REVISION NUMBERS after each attribute object (ISO 32000 14.7.6.2) — /A [<<…Scope…>> 0]; a reader that assumes every array element is a dictionary trips on the bare integer",
+    build: () =>
+      buildPdf(
+        [
+          ...HEAD("<< /Type /StructTreeRoot /K 6 0 R /ParentTree 17 0 R >>"),
+          ...TAIL_COMMON,
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [13 0 R 14 0 R] >>", // 12
+          "<< /Type /StructElem /S /TR /P 12 0 R /K [15 0 R 16 0 R] >>", // 13
+          "<< /Type /StructElem /S /TR /P 12 0 R /K [18 0 R 19 0 R] >>", // 14
+          "<< /Type /StructElem /S /TH /P 13 0 R /Pg 3 0 R /K 3 /A [<< /O /Table /Scope /Column >> 0] >>", // 15
+          "<< /Type /StructElem /S /TH /P 13 0 R /Pg 3 0 R /K 4 /A [<< /O /Table /Scope /Column >> 2] >>", // 16
+          "<< /Nums [0 [9 0 R 10 0 R 11 0 R 15 0 R 16 0 R 18 0 R 19 0 R]] >>", // 17
+          "<< /Type /StructElem /S /TD /P 14 0 R /Pg 3 0 R /K 5 >>", // 18
+          "<< /Type /StructElem /S /TD /P 14 0 R /Pg 3 0 R /K 6 >>", // 19
+        ],
+        INFO,
+      ),
+  },
+  {
+    name: "role-mapped-table-cells",
+    why: "the whole table vocabulary behind a RoleMap — custom /BodyRow, /HeadCell, /DataCell tags mapped to TR/TH/TD; InDesign-style exports do this for headings, and nothing stops one doing it for tables",
+    build: () =>
+      buildPdf(
+        [
+          ...HEAD(
+            "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 17 0 R /RoleMap << /BodyRow /TR /HeadCell /TH /DataCell /TD >> >>",
+          ),
+          ...TAIL_COMMON,
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [13 0 R 14 0 R] >>", // 12
+          "<< /Type /StructElem /S /BodyRow /P 12 0 R /K [15 0 R 16 0 R] >>", // 13
+          "<< /Type /StructElem /S /BodyRow /P 12 0 R /K [18 0 R 19 0 R] >>", // 14
+          "<< /Type /StructElem /S /HeadCell /P 13 0 R /Pg 3 0 R /K 3 /A << /O /Table /Scope /Column >> >>", // 15
+          "<< /Type /StructElem /S /HeadCell /P 13 0 R /Pg 3 0 R /K 4 /A << /O /Table /Scope /Column >> >>", // 16
+          "<< /Nums [0 [9 0 R 10 0 R 11 0 R 15 0 R 16 0 R 18 0 R 19 0 R]] >>", // 17
+          "<< /Type /StructElem /S /DataCell /P 14 0 R /Pg 3 0 R /K 5 >>", // 18
+          "<< /Type /StructElem /S /DataCell /P 14 0 R /Pg 3 0 R /K 6 >>", // 19
+        ],
+        INFO,
+      ),
+  },
+  {
+    name: "table-in-form-xobject",
+    why: "the table's text painted inside a Form XObject the page invokes with /Do — its marked content lives in a DIFFERENT stream, keyed by the XObject's own /StructParents, and the cells reference it through /MCR dicts carrying /Stm (ISO 32000 14.7.4.2); every real exporter that reuses content does this, and a text-attribution walk that only reads the page stream goes blind here",
+    build: () => {
+      const pageContent =
+        `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 740 Td (Quarterly Summary) Tj ET\nEMC\n` +
+        `/P << /MCID 1 >> BDC\nBT /F1 11 Tf 72 710 Td (${BODY}) Tj ET\nEMC\n` +
+        `/Figure << /MCID 2 >> BDC\nq 60 0 0 60 72 620 cm /Im1 Do Q\nEMC\n` +
+        `/Fx0 Do\n`;
+      const xobjContent =
+        `/TH << /MCID 0 >> BDC\nBT /F1 10 Tf 72 580 Td (Region) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 200 580 Td (Total) Tj ET\nEMC\n` +
+        `/TD << /MCID 2 >> BDC\nBT /F1 10 Tf 72 560 Td (North) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 200 560 Td (412) Tj ET\nEMC\n`;
+      const mcr = (mcid: number) => `<< /Type /MCR /Pg 3 0 R /Stm 20 0 R /MCID ${mcid} >>`;
+      return buildPdf(
+        [
+          CATALOG(),
+          PAGES,
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> /XObject << /Im1 8 0 R /Fx0 20 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(pageContent),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 17 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R 11 0 R 12 0 R] >>",
+          FONT,
+          GRAY_IMG,
+          ...TAIL_COMMON.slice(0, 3),
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [13 0 R 14 0 R] >>", // 12
+          "<< /Type /StructElem /S /TR /P 12 0 R /K [15 0 R 16 0 R] >>", // 13
+          "<< /Type /StructElem /S /TR /P 12 0 R /K [18 0 R 19 0 R] >>", // 14
+          `<< /Type /StructElem /S /TH /P 13 0 R /Pg 3 0 R /K ${mcr(0)} /A << /O /Table /Scope /Column >> >>`, // 15
+          `<< /Type /StructElem /S /TH /P 13 0 R /Pg 3 0 R /K ${mcr(1)} /A << /O /Table /Scope /Column >> >>`, // 16
+          "<< /Nums [0 [9 0 R 10 0 R 11 0 R] 1 [15 0 R 16 0 R 18 0 R 19 0 R]] >>", // 17
+          `<< /Type /StructElem /S /TD /P 14 0 R /Pg 3 0 R /K ${mcr(2)} >>`, // 18
+          `<< /Type /StructElem /S /TD /P 14 0 R /Pg 3 0 R /K ${mcr(3)} >>`, // 19
+          formXObject(xobjContent, 1), // 20
+        ],
+        INFO,
+      );
+    },
   },
 ];
 
