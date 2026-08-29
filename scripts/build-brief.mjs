@@ -122,6 +122,18 @@ const trapManifest = {
   count: pdfManifest.count + officeManifest.count,
   items: [...pdfManifest.items, ...officeManifest.items].sort((a, b) => trapNum(a) - trapNum(b)),
 };
+const trapBugs = trapManifest.items.filter((i) => i.chip === "bug").length;
+// The transparency list is hand-written prose; the chips are data. They must
+// agree, or the page understates its own record — fail the build, don't drift
+// (the "caught one real bug" headline sat under five bug chips for a week).
+{
+  const templateHtml = fs.readFileSync(path.join(BRIEF, "checker-brief.template.html"), "utf8");
+  const bugRows = (templateHtml.match(/class="bugrow"/g) ?? []).length;
+  if (bugRows !== trapBugs)
+    throw new Error(
+      `the trust page details ${bugRows} bugs but the manifests carry ${trapBugs} bug chips — update the buglist in checker-brief.template.html`,
+    );
+}
 if (trapManifest.count !== manual.traps)
   throw new Error(
     `manifests hold ${trapManifest.count} entries but brief-stats.json says traps=${manual.traps} — rerun pnpm synthetic-controls + synthetic-office-controls or fix brief-stats`,
@@ -159,6 +171,7 @@ const SUBS = {
   TRAP_LIST_MD,
   TRAPS_CAUGHT: String(trapsCaught),
   TRAPS_HELD: String(trapsHeld),
+  TRAPS_BUGS: String(trapBugs),
   COMMITS: String(commits),
   COMMITS_30D: String(commits30d),
   WEEKS: String(weeks),

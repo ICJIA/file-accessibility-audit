@@ -381,6 +381,21 @@ function onTrustBodyClick(e: MouseEvent) {
   text-align: center;
   font-weight: 600;
 }
+.trust-page .buglist {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 9px;
+}
+.trust-page .bugrow {
+  line-height: 1.55;
+}
+.trust-page .bugrow .mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-left: 6px;
+}
 .trust-page .bugcard {
   margin-top: 24px;
   background: linear-gradient(90deg, var(--tp-bad-dim), var(--tp-good-dim));

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.140.0] - 2026-08-29
+
+### Changed — every bug, on the record
+
+- **"The battery caught one real bug" sat above five bug chips.** The prose was hand-written history; the chips were data. In the spirit the user named — transparency — the trust page now details **all six real checker bugs**, each with who found it and what it wrongly cost: the blank-spaces description (the battery's own first run); the rejected `/Scope /Both` value that graded a correct DoIT reference file 89/B; values stored behind references that invented two false failures on an accessible syllabus; the wrong language declaration nobody's tool flagged (the silence was the bug); the class-map route caught by the encoding gate before any file arrived; and the one-row-table misread the trap-first battery forced the fix for — **trap 124 now wears the bug chip it earned**.
+- **The count can never go stale again**: the headline and the modal's breakdown line use a `{{TRAPS_BUGS}}` placeholder computed from the manifests, `build-brief` fails if the hand-written detail list drifts from the chip count, and a trust-page test holds the same line from the app side. The docx brief's two "one real bug" passages carry the same dynamic count.
+
+### Notes
+
+- Tests 3,006 → **3,007**. No scores moved; all 124 truths held with the re-chipped manifest.
+
+<details>
+<summary><strong>v1.139.2 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.139.2] - 2026-08-29
 
 ### Fixed
@@ -14,8 +28,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,005 → **3,006**.
 
-<details>
-<summary><strong>v1.139.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.139.1] - 2026-08-29
 

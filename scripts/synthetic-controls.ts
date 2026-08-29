@@ -4310,8 +4310,9 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
     chip: "held",
   },
   "synthetic-124-single-row-table.pdf": {
-    label: "A one-row table with no scope — only one relationship its header could mean",
-    chip: "held",
+    label:
+      "A one-row table misread as a crosstab — this trap was written first, watched fail, and forced the fix",
+    chip: "bug",
   },
 };
 

@@ -93,7 +93,7 @@
   .trapm .name{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted)}
   .trapm .what{font-size:15.5px;font-weight:700;line-height:1.3}
   .trapm .chip{margin-top:auto;align-self:flex-start}
-  .bugcard{margin-top:26px;background:linear-gradient(90deg,var(--bad-dim),var(--good-dim));
+  .buglist{margin:12px 0 0;padding-left:18px;display:grid;gap:9px}.bugrow{line-height:1.55}.bugrow .mono{font-family:ui-monospace,monospace;font-size:.85em;opacity:.7;margin-left:6px}.bugcard{margin-top:26px;background:linear-gradient(90deg,var(--bad-dim),var(--good-dim));
     border:1px solid var(--line);border-radius:14px;padding:24px 26px}
   .bugcard h3{font-size:clamp(19px,2.4vw,24px);margin-bottom:8px}
   .bugcard h3 .bad{color:var(--bad)} .bugcard h3 .good{color:var(--good)}
@@ -239,8 +239,16 @@
       <div class="trap more"><span class="what">&hellip;and {{TRAPS_REST}} more &mdash; modeled on what Canva, InDesign, and Word actually export (flat untagged posters, decorative-shape swarms, naming soup, picture-of-words titles, &ldquo;Print to PDF&rdquo;), plus fifteen native <strong>Word, PowerPoint, and Excel</strong> traps &mdash; unmarked header rows, alt panels never opened, slides with no titles, &ldquo;Sheet1&rdquo; &mdash; and the good twins it must NOT flag. All {{TRAPS}} held, and for every matched pair, the flawed twin may never outscore the correct one.</span></div>
     </div>
     <div class="bugcard">
-      <h3><span class="bad">The battery caught one real bug</span> &mdash; <span class="good">which is exactly what it's for.</span></h3>
-      <p>A description made only of blank spaces was being counted as a real description. Fixed the same day, documented publicly, and verified against every real document in the test set: none had the defect, so no score changed. A checker that only pretends to work doesn't catch itself.</p>
+      <h3><span class="bad">{{TRAPS_BUGS}} real bugs in this checker, found and fixed</span> &mdash; <span class="good">every one on this page, because that is exactly what all this machinery is for.</span></h3>
+      <p>Each one is now a trap document that re-proves the fix on every run, wearing a <strong style="color:var(--text)">FOUND A REAL BUG</strong> chip in the inventory below. In the spirit of the rest of this page: here is every one, who found it, and what it wrongly cost.</p>
+      <ul class="buglist">
+        <li class="bugrow"><strong style="color:var(--text)">Blank spaces counted as a description.</strong> An image whose &ldquo;description&rdquo; was nothing but spaces passed the alt-text check. Found by the battery's own first full run; fixed the same day, and no real document in the test set had the defect, so no score changed. <span class="mono">synthetic-03</span></li>
+        <li class="bugrow"><strong style="color:var(--text)">The third legal value of a header direction, rejected.</strong> The PDF standard lets a corner header label its row <em>and</em> its column (&ldquo;Both&rdquo;); this checker accepted only Row and Column, so the most carefully marked-up tables read as broken &mdash; a correct Illinois DoIT reference file was graded 89/B instead of 100/A. The agency was right, the checker was wrong, and that file's exact score is now pinned in the public ledger. <span class="mono">synthetic-116</span></li>
+        <li class="bugrow"><strong style="color:var(--text)">Values hidden behind references, unread.</strong> Word sometimes stores a header's direction or a cell's span as a reference to another object instead of writing it in place. The checker read only in-place values and invented two false failures on a genuinely accessible syllabus (85 &rarr; 100 after the fix). Found by real files submitted as &ldquo;100% accessible&rdquo; &mdash; and they were. <span class="mono">synthetic-117</span></li>
+        <li class="bugrow"><strong style="color:var(--text)">A language tag present &mdash; and wrong &mdash; sailed past everyone.</strong> English text declaring itself French means a screen reader pronounces the whole document with French rules. No tool flagged it, this one included; the silence was the bug. The check that closed it carries four guards against false accusations, and the trap holds both directions: the mislabeled file is caught, its correctly-labeled twin is not. <span class="mono">synthetic-118</span></li>
+        <li class="bugrow"><strong style="color:var(--text)">The class-map route, unread &mdash; caught before any file arrived.</strong> The standard's third way to attach header directions (by named class) was invisible to the parser. Found by this project's own encoding gate, which rewrites one document every legal way and demands identical grades &mdash; the first bug caught preemptively instead of by an agency's file. <span class="mono">synthetic-120</span></li>
+        <li class="bugrow"><strong style="color:var(--text)">One-row tables misread as crosstabs.</strong> A single-row table puts its only header in the first row and the first column at once, and the exactly-one-axis logic called that a two-axis grid and docked it. The trap was written first, watched fail at 89/B, and forced the fix &mdash; the battery catching the checker, by design. <span class="mono">synthetic-124</span></li>
+      </ul>
       <p style="margin-top:10px">And the battery is not just spelling tests. It re-proves, on every run, the hard cases real documents taught this checker the hard way: <strong style="color:var(--text)">Canva's phantom leftovers</strong> that once cost a clean report a grade, <strong style="color:var(--text)">InDesign's custom naming soup</strong>, the rubble Acrobat's page-combining leaves behind, headings that exist but say nothing, tables whose headers point nowhere, forms with no labels &mdash; document structure errors, not typos.</p>
     </div>
     <p class="agree" style="margin-top:26px"><a class="trapall" href="#all-traps">Open the full inventory: all {{TRAPS}} trap documents and what each one tries &rarr;</a> No download needed &mdash; every card below is also a rebuildable file anyone can run through the checker.</p>
@@ -250,7 +258,7 @@
       <div class="tm-head">
         <div>
           <div class="tm-title">All {{TRAPS}} trap documents</div>
-          <div class="tm-sub">{{TRAPS_CAUGHT}} designed defects caught &middot; {{TRAPS_HELD}} correct or hostile documents passed clean &middot; 1 real bug found in the checker itself &mdash; and fixed. Rebuilt from scratch and re-verified on every run, and the whole battery runs again before any change ships; a broken promise here stops the release. That is what these are for: every failure is a defect to fix &mdash; in the document, or in the checker.</div>
+          <div class="tm-sub">{{TRAPS_CAUGHT}} designed defects caught &middot; {{TRAPS_HELD}} correct or hostile documents passed clean &middot; {{TRAPS_BUGS}} real bugs found in the checker itself &mdash; each fixed and detailed above. Rebuilt from scratch and re-verified on every run, and the whole battery runs again before any change ships; a broken promise here stops the release. That is what these are for: every failure is a defect to fix &mdash; in the document, or in the checker.</div>
         </div>
         <a class="tm-close" href="#trap-section">&#10005; Close &mdash; back to the page</a>
       </div>

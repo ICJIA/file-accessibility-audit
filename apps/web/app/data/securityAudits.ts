@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.140.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: all six bugs ever found in this checker are now detailed on the trust page, and the count is computed, never hand-written.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader noticed the trust page saying the test battery had caught <em>one</em> real bug while the trap inventory showed several &ldquo;found a real bug&rdquo; chips. The chips were right. In the spirit of the rest of that page, the checker&rsquo;s full defect history is now spelled out: <strong>six real bugs, each found, fixed, published, and turned into a trap document that re-proves the fix on every run.</strong> One was caught by the battery itself, three by real agency files (each of which was right and this checker was wrong), one by the encoding gate before any file arrived, and one by a trap written first and watched fail.",
+      },
+      {
+        kind: "p",
+        html: "The number itself is no longer prose: everywhere the bug count appears it is computed from the same data that renders the chips, the page generator refuses to build if the detailed list drifts from that count, and an automated test enforces the same rule. A tool whose credibility rests on admitting its mistakes should never be able to under-report them by forgetting to update a sentence.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: transparency copy and count plumbing, pinned by tests; the score ledger confirms no document&rsquo;s score changed. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.139.2",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the trap-document list now runs in numeric order and ends on the highest-numbered trap.",
     body: [

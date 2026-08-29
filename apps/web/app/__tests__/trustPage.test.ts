@@ -147,3 +147,23 @@ describe("the trap modal's cards ascend numerically across both batteries (v1.13
     expect(nums[nums.length - 1]).toBe(Math.max(...nums));
   });
 });
+
+describe("the bug transparency list matches the bug chips (v1.140.0)", () => {
+  // "The battery caught one real bug" sat above five bug chips — the prose
+  // was hand-written history, the chips were data. Now the trust page
+  // details every bug (class="bugrow"), build-brief fails if the list count
+  // drifts from the chips, and this test holds the same line from the app
+  // side, reading the MANIFESTS as the source of truth.
+  it("renders exactly one detail row per bug-chipped trap", () => {
+    const body = readFileSync(resolve(WEB, "data/trustBody.ts"), "utf8");
+    const rows = (body.match(/class=\\"bugrow\\"/g) ?? []).length;
+    const manifests = ["trap-manifest.json", "trap-manifest-office.json"].map((f) =>
+      JSON.parse(readFileSync(resolve(WEB, "../../../scripts", f), "utf8")),
+    );
+    const chips = manifests
+      .flatMap((m) => m.items as Array<{ chip: string }>)
+      .filter((i) => i.chip === "bug").length;
+    expect(chips).toBeGreaterThan(0);
+    expect(rows).toBe(chips);
+  });
+});
