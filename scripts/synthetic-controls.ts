@@ -3631,6 +3631,49 @@ const SAMPLES: Sample[] = [
       return c && c.score !== null && c.score < 100 ? `title_language docked (${c.score})` : null;
     },
   },
+  {
+    file: "synthetic-120-classmap-attributes.pdf",
+    truth:
+      "A table whose header directions are attached BY CLASS: each header names a class in /C, and the structure tree root's /ClassMap maps that name to the attribute dictionary holding /Scope. This is the THIRD legal way to attach attributes — beside an inline /A dictionary and a reference to one — and no trap had ever used it. Found preemptively by scripts/encoding-invariance.ts on its first run (2026-08-29), before any agency file arrived: a table scoped this way scored 89/B with every header reported as missing scope. Scope must be seen through the class map, and the table must score 100.",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Class map table")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 72 700 Td (Region) Tj ET\nEMC\n` +
+        `/TH << /MCID 2 >> BDC\nBT /F1 10 Tf 200 700 Td (Total) Tj ET\nEMC\n` +
+        `/TD << /MCID 3 >> BDC\nBT /F1 10 Tf 72 680 Td (North) Tj ET\nEMC\n` +
+        `/TD << /MCID 4 >> BDC\nBT /F1 10 Tf 200 680 Td (412) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          // The class map lives on the structure tree root, not on the cells.
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R /ClassMap << /ColHead << /O /Table /Scope /Column >> >> >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 13 0 R 14 0 R 15 0 R 16 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [13 0 R 14 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [15 0 R 16 0 R] >>",
+          // No /A at all — the scope is reachable ONLY through /C.
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 /C /ColHead >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 2 /C /ColHead >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 3 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 4 >>",
+        ],
+        "<< /Title (Class Map Attributes) >>",
+      );
+    },
+    check: (r) => {
+      if (/missing Scope attribute/i.test(allFindings(r)))
+        return "scope attached through a class map was read as missing";
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      return t.score === 100 ? null : `class-map scoped table docked (table ${t.score})`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4020,6 +4063,11 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
   "synthetic-119-language-good-twin.pdf": {
     label: "The same document declared correctly, with one real French passage",
     chip: "held",
+  },
+  "synthetic-120-classmap-attributes.pdf": {
+    label:
+      "Header directions attached by class — the third legal route, caught before any file used it",
+    chip: "bug",
   },
 };
 

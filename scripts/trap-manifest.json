@@ -1,5 +1,5 @@
 {
-  "count": 104,
+  "count": 105,
   "generated": "2026-08-29",
   "items": [
     {
@@ -527,6 +527,11 @@
       "file": "synthetic-119-language-good-twin.pdf",
       "label": "The same document declared correctly, with one real French passage",
       "chip": "held"
+    },
+    {
+      "file": "synthetic-120-classmap-attributes.pdf",
+      "label": "Header directions attached by class — the third legal route, caught before any file used it",
+      "chip": "bug"
     }
   ]
 }

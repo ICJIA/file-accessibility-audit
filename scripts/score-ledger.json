@@ -1195,6 +1195,22 @@
         "form_accessibility": "null|none"
       }
     },
+    "synthetic-120-classmap-attributes.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-13-bold-fake-headings.pdf": {
       "score": 69,
       "grade": "D",
