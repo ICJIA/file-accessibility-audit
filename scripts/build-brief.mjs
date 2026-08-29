@@ -105,12 +105,19 @@ const dateLong = now.toLocaleDateString("en-US", {
 //     `pnpm synthetic-controls` run may write. The count is pinned to
 //     brief-stats.json so the page can never claim documents that were not
 //     actually verified. ---
-const trapManifest = JSON.parse(
+const pdfManifest = JSON.parse(
   fs.readFileSync(path.join(ROOT, "scripts", "trap-manifest.json"), "utf8"),
 );
+const officeManifest = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "scripts", "trap-manifest-office.json"), "utf8"),
+);
+const trapManifest = {
+  count: pdfManifest.count + officeManifest.count,
+  items: [...pdfManifest.items, ...officeManifest.items],
+};
 if (trapManifest.count !== manual.traps)
   throw new Error(
-    `trap-manifest.json has ${trapManifest.count} entries but brief-stats.json says traps=${manual.traps} — rerun pnpm synthetic-controls or fix brief-stats`,
+    `manifests hold ${trapManifest.count} entries but brief-stats.json says traps=${manual.traps} — rerun pnpm synthetic-controls + synthetic-office-controls or fix brief-stats`,
   );
 const escHtml = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const chipFor = (i) =>

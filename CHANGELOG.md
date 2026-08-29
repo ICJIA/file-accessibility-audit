@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.124.0] - 2026-08-29
+
+### Added
+
+- **The trap battery now covers all four formats: 100 PDF traps + 15 native Office traps = 115, all held.** Word, PowerPoint, and Excel checking had no adversarial coverage — three of four supported formats guarded only by real controls and unit tests. `pnpm synthetic-office-controls` closes that: hand-built `.docx`/`.pptx`/`.xlsx` files with designed truths, modeled on the habits those programs actually produce — bold 16-point text posing as headings (flagged as fake), alt panels never opened (census reads 0 of 2), header rows never marked, untitled documents (readers hear the filename), slides with no titles, workbooks still named "Sheet1" — each beside its done-right twin, which must pass clean and did. A CI gate like its PDF sibling; its manifest merges into the trust page's inventory modal, which now lists all 115.
+- **The twin rule, enforced in both batteries**: for every matched good/bad pair (labeled vs unlabeled form, titled vs untitled, marked vs unmarked header row — 11 pairs across the two batteries), the flawed twin may never outscore the correct one, overall or in the defect's own category. This is monotonicity — a checker for which adding a defect can *raise* a score is broken in a way no single-file test can see.
+- **README brought current**: the Tests section's stale counts corrected (2,843/181 → **2,924 tests across 189 files**), a new **Accuracy gates** section documenting all six corpus-level gates (both trap batteries, the score ledger, re-save invariance + determinism, the corpus sweep, the live-site sentinels) with what each guarantees, linked from Contents; the project-structure listing now names every gate script.
+- The ledger grows to **151 pinned rows** (136 + the 15 Office traps); the trap-inventory modal's tallies update to 56 caught · 58 passed clean · 1 real bug found.
+
+### Notes
+
+- One first-run failure, and the checker's rules won again: the Office good twins genuinely lacked a language declaration (my skeletons had none), so title-and-language dinged them — correctly. The skeletons now declare `en-US` the way real exports do, isolating each trap to exactly one designed defect. Tests 2,924 unchanged (the batteries are gate scripts).
+- Still-open recommendation from the accuracy review, deliberately deferred: veraPDF concordance assertions (needs veraPDF on the dev box), the remediation round-trip test, and property-based struct-tree fuzzing.
+
+<details>
+<summary><strong>v1.123.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.123.0] - 2026-08-29
 
 ### Added
@@ -20,8 +37,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 2,924 (pins extended in place). The three new gates are scripts, wired into CI after the trap battery; local release practice adds `pnpm score-ledger` (full corpus) before releasing and `pnpm prod-sentinels` after deploying.
 
-<details>
-<summary><strong>v1.122.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
 
 ## [1.122.0] - 2026-08-28
 

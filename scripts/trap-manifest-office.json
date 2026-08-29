@@ -1,0 +1,81 @@
+{
+  "count": 15,
+  "generated": "2026-08-29",
+  "items": [
+    {
+      "file": "synthetic-101-docx-bold-fake-headings.docx",
+      "label": "Word: bold 16-point text instead of Heading styles",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-102-docx-styles-good-twin.docx",
+      "label": "Word: the same document with real Heading styles",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-103-docx-images-no-alt.docx",
+      "label": "Word: two pictures, alt panel never opened",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-104-docx-images-alt-twin.docx",
+      "label": "Word: the same pictures, both described",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-105-docx-table-headerless.docx",
+      "label": "Word: a table whose header row was never marked",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-106-docx-table-header-twin.docx",
+      "label": "Word: the same table, header row marked",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-107-docx-untitled.docx",
+      "label": "Word: no document title — readers hear the filename",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-108-docx-titled-twin.docx",
+      "label": "Word: the same document, properly titled",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-109-pptx-untitled-slides.pptx",
+      "label": "PowerPoint: slides with no titles at all",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-110-pptx-titled-twin.pptx",
+      "label": "PowerPoint: the same slides, properly titled",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-111-pptx-image-no-alt.pptx",
+      "label": "PowerPoint: a slide picture with no description",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-112-pptx-image-alt-twin.pptx",
+      "label": "PowerPoint: the same picture, described",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-113-xlsx-default-sheet-names.xlsx",
+      "label": "Excel: sheets still named 'Sheet1' and 'Sheet2'",
+      "chip": "caught"
+    },
+    {
+      "file": "synthetic-114-xlsx-named-sheets-twin.xlsx",
+      "label": "Excel: the same workbook, sheets named for people",
+      "chip": "held"
+    },
+    {
+      "file": "synthetic-115-xlsx-untitled.xlsx",
+      "label": "Excel: a workbook with no document title",
+      "chip": "caught"
+    }
+  ]
+}

@@ -252,6 +252,17 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "office-traps-and-twin-rule-2026-08-29",
+    badge: "Verified",
+    text: "The trap battery now covers all four formats this checker grades. Fifteen new trap documents were hand-built in Word, PowerPoint, and Excel's own file formats — bold text posing as headings, pictures whose alt panel was never opened, header rows never marked, slides with no titles, sheets still named 'Sheet1' — beside done-right twins that must pass clean. All 115 traps held, and a new twin rule is enforced on every matched pair: the flawed version may never outscore the correct one. Every control's exact score is also now pinned in the public ledger — 151 documents whose grades cannot move without a person approving the change.",
+    linkText: "See all 115 trap documents",
+    /** Deep-links the trap-inventory modal — real hash navigation for :target. */
+    linkTo: "/trust#all-traps",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "accuracy-gates-2026-08-29",
     badge: "Verified",
     text: "Three new gates now stand between every code change and this site, built to guarantee the accuracy of your report. The golden score ledger: every control document's exact score and per-category verdict is pinned, and no grade can move unless a person approves the movement in review. The re-save test: every trap document rewritten by a different tool must grade identically, digit for digit — byte layout can never change a grade. And live-site sentinels: after each deploy, known trap documents are uploaded to this very site, where the disguised scan must still score 0 and the perfect document must still score 100. The Can I trust this? page now lists every way this app is tested before anything ships.",

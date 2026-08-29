@@ -3817,8 +3817,40 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
 };
 
 // ---------------------------------------------------------------------------
+// Twin orderings (2026-08-29): the corpus carries matched pairs — the same
+// document with and without one defect. Beyond each file's own truth, the
+// PAIR carries one more: the flawed twin must NEVER outscore the correct
+// one, overall or in the defect's own category. This is monotonicity — a
+// checker for which adding a defect can RAISE a score is broken in a way
+// no single-file test can see. Checked after the per-file pass, same gate.
+// ---------------------------------------------------------------------------
+const TWIN_ORDERINGS: { bad: string; good: string; category: string }[] = [
+  {
+    bad: "synthetic-16-form-unlabeled.pdf",
+    good: "synthetic-17-form-labeled.pdf",
+    category: "form_accessibility",
+  },
+  {
+    bad: "synthetic-41-long-doc-no-bookmarks.pdf",
+    good: "synthetic-42-long-doc-with-bookmarks.pdf",
+    category: "bookmarks",
+  },
+  {
+    bad: "synthetic-47-formula-no-alt.pdf",
+    good: "synthetic-48-formula-good-twin.pdf",
+    category: "alt_text",
+  },
+  {
+    bad: "synthetic-53-canva-decorative-swarm.pdf",
+    good: "synthetic-54-canva-artifact-twin.pdf",
+    category: "alt_text",
+  },
+];
+
+// ---------------------------------------------------------------------------
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
+  const resultsByFile = new Map<string, AnalysisResult>();
   let hardFailures = 0;
   const rows: string[] = [];
   for (const s of SAMPLES) {
@@ -3827,6 +3859,7 @@ async function main() {
     let verdict: string;
     try {
       const r = await analyzePDF(buf, s.file);
+      resultsByFile.set(s.file, r);
       const problem = s.check(r);
       if (problem === null) verdict = `PASS    ${String(r.overallScore).padStart(3)}/${r.grade}`;
       else if (problem.startsWith("OBSERVE:"))
@@ -3844,6 +3877,31 @@ async function main() {
   }
   console.log(`\nSynthetic adversarial controls — ${SAMPLES.length} documents in ${OUT_DIR}\n`);
   for (const row of rows) console.log(row);
+  // Twin orderings — needs the results of the per-file pass above.
+  for (const t of TWIN_ORDERINGS) {
+    const bad = resultsByFile.get(t.bad);
+    const good = resultsByFile.get(t.good);
+    if (!bad || !good) {
+      console.error(`twin ordering: missing result for ${t.bad} / ${t.good}`);
+      hardFailures++;
+      continue;
+    }
+    const problems: string[] = [];
+    if (bad.overallScore > good.overallScore)
+      problems.push(`overall ${bad.overallScore} > ${good.overallScore}`);
+    const cb = bad.categories.find((c) => c.id === t.category);
+    const cg = good.categories.find((c) => c.id === t.category);
+    if (cb && cg && cb.score !== null && cg.score !== null && cb.score > cg.score)
+      problems.push(`${t.category} ${cb.score} > ${cg.score}`);
+    if (problems.length) {
+      console.error(`TWIN ORDER VIOLATED ${t.bad} vs ${t.good}: ${problems.join("; ")}`);
+      hardFailures++;
+    }
+  }
+  console.log(
+    `twin orderings: ${TWIN_ORDERINGS.length} pairs — flawed twin never outscored the correct one`,
+  );
+
   const missing = SAMPLES.filter((x) => !TRAP_MANIFEST[x.file]).map((x) => x.file);
   const extra = Object.keys(TRAP_MANIFEST).filter((f) => !SAMPLES.some((x) => x.file === f));
   if (missing.length || extra.length) {

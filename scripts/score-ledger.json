@@ -737,6 +737,150 @@
         "form_accessibility": "100|No issues found"
       }
     },
+    "synthetic-101-docx-bold-fake-headings.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "30|Critical",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-102-docx-styles-good-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-103-docx-images-no-alt.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "0|Critical",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-104-docx-images-alt-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-105-docx-table-headerless.docx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "30|Critical",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-106-docx-table-header-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-107-docx-untitled.docx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-108-docx-titled-twin.docx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-109-pptx-untitled-slides.pptx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "40|Moderate",
+        "alt_text": "null|none",
+        "reading_order": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
     "synthetic-11-untagged-text.pdf": {
       "score": 69,
       "grade": "D",
@@ -750,6 +894,96 @@
         "color_contrast": "null|none",
         "link_quality": "null|none",
         "reading_order": "30|Critical",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-110-pptx-titled-twin.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "null|none",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-111-pptx-image-no-alt.pptx": {
+      "score": 69,
+      "grade": "D",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "0|Critical",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-112-pptx-image-alt-twin.pptx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "slide_titles": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "reading_order": "100|No issues found",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "list_structure": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-113-xlsx-default-sheet-names.xlsx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "sheet_names": "40|Moderate",
+        "table_markup": "null|none",
+        "alt_text": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-114-xlsx-named-sheets-twin.xlsx": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "sheet_names": "100|No issues found",
+        "table_markup": "null|none",
+        "alt_text": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-115-xlsx-untitled.xlsx": {
+      "score": 79,
+      "grade": "C",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "50|Moderate",
+        "sheet_names": "100|No issues found",
+        "table_markup": "null|none",
+        "alt_text": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
         "form_accessibility": "null|none"
       }
     },

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.124.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: trap documents for Word, PowerPoint, and Excel, and a new fairness rule across matched pairs. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Until now the trap battery covered only PDFs. Fifteen new trap documents were hand-built in <strong>Word, PowerPoint, and Excel&rsquo;s own file formats</strong>, each around one designed answer known in advance: bold large text posing as headings (must be called fake), pictures whose description panel was never opened (the count must read 0 of 2), a table whose header row was never marked, a document with no title (readers hear the filename instead), slides with no titles at all, and a workbook still named &ldquo;Sheet1.&rdquo; Each sits beside a <em>done-right twin</em> that must pass clean &mdash; and every one of the <strong>115 traps returned its designed answer</strong>.",
+      },
+      {
+        kind: "p",
+        html: "A new rule is also enforced across every matched pair, in both batteries: <strong>the flawed version may never outscore the correct one</strong> &mdash; overall, or in the very area the flaw lives in. That sounds obvious; it is also the kind of promise that only holds if something checks it, and now something does, on every code change. The honest note, as always: the one first-run failure was the checker being <em>right</em> &mdash; the &ldquo;done-right&rdquo; twins genuinely lacked a language declaration, so the title-and-language check docked them correctly; the test documents were fixed to declare one, the way real exports do. The locked-in score ledger grew to 151 documents, and the trust page&rsquo;s inventory now lists all 115 traps.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the new traps come from a developer-only script that never runs on the server; the page changes are generated content; the technical guide (README) was corrected to current numbers. No code path that receives, sends, or stores anything changed; no real document&rsquo;s score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.123.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: three new accuracy gates on the checker itself, and a page explaining every gate. Nothing new is received, sent, or stored.",
     body: [
