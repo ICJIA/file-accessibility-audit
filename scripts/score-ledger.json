@@ -19,10 +19,10 @@
       }
     },
     "2022 SFS Process Evaluation Report-230622T16355531.pdf": {
-      "score": 77,
+      "score": 79,
       "grade": "C",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
         "alt_text": "50|Moderate",
@@ -102,10 +102,10 @@
       }
     },
     "ARIFactSheet-SFY26-20260427T20572257.pdf": {
-      "score": 56,
+      "score": 59,
       "grade": "F",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "42|Moderate",
@@ -118,10 +118,10 @@
       }
     },
     "COVID arrests PDF to post on web-210305T17262965.pdf": {
-      "score": 64,
+      "score": 67,
       "grade": "D",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -214,10 +214,10 @@
       }
     },
     "FINAL REPORT PDF FOR POSTING-230207T16344430.pdf": {
-      "score": 65,
+      "score": 68,
       "grade": "D",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -262,10 +262,10 @@
       }
     },
     "Federal_Program_Funding_Chart_84e9c51b32.pdf": {
-      "score": 68,
+      "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "heading_structure": "0|Critical",
         "alt_text": "null|none",
@@ -278,10 +278,10 @@
       }
     },
     "Full_DJJ_Recidivism_Report_3-7-2019-191011T20092914.pdf": {
-      "score": 66,
+      "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "0|Critical",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",
@@ -358,10 +358,10 @@
       }
     },
     "Juvenile Justice System and Risk Factor Data 2007 Annual Report.pdf": {
-      "score": 54,
+      "score": 57,
       "grade": "F",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "0|Critical",
         "heading_structure": "40|Moderate",
         "alt_text": "2|Critical",
@@ -393,7 +393,7 @@
       "score": 89,
       "grade": "B",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "75|Minor",
         "heading_structure": "100|No issues found",
         "alt_text": "100|No issues found",
@@ -409,7 +409,7 @@
       "score": 69,
       "grade": "D",
       "categories": {
-        "text_extractability": "85|Minor",
+        "text_extractability": "100|No issues found",
         "title_language": "50|Moderate",
         "heading_structure": "100|No issues found",
         "alt_text": "0|Critical",

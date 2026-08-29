@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.131.0] - 2026-08-29
+
+### Changed
+
+- **Every report now opens with the compliance answer.** A new two-standard strip sits directly under the grade in **both** views: the legal verdict — *"Required by law · WCAG 2.2 AA · ADA Title II · Illinois IITAA"* — in full width, large type and colour, stating plainly **"This — and only this — is what your grade measures"**; and beneath it, in a quiet dashed footnote, PDF/UA readiness with veraPDF's verdict and *"Not counted in your score."* v1.130.0 made the split real but only visible on documents that happened to have unscored items, which is a minority — the answer a reviewer actually wants was undiscoverable. It is now on every report, before any scrolling. Deliberately not a tab: a tab would hide half a reader's issues behind a click and imply they must pick a standard.
+- **Audited every deduction the score is made of, and removed two that no law requires.** The claim "your grade measures only the legal standard" is only worth making if it is true everywhere, so each scoring operation was checked against WCAG 2.2:
+  - **Font embedding** no longer caps the score at 85. No WCAG success criterion requires it — a substituted font still renders and still reads aloud; the loss is visual fidelity. PDF/UA 7.21.4.1 requires it, so it is now reported as an unscored PDF/UA item (wording preserved so the action plan's "Embed the fonts" step still triggers).
+  - **Nested tables** no longer cost 10 points. A properly tagged nested table has determinable relationships and satisfies 1.3.1; "harder to navigate" is real and still reported, but it is not "not programmatically determinable".
+- **Seven real documents scored higher**, all from the font cap, and **none changed letter grade** (e.g. `ARIFactSheet` 56 → 59, `COVID arrests` 64 → 67, `Juvenile Justice` 54 → 57). Blessed through the ledger in this commit.
+
+### Notes
+
+- The strip never overstates: veraPDF's silence renders as *"Not checked on this document"* rather than a pass, and a Word/PowerPoint/Excel file is told the standard *"Does not apply to this file type"* — pinned by tests in both directions (7 new).
+- **Deliberately left scored, and worth a decision later**: mixed heading conventions (Matterhorn 14-002), generic `<H>` with no levels, and skipped heading levels. Each is defensible under WCAG 1.3.1 via a W3C sufficient technique rather than a bare criterion, so reclassifying them is a judgment call rather than an audit finding — they are named here so the choice is visible rather than buried.
+- Tests 2,974 → **2,981**.
+
+<details>
+<summary><strong>v1.130.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.130.0] - 2026-08-29
 
 ### Changed
@@ -21,8 +40,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - **Two real documents moved, both defensibly**: `ARIFactSheet` 55 → 56 (table 75 → 90) and the 246-page `Juvenile Justice` annual report 53 → 54 (table 55 → 70) — simple grids that were being marked down for a PDF/UA-only requirement. Neither changes letter grade. Blessed through the ledger (**165 rows**) in this commit, which is exactly the workflow that exists for a deliberate scoring change.
 - Tests 2,971 → **2,974**. This also strengthens the position rather than softening it: where a table IS scored now, the report can say precisely why it is a legal failure and not standards pedantry — and veraPDF's co-signature still appears beside PDF/UA items in both tiers.
 
-<details>
-<summary><strong>v1.129.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.129.0] - 2026-08-29
 

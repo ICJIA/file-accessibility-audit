@@ -1443,7 +1443,11 @@ describe("scoreTableMarkup edge cases", () => {
     ).toBe(true);
   });
 
-  it("nested table costs 10 points", () => {
+  // Policy change 2026-08-29: a nested table is NOT a WCAG failure — properly
+  // tagged, its relationships are still determinable — so it no longer costs
+  // points. It is still reported, as an explicitly unscored PDF/UA-readiness
+  // item, because it genuinely is hard to navigate.
+  it("nested table is reported but no longer costs points (the grade measures the law)", () => {
     const qpdf = makeQpdf({
       tables: [
         makeTable({
@@ -1463,7 +1467,7 @@ describe("scoreTableMarkup edge cases", () => {
     const pdfjs = makePdfjs();
     const result = scoreDocument(qpdf, pdfjs);
     // 40 + 20 + 10 + 0 (nested) + 5 + 10 + 5 = 90
-    expect(findCategory(result, "table_markup").score).toBe(90);
+    expect(findCategory(result, "table_markup").score).toBe(100);
   });
 
   it("no tables → score null (N/A)", () => {
@@ -1650,7 +1654,7 @@ describe("supplementary findings — font embedding", () => {
     const textCat = findCategory(result, "text_extractability");
     expect(textCat.findings.some((f) => f.includes("non-embedded"))).toBe(true);
     expect(textCat.findings.some((f) => f.includes("Comic Sans"))).toBe(true);
-    expect(textCat.score).toBeLessThan(100);
+    expect(textCat.score).toBe(100); // reported, not scored — see scoring/pdf.ts
   });
 
   // ---- Usage-based exemption (v1.79.0) ------------------------------------
@@ -1699,7 +1703,7 @@ describe("supplementary findings — font embedding", () => {
     });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(textCat.score).toBeLessThanOrEqual(85);
+    expect(textCat.score).toBe(100); // no WCAG criterion requires embedding (2026-08-29);
     expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(true);
   });
 
@@ -1715,7 +1719,7 @@ describe("supplementary findings — font embedding", () => {
     });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(textCat.score).toBeLessThanOrEqual(85);
+    expect(textCat.score).toBe(100); // no WCAG criterion requires embedding (2026-08-29);
     expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(true);
   });
 
@@ -1728,7 +1732,7 @@ describe("supplementary findings — font embedding", () => {
     const pdfjs = makePdfjs({ hasText: true, textLength: 500 });
     const result = scoreDocument(qpdf, pdfjs);
     const textCat = findCategory(result, "text_extractability");
-    expect(textCat.score).toBeLessThanOrEqual(85);
+    expect(textCat.score).toBe(100); // no WCAG criterion requires embedding (2026-08-29);
     expect(textCat.findings.some((f) => f.includes("may cause garbled"))).toBe(true);
   });
 

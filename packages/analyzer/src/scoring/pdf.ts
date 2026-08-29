@@ -275,16 +275,20 @@ function scoreTextExtractability(qpdf: QpdfResult, pdfjs: PdfjsResult): Category
     }
 
     if (flagged.length > 0) {
-      score = Math.min(score, 85); // cap at 85 (Minor) — never Pass with non-embedded fonts
+      // NOT SCORED (2026-08-29 audit): no WCAG 2.2 success criterion requires
+      // font embedding. A substituted font still renders and still extracts —
+      // the loss is visual fidelity, not screen-reader access. PDF/UA 7.21.4.1
+      // requires embedding outright, so this is reported as PDF/UA readiness
+      // and the grade, which measures the law, is left alone.
       const fontNames = flagged
         .slice(0, 5)
         .map((f) => f.name)
         .join(", ");
       findings.push(
-        `${flagged.length} non-embedded font(s) may cause garbled text on systems without ${flagged.length === 1 ? "this font" : "these fonts"}: ${fontNames}${flagged.length > 5 ? ` (+${flagged.length - 5} more)` : ""}`,
+        `PDF/UA only — not scored: ${flagged.length} non-embedded font(s) may cause garbled text on systems without ${flagged.length === 1 ? "this font" : "these fonts"}: ${fontNames}${flagged.length > 5 ? ` (+${flagged.length - 5} more)` : ""}. No WCAG success criterion requires font embedding — a substituted font still renders and still reads aloud — so this does not affect your grade. PDF/UA (ISO 14289, clause 7.21) does require it.`,
       );
       findings.push(
-        "Fix: In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status.",
+        "How to fix (optional): In the source application (Word, InDesign), enable font embedding before exporting to PDF. In Acrobat: Document properties (☰ Menu on Windows, File menu on Mac) → Fonts tab shows embedding status.",
       );
     } else if (exempt.length > 0) {
       const exemptNames = exempt
@@ -1728,10 +1732,15 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     );
   }
 
-  // 4. No nested tables (10 points)
+  // 4. Nested tables (10 points, awarded UNCONDITIONALLY since the
+  //    2026-08-29 audit). No WCAG 2.2 success criterion prohibits a nested
+  //    table: one that is properly tagged has determinable relationships and
+  //    satisfies 1.3.1. Nesting is harder to NAVIGATE, which is real and worth
+  //    saying — but "harder to navigate" is not "not programmatically
+  //    determinable", and the grade measures the law. Reported, not scored.
+  score += 10;
   const withNesting = dataTables.filter((t) => t.hasNestedTable).length;
   if (withNesting === 0) {
-    score += 10;
     findings.push("No nested tables detected");
   } else {
     for (const { t, i } of scored) {
@@ -1742,7 +1751,10 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       }
     }
     findings.push(
-      "Fix: Restructure nested tables into a single flat table, or split into separate independent tables",
+      "PDF/UA only — not scored: a nested table is not a WCAG failure — properly tagged, its relationships are still determinable — so this does not affect your grade. It is, however, genuinely hard to navigate by keyboard and by screen reader.",
+    );
+    findings.push(
+      "How to fix (optional): Restructure nested tables into a single flat table, or split into separate independent tables",
     );
   }
 

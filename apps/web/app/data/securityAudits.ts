@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.131.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the legal verdict now leads every report, and two deductions no law requires were removed from the score. Seven documents score slightly higher; none score lower.",
+    body: [
+      {
+        kind: "p",
+        html: "The first question a reviewer asks is &ldquo;does this file meet the law?&rdquo; &mdash; so every report now answers it first. Directly under the grade, in full width and large type: <strong>Required by law &mdash; WCAG 2.2 AA, ADA Title II, Illinois IITAA</strong>, with the verdict for this document and the plain statement that <strong>this, and only this, is what the grade measures</strong>. Beneath it, in a deliberately quiet footnote, sits PDF/UA readiness &mdash; the PDF industry&rsquo;s own standard, checked by an independent validator &mdash; marked <em>not counted in your score</em>. The previous release made that separation real; this one makes it impossible to miss.",
+      },
+      {
+        kind: "p",
+        html: "A claim like that is only worth making if it is true everywhere, so <strong>every deduction the score is built from was checked against the law</strong>, and two were removed. <strong>Font embedding</strong>: no legal requirement asks for it &mdash; a substituted font still displays and still reads aloud &mdash; though the PDF industry standard does ask for it, so it is now reported without affecting the grade. <strong>Nested tables</strong>: harder to navigate, genuinely, but a properly marked-up nested table still conveys its relationships, so it too is reported rather than scored. <strong>Seven documents in the project&rsquo;s own test set scored slightly higher; none scored lower and none changed letter grade.</strong> Three further judgment calls about heading rules were deliberately left as they are and written down publicly, so the decision is visible rather than quietly made.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the change adjusts scoring rules and adds one presentational panel that reads data the report already carried. No new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed. <strong>Some documents score higher on re-analysis; none score lower.</strong> No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.130.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the score now measures only what the law requires; PDF/UA work is shown beside it and not counted. Some documents score slightly higher.",
     body: [

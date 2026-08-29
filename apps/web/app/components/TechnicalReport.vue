@@ -81,6 +81,17 @@
         </p>
       </div>
 
+      <!-- Both rulebooks, stated up front — the same strip the Visual view
+           opens with, so a reader who switches views is told the same thing
+           about what the grade measures. -->
+      <TwoStandardsStrip
+        :conformance="result.conformance"
+        :wcag-version="wcagVersion"
+        :file-type="result.fileType"
+        :pdf-ua-verdict="result.pdfUaVerdict"
+        class="mb-6"
+      />
+
       <!-- Full WCAG conformance detail — parity with the Detailed view's
            ScoreCard panel: failures with W3C links, not-assessed list,
            standards basis. -->

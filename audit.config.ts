@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "law-verdict-first-2026-08-29",
+    badge: "Changed",
+    text: "Every report now opens by answering the compliance question directly: what the law requires, and whether this document meets it. WCAG 2.2 AA, ADA Title II and the Illinois IITAA get the headline; PDF/UA — the PDF industry's own standard, which is good practice and not law — sits underneath as a footnote, clearly marked as not counted in your score. We also audited every deduction the score is made of and removed two that no law requires: font embedding and nested tables. Both are still reported; neither affects your grade any more. Seven documents in our own test set scored slightly higher as a result, and none changed letter grade.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "law-vs-pdfua-split-2026-08-29",
     badge: "Changed",
     text: "Your grade now measures only what the law requires. Reports are split into two clearly labelled parts: what Illinois and federal law require (WCAG 2.2 AA, ADA Title II, IITAA) — which is what the score is made of — and, separately, what would additionally meet PDF/UA, the PDF industry's own standard, marked as not counted in your score. The clearest example is table header directions: where a table's headers run along a single edge, the relationship is already determinable and the law is satisfied, so a missing direction no longer costs you points; where headers run along two edges, it genuinely cannot be worked out, and that stays a real WCAG failure. Some documents will score slightly higher than before, for a defensible reason.",

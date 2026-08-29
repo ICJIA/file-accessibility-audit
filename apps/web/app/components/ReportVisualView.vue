@@ -10,7 +10,16 @@
 
     <SeverityTiles v-if="hasCategories" :categories="displayedCategories" class="mb-4" />
 
-    <VerdictStrip :conformance="result.conformance" :wcag-version="wcag.version" class="mb-6" />
+    <VerdictStrip :conformance="result.conformance" :wcag-version="wcag.version" class="mb-3" />
+
+    <!-- Which rulebook produced the grade, stated before anyone scrolls. -->
+    <TwoStandardsStrip
+      :conformance="result.conformance"
+      :wcag-version="wcag.version"
+      :file-type="result.fileType"
+      :pdf-ua-verdict="result.pdfUaVerdict"
+      class="mb-6"
+    />
 
     <div
       v-if="result.isScanned"
