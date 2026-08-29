@@ -1,4 +1,4 @@
-# Don't trust the person who built it. Check it.
+# Don't trust the person who built it. Check it yourself.
 
 **REPORT GENERATED: {{DATE_UPPER}} — every number below was pulled live from the running system on this date. Regenerated with fresh numbers at every release.**
 

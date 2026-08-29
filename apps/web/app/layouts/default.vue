@@ -52,9 +52,26 @@
               :href="config.public.faqsUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors"
+              class="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors whitespace-nowrap"
             >
               FAQs
+              <!-- external-link icon to signal this opens in a new tab
+                   (same glyph the footer uses for its external links) -->
+              <svg
+                class="w-3 h-3 opacity-60"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                />
+              </svg>
+              <span class="sr-only">(opens in a new tab)</span>
             </a>
             <NuxtLink
               to="/announcements"
