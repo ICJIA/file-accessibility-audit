@@ -12,8 +12,6 @@
 
     <VerdictStrip :conformance="result.conformance" :wcag-version="wcag.version" class="mb-6" />
 
-    <slot name="notice" />
-
     <div
       v-if="result.isScanned"
       class="mb-4 rounded-xl bg-orange-500/10 border border-orange-500/30 p-4"
@@ -65,6 +63,15 @@
         :conformance="result.conformance"
         class="mb-6"
       />
+
+      <!-- "Fix it at the source" — strategy, not a step. It used to sit ABOVE
+           the plan, where ~120 words of advice stood between a reader and the
+           one thing they came for. It is advice about HOW to do the work, so
+           it reads better once the work is known; a reader who has just seen
+           the fixes and the manual checks is exactly the one deciding whether
+           to repair the PDF or go back to the Word file. Still on every
+           report, unchanged, never gated. -->
+      <slot name="notice" />
 
       <CategoryBars :categories="displayedCategories" class="mb-6" />
 

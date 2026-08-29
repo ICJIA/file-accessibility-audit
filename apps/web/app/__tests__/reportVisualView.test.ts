@@ -58,7 +58,10 @@ const result = {
 
 describe("ReportVisualView", () => {
   it("renders hero, tiles, verdict, plan, bars, and technical expander — in that DOM order", () => {
-    const w = mount(ReportVisualView, { props: { result } });
+    const w = mount(ReportVisualView, {
+      props: { result },
+      slots: { notice: '<div id="notice-slot-marker">source advice</div>' },
+    });
     const html = w.html();
     const order = [
       // Was html.indexOf("/100") — the hero's bare "80/100" line. v1.58.0
@@ -72,9 +75,16 @@ describe("ReportVisualView", () => {
       html.indexOf("verdict-strip"),
       // The About-this-document card sits directly above the plan so the
       // reader sees what made the document (and when) before the steps that
-      // depend on it (user request 2026-08-16).
+      // depend on it (user request 2026-08-16). Its property TABLE folds away
+      // (v1.131.0) so the position costs the plan only three facts of height,
+      // not twenty rows — the reason for the position is preserved, the bulk
+      // is not.
       html.indexOf("about-document"),
       html.indexOf("Your action plan"),
+      // The source-first advice moved BELOW the plan (v1.131.0): it is
+      // strategy about HOW to do the work, and it used to put ~120 words
+      // between a reader and the one thing they came for.
+      html.indexOf("notice-slot-marker"),
       html.indexOf("Where the score comes from"),
       // NOT html.indexOf("technical-report") — VerdictStrip's fail-branch
       // renders href="#technical-report" (pinned by reportHeader.test.ts),

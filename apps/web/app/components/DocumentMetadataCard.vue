@@ -14,20 +14,42 @@
       </p>
     </div>
 
-    <dl
-      v-if="items.length"
-      class="px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2"
-    >
-      <div v-for="item in items" :key="item.label" class="text-sm min-w-0">
-        <dt class="text-xs text-[var(--text-muted)]">{{ item.label }}</dt>
-        <dd
-          class="m-0 break-words"
-          :class="item.value ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic'"
+    <!-- The headline facts stay visible; the full property table folds away.
+         This card sits ABOVE the action plan on purpose (user request
+         2026-08-16: the reader should see what made the document before the
+         steps that depend on it) — but at full height it pushed the plan far
+         down the page. Collapsing the table keeps the reason for its position
+         and returns the space: the source application, page count and creation
+         date are what the plan actually depends on, and they are still here
+         without a click. -->
+    <div v-if="items.length" class="px-4 sm:px-5 py-3">
+      <p data-testid="about-document-summary" class="text-sm text-[var(--text-secondary)] m-0">
+        <span v-for="(fact, i) in headlineFacts" :key="fact">
+          <span v-if="i > 0" class="text-[var(--text-muted)]"> · </span>{{ fact }}
+        </span>
+      </p>
+
+      <details class="mt-2 group">
+        <summary
+          class="cursor-pointer text-xs text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors select-none"
         >
-          {{ item.value || "Not set" }}
-        </dd>
-      </div>
-    </dl>
+          All document properties ({{ items.length }})
+        </summary>
+        <dl class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+          <div v-for="item in items" :key="item.label" class="text-sm min-w-0">
+            <dt class="text-xs text-[var(--text-muted)]">{{ item.label }}</dt>
+            <dd
+              class="m-0 break-words"
+              :class="
+                item.value ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic'
+              "
+            >
+              {{ item.value || "Not set" }}
+            </dd>
+          </div>
+        </dl>
+      </details>
+    </div>
     <p v-else class="px-4 sm:px-5 py-3 text-sm text-[var(--text-muted)]">
       This file doesn't record which program made it or when it was created — many tools leave this
       information blank.
@@ -58,4 +80,18 @@ const props = defineProps<{
 
 const items = computed(() => metadataItemsFor(props.result));
 const tieIn = computed(() => sourceTieInLine(props.result));
+
+/** The three facts the action plan below actually depends on: what made the
+ *  document, how long it is, and when. Everything else folds away. */
+const headlineFacts = computed(() => {
+  const pick = (label: string) => items.value.find((i) => i.label === label)?.value;
+  const source = pick("Source Application") || pick("PDF Producer");
+  const pages = pick("Page Count");
+  const created = pick("Created");
+  return [
+    source,
+    pages ? `${pages} ${pages === "1" ? "page" : "pages"}` : null,
+    created ? `created ${created}` : null,
+  ].filter((x): x is string => !!x);
+});
 </script>
