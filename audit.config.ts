@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "scope-both-fix-2026-08-29",
+    badge: "Fixed",
+    text: 'A real bug, found in reference documents published by the state\'s own IT agency — and their files were right. When a table has labels across the top AND down the side, the corner cell that labels both directions is marked with a third value the standard provides, "Both". This checker only recognised the other two, so a correctly built table was reported as missing header directions and its document was marked down. Fixed: all three values are now accepted, the fix-it advice now teaches the corner-cell case instead of steering around it, and a new trap document locks the behavior so it cannot come back. One document re-graded 89 to 100; nothing else moved.',
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "office-traps-and-twin-rule-2026-08-29",
     badge: "Verified",
     text: "The trap battery now covers all four formats this checker grades. Fifteen new trap documents were hand-built in Word, PowerPoint, and Excel's own file formats — bold text posing as headings, pictures whose alt panel was never opened, header rows never marked, slides with no titles, sheets still named 'Sheet1' — beside done-right twins that must pass clean. All 115 traps held, and a new twin rule is enforced on every matched pair: the flawed version may never outscore the correct one. Every control's exact score is also now pinned in the public ledger — 151 documents whose grades cannot move without a person approving the change.",

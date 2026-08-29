@@ -140,7 +140,7 @@ const acrobatGuide: Record<string, string[]> = {
     'Run the checker: All tools → Prepare for accessibility → Check for accessibility (classic UI: Tools → Accessibility → Full Check) → look under "Tables" → "Rows", "TH and TD", "Headers"',
     "Open Tags panel and expand the <Table> tag to see structure",
     'To add header cells: right-click a <TD> tag → Properties → Type → change to "Table Header Cell (TH)"',
-    'To set scope: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type "Header Cell" + Scope "Column" or "Row"',
+    'To set scope: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → Type "Header Cell" + Scope "Column", "Row", or "Both" (Both is for a corner cell that labels its row and its column at once)',
     "To fix row structure: ensure each row is wrapped in a <TR> tag with <TH>/<TD> children",
     "Table editor shortcut: right-click a table in the document → Table Editor (Acrobat Pro)",
   ],

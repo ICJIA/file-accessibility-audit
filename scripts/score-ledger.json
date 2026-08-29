@@ -421,6 +421,86 @@
         "form_accessibility": "null|none"
       }
     },
+    "doit/doit-accessibility-report-example.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "doit/doit-accessibility-ticket-example.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "null|none",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
+    "doit/newsletter-accessible.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "100|No issues found",
+        "reading_order": "null|none",
+        "form_accessibility": "100|No issues found"
+      }
+    },
+    "doit/orderform-accessible.pdf": {
+      "score": 89,
+      "grade": "B",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "85|Minor",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "null|none",
+        "form_accessibility": "100|No issues found"
+      }
+    },
+    "doit/report-accessible.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "100|No issues found",
+        "alt_text": "100|No issues found",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
+        "form_accessibility": "null|none"
+      }
+    },
     "dvfrc-agenda-aug2026-A0.pdf": {
       "score": 100,
       "grade": "A",
@@ -984,6 +1064,22 @@
         "alt_text": "null|none",
         "color_contrast": "null|none",
         "link_quality": "null|none",
+        "form_accessibility": "null|none"
+      }
+    },
+    "synthetic-116-crosstab-scope-both.pdf": {
+      "score": 100,
+      "grade": "A",
+      "categories": {
+        "text_extractability": "100|No issues found",
+        "title_language": "100|No issues found",
+        "heading_structure": "null|none",
+        "alt_text": "null|none",
+        "bookmarks": "null|none",
+        "table_markup": "100|No issues found",
+        "color_contrast": "null|none",
+        "link_quality": "null|none",
+        "reading_order": "100|No issues found",
         "form_accessibility": "null|none"
       }
     },

@@ -3441,6 +3441,60 @@ const SAMPLES: Sample[] = [
         ? null
         : `the hundredth document scored ${r.overallScore}/${r.grade}, not 100/A`,
   },
+  {
+    file: "synthetic-116-crosstab-scope-both.pdf",
+    truth:
+      "A cross-tab table done RIGHT: top-row headers Scope=/Column, left-column header Scope=/Row, and the corner header — which labels its row AND its column — Scope=/Both, the third value ISO 32000 defines. Written the way real exporters write it: /A pointing AT a shared attribute object rather than holding one inline. Every header is scoped, so no header may be reported as missing scope and the table must score 100. (The trap that would have caught the 2026-08-29 DoIT bug: /Both was rejected, docking a correctly built reference document to 89/B.)",
+    build: () => {
+      const content =
+        `/P << /MCID 0 >> BDC\nBT /F1 11 Tf 72 740 Td (${LONG("Cross tab")}) Tj ET\nEMC\n` +
+        `/TH << /MCID 1 >> BDC\nBT /F1 10 Tf 72 700 Td (Region) Tj ET\nEMC\n` +
+        `/TH << /MCID 2 >> BDC\nBT /F1 10 Tf 200 700 Td (2025) Tj ET\nEMC\n` +
+        `/TH << /MCID 3 >> BDC\nBT /F1 10 Tf 300 700 Td (2026) Tj ET\nEMC\n` +
+        `/TH << /MCID 4 >> BDC\nBT /F1 10 Tf 72 680 Td (North) Tj ET\nEMC\n` +
+        `/TD << /MCID 5 >> BDC\nBT /F1 10 Tf 200 680 Td (140) Tj ET\nEMC\n` +
+        `/TD << /MCID 6 >> BDC\nBT /F1 10 Tf 300 680 Td (152) Tj ET\nEMC\n`;
+      return buildPdf(
+        [
+          "<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 5 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> >>",
+          "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+          "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R /StructParents 0 >>",
+          stream(content),
+          "<< /Type /StructTreeRoot /K 6 0 R /ParentTree 8 0 R >>",
+          "<< /Type /StructElem /S /Document /P 5 0 R /K [9 0 R 10 0 R] >>",
+          FONT,
+          "<< /Nums [0 [9 0 R 13 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R]] >>",
+          "<< /Type /StructElem /S /P /P 6 0 R /Pg 3 0 R /K 0 >>",
+          "<< /Type /StructElem /S /Table /P 6 0 R /K [11 0 R 12 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [13 0 R 14 0 R 15 0 R] >>",
+          "<< /Type /StructElem /S /TR /P 10 0 R /K [16 0 R 17 0 R 18 0 R] >>",
+          // The corner header labels the row beneath it AND the column beside
+          // it, so /Both is correct — via an INDIRECT /A, the shape real
+          // exporters write.
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 1 /A 19 0 R >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 2 /A 20 0 R >>",
+          "<< /Type /StructElem /S /TH /P 11 0 R /Pg 3 0 R /K 3 /A 20 0 R >>",
+          "<< /Type /StructElem /S /TH /P 12 0 R /Pg 3 0 R /K 4 /A 21 0 R >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 5 >>",
+          "<< /Type /StructElem /S /TD /P 12 0 R /Pg 3 0 R /K 6 >>",
+          "<< /O /Table /Scope /Both >>",
+          "<< /O /Table /Scope /Column >>",
+          "<< /O /Table /Scope /Row >>",
+        ],
+        "<< /Title (Cross Tab With Both Scope) >>",
+      );
+    },
+    check: (r) => {
+      if (/missing Scope attribute/i.test(allFindings(r)))
+        return "a fully scoped cross-tab was reported as missing scope";
+      const t = cat("table_markup")(r);
+      if (!t || t.score === null) return "table_markup unscored";
+      if (t.score < 100) return `fully scoped cross-tab docked (table ${t.score})`;
+      return r.overallScore === 100 && r.grade === "A"
+        ? null
+        : `scored ${r.overallScore}/${r.grade}, not 100/A`;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -3814,6 +3868,10 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
     label: "The hundredth document — perfect, and graded perfect",
     chip: "held",
     chipText: "HELD \u00b7 SCORED 100",
+  },
+  "synthetic-116-crosstab-scope-both.pdf": {
+    label: "A cross-tab table scoped Column, Row, and Both — the corner header done right",
+    chip: "bug",
   },
 };
 

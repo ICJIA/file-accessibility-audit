@@ -341,7 +341,18 @@ export function analyzeTable(
     return mapToStandardTag(resolved?.["/S"] || null, roleMap);
   };
 
-  // Check if a TH node has a /Scope attribute
+  // Check if a TH node has a /Scope attribute.
+  //
+  // ISO 32000-1 Table 384 defines THREE legal values — Row, Column, and
+  // **Both** — and this accepted only two until 2026-08-29. /Both is the
+  // correct markup for the corner header of a cross-tab table, the cell that
+  // labels its row AND its column, so the files most carefully marked up were
+  // the ones penalised: a DoIT reference document with all seven headers
+  // scoped (three Row, three Column, one Both) was docked 89/B, because
+  // hasScope requires EVERY header to qualify and one /Both failed the test.
+  // Matched by the advice copy in scoring/pdf.ts, which used to steer authors
+  // away from /Both — both fixed together.
+  const SCOPE_VALUES = new Set(["/column", "/row", "/both"]);
   const hasNodeScope = (node: any): boolean => {
     const resolved = resolve(node);
     if (!resolved) return false;
@@ -350,7 +361,11 @@ export function analyzeTable(
     // /A can be a single dict, a ref, or an array
     const checkAttr = (a: any): boolean => {
       const r = resolve(a);
-      return r?.["/Scope"] === "/Column" || r?.["/Scope"] === "/Row";
+      const scope = r?.["/Scope"];
+      // Case-folded: the value is a PDF name, and viewers treat names as
+      // case-sensitive, but an exporter writing /column should be read as
+      // scoped rather than silently reported as missing.
+      return typeof scope === "string" && SCOPE_VALUES.has(scope.toLowerCase());
     };
     if (Array.isArray(attrs)) return attrs.some(checkAttr);
     return checkAttr(attrs);

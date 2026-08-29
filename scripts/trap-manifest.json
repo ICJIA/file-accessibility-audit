@@ -1,5 +1,5 @@
 {
-  "count": 100,
+  "count": 101,
   "generated": "2026-08-29",
   "items": [
     {
@@ -507,6 +507,11 @@
       "label": "The hundredth document — perfect, and graded perfect",
       "chip": "held",
       "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-116-crosstab-scope-both.pdf",
+      "label": "A cross-tab table scoped Column, Row, and Both — the corner header done right",
+      "chip": "bug"
     }
   ]
 }

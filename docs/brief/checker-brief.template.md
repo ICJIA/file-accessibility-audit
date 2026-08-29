@@ -33,13 +33,14 @@ Real documents can't prove a checker is right — nobody knows their ground trut
 
 ## Honed with internal and external accessibility specialists
 
-This is not an internal experiment. The checker is **used every day — by ICJIA and by outside agencies and document specialists** — and tuned in working sessions with accessibility specialists inside and outside the agency: real documents, real disputes, fixes shipped the same day. Don't take the "every day" on faith: the public stats page (audit.icjia.app/status) counts every check-up as it happens. Three grade challenges from document experts in one week alone, each settled by **reading the file itself**, never by defending the tool:
+This is not an internal experiment. The checker is **used every day — by ICJIA and by outside agencies and document specialists** — and tuned in working sessions with accessibility specialists inside and outside the agency: real documents, real disputes, fixes shipped the same day. Don't take the "every day" on faith: the public stats page (audit.icjia.app/status) counts every check-up as it happens. Four grade challenges from document experts and state reviewers, each settled by **reading the file itself**, never by defending the tool:
 
 - **A state accessibility team's form: 65 D → 100 A.** The expert was right; the checker mis-measured forms. Fixed same day.
 - **A document-repair specialist's two "missing" images: 79 C → 100 A.** Right again — the "images" were leftovers from a rebuilt page, on no page at all. Fixed same day.
 - **Table headers: the checker was right** — verified against the file's internals; the advice was made clearer instead.
+- **The state IT agency's reference document: 89 B → 100 A.** Their file was right and the checker was wrong — a table's corner header used the standard's third scope value, which this checker did not recognise. Fixed, with a trap document added so it can never come back.
 
-Software that only pretends to work can't afford to lose an argument in public. This one has — twice — and got better both times.
+Software that only pretends to work can't afford to lose an argument in public. This one has — three times — and got better every time. Two of the four it won on the evidence; every one was settled by reading the file, not by defending the tool.
 
 
 ## How this app is tested before anything ships
@@ -56,7 +57,7 @@ Many agencies already have SiteImprove, and being honest about both is the faste
 
 ## {{MONTHS_WORD}} months. {{COMMITS}} changes. {{VERSIONS}} versions.
 
-Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. All of it is public, on GitHub: [the full change log](https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md) and [every numbered version](https://github.com/ICJIA/file-accessibility-audit/tags), open for anyone to read. Milestones, newest first: passes its own trap test {{TRAPS}}/{{TRAPS}} · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · made its own grading **stricter** on itself · lost two public arguments and fixed both · covered all 31 industry checkpoints · removed all accounts and identity (nothing stored about who uses it) · adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements.
+Not a weekend project. Since March it has grown from a single PDF check into a checker for four kinds of files — {{COMMITS_30D}} saved changes in the last 30 days alone, its battery of self-checks grown from about 1,500 in June to {{TESTS}} today. All of it is public, on GitHub: [the full change log](https://github.com/ICJIA/file-accessibility-audit/blob/main/CHANGELOG.md) and [every numbered version](https://github.com/ICJIA/file-accessibility-audit/tags), open for anyone to read. Milestones, newest first: passes its own trap test {{TRAPS}}/{{TRAPS}} · fixed the outlier that wrongly refused a 246-page annual report — traced to the server, not the file, with proof · made its own grading **stricter** on itself · lost three public arguments and fixed all three · covered all 31 industry checkpoints · removed all accounts and identity (nothing stored about who uses it) · adopted WCAG 2.2 AA — everything in the 2.1 version Title II and IITAA name, plus the newest requirements.
 
 ## "But... but one person built this. It's not Google or Microsoft or Adobe."
 

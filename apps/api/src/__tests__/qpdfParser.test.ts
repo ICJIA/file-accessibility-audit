@@ -315,6 +315,66 @@ describe("table detection", () => {
     expect(result.tables[0].scopeMissingCount).toBe(1);
   });
 
+  // ISO 32000-1 Table 384 defines THREE scope values. Only two were accepted
+  // until 2026-08-29, so a cross-tab table's corner header — the cell that
+  // labels its row AND its column, which is exactly what /Both is for — was
+  // reported as unscoped, docking a correctly built DoIT reference document
+  // to 89/B. Found by reading the file, not by any test: all 115 traps used
+  // only /Column and /Row.
+  it("accepts /Both — the corner header of a cross-tab table is scoped, not missing", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": { "/S": "/Table", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/TR", "/K": ["4 0 R", "5 0 R", "6 0 R"] },
+          "4 0 R": { "/S": "/TH", "/A": { "/O": "/Table", "/Scope": "/Both" } },
+          "5 0 R": { "/S": "/TH", "/A": { "/O": "/Table", "/Scope": "/Column" } },
+          "6 0 R": { "/S": "/TH", "/A": { "/O": "/Table", "/Scope": "/Row" } },
+        },
+      ],
+    });
+    expect(result.tables[0].scopeMissingCount).toBe(0);
+    expect(result.tables[0].hasScope).toBe(true);
+  });
+
+  it("reads scope through an indirect /A reference — the shape Word actually exports", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": { "/S": "/Table", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/TR", "/K": ["4 0 R"] },
+          // /A points AT an attribute object rather than holding one inline —
+          // how the DoIT newsletter (and Word generally) writes it.
+          "4 0 R": { "/S": "/TH", "/A": "9 0 R" },
+          "9 0 R": { "/O": "/Table", "/Scope": "/Both" },
+        },
+      ],
+    });
+    expect(result.tables[0].scopeMissingCount).toBe(0);
+    expect(result.tables[0].hasScope).toBe(true);
+  });
+
+  it("still counts a genuinely unscoped header as missing", () => {
+    const result = parseJson({
+      qpdf: [
+        null,
+        {
+          "1 0 R": { "/Type": "/Catalog" },
+          "2 0 R": { "/S": "/Table", "/K": ["3 0 R"] },
+          "3 0 R": { "/S": "/TR", "/K": ["4 0 R", "5 0 R"] },
+          "4 0 R": { "/S": "/TH", "/A": { "/O": "/Table", "/Scope": "/Both" } },
+          "5 0 R": { "/S": "/TH", "/A": { "/O": "/Table" } }, // attrs, but no scope
+        },
+      ],
+    });
+    expect(result.tables[0].scopeMissingCount).toBe(1);
+    expect(result.tables[0].hasScope).toBe(false);
+  });
+
   it("detects all TH with scope → hasScope true", () => {
     const result = parseJson({
       qpdf: [

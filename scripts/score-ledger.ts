@@ -69,10 +69,21 @@ async function summarize(file: string): Promise<LedgerRow> {
 }
 
 async function main() {
-  const files = fs
-    .readdirSync(CONTROLS)
-    .filter((f) => SUPPORTED.has(path.extname(f).toLowerCase()))
-    .sort();
+  // One level deep: controls/*.ext plus controls/<subdir>/*.ext. The
+  // subdirectories hold provenance-tagged sets — controls/doit/ is the state
+  // IT agency's own reference documents, whose grades are now argued ground
+  // truth (2026-08-29) and must never move silently either.
+  const listDir = (dir: string, prefix = ""): string[] =>
+    fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((e) =>
+        e.isDirectory() && prefix === ""
+          ? listDir(path.join(dir, e.name), e.name + "/")
+          : SUPPORTED.has(path.extname(e.name).toLowerCase())
+            ? [prefix + e.name]
+            : [],
+      );
+  const files = listDir(CONTROLS).sort();
 
   if (BLESS) {
     const entries: Record<string, LedgerRow> = {};

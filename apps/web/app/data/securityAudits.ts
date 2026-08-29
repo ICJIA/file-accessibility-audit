@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.126.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: a real scoring bug, found in the state IT agency\u2019s own reference documents \u2014 their file was right. One document\u2019s grade improved; no other grade moved.",
+    body: [
+      {
+        kind: "p",
+        html: "When a table has labels across the top <em>and</em> down the side, the corner cell labels both directions at once &mdash; and the PDF standard provides a third setting for exactly that case, &ldquo;Both,&rdquo; beside &ldquo;Row&rdquo; and &ldquo;Column.&rdquo; <strong>This checker recognised only two of the three.</strong> Because a table passes this check only when <em>every</em> header is marked, one correctly marked corner cell was enough to report the whole table as missing header directions and mark the document down. The bug was found in <strong>reference documents published by the Illinois Department of Innovation &amp; Technology</strong>, and their file was right: every one of its seven headers was properly marked. That document now scores <strong>100 instead of 89</strong>.",
+      },
+      {
+        kind: "p",
+        html: "Two things were checked before changing anything. First, the file itself was read directly &mdash; not the checker&rsquo;s own report &mdash; to confirm the markings really were there. Second, the other four documents from the same agency were re-examined the same way: <strong>their grades did not move</strong>, and two of them genuinely have no header directions anywhere in the file, which is a real gap under the PDF-specific standard even though the report already explains it may still satisfy WCAG. The fix-it advice was corrected as well: it had been steering authors <em>away</em> from the correct corner-cell marking. A new trap document locks the behavior, and was verified to fail against the old code with exactly the symptom the real document showed.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the change widens one comparison from two accepted values to three and corrects two lines of advice; no new input is parsed and no new code path exists. No code path that receives, sends, or stores anything changed. <strong>One stored grade improves on re-analysis; no grade worsens.</strong> No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.125.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: twenty-five new tests that prove the accuracy alarms can actually ring. Nothing new is received, sent, or stored.",
     body: [

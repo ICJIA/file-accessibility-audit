@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.126.0] - 2026-08-29
+
+### Fixed
+
+- **`/Scope /Both` was rejected — a correctly built table was reported as missing header directions.** ISO 32000-1 (Table 384) defines **three** scope values for a table header cell: `Row`, `Column`, and `Both`. `hasNodeScope` accepted only the first two, and because a table qualifies only when *every* header is scoped, a single correct `/Both` cell flipped the whole table to "missing scope" and cost the document 11 points. `/Both` is not an edge case — it is the right markup for the corner header of a cross-tab table, the cell that labels its row *and* its column. All three values are now accepted, case-folded.
+- **Found in reference documents published by the Illinois Department of Innovation & Technology**, and their file was right: `newsletter-accessible.pdf` has all seven headers scoped — three `/Row`, three `/Column`, one `/Both`, each through an indirect `/A` reference — and this checker called one of them missing. It re-grades **89/B → 100/A**. Verified by reading the object graph directly, not by trusting our own output; the other four DoIT files were re-checked the same way and **their grades did not move** (two genuinely carry no `/Scope` or `/Headers` anywhere in the file — a real PDF/UA gap, which the report already frames as a readiness gap rather than a confirmed WCAG failure).
+- **The advice was wrong too, and taught the wrong habit.** The fix-it text told authors the corner cell should "be left as a data cell, or if it holds a label give it Column", and a summary line described scope as "(/Column or /Row)". Both now name `Both` and explain when it applies — the checker was steering people away from the most correct markup.
+
+### Added
+
+- **Trap 101 (`synthetic-116-crosstab-scope-both.pdf`)**: a cross-tab table with `/Column` across the top, `/Row` down the side, and `/Both` in the corner — written the way real exporters write it, with `/A` pointing at shared attribute objects rather than holding them inline. Must score 100/A with no header reported as missing scope. **Sabotage-verified**: against the old code it fails with the exact production symptom (89/B, "reported as missing scope"). Corpus is now **116 traps** (101 PDF + 15 Office).
+- **Three unit tests** on the parser: `/Both` accepted, scope read through an indirect `/A` reference, and — the other direction — a header with an attribute dictionary but no scope still counted as missing.
+- **The five DoIT documents are now ledger-pinned ground truth** (`controls/doit/`). The score ledger walks one level of subdirectories, so provenance-tagged sets keep their own folder; **157 rows** pinned.
+
+### Notes
+
+- Tests 2,949 → **2,952**. This is the **fourth** author dispute and the score is now 2–2: twice the checker was right, twice the file was. None of the 115 existing traps caught this, because every one of them used only `/Column` and `/Row` — a blind spot in the test corpus, not just the code. The trust page's dispute tally is updated accordingly (three lost arguments, all fixed).
+
+<details>
+<summary><strong>v1.125.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.125.0] - 2026-08-29
 
 ### Added
@@ -17,8 +38,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests **2,924 → 2,949** across 192 files (API 1,610 · Web 1,290 · CLI 49). All four corpus gates re-verified green after the gateLogic refactor. New test-only infrastructure: a `vue-router` stub aliased in the web vitest config (the real package is a Nuxt transitive pnpm does not expose to the test resolver).
 
-<details>
-<summary><strong>v1.124.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.124.0] - 2026-08-29
 

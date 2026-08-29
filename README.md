@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,949 tests** across 192 test files (API 1,610 · Web 1,290 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,952 tests** across 192 test files (API 1,613 · Web 1,290 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1286,12 +1286,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.126.0 — 2026-08-29 · `/Scope /Both` accepted: a correct table was being marked down (scoring fix)
+
+**The checker was wrong and the author's file was right — the fourth such dispute, and the second the file won.** ISO 32000-1 defines three scope values for table headers (`Row`, `Column`, `Both`); this accepted only two. Since a table qualifies only when *every* header is scoped, one correct `/Both` cell — the right markup for a cross-tab's corner header, which labels its row *and* its column — flipped the whole table to "missing scope" and cost 11 points. Found in **reference documents published by the Illinois DoIT**, verified by reading the object graph rather than trusting our own output: `newsletter-accessible.pdf` re-grades **89/B → 100/A**, and the other four files' grades did not move (two genuinely carry no `/Scope` or `/Headers` at all). The fix-it advice was corrected too — it had been steering authors *away* from `/Both`. A new trap (`synthetic-116-crosstab-scope-both.pdf`, sabotage-verified to fail against the old code with the exact production symptom) plus three parser unit tests lock it; the five DoIT files are now ledger-pinned ground truth (157 rows). **No new attack surface**: one comparison widened, two copy strings, tests. Tests 2,952. Corpus: 116 traps.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.125.0 → v1.33.0) — click to expand</summary>
+
 ### v1.125.0 — 2026-08-29 · Sabotage tests: the gates are proven able to fire (no new attack surface)
 
 Twenty-five new tests close the loop on the accuracy machinery itself. The gates' decision logic now lives in one shared module (`scripts/gateLogic.mjs`, used by the ledger, both trap batteries, and the page generator) and **sabotage tests feed it the exact failures it exists to catch** — a drifted score, an inverted twin pair, an unfilled placeholder — proving each alarm rings, and stays silent otherwise. The 8×8-fixture lesson is pinned at the unit level (a 49-pixel image is decoration, a 50-pixel one is content, whatever size it is painted). Every sitemap-listed page gains a render-smoke test with an exactly-one-h1 landmark rule, and the `/trust#` deep-link rule is pinned for all future announcements (with `/#matterhorn` encoded as the deliberate counter-example). **No new attack surface**: tests, one shared pure-logic module, one test-only stub. Tests 2,949.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.124.0 → v1.33.0) — click to expand</summary>
 
 ### v1.124.0 — 2026-08-29 · The trap battery covers all four formats; the twin rule; README brought current (no new attack surface)
 

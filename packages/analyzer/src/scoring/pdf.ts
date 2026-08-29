@@ -1630,7 +1630,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
     const scopeOnly = tablesWithHeaders.every((t) => t.hasScope);
     findings.push(
       scopeOnly
-        ? "All <TH> cells have Scope attributes (/Column or /Row)"
+        ? "All <TH> cells have Scope attributes (/Column, /Row, or /Both)"
         : "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)",
     );
     const headersOnly = tablesWithHeaders.filter((t) => !t.hasScope && t.hasHeaderAssociation);
@@ -1656,7 +1656,7 @@ function scoreTableMarkup(qpdf: QpdfResult): CategoryResult {
       }
     }
     findings.push(
-      'Fix: which value to set is decided by where the header sits, not by preference. A header at the TOP of a column, labelling everything beneath it, is Scope = "Column". A header at the START of a row, labelling everything across it, is Scope = "Row". A table can need both: in a grid with labels along the top AND down the left side, the top row is Column and the left-hand cells are Row. The one genuinely ambiguous cell is the empty corner where the two meet — leave it as a data cell, or if it holds a label give it "Column".',
+      'Fix: which value to set is decided by where the header sits, not by preference. A header at the TOP of a column, labelling everything beneath it, is Scope = "Column". A header at the START of a row, labelling everything across it, is Scope = "Row". A table can need both kinds: in a grid with labels along the top AND down the left side, the top row is Column and the left-hand cells are Row. For the corner cell where the two meet — the one that labels its row and its column at once — the standard provides a third value, Scope = "Both"; an empty corner can simply stay a data cell.',
     );
     findings.push(
       'How to set it in Adobe Acrobat: All tools → Prepare for accessibility → Fix reading order (classic UI: Tools → Accessibility → Reading Order) → select the table → Table Editor → right-click the header cell(s) → Table Cell Properties → set Scope. In Word, you rarely need to do this by hand: select the table, then Table Design → check "Header Row" (and "First Column" if the left-hand cells are labels too), and re-export — Word writes the scopes for you.',
