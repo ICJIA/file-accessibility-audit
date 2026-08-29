@@ -26,6 +26,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
+import { twinViolations } from "./gateLogic.mjs";
 
 // jszip lives in the analyzer package's dependency tree, not the root's.
 const requireAnalyzer = createRequire(
@@ -565,13 +566,7 @@ async function main() {
       hardFailures++;
       continue;
     }
-    const problems: string[] = [];
-    if (bad.overallScore > good.overallScore)
-      problems.push(`overall ${bad.overallScore} > ${good.overallScore}`);
-    const cb = bad.categories.find((c) => c.id === t.category);
-    const cg = good.categories.find((c) => c.id === t.category);
-    if (cb && cg && cb.score !== null && cg.score !== null && cb.score > cg.score)
-      problems.push(`${t.category} ${cb.score} > ${cg.score}`);
+    const problems = twinViolations(bad, good, t.category);
     if (problems.length) {
       console.error(`TWIN ORDER VIOLATED ${t.bad} vs ${t.good}: ${problems.join("; ")}`);
       hardFailures++;

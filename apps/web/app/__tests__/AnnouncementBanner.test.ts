@@ -316,6 +316,31 @@ describe("AnnouncementBanner", () => {
       expect(link!.attributes("external")).toBe("false");
     });
 
+    it("every REAL announcement deep-linking a /trust #fragment is linkExternal: true", async () => {
+      // The /trust modals open via CSS :target, which only re-evaluates on a
+      // REAL hash navigation — the router's pushState does not reliably
+      // trigger it. So any banner deep-linking a /trust #fragment must
+      // render as a plain <a> (linkExternal), or the modal silently fails
+      // to open. NOT a blanket hash rule: /#matterhorn is the deliberate
+      // counter-example — the landing page opens that expander with its own
+      // route-hash WATCHER, so a router link is correct there. The rule is
+      // about :target pages, and /trust is one.
+      const { ANNOUNCEMENTS } = await import("../../../../audit.config");
+      for (const a of ANNOUNCEMENTS as unknown as Array<{
+        id?: unknown;
+        linkTo?: unknown;
+        linkExternal?: unknown;
+      }>) {
+        const to = typeof a.linkTo === "string" ? a.linkTo : "";
+        if (to.startsWith("/trust") && to.includes("#")) {
+          expect(
+            a.linkExternal,
+            `${String(a.id)} deep-links ${to} — :target needs a real navigation, set linkExternal: true`,
+          ).toBe(true);
+        }
+      }
+    });
+
     it("every REAL announcement pointing at /status carries linkExternal: true", async () => {
       // The two tests above prove the component honours the flag; this one
       // proves the DATA sets it. v1.89.0 shipped an entry linking to

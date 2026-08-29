@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.125.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: twenty-five new tests that prove the accuracy alarms can actually ring. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "A checkpoint that has only ever been passed proves less than it seems &mdash; nothing shows the alarm <em>works</em>. Twenty-five new tests close that gap. The decision rules behind the score ledger, the twin rule, and the page generator were gathered into one shared piece of code, and <strong>sabotage tests now feed those rules exactly the failures they exist to catch</strong>: a score that drifted, a per-area verdict that moved, a &ldquo;flawed twin&rdquo; that somehow outscored its corrected copy, a page template with a typo in a number slot. Each must set off its alarm &mdash; and stay quiet when nothing is wrong.",
+      },
+      {
+        kind: "p",
+        html: "Also pinned at the finest level: the exact line between a decorative speck and a real image (49 pixels is ignored, 50 is counted &mdash; the boundary behind last release&rsquo;s test-document fix), and the rule that made a wrongly-graded real report teach the checker humility (&ldquo;we could not read this page&rdquo; and &ldquo;these headings are empty&rdquo; are different statements). And every public page of this site now has its own render test with a one-main-heading rule &mdash; the landmark screen-reader users navigate by, which an accessibility checker of all sites should keep on its own pages.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: everything added is a test or a shared pure-logic module used by developer scripts; nothing runs on the server. No code path that receives, sends, or stores anything changed; no document&rsquo;s score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.124.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: trap documents for Word, PowerPoint, and Excel, and a new fairness rule across matched pairs. Nothing new is received, sent, or stored.",
     body: [

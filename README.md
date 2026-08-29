@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,924 tests** across 189 test files (API 1,592 · Web 1,283 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**2,949 tests** across 192 test files (API 1,610 · Web 1,290 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1286,12 +1286,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.125.0 — 2026-08-29 · Sabotage tests: the gates are proven able to fire (no new attack surface)
+
+Twenty-five new tests close the loop on the accuracy machinery itself. The gates' decision logic now lives in one shared module (`scripts/gateLogic.mjs`, used by the ledger, both trap batteries, and the page generator) and **sabotage tests feed it the exact failures it exists to catch** — a drifted score, an inverted twin pair, an unfilled placeholder — proving each alarm rings, and stays silent otherwise. The 8×8-fixture lesson is pinned at the unit level (a 49-pixel image is decoration, a 50-pixel one is content, whatever size it is painted). Every sitemap-listed page gains a render-smoke test with an exactly-one-h1 landmark rule, and the `/trust#` deep-link rule is pinned for all future announcements (with `/#matterhorn` encoded as the deliberate counter-example). **No new attack surface**: tests, one shared pure-logic module, one test-only stub. Tests 2,949.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.124.0 → v1.33.0) — click to expand</summary>
+
 ### v1.124.0 — 2026-08-29 · The trap battery covers all four formats; the twin rule; README brought current (no new attack surface)
 
 Fifteen native **Word, PowerPoint, and Excel traps** join the 100 PDF traps — bold-posing-as-headings, unopened alt panels, unmarked header rows, untitled slides, "Sheet1" — each beside a done-right twin that must pass clean. **All 115 held**, and a new **twin rule** is enforced across 11 matched pairs in both batteries: the flawed twin may never outscore the correct one (monotonicity, which no single-file test can see). The score ledger grows to **151 pinned rows**; the trust page's inventory modal lists all 115. One first-run failure was the checker being right (the Office good twins genuinely lacked a language declaration; the skeletons now declare one, as real exports do). This README's Tests section was corrected (2,924 tests / 189 files) and gained the **Accuracy gates** documentation. **No new attack surface**: one dev/CI script, one merged manifest, documentation. Tests 2,924.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.123.0 → v1.33.0) — click to expand</summary>
 
 ### v1.123.0 — 2026-08-29 · Three accuracy gates: the score ledger, re-save invariance, live-site sentinels (no new attack surface)
 

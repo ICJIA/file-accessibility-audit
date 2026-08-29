@@ -26,6 +26,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { fill as fillTemplate } from "./gateLogic.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BRIEF = path.join(ROOT, "docs", "brief");
@@ -160,15 +161,7 @@ const SUBS = {
   REAUDITED: String(live.reaudited),
   REACHED_A: String(live.reached_a),
 };
-const fill = (s) => {
-  const out = s.replace(/\{\{(\w+)\}\}/g, (_, k) => {
-    if (!(k in SUBS)) throw new Error(`template placeholder with no value: {{${k}}}`);
-    return SUBS[k];
-  });
-  const leftover = out.match(/\{\{\w+\}\}/);
-  if (leftover) throw new Error(`unfilled placeholder: ${leftover[0]}`);
-  return out;
-};
+const fill = (s) => fillTemplate(s, SUBS);
 
 // --- html: fill and wrap into a standalone document ---
 const htmlBody = fill(fs.readFileSync(path.join(BRIEF, "checker-brief.template.html"), "utf8"));

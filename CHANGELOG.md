@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.125.0] - 2026-08-29
+
+### Added
+
+- **Sabotage tests: the accuracy gates are now proven able to FIRE.** Every prior run of the score ledger, twin rule, and template fill was a happy path — nothing demonstrated the alarms ring. The gates' pure decision logic is extracted to `scripts/gateLogic.mjs` (shared by the ledger, both trap batteries, and build-brief — one implementation, no drift) and 12 new tests feed it exactly the failures it exists to catch: a drifted score, a moved category verdict, a vanished category, a pinned-failure file that starts succeeding, an inverted twin pair, a template placeholder with no value. Each must trip the alarm — and stay silent when nothing is wrong.
+- **Boundary tests from the 8×8 lesson** (6): the tiny-image threshold is pinned at the unit level — a 49-pixel image is skipped as decoration even painted 300 points wide, a 50-pixel one is counted — and `markedContentAttributionReliable`'s exported thresholds (20 items to judge, more than 2 ids to average, half must carry text; the exact DVFR shape declared unreliable) each get a test on their line.
+- **Public-route render smoke** (6): every sitemap-listed page must mount, render real markup, and show exactly one h1 — the landmark screen-reader users navigate by, which this checker of all sites keeps on its own pages. (The landing page deliberately carries zero of its own; the layout's site-name h1 is the one, and the test encodes that.)
+- **The /trust deep-link rule, pinned** (1): any announcement whose `linkTo` targets a `/trust` `#fragment` must be `linkExternal: true` — the modals open via CSS `:target`, which needs a real navigation. The first draft of this pin was a blanket hash rule and immediately flagged `/#matterhorn` — the deliberate counter-example (opened by a route-hash watcher, correctly a router link) — so the test now encodes the precise distinction.
+
+### Notes
+
+- Tests **2,924 → 2,949** across 192 files (API 1,610 · Web 1,290 · CLI 49). All four corpus gates re-verified green after the gateLogic refactor. New test-only infrastructure: a `vue-router` stub aliased in the web vitest config (the real package is a Nuxt transitive pnpm does not expose to the test resolver).
+
+<details>
+<summary><strong>v1.124.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.124.0] - 2026-08-29
 
 ### Added
@@ -18,8 +34,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - One first-run failure, and the checker's rules won again: the Office good twins genuinely lacked a language declaration (my skeletons had none), so title-and-language dinged them — correctly. The skeletons now declare `en-US` the way real exports do, isolating each trap to exactly one designed defect. Tests 2,924 unchanged (the batteries are gate scripts).
 - Still-open recommendation from the accuracy review, deliberately deferred: veraPDF concordance assertions (needs veraPDF on the dev box), the remediation round-trip test, and property-based struct-tree fuzzing.
 
-<details>
-<summary><strong>v1.123.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.123.0] - 2026-08-29
 

@@ -26,6 +26,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { analyzePDF } from "../apps/api/src/services/pdfAnalyzer.js";
+import { twinViolations } from "./gateLogic.mjs";
 import type { AnalysisResult } from "../apps/api/src/services/pdfAnalyzer.js";
 
 // Directly in controls/ with a "synthetic-" prefix (user request): the files
@@ -3886,13 +3887,7 @@ async function main() {
       hardFailures++;
       continue;
     }
-    const problems: string[] = [];
-    if (bad.overallScore > good.overallScore)
-      problems.push(`overall ${bad.overallScore} > ${good.overallScore}`);
-    const cb = bad.categories.find((c) => c.id === t.category);
-    const cg = good.categories.find((c) => c.id === t.category);
-    if (cb && cg && cb.score !== null && cg.score !== null && cb.score > cg.score)
-      problems.push(`${t.category} ${cb.score} > ${cg.score}`);
+    const problems = twinViolations(bad, good, t.category);
     if (problems.length) {
       console.error(`TWIN ORDER VIOLATED ${t.bad} vs ${t.good}: ${problems.join("; ")}`);
       hardFailures++;

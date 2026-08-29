@@ -30,6 +30,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { analyzeDocument } from "../apps/api/src/services/analyzer.js";
+import { diffRow } from "./gateLogic.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const CONTROLS = path.join(ROOT, "controls");
@@ -65,27 +66,6 @@ async function summarize(file: string): Promise<LedgerRow> {
         .slice(0, 160),
     };
   }
-}
-
-function diffRow(file: string, want: LedgerRow, got: LedgerRow): string[] {
-  const out: string[] = [];
-  if (want.error !== undefined || got.error !== undefined) {
-    if (want.error !== got.error)
-      out.push(`  ${file}: error ${JSON.stringify(want.error)} -> ${JSON.stringify(got.error)}`);
-    return out;
-  }
-  if (want.score !== got.score || want.grade !== got.grade)
-    out.push(`  ${file}: ${want.score}/${want.grade} -> ${got.score}/${got.grade}`);
-  const ids = new Set([
-    ...Object.keys(want.categories ?? {}),
-    ...Object.keys(got.categories ?? {}),
-  ]);
-  for (const id of [...ids].sort()) {
-    const a = want.categories?.[id];
-    const b = got.categories?.[id];
-    if (a !== b) out.push(`  ${file}: ${id} ${a ?? "(absent)"} -> ${b ?? "(absent)"}`);
-  }
-  return out;
 }
 
 async function main() {
