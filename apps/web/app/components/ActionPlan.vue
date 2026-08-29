@@ -211,79 +211,163 @@
          floor finds the full PDF/UA picture, including veraPDF's own verdict
          verbatim — every failing rule, its ISO clause, its count, and any
          error. -->
-    <div
-      v-if="showBeyondGroup"
-      data-testid="plan-beyond-group"
-      class="mt-6 rounded-xl border border-sky-500/30 bg-sky-500/5 px-4 sm:px-5 py-4"
-    >
-      <h3 class="text-sm font-bold text-[var(--text-heading)] m-0">
-        Above and beyond — not required by WCAG 2.1
-        <span
-          class="ml-2 align-middle text-[10px] font-bold px-2 py-0.5 rounded-full border border-sky-500/40 text-sky-400 whitespace-nowrap"
-          >BEST PRACTICE — NOT SCORED</span
+    <div v-if="showBeyondGroup" data-testid="plan-beyond-group" class="mt-8">
+      <!-- The visual seam between the two tiers (user request 2026-08-29:
+           "the actual fixes are above — and here are the extra fixes if you
+           want them"). A reader scrolling past the plan must not mistake
+           what follows for more obligations. -->
+      <div class="flex items-center gap-3 mb-4" aria-hidden="true">
+        <div class="h-px flex-1 bg-[var(--border)]"></div>
+        <span class="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]"
+          >Everything the law requires is above &uarr;</span
         >
-      </h3>
-      <p class="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-        WCAG 2.1 is what Illinois (IITAA) and federal law (ADA Title II) require, and it is all your
-        grade measures. Everything below goes past that floor — PDF/UA (ISO 14289) rules, and best
-        practices like bookmarks, heading conventions, and navigation labels.
-        <strong class="font-semibold text-[var(--text-secondary)]"
-          >None of it affected your grade.</strong
-        >
-      </p>
+        <div class="h-px flex-1 bg-[var(--border)]"></div>
+      </div>
 
-      <ul v-if="beyondItems.length" class="mt-3 space-y-2">
-        <li v-for="(item, i) in beyondItems" :key="`beyond-${i}`" class="text-xs flex gap-2">
-          <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-sky-400">○</span>
-          <span class="text-[var(--text-secondary)]">
-            <span v-if="item.label" class="font-semibold">{{ item.label }}: </span>{{ item.text }}
-          </span>
-        </li>
-      </ul>
-
-      <!-- veraPDF's verdict, verbatim and in full. The referee's words, not
-           our judgment — same doctrine as the per-step co-sign. -->
-      <div
-        v-if="pdfUaVerdict?.available"
-        data-testid="plan-vera-detail"
-        class="mt-4 border-t border-sky-500/20 pt-3"
-      >
-        <p class="text-xs font-semibold text-[var(--text-secondary)] m-0">
-          What veraPDF found
-          <span class="font-normal text-[var(--text-muted)]"
-            >— the PDF Association's own PDF/UA validator, run on this document</span
+      <div class="rounded-2xl border-2 border-sky-500/40 bg-sky-500/5 px-5 sm:px-6 py-5">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span aria-hidden="true" class="text-2xl leading-none text-sky-400">○</span>
+          <h3 class="text-lg sm:text-xl font-bold text-[var(--text-heading)] m-0">
+            Above and beyond — not required by WCAG 2.1
+          </h3>
+          <span
+            class="text-[11px] font-bold px-2.5 py-1 rounded-full border border-sky-500/50 text-sky-400 whitespace-nowrap tracking-wide"
+            >BEST PRACTICE — NOT SCORED</span
+          >
+        </div>
+        <p class="text-sm text-[var(--text-muted)] mt-2.5 leading-relaxed">
+          The numbered fixes above are everything WCAG 2.1 — the standard Illinois (IITAA) and
+          federal law (ADA Title II) require — asks of this document. Everything here is extra:
+          PDF/UA (ISO 14289) rules and best practices like bookmarks, heading conventions, and
+          navigation labels, for authors who want to go past the legal floor.
+          <strong class="font-semibold text-[var(--text-secondary)]"
+            >None of it affected your grade.</strong
           >
         </p>
-        <p v-if="pdfUaVerdict.error" class="text-xs text-[var(--status-warning-orange)] mt-1.5">
-          veraPDF could not complete its check: {{ pdfUaVerdict.error }}
-        </p>
-        <p v-else-if="pdfUaVerdict.passed" class="text-xs text-[var(--text-secondary)] mt-1.5">
-          <span aria-hidden="true">✓</span> veraPDF found no machine-checkable PDF/UA failures in
-          this document.
-        </p>
-        <template v-else>
-          <p class="text-xs text-[var(--text-muted)] mt-1">
-            {{ (pdfUaVerdict.totalFailureCount ?? 0).toLocaleString() }} occurrence{{
-              (pdfUaVerdict.totalFailureCount ?? 0) === 1 ? "" : "s"
-            }}
-            across {{ pdfUaVerdict.distinctRuleCount ?? veraFailures.length }} failing rule{{
-              (pdfUaVerdict.distinctRuleCount ?? veraFailures.length) === 1 ? "" : "s"
-            }}<template v-if="pdfUaVerdict.profile"> of {{ pdfUaVerdict.profile }}</template
-            >.
+
+        <!-- The numbers at a glance, infographic-style: what is optional here,
+             and the referee's own totals. -->
+        <div class="mt-3.5 flex flex-wrap gap-2" data-testid="beyond-stat-chips">
+          <span
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
+          >
+            <span class="text-sky-400 font-bold">0</span> of these count toward your score
+          </span>
+          <span
+            v-if="beyondItems.length"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
+          >
+            <span class="text-sky-400 font-bold">{{ beyondItems.length }}</span> optional
+            {{ beyondItems.length === 1 ? "item" : "items" }} from this report
+          </span>
+          <span
+            v-if="pdfUaVerdict?.available && pdfUaVerdict.passed === false"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
+          >
+            veraPDF:
+            <span class="text-sky-400 font-bold">{{
+              (pdfUaVerdict.totalFailureCount ?? 0).toLocaleString()
+            }}</span>
+            occurrences ·
+            <span class="text-sky-400 font-bold">{{
+              pdfUaVerdict.distinctRuleCount ?? veraFailures.length
+            }}</span>
+            rules
+          </span>
+          <span
+            v-else-if="pdfUaVerdict?.available && pdfUaVerdict.passed"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
+          >
+            veraPDF: <span class="text-sky-400 font-bold">✓</span> no machine-checkable failures
+          </span>
+        </div>
+
+        <ul v-if="beyondItems.length" class="mt-3 space-y-2">
+          <li v-for="(item, i) in beyondItems" :key="`beyond-${i}`" class="text-xs flex gap-2">
+            <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-sky-400">○</span>
+            <span class="text-[var(--text-secondary)]">
+              <span v-if="item.label" class="font-semibold">{{ item.label }}: </span>{{ item.text }}
+            </span>
+          </li>
+        </ul>
+
+        <!-- veraPDF's verdict, verbatim and in full. The referee's words, not
+           our judgment — same doctrine as the per-step co-sign. -->
+        <div
+          v-if="pdfUaVerdict?.available"
+          data-testid="plan-vera-detail"
+          class="mt-4 border-t border-sky-500/20 pt-3"
+        >
+          <p class="text-xs font-semibold text-[var(--text-secondary)] m-0">
+            What veraPDF found
+            <span class="font-normal text-[var(--text-muted)]"
+              >— the PDF Association's own PDF/UA validator, run on this document</span
+            >
           </p>
-          <ul class="mt-2 space-y-1.5">
-            <li v-for="(row, i) in veraRows" :key="`vera-${i}`" class="text-xs">
-              <!-- A rule we can advise on gets a collapsed per-rule expander
+          <p v-if="pdfUaVerdict.error" class="text-xs text-[var(--status-warning-orange)] mt-1.5">
+            veraPDF could not complete its check: {{ pdfUaVerdict.error }}
+          </p>
+          <p v-else-if="pdfUaVerdict.passed" class="text-xs text-[var(--text-secondary)] mt-1.5">
+            <span aria-hidden="true">✓</span> veraPDF found no machine-checkable PDF/UA failures in
+            this document.
+          </p>
+          <template v-else>
+            <p class="text-xs text-[var(--text-muted)] mt-1">
+              {{ (pdfUaVerdict.totalFailureCount ?? 0).toLocaleString() }} occurrence{{
+                (pdfUaVerdict.totalFailureCount ?? 0) === 1 ? "" : "s"
+              }}
+              across {{ pdfUaVerdict.distinctRuleCount ?? veraFailures.length }} failing rule{{
+                (pdfUaVerdict.distinctRuleCount ?? veraFailures.length) === 1 ? "" : "s"
+              }}<template v-if="pdfUaVerdict.profile"> of {{ pdfUaVerdict.profile }}</template
+              >.
+            </p>
+            <ul class="mt-2 space-y-1.5">
+              <li v-for="(row, i) in veraRows" :key="`vera-${i}`" class="text-xs">
+                <!-- A rule we can advise on gets a collapsed per-rule expander
                    with BOTH routes — fix it in the source file, or fix it in
                    the exported PDF (user request 2026-08-29: "a place to
                    start — either with the source file or with the PDF
                    export"). A rule pdfUaFixRoutes cannot map renders as a
                    plain row: wrong advice under the referee's words would be
                    worse than none. -->
-              <details v-if="row.routes" :data-testid="`vera-fix-${i}`" class="group/vera">
-                <summary
-                  class="flex gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden"
-                >
+                <details v-if="row.routes" :data-testid="`vera-fix-${i}`" class="group/vera">
+                  <summary
+                    class="flex gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+                  >
+                    <span class="flex-shrink-0 font-mono text-sky-400">{{
+                      row.f.clause || row.f.ruleId || "—"
+                    }}</span>
+                    <span class="text-[var(--text-muted)] min-w-0">
+                      {{ row.f.description || "(no description provided)" }}
+                      <span class="text-[var(--text-secondary)] whitespace-nowrap"
+                        >× {{ row.f.count ?? 1 }}</span
+                      >
+                      <span class="text-[var(--link)] whitespace-nowrap">
+                        · How to fix
+                        <span
+                          aria-hidden="true"
+                          class="inline-block transition-transform group-open/vera:rotate-90"
+                          >▸</span
+                        >
+                      </span>
+                    </span>
+                  </summary>
+                  <div class="mt-1.5 mb-1 ml-5 pl-3 border-l border-sky-500/25 space-y-1.5">
+                    <p class="m-0">
+                      <span class="font-semibold text-[var(--text-secondary)]"
+                        >In the source file (Word, InDesign):</span
+                      >
+                      <span class="text-[var(--text-muted)]"> {{ row.routes.source }}</span>
+                    </p>
+                    <p class="m-0">
+                      <span class="font-semibold text-[var(--text-secondary)]"
+                        >In the exported PDF (Acrobat):</span
+                      >
+                      <span class="text-[var(--text-muted)]"> {{ row.routes.pdf }}</span>
+                    </p>
+                  </div>
+                </details>
+                <div v-else class="flex gap-2">
                   <span class="flex-shrink-0 font-mono text-sky-400">{{
                     row.f.clause || row.f.ruleId || "—"
                   }}</span>
@@ -292,52 +376,19 @@
                     <span class="text-[var(--text-secondary)] whitespace-nowrap"
                       >× {{ row.f.count ?? 1 }}</span
                     >
-                    <span class="text-[var(--link)] whitespace-nowrap">
-                      · How to fix
-                      <span
-                        aria-hidden="true"
-                        class="inline-block transition-transform group-open/vera:rotate-90"
-                        >▸</span
-                      >
-                    </span>
                   </span>
-                </summary>
-                <div class="mt-1.5 mb-1 ml-5 pl-3 border-l border-sky-500/25 space-y-1.5">
-                  <p class="m-0">
-                    <span class="font-semibold text-[var(--text-secondary)]"
-                      >In the source file (Word, InDesign):</span
-                    >
-                    <span class="text-[var(--text-muted)]"> {{ row.routes.source }}</span>
-                  </p>
-                  <p class="m-0">
-                    <span class="font-semibold text-[var(--text-secondary)]"
-                      >In the exported PDF (Acrobat):</span
-                    >
-                    <span class="text-[var(--text-muted)]"> {{ row.routes.pdf }}</span>
-                  </p>
                 </div>
-              </details>
-              <div v-else class="flex gap-2">
-                <span class="flex-shrink-0 font-mono text-sky-400">{{
-                  row.f.clause || row.f.ruleId || "—"
-                }}</span>
-                <span class="text-[var(--text-muted)] min-w-0">
-                  {{ row.f.description || "(no description provided)" }}
-                  <span class="text-[var(--text-secondary)] whitespace-nowrap"
-                    >× {{ row.f.count ?? 1 }}</span
-                  >
-                </span>
-              </div>
-            </li>
-          </ul>
-          <p
-            v-if="(pdfUaVerdict.distinctRuleCount ?? 0) > veraFailures.length"
-            class="text-xs text-[var(--text-muted)] mt-1.5"
-          >
-            Showing the first {{ veraFailures.length }} rules — the complete list is in the full
-            technical report's PDF/UA panel.
-          </p>
-        </template>
+              </li>
+            </ul>
+            <p
+              v-if="(pdfUaVerdict.distinctRuleCount ?? 0) > veraFailures.length"
+              class="text-xs text-[var(--text-muted)] mt-1.5"
+            >
+              Showing the first {{ veraFailures.length }} rules — the complete list is in the full
+              technical report's PDF/UA panel.
+            </p>
+          </template>
+        </div>
       </div>
     </div>
   </section>

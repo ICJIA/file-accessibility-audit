@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,007 tests** across 196 test files (API 1,624 · Web 1,334 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,008 tests** across 196 test files (API 1,624 · Web 1,335 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.140.1 — 2026-08-29 · The optional tier reads as a section, not a footnote (no new attack surface)
+
+The "Above and beyond" group gains a full-width seam ("Everything the law requires is above ↑"), headline-scale title and badge, and at-a-glance stat chips — "0 of these count toward your score", the optional-item count, and veraPDF's own totals — so the required/optional boundary is unmissable. Presentation only; every pinned copy string unchanged. Tests 3,008.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.140.0 → v1.33.0) — click to expand</summary>
+
 ### v1.140.0 — 2026-08-29 · All six checker bugs detailed on the trust page; the count is data, not prose (no new attack surface)
 
 User-caught mismatch: the trust page said "one real bug" while the trap modal wore five bug chips (now six — trap 124's trap-first catch earned its chip). The page now details **every bug transparently** — what was wrong, who found it (the battery, real agency files, the encoding gate, a trap written first), and what it wrongly cost — and the count is derived from the manifests everywhere it appears: `build-brief` fails the build if the detail list drifts from the chips, and a test holds the same invariant app-side. Tests 3,007. No scores moved.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.139.2 → v1.33.0) — click to expand</summary>
 
 ### v1.139.2 — 2026-08-29 · The trap modal ends on the highest trap (no new attack surface)
 

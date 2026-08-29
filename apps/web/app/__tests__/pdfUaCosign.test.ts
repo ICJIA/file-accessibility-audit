@@ -611,3 +611,38 @@ describe("the plan reconciles fixes to criteria when one fix clears two (v1.139.
     expect(w.text()).toMatch(/fix № 2 clears more than one/);
   });
 });
+
+describe("the beyond group reads as a section, not a footnote (v1.140.1)", () => {
+  const step = {
+    rank: 1,
+    categoryId: "alt_text",
+    title: "Describe your images",
+    why: "x",
+    severity: "Critical" as const,
+    wcagRefs: [{ sc: "1.1.1", name: "Non-text Content" }],
+    routes: [],
+    detailAnchor: "#cat-alt_text",
+  };
+
+  it("bridges from the required tier and shows the at-a-glance chips", () => {
+    const w = mount(ActionPlan, {
+      props: {
+        steps: [step],
+        pdfUaVerdict: {
+          available: true,
+          passed: false,
+          totalFailureCount: 4732,
+          distinctRuleCount: 8,
+          failures: [{ clause: "7.1", description: "Content shall be tagged", count: 2418 }],
+        },
+      },
+    });
+    const g = w.find('[data-testid="plan-beyond-group"]');
+    expect(g.text()).toMatch(/Everything the law requires is above/);
+    const chips = w.find('[data-testid="beyond-stat-chips"]');
+    expect(chips.exists()).toBe(true);
+    expect(chips.text()).toMatch(/0 of these count toward your score/);
+    expect(chips.text()).toMatch(/4,732/);
+    expect(chips.text()).toMatch(/8/);
+  });
+});

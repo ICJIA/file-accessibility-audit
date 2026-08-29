@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.140.1] - 2026-08-29
+
+### Changed
+
+- **The "Above and beyond" group is now a section a reader cannot miss** (user request: "more infographic-ish — the actual fixes are above, and here are the extra fixes if you want them"). A full-width seam divider — *"Everything the law requires is above ↑"* — separates it from the numbered plan; the heading and badge grew to headline scale inside a heavier sky-bordered card; and a row of at-a-glance stat chips leads the content: **"0 of these count toward your score"**, the number of optional items from this report, and veraPDF's own totals ("4,732 occurrences · 8 rules", or a ✓ on a clean pass).
+
+### Notes
+
+- Tests 3,007 → **3,008**. Copy strings the earlier tests pin ("Above and beyond — not required by WCAG 2.1", "BEST PRACTICE — NOT SCORED") are unchanged.
+
+<details>
+<summary><strong>v1.140.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.140.0] - 2026-08-29
 
 ### Changed — every bug, on the record
@@ -15,8 +28,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,006 → **3,007**. No scores moved; all 124 truths held with the re-chipped manifest.
 
-<details>
-<summary><strong>v1.139.2 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.139.2] - 2026-08-29
 

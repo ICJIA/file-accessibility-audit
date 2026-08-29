@@ -54,6 +54,20 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.140.1",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the optional-work section is now visually unmissable. Presentation only.",
+    body: [
+      {
+        kind: "p",
+        html: "The &ldquo;Above and beyond&rdquo; section of the action plan — the optional PDF/UA and best-practice work that never affects a grade — was easy to read as a footnote. It is now a clearly separated section: a full-width divider states that <em>everything the law requires is above it</em>, the heading is headline-sized, and a row of at-a-glance figures leads it — <strong>&ldquo;0 of these count toward your score&rdquo;</strong>, how many optional items this report found, and the independent validator&rsquo;s own totals.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: presentation markup only, pinned by a new test; no wording that other tests rely on changed, no score changed, no new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.140.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: all six bugs ever found in this checker are now detailed on the trust page, and the count is computed, never hand-written.",
     body: [
