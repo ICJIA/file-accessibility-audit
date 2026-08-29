@@ -41,16 +41,31 @@
               <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
                 step.title
               }}</span>
-              <!-- Every numbered step is a WCAG 2.1 requirement — the
-                   standard Illinois (IITAA) and federal law (ADA Title II)
-                   name. A PDF/UA-only item carries no severity, so it never
-                   becomes a step (see the "above and beyond" group below).
-                   Saying so on each step is what a compliance reviewer is
-                   scanning for. -->
+              <!-- The chip is EARNED, not stamped (v1.135.0). v1.132's
+                   unconditional REQUIRED chip was wrong for the class of
+                   scored-technique steps: the SFY25 report said "3 criteria
+                   failing" above five REQUIRED chips, and the bookmarks
+                   step's own finding text ("no WCAG criterion strictly
+                   requires bookmarks") contradicted its chip one inch below.
+                   REQUIRED = this step's category produced a failing
+                   criterion in the conformance verdict. RECOMMENDED = scored
+                   for readiness (bookmarks on a long PDF, a reading-order
+                   signal) — it raises the score and helps real readers, but
+                   is not a WCAG 2.1 criterion failure, and the plan's
+                   subtitle reconciles the arithmetic. No conformance verdict
+                   (old stored reports) → no chip: never assert what cannot
+                   be verified. -->
               <span
+                v-if="conformance && isRequiredStep(step)"
                 data-testid="step-law-chip"
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-error-red)]/40 text-[var(--status-error-red)] hidden sm:inline"
                 >REQUIRED BY WCAG 2.1</span
+              >
+              <span
+                v-else-if="conformance"
+                data-testid="step-reco-chip"
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border border-[var(--status-warning-yellow)]/40 text-[var(--status-warning-yellow)] hidden sm:inline"
+                >RECOMMENDED</span
               >
               <span
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -408,13 +423,39 @@ watch(
   },
 );
 
+/** Categories that produced an actual failing WCAG 2.1 criterion. A step is
+ *  REQUIRED only when its category is here — matching on the conformance
+ *  finding's own `category` field, not on shared SC numbers, so two
+ *  categories that cite the same criterion (1.3.1 spans tables, headings,
+ *  and forms) can never borrow each other's failures. */
+const failingCategories = computed(
+  () => new Set((props.conformance?.failures ?? []).map((f) => f.category)),
+);
+function isRequiredStep(s: { categoryId: string }): boolean {
+  return failingCategories.value.has(s.categoryId);
+}
+const requiredCount = computed(() => props.steps.filter((s) => isRequiredStep(s)).length);
+
 const subtitle = computed(() => {
   const n = props.steps.length;
   const c = props.steps.filter((s) => s.severity === "Critical").length;
   const base = `${n} ${n === 1 ? "fix" : "fixes"}, in order.`;
-  if (c === 0) return `${base} Re-upload the fixed file to verify.`;
-  const which = c === 1 ? "№ 1 blocks" : `№ 1–${c} block`;
-  return `${base} ${which} publication — start there, then re-upload to verify.`;
+  const start =
+    c === 0
+      ? `${base} Re-upload the fixed file to verify.`
+      : `${base} ${c === 1 ? "№ 1 blocks" : `№ 1–${c} block`} publication — start there, then re-upload to verify.`;
+  // Reconcile the arithmetic a reader will do anyway: the verdict strip says
+  // "N criteria failing", and the plan may hold MORE steps than that,
+  // because some scored fixes are recommendations rather than criterion
+  // failures. Say so, or the two numbers read as a contradiction.
+  if (!props.conformance || n === 0) return start;
+  const req = requiredCount.value;
+  const rec = n - req;
+  if (rec === 0) return start;
+  if (req === 0) {
+    return `${start} No WCAG 2.1 criterion is failing — ${n === 1 ? "this fix is" : "these fixes are"} recommended: ${n === 1 ? "it raises" : "they raise"} your score and ${n === 1 ? "helps" : "help"} real readers.`;
+  }
+  return `${start} ${req} of the ${n} clear WCAG 2.1 criterion failures; the other ${rec} ${rec === 1 ? "is" : "are"} recommended — ${rec === 1 ? "it raises" : "they raise"} your score and ${rec === 1 ? "helps" : "help"} real readers, but ${rec === 1 ? "is not a WCAG 2.1 failure" : "are not WCAG 2.1 failures"}.`;
 });
 
 function sevIcon(s: PlanSeverity): string {

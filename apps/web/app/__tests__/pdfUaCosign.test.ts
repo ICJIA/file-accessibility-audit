@@ -258,12 +258,57 @@ describe("the action plan labels legal work and separates the optional (v1.132.0
     detailAnchor: "#cat-alt_text",
   };
 
-  it("marks every numbered step as required by law", () => {
-    // A PDF/UA-only item carries no severity, so it never becomes a step —
-    // which is exactly why the chip can be unconditional.
-    const w = mount(ActionPlan, { props: { steps: [step] } });
+  const failingAlt = {
+    status: "fail",
+    failures: [
+      {
+        sc: "1.1.1",
+        name: "Non-text Content",
+        level: "A",
+        category: "alt_text",
+        issue: "images lack alt text",
+        url: "",
+      },
+    ],
+    notAssessed: [],
+    headline: "",
+  } as never;
+
+  it("marks a step REQUIRED only when its category produced a failing criterion", () => {
+    // v1.132's chip was unconditional and wrong: the SFY25 report said
+    // "3 criteria failing" above five REQUIRED chips. Earned now.
+    const w = mount(ActionPlan, { props: { steps: [step], conformance: failingAlt } });
     expect(w.find('[data-testid="step-law-chip"]').exists()).toBe(true);
     expect(w.find('[data-testid="step-law-chip"]').text()).toMatch(/REQUIRED BY WCAG 2\.1/);
+    expect(w.find('[data-testid="step-reco-chip"]').exists()).toBe(false);
+  });
+
+  it("marks a scored-but-not-failing step RECOMMENDED — the bookmarks case", () => {
+    const bookmarksStep = {
+      ...step,
+      categoryId: "bookmarks",
+      title: "Add bookmarks so the document is navigable",
+      severity: "Moderate" as const,
+      wcagRefs: [{ sc: "2.4.5", name: "Multiple Ways" }],
+      detailAnchor: "#cat-bookmarks",
+    };
+    const w = mount(ActionPlan, {
+      props: { steps: [step, bookmarksStep], conformance: failingAlt },
+    });
+    expect(w.findAll('[data-testid="step-law-chip"]')).toHaveLength(1);
+    const reco = w.find('[data-testid="step-reco-chip"]');
+    expect(reco.exists()).toBe(true);
+    expect(reco.text()).toMatch(/RECOMMENDED/);
+    // And the subtitle reconciles the arithmetic the reader will do anyway.
+    expect(w.text()).toMatch(
+      /1 of the 2 clear WCAG 2\.1 criterion failures; the other 1 is recommended/,
+    );
+  });
+
+  it("shows NO chip without a conformance verdict — never assert what cannot be verified", () => {
+    const w = mount(ActionPlan, { props: { steps: [step] } });
+    expect(w.find('[data-testid="step-law-chip"]').exists()).toBe(false);
+    expect(w.find('[data-testid="step-reco-chip"]').exists()).toBe(false);
   });
 
   it("lists unscored PDF/UA work separately, never as a numbered step", () => {
@@ -287,7 +332,7 @@ describe("the action plan labels legal work and separates the optional (v1.132.0
     expect(beyond.text()).toMatch(/PDF\/UA BEST PRACTICE/);
     expect(beyond.text()).toMatch(/no \/Scope/);
     // Still exactly one numbered step: the optional item did not become one.
-    expect(w.findAll('[data-testid="step-law-chip"]')).toHaveLength(1);
+    expect(w.findAll(".plan-step-body")).toHaveLength(1);
   });
 
   it("shows no 'above and beyond' group when there is nothing optional", () => {

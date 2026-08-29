@@ -38,10 +38,8 @@
       </p>
       <p class="text-sm text-[var(--text-secondary)] mt-1">
         <strong class="font-semibold">This — and only this — is what your grade measures.</strong>
-        <template v-if="wcagVersion !== '2.1'">
-          {{ " " }}Audited here against WCAG {{ wcagVersion }} AA — everything 2.1 requires, and
-          more.
-        </template>
+        {{ " " }}Nothing beyond WCAG 2.1 A/AA is counted — not the criteria WCAG 2.2 added, not
+        PDF/UA.
         <template v-if="lawFailing">
           {{ " " }}
           <a href="#action-plan" class="underline text-[var(--link)] hover:text-[var(--link-hover)]"

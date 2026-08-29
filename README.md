@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**2,996 tests** across 195 test files (API 1,622 · Web 1,325 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,000 tests** across 196 test files (API 1,624 · Web 1,327 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.135.0 — 2026-08-29 · The REQUIRED chip is earned, not stamped (no new attack surface)
+
+A user-reported contradiction: a report saying **"3 criteria failing"** above five steps all chipped REQUIRED BY WCAG 2.1 — and for bookmarks the chip sat an inch above the step's own finding saying no criterion strictly requires them. The chip is now **earned**: it appears only on steps whose category produced a failing criterion in the conformance verdict (matched on the finding's own category field, never on shared SC numbers); other scored steps say **RECOMMENDED**, old reports without a verdict show no chip, and the plan's opening line reconciles the arithmetic ("3 of the 5 clear WCAG 2.1 criterion failures; the other 2 are recommended"). Verified against the report that surfaced it: exactly 3 + 2. Also removed the strip's "…and more" tail — it read as if the grade might include WCAG 2.2 extras (the SiteImprove failure mode); the line now guarantees *"Nothing beyond WCAG 2.1 A/AA is counted"*, and new `wcag21Purity` tests make that an invariant: the build fails if scoring or conformance ever cites a WCAG 2.2-only criterion. This makes the open bookmarks/reading-order scoring decision visible instead of contradictory. **No new attack surface**: label logic and copy, pinned by tests. Tests 3,000.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.134.0 → v1.33.0) — click to expand</summary>
+
 ### v1.134.0 — 2026-08-29 · Every veraPDF finding gets a two-route fix — source file or exported PDF (no new attack surface)
 
 Each PDF/UA rule in the plan's "Above and beyond" group now carries a collapsed **"How to fix"** with two routes: prevent it **in the source file** (Word/InDesign) or repair it **in the exported PDF** (Acrobat). The mapping is deliberately conservative — keyword-matched on veraPDF's stable English descriptions, most-specific first, and **an unmapped rule shows no advice at all** rather than a guess; keyword ordering is pinned by tests (several rule texts contain each other's keywords). Verified against the real agency report that prompted it: all 10 of its failing rules map. The PDF/UA identifier's advice explicitly warns it is a claim of conformance to add last, not a repair. **No new attack surface**: one pure mapping function, one template change, tests. Tests 2,996.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.133.0 → v1.33.0) — click to expand</summary>
 
 ### v1.133.0 — 2026-08-29 · "Required by WCAG 2.1" named precisely; veraPDF's verdict in full; a same-day self-review fixes its own blind spot (no new attack surface)
 

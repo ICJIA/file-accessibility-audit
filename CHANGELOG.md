@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.135.0] - 2026-08-29
+
+### Fixed
+
+- **"3 criteria failing" above five REQUIRED BY WCAG 2.1 chips** — reported from a real report, and the chips were wrong, not just confusing. v1.132's chip was stamped unconditionally on the reasoning that only legal items become steps; that missed the class of **scored-technique steps**: bookmarks on a long PDF (2.4.5 applies to sets of pages — the step's own finding says no criterion strictly requires them) and the reading-order fidelity signal. The bookmarks step wore a REQUIRED chip one inch above its own text saying otherwise.
+- **The chip is now earned.** REQUIRED BY WCAG 2.1 appears only on a step whose category actually produced a failing criterion in the conformance verdict — matched on the finding's own `category` field, not on shared SC numbers, so two categories citing the same criterion (1.3.1 spans tables, headings, links, and forms) can never borrow each other's failures. Every other step says **RECOMMENDED**, and a report with no conformance verdict (old stored reports) shows no chip at all — never assert what cannot be verified.
+- **The plan's opening line now does the reader's arithmetic**: *"5 fixes, in order. № 1–2 block publication… 3 of the 5 clear WCAG 2.1 criterion failures; the other 2 are recommended — they raise your score and help real readers, but are not WCAG 2.1 failures."* Verified against the report that surfaced the bug: exactly 3 REQUIRED (alt text, title, links) + 2 RECOMMENDED (bookmarks, reading order), matching the strip's count.
+
+### Changed
+
+- **"…everything 2.1 requires, and more" is gone from the strip** — "and more" read as if the grade might include WCAG 2.2 extras, which is precisely the SiteImprove failure mode this product exists to avoid. The line now states the guarantee outright: *"Nothing beyond WCAG 2.1 A/AA is counted — not the criteria WCAG 2.2 added, not PDF/UA."* And the guarantee is **pinned as an invariant, not copy**: new `wcag21Purity` tests fail the build if any scored category or the conformance builder ever cites one of the nine WCAG 2.2-only criteria (2.4.11–13, 2.5.7–8, 3.2.6, 3.3.7–9). Verified true today by mechanical scan: the 2.2-only criteria appear solely in the "not checked by this tool" disclosure list, unexamined and uncounted, which is the one place they belong.
+
+### Notes
+
+- This makes the standing open decision **visible instead of contradictory**: bookmarks and the reading-order signal still affect the score while not being criterion failures — the same class as the heading-technique items deliberately left scored in v1.131. Whether they should remain scored is still an open product decision, now labeled honestly in the meantime.
+- Tests 2,996 → **3,000**.
+
+<details>
+<summary><strong>v1.134.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.134.0] - 2026-08-29
 
 ### Added
@@ -16,8 +36,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 2,991 → **2,996** (mapped-rule expander with both routes; unmapped rule renders plain; three keyword-ordering pins).
 
-<details>
-<summary><strong>v1.133.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.133.0] - 2026-08-29
 

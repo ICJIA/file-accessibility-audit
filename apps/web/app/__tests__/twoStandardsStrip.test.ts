@@ -30,9 +30,10 @@ describe("the WCAG 2.1 side — what the grade measures", () => {
   it("names the three legal instruments and says the grade follows them", () => {
     const html = strip({ conformance: clean, fileType: "pdf" }).html();
     expect(html).toMatch(/Required by WCAG 2\.1/i);
-    // The audit basis is reconciled, not hidden: 2.2 contains everything 2.1
-    // requires, and the strip says so when the audited version is 2.2.
-    expect(html).toMatch(/Audited here against WCAG 2\.2 AA/);
+    // The SiteImprove failure mode, ruled out in writing: nothing beyond
+    // WCAG 2.1 A/AA is counted — not 2.2's added criteria, not PDF/UA.
+    expect(html).toMatch(/Nothing beyond WCAG 2\.1 A\/AA is counted/);
+    expect(html).not.toMatch(/and more/);
     expect(html).toMatch(/ADA Title II/);
     expect(html).toMatch(/IITAA/);
     expect(html).toMatch(/only this — is what your grade measures/i);

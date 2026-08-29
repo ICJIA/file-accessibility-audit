@@ -54,6 +54,28 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.135.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: the plan&rsquo;s REQUIRED label is now earned per step, and the fix list explains its own arithmetic. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "A reader caught a contradiction worth fixing the same day: a report could say <strong>&ldquo;3 criteria failing&rdquo;</strong> while listing five fix steps, each stamped &ldquo;Required by WCAG 2.1&rdquo;. For some steps that label was simply wrong &mdash; bookmarks in a long document and the reading-order check raise your score and genuinely help readers, but they are not WCAG 2.1 criterion failures, and the bookmarks step&rsquo;s own explanation said so directly beneath its label.",
+      },
+      {
+        kind: "p",
+        html: "Now the label is <strong>earned</strong>: REQUIRED appears only on a step whose category actually produced one of the failing criteria in the report&rsquo;s conformance verdict; every other step says <strong>RECOMMENDED</strong>; and a stored report from before conformance verdicts existed shows no label at all rather than an unverifiable claim. The plan&rsquo;s first line now does the math for the reader: <em>&ldquo;3 of the 5 clear WCAG 2.1 criterion failures; the other 2 are recommended.&rdquo;</em> The change was verified against the exact report that surfaced the problem.",
+      },
+      {
+        kind: "p",
+        html: "In the same pass, the summary&rsquo;s phrase &ldquo;everything 2.1 requires, and more&rdquo; was removed — &ldquo;and more&rdquo; could be read as the grade including WCAG 2.2 extras, which it never does. The line now says plainly: <strong>&ldquo;Nothing beyond WCAG 2.1 A/AA is counted — not the criteria WCAG 2.2 added, not PDF/UA.&rdquo;</strong> And that guarantee is now enforced by tests that fail the build if any scored check ever cites a criterion that exists only in WCAG 2.2.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: label logic and copy, both driven by data the report already carried, pinned by tests. No new input is parsed, no new request is made, no score changed, and no code path that receives, sends, or stores anything changed. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.134.0",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: each optional PDF/UA finding now opens into two fix routes — source file or exported PDF. Nothing new is received, sent, or stored.",
     body: [
