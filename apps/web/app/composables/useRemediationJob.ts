@@ -47,6 +47,8 @@ export interface ReceiptEvent {
   details: Record<string, unknown> | null;
 }
 
+import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
+
 export interface AuditResultLite {
   // The engine (apps/api analyzePDF -> AnalysisResult/ScoringResult) always
   // sends these; this DTO had dropped them even though ScoreCard's `result`
@@ -59,6 +61,20 @@ export interface AuditResultLite {
   overallScore: number;
   grade: string;
   categories: CategoryResult[];
+  /** The engine always sends both (v1.6x+ / v1.37+); typed optional to stay
+   *  honest about receipts stored before they existed. Read by the
+   *  two-standards strip this page now opens each report with, and shaped to
+   *  satisfy ScoreCard's own `result` contract. */
+  conformance?: ConformanceVerdict;
+  pdfUaVerdict?: {
+    available?: boolean;
+    passed?: boolean;
+    profile?: string;
+    totalFailureCount?: number;
+    distinctRuleCount?: number;
+    error?: string;
+    failures?: Array<{ ruleId?: string; clause?: string; description?: string; count?: number }>;
+  };
   // Real shape is the full ScoreProfileResult (this page's own
   // afterCategories/beforeCategories computeds already reach for
   // `.categories` off of it via a local cast, since the engine always

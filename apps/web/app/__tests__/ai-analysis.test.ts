@@ -177,12 +177,38 @@ describe("buildAiAnalysis", () => {
     expect(out).not.toContain("WCAG 2.1 references");
   });
 
-  it("includes the four remediation questions at the end", () => {
+  it("includes the five remediation questions, ending with the standards guardrail", () => {
     const out = buildAiAnalysis(baseResult());
     expect(out).toContain("## What I'd like from you");
     expect(out).toMatch(/1\. .+/);
-    expect(out).toMatch(/4\. .+/);
-    expect(out).not.toMatch(/^5\. /m);
+    // #5 (v1.141.0): the AI must never present PDF/UA or "not scored" items
+    // as legally required — WCAG 2.1 is the law, PDF/UA is best practice.
+    expect(out).toMatch(/5\. Keep the two standards straight/);
+    expect(out).toMatch(/never present it as legally required/);
+  });
+
+  it("splits not-scored best-practice lines out of a failing category's findings", () => {
+    const r = baseResult({
+      categories: [
+        {
+          id: "alt_text",
+          label: "Alt Text on Images",
+          score: 0,
+          severity: "Critical",
+          explanation: "Images need text alternatives.",
+          findings: [
+            "0 of 3 images have alternative text",
+            "PDF/UA only — not scored: 1 non-embedded font(s) may cause garbled text.",
+          ],
+        },
+      ],
+    });
+    const out = buildAiAnalysis(r);
+    expect(out).toMatch(/Findings \(these are what fails WCAG 2\.1 here\):/);
+    expect(out).toMatch(/best practice, NOT scored and NOT required by WCAG 2\.1:/);
+    // The not-scored line must appear ONLY under the best-practice header.
+    const legalBlock = out.split("Also reported")[0]!;
+    expect(legalBlock).not.toContain("non-embedded font");
   });
 
   it("notes scanned documents", () => {

@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.141.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: remediation reports open with the two-standards summary, and the copy-for-AI text can no longer blur required law with best practice.",
+    body: [
+      {
+        kind: "p",
+        html: "The auto-remediation results page was audited against the week&rsquo;s scoring changes. Its numbers were already correct &mdash; every remediation run grades with the current engine &mdash; but its presentation predated the split, so the before-and-after reports now open with the same summary every audit gets: <strong>what WCAG 2.1 requires (the whole score) and what PDF/UA adds (never counted)</strong>.",
+      },
+      {
+        kind: "p",
+        html: "The &ldquo;For Use with AI Assistants&rdquo; text got the same discipline, because an AI reading it will repeat whatever framing it is handed. The secondary &ldquo;practical&rdquo; number is now labelled <em>remediation tracking &mdash; informational, never the compliance verdict</em>; findings are split into <em>what fails WCAG 2.1</em> versus <em>best practice, not scored</em>; and a standing instruction tells the assistant outright: never present PDF/UA or &ldquo;not scored&rdquo; items as legally required.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: presentation and prompt-text changes, pinned by tests; no score changed, no new input is parsed, no new request is made, and no code path that receives, sends, or stores anything changed.",
+      },
+    ],
+  },
+  {
     version: "v1.140.1",
     meta: "Reviewed <strong>2026-08-29</strong> · scope: the optional-work section is now visually unmissable. Presentation only.",
     body: [

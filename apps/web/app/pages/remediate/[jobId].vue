@@ -14,7 +14,10 @@ import {
   type RemediationDisposition,
 } from "~/utils/remediationOutcome";
 import { buildActionPlan } from "~/utils/actionPlan";
+import { useWcag } from "~/composables/useWcag";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
+
+const wcagVersion = useWcag().version;
 
 // Score-mode toggle (matches the audit page's ScoreCard contract)
 // v1.21+: single Strict (WCAG + IITAA §E205.4) score. The historical
@@ -596,6 +599,17 @@ function labelForEvent(name: string): string {
           </p>
         </div>
         <div class="p-4 sm:p-6">
+          <!-- The same two-standards opening every audit report gets
+               (v1.140.2): the remediation page must tell the same story —
+               what the law requires vs PDF/UA extra credit — for the AFTER
+               document a reader is deciding whether to publish. -->
+          <TwoStandardsStrip
+            :conformance="receipt.outputAudit.conformance"
+            :wcag-version="wcagVersion"
+            file-type="pdf"
+            :pdf-ua-verdict="receipt.outputAudit.pdfUaVerdict"
+            class="mb-4"
+          />
           <ScoreCard :result="receipt.outputAudit" />
 
           <!-- Compact PDF/UA-1 conformance badge — surfaces the veraPDF
@@ -1306,6 +1320,13 @@ function labelForEvent(name: string): string {
           </p>
         </div>
         <div class="p-4 sm:p-6">
+          <TwoStandardsStrip
+            :conformance="receipt.inputAudit.conformance"
+            :wcag-version="wcagVersion"
+            file-type="pdf"
+            :pdf-ua-verdict="receipt.inputAudit.pdfUaVerdict"
+            class="mb-4"
+          />
           <ScoreCard :result="receipt.inputAudit" />
         </div>
       </div>

@@ -4,6 +4,7 @@
  * no side effects.
  */
 import { getWcagCriteriaStrings } from "~/utils/wcag";
+import { partitionCardFindings } from "~/utils/findings";
 import { fileTypeLabel, pageNoun } from "~/utils/reportBanner";
 import { type ReportResult, type BrandingInfo, getScoreProfiles } from "./shared";
 
@@ -35,7 +36,7 @@ export function buildAiAnalysis(
 
   if (failing.length === 0) {
     lines.push(
-      `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check against WCAG ${wcagVersion} Level AA and ADA Title II requirements. No remediation is needed at this time.`,
+      `An automated ${fileTypeLabel(result.fileType)} accessibility audit completed with no failing categories. The document passed every applicable check; the score counts only WCAG 2.1 A/AA criteria — the standard the ADA Title II rule and the Illinois IITAA require (the audit's checklist basis is WCAG ${wcagVersion} Level AA). No remediation is needed at this time.`,
     );
     lines.push("");
     lines.push(`## File`);
@@ -50,10 +51,10 @@ export function buildAiAnalysis(
           ? ` (raw weighted-average: ${remediationProfile.rawOverallScore}/100; floored to Strict per the Strict ≤ Practical invariant)`
           : "";
       lines.push(
-        `- Practical score (WCAG + PDF/UA): ${remediationProfile.overallScore}/100 (${remediationProfile.grade})${rawNote}`,
+        `- Practical score (remediation tracking — adds PDF/UA best-practice signals; informational, never the compliance verdict): ${remediationProfile.overallScore}/100 (${remediationProfile.grade})${rawNote}`,
       );
       lines.push(
-        `  (Strict is the canonical score and the floor for Practical. Practical adds PDF/UA Compliance Signals and partial-credit floors on heading and table structure; it can only lift the overall number, never lower it. IITAA §504.2.2 references PDF/UA for authoring-tool export capability; §E205.4 frames final-document accessibility through WCAG 2.1.)`,
+        `  (Strict is the canonical, compliance-answering score and the floor for Practical. PDF/UA is the PDF industry's best practice — ISO 14289 — not a legal requirement: IITAA §504.2.2 references PDF/UA only for authoring-tool export capability, while §E205.4 frames final-document accessibility through WCAG 2.1. Practical can only lift the number, never lower it.)`,
       );
     }
     lines.push(`- Verdict: ${verdict}`);
@@ -89,7 +90,7 @@ export function buildAiAnalysis(
         ? ` (raw weighted-average: ${remediationProfile.rawOverallScore}/100; floored to Strict)`
         : "";
     lines.push(
-      `- Practical score (WCAG + PDF/UA): ${remediationProfile.overallScore}/100 (${remediationProfile.grade})${rawNote}`,
+      `- Practical score (remediation tracking — adds PDF/UA best-practice signals; informational, never the compliance verdict): ${remediationProfile.overallScore}/100 (${remediationProfile.grade})${rawNote}`,
     );
   }
   lines.push(`- Verdict: ${verdict}`);
@@ -130,9 +131,26 @@ export function buildAiAnalysis(
       for (const ref of wcagRefs) lines.push(`- ${ref}`);
     }
     if (c.findings?.length) {
-      lines.push("");
-      lines.push(`**Findings:**`);
-      for (const f of c.findings) lines.push(`- ${f}`);
+      // The analyzer labels reported-but-unscored items with a prefix
+      // contract ("PDF/UA only — not scored:" / "Advisory — not scored:").
+      // An AI reading them inline under a FAILING category would fold best
+      // practice into the legal failure — split them out explicitly.
+      const parts = partitionCardFindings(c.findings);
+      const legal = [
+        ...parts.main,
+        ...parts.signals.flatMap((g) => (g.heading ? [`${g.heading}:`, ...g.items] : g.items)),
+        ...parts.acrobat,
+      ];
+      if (legal.length) {
+        lines.push("");
+        lines.push(`**Findings (these are what fails WCAG 2.1 here):**`);
+        for (const f of legal) lines.push(`- ${f}`);
+      }
+      if (parts.notScored.length) {
+        lines.push("");
+        lines.push(`**Also reported — best practice, NOT scored and NOT required by WCAG 2.1:**`);
+        for (const f of parts.notScored) lines.push(`- ${f}`);
+      }
     }
     lines.push("");
   }
@@ -152,6 +170,9 @@ export function buildAiAnalysis(
   lines.push(`3. Prioritize the Critical items — which fix should I tackle first, and why?`);
   lines.push(
     `4. Flag any findings that automated tools commonly mis-report, and tell me how to verify them manually.`,
+  );
+  lines.push(
+    `5. Keep the two standards straight in your answer: WCAG 2.1 A/AA is what the law (ADA Title II, Illinois IITAA) requires and is all the score measures. Anything labelled "not scored" or PDF/UA is the PDF industry's best practice (ISO 14289) — worth recommending, but never present it as legally required or as part of the score.`,
   );
 
   return lines.join("\n");

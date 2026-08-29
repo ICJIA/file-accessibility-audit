@@ -78,3 +78,16 @@ describe("remediate/[jobId].vue — failed card is source-first", () => {
     expect(failedNotice).not.toBeNull();
   });
 });
+
+describe("the remediation page opens each report with the two-standards strip (v1.140.2)", () => {
+  it("renders TwoStandardsStrip directly above BOTH ScoreCards", () => {
+    const src = readFileSync(resolve(__dirname, "../pages/remediate/[jobId].vue"), "utf8");
+    const after = src.indexOf('<ScoreCard :result="receipt.outputAudit"');
+    const before = src.indexOf('<ScoreCard :result="receipt.inputAudit"');
+    expect(after).toBeGreaterThan(-1);
+    expect(before).toBeGreaterThan(-1);
+    // A strip precedes each card within the preceding few hundred chars.
+    expect(src.lastIndexOf("<TwoStandardsStrip", after)).toBeGreaterThan(after - 900);
+    expect(src.lastIndexOf("<TwoStandardsStrip", before)).toBeGreaterThan(before - 900);
+  });
+});

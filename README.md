@@ -820,7 +820,7 @@ All but the accuracy doc now live in [`docs/archive/`](docs/archive/) — see it
 
 ## Tests
 
-**3,008 tests** across 196 test files (API 1,624 · Web 1,335 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
+**3,010 tests** across 196 test files (API 1,624 · Web 1,337 · CLI 49) — plus the **accuracy gates**, six corpus-level checks that run beyond the unit suites (see [Accuracy gates](#accuracy-gates) below). Run all three suites with one summary:
 
 ```bash
 pnpm test                 # API + Web + CLI, with a unified summary
@@ -1287,12 +1287,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.141.0 — 2026-08-29 · Remediation reports open with the two-standards strip; the AI block can't conflate the standards (no new attack surface)
+
+The remediation before/after reports now open with the same two-standards strip as every audit (their data was already current; the presentation wasn't), and the copy-for-AI block enforces the WCAG-required / PDF-UA-best-practice line structurally: the Practical score relabelled as remediation tracking ("informational, never the compliance verdict"), each category's findings partitioned into what-fails-WCAG-2.1 vs best-practice-not-scored, and a fifth standing instruction telling the assistant never to present PDF/UA or "not scored" items as legally required. Tests 3,010.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.140.1 → v1.33.0) — click to expand</summary>
+
 ### v1.140.1 — 2026-08-29 · The optional tier reads as a section, not a footnote (no new attack surface)
 
 The "Above and beyond" group gains a full-width seam ("Everything the law requires is above ↑"), headline-scale title and badge, and at-a-glance stat chips — "0 of these count toward your score", the optional-item count, and veraPDF's own totals — so the required/optional boundary is unmissable. Presentation only; every pinned copy string unchanged. Tests 3,008.
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.140.0 → v1.33.0) — click to expand</summary>
 
 ### v1.140.0 — 2026-08-29 · All six checker bugs detailed on the trust page; the count is data, not prose (no new attack surface)
 

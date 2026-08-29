@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.141.0] - 2026-08-29
+
+### Changed — the remediation page and the AI block join the two-standards story
+
+- **The remediation results page** ("is this info still correct given all of our changes?" — the data was, the presentation wasn't): both the AFTER and BEFORE reports now open with the same **two-standards strip** every audit report gets, reading each receipt's own conformance verdict and veraPDF totals. The page's copy audit found nothing false — its only "required by law"/"WCAG 2.2" strings were the bundled announcements history — and its scores are computed fresh under the legal-only model.
+- **The "For Use with AI Assistants" block now keeps the two standards straight end-to-end** (user rule: WCAG is required, PDF/UA is best practice):
+  - The **Practical score is relabelled** — "remediation tracking — adds PDF/UA best-practice signals; informational, never the compliance verdict" (was "WCAG + PDF/UA," which handed an AI a number that folded PDF/UA in), with the parenthetical stating outright that PDF/UA is ISO 14289 best practice, not a legal requirement.
+  - Each failing category's findings are **partitioned**: "Findings (these are what fails WCAG 2.1 here)" vs "Also reported — best practice, NOT scored and NOT required by WCAG 2.1" — an AI can no longer read an unscored font advisory as part of a legal failure.
+  - A **fifth standing instruction** closes the prompt: *"Keep the two standards straight… never present it as legally required or as part of the score."*
+  - The clean-pass path carries the same 2.1-scored precision as the failing path.
+
+### Notes
+
+- Tests 3,008 → **3,010**. No scores moved.
+
+<details>
+<summary><strong>v1.140.1 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.140.1] - 2026-08-29
 
 ### Changed
@@ -14,8 +32,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 
 - Tests 3,007 → **3,008**. Copy strings the earlier tests pin ("Above and beyond — not required by WCAG 2.1", "BEST PRACTICE — NOT SCORED") are unchanged.
 
-<details>
-<summary><strong>v1.140.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.140.0] - 2026-08-29
 
