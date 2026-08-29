@@ -252,6 +252,18 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "accuracy-gates-2026-08-29",
+    badge: "Verified",
+    text: "Three new gates now stand between every code change and this site, built to guarantee the accuracy of your report. The golden score ledger: every control document's exact score and per-category verdict is pinned, and no grade can move unless a person approves the movement in review. The re-save test: every trap document rewritten by a different tool must grade identically, digit for digit — byte layout can never change a grade. And live-site sentinels: after each deploy, known trap documents are uploaded to this very site, where the disguised scan must still score 0 and the perfect document must still score 100. The Can I trust this? page now lists every way this app is tested before anything ships.",
+    linkText: "How this app is tested",
+    /** Deep-links into the testing modal — linkExternal for the same reason
+     *  as the trap-inventory link: :target needs a real hash navigation. */
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 29, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "hundred-trap-documents-2026-08-28",
     badge: "Verified",
     text: "The battery of trap documents built to fool this checker has doubled again: one hundred of them, every designed answer returned correctly. The second fifty are modeled on what Canva, InDesign, and Word actually export — flat untagged posters, decorative-shape swarms, custom naming soup, titles that are pictures of words, 'Print to PDF'. The Can I trust this? page (now the first link in the menu) lists all one hundred with what each one tries and how it was judged, and the whole battery re-runs before any change ships — a broken promise stops the release.",

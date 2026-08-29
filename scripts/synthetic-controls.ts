@@ -62,8 +62,13 @@ function buildPdf(objs: string[], info?: string): Buffer {
 
 const stream = (s: string) => `<< /Length ${s.length} >>\nstream\n${s}endstream`;
 const FONT = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+// 64x64, not 8x8: real exporters do not ship 8x8 art, and the analyzer's
+// tiny-image skip (MIN_IMAGE_DIM) made an 8x8 fixture's census depend on
+// whether pdf.js could resolve it -- which VARIED with byte layout. Caught by
+// scripts/resave-invariance.ts on its first run (2026-08-29). The trailing
+// newline before endstream is spec-conforming stream framing.
 const GRAY_IMG = (_n: number) =>
-  `<< /Type /XObject /Subtype /Image /Width 8 /Height 8 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 64 >>\nstream\n${"x".repeat(64)}endstream`;
+  `<< /Type /XObject /Subtype /Image /Width 64 /Height 64 /ColorSpace /DeviceGray /BitsPerComponent 8 /Length 4096 >>\nstream\n${"x".repeat(4096)}\nendstream`;
 const LONG = (seed: string) =>
   `${seed} is a sentence long enough to be body text rather than a label and it keeps going with plain words so the extractor sees a real paragraph of ordinary running prose here.`;
 

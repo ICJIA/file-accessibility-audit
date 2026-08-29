@@ -54,6 +54,24 @@ export interface SecurityAuditEntry {
 /** Reverse-chronological: newest first. Add new releases at the TOP. */
 export const SECURITY_AUDIT_ENTRIES: SecurityAuditEntry[] = [
   {
+    version: "v1.123.0",
+    meta: "Reviewed <strong>2026-08-29</strong> · scope: three new accuracy gates on the checker itself, and a page explaining every gate. Nothing new is received, sent, or stored.",
+    body: [
+      {
+        kind: "p",
+        html: "Three new automatic gates now stand between every code change and this site, each built to guarantee the <strong>accuracy of your report</strong>, not just that the software runs. First, a <strong>score ledger</strong>: the exact score and per-area verdict of all 136 test documents is written down and locked in; if any change to the software would move any of those grades, the change is blocked until a person looks at the movement and approves it. No grade can drift silently. Second, a <strong>re-save test</strong>: every trap document is re-saved by a different tool &mdash; same content, different file bytes &mdash; and must receive the identical grade, digit for digit; how a file happens to be packaged can never change its grade. Third, <strong>live-site sentinels</strong>: after each deployment, trap documents with known answers are uploaded to this very site &mdash; the disguised scan must still score 0, the perfect document must still score 100 &mdash; proving the checker actually running here answers the same as the one that passed testing.",
+      },
+      {
+        kind: "p",
+        html: "Honest part, as always: the re-save test <strong>caught something on its very first run</strong>. The trap documents&rsquo; test images were unrealistically tiny &mdash; smaller than the checker&rsquo;s own &ldquo;ignore tiny decorations&rdquo; rule &mdash; which made one measurement depend on file packaging. The trap documents were rebuilt with realistic images (no real design program ships art that small), three of their locked-in scores moved for that stated reason, and the movement was approved through the new ledger &mdash; the exact workflow it exists for. The trust page now also opens a plain-language list of <strong>every way this app is tested before anything ships</strong>, twelve gates with their schedules, one click from the front page.",
+      },
+      {
+        kind: "p",
+        html: "How this was reviewed: the gates are developer and build-machine scripts plus one committed list of scores; the sentinel check uploads only the app&rsquo;s own generated trap files, which are deleted after analysis like every upload. No code path that receives, sends, or stores anything changed; no real document&rsquo;s score moved. No web address, stored record, or retention period changed.",
+      },
+    ],
+  },
+  {
     version: "v1.122.0",
     meta: "Reviewed <strong>2026-08-28</strong> · scope: the trap-document battery doubled to 100 and published as a full inventory; the battery now runs on every code change. Nothing new is received, sent, or stored.",
     body: [

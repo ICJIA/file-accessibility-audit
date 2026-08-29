@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.123.0] - 2026-08-29
+
+### Added
+
+- **Three new accuracy gates — and the first one caught something on its very first run.**
+  - **The golden score ledger** (`pnpm score-ledger`, `scripts/score-ledger.json`): every control document's exact score, grade, and per-category verdict — all 136, the 100 traps and the 36 real documents — is committed, and any drift fails the gate until a human re-blesses the ledger in the same commit. A scoring change can no longer move a grade silently; every movement is a visible, deliberate decision in review. Files the analyzer refuses are pinned too, by error class. On CI the regenerated traps verify; real-corpus rows verify wherever the files exist.
+  - **Re-save invariance + determinism** (`pnpm resave-invariance`): every trap is rewritten by qpdf — new object order, new cross-reference layout — and must grade identically, digit for digit; byte layout can never change a grade. Two traps whose designed defect *is* byte damage a rewrite repairs (dangling references) are excluded with the reason stated. Then determinism: sentinel traps audited five times, two serial and three concurrent, must return identical results — the v1.109 contention bug lived exactly in this gap and nothing tested it. Both run in CI on every push.
+  - **Live-site sentinels** (`pnpm prod-sentinels`): after a deploy, three traps with designed answers are uploaded to the real site — the metadata-rich scan lie must still score exactly 0/F, the hollow-alt file's census must still read 1 of 3, the perfect hundredth must still score exactly 100/A. CI proves the code; this proves the deployment. All three pass against production today.
+- **The first-run catch**: the invariance gate exposed that the trap fixtures' 8×8 images sat under the analyzer's tiny-image threshold, making their census depend on whether pdf.js could resolve the image — which varied with byte layout. The fixtures now use realistic 64×64 images with spec-conforming stream framing (real exporters ship neither 8×8 art nor unframed streams); three trap rows moved and were re-blessed in this commit, through the ledger, exactly as the workflow intends.
+- **The trust page explains all of it**: a second modal — "How this app is tested before anything ships" — lists the twelve gates between a code change and the live site in plain language, each with its cadence (every change / before release / after deploy / every report). The hero stat cards now link straight to both modals ("How it's tested →", "See all 100 →"), and the self-check examples gain the new promise: a re-saved copy of a document must receive the identical grade, digit for digit.
+- **New hero**: "Built to be checked. So check it." — the old line spent "the person who built it," which the objection section now plays better; the objection itself settled to two sentences ("But... but one person built this. It's not Google or Microsoft or Adobe.") answered "True — and it doesn't need to be," with the battle-tested rebuttal on live numbers.
+
+### Notes
+
+- Tests 2,924 (pins extended in place). The three new gates are scripts, wired into CI after the trap battery; local release practice adds `pnpm score-ledger` (full corpus) before releasing and `pnpm prod-sentinels` after deploying.
+
+<details>
+<summary><strong>v1.122.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
+
 ## [1.122.0] - 2026-08-28
 
 ### Added
@@ -18,8 +37,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 - Batch four's three first-run failures were all sample defects, and the checker's rules won each argument: an all-alt'd page prints no "X of Y" census line (there is nothing to count against), and a four-page artifact test legitimately owed a heading under the substantive-document rule. Zero new checker bugs found in batch four; the corpus's one real catch remains the whitespace-only-/Alt bug from batch one, and eleven of the hundred now re-prove past real-world fixes on every run.
 - Tests 2,922 → **2,923** (the modal-count pin). The verification corpus now spans **136 documents: 36 real + 100 synthetic.**
 
-<details>
-<summary><strong>v1.121.0 → v1.88.0</strong> (2026-08-28 → 2026-08-22) — click to expand</summary>
 
 ## [1.121.0] - 2026-08-28
 

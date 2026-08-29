@@ -62,3 +62,20 @@ jobs:
       # Needs qpdf (installed above); veraPDF is optional and skipped here.
       - name: Trap battery (100 synthetic controls)
         run: pnpm synthetic-controls
+
+      # The golden score ledger: every control's exact score, grade, and
+      # per-category verdict is pinned in scripts/score-ledger.json. Any
+      # drift fails until a human re-blesses the ledger in the same commit —
+      # no score ever moves without a visible, deliberate decision. On CI
+      # only the 100 regenerated traps are present; the real corpus rows
+      # verify on dev machines and are skipped (with a count) here.
+      - name: Score ledger (no score moves unblessed)
+        run: pnpm score-ledger
+
+      # Byte layout must never change a grade: every trap is rewritten by
+      # qpdf (new object order, new xref) and must grade identically, digit
+      # for digit. Plus determinism: sentinel traps audited 5x (2 serial +
+      # 3 concurrent) must return identical results — the v1.109 timeout
+      # class lived exactly here and nothing tested it.
+      - name: Re-save invariance + determinism
+        run: pnpm resave-invariance

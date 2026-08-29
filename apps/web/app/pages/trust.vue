@@ -620,6 +620,20 @@ function onTrustBodyClick(e: MouseEvent) {
   margin-top: auto;
   align-self: flex-start;
 }
+.trust-page .stat .statlink {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tp-act);
+  text-decoration: underline;
+  text-decoration-color: var(--tp-act);
+}
+.trust-page .chip.rel {
+  background: var(--tp-ext-dim);
+  color: var(--tp-ext);
+  border: 1px solid var(--tp-ext);
+}
 .trust-page .objection-h {
   line-height: 1.22;
 }

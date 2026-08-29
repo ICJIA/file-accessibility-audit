@@ -37,7 +37,9 @@
   .hero .sub{font-size:clamp(18px,2.4vw,23px);color:var(--muted);max-width:56ch}
   .statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:44px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 24px}
-  .stat .n{font-family:"Archivo Black";font-size:clamp(40px,5.5vw,58px);line-height:1;white-space:nowrap}
+  /* Sized so the widest figure ("100 / 100") fits a 4-up card — the old
+     clamp(40,5.5vw,58) let it spill into the neighboring card. */
+  .stat .n{font-family:"Archivo Black";font-size:clamp(30px,4.2vw,46px);line-height:1;white-space:nowrap}
   .stat .n.good{color:var(--good)} .stat .n.ext{color:var(--ext)} .stat .n.act{color:var(--act)}
   .stat .l{margin-top:10px;font-size:15px;color:var(--muted);font-weight:600}
 
@@ -97,6 +99,8 @@
   .bugcard h3 .bad{color:var(--bad)} .bugcard h3 .good{color:var(--good)}
   .bugcard p{color:var(--muted);max-width:70ch}
 
+  .stat .statlink{display:inline-block;margin-top:12px;font-size:13px;font-weight:700;color:var(--act);text-decoration:underline;text-decoration-color:var(--act)}
+  .chip.rel{background:var(--ext-dim);color:var(--ext);border:1px solid var(--ext)}
   /* the objection quote runs four lines — give it air (user request) */
   .objection-h{line-height:1.22}
   /* ---------- disputes ---------- */
@@ -152,15 +156,15 @@
 
 <div class="wrap">
 
-  <section class="hero">
+  <section class="hero" id="top">
     <div class="kicker">audit.icjia.app &middot; built for <b>Title II ADA</b> &middot; <b>WCAG</b> &middot; <b>Illinois IITAA</b></div>
     <h1 class="display">Built to be checked.<br><span class="good">So check it.</span></h1>
     <p class="sub">Every claim on this page can be verified without taking anyone's word for it &mdash; including ours.</p>
     <div class="stamp"><span class="lbl">Every number below was pulled live from the running system on</span><span class="date">{{DATE_BIG}}</span></div>
     <div class="statrow">
       <div class="stat"><div class="n good mono">{{AUDITS_TOTAL}}</div><div class="l">check-ups run for internal and external agencies &mdash; the quick per-file check-up that has caught on beyond ICJIA: easier than SiteImprove, clearer than PAC. {{AUDITS_30D}} in the last 30 days alone</div></div>
-      <div class="stat"><div class="n good mono">{{TESTS}}</div><div class="l">self-checks the software runs on itself before anything goes live &mdash; all must pass, or nothing ships</div></div>
-      <div class="stat"><div class="n act mono">{{TRAPS}} / {{TRAPS}}</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div></div>
+      <div class="stat"><div class="n good mono">{{TESTS}}</div><div class="l">self-checks the software runs on itself before anything goes live &mdash; all must pass, or nothing ships</div><a class="statlink" href="#all-tests">How it&rsquo;s tested &rarr;</a></div>
+      <div class="stat"><div class="n act mono">{{TRAPS}} / {{TRAPS}}</div><div class="l">trap documents built to fool it &mdash; every one judged correctly</div><a class="statlink" href="#all-traps">See all {{TRAPS}} &rarr;</a></div>
       <div class="stat"><div class="n ext mono">{{COMMITS}}</div><div class="l">saved, dated, public changes over {{WEEKS}} weeks &mdash; every step on the record</div></div>
     </div>
   </section>
@@ -251,6 +255,32 @@
         <a class="tm-close" href="#trap-section">&#10005; Close &mdash; back to the page</a>
       </div>
       <div class="tm-grid">{{TRAP_CARDS}}</div>
+    </div>
+  </div>
+
+  <div id="all-tests" class="trapmodal" role="dialog" aria-label="How this app is tested before anything ships">
+    <div class="tm-inner">
+      <div class="tm-head">
+        <div>
+          <div class="tm-title">How this app is tested before anything ships</div>
+          <div class="tm-sub">Twelve gates stand between a code change and the live site &mdash; run automatically, in this order of ambition, on every single change. One failure stops the release cold. These are the ones that exist to guarantee the ACCURACY of your report, not just that the buttons work.</div>
+        </div>
+        <a class="tm-close" href="#top">&#10005; Close &mdash; back to the page</a>
+      </div>
+      <div class="tm-grid">
+        <div class="trapm testm"><div class="name">every change</div><div class="what">{{TESTS}} self-checks &mdash; every promise the software has ever made, re-tested from the top</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">The {{TRAPS}} trap documents &mdash; rebuilt from scratch and re-judged; every designed answer must come back right</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">The scoring invariant &mdash; the grade shown must always match the score computed; the one test that may never be removed</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">The golden score ledger &mdash; every control document&rsquo;s exact score and per-category verdict is pinned; no grade can move unless a person approves the movement in review</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">The re-save test &mdash; every trap rewritten by a different tool must grade identically, digit for digit; byte layout can never change a grade</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">Same file, same answer &mdash; sentinel documents audited five times, three of them at once: identical results, every time, even under load</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">Real-pipeline integration &mdash; the actual tools on actual PDFs, end to end; no simulations standing in for the real thing</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">The wiring checks &mdash; pages must render what the data claims: the trap list must hold exactly as many documents as the page says, and this page must match the emailable version word for word</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">every change</div><div class="what">Type, lint, and build guards &mdash; the unglamorous gates that stop whole classes of mistakes before they are even runnable</div><span class="chip clean">EVERY CHANGE</span></div>
+        <div class="trapm testm"><div class="name">before release</div><div class="what">The 136-document corpus sweep &mdash; 36 real agency documents plus the 100 traps, invariants verified on every one</div><span class="chip rel">BEFORE RELEASE</span></div>
+        <div class="trapm testm"><div class="name">after deploy</div><div class="what">Live-site sentinels &mdash; known traps uploaded to the real site after a deploy: the scan lie must still score 0, the perfect document must still score 100</div><span class="chip held">AFTER DEPLOY</span></div>
+        <div class="trapm testm"><div class="name">every report</div><div class="what">The independent referee &mdash; veraPDF runs beside the checker on every single report in production; a second opinion that never sleeps</div><span class="chip held">EVERY REPORT</span></div>
+      </div>
     </div>
   </div>
   <!-- Close goes BACK to the page the modal was opened from when the reader
@@ -370,6 +400,7 @@
 <li>A file with no tables must never be graded on tables.</li>
 <li>The grade on screen and the grade in the downloaded report must match, digit for digit.</li>
 <li>An image description made of nothing but blank spaces must be caught as empty.</li>
+<li>A re-saved copy of a document must receive the identical grade, digit for digit.</li>
 <li>All {{TRAPS}} trap documents must still be judged correctly, every release.</li>
 </ul></div>
       <div class="check"><div class="big">Public paper trail</div><p>{{VERSIONS}} version notes plus a plain-language security log written for records auditors &mdash; mistakes included.</p></div>

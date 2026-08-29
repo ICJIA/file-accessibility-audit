@@ -1266,12 +1266,17 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.123.0 — 2026-08-29 · Three accuracy gates: the score ledger, re-save invariance, live-site sentinels (no new attack surface)
+
+Three new gates built to guarantee report accuracy, not just code health. **The golden score ledger**: all 136 control documents' exact scores and per-category verdicts are committed (`scripts/score-ledger.json`); any drift fails CI until a human re-blesses the ledger in the same commit — no grade moves silently, ever. **Re-save invariance**: every trap rewritten by qpdf must grade identically, digit for digit — byte layout can never change a grade — plus determinism (sentinels audited five times, three concurrently, identical every time). **Live-site sentinels** (`pnpm prod-sentinels`): after a deploy, traps with designed answers are uploaded to the real site — 0/F must still be 0/F, 100/A still 100/A; all three pass against production today. The invariance gate **caught a fixture defect on its first run** (8×8 trap images under the tiny-image threshold made the census layout-dependent; now realistic 64×64 — three ledger rows re-blessed through the workflow, as designed). The trust page gains a second modal listing all twelve gates in plain language, stat-card deep links to both modals, and the new hero: **"Built to be checked. So check it."** **No new attack surface**: three dev/CI scripts, one committed JSON, generated-page content. Tests 2,924.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.122.0 → v1.33.0) — click to expand</summary>
+
 ### v1.122.0 — 2026-08-28 · One hundred trap documents, all held; the full inventory opens from the trust page (no new attack surface)
 
 The adversarial corpus doubles again, 50 → **100, every designed truth holding**. Batch four is modeled on what **Canva, InDesign, and Word** actually export: flat untagged posters, decorative-shape swarms beside their properly-artifacted twins, custom naming soup with unmapped orphans, alt-less anchored images, bold-only header rows, text effects rasterized line by line, whitespace "tables" the checker must not hallucinate, "Print to PDF" (three losses named on one report) — plus per-tool done-right twins and a hundredth document that is perfect and grades exactly 100/A. The trust page now opens a **modal inventory of all 100** (48 defects caught · 51 correct or hostile documents passed clean · 1 real bug found and fixed), rendered from a manifest only a fully verified battery run can write and pinned by a test that counts the cards. **The battery is now a CI gate**: every push rebuilds all 100 from scratch and one violated truth fails the build — every failure is a defect to fix, in a sample or in the checker. "Can I trust this?" now leads the top navigation. **No new attack surface**: trap PDFs from a dev-only script, generated-page content, one nav reorder. Tests 2,923. The verification corpus now spans **136 documents: 36 real + 100 synthetic.**
 
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.121.0 → v1.33.0) — click to expand</summary>
 
 ### v1.121.0 — 2026-08-28 · Every open Dependabot alert cleared (dependency safety update)
 

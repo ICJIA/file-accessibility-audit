@@ -84,6 +84,13 @@ describe("Can I trust this? — the /trust page", () => {
     expect(cards.length).toBe(stats.traps);
     expect(body).toContain('id=\\"all-traps\\"');
     expect(body).toMatch(/FOUND A REAL BUG/);
+    // The second modal: how the app is tested. Its cards wear "trapm testm"
+    // (never bare "trapm") so the trap count above stays exact.
+    expect(body).toContain('id=\\"all-tests\\"');
+    const testCards = body.match(/class=\\"trapm testm\\"/g) ?? [];
+    expect(testCards.length).toBeGreaterThanOrEqual(12);
+    expect(body).toMatch(/golden score ledger/i);
+    expect(body).toMatch(/re-save test/i);
   });
 
   it("the header nav links it — a NuxtLink now, because /trust is a real route", () => {

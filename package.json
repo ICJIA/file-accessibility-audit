@@ -1,6 +1,6 @@
 {
   "name": "file-accessibility-audit",
-  "version": "1.122.0",
+  "version": "1.123.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,7 +23,10 @@
     "format:check": "prettier --check .",
     "synthetic-controls": "tsx --tsconfig scripts/tsconfig.json scripts/synthetic-controls.ts",
     "verify-controls": "tsx --tsconfig scripts/tsconfig.json scripts/verify-controls.ts",
-    "build-brief": "node scripts/build-brief.mjs"
+    "build-brief": "node scripts/build-brief.mjs",
+    "score-ledger": "tsx --tsconfig scripts/tsconfig.json scripts/score-ledger.ts",
+    "resave-invariance": "tsx --tsconfig scripts/tsconfig.json scripts/resave-invariance.ts",
+    "prod-sentinels": "tsx --tsconfig scripts/tsconfig.json scripts/prod-sentinels.ts"
   },
   "engines": {
     "node": ">=22"
