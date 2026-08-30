@@ -40,6 +40,43 @@ const step = {
 const mountPlan = (verdict: unknown) =>
   mount(ActionPlan, { props: { steps: [step], pdfUaVerdict: verdict as never } });
 
+/** A whole report — fileType, categories keyed by their real `id`, and a
+ *  pdfUaVerdict — the shape evaluateBestPractices() actually needs. Reusing
+ *  the bare `{ categories: [{ label, findings }] }` shape the tests above
+ *  pass to `mountPlan` produces zero Best Practices rows silently: the
+ *  catalog matches a category by `id` (absent from those fixtures) and
+ *  gates on `result.fileType` (absent too). */
+const SCOPE_RESULT = {
+  fileType: "pdf",
+  pageCount: 12,
+  categories: [
+    {
+      id: "table_markup",
+      label: "Table Markup",
+      findings: [
+        "All 1 table(s) have header cells (TH)",
+        "PDF/UA only — not scored: 2 header cell(s) across 1 table(s) have no /Scope.",
+      ],
+    },
+  ],
+  pdfUaVerdict: {
+    available: true,
+    passed: false,
+    totalFailureCount: 5,
+    distinctRuleCount: 1,
+    failures: [SCOPE_FAILURE],
+  },
+};
+
+/** A SECOND helper, deliberately not an extension of `mountPlan` — that one
+ *  forwards only `steps`/`pdfUaVerdict`, and every veraPDF co-sign test
+ *  above keeps using it unchanged. This one passes a whole `result` through
+ *  too, the shape BestPracticesSection needs. */
+const mountPlanWithResult = (result: unknown) =>
+  mount(ActionPlan, {
+    props: { steps: [step], result, pdfUaVerdict: (result as any).pdfUaVerdict },
+  });
+
 // Targeted by test id, not by searching the whole render for "veraPDF":
 // the component's own source comments mention it, and Vue keeps comments in
 // the rendered output.
@@ -310,37 +347,13 @@ describe("the action plan labels legal work and separates the optional (v1.132.0
     expect(w.find('[data-testid="step-law-chip"]').exists()).toBe(false);
     expect(w.find('[data-testid="step-reco-chip"]').exists()).toBe(false);
   });
-
-  it("lists unscored PDF/UA work separately, never as a numbered step", () => {
-    const w = mount(ActionPlan, {
-      props: {
-        steps: [step],
-        categories: [
-          {
-            label: "Table Markup",
-            findings: [
-              "All 1 table(s) have header cells (TH)",
-              "PDF/UA only — not scored: 2 header cell(s) have no /Scope.",
-            ],
-          },
-        ],
-      },
-    });
-    const beyond = w.find('[data-testid="plan-beyond-group"]');
-    expect(beyond.exists()).toBe(true);
-    expect(beyond.text()).toMatch(/Above and beyond — not required by WCAG 2\.1/i);
-    expect(beyond.text()).toMatch(/BEST PRACTICE — NOT SCORED/);
-    expect(beyond.text()).toMatch(/no \/Scope/);
-    // Still exactly one numbered step: the optional item did not become one.
-    expect(w.findAll(".plan-step-body")).toHaveLength(1);
-  });
-
-  it("shows no 'above and beyond' group when there is nothing optional", () => {
-    const w = mount(ActionPlan, {
-      props: { steps: [step], categories: [{ label: "Table Markup", findings: ["All good"] }] },
-    });
-    expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
-  });
+  // The two tests that used to live here ("lists unscored PDF/UA work
+  // separately" and "shows no 'above and beyond' group when there is
+  // nothing optional") asserted on `categories`-only fixtures with no
+  // `result` — behavior this component no longer has (2026-08-30): our own
+  // unscored findings moved to BestPracticesSection, and `categories` alone
+  // can no longer produce or suppress the beyond group. Superseded by
+  // "the plan's two tiers after the best-practices split" below.
 });
 
 describe("the strip's failing-verdict link points at the fixes", () => {
@@ -401,7 +414,13 @@ describe("the beyond group carries veraPDF's verdict in full (v1.133.0)", () => 
     expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(true);
   });
 
-  it("reports a clean veraPDF pass as such, with no rule list", () => {
+  it("hides the group entirely on a clean veraPDF pass — even with unscored findings elsewhere", () => {
+    // Post-split (2026-08-30): a clean pass has nothing left to say once our
+    // own unscored findings moved to BestPracticesSection, so the group
+    // (and the "no machine-checkable failures" line that used to live
+    // inside it) no longer renders at all. The unscored `categories`
+    // finding stays in this fixture on purpose, to prove it can no longer
+    // resurrect the group by itself.
     const w = mount(ActionPlan, {
       props: {
         steps: [step],
@@ -414,9 +433,7 @@ describe("the beyond group carries veraPDF's verdict in full (v1.133.0)", () => 
         ],
       },
     });
-    const vera = w.find('[data-testid="plan-vera-detail"]');
-    expect(vera.text()).toMatch(/no machine-checkable PDF\/UA failures/);
-    expect(vera.text()).not.toMatch(/occurrences across/);
+    expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
   });
 
   it("surfaces a veraPDF error instead of pretending the check ran clean", () => {
@@ -430,25 +447,13 @@ describe("the beyond group carries veraPDF's verdict in full (v1.133.0)", () => 
       /could not complete[^]*JVM timed out/,
     );
   });
-
-  it("carries the optional-fix line with its unscored finding (partition parity)", () => {
-    const w = mount(ActionPlan, {
-      props: {
-        steps: [step],
-        categories: [
-          {
-            label: "Table Markup",
-            findings: [
-              "PDF/UA only — not scored: 2 header cell(s) have no /Scope.",
-              "How to fix (optional): set Scope in the Tags panel.",
-            ],
-          },
-        ],
-      },
-    });
-    const beyond = w.find('[data-testid="plan-beyond-group"]');
-    expect(beyond.text()).toMatch(/How to fix \(optional\)/);
-  });
+  // The "carries the optional-fix line with its unscored finding (partition
+  // parity)" test that used to live here mounted with `categories` alone
+  // (no `result`, no `pdfUaVerdict`) and expected the beyond group to carry
+  // an unscored finding's optional-fix line. That group no longer reads
+  // `categories` at all (2026-08-30); the same fix line now surfaces from
+  // BestPracticesSection's own "How to fix" block, covered by that
+  // component's own test file.
 });
 
 describe("the Detailed view opens with the two-standards strip (v1.133.0)", () => {
@@ -638,11 +643,47 @@ describe("the beyond group reads as a section, not a footnote (v1.140.1)", () =>
       },
     });
     const g = w.find('[data-testid="plan-beyond-group"]');
-    expect(g.text()).toMatch(/Everything the law requires is above/);
+    expect(g.exists()).toBe(true);
+    // The seam moved out of the group and above BestPracticesSection too
+    // (2026-08-30) — it now introduces both non-required tiers, so it is
+    // asserted against the whole render rather than scoped to this group.
+    expect(w.text()).toMatch(/Everything the law requires is above/);
     const chips = w.find('[data-testid="beyond-stat-chips"]');
     expect(chips.exists()).toBe(true);
     expect(chips.text()).toMatch(/0 of these count toward your score/);
     expect(chips.text()).toMatch(/4,732/);
     expect(chips.text()).toMatch(/8/);
+  });
+});
+
+describe("the plan's two tiers after the best-practices split (2026-08-30)", () => {
+  it("puts the unscored items in the Best Practices section, above the beyond group", () => {
+    const w = mountPlanWithResult(SCOPE_RESULT);
+    const bp = w.find('[data-testid="best-practices"]');
+    const beyond = w.find('[data-testid="plan-beyond-group"]');
+    expect(bp.exists()).toBe(true);
+    expect(beyond.exists()).toBe(true);
+    expect(bp.text()).toMatch(/scope/i);
+    // The section sits between the numbered steps and the beyond group —
+    // both boundaries, not just the one against the beyond group.
+    const html = w.html();
+    expect(html.indexOf('id="plan-step-')).toBeLessThan(
+      html.indexOf('data-testid="best-practices"'),
+    );
+    expect(html.indexOf('data-testid="best-practices"')).toBeLessThan(
+      html.indexOf('data-testid="plan-beyond-group"'),
+    );
+  });
+
+  it("no longer repeats those items inside the beyond group", () => {
+    const w = mountPlanWithResult(SCOPE_RESULT);
+    const beyond = w.find('[data-testid="plan-beyond-group"]');
+    expect(beyond.text()).not.toMatch(/no \/Scope/);
+    expect(beyond.text()).toMatch(/veraPDF/);
+  });
+
+  it("hides the beyond group entirely when veraPDF has nothing to say", () => {
+    const w = mountPlanWithResult({ ...SCOPE_RESULT, pdfUaVerdict: null });
+    expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
   });
 });

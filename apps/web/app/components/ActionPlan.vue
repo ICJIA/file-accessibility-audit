@@ -204,42 +204,45 @@
       </p>
     </div>
 
-    <!-- ABOVE AND BEYOND — everything reported that WCAG 2.1 does not
-         require. Kept out of the numbered steps on purpose: a number in this
-         plan means a WCAG 2.1 obligation. Deliberately visible (user request
-         2026-08-29): this is where a reader who wants to go past the legal
-         floor finds the full PDF/UA picture, including veraPDF's own verdict
-         verbatim — every failing rule, its ISO clause, its count, and any
-         error. -->
-    <div v-if="showBeyondGroup" data-testid="plan-beyond-group" class="mt-8">
-      <!-- The visual seam between the two tiers (user request 2026-08-29:
-           "the actual fixes are above — and here are the extra fixes if you
-           want them"). A reader scrolling past the plan must not mistake
-           what follows for more obligations. -->
-      <div class="flex items-center gap-3 mb-4" aria-hidden="true">
-        <div class="h-px flex-1 bg-[var(--border)]"></div>
-        <span class="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]"
-          >Everything the law requires is above &uarr;</span
-        >
-        <div class="h-px flex-1 bg-[var(--border)]"></div>
-      </div>
+    <!-- Below this line is everything the plan does not require: best
+         practices checked against this document's own evidence, then (when
+         veraPDF has something to say) its independent verdict, verbatim.
+         Kept out of the numbered steps on purpose: a number in this plan
+         means a WCAG 2.1 obligation. The seam used to live inside the
+         beyond group alone; now it introduces both non-required tiers
+         (2026-08-30). -->
+    <div
+      v-if="result || showBeyondGroup"
+      class="flex items-center gap-3 mt-8 mb-4"
+      aria-hidden="true"
+    >
+      <div class="h-px flex-1 bg-[var(--border)]"></div>
+      <span class="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]"
+        >Everything the law requires is above &uarr;</span
+      >
+      <div class="h-px flex-1 bg-[var(--border)]"></div>
+    </div>
 
+    <BestPracticesSection v-if="result" :result="result" class="mt-8" />
+
+    <!-- ABOVE AND BEYOND, NARROWED (2026-08-30) — this card now carries only
+         veraPDF's verdict, the one thing the Best Practices section above
+         does not and should not reproduce: an independent validator's own
+         words on this document. Our own unscored findings moved into that
+         section, where each one gets a description, this document's own
+         evidence, and a fix. -->
+    <div v-if="showBeyondGroup" data-testid="plan-beyond-group" class="mt-8">
       <div class="rounded-2xl border-2 border-sky-500/40 bg-sky-500/5 px-5 sm:px-6 py-5">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span aria-hidden="true" class="text-2xl leading-none text-sky-400">○</span>
           <h3 class="text-lg sm:text-xl font-bold text-[var(--text-heading)] m-0">
-            Above and beyond — not required by WCAG 2.1
+            Above and beyond — veraPDF's verdict
           </h3>
-          <span
-            class="text-[11px] font-bold px-2.5 py-1 rounded-full border border-sky-500/50 text-sky-400 whitespace-nowrap tracking-wide"
-            >BEST PRACTICE — NOT SCORED</span
-          >
         </div>
         <p class="text-sm text-[var(--text-muted)] mt-2.5 leading-relaxed">
-          The numbered fixes above are everything WCAG 2.1 — the standard Illinois (IITAA) and
-          federal law (ADA Title II) require — asks of this document. Everything here is extra:
-          PDF/UA (ISO 14289) rules and best practices like bookmarks, heading conventions, and
-          navigation labels, for authors who want to go past the legal floor.
+          veraPDF is an independent PDF/UA validator, built by the PDF Association and not by us.
+          What follows is its verdict on this document, in its own words — every rule it failed, the
+          ISO 14289 clause behind it, and how many times it occurs.
           <strong class="font-semibold text-[var(--text-secondary)]"
             >None of it affected your grade.</strong
           >
@@ -252,13 +255,6 @@
             class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
           >
             <span class="text-sky-400 font-bold">0</span> of these count toward your score
-          </span>
-          <span
-            v-if="beyondItems.length"
-            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
-          >
-            <span class="text-sky-400 font-bold">{{ beyondItems.length }}</span> optional
-            {{ beyondItems.length === 1 ? "item" : "items" }} from this report
           </span>
           <span
             v-if="pdfUaVerdict?.available && pdfUaVerdict.passed === false"
@@ -281,15 +277,6 @@
             veraPDF: <span class="text-sky-400 font-bold">✓</span> no machine-checkable failures
           </span>
         </div>
-
-        <ul v-if="beyondItems.length" class="mt-3 space-y-2">
-          <li v-for="(item, i) in beyondItems" :key="`beyond-${i}`" class="text-xs flex gap-2">
-            <span aria-hidden="true" class="flex-shrink-0 mt-0.5 text-sky-400">○</span>
-            <span class="text-[var(--text-secondary)]">
-              <span v-if="item.label" class="font-semibold">{{ item.label }}: </span>{{ item.text }}
-            </span>
-          </li>
-        </ul>
 
         <!-- veraPDF's verdict, verbatim and in full. The referee's words, not
            our judgment — same doctrine as the per-step co-sign. -->
@@ -403,8 +390,8 @@ const { severityColor } = useTokenColors();
 import type { PlanStep, PlanSeverity } from "~/utils/actionPlan";
 import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory";
 import { pdfUaFixRoutes } from "./pdfUaFixHint";
-import { partitionCardFindings } from "~/utils/findings";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
+import BestPracticesSection from "~/components/BestPracticesSection.vue";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
 const props = defineProps<{
@@ -421,21 +408,16 @@ const props = defineProps<{
     error?: string;
     failures?: PdfUaFailureLike[];
   } | null;
-  /** Scored categories, read ONLY to collect the reported-but-unscored items
-   *  for the "above and beyond" group. The plan itself is built from steps. */
+  /** Scored categories. No longer read directly by this component — the
+   *  reported-but-unscored items it used to collect for the beyond group
+   *  now come from `result` via BestPracticesSection (2026-08-30). Kept as
+   *  a prop for callers that still pass it. */
   categories?: Array<{ label?: string; findings?: string[] }> | null;
+  /** The whole report, passed straight through to BestPracticesSection,
+   *  which does its own narrowing — /report/[id] renders attacker-controlled
+   *  stored JSON — and self-hides when it has nothing to show. */
+  result?: unknown;
 }>();
-
-/** PDF/UA work the report shows but never scored — the analyzer's
- *  "not scored" prefix lines plus each one's optional-fix line, bucketed by
- *  the SAME partition the Detailed view uses, so the two views can never
- *  disagree about what is optional. Deliberately NOT numbered steps: a number
- *  in this plan means a WCAG 2.1 obligation. */
-const beyondItems = computed(() =>
-  (props.categories ?? []).flatMap((c) =>
-    partitionCardFindings(c.findings).notScored.map((f) => ({ label: c.label ?? "", text: f })),
-  ),
-);
 
 /** Every failing veraPDF rule, largest count first — the referee's full list,
  *  not our summary of it. */
@@ -445,16 +427,16 @@ const veraFailures = computed(() => {
   return [...(v.failures ?? [])].sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
 });
 
-/** The group renders whenever there is anything optional to say: our own
- *  unscored findings, a failed veraPDF run, or veraPDF's error — silence only
- *  when there is genuinely nothing beyond the legal floor to report. */
 /** Each failing rule paired with its two-route fix advice (null = no
  *  advice, rendered plain). */
 const veraRows = computed(() => veraFailures.value.map((f) => ({ f, routes: pdfUaFixRoutes(f) })));
 
+/** The beyond group is now purely veraPDF's verdict — the referee's own
+ *  words. Our unscored findings moved to BestPracticesSection (2026-08-30),
+ *  where each gets a description, this document's evidence, and links. */
 const showBeyondGroup = computed(() => {
   const v = props.pdfUaVerdict;
-  return beyondItems.value.length > 0 || Boolean(v?.available && (v.error || v.passed === false));
+  return Boolean(v?.available && (v.error || v.passed === false));
 });
 
 // Grouped once per verdict, not per step render.
