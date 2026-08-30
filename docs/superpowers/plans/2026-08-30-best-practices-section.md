@@ -1227,6 +1227,21 @@ grep -oE '`(All|No|Every|Found)[^`]{0,120}`|"(All|No|Every|Found)[^"]{0,120}"' \
   packages/analyzer/src/scoring/<format>.ts
 ```
 
+**PARTITION AND COUNT MAP FOR OFFICE — verified against source 2026-08-30.** Unlike the PDF catalog, the Office side is uniform: **every** advisory listed below is prefixed and un-indented, so all of them land in `notScored` and `matchNotScored` is the right matcher throughout. No `signalLines` calls are needed anywhere in this file.
+
+Sources: docx.ts:90, 169, 178, 184, 298, 305, **311**, **316**, 361 · pptx.ts:154, 168, 474 · xlsx.ts:171, 232, **236**, **243**, **259**, **273**, 450. (The six in bold are the `"Note — not scored:"` lines that only started reaching this partition after Task 1.) The two `"Interactive form fields need accessible labels…"` lines — docx.ts:498, xlsx.ts:482 — are explanatory prose, not practices; they are not in this catalog.
+
+`firstNumber` safety on the Office lines:
+
+| Line | Safe? | Note |
+|---|---|---|
+| docx:90, :178, :184, :298, :361 · pptx:168, :474 · xlsx:243, :273, :450 | ✅ safe | the leading digit run IS the count |
+| docx:311, :316 | ✅ safe | `"Note — not scored:"` carries no digits |
+| docx:169 first-heading | ✅ safe, but it is a LEVEL not a count | `"the first heading is Heading ${level}, not Heading 1"` — say "starts at Heading 3", never "3 headings" |
+| **xlsx:171 sheet names** | 🚫 **never call `firstNumber`** | `rename "${s.name}" to describe its contents` — the evidence is the sheet NAME, and a default name like `Sheet1` would make `firstNumber` return **1** as if it were a count. Extract the quoted name instead. Emitted once PER SHEET, so collect every matching line with a filter over `ctx.notScored`, not just the first. |
+| **pptx:154 untitled slides** | 🚫 **never call `firstNumber`** | the evidence is a LIST of slide numbers (`slides 3, 7, 12`); `firstNumber` would return only the first. Quote the list. |
+| xlsx:232, :236 | — | no count; state in words |
+
 Notes that will otherwise cost a debugging cycle:
 
 - The Word and PowerPoint raw-URL lines use the prefix **`"Advisory — not scored against you:"`**. That starts with `"advisory — not scored"`, so `isNotScoredFinding` already claims it and `matchNotScored` works — but the needle must be `use the raw url as their visible text` / `show the raw url as their visible text`, which differ between `docx.ts` (`show`) and `pptx.ts`/`xlsx.ts` (`show`). Match on `raw url as their visible text`, which is common to all three.
