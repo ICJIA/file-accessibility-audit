@@ -803,7 +803,7 @@ describe("heading-level-order", () => {
 
   it("is NOT APPLICABLE when the document has no headings at all", () => {
     const r = run("heading-level-order", [
-      "No heading tags (H1-H6) found in the document structure",
+      "No heading tags found in the document structure",
     ]);
     expect(r.status).toBe("not-applicable");
   });
@@ -1016,6 +1016,24 @@ The matcher needle and positive line for each:
 | `footnote-ids` | signals | `signalLines(ctx, "Footnotes")` | supplementary.ts:257 and :262 are indented |
 | `list-labels` | **`main`** | **`matchAny`**, NOT `matchNotScored` | supplementary.ts:205 begins `${withoutLabels} list(s) have no <Lbl>…` — no not-scored prefix at all, so it falls through to `main`. `matchNotScored` would never find it. |
 | `raw-url-link-text` (PDF) | **`main`** | **`matchAny`**, NOT `matchNotScored` | pdf.ts:1995 begins `${rawUrls.length} link(s) use the raw URL…` — un-prefixed, so `main`. **The Office variants differ**: docx/pptx/xlsx use `"Advisory — not scored against you:"`, which IS prefixed and lands in `notScored`. One implementation does not serve both. |
+
+**NOT APPLICABLE — the exact needles, and one dangerous collision.** Verified against `packages/analyzer/src/scoring/pdf.ts` on 2026-08-30:
+
+| Practice group | Exact N/A line | Safe needle |
+|---|---|---|
+| headings | `No heading tags found in the document structure` (pdf.ts:777) | `no heading tags` |
+| tables | `No tables detected in this document — this category does not affect the score` (pdf.ts:1511) | **`no tables detected in this document`** — see the warning below |
+| links | `No links found in this document — this category does not affect the score` (pdf.ts:1900) | `no links found in this document` |
+| images | `No images detected in this document — this category does not affect the score` (pdf.ts:1141) | `no images detected in this document` |
+| reading order (form) | `Not scored for this document: it is a form (${n} field(s))…` (pdf.ts:2263) | `it is a form` |
+| reading order (no data) | `Automated reading-order verification could not be performed…` (pdf.ts:2307) | `could not be performed` → this is **NOT CHECKED**, not NOT APPLICABLE |
+
+🚫 **NEVER use `"no tables"` as the N/A needle.** Two opposite strings begin with it:
+
+- pdf.ts:1511 — `No tables detected in this document…` → genuinely NOT APPLICABLE
+- pdf.ts:1642 — `No tables have <TR> row structure — cells are not grouped into rows, which breaks screen reader table navigation` → a **FAILURE**
+
+A `"no tables"` needle matches both, so a document with structurally broken tables would be reported as having no tables at all — a false all-clear on a real defect. Match the full phrase `no tables detected in this document`. The Office scorers have no such collision (`No tables were found.` is unambiguous there), which is exactly why a PDF needle must never be reused for Office or vice versa.
 
 **COUNTS — `firstNumber` is naive; these are the only safe call sites.** `firstNumber` returns the FIRST digit run anywhere in the string, with no semantics. It is SAFE on the lines below only because the not-scored prefixes contain no digits and the count leads the sentence. Verified 2026-08-30:
 
