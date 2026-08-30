@@ -1,0 +1,338 @@
+<!-- apps/web/app/components/BestPracticesSection.vue
+     The Best Practices scorecard — the surface for the catalog built in
+     Tasks 2-6 (~/utils/bestPractices). Renders one row per practice that
+     applies to this document's format, already evaluated. Sits directly
+     above ActionPlan's own "Above and beyond" group and shares its visual
+     language on purpose (sky palette, "BEST PRACTICE — NOT SCORED" chip):
+     same doctrine, same tier, same non-obligation, read as a sibling.
+
+     NOTHING HERE IS SCORED, and NOT MET reads as WORTH DOING, never a
+     failure — see ~/utils/bestPractices/types.ts's own doctrine comment.
+     Two catalog facts drive the copy below rather than a fifth status:
+
+       - Three practices (docx-layout-grids, xlsx-pivot-tables,
+         xlsx-merged-cells) can never reach MET — they mean "a person
+         should look", and their own fix.source text already says so
+         ("No structural fix applies…", "Review… manually"). Rendered
+         generically like any other fix, not hardcoded by id: the catalog
+         already carries this in evidence/why/fix, so the section never
+         has to know which three they are.
+       - Four practices (heading-content, single-h1, character-mapping,
+         content-in-tag-tree) have no MET branch in the catalog at all —
+         the analyzer only speaks up when something looks wrong, so a
+         flawless document lands them on NOT CHECKED. A perfect PDF reads
+         "15 met · 0 not met · 4 not checked", never "19 met". The
+         NOT CHECKED body carries a plain reassurance line for exactly
+         this reason, and NEVER a "N of 19" fraction anywhere — a
+         denominator beside a status is read as a grade in this product.
+
+     Self-hides entirely when evaluateBestPractices() returns nothing (a
+     page-audit row with no categories, an unrecognized format, or a
+     forged/corrupted stored report — /report/[id] renders attacker-
+     controlled stored JSON, so nothing below may throw). -->
+<template>
+  <section
+    v-if="rows.length"
+    data-testid="best-practices"
+    class="rounded-2xl border-2 border-sky-500/40 bg-sky-500/5 px-5 sm:px-6 py-5"
+    aria-labelledby="best-practices-title"
+  >
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span aria-hidden="true" class="text-2xl leading-none text-sky-400">○</span>
+      <h2
+        id="best-practices-title"
+        class="text-lg sm:text-xl font-bold text-[var(--text-heading)] m-0"
+      >
+        Best practices — not scored
+      </h2>
+      <span
+        class="text-[11px] font-bold px-2.5 py-1 rounded-full border border-sky-500/50 text-sky-400 whitespace-nowrap tracking-wide"
+        >BEST PRACTICE — NOT SCORED</span
+      >
+    </div>
+
+    <p class="text-sm text-[var(--text-muted)] mt-2.5 leading-relaxed">
+      The numbered fixes above are everything WCAG 2.1 — the standard Illinois (IITAA) and federal
+      law (ADA Title II) require — asks of this document. Everything here is optional work that
+      helps real readers.
+      <strong class="font-semibold text-[var(--text-secondary)]"
+        >None of this affected your grade.</strong
+      >
+    </p>
+
+    <!-- Counts come from the rendered rows, never a literal. -->
+    <div class="mt-3.5 flex flex-wrap gap-2" data-testid="best-practices-summary">
+      <span
+        v-for="chip in summaryChips"
+        :key="chip.key"
+        class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
+      >
+        <span class="text-sky-400 font-bold">{{ chip.count }}</span> {{ chip.label }}
+      </span>
+    </div>
+
+    <ul class="mt-4 space-y-2 list-none p-0 m-0">
+      <li
+        v-for="row in rows"
+        :key="row.practice.id"
+        :data-practice="row.practice.id"
+        :data-status="row.status"
+        class="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-deep)]"
+      >
+        <button
+          type="button"
+          class="w-full flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
+          :aria-expanded="open.has(row.practice.id) ? 'true' : 'false'"
+          :aria-controls="`bp-body-${row.practice.id}`"
+          @click="toggle(row.practice.id)"
+        >
+          <span aria-hidden="true" class="flex-shrink-0" :class="statusIconClass(row.status)">{{
+            statusIcon(row.status)
+          }}</span>
+          <span class="flex-1 text-sm font-semibold text-[var(--text-heading)]">{{
+            row.practice.label
+          }}</span>
+          <span
+            class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap border"
+            :class="statusPillClass(row.status)"
+            >{{ statusLabel(row.status) }}</span
+          >
+          <span
+            class="text-xs text-[var(--link)] whitespace-nowrap w-[72px] text-right flex-shrink-0"
+            data-export-exclude
+            >{{ open.has(row.practice.id) ? "Hide" : "Show" }}</span
+          >
+        </button>
+
+        <div
+          v-show="open.has(row.practice.id)"
+          :id="`bp-body-${row.practice.id}`"
+          class="px-3 pb-3 space-y-2"
+        >
+          <!-- What this is / Your document / Why it matters / Does this affect
+               my grade? / How to fix / Read more — in that order. The evidence
+               block is a REAL <pre>: prettier reflows a whitespace-pre div,
+               which collapsed 12 blocks in this repo before (v1.53.0). -->
+          <div>
+            <p
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
+            >
+              What this is
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] mt-1">{{ row.practice.description }}</p>
+          </div>
+
+          <div>
+            <p
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
+            >
+              Your document
+            </p>
+            <ul v-if="row.evidence.length" class="mt-1 space-y-1 list-none p-0 m-0">
+              <li
+                v-for="(line, i) in row.evidence"
+                :key="i"
+                class="text-sm text-[var(--text-secondary)] flex gap-2"
+              >
+                <span aria-hidden="true" class="flex-shrink-0 text-[var(--text-muted)]">•</span>
+                <span>{{ line }}</span>
+              </li>
+            </ul>
+            <!-- Only these rows ever have no positive branch to begin with —
+                 the reassurance is about the CHECK, never about the document,
+                 so it never implies a problem exists. -->
+            <p
+              v-if="row.status === 'not-checked'"
+              class="text-sm text-[var(--text-secondary)] mt-1.5"
+            >
+              This checker did not confirm this one either way — it only speaks up when something
+              looks wrong, so staying silent here is not a sign of trouble. A person can typically
+              confirm it in a minute by looking directly.
+            </p>
+            <p v-if="row.block" class="text-[11px] text-[var(--text-muted)] mt-2 mb-1">
+              {{ row.block.caption }}
+            </p>
+            <pre
+              v-if="row.block"
+              class="text-xs font-mono text-[var(--text-secondary)] bg-[var(--surface-raised)] rounded px-3 py-2 overflow-x-auto whitespace-pre-wrap"
+              >{{ row.block.lines.join("\n") }}</pre>
+          </div>
+
+          <div>
+            <p
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
+            >
+              Why it matters
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] mt-1">{{ row.practice.why }}</p>
+          </div>
+
+          <div>
+            <p
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
+            >
+              Does this affect my grade?
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] mt-1">
+              No. This is optional — it does not change your score.
+            </p>
+          </div>
+
+          <div v-if="row.fix">
+            <p
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
+            >
+              How to fix
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] mt-1">
+              <span class="font-semibold text-[var(--text-heading)]">In the source file:</span
+              >{{ " " }}{{ row.fix.source }}
+            </p>
+            <p class="text-sm text-[var(--text-secondary)] mt-1.5">
+              <span class="font-semibold text-[var(--text-heading)]">In the exported file:</span
+              >{{ " " }}{{ row.fix.app }}
+            </p>
+          </div>
+
+          <div v-if="practiceLinks(row.practice).length">
+            <p
+              class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
+            >
+              Read more
+            </p>
+            <p
+              v-if="row.practice.standard"
+              class="text-[11px] text-[var(--text-muted)] mt-1 mb-1.5"
+            >
+              {{ row.practice.standard }}
+            </p>
+            <ul class="mt-1 space-y-1 list-none p-0 m-0">
+              <li v-for="link in practiceLinks(row.practice)" :key="link.url" class="text-sm">
+                <a
+                  :href="link.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-[var(--link)] underline break-words"
+                  >{{ link.label }}</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { evaluateBestPractices, summarizeBestPractices } from "~/utils/bestPractices";
+import type {
+  BestPractice,
+  BestPracticeLink,
+  BestPracticeStatus,
+  EvaluatedPractice,
+} from "~/utils/bestPractices";
+import { safeLinks } from "~/utils/bestPractices/links";
+import { useWcag } from "~/composables/useWcag";
+
+const props = defineProps<{ result: unknown }>();
+
+// Version-aware WCAG Understanding links are resolved once here, not in the
+// catalog — the base URL lives in runtime config behind useWcag(), which a
+// module-scope array cannot call.
+const wcag = useWcag();
+
+// NOT MET first (the actionable ones), then MET, then NOT APPLICABLE, then
+// NOT CHECKED last — never by severity, because nothing here has one.
+// Array#sort is stable in every engine this app ships on, so ties keep the
+// catalog's own order within a status.
+const STATUS_ORDER: Record<BestPracticeStatus, number> = {
+  "not-met": 0,
+  met: 1,
+  "not-applicable": 2,
+  "not-checked": 3,
+};
+
+const rows = computed<EvaluatedPractice[]>(() =>
+  [...evaluateBestPractices(props.result)].sort(
+    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
+  ),
+);
+
+const summary = computed(() => summarizeBestPractices(rows.value));
+
+// No "N of 19" fraction anywhere — a denominator beside a status is read as
+// a grade in this product. Each chip stands alone. "worth doing" mirrors the
+// row pill's own wording rather than "not met", which would contradict it.
+const summaryChips = computed(() => [
+  { key: "not-met", count: summary.value.notMet, label: "worth doing" },
+  { key: "met", count: summary.value.met, label: "met" },
+  { key: "not-applicable", count: summary.value.notApplicable, label: "not applicable" },
+  { key: "not-checked", count: summary.value.notChecked, label: "not checked" },
+]);
+
+// Independent open state per row — unlike the plan's exclusive accordion, a
+// reader comparing two practices should be able to hold both open at once.
+const open = ref<Set<string>>(new Set());
+function toggle(id: string): void {
+  const next = new Set(open.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  open.value = next;
+}
+
+const STATUS_ICON: Record<BestPracticeStatus, string> = {
+  met: "✓",
+  "not-met": "○",
+  "not-applicable": "—",
+  "not-checked": "?",
+};
+// Sky for NOT MET (never red/amber — nothing here is a failure), emerald for
+// MET (this codebase's established "pass" colour — MatterhornReportPanel,
+// PdfUaVerdict, ReportContent all agree), muted for NOT APPLICABLE, amber
+// for NOT CHECKED (a neutral "unknown" tone, not a warning about the
+// document itself).
+const STATUS_ICON_CLASS: Record<BestPracticeStatus, string> = {
+  met: "text-emerald-400",
+  "not-met": "text-sky-400",
+  "not-applicable": "text-[var(--text-muted)]",
+  "not-checked": "text-amber-400",
+};
+const STATUS_LABEL: Record<BestPracticeStatus, string> = {
+  met: "MET",
+  "not-met": "WORTH DOING",
+  "not-applicable": "NOT APPLICABLE",
+  "not-checked": "NOT CHECKED",
+};
+const STATUS_PILL_CLASS: Record<BestPracticeStatus, string> = {
+  met: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
+  "not-met": "border-sky-500/40 bg-sky-500/10 text-sky-400",
+  "not-applicable":
+    "border-[var(--border-subtle)] bg-[var(--surface-raised)] text-[var(--text-muted)]",
+  "not-checked": "border-amber-500/40 bg-amber-500/10 text-amber-400",
+};
+function statusIcon(status: BestPracticeStatus): string {
+  return STATUS_ICON[status];
+}
+function statusIconClass(status: BestPracticeStatus): string {
+  return STATUS_ICON_CLASS[status];
+}
+function statusLabel(status: BestPracticeStatus): string {
+  return STATUS_LABEL[status];
+}
+function statusPillClass(status: BestPracticeStatus): string {
+  return STATUS_PILL_CLASS[status];
+}
+
+// Concatenated onto the practice's own links and passed through safeLinks()
+// TOGETHER — /report/[id] renders attacker-controlled stored JSON, and a
+// link is the one thing on the page a reader is invited to click.
+function practiceLinks(practice: BestPractice): BestPracticeLink[] {
+  const wcagLinks = (practice.wcagSlugs ?? []).map((s) => ({
+    label: s.label,
+    url: wcag.understandingUrl(s.slug),
+  }));
+  return safeLinks([...practice.links, ...wcagLinks]);
+}
+</script>
