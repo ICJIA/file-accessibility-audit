@@ -1246,6 +1246,17 @@ Most Office scorers never say "this is clean"; they emit advisory prose when som
 
 The fix is a **witness line**: a census line proving the scorer examined this aspect of the document. Where one exists, `MET = witness present AND no advisory`.
 
+**THE RULE HAS TWO HALVES, AND THE SECOND ONE IS EASY TO MISS.** `MET = witness present AND no advisory` is only sound when BOTH hold:
+
+1. the **witness** is emitted unconditionally whenever the scorer runs — before, and independently of, every advisory branch; **and**
+2. the **advisory** is emitted whenever its defect exists — it is not nested inside some *other* condition that can suppress it.
+
+Half 2 was discovered the hard way. `list-labels` was given a MET branch on a witness that passes half 1 perfectly — but its `<Lbl>` advisory (`supplementary.ts:204-206`) sits inside `if (wellFormed === qpdf.lists.length)` at `:200`, and `isWellFormed` (`qpdfService.ts:1561`) is `itemCount > 0 && itemsWithBody === itemCount`, which deliberately **ignores `<Lbl>` entirely**. So a document with any `<LI>` missing its `<LBody>` takes the `else` branch, never emits the string `have no <Lbl>`, still carries the witness, falls through to MET, and the section prints *"every item carries its own `<Lbl>` marker"* for a document where none does.
+
+That is a fabricated document fact on an ordinary Word or InDesign export — not a forged report — and it is exactly the failure the catalog exists to prevent.
+
+**So: before adding any witness-backed MET, read the advisory's enclosing conditions too, not just the witness's.** If the advisory can be suppressed by an unrelated condition, either qualify the MET with the property it actually claims (for `list-labels`: require every `/^List\b/` line in the `List Structure Analysis` signal group to contain `<Lbl> ✓`), or omit the MET branch.
+
 **The qualifying rule, and it is strict.** A line is a valid witness ONLY if the scorer emits it *unconditionally whenever it runs* — never only when it finds a problem. This is exactly the distinction that inverted `heading-content` in the PDF catalog: its `--- Do the Headings Read Like Headings? ---` group is pushed only *after* an early return for the clean case, so gating MET on it meant MET fired only on flagged documents. Before using any line as a witness, read its scorer and confirm it is pushed before, and independently of, every advisory branch.
 
 Verified witnesses (2026-08-30):
