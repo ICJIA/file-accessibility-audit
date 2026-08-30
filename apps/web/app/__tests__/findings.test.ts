@@ -288,25 +288,51 @@ describe("isNeutralFinding — quoted document text cannot flip the icon", () =>
 describe("isNotScoredFinding — the analyzer's prefix contract", () => {
   it("recognises all three not-scored prefixes the analyzer emits", () => {
     expect(
-      isNotScoredFinding(
-        "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6).",
-      ),
+      isNotScoredFinding("PDF/UA only — not scored: only generic <H> tags were found (not H1–H6)."),
     ).toBe(true);
     expect(
-      isNotScoredFinding("Advisory — not scored: the structure tree is flat (no meaningful nesting)"),
+      isNotScoredFinding(
+        "Advisory — not scored: the structure tree is flat (no meaningful nesting)",
+      ),
     ).toBe(true);
     expect(
       isNotScoredFinding("Advisory — not scored against you: 3 link(s) show the raw URL"),
     ).toBe(true);
     // The six Word/Excel lines that render today under "Required by WCAG 2.1".
-    expect(
-      isNotScoredFinding("Note — not scored: 12 merged cell(s) across the table(s)."),
-    ).toBe(true);
+    expect(isNotScoredFinding("Note — not scored: 12 merged cell(s) across the table(s).")).toBe(
+      true,
+    );
   });
 
   it("does not claim ordinary findings or the guidance prefix", () => {
     expect(isNotScoredFinding("Note: this is informational")).toBe(false);
     expect(isNotScoredFinding("5 image(s) found, none have alt text")).toBe(false);
     expect(isNotScoredFinding("")).toBe(false);
+  });
+
+  it("enforces the contract: case-insensitive matching and em dash literal", () => {
+    // Case-insensitivity: the function must normalise input to lowercase.
+    // A future "cleanup" that removed .toLowerCase() would silently break all
+    // not-scored detection and reintroduce the mislabelling bug this fixes.
+    expect(isNotScoredFinding("note — not scored: x")).toBe(true);
+    expect(isNotScoredFinding("NOTE — NOT SCORED: x")).toBe(true);
+    expect(
+      isNotScoredFinding(
+        "Advisory — not scored: the structure tree is flat (no meaningful nesting)",
+      ),
+    ).toBe(true);
+    expect(
+      isNotScoredFinding(
+        "ADVISORY — NOT SCORED: THE STRUCTURE TREE IS FLAT (NO MEANINGFUL NESTING)",
+      ),
+    ).toBe(true);
+
+    // Em dash (U+2014) is literal and required. A character-substitution bug
+    // (e.g., normalising to ASCII hyphen "-") would silently reintroduce the
+    // exact mislabelling defect this function prevents. The suite must fail
+    // if the em dash is accidentally changed.
+    expect(isNotScoredFinding("Note - not scored: x")).toBe(false);
+    expect(isNotScoredFinding("PDF/UA only - not scored: x")).toBe(false);
+    expect(isNotScoredFinding("Advisory - not scored: x")).toBe(false);
   });
 });
