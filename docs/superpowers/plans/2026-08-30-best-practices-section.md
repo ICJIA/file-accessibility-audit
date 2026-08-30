@@ -1240,6 +1240,25 @@ export const OFFICE_PRACTICES: BestPractice[] = [
 ];
 ```
 
+**WITNESS LINES — how a practice earns MET when the scorer has no "all clear" line.**
+
+Most Office scorers never say "this is clean"; they emit advisory prose when something is wrong and nothing when it is not. Taken naively that leaves a flawless Word document showing nine grey NOT CHECKED rows and nothing green, which reads as "this tool checked nothing" — worse than saying nothing at all.
+
+The fix is a **witness line**: a census line proving the scorer examined this aspect of the document. Where one exists, `MET = witness present AND no advisory`.
+
+**The qualifying rule, and it is strict.** A line is a valid witness ONLY if the scorer emits it *unconditionally whenever it runs* — never only when it finds a problem. This is exactly the distinction that inverted `heading-content` in the PDF catalog: its `--- Do the Headings Read Like Headings? ---` group is pushed only *after* an early return for the clean case, so gating MET on it meant MET fired only on flagged documents. Before using any line as a witness, read its scorer and confirm it is pushed before, and independently of, every advisory branch.
+
+Verified witnesses (2026-08-30):
+
+| Witness | Emitted | Serves |
+|---|---|---|
+| `${total} real heading(s) found.` — docx.ts:162 | unconditionally once `total > 0`, before every advisory | `docx-first-heading-is-h1`, `docx-heading-skips`, `docx-empty-headings` |
+| `${a.tables.length} table(s) found.` — docx.ts:290 | unconditionally once tables exist (the no-tables case early-returns above) | `docx-layout-grids`, `docx-nested-tables`, `docx-merged-cells`, `docx-empty-table-rows` |
+
+Check every remaining Office practice for a witness of its own the same way. Where none qualifies, keep NOT CHECKED — an unqualified witness is worse than none, because it produces the inverted gate.
+
+**A witness-backed MET must say what was actually established**, not more. "This document's tables were checked and none use merged or split cells." — not "this document is accessible".
+
 **The verified Office positive lines.** Each format's MET branch may use only
 its OWN scorer's positive line. Never reuse a PDF string — `"All N table(s)
 have proper row structure"` and `"All N link(s) use descriptive text"` are
