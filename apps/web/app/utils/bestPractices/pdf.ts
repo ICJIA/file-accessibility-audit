@@ -67,8 +67,8 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       "Headings should step down one level at a time — H1, then H2, then H3. Jumping a level leaves a gap in the outline.",
     why: "Screen-reader users move through a document by jumping between headings. A skipped level reads as a missing section: they cannot tell whether they missed something or whether the document simply has a gap.",
-    standard: "Matterhorn Protocol 13-004 · WCAG technique G141",
-    links: links(matterhornLink("13"), techniqueLink("G141")),
+    standard: "Matterhorn Protocol 14 (Headings) · WCAG technique G141",
+    links: links(matterhornLink("14"), techniqueLink("G141")),
     detect(ctx) {
       // ORDER IS LOAD-BEARING: pdf.ts:924 pushes the "logical hierarchy"
       // line unconditionally — it sits after the gap check (:906-913) with
@@ -416,9 +416,11 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "PDF/UA (ISO 14289) clause 7.21 · Matterhorn Protocol 31",
     links: links(matterhornLink("31")),
     detect(ctx) {
-      // No ordering hazard: the analyzer's font-embedding block is a plain
-      // if / else-if / else — exactly one of the three outcomes below is
-      // ever pushed for a given document.
+      // No ordering hazard: re-verified against pdf.ts (the source of the
+      // fixtures below) — the font-embedding block is a plain
+      // if (flagged) / else if (exempt) / else (all embedded) chain, so
+      // "non-embedded font(s)" (NOT MET) can never coexist with either MET
+      // line in one document's findings.
       const flagged = matchNotScored(ctx, "non-embedded font(s)");
       if (flagged) {
         const count = firstNumber(flagged);
@@ -444,6 +446,22 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: ["Every font used to display text in this document is embedded."],
+        };
+      }
+      // A second, narrower positive line: some fonts are not embedded, but
+      // none of them ever paints visible text (typically leftover
+      // whitespace runs from the source word processor) — matchAny's
+      // needles must ALL occur in one line, and this line's extra words
+      // ("used to display text") mean the needle above never matches it,
+      // so it needs its own check or a document that genuinely passes
+      // reads NOT CHECKED instead.
+      if (matchAny(ctx, "all fonts used to display text are embedded")) {
+        return {
+          status: "met",
+          evidence: [
+            "Every font that actually puts text on the page is embedded.",
+            "A few font entries are not embedded, but they never display visible text — usually leftover spacing from the program the document came from — so they cannot change how it looks or reads.",
+          ],
         };
       }
       return notChecked("This document's font embedding was not evaluated.");

@@ -300,12 +300,17 @@ describe("font-embedding", () => {
     expect(run("font-embedding", [MET_LINE]).status).toBe("met");
   });
 
-  it("is NOT CHECKED for the exempt case (non-embedded fonts that never paint visible text)", () => {
-    // Documented gap: the brief gives no needle for this third analyzer
-    // branch (harmless non-embedded fonts). NOT CHECKED is the safe,
-    // honest default rather than inventing an unreviewed needle — see the
-    // task report.
-    expect(run("font-embedding", [EXEMPT_LINE]).status).toBe("not-checked");
+  it("is MET for the exempt case — non-embedded fonts that never paint visible text still pass", () => {
+    // pdf.ts has a THIRD, narrower positive line the brief's single MET
+    // needle does not match ("all fonts are embedded" is not a substring
+    // of "All fonts USED TO DISPLAY TEXT are embedded…"). Missing this
+    // needle would under-report a document that genuinely passes as NOT
+    // CHECKED — safe, but wrong. Both needles are matched now.
+    const r = run("font-embedding", [EXEMPT_LINE]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(
+      /do not affect rendering|cannot change how it looks or reads/,
+    );
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
