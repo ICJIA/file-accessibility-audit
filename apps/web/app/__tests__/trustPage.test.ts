@@ -93,6 +93,32 @@ describe("Can I trust this? — the /trust page", () => {
     expect(body).toMatch(/re-save test/i);
   });
 
+  it("the self-check figure it prints matches brief-stats.json, everywhere", () => {
+    // The COUNTERPART of the trap-inventory test above, and the drift it
+    // exists to stop actually happened: a task added 21 web tests, updated
+    // brief-stats.json to 3,323 and the CHANGELOG with it, and the page kept
+    // rendering 3,302 for want of a `pnpm build-brief` — with nothing in the
+    // suite to notice. The trap count was pinned; the test count was not.
+    //
+    // The figure appears four times in the generated body, in three different
+    // shapes, and a stale one anywhere is the same broken promise: the page
+    // says "all N must pass" about a battery that no longer has N in it.
+    const stats = JSON.parse(
+      readFileSync(resolve(WEB, "../../../scripts/brief-stats.json"), "utf8"),
+    );
+    const body = readFileSync(resolve(WEB, "data/trustBody.ts"), "utf8");
+    const n = Number(stats.tests).toLocaleString("en-US");
+    // The hero stat, where the number and its label sit in sibling divs.
+    expect(body).toContain(`mono\\">${n}</div><div class=\\"l\\">self-checks`);
+    // Every place it is spelled out in prose beside the words themselves.
+    const inline = [...body.matchAll(/([\d,]+) self-checks/g)].map((m) => m[1]);
+    expect(inline.length).toBeGreaterThan(0);
+    for (const found of inline) expect(found).toBe(n);
+    // And the two prose sentences that carry the number without the noun.
+    expect(body).toContain(`all ${n} must pass`);
+    expect(body).toContain(`to ${n} today`);
+  });
+
   it("the header nav links it — a NuxtLink now, because /trust is a real route", () => {
     const headerNav = layout.slice(0, layout.indexOf("</nav>"));
     expect(headerNav).toMatch(/<NuxtLink[^>]*to="\/trust"/);
