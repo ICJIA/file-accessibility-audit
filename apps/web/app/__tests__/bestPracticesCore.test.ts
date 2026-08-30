@@ -137,7 +137,7 @@ describe("link resolution", () => {
     const l = matterhornLink("13");
     expect(l).not.toBeNull();
     expect(l!.label).toMatch(/^Matterhorn 13 —/);
-    expect(l!.url).toMatch(/^https:\/\//);
+    expect(l!.url).toBe("https://pdfa.org/resource/the-matterhorn-protocol/");
   });
 
   it("returns null for a checkpoint the protocol does not define", () => {
@@ -150,6 +150,12 @@ describe("link resolution", () => {
     expect(l.url).toBe("https://www.w3.org/WAI/WCAG22/Techniques/general/G141");
   });
 
+  it("builds a W3C technique link for PDF-class codes", () => {
+    const l = techniqueLink("PDF17");
+    expect(l.label).toBe("WCAG technique PDF17");
+    expect(l.url).toBe("https://www.w3.org/WAI/WCAG22/Techniques/pdf/PDF17");
+  });
+
   it("builds an Understanding link through the injected version-aware builder", () => {
     const l = understandingLink(
       "info-and-relationships",
@@ -159,13 +165,24 @@ describe("link resolution", () => {
     expect(l!.url).toBe("https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html");
   });
 
+  it("returns null when the slug is empty", () => {
+    const l = understandingLink("", "x", (s) => s);
+    expect(l).toBeNull();
+  });
+
   it("drops links whose URL is not http(s) — the shared page's data is stored JSON", () => {
-    const kept = safeLinks([
+    const input = [
       { label: "ok", url: "https://example.org/a" },
       { label: "script", url: "javascript:alert(1)" },
       { label: "data", url: "data:text/html,<script>alert(1)</script>" },
       { label: "empty", url: "" },
-    ]);
+    ];
+    const kept = safeLinks(input);
     expect(kept.map((l) => l.label)).toEqual(["ok"]);
+    // Assert the surviving entry's URL passed through unchanged.
+    expect(kept[0]!.url).toBe("https://example.org/a");
+    // Assert the call does not mutate its input.
+    expect(input.length).toBe(4);
+    expect(input[0]!.url).toBe("https://example.org/a");
   });
 });

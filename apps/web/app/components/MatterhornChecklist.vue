@@ -14,6 +14,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import {
   MATTERHORN_CHECKPOINTS,
   MATTERHORN_FACTS,
+  MATTERHORN_PROTOCOL_URL,
   type MatterhornCoverage,
 } from "~/data/matterhorn";
 
@@ -169,7 +170,7 @@ const coverageCount = computed(() => {
             <p>
               The protocol itself is published free by the PDF Association — read the
               <a
-                href="https://pdfa.org/resource/the-matterhorn-protocol/"
+                :href="MATTERHORN_PROTOCOL_URL"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-[var(--link)] hover:text-[var(--link-hover)]"
@@ -264,7 +265,7 @@ const coverageCount = computed(() => {
             <p class="text-xs text-[var(--text-muted)] leading-relaxed">
               It's the PDF industry's official test model for accessible PDFs, published by the
               <a
-                href="https://pdfa.org/resource/the-matterhorn-protocol/"
+                :href="MATTERHORN_PROTOCOL_URL"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-[var(--link)] hover:text-[var(--link-hover)]"

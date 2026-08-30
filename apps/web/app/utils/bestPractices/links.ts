@@ -5,14 +5,9 @@
  * data is attacker-controlled stored JSON, and a link is the one thing on the
  * page a reader is invited to click.
  */
-import { MATTERHORN_CHECKPOINTS } from "~/data/matterhorn";
+import { MATTERHORN_CHECKPOINTS, MATTERHORN_PROTOCOL_URL } from "~/data/matterhorn";
 import { safeHttpUrl } from "@file-audit/shared";
 import type { BestPracticeLink } from "./types";
-
-/** The PDF Association's Matterhorn Protocol landing page. Checkpoints are
- *  not separately addressable, so every checkpoint links here and carries its
- *  number and name in the label. */
-const MATTERHORN_URL = "https://pdfa.org/resource/matterhorn-protocol/";
 
 /** W3C techniques are filed by their letter prefix: G=general, PDF=pdf,
  *  H=html, F=failures. Only G and PDF are cited by this catalog. */
@@ -26,7 +21,7 @@ const TECHNIQUE_DIR: Record<string, string> = {
 export function matterhornLink(id: string): BestPracticeLink | null {
   const cp = MATTERHORN_CHECKPOINTS.find((c) => c.id === id);
   if (!cp) return null;
-  return { label: `Matterhorn ${cp.id} — ${cp.name}`, url: MATTERHORN_URL };
+  return { label: `Matterhorn ${cp.id} — ${cp.name}`, url: MATTERHORN_PROTOCOL_URL };
 }
 
 export function techniqueLink(code: string): BestPracticeLink {
