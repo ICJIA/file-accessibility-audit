@@ -7,15 +7,15 @@
  * If a test here fails after an analyzer change, the catalog's matcher is
  * stale — fix the matcher, do not loosen the test.
  *
- * UNLIKE bestPracticesPdf.test.ts, no fixture here needs to carry a
- * "positive" line alongside its advisory: re-verified against source on
- * 2026-08-30, no Office scorer pushes a positive line unconditionally
- * alongside an advisory the way several PDF lines do. Every advisory here
- * is gated behind its own independent count check.
- *
- * MOST PRACTICES IN THIS FILE HAVE NO MET BRANCH — see office.ts's header
- * comment. Only xlsx-sheet-names, pptx-slide-titles, and
- * pptx-distinct-slide-titles have one to test.
+ * WITNESS LINES. Sixteen of these practices key MET off a census line the
+ * scorer pushes unconditionally before any advisory (office.ts's header
+ * comment explains the qualifying rule and the one line that needs an
+ * extra numeric gate: xlsx.ts's table-markup witness at n=0). EVERY NOT MET
+ * fixture below therefore includes BOTH the witness line AND the advisory
+ * — exactly as a real document would emit them — so a branch reorder (MET
+ * checked before NOT MET) fails these tests. A fixture that omitted the
+ * witness would not prove the ordering; it would only prove the advisory
+ * matches, which is a weaker claim.
  */
 import { describe, it, expect } from "vitest";
 import { OFFICE_PRACTICES } from "../utils/bestPractices/office";
@@ -45,6 +45,28 @@ const DOCX_NO_HEADINGS =
 const DOCX_NO_TABLES = "No tables were found.";
 const DOCX_NO_LINKS = "No hyperlinks were found.";
 
+// docx.ts:162 — pushed unconditionally inside `if (total > 0)`, before
+// every heading-structure advisory. Witnesses docx-first-heading-is-h1,
+// docx-heading-skips, docx-empty-headings.
+const DOCX_HEADING_WITNESS = "4 real heading(s) found.";
+
+// docx.ts:290 — the findings array initializer, pushed unconditionally
+// whenever a.tables.length > 0, before every table_markup advisory.
+// Witnesses docx-layout-grids, docx-nested-tables, docx-merged-cells,
+// docx-empty-table-rows.
+const DOCX_TABLE_WITNESS = "3 table(s) found.";
+
+// docx.ts:85-87 — the ONLY line scoreDocxText ever pushes unconditionally
+// (this whole function has no branch that could skip it). Witnesses
+// docx-empty-paragraph-runs.
+const DOCX_TEXT_WITNESS =
+  "Word documents contain fully extractable, selectable text — unlike a scanned PDF, the content is always available to assistive technology.";
+
+// docx.ts's link-quality findings[0] — pushed unconditionally whenever
+// a.links.length > 0, before the raw-URL advisory. Witnesses
+// docx-raw-url-link-text.
+const DOCX_LINK_WITNESS = "5 link(s) found; 1 with unclear text.";
+
 const DOCX_FIRST_HEADING_NOT_H1 =
   "Advisory — not scored: the first heading is Heading 3, not Heading 1 — your grade is not affected, but starting the outline at Heading 1 gives it a single root.";
 const DOCX_HEADING_SKIPS =
@@ -72,6 +94,10 @@ const PPTX_NO_SLIDES = "No slides were found.";
 const PPTX_NO_LINKS = "No hyperlinks were found.";
 const PPTX_DISTINCT_MET = "All 8 visible slide(s) have a distinct title.";
 
+// pptx.ts's link-quality findings[0] — same shape as docx.ts's. Witnesses
+// pptx-raw-url-link-text.
+const PPTX_LINK_WITNESS = "6 link(s) found; 2 with unclear text.";
+
 // pptx.ts:154's template, rendered for one untitled slide (index 5) and for
 // three (indices 3, 7, 12) — the source builds this from a multi-line
 // template expression, not a single string literal, so there is no one
@@ -95,6 +121,24 @@ const XLSX_NO_SHEETS = "No visible sheets were found.";
 const XLSX_NO_DATA = "No tables or sizable data ranges were found.";
 const XLSX_NO_LINKS = "No hyperlinks were found.";
 const XLSX_SHEET_NAMES_MET = "All 4 visible sheet(s) have descriptive names.";
+
+// xlsx.ts:207 — the findings array initializer, pushed unconditionally
+// whenever the early return is not taken. Witnesses xlsx-data-outside-
+// tables, xlsx-pivot-tables, xlsx-data-start, xlsx-merged-cells directly;
+// xlsx-defined-tables ALSO requires this witness's own count to be > 0
+// (see XLSX_TABLE_WITNESS_ZERO below for the trap that gate closes).
+const XLSX_TABLE_WITNESS = "2 defined table(s) found.";
+// The pivot-only-workbook trap office.ts's header comment documents: this
+// line is pushed even at n=0 whenever a workbook's only sizable data lives
+// on a sheet excluded from `datafulWithoutTable` by being a pivot. Paired
+// with a pivot-tables advisory and NO defined-tables advisory, this must
+// NOT read MET for xlsx-defined-tables.
+const XLSX_TABLE_WITNESS_ZERO = "0 defined table(s) found.";
+const XLSX_PIVOT_ONLY_WORKBOOK =
+  'Note — not scored: 1 sheet(s) contain pivot tables ("PivotSheet"). Pivots cannot become Excel Tables; verify their readability manually.';
+
+// xlsx.ts's link-quality findings[0] — witnesses xlsx-raw-url-link-text.
+const XLSX_LINK_WITNESS = "4 link(s) assessed; 1 with unclear text.";
 
 const XLSX_RENAME_ONE =
   'Advisory — not scored: rename "Sheet1" to describe its contents — your grade is not affected, but sheet names are the workbook\'s navigation and screen-reader users hear them when switching sheets.';
@@ -127,30 +171,34 @@ const XLSX_RAW_URL =
 // forbidden-phrasing sweep below. Every line here is copied from the
 // fixtures used in that practice's own describe block above.
 const NOT_MET_TRIGGERS: Record<string, string[]> = {
-  "docx-first-heading-is-h1": [DOCX_FIRST_HEADING_NOT_H1],
-  "docx-heading-skips": [DOCX_HEADING_SKIPS],
-  "docx-empty-headings": [DOCX_EMPTY_HEADINGS],
-  "docx-empty-paragraph-runs": [DOCX_EMPTY_PARAGRAPH_RUNS],
-  "docx-layout-grids": [DOCX_LAYOUT_GRIDS],
-  "docx-nested-tables": [DOCX_NESTED_TABLES],
-  "docx-merged-cells": [DOCX_MERGED_CELLS],
-  "docx-empty-table-rows": [DOCX_EMPTY_TABLE_ROWS],
-  "docx-raw-url-link-text": [DOCX_RAW_URL],
+  "docx-first-heading-is-h1": [DOCX_HEADING_WITNESS, DOCX_FIRST_HEADING_NOT_H1],
+  "docx-heading-skips": [DOCX_HEADING_WITNESS, DOCX_HEADING_SKIPS],
+  "docx-empty-headings": [DOCX_HEADING_WITNESS, DOCX_EMPTY_HEADINGS],
+  "docx-empty-paragraph-runs": [DOCX_TEXT_WITNESS, DOCX_EMPTY_PARAGRAPH_RUNS],
+  "docx-layout-grids": [DOCX_TABLE_WITNESS, DOCX_LAYOUT_GRIDS],
+  "docx-nested-tables": [DOCX_TABLE_WITNESS, DOCX_NESTED_TABLES],
+  "docx-merged-cells": [DOCX_TABLE_WITNESS, DOCX_MERGED_CELLS],
+  "docx-empty-table-rows": [DOCX_TABLE_WITNESS, DOCX_EMPTY_TABLE_ROWS],
+  "docx-raw-url-link-text": [DOCX_LINK_WITNESS, DOCX_RAW_URL],
   "pptx-slide-titles": [PPTX_UNTITLED_MANY],
   "pptx-distinct-slide-titles": [PPTX_DUP_ONE],
-  "pptx-raw-url-link-text": [PPTX_RAW_URL],
+  "pptx-raw-url-link-text": [PPTX_LINK_WITNESS, PPTX_RAW_URL],
   "xlsx-sheet-names": [XLSX_RENAME_ONE, XLSX_RENAME_TWO],
   "xlsx-defined-tables": [XLSX_NO_DEFINED_TABLE],
-  "xlsx-data-outside-tables": [XLSX_DATA_OUTSIDE_TABLE],
-  "xlsx-pivot-tables": [XLSX_PIVOT_ONE],
-  "xlsx-data-start": [XLSX_DATA_START_ONE],
-  "xlsx-merged-cells": [XLSX_MERGED_ONE],
-  "xlsx-raw-url-link-text": [XLSX_RAW_URL],
+  "xlsx-data-outside-tables": [XLSX_TABLE_WITNESS, XLSX_DATA_OUTSIDE_TABLE],
+  "xlsx-pivot-tables": [XLSX_TABLE_WITNESS, XLSX_PIVOT_ONE],
+  "xlsx-data-start": [XLSX_TABLE_WITNESS, XLSX_DATA_START_ONE],
+  "xlsx-merged-cells": [XLSX_TABLE_WITNESS, XLSX_MERGED_ONE],
+  "xlsx-raw-url-link-text": [XLSX_LINK_WITNESS, XLSX_RAW_URL],
 };
 
 describe("docx-first-heading-is-h1", () => {
-  it("is NOT MET and reports the level, not a count", () => {
-    const r = run("docx-first-heading-is-h1", [DOCX_FIRST_HEADING_NOT_H1]);
+  it("is NOT MET, even with the witness line present, and reports the level, not a count", () => {
+    // ORDER PROOF: a real document with this problem carries BOTH lines —
+    // docx.ts:162 pushes the witness unconditionally before the
+    // first-heading check even runs. If MET were checked first, this
+    // fixture would (wrongly) read MET.
+    const r = run("docx-first-heading-is-h1", [DOCX_HEADING_WITNESS, DOCX_FIRST_HEADING_NOT_H1]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/Heading 3/);
     expect(r.evidence.join(" ")).not.toMatch(/3 headings?\b/i);
@@ -165,20 +213,26 @@ describe("docx-first-heading-is-h1", () => {
     expect(practice("docx-first-heading-is-h1").detect(ctx).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED — never MET — when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no first-heading advisory", () => {
+    const r = run("docx-first-heading-is-h1", [DOCX_HEADING_WITNESS]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/starts at Heading 1/);
+  });
+
+  it("is NOT CHECKED — never MET — when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-first-heading-is-h1", []).status).toBe("not-checked");
   });
 });
 
 describe("docx-heading-skips", () => {
-  it("is NOT MET, pluralized correctly for more than one skip", () => {
-    const r = run("docx-heading-skips", [DOCX_HEADING_SKIPS]);
+  it("is NOT MET, even with the witness line present, pluralized correctly for more than one skip", () => {
+    const r = run("docx-heading-skips", [DOCX_HEADING_WITNESS, DOCX_HEADING_SKIPS]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2 places/);
   });
 
   it("is NOT MET, pluralized correctly for exactly one skip", () => {
-    const r = run("docx-heading-skips", [DOCX_HEADING_SKIPS_ONE]);
+    const r = run("docx-heading-skips", [DOCX_HEADING_WITNESS, DOCX_HEADING_SKIPS_ONE]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/1 place\b/);
     expect(r.evidence.join(" ")).not.toMatch(/1 places/);
@@ -188,14 +242,20 @@ describe("docx-heading-skips", () => {
     expect(run("docx-heading-skips", [DOCX_NO_HEADINGS]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no skip advisory", () => {
+    const r = run("docx-heading-skips", [DOCX_HEADING_WITNESS]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/none of the levels skip a step/);
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-heading-skips", []).status).toBe("not-checked");
   });
 });
 
 describe("docx-empty-headings", () => {
-  it("is NOT MET", () => {
-    const r = run("docx-empty-headings", [DOCX_EMPTY_HEADINGS]);
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("docx-empty-headings", [DOCX_HEADING_WITNESS, DOCX_EMPTY_HEADINGS]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2 empty Heading-styled paragraphs/);
   });
@@ -204,19 +264,28 @@ describe("docx-empty-headings", () => {
     expect(run("docx-empty-headings", [DOCX_NO_HEADINGS]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no empty-heading advisory", () => {
+    expect(run("docx-empty-headings", [DOCX_HEADING_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-empty-headings", []).status).toBe("not-checked");
   });
 });
 
 describe("docx-empty-paragraph-runs", () => {
-  it("is NOT MET", () => {
-    const r = run("docx-empty-paragraph-runs", [DOCX_EMPTY_PARAGRAPH_RUNS]);
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("docx-empty-paragraph-runs", [DOCX_TEXT_WITNESS, DOCX_EMPTY_PARAGRAPH_RUNS]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/3 places/);
   });
 
-  it("is NOT CHECKED — no N/A line and no positive line exist for this concern", () => {
+  it("is MET when the witness (scoreDocxText's only unconditional line) is present alone", () => {
+    const r = run("docx-empty-paragraph-runs", [DOCX_TEXT_WITNESS]);
+    expect(r.status).toBe("met");
+  });
+
+  it("is NOT CHECKED — no witness and no advisory present", () => {
     expect(run("docx-empty-paragraph-runs", []).status).toBe("not-checked");
   });
 
@@ -227,8 +296,8 @@ describe("docx-empty-paragraph-runs", () => {
 });
 
 describe("docx-layout-grids", () => {
-  it("is NOT MET", () => {
-    const r = run("docx-layout-grids", [DOCX_LAYOUT_GRIDS]);
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("docx-layout-grids", [DOCX_TABLE_WITNESS, DOCX_LAYOUT_GRIDS]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2 bare grids/);
   });
@@ -242,28 +311,38 @@ describe("docx-layout-grids", () => {
     expect(practice("docx-layout-grids").detect(ctx).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no bare-grid advisory", () => {
+    expect(run("docx-layout-grids", [DOCX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-layout-grids", []).status).toBe("not-checked");
   });
 });
 
 describe("docx-nested-tables", () => {
-  it("is NOT MET", () => {
-    expect(run("docx-nested-tables", [DOCX_NESTED_TABLES]).status).toBe("not-met");
+  it("is NOT MET, even with the witness line present", () => {
+    expect(run("docx-nested-tables", [DOCX_TABLE_WITNESS, DOCX_NESTED_TABLES]).status).toBe(
+      "not-met",
+    );
   });
 
   it("is NOT APPLICABLE when the document has no tables", () => {
     expect(run("docx-nested-tables", [DOCX_NO_TABLES]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no nested-table advisory", () => {
+    expect(run("docx-nested-tables", [DOCX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-nested-tables", []).status).toBe("not-checked");
   });
 });
 
 describe("docx-merged-cells", () => {
-  it("is NOT MET and surfaces the count", () => {
-    const r = run("docx-merged-cells", [DOCX_MERGED_CELLS]);
+  it("is NOT MET, even with the witness line present, and surfaces the count", () => {
+    const r = run("docx-merged-cells", [DOCX_TABLE_WITNESS, DOCX_MERGED_CELLS]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/12 merged cells/);
     expect(r.fix?.source).toBeTruthy();
@@ -286,9 +365,16 @@ describe("docx-merged-cells", () => {
     expect(practice("docx-merged-cells").detect(ctx).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED when the document has tables but merged cells were not flagged (no positive line exists)", () => {
-    const r = run("docx-merged-cells", ["3 table(s) found."]);
-    expect(r.status).toBe("not-checked");
+  it("is MET when the witness is present with no merged-cell advisory, using the coordinator's own example copy", () => {
+    const r = run("docx-merged-cells", [DOCX_TABLE_WITNESS]);
+    expect(r.status).toBe("met");
+    expect(r.evidence).toEqual([
+      "This document's tables were checked, and none use merged or split cells.",
+    ]);
+  });
+
+  it("is NOT CHECKED when neither the witness nor the advisory is present", () => {
+    expect(run("docx-merged-cells", []).status).toBe("not-checked");
   });
 });
 
@@ -311,8 +397,8 @@ describe("the six 'Note — not scored' lines Task 1 unblocked", () => {
 });
 
 describe("docx-empty-table-rows", () => {
-  it("is NOT MET", () => {
-    const r = run("docx-empty-table-rows", [DOCX_EMPTY_TABLE_ROWS]);
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("docx-empty-table-rows", [DOCX_TABLE_WITNESS, DOCX_EMPTY_TABLE_ROWS]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/4 entirely empty table rows/);
   });
@@ -321,14 +407,18 @@ describe("docx-empty-table-rows", () => {
     expect(run("docx-empty-table-rows", [DOCX_NO_TABLES]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no empty-row advisory", () => {
+    expect(run("docx-empty-table-rows", [DOCX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-empty-table-rows", []).status).toBe("not-checked");
   });
 });
 
 describe("docx-raw-url-link-text", () => {
-  it("is NOT MET (un-prefixed in the analyzer's category header, but 'Advisory — not scored against you' IS recognised)", () => {
-    const r = run("docx-raw-url-link-text", [DOCX_RAW_URL]);
+  it("is NOT MET, even with the witness line present (un-prefixed in the analyzer's category header, but 'Advisory — not scored against you' IS recognised)", () => {
+    const r = run("docx-raw-url-link-text", [DOCX_LINK_WITNESS, DOCX_RAW_URL]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2 link\(s\)/);
   });
@@ -342,7 +432,11 @@ describe("docx-raw-url-link-text", () => {
     expect(practice("docx-raw-url-link-text").detect(ctx).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no raw-URL advisory", () => {
+    expect(run("docx-raw-url-link-text", [DOCX_LINK_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("docx-raw-url-link-text", []).status).toBe("not-checked");
   });
 });
@@ -412,8 +506,8 @@ describe("pptx-distinct-slide-titles", () => {
 });
 
 describe("pptx-raw-url-link-text", () => {
-  it("is NOT MET", () => {
-    const r = run("pptx-raw-url-link-text", [PPTX_RAW_URL]);
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("pptx-raw-url-link-text", [PPTX_LINK_WITNESS, PPTX_RAW_URL]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/3 link\(s\)/);
   });
@@ -422,7 +516,11 @@ describe("pptx-raw-url-link-text", () => {
     expect(run("pptx-raw-url-link-text", [PPTX_NO_LINKS]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no raw-URL advisory", () => {
+    expect(run("pptx-raw-url-link-text", [PPTX_LINK_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("pptx-raw-url-link-text", []).status).toBe("not-checked");
   });
 });
@@ -484,14 +582,32 @@ describe("xlsx-defined-tables", () => {
     expect(run("xlsx-defined-tables", [XLSX_DATA_OUTSIDE_TABLE]).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with n > 0 and no defined-table advisory", () => {
+    const r = run("xlsx-defined-tables", [XLSX_TABLE_WITNESS]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/uses at least one defined Excel Table/);
+  });
+
+  it("is NOT CHECKED — never MET — for the pivot-only-workbook trap: witness present at n=0, no defined-table advisory (pivots are excluded from that check), so claiming 'uses a defined Table' would be false", () => {
+    // This is the exact scenario office.ts's header comment documents: a
+    // workbook whose only sizable data lives on a pivot sheet pushes
+    // "0 defined table(s) found." WITHOUT tripping the "no defined Excel
+    // Table anywhere" advisory (pivot sheets are excluded from
+    // `datafulWithoutTable`), so a bare "witness present + no advisory"
+    // gate would wrongly report MET on a workbook with zero defined
+    // tables. The extra n > 0 gate in office.ts is what prevents that.
+    const r = run("xlsx-defined-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_PIVOT_ONLY_WORKBOOK]);
+    expect(r.status).toBe("not-checked");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("xlsx-defined-tables", []).status).toBe("not-checked");
   });
 });
 
 describe("xlsx-data-outside-tables", () => {
-  it("is NOT MET when a table exists but other data sits outside it", () => {
-    const r = run("xlsx-data-outside-tables", [XLSX_DATA_OUTSIDE_TABLE]);
+  it("is NOT MET, even with the witness line present, when a table exists but other data sits outside it", () => {
+    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS, XLSX_DATA_OUTSIDE_TABLE]);
     expect(r.status).toBe("not-met");
   });
 
@@ -503,14 +619,18 @@ describe("xlsx-data-outside-tables", () => {
     expect(run("xlsx-data-outside-tables", [XLSX_NO_DEFINED_TABLE]).status).toBe("not-checked");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no data-outside-tables advisory — unlike xlsx-defined-tables, this concern is orthogonal to the witness's own count, so no extra gate is needed", () => {
+    expect(run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("xlsx-data-outside-tables", []).status).toBe("not-checked");
   });
 });
 
 describe("xlsx-pivot-tables", () => {
-  it("is NOT MET and names the sheet", () => {
-    const r = run("xlsx-pivot-tables", [XLSX_PIVOT_ONE]);
+  it("is NOT MET, even with the witness line present, and names the sheet", () => {
+    const r = run("xlsx-pivot-tables", [XLSX_TABLE_WITNESS, XLSX_PIVOT_ONE]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/1 sheet\b/);
     expect(r.evidence.join(" ")).not.toMatch(/1 sheets/);
@@ -520,20 +640,24 @@ describe("xlsx-pivot-tables", () => {
     expect(run("xlsx-pivot-tables", [XLSX_NO_DATA]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no pivot-table advisory", () => {
+    expect(run("xlsx-pivot-tables", [XLSX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("xlsx-pivot-tables", []).status).toBe("not-checked");
   });
 });
 
 describe("xlsx-data-start", () => {
-  it("is NOT MET for one sheet, extracting row/column rather than calling firstNumber (a quoted sheet name with a digit, e.g. 'Sheet1', would corrupt it)", () => {
-    const r = run("xlsx-data-start", [XLSX_DATA_START_ONE]);
+  it("is NOT MET, even with the witness line present, for one sheet — extracting row/column rather than calling firstNumber (a quoted sheet name with a digit, e.g. 'Sheet1', would corrupt it)", () => {
+    const r = run("xlsx-data-start", [XLSX_TABLE_WITNESS, XLSX_DATA_START_ONE]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/"Sheet1" \(row 5, column 3\)/);
   });
 
   it("is NOT MET for several sheets, listing each one", () => {
-    const r = run("xlsx-data-start", [XLSX_DATA_START_TWO]);
+    const r = run("xlsx-data-start", [XLSX_TABLE_WITNESS, XLSX_DATA_START_TWO]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/"Sheet1" \(row 5, column 3\)/);
     expect(r.evidence.join(" ")).toMatch(/"Data" \(row 8, column 1\)/);
@@ -543,14 +667,18 @@ describe("xlsx-data-start", () => {
     expect(run("xlsx-data-start", [XLSX_NO_DATA]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no far-start advisory", () => {
+    expect(run("xlsx-data-start", [XLSX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("xlsx-data-start", []).status).toBe("not-checked");
   });
 });
 
 describe("xlsx-merged-cells", () => {
-  it("is NOT MET and names the sheet with its merge count", () => {
-    const r = run("xlsx-merged-cells", [XLSX_MERGED_ONE]);
+  it("is NOT MET, even with the witness line present, and names the sheet with its merge count", () => {
+    const r = run("xlsx-merged-cells", [XLSX_TABLE_WITNESS, XLSX_MERGED_ONE]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/1 sheet\b/);
     expect(r.evidence.join(" ")).toMatch(/"Sheet1" \(3\)/);
@@ -560,14 +688,18 @@ describe("xlsx-merged-cells", () => {
     expect(run("xlsx-merged-cells", [XLSX_NO_DATA]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no merged-cell advisory", () => {
+    expect(run("xlsx-merged-cells", [XLSX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("xlsx-merged-cells", []).status).toBe("not-checked");
   });
 });
 
 describe("xlsx-raw-url-link-text", () => {
-  it("is NOT MET", () => {
-    const r = run("xlsx-raw-url-link-text", [XLSX_RAW_URL]);
+  it("is NOT MET, even with the witness line present", () => {
+    const r = run("xlsx-raw-url-link-text", [XLSX_LINK_WITNESS, XLSX_RAW_URL]);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/5 link\(s\)/);
   });
@@ -576,7 +708,11 @@ describe("xlsx-raw-url-link-text", () => {
     expect(run("xlsx-raw-url-link-text", [XLSX_NO_LINKS]).status).toBe("not-applicable");
   });
 
-  it("is NOT CHECKED when the analyzer said nothing either way (no positive line exists)", () => {
+  it("is MET when the witness is present with no raw-URL advisory", () => {
+    expect(run("xlsx-raw-url-link-text", [XLSX_LINK_WITNESS]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
     expect(run("xlsx-raw-url-link-text", []).status).toBe("not-checked");
   });
 });
@@ -665,5 +801,14 @@ describe("every Office practice", () => {
     for (const p of OFFICE_PRACTICES) {
       expect(valid.has(p.categoryId), `${p.id} categoryId "${p.categoryId}"`).toBe(true);
     }
+  });
+
+  it("MET is never claimed from a witness alone where the practice's own concern is the witness's numeric value — regression pin for the xlsx-defined-tables gate", () => {
+    // A cheap, format-wide version of the pivot-only-workbook trap test
+    // above: every OTHER table_markup/link_quality witness-backed practice
+    // must read MET off the bare witness with count 0 substituted in,
+    // EXCEPT xlsx-defined-tables, which must not.
+    const zeroWitnessOnly = run("xlsx-defined-tables", ["0 defined table(s) found."]);
+    expect(zeroWitnessOnly.status).not.toBe("met");
   });
 });

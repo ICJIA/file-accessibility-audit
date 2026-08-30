@@ -10,19 +10,44 @@
  * unconditionally alongside an advisory — every advisory here is gated
  * behind its own independent `if (count > 0)` check with nothing pushed
  * afterward that could coexist misleadingly. There is no "ORDER IS
- * LOAD-BEARING" hazard anywhere in this file (re-verified against
- * docx.ts/pptx.ts/xlsx.ts on 2026-08-30).
+ * LOAD-BEARING" hazard in the sense the PDF catalog has it anywhere in
+ * this file (re-verified against docx.ts/pptx.ts/xlsx.ts on 2026-08-30).
  *
- * MOST PRACTICES HERE HAVE NO MET BRANCH. Word's and Excel's table/heading/
- * link scorers are advisory-prose-only — they never emit a "this is clean"
- * positive counterpart for most of these concerns (docx-merged-cells below
- * is the worked example proving it for one; the same is true of the other
- * 15 without one). Only three of the 19 practices have a real positive line
- * to key MET off: `xlsx-sheet-names` ("All N visible sheet(s) have
- * descriptive names."), and `pptx-slide-titles` / `pptx-distinct-slide-
- * titles` (which share "All N visible slide(s) have a distinct title.").
- * Silence is never a pass — a practice with no positive line reports NOT
- * MET, NOT APPLICABLE, or NOT CHECKED only, never MET.
+ * WITNESS LINES. Most Office scorers never emit a "this is clean" positive
+ * line — but several emit a CENSUS line unconditionally whenever they
+ * examine a document's headings/tables/links at all, before any advisory.
+ * Where such a line exists, it WITNESSES that the check ran, and:
+ *
+ *   MET = witness present AND no advisory for this practice
+ *
+ * The qualifying rule is strict: a line only counts as a witness if the
+ * scorer pushes it unconditionally whenever it runs — never only on the
+ * clean path, and never nested inside a branch an advisory could skip.
+ * Getting this wrong reproduces the PDF catalog's heading-content
+ * inversion bug (a "positive-looking" group that only ever appears once a
+ * problem was already found). ORDER IS LOAD-BEARING at every witness site
+ * below: a document WITH the problem emits both the witness and the
+ * advisory line in the same findings array, so the advisory check must be
+ * tested first, or a bad document reads as MET.
+ *
+ * ONE WITNESS NEEDS AN EXTRA GATE. xlsx.ts's table-markup witness
+ * (`${a.tables.length} defined table(s) found.`) is pushed even at n=0 in
+ * one real scenario: a workbook whose only sizable data lives on a PIVOT
+ * sheet (pivots are explicitly excluded from `datafulWithoutTable`, so
+ * neither table_markup advisory fires, yet zero defined tables exist).
+ * `xlsx-defined-tables`'s own concern IS "does at least one table exist",
+ * so — unlike its four table_markup siblings, whose concerns are
+ * orthogonal to the witness's numeric value — it additionally requires the
+ * witness's own count to be > 0. Skipping that gate would report a
+ * workbook with literally zero defined tables as having met a practice
+ * called "Data uses defined Excel Tables".
+ *
+ * Where no line qualifies as a witness (scorePptxSlideTitles has none for
+ * "every heading is a specific level" style claims beyond its own two
+ * dedicated positive lines, and no docx/pptx/xlsx scorer has anything
+ * beyond what is used below), the practice keeps reporting NOT MET, NOT
+ * APPLICABLE, or NOT CHECKED only — an unqualified witness is worse than
+ * none, because it produces exactly this inverted gate.
  */
 import {
   firstNumber,
@@ -94,9 +119,17 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This document has no headings, so there is no first heading to check."],
         };
       }
-      // NO MET BRANCH. scoreDocxHeadings never emits a "starts at Heading 1"
-      // positive line — it is silent whenever the first heading already is
-      // one. Silence is not a pass.
+      // ORDER IS LOAD-BEARING: docx.ts:162 pushes "N real heading(s) found."
+      // unconditionally whenever total > 0, before the first-heading check
+      // (:167) even runs — so a document whose first heading is NOT
+      // Heading 1 carries BOTH lines. The advisory check above must win, or
+      // a document that fails this practice would read MET here.
+      if (matchAny(ctx, "real heading(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This document's headings were checked, and its outline starts at Heading 1."],
+        };
+      }
       return notChecked("This report contains no finding about this document's first heading.");
     },
   },
@@ -137,8 +170,17 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This document has no headings, so there is no level order to check."],
         };
       }
-      // NO MET BRANCH. scoreDocxHeadings never emits a "levels do not skip"
-      // positive line — it is silent whenever there is no skip.
+      // ORDER IS LOAD-BEARING: docx.ts:162 pushes "N real heading(s) found."
+      // unconditionally whenever total > 0, before the skip count is even
+      // computed (:172-176) — so a document with a skip carries BOTH lines.
+      // The advisory check above must win, or a skipped document would read
+      // MET here.
+      if (matchAny(ctx, "real heading(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This document's headings were checked, and none of the levels skip a step."],
+        };
+      }
       return notChecked(
         "This report contains no finding about this document's heading level order.",
       );
@@ -181,8 +223,18 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This document has no headings, so there are no empty headings to check."],
         };
       }
-      // NO MET BRANCH. scoreDocxHeadings never emits a "no empty headings"
-      // positive line — it is silent whenever there are none.
+      // ORDER IS LOAD-BEARING: docx.ts:162's witness is pushed whenever
+      // total > 0, which is a SUFFICIENT (not necessary) condition for the
+      // empty-heading check (:182) to have run too — that check sits past
+      // the SAME early-return guard the witness does, just outside the
+      // `if (total > 0)` block. A document with empty headings carries both
+      // lines, so the advisory check above must win.
+      if (matchAny(ctx, "real heading(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This document's headings were checked, and none of them is empty."],
+        };
+      }
       return notChecked("This report contains no finding about empty headings in this document.");
     },
   },
@@ -214,9 +266,23 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      // NO N/A BRANCH: scoreDocxText has no "no paragraphs" concept — a Word
-      // document always has text. NO MET BRANCH either: there is no "no long
-      // blank runs" positive line to key a pass off.
+      // ORDER IS LOAD-BEARING: docx.ts's text_extractability finding is a
+      // single straight-line function — the witness sentence below is
+      // ALWAYS findings[0], and the empty-paragraph-run check (the only
+      // conditional in the function) always runs right after it, with no
+      // early return anywhere. A document with the problem therefore
+      // carries both lines, so the advisory check above must win.
+      if (matchAny(ctx, "fully extractable, selectable text")) {
+        return {
+          status: "met",
+          evidence: [
+            "This document's paragraphs were checked, and none has three or more consecutive empty ones.",
+          ],
+        };
+      }
+      // No N/A branch: scoreDocxText has no "no paragraphs" concept — a
+      // Word document always has text, and this witness is always present
+      // whenever the category itself is (there is no other code path).
       return notChecked(
         "This report contains no finding about blank paragraph spacing in this document.",
       );
@@ -256,7 +322,16 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (matchAny(ctx, "no tables were found")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
-      // NO MET BRANCH. scoreDocxTables has no "no bare grids" positive line.
+      // ORDER IS LOAD-BEARING: docx.ts:290 pushes "N table(s) found."
+      // unconditionally whenever any tables exist, before the bare-grid
+      // check (:296) even runs — so a document with a bare grid carries
+      // both lines. The advisory check above must win.
+      if (matchAny(ctx, "table(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This document's tables were checked, and none is a bare, unstyled grid."],
+        };
+      }
       return notChecked(
         "This report contains no finding about bare layout grids in this document.",
       );
@@ -291,7 +366,18 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (matchAny(ctx, "no tables were found")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
-      // NO MET BRANCH. scoreDocxTables has no "no nested tables" positive line.
+      // ORDER IS LOAD-BEARING: docx.ts:290's witness is pushed whenever any
+      // tables exist, before the nested-table check (:303) even runs — a
+      // document with a nested table carries both lines. The advisory
+      // check above must win.
+      if (matchAny(ctx, "table(s) found")) {
+        return {
+          status: "met",
+          evidence: [
+            "This document's tables were checked, and none contains another table nested inside it.",
+          ],
+        };
+      }
       return notChecked("This report contains no finding about nested tables in this document.");
     },
   },
@@ -336,16 +422,21 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           },
         };
       }
-      // NO MET BRANCH, deliberately. scoreDocxTables emits only
-      // "No tables were found.", "N table(s) found.", and the missing-header
-      // line — it has no "no merged cells" positive. Under the catalog's
-      // central rule, a practice with no positive line from its own scorer
-      // can never be MET: silence is not a pass. This one reports NOT MET,
-      // NOT APPLICABLE, or NOT CHECKED only.
       if (matchAny(ctx, "no tables were found")) {
         return {
           status: "not-applicable",
           evidence: ["This document has no tables."],
+        };
+      }
+      // ORDER IS LOAD-BEARING: docx.ts:290's witness is pushed whenever any
+      // tables exist, before the merged-cell total is even computed (:308).
+      // A document with merged cells carries both lines, so the advisory
+      // check above must win — this is the SAME hazard as the PDF
+      // catalog's heading-content bug, just for a different category.
+      if (matchAny(ctx, "table(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This document's tables were checked, and none use merged or split cells."],
         };
       }
       return notChecked("This document has tables, but they were not checked for merged cells.");
@@ -385,7 +476,16 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (matchAny(ctx, "no tables were found")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
-      // NO MET BRANCH. scoreDocxTables has no "no empty rows" positive line.
+      // ORDER IS LOAD-BEARING: docx.ts:290's witness is pushed whenever any
+      // tables exist, before the empty-row count is even computed (:314).
+      // A document with an empty row carries both lines, so the advisory
+      // check above must win.
+      if (matchAny(ctx, "table(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This document's tables were checked, and none has an entirely empty row."],
+        };
+      }
       return notChecked("This report contains no finding about empty table rows in this document.");
     },
   },
@@ -423,7 +523,19 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (matchAny(ctx, "no hyperlinks were found")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
       }
-      // NO MET BRANCH. scoreDocxLinks has no "no raw URLs" positive line.
+      // ORDER IS LOAD-BEARING: docx.ts's link witness ("N link(s) found; N
+      // with unclear text.") is pushed unconditionally whenever any links
+      // exist, before the raw-URL check (:359) even runs. A document with
+      // raw-URL links carries both lines, so the advisory check above must
+      // win.
+      if (matchAny(ctx, "link(s) found")) {
+        return {
+          status: "met",
+          evidence: [
+            "This document's links were checked, and none uses a raw web address as its visible text.",
+          ],
+        };
+      }
       return notChecked(
         "This report contains no finding about raw web addresses used as link text in this document.",
       );
@@ -566,7 +678,19 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (matchAny(ctx, "no hyperlinks were found")) {
         return { status: "not-applicable", evidence: ["This presentation has no links."] };
       }
-      // NO MET BRANCH. scorePptxLinkQuality has no "no raw URLs" positive line.
+      // ORDER IS LOAD-BEARING: pptx.ts's link witness ("N link(s) found; N
+      // with unclear text.") is pushed unconditionally whenever any links
+      // exist, before the raw-URL check (:472) even runs. A presentation
+      // with raw-URL links carries both lines, so the advisory check above
+      // must win.
+      if (matchAny(ctx, "link(s) found")) {
+        return {
+          status: "met",
+          evidence: [
+            "This presentation's links were checked, and none uses a raw web address as its visible text.",
+          ],
+        };
+      }
       return notChecked(
         "This report contains no finding about raw web addresses used as link text in this presentation.",
       );
@@ -661,10 +785,35 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This workbook has no tables or sizable data ranges."],
         };
       }
-      // NO MET BRANCH. scoreXlsxTableMarkup's "${n} defined table(s) found."
-      // line is not a pass claim — it is printed with whatever n is,
-      // including 0 in exactly the NOT MET case above, so it cannot be read
-      // as confirmation tables exist.
+      // ORDER IS LOAD-BEARING: xlsx.ts:207's witness ("N defined table(s)
+      // found.") is pushed unconditionally whenever the early return is not
+      // taken, before the no-defined-table advisory (:225) even runs. The
+      // advisory check above must win.
+      //
+      // EXTRA GATE, deliberately: this witness line is pushed even at n=0
+      // in one real scenario the advisory check above does NOT catch — a
+      // workbook whose only sizable data lives on a pivot sheet. Pivot
+      // sheets are excluded from `datafulWithoutTable` (xlsx.ts:222-224),
+      // so neither table_markup advisory fires, yet a.tables.length is
+      // genuinely 0. Unlike its four table_markup siblings below, THIS
+      // practice's own concern is "does at least one table exist" — the
+      // witness's numeric value, not just its presence — so it must also
+      // require that value to be > 0, or a workbook with zero defined
+      // tables would read MET.
+      const tableWitness = matchAny(ctx, "defined table(s) found");
+      if (tableWitness) {
+        const n = firstNumber(tableWitness);
+        if (n !== null && n > 0) {
+          return {
+            status: "met",
+            evidence: [
+              "This workbook's data was checked, and it uses at least one defined Excel Table.",
+            ],
+          };
+        }
+      }
+      // NOTE: falls through to NOT CHECKED (never MET) when the witness is
+      // present but its count is 0 — the pivot-only-workbook case above.
       return notChecked("This report contains no finding about defined tables in this workbook.");
     },
   },
@@ -701,8 +850,24 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This workbook has no tables or sizable data ranges."],
         };
       }
-      // NO MET BRANCH. scoreXlsxTableMarkup has no "no data outside tables"
-      // positive line.
+      // ORDER IS LOAD-BEARING: xlsx.ts:207's witness is pushed unconditionally
+      // whenever the early return is not taken, before the data-outside-
+      // tables check (:225-238) even runs. The advisory check above must
+      // win. Unlike xlsx-defined-tables, this practice's concern (is data
+      // sitting OUTSIDE a table) is orthogonal to the witness's own numeric
+      // value — the evidence copy below deliberately mirrors the code's own
+      // definition (pivot sheets are excluded from this specific check by
+      // design, so "no data sits outside a defined Table" is accurate
+      // exactly whenever the advisory is silent, regardless of how many
+      // defined tables exist).
+      if (matchAny(ctx, "defined table(s) found")) {
+        return {
+          status: "met",
+          evidence: [
+            "This workbook's sheets were checked, and none has sizable data sitting outside a defined Table.",
+          ],
+        };
+      }
       return notChecked(
         "This report contains no finding about data outside defined tables in this workbook.",
       );
@@ -745,8 +910,20 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This workbook has no tables or sizable data ranges."],
         };
       }
-      // NO MET BRANCH. scoreXlsxTableMarkup has no "no pivot tables"
-      // positive line — pivot-free is simply never mentioned.
+      // ORDER IS LOAD-BEARING: xlsx.ts:207's witness is pushed unconditionally
+      // whenever the early return is not taken, before the pivot-sheet
+      // check (:240-247) even runs. A workbook with a pivot sheet carries
+      // both lines, so the advisory check above must win. This practice's
+      // concern (are there pivot sheets) is computed from `a.sheets`
+      // directly and is independent of the witness's own numeric value.
+      if (matchAny(ctx, "defined table(s) found")) {
+        return {
+          status: "met",
+          evidence: [
+            "This workbook's sheets were checked, and none contains a pivot table needing manual review.",
+          ],
+        };
+      }
       return notChecked("This report contains no finding about pivot tables in this workbook.");
     },
   },
@@ -792,8 +969,20 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This workbook has no tables or sizable data ranges."],
         };
       }
-      // NO MET BRANCH. scoreXlsxTableMarkup has no "data starts at A1"
-      // positive line.
+      // ORDER IS LOAD-BEARING: xlsx.ts:207's witness is pushed unconditionally
+      // whenever the early return is not taken, before the far-start check
+      // (:251-268) even runs. A workbook with a far-start sheet carries
+      // both lines, so the advisory check above must win. This check
+      // applies uniformly to every dataful sheet, pivot or not, so it is
+      // independent of the witness's own numeric value.
+      if (matchAny(ctx, "defined table(s) found")) {
+        return {
+          status: "met",
+          evidence: [
+            "This workbook's sheets were checked, and each one's data starts at or near cell A1.",
+          ],
+        };
+      }
       return notChecked("This report contains no finding about where this workbook's data starts.");
     },
   },
@@ -837,8 +1026,18 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           evidence: ["This workbook has no tables or sizable data ranges."],
         };
       }
-      // NO MET BRANCH. scoreXlsxTableMarkup has no "no merged cells"
-      // positive line.
+      // ORDER IS LOAD-BEARING: xlsx.ts:207's witness is pushed unconditionally
+      // whenever the early return is not taken, before the merged-cell
+      // check (:270-279) even runs. A workbook with merged cells carries
+      // both lines, so the advisory check above must win. This check
+      // applies to every sheet directly (no pivot carve-out), so it is
+      // independent of the witness's own numeric value.
+      if (matchAny(ctx, "defined table(s) found")) {
+        return {
+          status: "met",
+          evidence: ["This workbook's sheets were checked, and none contains merged cells."],
+        };
+      }
       return notChecked("This report contains no finding about merged cells in this workbook.");
     },
   },
@@ -876,7 +1075,19 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       if (matchAny(ctx, "no hyperlinks were found")) {
         return { status: "not-applicable", evidence: ["This workbook has no links."] };
       }
-      // NO MET BRANCH. scoreXlsxLinkQuality has no "no raw URLs" positive line.
+      // ORDER IS LOAD-BEARING: xlsx.ts's link witness ("N link(s) assessed;
+      // N with unclear text.") is pushed unconditionally whenever any
+      // links are assessable, before the raw-URL check (:448) even runs. A
+      // workbook with raw-URL links carries both lines, so the advisory
+      // check above must win.
+      if (matchAny(ctx, "link(s) assessed")) {
+        return {
+          status: "met",
+          evidence: [
+            "This workbook's links were checked, and none uses a raw web address as its visible text.",
+          ],
+        };
+      }
       return notChecked(
         "This report contains no finding about raw web addresses used as link text in this workbook.",
       );
