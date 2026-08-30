@@ -47,6 +47,7 @@ import { buildPrintablePlan, openPrintablePlan } from "~/utils/printablePlan";
 import { manualChecks } from "~/utils/manualReview";
 import { buildActionPlan, publicationVerdict } from "~/utils/actionPlan";
 import { useWcag } from "~/composables/useWcag";
+import { evaluateBestPractices } from "~/utils/bestPractices";
 
 const wcag = useWcag();
 
@@ -64,11 +65,19 @@ const props = defineProps<{
     grade?: string | null;
     overallScore?: number | null;
     fileType?: string | null;
+    /** Read by the best-practices catalog (bestPractices/types.ts) to size
+     *  page-count-gated practices such as whether bookmarks are expected. */
+    pageCount?: number;
     categories?: Array<{
       id?: string;
       label?: string;
       score?: number | null;
       severity?: string | null;
+      /** Widened 2026-08-30: the best-practices catalog reads each
+       *  category's findings — without this the catalog has no input and
+       *  evaluateBestPractices returns nothing. The full CategoryResult is
+       *  already passed at runtime; this only makes the type honest. */
+      findings?: string[];
     }>;
     conformance?: {
       notAssessed?: Array<{ sc: string; name: string; level: string; url?: string }>;
@@ -94,19 +103,34 @@ const steps = computed(() =>
 );
 const checks = computed(() => manualChecks(categories.value));
 const notAssessed = computed(() => props.result?.conformance?.notAssessed ?? []);
+// evaluateBestPractices narrows `unknown` itself and never throws (a
+// page-audit row, a null result, or a forged stored report all resolve to
+// an empty list) — see bestPractices/types.ts's own doctrine comment.
+const bestPractices = computed(() => evaluateBestPractices(props.result));
 
-// Nothing to print for a page-audit row that carries no categories at all.
+// A document whose only remaining items are best practices must still
+// print — otherwise a page-audit row with nothing but optional best
+// practices would show no button at all.
 const hasSomethingToPrint = computed(
-  () => steps.value.length > 0 || checks.value.length > 0 || notAssessed.value.length > 0,
+  () =>
+    steps.value.length > 0 ||
+    checks.value.length > 0 ||
+    notAssessed.value.length > 0 ||
+    bestPractices.value.length > 0,
 );
 
 const blurb = computed(() => {
   const n = steps.value.length;
+  const bp = bestPractices.value.length;
+  const bpBit =
+    bp > 0
+      ? ` It also lists ${bp} optional best practice${bp === 1 ? "" : "s"} that do not affect the grade.`
+      : "";
   if (n === 0)
-    return "Opens in a new tab: the checks a person still needs to make. Print or save as PDF.";
+    return `Opens in a new tab: the checks a person still needs to make.${bpBit} Print or save as PDF.`;
   return (
     `Opens in a new tab: ${n} fix${n === 1 ? "" : "es"} with step-by-step instructions for both the ` +
-    `source document and Acrobat, plus the checks only a person can make. Print or save as PDF.`
+    `source document and Acrobat, plus the checks only a person can make.${bpBit} Print or save as PDF.`
   );
 });
 
@@ -118,6 +142,7 @@ function openPlan(): void {
       score: props.result?.overallScore ?? null,
       verdict: categories.value.length ? publicationVerdict(categories.value).text : null,
       steps: steps.value,
+      bestPractices: bestPractices.value,
       manualChecks: checks.value,
       notAssessed: notAssessed.value,
       reportUrl:
