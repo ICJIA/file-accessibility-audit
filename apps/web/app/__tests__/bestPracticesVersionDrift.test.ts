@@ -109,10 +109,14 @@ const OLD_DOCX_NESTED =
   "Nested tables were found — these are hard for screen readers to navigate. Flatten them where possible.";
 // :283 — the witness, byte-identical in both eras, pushed before every advisory.
 const DOCX_TABLE_WITNESS = "3 table(s) found.";
-// :285 — byte-identical in both eras. Every bare grid is one of the tables this
-// line counts (docxService.ts:387-391: looksLikeLayout requires no header mark
-// anywhere, and hasHeaderRow requires one on row 0), which is what makes the
-// bare-grid gate sound on a payload that predates the bare-grid advisory.
+// The header-row line — its TEXT byte-identical in both eras, but not its
+// meaning. Pre-v1.136.0 it had no layout filter, so it counted every table
+// 2x2 or larger with no header row, bare grids included — a strict superset
+// (looksLikeLayout requires no header mark anywhere and hasHeaderRow requires
+// one on row 0, so looksLikeLayout implies !hasHeaderRow). TODAY the same
+// line EXCLUDES bare grids, which are counted separately and get their own
+// advisory. That is why the gate needs both halves: see the comment on it in
+// office.ts, and do not read this fixture as proof of the current-era case.
 const DOCX_NO_HEADER_ROW =
   "2 data table(s) have no header row. In Word: select the top row → Table Layout → Repeat Header Rows.";
 
@@ -197,13 +201,13 @@ describe("a pre-v1.136.0 stored payload never fabricates a MET", () => {
 
   it("docx-layout-grids: a bare grid predating the advisory is never MET", () => {
     // The bare-grid advisory did not exist before 842dde9, so there is no old
-    // string to match. The gate keys off the line that DID exist and that
-    // every bare grid necessarily appears in.
+    // string to match. The gate keys off the line that DID exist and that, ON
+    // A PAYLOAD OF THIS AGE, every bare grid necessarily appears in.
     const r = run("docx-layout-grids", [DOCX_TABLE_WITNESS, DOCX_NO_HEADER_ROW], "docx");
     expect(r.status).toBe("not-checked");
     expect(r.status).not.toBe("met");
     // A green here would have claimed "none is a bare, unstyled grid" for a
-    // document the report cannot rule one out in.
+    // document this pre-v1.136.0 report cannot rule one out in.
     expect(r.evidence.join(" ")).toMatch(/no header row/i);
   });
 

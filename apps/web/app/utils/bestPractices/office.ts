@@ -419,16 +419,33 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // and no line naming one, so the witness alone would report MET for a
       // document that has exactly the thing this row denies.
       //
-      // The gate below is sound in BOTH eras rather than an era guess.
-      // docxService.ts:387-391 computes looksLikeLayout as "no header mark
-      // ANYWHERE and no style and no borders and no shading", and
-      // hasHeaderRow requires a header mark on row 0 — so every bare grid is
-      // necessarily one of the tables the un-prefixed, unchanged line
-      // "N data table(s) have no header row." counts, in both eras. Its
-      // ABSENCE therefore proves there is no bare grid, whatever the payload's
-      // age. Its presence is ambiguous on an older payload (a real data table
-      // missing its header looks identical), so that case reports NOT
-      // CHECKED — the honest answer — rather than a green or a fabricated red.
+      // WHY THE GATE BELOW IS SOUND — TWO DIFFERENT REASONS, ONE PER ERA.
+      // Do not collapse them into one, and do NOT delete the bare-grid check
+      // above as redundant: today's half of the soundness rests entirely on
+      // it returning first.
+      //
+      //   TODAY, the bare-grid advisory is emitted for every bare grid
+      //   (docx.ts:296), so such a document has already returned NOT MET
+      //   above and never reaches this gate. The header-row line read below
+      //   says nothing about bare grids either way on a current payload — it
+      //   deliberately EXCLUDES them (docx.ts:284 filters
+      //   `looksLikeLayout !== true`; they are counted separately as
+      //   `layoutish`). Reading it here only makes this practice
+      //   conservative, never wrong.
+      //
+      //   PRE-2026-08-29, there was no bare-grid advisory AND no layout
+      //   filter (842dde9^:docx.ts:281-283), so that same line — whose text
+      //   is byte-identical in both eras — counted a STRICT SUPERSET: every
+      //   table 2×2 or larger with no header row, bare grids included.
+      //   docxService.ts:381-390 makes the containment total: looksLikeLayout
+      //   requires no header mark ANYWHERE and hasHeaderRow requires one on
+      //   row 0, so looksLikeLayout implies !hasHeaderRow. On such a payload
+      //   the line's ABSENCE therefore proves there was no bare grid, and its
+      //   PRESENCE is ambiguous — a real data table missing its header looks
+      //   identical.
+      //
+      // Absence -> MET, sound at any payload age. Presence -> NOT CHECKED,
+      // the honest answer, rather than a green or a fabricated red.
       const headerless = matchAdvisory(ctx, "data table(s) have no header row");
       if (matchMain(ctx, "table(s) found")) {
         if (!headerless) {
@@ -437,8 +454,13 @@ export const OFFICE_PRACTICES: BestPractice[] = [
             evidence: ["This document's tables were checked, and none is a bare, unstyled grid."],
           };
         }
+        // Claims only what is established at this branch in EITHER era: the
+        // document fact (a table with no header row), the two things that
+        // can be, and that this check is not picking between them. It must
+        // not say "this report does not say which" — a current-era report
+        // DOES say, by the absence of the bare-grid advisory above.
         return notChecked(
-          "This document has a table with no header row, and this report does not say whether it is a bare layout grid or a data table missing its header.",
+          "This document has at least one table with no header row. That can be a layout grid, which does not need one, or a data table that is missing one — this check does not claim either way, so those tables are worth a quick look.",
         );
       }
       return notChecked(
