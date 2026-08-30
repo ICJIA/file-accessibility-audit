@@ -1855,6 +1855,32 @@ pnpm --filter web test -- app/__tests__/pdfUaCosign.test.ts
 
 Expected: FAIL — no `best-practices` testid; the beyond group still contains `no /Scope`.
 
+**FIXTURE TRAP — the existing ActionPlan tests will silently yield zero rows.** `pdfUaCosign.test.ts` mounts with `props: { steps: [step], categories: [{ label, findings }] }`. Those fixtures carry **no category `id`**, and there is no `result` prop anywhere in that file. But `evaluateBestPractices()` matches practices to categories **by `id`** (it builds a `Map` keyed on `c.id`) and gates on `result.fileType`. Reusing the current fixture shape therefore produces zero rows, the section does not render, and the failure reads as `best-practices testid not found` — which looks like a component bug rather than a fixture gap.
+
+Every new test must pass a whole result object:
+
+```ts
+const SCOPE_RESULT = {
+  fileType: "pdf",
+  pageCount: 12,
+  categories: [
+    {
+      id: "table_markup",          // REQUIRED — the catalog matches on this
+      label: "Table Markup",
+      findings: [
+        "All 1 table(s) have header cells (TH)",
+        "PDF/UA only — not scored: 2 header cell(s) across 1 table(s) have no /Scope.",
+      ],
+    },
+  ],
+  pdfUaVerdict: { available: true, passed: false, totalFailureCount: 5, distinctRuleCount: 1, failures: [SCOPE_FAILURE] },
+};
+const mountPlanWithResult = (result: unknown) =>
+  mount(ActionPlan, { props: { steps: [step], result, pdfUaVerdict: (result as any).pdfUaVerdict } });
+```
+
+Add `mountPlanWithResult` as a SECOND helper — do not extend the existing `mountPlan(verdict)`, which forwards only `steps` and `pdfUaVerdict`. The veraPDF co-sign tests that use it must keep working unchanged.
+
 - [ ] **Step 3: Change `ActionPlan.vue`**
 
 1. Add `result?: unknown` to `defineProps`.
