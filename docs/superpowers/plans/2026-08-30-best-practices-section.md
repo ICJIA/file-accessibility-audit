@@ -2132,6 +2132,18 @@ TechnicalReport embeds inside the Visual view."
 
 ### Task 10: The print-friendly plan
 
+**TWO PRINT PATHS — do not conflate them.** Different documents, different failure modes; both must carry this section.
+
+| | Path A — printing the in-app report | Path B — the standalone printable plan (THIS task) |
+|---|---|---|
+| Trigger | `useReportExport.ts:191` calls `window.print()` on the live page | `PrintPlanButton` opens `buildPrintablePlan()` output as a blob URL |
+| Styling | `apps/web/app/assets/css/main.css:216`'s `@media print` block | the plan's own inline `@media print` at `printablePlan.ts:111` |
+| Collapsed content | **JavaScript does not run.** `main.css:266` force-shows `.tech-report-body, .plan-step-body`; anything without one of those classes prints as a bare header | nothing is collapsible — everything renders expanded by construction |
+| Fixed by | Task 7 (adds a `bp-body` class and extends that CSS rule) | this task |
+
+Path A was a real defect caught in Task 7's review: the section's body carried `bp-body-<id>` as an **id**, not a class, so a printed report showed 19 header rows and nothing beneath them. If you touch collapsible markup anywhere, check `main.css:266` — that rule is all that stands between a collapsed section and an empty printout.
+
+
 **Files:**
 - Modify: `apps/web/app/utils/printablePlan.ts`
 - Modify: `apps/web/app/components/PrintPlanButton.vue`
