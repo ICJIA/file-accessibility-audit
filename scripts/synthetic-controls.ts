@@ -3899,6 +3899,128 @@ const SAMPLES: Sample[] = [
         : `scored ${r.overallScore}/${r.grade} — a one-row strip is page furniture, not a data table`;
     },
   },
+  {
+    file: "synthetic-125-wcag-clean-bp-debt.pdf",
+    truth:
+      "A document can satisfy WCAG 2.1 completely and still carry best-practice work. This one is tagged, marked, titled, language-tagged, nested into sections, and its one figure is described — no WCAG criterion fails, so it must land in the A band with no Critical or Moderate category and an empty conformance-failure list. It nonetheless skips a heading level (H1 -> H3), runs past the bookmark threshold with no bookmarks, and leaves DisplayDocTitle off. None of those is a WCAG 2.1 failure, so none may move the score — and all three must still be reported, each carrying a not-scored prefix. This is the corpus proof of the Best Practices claim: a clean grade and work worth doing can be true at the same time.",
+    build: () => {
+      // Painted line by line, as every real exporter does: one unbroken Tj
+      // run wider than the page comes back from pdf.js truncated at ~112
+      // chars, which is a fixture artifact, not a document shape.
+      const paintLines = (text: string, y: number) => {
+        const words = text.split(" ");
+        const lines: string[] = [];
+        for (let w = 0; w < words.length; w += 10) lines.push(words.slice(w, w + 10).join(" "));
+        return lines
+          .map((line, li) => `BT /F1 11 Tf 72 ${y - li * 13} Td (${line}) Tj ET`)
+          .join("\n");
+      };
+      // Twelve pages clears ANALYSIS.BOOKMARKS_PAGE_THRESHOLD (10) — under
+      // it the bookmarks category is Not Assessed and the advisory never
+      // fires, so the trap would prove nothing.
+      const PAGES = 12;
+      const pageObj = (i: number) => 3 + i * 2;
+      const contentObj = (i: number) => 4 + i * 2;
+      const structRoot = 3 + PAGES * 2;
+      const docElem = structRoot + 1;
+      const font = docElem + 1;
+      const image = font + 1;
+      const sect1 = image + 1;
+      const h1 = sect1 + 1;
+      const p1 = h1 + 1;
+      const fig = p1 + 1;
+      const sect2 = fig + 1;
+      const h3 = sect2 + 1;
+      const pRest = (i: number) => h3 + 1 + i;
+      const parentTree = pRest(PAGES - 2) + 1;
+
+      const objs: string[] = [];
+      // No /ViewerPreferences: DisplayDocTitle is off, defect three.
+      objs.push(
+        `<< /Type /Catalog /Pages 2 0 R /StructTreeRoot ${structRoot} 0 R /MarkInfo << /Marked true >> /Lang (en-US) >>`,
+      );
+      objs.push(
+        `<< /Type /Pages /Kids [${Array.from({ length: PAGES }, (_, i) => `${pageObj(i)} 0 R`).join(" ")}] /Count ${PAGES} >>`,
+      );
+      for (let i = 0; i < PAGES; i++) {
+        let content: string;
+        if (i === 0) {
+          content =
+            `/H1 << /MCID 0 >> BDC\nBT /F1 18 Tf 72 730 Td (Annual Program Report) Tj ET\nEMC\n` +
+            `/P << /MCID 1 >> BDC\n${paintLines(LONG("This opening section"), 700)}\nEMC\n` +
+            `/Figure << /MCID 2 >> BDC\nq 80 0 0 80 72 540 cm /Im1 Do Q\nEMC\n`;
+        } else if (i === 1) {
+          // H1 -> H3: defect one. Nothing else about the outline is wrong.
+          content =
+            `/H3 << /MCID 0 >> BDC\nBT /F1 14 Tf 72 730 Td (Program Enrollment) Tj ET\nEMC\n` +
+            `/P << /MCID 1 >> BDC\n${paintLines(LONG("Enrollment across the year"), 700)}\nEMC\n`;
+        } else {
+          content = `/P << /MCID 0 >> BDC\n${paintLines(LONG(`Section ${i + 1} continues the account and`), 730)}\nEMC\n`;
+        }
+        const res =
+          i === 0
+            ? `<< /Font << /F1 ${font} 0 R >> /XObject << /Im1 ${image} 0 R >> >>`
+            : `<< /Font << /F1 ${font} 0 R >> >>`;
+        objs.push(
+          `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources ${res} /Contents ${contentObj(i)} 0 R /StructParents ${i} /Tabs /S >>`,
+        );
+        objs.push(stream(content));
+      }
+      objs.push(`<< /Type /StructTreeRoot /K ${docElem} 0 R /ParentTree ${parentTree} 0 R >>`);
+      objs.push(
+        `<< /Type /StructElem /S /Document /P ${structRoot} 0 R /K [${sect1} 0 R ${sect2} 0 R] >>`,
+      );
+      objs.push(FONT);
+      objs.push(GRAY_IMG(image));
+      objs.push(
+        `<< /Type /StructElem /S /Sect /P ${docElem} 0 R /K [${h1} 0 R ${p1} 0 R ${fig} 0 R] >>`,
+      );
+      objs.push(`<< /Type /StructElem /S /H1 /P ${sect1} 0 R /Pg ${pageObj(0)} 0 R /K 0 >>`);
+      objs.push(`<< /Type /StructElem /S /P /P ${sect1} 0 R /Pg ${pageObj(0)} 0 R /K 1 >>`);
+      objs.push(
+        `<< /Type /StructElem /S /Figure /P ${sect1} 0 R /Pg ${pageObj(0)} 0 R /K 2 /Alt (A gray square standing in for the enrollment chart.) >>`,
+      );
+      objs.push(
+        `<< /Type /StructElem /S /Sect /P ${docElem} 0 R /K [${h3} 0 R ${Array.from({ length: PAGES - 1 }, (_, i) => `${pRest(i)} 0 R`).join(" ")}] >>`,
+      );
+      objs.push(`<< /Type /StructElem /S /H3 /P ${sect2} 0 R /Pg ${pageObj(1)} 0 R /K 0 >>`);
+      for (let i = 0; i < PAGES - 1; i++) {
+        objs.push(
+          `<< /Type /StructElem /S /P /P ${sect2} 0 R /Pg ${pageObj(i + 1)} 0 R /K ${i === 0 ? 1 : 0} >>`,
+        );
+      }
+      const nums: string[] = [
+        `0 [${h1} 0 R ${p1} 0 R ${fig} 0 R]`,
+        `1 [${h3} 0 R ${pRest(0)} 0 R]`,
+      ];
+      for (let i = 2; i < PAGES; i++) nums.push(`${i} [${pRest(i - 1)} 0 R]`);
+      objs.push(`<< /Nums [${nums.join(" ")}] >>`);
+      // A real /Title, and no bookmarks anywhere: defect two.
+      return buildPdf(objs, "<< /Title (Annual Program Report 2026) >>");
+    },
+    check: (r) => {
+      const bad = r.categories.filter(
+        (c) => c.severity === "Critical" || c.severity === "Moderate",
+      );
+      if (bad.length)
+        return `WCAG-clean document accused of ${bad.map((c) => `${c.id}(${c.severity})`).join(", ")}`;
+      if (r.overallScore < 89)
+        return `score ${r.overallScore} < 89 — best-practice debt must not move the grade`;
+      const failures = r.conformance?.failures ?? [];
+      if (failures.length)
+        return `conformance failures present: ${failures.map((f) => f.sc).join(", ")}`;
+      const notScored = r.categories
+        .flatMap((c) => c.findings)
+        .filter((f) => /^(pdf\/ua only|advisory|note) — not scored/i.test(f.trim()));
+      if (notScored.length < 3)
+        return `expected at least 3 not-scored items, found ${notScored.length}`;
+      const all = notScored.join("\n").toLowerCase();
+      for (const needle of ["level order has gaps", "no bookmarks", "displaydoctitle"]) {
+        if (!all.includes(needle)) return `missing the designed advisory: ${needle}`;
+      }
+      return null;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4313,6 +4435,12 @@ const TRAP_MANIFEST: Record<string, { label: string; chip: TrapChip; chipText?: 
     label:
       "A one-row table misread as a crosstab — this trap was written first, watched fail, and forced the fix",
     chip: "bug",
+  },
+  "synthetic-125-wcag-clean-bp-debt.pdf": {
+    label:
+      "Passes WCAG 2.1 outright, and still has three things worth doing — a clean grade beside real advice",
+    chip: "held",
+    chipText: "HELD \u00b7 SCORED 100",
   },
 };
 

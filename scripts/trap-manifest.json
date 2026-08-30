@@ -1,6 +1,6 @@
 {
-  "count": 109,
-  "generated": "2026-08-29",
+  "count": 110,
+  "generated": "2026-08-30",
   "items": [
     {
       "file": "synthetic-01-well-built.pdf",
@@ -552,6 +552,12 @@
       "file": "synthetic-124-single-row-table.pdf",
       "label": "A one-row table misread as a crosstab — this trap was written first, watched fail, and forced the fix",
       "chip": "bug"
+    },
+    {
+      "file": "synthetic-125-wcag-clean-bp-debt.pdf",
+      "label": "Passes WCAG 2.1 outright, and still has three things worth doing — a clean grade beside real advice",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
-  "count": 15,
-  "generated": "2026-08-29",
+  "count": 17,
+  "generated": "2026-08-30",
   "items": [
     {
       "file": "synthetic-101-docx-bold-fake-headings.docx",
@@ -76,6 +76,18 @@
       "file": "synthetic-115-xlsx-untitled.xlsx",
       "label": "Excel: a workbook with no document title",
       "chip": "caught"
+    },
+    {
+      "file": "synthetic-126-docx-wcag-clean-bp-debt.docx",
+      "label": "Word: passes WCAG 2.1, and still skips a heading level and merges a header cell",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
+    },
+    {
+      "file": "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",
+      "label": "Excel: passes WCAG 2.1, and is still called \"Sheet1\" with no defined Tables",
+      "chip": "held",
+      "chipText": "HELD · SCORED 100"
     }
   ]
 }
