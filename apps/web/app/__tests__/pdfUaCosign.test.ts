@@ -675,11 +675,17 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     );
   });
 
-  it("no longer repeats those items inside the beyond group", () => {
+  it("no longer repeats those items inside the beyond group, and the two blocks don't wear the same badge", () => {
     const w = mountPlanWithResult(SCOPE_RESULT);
     const beyond = w.find('[data-testid="plan-beyond-group"]');
     expect(beyond.text()).not.toMatch(/no \/Scope/);
     expect(beyond.text()).toMatch(/veraPDF/);
+    // The BEST PRACTICE — NOT SCORED chip used to sit on both blocks,
+    // inches apart. It now lives only on the Best Practices heading — if
+    // it reappears on the beyond group, the two blocks read as duplicates
+    // again, the specific problem this task existed to fix.
+    expect(beyond.text()).not.toMatch(/BEST PRACTICE — NOT SCORED/);
+    expect(w.find("#best-practices-title").text()).toMatch(/not scored/i);
   });
 
   it("hides the beyond group entirely when veraPDF has nothing to say", () => {
