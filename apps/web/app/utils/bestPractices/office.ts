@@ -899,7 +899,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: [
-            "This workbook's sheets were checked, and none has sizable data sitting outside a defined Table.",
+            "This workbook's visible sheets were checked, and none has sizable data sitting outside a defined Table.",
           ],
         };
       }
@@ -955,7 +955,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: [
-            "This workbook's sheets were checked, and none contains a pivot table needing manual review.",
+            "This workbook's visible sheets were checked, and none contains a pivot table needing manual review.",
           ],
         };
       }
@@ -1016,7 +1016,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: [
-            "This workbook's sheets with sizable data were checked, and each one starts at or near cell A1.",
+            "This workbook's visible sheets with sizable data were checked, and each one starts at or near cell A1.",
           ],
         };
       }
@@ -1119,11 +1119,19 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // links are assessable, before the raw-URL check (:448) even runs. A
       // workbook with raw-URL links carries both lines, so the advisory
       // check above must win.
+      //
+      // SCOPE, deliberately: xlsxService.ts wraps collectSheetContent (where
+      // analysis.links is populated) in `if (!hidden && sheetRoot)` — hidden
+      // sheets are skipped for content collection wholesale, so `a.links`
+      // never includes a hidden sheet's links at all. Unlike
+      // xlsx-defined-tables's existence claim, "links were checked" is a
+      // coverage claim, so it must name the scope that was actually
+      // examined.
       if (matchMain(ctx, "link(s) assessed")) {
         return {
           status: "met",
           evidence: [
-            "This workbook's links were checked, and none uses a raw web address as its visible text.",
+            "This workbook's links on visible sheets were checked, and none uses a raw web address as its visible text.",
           ],
         };
       }

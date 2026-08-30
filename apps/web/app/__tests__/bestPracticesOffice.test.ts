@@ -679,7 +679,7 @@ describe("xlsx-data-start", () => {
     expect(r.evidence.join(" ")).toMatch(/"Data" \(row 8, column 1\)/);
   });
 
-  it("is NOT MET when only the column exceeds the threshold, so the row renders as '?' — xlsx.ts:251-255 admits a sheet on firstDataCol alone, and xlsx.ts:256 renders a missing firstDataRow as '?'; the regex must accept that or silently drop the sheet", () => {
+  it("is NOT MET when only the column exceeds the threshold, so the row renders as '?' — xlsx.ts:251-255 admits a sheet on firstDataCol alone, and xlsx.ts:262 renders a missing firstDataRow as '?'; the regex must accept that or silently drop the sheet", () => {
     const XLSX_DATA_START_ROW_UNKNOWN =
       'Note — not scored: on "Sheet1" data begins at row ?, column 6 — screen readers land at A1, so leading blank rows/columns are dead space to navigate. Start data at or near A1.';
     const r = run("xlsx-data-start", [XLSX_TABLE_WITNESS, XLSX_DATA_START_ROW_UNKNOWN]);
@@ -732,8 +732,10 @@ describe("xlsx-raw-url-link-text", () => {
     expect(run("xlsx-raw-url-link-text", [XLSX_NO_LINKS]).status).toBe("not-applicable");
   });
 
-  it("is MET when the witness is present with no raw-URL advisory", () => {
-    expect(run("xlsx-raw-url-link-text", [XLSX_LINK_WITNESS]).status).toBe("met");
+  it("is MET when the witness is present with no raw-URL advisory, scoped to visible sheets — xlsxService.ts skips collectSheetContent (where a.links is populated) wholesale for hidden sheets, so the claim must not imply broader coverage", () => {
+    const r = run("xlsx-raw-url-link-text", [XLSX_LINK_WITNESS]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/links on visible sheets/);
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {
