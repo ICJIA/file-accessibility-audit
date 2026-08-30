@@ -7,7 +7,7 @@
  * WHY (2026-08-29): the 100-trap battery proved the PDF checker against
  * designed answers — but Word, PowerPoint, and Excel checking was guarded
  * only by four real controls and unit tests. Three of the four supported
- * formats had no adversarial coverage at all. These fifteen close that:
+ * formats had no adversarial coverage at all. These seventeen close that:
  * hand-built .docx/.pptx/.xlsx files, each around one designed truth,
  * modeled on the habits those programs actually produce (bold-instead-of-
  * Heading-1, alt panels never opened, header rows that are only styled,
@@ -71,7 +71,6 @@ function docx(
   opts: { title?: string | null; styles?: boolean } = {},
 ): Promise<Buffer> {
   return zip({
-    ...(opts.styles ? { "word/styles.xml": HEADING_STYLES_XML } : {}),
     "[Content_Types].xml": `${XMLDECL}
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -79,6 +78,10 @@ function docx(
 <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${opts.styles ? '\n<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`,
+    // After [Content_Types].xml, never before it: OPC readers are forgiving,
+    // but these controls are also meant to be opened by hand in Word, and
+    // the content-types part conventionally leads the package.
+    ...(opts.styles ? { "word/styles.xml": HEADING_STYLES_XML } : {}),
     "_rels/.rels": `${XMLDECL}
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
@@ -241,8 +244,11 @@ const noAccusation = (r: AnalysisResult): string | null => {
 /** The Best Practices claim, asserted the same way in both batteries: a
  *  document can satisfy WCAG 2.1 completely and still have work worth doing.
  *  Nothing Critical or Moderate, an A-band score, no conformance failure —
- *  and at least three findings that carry a not-scored prefix, including the
- *  ones this sample was built to produce. */
+ *  and at least three findings that carry a not-scored prefix. The floor is
+ *  safe only because EVERY designed defect is also named in `needles` —
+ *  without that, an unrelated future advisory could hold the count at three
+ *  while one of the designed ones quietly stopped firing. Any defect added
+ *  to one of these samples must get a needle of its own too. */
 const bestPracticeDebtCheck = (r: AnalysisResult, needles: string[]): string | null => {
   const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
   if (bad.length)
@@ -519,7 +525,12 @@ const SAMPLES: Sample[] = [
         ].join(""),
         { title: "Annual Program Report 2026", styles: true },
       ),
-    check: (r) => bestPracticeDebtCheck(r, ["skip a heading level", "merged cell(s)"]),
+    check: (r) =>
+      bestPracticeDebtCheck(r, [
+        "skip a heading level",
+        "merged cell(s)",
+        "consecutive empty paragraphs",
+      ]),
   },
   {
     file: "synthetic-127-xlsx-wcag-clean-bp-debt.xlsx",
@@ -544,7 +555,12 @@ const SAMPLES: Sample[] = [
         ],
         { title: "Enrollment Counts 2026" },
       ),
-    check: (r) => bestPracticeDebtCheck(r, ['rename "sheet1"', "no defined excel table anywhere"]),
+    check: (r) =>
+      bestPracticeDebtCheck(r, [
+        'rename "sheet1"',
+        'rename "sheet2"',
+        "no defined excel table anywhere",
+      ]),
   },
 ];
 

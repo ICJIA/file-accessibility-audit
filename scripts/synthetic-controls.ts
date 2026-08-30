@@ -1,7 +1,7 @@
 /**
  * scripts/synthetic-controls.ts
  *
- * Adversarial synthetic controls: twelve hand-built PDFs, each constructed
+ * Adversarial synthetic controls: 110 hand-built PDFs, each constructed
  * around ONE designed truth, regenerated deterministically and then pushed
  * through the production analysis pipeline with that truth asserted.
  *
@@ -4012,8 +4012,13 @@ const SAMPLES: Sample[] = [
       const notScored = r.categories
         .flatMap((c) => c.findings)
         .filter((f) => /^(pdf\/ua only|advisory|note) — not scored/i.test(f.trim()));
-      if (notScored.length < 3)
-        return `expected at least 3 not-scored items, found ${notScored.length}`;
+      // EXACTLY three, not "at least" (2026-08-30): the trap's public label
+      // on the /trust page says "three things worth doing". An at-least
+      // assertion would let one unrelated future advisory stale that copy
+      // silently — the class of drift this project's trust-page stats rule
+      // exists to stop. The truth is three named defects; pin three.
+      if (notScored.length !== 3)
+        return `expected exactly 3 not-scored items, found ${notScored.length}`;
       const all = notScored.join("\n").toLowerCase();
       for (const needle of ["level order has gaps", "no bookmarks", "displaydoctitle"]) {
         if (!all.includes(needle)) return `missing the designed advisory: ${needle}`;

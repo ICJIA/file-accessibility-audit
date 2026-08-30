@@ -699,8 +699,8 @@ file-accessibility-audit/
 ├── scripts/
 │   ├── test.ts                      # `pnpm test` — api/web/cli suites in parallel, one summary
 │   ├── rebrand.ts                   # Regenerate static branding files (pnpm rebrand)
-│   ├── synthetic-controls.ts        # 100-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
-│   ├── synthetic-office-controls.ts # 15-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
+│   ├── synthetic-controls.ts        # 110-trap PDF battery + twin orderings (CI gate) → trap-manifest.json
+│   ├── synthetic-office-controls.ts # 17-trap docx/pptx/xlsx battery + twins (CI gate) → trap-manifest-office.json
 │   ├── score-ledger.ts              # Golden score ledger verify/--bless (CI gate) ↔ score-ledger.json
 │   ├── resave-invariance.ts         # qpdf re-save must grade identically + determinism (CI gate)
 │   ├── prod-sentinels.ts            # Post-deploy: designed-answer uploads against the live site
@@ -836,9 +836,9 @@ Beyond the unit suites, six corpus-level gates verify the **auditing itself** �
 
 | Gate | Command | What it guarantees |
 | --- | --- | --- |
-| Trap battery (PDF) | `pnpm synthetic-controls` | 100 hand-built adversarial PDFs, each with a designed truth (modeled on Canva, InDesign, and Word exports), rebuilt from scratch and re-judged; **twin orderings** — for every matched good/bad pair, the flawed twin may never outscore the correct one. One violated truth fails the build. |
-| Trap battery (Office) | `pnpm synthetic-office-controls` | 15 hand-built `.docx`/`.pptx`/`.xlsx` traps with designed truths (fake bold headings, alt panels never opened, unmarked header rows, untitled slides, "Sheet1") plus done-right twins and the same twin-ordering rule. |
-| Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (151 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
+| Trap battery (PDF) | `pnpm synthetic-controls` | 110 hand-built adversarial PDFs, each with a designed truth (modeled on Canva, InDesign, and Word exports), rebuilt from scratch and re-judged; **twin orderings** — for every matched good/bad pair, the flawed twin may never outscore the correct one. One violated truth fails the build. |
+| Trap battery (Office) | `pnpm synthetic-office-controls` | 17 hand-built `.docx`/`.pptx`/`.xlsx` traps with designed truths (fake bold headings, alt panels never opened, unmarked header rows, untitled slides, "Sheet1", and a workbook that passes WCAG 2.1 outright while still carrying best-practice work) plus done-right twins and the same twin-ordering rule. |
+| Golden score ledger | `pnpm score-ledger` | Every control document's exact score, grade, and per-category verdict is pinned in `scripts/score-ledger.json` (171 rows, error behavior included). Any drift fails until a human re-blesses (`--bless`) **in the same commit** — no grade moves silently, ever. |
 | Re-save invariance + determinism | `pnpm resave-invariance` | Every trap rewritten by qpdf must grade identically, digit for digit — byte layout can never change a grade — and sentinel documents audited five times (three concurrently) must return identical results. |
 | Encoding invariance | `pnpm encoding-invariance` | One document re-emitted in **every legal encoding of the same meaning** — attributes inline / behind a reference / as an array / via a class map, values direct or indirect, role-mapped custom tags, single-kid shorthand — must return an identical verdict. Generalizes re-save invariance from *different bytes* to *different legal structure*; found unsupported class-map attributes on its first run. |
 | Corpus sweep | `pnpm verify-controls` | Invariant verification across the full local corpus (real documents + traps) before releases. |
