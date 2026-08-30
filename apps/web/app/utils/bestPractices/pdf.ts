@@ -24,13 +24,31 @@ import {
   type BestPracticeLink,
   type BestPracticeResult,
   type DetectContext,
+  type EvidenceBlock,
 } from "./types";
 import { matterhornLink, techniqueLink } from "./links";
+// apps/web has no #config alias (that exists in api/cli only) — import the
+// root config by relative path, as other web code does.
+import { ANALYSIS } from "../../../../../audit.config";
 
 /** Drop null Matterhorn lookups (a checkpoint id the shipped protocol data
  *  does not define) instead of repeating a `.filter(...)` at every entry. */
 const links = (...ls: Array<BestPracticeLink | null>): BestPracticeLink[] =>
   ls.filter((l): l is BestPracticeLink => l !== null);
+
+/** An evidence block sourced straight from a technical-signal group — the
+ *  document's own list of fonts, flagged links, bookmark titles, and so
+ *  on — or undefined when the group is empty or absent. An optional
+ *  filter narrows the group's items first. */
+function blockFrom(
+  ctx: DetectContext,
+  heading: string,
+  caption: string,
+  filter?: (line: string) => boolean,
+): EvidenceBlock | undefined {
+  const lines = signalLines(ctx, heading).filter((l) => (filter ? filter(l) : true));
+  return lines.length ? { caption, lines } : undefined;
+}
 
 /** The heading tree the analyzer prints as a technical signal — the exact
  *  "H1 → H2 → H1 → H1" sequence, lifted out of the collapsed panel and put
@@ -47,15 +65,19 @@ const notChecked = (why: string): BestPracticeResult => ({
   evidence: [why],
 });
 
-/** NOT APPLICABLE when the whole category is absent from this report, or
- *  the analyzer said outright that the document has none of the relevant
- *  subject matter — its own "No <thing> detected/found in this document"
- *  line. Only ever pass that FULL phrase: a bare "no tables" needle also
- *  matches "No tables have <TR> row structure…", a real FAILURE line, and
- *  would report a document with broken tables as having none at all. */
-function categoryEmpty(ctx: DetectContext, noneLine?: string): boolean {
-  if (!ctx.categoryPresent) return true;
-  return noneLine ? matchAny(ctx, noneLine) !== null : false;
+/** NOT CHECKED when the whole category is absent from this report — a
+ *  forged/corrupted stored report, an archived payload predating this
+ *  category, or any other reason the DATA is missing. A fresh analysis
+ *  always emits all ten PDF categories (analyzer scoreDocument), so
+ *  absence is never evidence the document itself has none of the subject
+ *  matter — that is a document FACT, established separately at each call
+ *  site from the analyzer's own "No <thing> detected/found in this
+ *  document" line. Only ever match that FULL phrase: a bare "no tables"
+ *  needle also matches "No tables have <TR> row structure…", a real
+ *  FAILURE line, and would report a document with broken tables as having
+ *  none at all. */
+function categoryAbsent(ctx: DetectContext): boolean {
+  return !ctx.categoryPresent;
 }
 
 export const PDF_PRACTICES: BestPractice[] = [
@@ -77,9 +99,17 @@ export const PDF_PRACTICES: BestPractice[] = [
       // reads as passing.
       const gaps = matchNotScored(ctx, "level order has gaps");
       if (gaps) {
-        const skips = signalLines(ctx, "Heading Tree").filter((l) =>
-          l.startsWith("Heading hierarchy skip"),
-        );
+        // Scan ALL findings, not one signal group: "--- Heading Outline
+        // ---" (common.ts:423) opens a SECOND group right after the
+        // Heading Tree flow line whenever pdfjs resolved any heading text,
+        // and findings.ts's partitioner reassigns the open group on every
+        // "---" line and never restores it — so these skip lines almost
+        // always land in Heading Outline, not Heading Tree, on a real
+        // document. Reading straight off ctx.findings sidesteps which
+        // group they ended up in.
+        const skips = ctx.findings
+          .map((l) => l.trim())
+          .filter((l) => l.startsWith("Heading hierarchy skip"));
         return {
           status: "not-met",
           evidence: [
@@ -102,13 +132,18 @@ export const PDF_PRACTICES: BestPractice[] = [
           block: headingTreeBlock(ctx),
         };
       }
-      if (matchAny(ctx, "no heading tags")) {
+      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+        // Two distinct analyzer N/A lines for the SAME underlying fact
+        // (no headings at all): "No heading tags found in the document
+        // structure" (substantive documents) and "No headings were found.
+        // Short documents may not need them…" (a short document below the
+        // substantive threshold). Only the first was matched before.
         return {
           status: "not-applicable",
           evidence: ["This document has no heading tags, so there is no level order to check."],
         };
       }
-      return notChecked("This document's heading levels were not evaluated.");
+      return notChecked("This report contains no finding about this document's heading levels.");
     },
   },
   {
@@ -151,13 +186,20 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["Every heading in this document uses the same, numbered convention."],
         };
       }
-      if (matchAny(ctx, "no heading tags")) {
+      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+        // Two distinct analyzer N/A lines for the SAME underlying fact
+        // (no headings at all): "No heading tags found in the document
+        // structure" (substantive documents) and "No headings were found.
+        // Short documents may not need them…" (a short document below the
+        // substantive threshold). Only the first was matched before.
         return {
           status: "not-applicable",
           evidence: ["This document has no heading tags, so there is no convention to check."],
         };
       }
-      return notChecked("This document's heading convention was not evaluated.");
+      return notChecked(
+        "This report contains no finding about this document's heading convention.",
+      );
     },
   },
   {
@@ -171,11 +213,11 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "PDF/UA (ISO 14289) clause 7.4 · Matterhorn Protocol 14",
     links: links(matterhornLink("14")),
     detect(ctx) {
-      // No ordering hazard here: pdf.ts returns immediately after pushing
-      // this advisory (the `if (!hasNumberedHeadings)` branch ends in a
-      // `return`), so this line and "heading tags with logical hierarchy"
-      // (pushed only later, once levels are computed) never coexist in one
-      // document's findings — unlike the other heading practices above.
+      // No ordering hazard for the ALL-generic case: pdf.ts returns
+      // immediately after pushing this advisory (the
+      // `if (!hasNumberedHeadings)` branch ends in a `return`), so this
+      // line and "heading tags with logical hierarchy" (pushed only later,
+      // once levels are computed) never coexist in one document's findings.
       if (matchNotScored(ctx, "only generic <h> tags were found")) {
         return {
           status: "not-met",
@@ -190,20 +232,47 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
+      // ORDER IS LOAD-BEARING for the MIXED case: pdf.ts:924 needs only
+      // hasNumberedHeadings, which a MIXED document also satisfies (it has
+      // at least one numbered heading) — the mixed-convention advisory
+      // (pdf.ts:893, genericHCount > 0) does not return, so both lines
+      // coexist. Without this check a mixed document reads MET here
+      // ("every heading tag carries a numbered level") while
+      // heading-convention correctly reads NOT MET one row below it.
+      const mixed = matchNotScored(ctx, "generic <h> heading(s) appear alongside");
+      if (mixed) {
+        return {
+          status: "not-met",
+          evidence: [
+            "Some heading tags in this document are generic rather than numbered — this document mixes the two conventions.",
+            "A generic tag carries no level, so it does not count toward a fully numbered outline.",
+          ],
+          fix: {
+            source:
+              "In Word or InDesign, apply the built-in numbered heading styles throughout — avoid a generic heading style — then re-export with tags on.",
+            app: "In Acrobat's Tags panel, change each generic heading tag to the specific level (H1–H6) that matches its place in the outline.",
+          },
+        };
+      }
       if (matchAny(ctx, "heading tags with logical hierarchy")) {
         return {
           status: "met",
           evidence: ["Every heading tag in this document carries a specific, numbered level."],
         };
       }
-      if (matchAny(ctx, "no heading tags")) {
+      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+        // Two distinct analyzer N/A lines for the SAME underlying fact
+        // (no headings at all): "No heading tags found in the document
+        // structure" (substantive documents) and "No headings were found.
+        // Short documents may not need them…" (a short document below the
+        // substantive threshold). Only the first was matched before.
         return {
           status: "not-applicable",
           evidence: ["This document has no heading tags, so there are no levels to check."],
         };
       }
       return notChecked(
-        "Whether this document's headings carry numbered levels was not evaluated.",
+        "This report contains no finding about whether this document's headings carry numbered levels.",
       );
     },
   },
@@ -240,20 +309,37 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "heading tags with logical hierarchy")) {
+      // CRITICAL: this practice has NO positive analyzer line of its own.
+      // "heading tags with logical hierarchy" (pdf.ts:924) is about LEVELS,
+      // not content, and is pushed unconditionally — including when the
+      // content census never ran at all. A null census (pdfjs resolved no
+      // heading text) and a genuinely clean one produce the IDENTICAL empty
+      // findings (analyzer :693: `if (!census || census.unusable === 0)
+      // return { score: 100, findings: [] }`), so nothing in the stored
+      // findings distinguishes "we could not look" from "we looked and it
+      // is fine". The group's own presence is the only safe signal: it is
+      // pushed only when census is non-null (a null census returns before
+      // the group's header line is ever reached), so seeing it — with no
+      // advisory, already ruled out above — is real evidence the census ran.
+      if (signalLines(ctx, "Do the Headings Read Like Headings").length > 0) {
         return {
           status: "met",
           evidence: ["The heading tags in this document hold short, heading-like text."],
         };
       }
-      if (matchAny(ctx, "no heading tags")) {
+      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+        // Two distinct analyzer N/A lines for the SAME underlying fact
+        // (no headings at all): "No heading tags found in the document
+        // structure" (substantive documents) and "No headings were found.
+        // Short documents may not need them…" (a short document below the
+        // substantive threshold). Only the first was matched before.
         return {
           status: "not-applicable",
           evidence: ["This document has no heading tags, so there is no content to check."],
         };
       }
       return notChecked(
-        "Whether this document's heading content reads as headings was not evaluated.",
+        "This report contains no finding about whether this document's heading content reads as headings.",
       );
     },
   },
@@ -264,7 +350,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     label: "One top-level heading",
     description:
       "Many style guides recommend a single H1 — the document title — with every section demoted to H2 and below, so the outline has one root.",
-    why: "This is a style convention, not a rule: PDF/UA explicitly permits repeated H1s in a strongly structured document, and no WCAG criterion requires just one. A single top-level heading simply gives the outline one clear starting point.",
+    why: "This is a style convention, not a rule: PDF/UA explicitly permits repeated H1s in a document with clear underlying structure, and no WCAG criterion requires just one. A single top-level heading simply gives the outline one clear starting point.",
     links: [],
     detect(ctx) {
       // The analyzer only speaks up when the count is above one — it is
@@ -272,8 +358,13 @@ export const PDF_PRACTICES: BestPractice[] = [
       // other heading practices this one has no positive line to confirm a
       // pass against. Per the project's rule, silence stays NOT CHECKED
       // rather than being inferred as MET from a weaker, indirect signal.
-      const found = matchAny(ctx, "h1 headings");
-      const count = firstNumber(found);
+      // Anchored on the line's own start, not a bare "h1 headings"
+      // substring — a heading OUTLINE line quoting a document's real
+      // heading text ('  H2 "Understanding H1 Headings in Reports"')
+      // could otherwise contain that exact phrase and false-trigger this
+      // practice from unrelated document content.
+      const found = ctx.findings.find((l) => /^found \d+ h1 headings\b/i.test(l.trim()));
+      const count = firstNumber(found ?? null);
       if (found && count !== null && count > 1) {
         return {
           status: "not-met",
@@ -288,13 +379,18 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      if (matchAny(ctx, "no heading tags")) {
+      if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
+        // Two distinct analyzer N/A lines for the SAME underlying fact
+        // (no headings at all): "No heading tags found in the document
+        // structure" (substantive documents) and "No headings were found.
+        // Short documents may not need them…" (a short document below the
+        // substantive threshold). Only the first was matched before.
         return {
           status: "not-applicable",
           evidence: ["This document has no heading tags, so there is no H1 count to check."],
         };
       }
-      return notChecked("This document's H1 count was not evaluated.");
+      return notChecked("This report contains no finding about this document's H1 count.");
     },
   },
   {
@@ -348,7 +444,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["The tagged reading order agrees closely with the page's draw order."],
         };
       }
-      return notChecked("This document's reading-order fidelity was not evaluated.");
+      return notChecked(
+        "This report contains no finding about this document's reading-order fidelity.",
+      );
     },
   },
   {
@@ -363,7 +461,13 @@ export const PDF_PRACTICES: BestPractice[] = [
     wcagSlugs: [{ slug: "multiple-ways", label: "WCAG 2.4.5: Multiple Ways" }],
     links: [],
     detect(ctx) {
-      if (ctx.pageCount < 10) {
+      // pageCount === 0 is not "a zero-page document" — buildContext
+      // defaults an absent/unreadable pageCount field to 0 (types.ts), and
+      // a real stored report can carry that default. Treating 0 as a short
+      // document invents a document fact ("too short for bookmarks") from
+      // data that was never read at all; it belongs with the other
+      // not-checked defaults, not with a genuinely short 1-9 page document.
+      if (ctx.pageCount > 0 && ctx.pageCount < ANALYSIS.BOOKMARKS_PAGE_THRESHOLD) {
         return {
           status: "not-applicable",
           evidence: [
@@ -394,15 +498,10 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "met",
           evidence: [found],
-          block: (() => {
-            const titles = signalLines(ctx, "Bookmark Outline");
-            return titles.length
-              ? { caption: "This document's bookmarks", lines: titles }
-              : undefined;
-          })(),
+          block: blockFrom(ctx, "Bookmark Outline", "This document's bookmarks"),
         };
       }
-      return notChecked("This document's bookmarks were not evaluated.");
+      return notChecked("This report contains no finding about this document's bookmarks.");
     },
   },
   {
@@ -431,10 +530,7 @@ export const PDF_PRACTICES: BestPractice[] = [
               ? `${count} font(s) that display visible text in this document are not embedded.`
               : "Some fonts that display visible text in this document are not embedded.",
           ],
-          block: (() => {
-            const lines = signalLines(ctx, "Font Embedding");
-            return lines.length ? { caption: "Fonts used in this document", lines } : undefined;
-          })(),
+          block: blockFrom(ctx, "Font Embedding", "Fonts used in this document"),
           fix: {
             source:
               "In the source application (Word, InDesign), enable font embedding before exporting to PDF.",
@@ -464,7 +560,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      return notChecked("This document's font embedding was not evaluated.");
+      return notChecked("This report contains no finding about this document's font embedding.");
     },
   },
   {
@@ -501,7 +597,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["This document's descriptive title is shown by viewers, not its filename."],
         };
       }
-      return notChecked("Whether this document's viewers display its title was not evaluated.");
+      return notChecked(
+        "This report contains no finding about whether this document's viewers display its title.",
+      );
     },
   },
   {
@@ -510,12 +608,15 @@ export const PDF_PRACTICES: BestPractice[] = [
     categoryId: "table_markup",
     label: "Table header scope",
     description:
-      "Beyond a bare header row or column, a table's header cells can carry a /Scope attribute stating which cells they label.",
-    why: "For a simple table with headers along one edge, the header-to-data relationship is already clear from the table's shape. Adding /Scope anyway is extra insurance for viewers that need it spelled out.",
+      "Each header cell in a table can be marked to say exactly which row or column of data it labels — an attribute called /Scope. It spells out, for a screen reader, what a sighted reader sees at a glance from the table's layout.",
+    why: "For a simple table with headers along one edge, a screen reader can already work out which header goes with which cell from the table's shape alone. Adding /Scope explicitly is extra insurance for the few screen readers that need it spelled out rather than inferred.",
     standard: "PDF/UA (ISO 14289) · Matterhorn Protocol 15",
     links: links(matterhornLink("15")),
     detect(ctx) {
-      if (categoryEmpty(ctx, "no tables detected in this document")) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report contains no table-markup data for this document.");
+      }
+      if (matchAny(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       const advisory = matchNotScored(ctx, "header cell(s) across", "have no /scope");
@@ -542,7 +643,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["Every header cell in this document's tables carries a /Scope attribute."],
         };
       }
-      return notChecked("This document's table header scope was not evaluated.");
+      return notChecked(
+        "This report contains no finding about this document's table header scope.",
+      );
     },
   },
   {
@@ -556,7 +659,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "PDF/UA (ISO 14289) · Matterhorn Protocol 15",
     links: links(matterhornLink("15")),
     detect(ctx) {
-      if (categoryEmpty(ctx, "no tables detected in this document")) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report contains no table-markup data for this document.");
+      }
+      if (matchAny(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       // ORDER IS LOAD-BEARING: this advisory only fires when at least one
@@ -591,7 +697,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      return notChecked("This document's complex table header association was not evaluated.");
+      return notChecked(
+        "This report contains no finding about this document's complex table header association.",
+      );
     },
   },
   {
@@ -604,7 +712,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "PDF/UA (ISO 14289) · Matterhorn Protocol 15",
     links: links(matterhornLink("15")),
     detect(ctx) {
-      if (categoryEmpty(ctx, "no tables detected in this document")) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report contains no table-markup data for this document.");
+      }
+      if (matchAny(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
       }
       if (matchNotScored(ctx, "a nested table is not a wcag failure")) {
@@ -630,7 +741,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["No table in this document contains another table nested inside it."],
         };
       }
-      return notChecked("Whether this document's tables are nested was not evaluated.");
+      return notChecked(
+        "This report contains no finding about whether this document's tables are nested.",
+      );
     },
   },
   {
@@ -641,10 +754,15 @@ export const PDF_PRACTICES: BestPractice[] = [
     description:
       'A link\'s visible text should describe where it goes — not a vague phrase like "click here" or "read more".',
     why: 'Screen-reader users often pull up a bare list of every link on a page. "Click here" repeated ten times in that list says nothing about where any of them go; a descriptive label does.',
+    standard:
+      "WCAG 2.4.9 (Link Purpose, Link Only) is a AAA criterion — this product's grade measures WCAG 2.1 A/AA only, so this does not affect your score.",
     wcagSlugs: [{ slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only)" }],
     links: [],
     detect(ctx) {
-      if (categoryEmpty(ctx, "no links found in this document")) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report contains no link-quality data for this document.");
+      }
+      if (matchAny(ctx, "no links found in this document")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
       }
       const advisory = matchNotScored(ctx, "link(s) use non-descriptive text");
@@ -657,10 +775,11 @@ export const PDF_PRACTICES: BestPractice[] = [
               ? `${m[1]} of ${m[2]} link(s) in this document use non-descriptive text — empty, a vague phrase, or too short to mean anything on its own.`
               : "Some links in this document use non-descriptive text.",
           ],
-          block: (() => {
-            const lines = signalLines(ctx, "Links With Non-Descriptive Text");
-            return lines.length ? { caption: "Links with non-descriptive text", lines } : undefined;
-          })(),
+          block: blockFrom(
+            ctx,
+            "Links With Non-Descriptive Text",
+            "Links with non-descriptive text",
+          ),
           fix: {
             source:
               "In the source document, change the visible link text to something that describes the destination, then re-export.",
@@ -674,7 +793,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["Every link in this document uses descriptive text."],
         };
       }
-      return notChecked("This document's link text was not evaluated.");
+      return notChecked("This report contains no finding about this document's link text.");
     },
   },
   {
@@ -687,7 +806,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     why: "A raw URL as link text does tell a screen reader where a link goes, so this already meets the letter of the rule — a descriptive label is simply easier to listen to in a list of many links.",
     links: [],
     detect(ctx) {
-      if (categoryEmpty(ctx, "no links found in this document")) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report contains no link-quality data for this document.");
+      }
+      if (matchAny(ctx, "no links found in this document")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
       }
       // Un-prefixed in the analyzer's own output (main, not notScored) —
@@ -703,12 +825,7 @@ export const PDF_PRACTICES: BestPractice[] = [
               : "Some links in this document use the raw web address as their visible text.",
             "This already satisfies the destination-is-determinable rule — a descriptive label is a readability nicety, not a fix for a failure.",
           ],
-          block: (() => {
-            const lines = signalLines(ctx, "Raw URL Link Text");
-            return lines.length
-              ? { caption: "Links using their raw web address as text", lines }
-              : undefined;
-          })(),
+          block: blockFrom(ctx, "Raw URL Link Text", "Links using their raw web address as text"),
           fix: {
             source:
               "In the source document, replace the visible URL with a short label describing the destination, then re-export.",
@@ -723,7 +840,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       return notChecked(
-        "Whether this document's links use raw web addresses as text was not evaluated.",
+        "This report contains no finding about whether this document's links use raw web addresses as text.",
       );
     },
   },
@@ -737,6 +854,17 @@ export const PDF_PRACTICES: BestPractice[] = [
     why: "A flat tree still gives assistive technology a reading order, so it is not a failure — but nesting mirrors the document's real sections, which makes a long document far easier to navigate section by section.",
     links: [],
     detect(ctx) {
+      // Mutually exclusive with everything below: pdf.ts returns
+      // immediately when there is no structure tree at all, before ever
+      // reaching the depth line or the flatness check.
+      if (matchAny(ctx, "no structure tree present")) {
+        return {
+          status: "not-applicable",
+          evidence: [
+            "This document has no structure tree at all, so there is no nesting to check.",
+          ],
+        };
+      }
       // ORDER IS LOAD-BEARING: pdf.ts pushes "Structure tree depth: N
       // level(s)" unconditionally, before checking whether that depth is
       // flat — so a flat tree's findings contain BOTH the flat-tree
@@ -768,7 +896,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           ],
         };
       }
-      return notChecked("This document's structure tree nesting was not evaluated.");
+      return notChecked(
+        "This report contains no finding about this document's structure tree nesting.",
+      );
     },
   },
   {
@@ -782,34 +912,41 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "Matterhorn Protocol 10",
     links: links(matterhornLink("10")),
     detect(ctx) {
-      // TWO VARIANTS OF THE SAME ADVISORY (pdf.ts): a larger count is
-      // UN-INDENTED and lands in notScored; a smaller count is INDENTED
-      // and lands in the "Character Mapping" signal group instead. Check
-      // both, or a small-count document silently reads NOT CHECKED.
-      const large = matchNotScored(ctx, "symbol-font bullets or dingbats");
-      const groupLines = signalLines(ctx, "Character Mapping");
-      const small = groupLines.find((l) =>
-        l.toLowerCase().includes("symbol-font bullets or dingbats"),
-      );
-      if (large || small) {
-        const countLine = groupLines.find((l) => /cannot be mapped to readable text/i.test(l));
-        const count = firstNumber(countLine ?? large ?? small ?? null);
+      // The measurement line (pdf.ts, indented, inside this signal group)
+      // is pushed UNCONDITIONALLY whenever unmappedChars > 0 — across all
+      // three severity bands, including the worst one (>= 100 characters,
+      // >= 5% of the text layer), which does NOT repeat "symbol-font
+      // bullets or dingbats" at all. Keying only off that phrase (as this
+      // practice once did) silently skipped the worst case: a document
+      // with thousands of unreadable characters showed a grey "not
+      // checked" row instead of a red one.
+      const group = signalLines(ctx, "Character Mapping");
+      const countLine = group.find((l) => /cannot be mapped to readable text/i.test(l));
+      if (countLine) {
+        const count = firstNumber(countLine);
+        const severe = group.some((l) => /cannot be read aloud or searched/i.test(l));
         return {
           status: "not-met",
           evidence: [
             count !== null
               ? `${count} extracted character(s) in this document cannot be mapped to readable text.`
               : "Some extracted characters in this document cannot be mapped to readable text.",
-            "This is often symbol-font bullets or dingbats, which read as decoration rather than words — worth a quick check with a screen reader if real words are affected.",
+            severe
+              ? "This is enough of the document's text that some of it may not reliably be read aloud or found by search, whatever the tagging says."
+              : "This is often symbol-font bullets or dingbats, which read as decoration rather than words — worth a quick check with a screen reader if real words are affected.",
           ],
           fix: {
             source:
-              "Re-export from the source application with standard fonts, or embed the fonts used.",
-            app: "Run OCR over the affected pages: All tools → Scan & OCR → Recognize Text.",
+              "Re-export from the source application with standard fonts, or with the fonts used embedded.",
+            app: severe
+              ? "Run OCR over the affected pages: All tools → Scan & OCR → Recognize Text."
+              : "Usually no action is needed. If a screen-reader check finds real words affected rather than decoration, re-export from the source with standard or embedded fonts.",
           },
         };
       }
-      return notChecked("This document's character mapping was not evaluated.");
+      return notChecked(
+        "This report contains no finding about character mapping for this document.",
+      );
     },
   },
   {
@@ -823,20 +960,27 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "Matterhorn Protocol 01",
     links: links(matterhornLink("01")),
     detect(ctx) {
+      // As with character-mapping: the measurement line is pushed
+      // unconditionally across all three severity bands. Keying only off
+      // "stray export residue" (the smallest band's own wording) silently
+      // skipped the two worse bands, whose lines say "How to fix" and
+      // "Review the named pages" instead — a document with a fifth of its
+      // text outside the tag structure showed as not-checked rather than
+      // not-met.
       const group = signalLines(ctx, "Content Outside the Tag Structure");
-      const stray = group.find((l) => l.toLowerCase().includes("stray export residue"));
-      if (stray) {
-        // The count lives on the measurement line above the advisory, not
-        // in the advisory sentence itself (which carries no digits).
-        const countLine = group.find((l) => /visible character\(s\)/.test(l));
-        const count = firstNumber(countLine ?? null);
+      const countLine = group.find((l) => /visible character\(s\)/.test(l));
+      if (countLine) {
+        const count = firstNumber(countLine);
+        const severe = group.some((l) => /bring the untagged content into the structure/i.test(l));
         return {
           status: "not-met",
           evidence: [
             count !== null
               ? `${count} visible character(s) in this document sit outside the tag structure.`
               : "A small amount of visible text in this document sits outside the tag structure.",
-            "This is often stray export residue rather than missing content — worth a check on the named pages when convenient.",
+            severe
+              ? "That is enough of the page's text that a screen reader following the tags would miss a meaningful amount of it."
+              : "This is often stray export residue rather than missing content — worth a check on the named pages when convenient.",
           ],
           fix: {
             source:
@@ -846,7 +990,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         };
       }
       return notChecked(
-        "Whether this document has visible text outside the tag structure was not evaluated.",
+        "This report contains no finding about whether this document has visible text outside the tag structure.",
       );
     },
   },
@@ -861,10 +1005,13 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "ISO 32000-1 (optional) · Matterhorn Protocol 16",
     links: links(matterhornLink("16")),
     detect(ctx) {
-      if (categoryEmpty(ctx)) {
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report has no reading-order data for this document.");
+      }
+      if (matchAny(ctx, "no tagged lists detected")) {
         return {
           status: "not-applicable",
-          evidence: ["This report has no reading-order data for this document."],
+          evidence: ["This document has no tagged lists, so there are no list labels to check."],
         };
       }
       const advisory = matchAny(ctx, "have no <lbl>");
@@ -889,7 +1036,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      return notChecked("This document's list item labels were not evaluated.");
+      return notChecked("This report contains no finding about this document's list item labels.");
     },
   },
   {
@@ -903,11 +1050,8 @@ export const PDF_PRACTICES: BestPractice[] = [
     standard: "Matterhorn Protocol 19",
     links: links(matterhornLink("19")),
     detect(ctx) {
-      if (categoryEmpty(ctx)) {
-        return {
-          status: "not-applicable",
-          evidence: ["This report has no reading-order data for this document."],
-        };
+      if (categoryAbsent(ctx)) {
+        return notChecked("This report has no reading-order data for this document.");
       }
       const notes = signalLines(ctx, "Footnotes");
       const missing = notes.find((l) => l.toLowerCase().includes("note(s) have no /id"));
@@ -946,7 +1090,9 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["Every footnote or endnote in this document carries a unique /ID."],
         };
       }
-      return notChecked("This document's footnote/endnote IDs were not evaluated.");
+      return notChecked(
+        "This report contains no finding about this document's footnote/endnote IDs.",
+      );
     },
   },
 ];

@@ -38,14 +38,136 @@ const run = (id: string, findings: string[], pageCount = 10) =>
 
 const HEADING_GAPS =
   "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected. Screen-reader users may still wonder what they missed at the skipped level.";
+// Shaped like a REAL document's findings, not a convenient one: once pdfjs
+// resolves any heading text, "--- Heading Outline ---" opens a SECOND
+// signal group (analyzer common.ts:423) after the Heading Tree flow line —
+// and apps/web/app/utils/findings.ts reassigns the open group on every
+// "---" line and never restores it, so the skip lines below land in
+// Heading Outline, not Heading Tree. A fixture that put them directly
+// under "--- Heading Tree ---" (the old shape here) would hide a matcher
+// that only reads that one group.
 const HEADING_TREE_GROUP = [
   "--- Heading Tree ---",
   "  H1 → H2 → H1 → H1 → H3 → H5",
+  "--- Heading Outline ---",
+  '  H1 "Introduction"',
   "  Heading hierarchy skip: H1 → H3 (skipped H2)",
   "  Heading hierarchy skip: H3 → H5 (skipped H4)",
 ];
 const HEADING_OK = "Found 6 heading tags with logical hierarchy";
 const NO_HEADINGS = "No heading tags found in the document structure";
+// A second, distinct analyzer N/A line for the identical fact (no headings
+// at all) — the SHORT-document branch, gated on totalPageCount/paragraphCount
+// rather than heading count, and worded entirely differently.
+const SHORT_DOC_NO_HEADINGS =
+  "No headings were found. Short documents may not need them; longer documents should use H1–H6 tags so screen-reader users can navigate.";
+
+// A minimal NOT-MET-triggering fixture per practice, used only by the
+// forbidden-phrasing sweep below — evidence and fix text are produced by
+// detect(), not stored as static strings, so the sweep has to actually run
+// each practice to see them. Every line here is copied verbatim from the
+// fixtures used in that practice's own describe block further down.
+const NOT_MET_TRIGGERS: Record<string, { findings: string[]; pageCount?: number }> = {
+  "heading-level-order": { findings: [HEADING_GAPS] },
+  "heading-convention": {
+    findings: [
+      "PDF/UA only — not scored: 3 generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.",
+    ],
+  },
+  "heading-numbered-levels": {
+    findings: [
+      "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.",
+    ],
+  },
+  "heading-content": {
+    findings: [
+      "Advisory — not scored: found 6 heading tags in a sound level order, but some of them may not read as headings — review the outline above by hand. Heuristic judgment only; your grade is not affected.",
+    ],
+  },
+  "single-h1": {
+    findings: [
+      "Found 3 H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading (the document title), with sections demoted to H2 and below, so the outline has a single root.",
+    ],
+  },
+  "reading-order-fidelity": {
+    findings: [
+      "Advisory — not scored: the tagged order agreed with the content stream's draw order on 62% of comparable content. Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so this cannot be scored automatically and your grade is not affected. Verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.",
+    ],
+  },
+  bookmarks: {
+    findings: [
+      "Advisory — not scored: this document has 24 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them, and they remain the fastest way for every reader, screen-reader users included, to move around a long PDF.",
+    ],
+    pageCount: 24,
+  },
+  "font-embedding": {
+    findings: [
+      "PDF/UA only — not scored: 2 non-embedded font(s) may cause garbled text on systems without these fonts: Wingdings, Symbol. No WCAG success criterion requires font embedding — a substituted font still renders and still reads aloud — so this does not affect your grade. PDF/UA (ISO 14289, clause 7.21) does require it.",
+    ],
+  },
+  "display-doc-title": {
+    findings: [
+      "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off, so viewers show the FILENAME in the title bar instead of this title. WCAG 2.1 asks for a describing title, which this document has — your grade is not affected. PDF/UA (clause 7.1) requires the flag as well.",
+    ],
+  },
+  "table-scope-simple": {
+    findings: [
+      "PDF/UA only — not scored: 4 header cell(s) across 2 table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.",
+    ],
+  },
+  "table-scope-with-headers": {
+    findings: [
+      "Advisory — not scored: 2 table(s) rely on /Headers associations without /Scope on the <TH> cells. That is complete and spec-correct; adding Scope as well is belt-and-braces for viewers with partial /Headers support.",
+    ],
+  },
+  "nested-tables": {
+    findings: [
+      "PDF/UA only — not scored: a nested table is not a WCAG failure — properly tagged, its relationships are still determinable — so this does not affect your grade. It is, however, genuinely hard to navigate by keyboard and by screen reader.",
+    ],
+  },
+  "descriptive-link-text": {
+    findings: [
+      'Advisory — not scored: 3 of 12 link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link\'s purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.',
+    ],
+  },
+  "raw-url-link-text": {
+    findings: [
+      "2 link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.",
+    ],
+  },
+  "nested-structure-tree": {
+    findings: [
+      "Structure tree depth: 1 level(s)",
+      "Advisory — not scored: the structure tree is flat (no meaningful nesting) — the document has tags in a single sequence rather than a nested hierarchy of sections. That sequence still gives assistive technology a reading order, so your grade is not affected, but nesting makes long documents far easier to navigate.",
+    ],
+  },
+  "character-mapping": {
+    findings: [
+      "--- Character Mapping (Matterhorn 10) ---",
+      "  150 extracted character(s) cannot be mapped to readable text (8% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.",
+      "Advisory — not scored: a count this size is often symbol-font bullets or dingbats, which read as decoration — your grade is not affected. Verify the affected passages read correctly with a screen reader; if they are real words, re-export from the source application.",
+    ],
+  },
+  "content-in-tag-tree": {
+    findings: [
+      "--- Content Outside the Tag Structure (Matterhorn 01) ---",
+      "  40 visible character(s) — 3% of the page text — are painted outside the tagged content (page 2). They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.",
+      "  Advisory — not scored: an amount this small is often stray export residue. Verify the named pages when convenient.",
+    ],
+  },
+  "list-labels": {
+    findings: [
+      "2 list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker",
+    ],
+  },
+  "footnote-ids": {
+    findings: [
+      "--- Footnotes & Endnotes (<Note>) ---",
+      "4 <Note> tag(s) detected (footnotes, endnotes, or labeled notes)",
+      "  Advisory — not scored: 2 note(s) have no /ID (Matterhorn 19-003). PDF/UA requires one so assistive technology can link the in-text reference to its note; Word footnote exports commonly omit it.",
+    ],
+  },
+};
 
 describe("heading-level-order", () => {
   it("is NOT MET and shows the document's own heading sequence and each skip", () => {
@@ -72,6 +194,10 @@ describe("heading-level-order", () => {
   it("is NOT APPLICABLE when the document has no headings at all", () => {
     const r = run("heading-level-order", [NO_HEADINGS]);
     expect(r.status).toBe("not-applicable");
+  });
+
+  it("is NOT APPLICABLE for the SHORT-document no-headings line too — a second, distinct analyzer N/A line for the same fact", () => {
+    expect(run("heading-level-order", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
   });
 
   it("is NOT CHECKED — never MET — when the analyzer said nothing either way", () => {
@@ -105,6 +231,10 @@ describe("heading-convention", () => {
     expect(run("heading-convention", [NO_HEADINGS]).status).toBe("not-applicable");
   });
 
+  it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
+    expect(run("heading-convention", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
   it("is NOT CHECKED when every heading is generic — a different practice's concern", () => {
     // All-generic is mutually exclusive with the mixed-convention check (the
     // analyzer returns before computing genericHCount at all), and it is
@@ -118,6 +248,8 @@ describe("heading-convention", () => {
 describe("heading-numbered-levels", () => {
   const ALL_GENERIC =
     "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.";
+  const MIXED =
+    "PDF/UA only — not scored: 3 generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.";
 
   it("is NOT MET when every heading is generic", () => {
     // No coexistence hazard to guard: the analyzer RETURNS immediately
@@ -127,12 +259,25 @@ describe("heading-numbered-levels", () => {
     expect(r.status).toBe("not-met");
   });
 
+  it("is NOT MET on a MIXED document, even though the unconditional hierarchy line is also present", () => {
+    // hasNumberedHeadings only needs ONE numbered heading, which a mixed
+    // document has — so pdf.ts:924 is reached and coexists with the mixed
+    // advisory. Without the mixed check this reads MET here while
+    // heading-convention correctly reads NOT MET on the identical document.
+    const r = run("heading-numbered-levels", [MIXED, HEADING_OK]);
+    expect(r.status).toBe("not-met");
+  });
+
   it("is MET when the analyzer says the hierarchy is sound (numbered levels present)", () => {
     expect(run("heading-numbered-levels", [HEADING_OK]).status).toBe("met");
   });
 
   it("is NOT APPLICABLE when the document has no headings at all", () => {
     expect(run("heading-numbered-levels", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
+    expect(run("heading-numbered-levels", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
@@ -156,12 +301,32 @@ describe("heading-content", () => {
     expect(r.evidence.join(" ")).toMatch(/4 of 6 heading tag\(s\)/);
   });
 
-  it("is MET when the analyzer says the hierarchy is sound and raises no content concern", () => {
-    expect(run("heading-content", [HEADING_OK]).status).toBe("met");
+  it("is NOT CHECKED — never MET — when the analyzer only says the LEVELS are sound: heading LEVELS and heading CONTENT are different questions, and a null content census (pdfjs resolved no heading text) produces the exact same empty findings as a genuinely clean one — see analyzer :693. Inferring content from the unconditional hierarchy line would be exactly the false-pass this catalog exists to prevent.", () => {
+    expect(run("heading-content", [HEADING_OK]).status).toBe("not-checked");
+  });
+
+  it("is MET only when the content census demonstrably ran and raised nothing — the group's own presence, not the hierarchy line, is the evidence", () => {
+    // Below HEADING_MIN_UNUSABLE (3): the census found one fragment, but
+    // pdf.ts's own threshold says that's too few to call a pattern, so no
+    // "may not read as headings" advisory is added — yet the group's
+    // header line proves the census is non-null (a null census returns
+    // empty findings before that header is ever pushed). That presence is
+    // the only positive signal this practice has.
+    const r = run("heading-content", [
+      "--- Do the Headings Read Like Headings? ---",
+      '  1 heading tag(s) hold a fragment rather than a heading — the tag caught part of a sentence, often cut off mid-word: "property crime a".',
+      "  5 of 6 heading tag(s) (83%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.",
+      HEADING_OK,
+    ]);
+    expect(r.status).toBe("met");
   });
 
   it("is NOT APPLICABLE when the document has no headings at all", () => {
     expect(run("heading-content", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
+    expect(run("heading-content", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
@@ -184,6 +349,19 @@ describe("single-h1", () => {
 
   it("is NOT APPLICABLE when the document has no headings at all", () => {
     expect(run("single-h1", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT APPLICABLE for the SHORT-document no-headings line too", () => {
+    expect(run("single-h1", [SHORT_DOC_NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("does not false-trigger on a heading outline line whose own text happens to contain 'H1 headings'", () => {
+    // The needle is anchored on "Found N H1 headings" at the START of a
+    // line — a document whose own heading text quotes that exact phrase
+    // (a heading OUTLINE line, not the analyzer's own advisory) must not
+    // match.
+    const r = run("single-h1", ['  H2 "Understanding H1 Headings in Reports"', HEADING_OK]);
+    expect(r.status).toBe("not-checked");
   });
 
   it("is NOT CHECKED — never MET — for a document the analyzer never flagged, even a clean one", () => {
@@ -250,6 +428,10 @@ describe("bookmarks", () => {
   it("is NOT APPLICABLE for a short document, using pageCount structurally rather than a string match", () => {
     const r = run("bookmarks", [], 5);
     expect(r.status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED — not NOT APPLICABLE — at pageCount 0: that is a missing field defaulting to 0, not a real 0-page document", () => {
+    expect(run("bookmarks", [], 0).status).toBe("not-checked");
   });
 
   it("is NOT MET for a long document with no bookmarks", () => {
@@ -362,6 +544,15 @@ describe("table-scope-simple", () => {
     expect(run("table-scope-simple", [NO_TABLES]).status).toBe("not-applicable");
   });
 
+  it("is NOT CHECKED — not NOT APPLICABLE — when the table_markup category itself is absent", () => {
+    // Category absence is a missing-DATA fact, never "this document has no
+    // tables" — a fresh analysis always emits all ten PDF categories, so
+    // absence can only mean the stored report is forged, archived from
+    // before this category existed, or otherwise incomplete.
+    const ctx = buildContext(null, "pdf", 10);
+    expect(practice("table-scope-simple").detect(ctx).status).toBe("not-checked");
+  });
+
   it("is NOT MET when simple tables are missing /Scope, alongside the coexisting MET line", () => {
     const r = run("table-scope-simple", [SIMPLE_ADVISORY, ASSOC_LINE]);
     expect(r.status).toBe("not-met");
@@ -443,6 +634,11 @@ describe("descriptive-link-text", () => {
     expect(run("descriptive-link-text", [NO_LINKS]).status).toBe("not-applicable");
   });
 
+  it("is NOT CHECKED — not NOT APPLICABLE — when the link_quality category itself is absent", () => {
+    const ctx = buildContext(null, "pdf", 10);
+    expect(practice("descriptive-link-text").detect(ctx).status).toBe("not-checked");
+  });
+
   it("is NOT MET when some links use non-descriptive text", () => {
     const r = run("descriptive-link-text", [NON_DESCRIPTIVE_ADVISORY, ...NON_DESCRIPTIVE_GROUP]);
     expect(r.status).toBe("not-met");
@@ -499,6 +695,13 @@ describe("nested-structure-tree", () => {
   const DEPTH_FLAT = "Structure tree depth: 1 level(s)";
   const DEPTH_DEEP = "Structure tree depth: 7 level(s)";
 
+  it("is NOT APPLICABLE when there is no structure tree at all", () => {
+    const r = run("nested-structure-tree", [
+      "No structure tree present — reading order cannot be determined",
+    ]);
+    expect(r.status).toBe("not-applicable");
+  });
+
   it("is NOT MET for a flat tree, even though the unconditional depth line is also present", () => {
     // ORDER HAZARD: the depth line is pushed before the flatness check,
     // with no return in between — a flat tree's findings contain both.
@@ -541,6 +744,21 @@ describe("character-mapping", () => {
     expect(r.evidence.join(" ")).toMatch(/8/);
   });
 
+  it("is NOT MET for the WORST-case band too — the one that previously showed as not-checked", () => {
+    // This band's advisory does NOT say "symbol-font bullets or dingbats"
+    // at all (it says the opposite: real text may be unreadable) — the
+    // fixed matcher keys off the always-present measurement line instead.
+    const WORST_COUNT_LINE =
+      "  5,000 extracted character(s) cannot be mapped to readable text (62% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.";
+    const WORST_ADVISORY =
+      "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.";
+    const r = run("character-mapping", [GROUP_HEADER, WORST_COUNT_LINE, WORST_ADVISORY]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/5,000|5000/);
+    expect(r.evidence.join(" ")).not.toMatch(/symbol-font bullets or dingbats/);
+    expect(r.fix?.app).toMatch(/OCR/);
+  });
+
   it("is NOT CHECKED when the analyzer said nothing either way (no MET/NOT APPLICABLE line exists)", () => {
     expect(run("character-mapping", []).status).toBe("not-checked");
   });
@@ -559,6 +777,17 @@ describe("content-in-tag-tree", () => {
     expect(r.evidence.join(" ")).toMatch(/40/);
   });
 
+  it("is NOT MET for the WORST-case band too — the one that previously showed as not-checked", () => {
+    const WORST_COUNT_LINE =
+      "  600 visible character(s) — 22% of the page text — are painted outside the tagged content (pages 3, 4). They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.";
+    const WORST_ADVISORY =
+      "  How to fix: In Adobe Acrobat, open All tools → Prepare for accessibility → Automatically tag PDF to bring the untagged content into the structure, then verify the affected pages in the Tags panel — or mark genuinely decorative runs as artifacts.";
+    const r = run("content-in-tag-tree", [GROUP_HEADER, WORST_COUNT_LINE, WORST_ADVISORY]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/600/);
+    expect(r.evidence.join(" ")).not.toMatch(/stray export residue/);
+  });
+
   it("is NOT CHECKED when the analyzer said nothing either way (no MET/NOT APPLICABLE line exists)", () => {
     expect(run("content-in-tag-tree", []).status).toBe("not-checked");
   });
@@ -575,15 +804,26 @@ describe("list-labels", () => {
     "2 list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker",
   ];
 
+  it("is NOT APPLICABLE when the document has no tagged lists at all", () => {
+    const r = run("list-labels", [
+      "--- List Structure Analysis ---",
+      "No tagged lists detected — if the document contains bulleted or numbered lists, they may not be tagged as <L>/<LI> elements",
+    ]);
+    expect(r.status).toBe("not-applicable");
+  });
+
   it("is NOT MET when lists have no <Lbl> element on their items (un-prefixed, lands in `main`)", () => {
     const r = run("list-labels", LIST_GROUP);
     expect(r.status).toBe("not-met");
     expect(r.evidence.join(" ")).toMatch(/2 list\(s\)/);
   });
 
-  it("is NOT APPLICABLE when the category itself is absent from the report", () => {
+  it("is NOT CHECKED — not NOT APPLICABLE — when the category itself is absent from the report", () => {
+    // Absence of the category is a missing-DATA fact (a forged/archived
+    // report), never a document fact — it must not read the same as the
+    // analyzer's own "no lists" line would.
     const ctx = buildContext(null, "pdf", 10);
-    expect(practice("list-labels").detect(ctx).status).toBe("not-applicable");
+    expect(practice("list-labels").detect(ctx).status).toBe("not-checked");
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no MET line exists)", () => {
@@ -626,9 +866,9 @@ describe("footnote-ids", () => {
     expect(run("footnote-ids", OK_GROUP).status).toBe("met");
   });
 
-  it("is NOT APPLICABLE when the category itself is absent from the report", () => {
+  it("is NOT CHECKED — not NOT APPLICABLE — when the category itself is absent from the report", () => {
     const ctx = buildContext(null, "pdf", 10);
-    expect(practice("footnote-ids").detect(ctx).status).toBe("not-applicable");
+    expect(practice("footnote-ids").detect(ctx).status).toBe("not-checked");
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way", () => {
@@ -642,9 +882,16 @@ describe("every PDF practice", () => {
   });
 
   it("returns NOT CHECKED for an empty document — silence is never a pass", () => {
+    // Asserts the exact status, not just "not met": a weaker
+    // `.not.toBe("met")` previously let bookmarks slip an INVENTED
+    // document fact through as NOT APPLICABLE — pageCount defaulting to 0
+    // (an absent field, not a real 0-page document) read as "too short for
+    // bookmarks to matter". Silence must land on not-checked specifically.
     for (const p of PDF_PRACTICES) {
       const r = p.detect(buildContext({ findings: [] }, "pdf", 0));
-      expect(r.status, `${p.id} must not claim a pass on silence`).not.toBe("met");
+      expect(r.status, `${p.id} must read NOT CHECKED on silence, not just avoid MET`).toBe(
+        "not-checked",
+      );
     }
   });
 
@@ -666,9 +913,27 @@ describe("every PDF practice", () => {
       expect(p.why.length, p.id).toBeGreaterThan(0);
       const copy = `${p.label} ${p.description} ${p.why} ${p.standard ?? ""}`;
       // Nothing in this section is a legal obligation, and the product is
-      // kept free of "strong".
+      // kept free of "strong" — widened to \bstrong\w* so "strongly" is
+      // caught too (it slipped past a bare \bstrong\b once).
       expect(copy, p.id).not.toMatch(/required by law/i);
-      expect(copy, p.id).not.toMatch(/\bstrong\b/i);
+      expect(copy, p.id).not.toMatch(/\bstrong\w*/i);
+    }
+  });
+
+  it("has no forbidden phrasing in evidence or fix text either — most user-facing sentences live there, not in the static copy", () => {
+    // The static-field sweep above cannot see evidence/fix: those are
+    // produced by detect(), not stored as plain strings. Run each practice
+    // against a fixture built to reach its richest branch (usually NOT
+    // MET) and sweep that output too.
+    for (const p of PDF_PRACTICES) {
+      const trigger = NOT_MET_TRIGGERS[p.id];
+      if (!trigger) continue; // every practice below has one; see the map
+      const r = p.detect(
+        buildContext({ findings: trigger.findings }, "pdf", trigger.pageCount ?? 10),
+      );
+      const copy = `${r.evidence.join(" ")} ${r.fix?.source ?? ""} ${r.fix?.app ?? ""}`;
+      expect(copy, p.id).not.toMatch(/required by law/i);
+      expect(copy, p.id).not.toMatch(/\bstrong\w*/i);
     }
   });
 
