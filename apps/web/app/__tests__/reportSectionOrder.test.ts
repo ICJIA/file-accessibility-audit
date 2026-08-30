@@ -174,6 +174,14 @@ describe("Best Practices placement (2026-08-30)", () => {
     const actionPlanTag = visual.match(/<ActionPlan\b[^>]*\/>/)?.[0] ?? "";
     expect(actionPlanTag, "ActionPlan tag not found in ReportVisualView.vue").not.toBe("");
     expect(actionPlanTag).toContain(':result="result"');
+    // CLOSE 1 (post-approval review): at() above only ever returns the
+    // FIRST index of a tag — it cannot see a second <BestPracticesSection
+    // added below ManualReviewCard on either Detailed page, which is
+    // exactly the double-render failure this whole placement exists to
+    // prevent. Count it explicitly, per page.
+    for (const page of ["index.vue", "report/[id].vue"]) {
+      expect(pageSource(page).match(/<BestPracticesSection/g), page).toHaveLength(1);
+    }
   });
 
   it("keeps ReportContent's per-category not-scored tier — it is card detail, not the scorecard", () => {

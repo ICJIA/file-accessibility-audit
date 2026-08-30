@@ -941,7 +941,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} extracted character${count === 1 ? "" : "s"} in this document cannot be mapped to readable text.`
+              ? `${count.toLocaleString()} extracted character${count === 1 ? "" : "s"} in this document cannot be mapped to readable text.`
               : "Some extracted characters in this document cannot be mapped to readable text.",
             severe
               ? "This is enough of the document's text that some of it may not reliably be read aloud or found by search, whatever the tagging says."
@@ -988,7 +988,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} visible character${count === 1 ? "" : "s"} in this document ${count === 1 ? "sits" : "sit"} outside the tag structure.`
+              ? `${count.toLocaleString()} visible character${count === 1 ? "" : "s"} in this document ${count === 1 ? "sits" : "sit"} outside the tag structure.`
               : "A small amount of visible text in this document sits outside the tag structure.",
             severe
               ? "That is enough of the page's text that a screen reader following the tags would miss a meaningful amount of it."

@@ -773,7 +773,13 @@ describe("character-mapping", () => {
       "  A meaningful share of this document's text cannot be read aloud or searched, whatever the tagging says. Fix at the source: re-export the PDF from the original application with standard fonts (or embedding enabled), or run OCR over the affected pages — Acrobat: All tools → Scan & OCR → Recognize Text.";
     const r = run("character-mapping", [GROUP_HEADER, WORST_COUNT_LINE, WORST_ADVISORY]);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/5,000|5000/);
+    // Pins the analyzer's own thousands-separator convention
+    // (unmappedChars.toLocaleString(), packages/analyzer/src/scoring/pdf.ts:323)
+    // now carried into this catalog's own evidence sentence — a bare
+    // `${count}` would have read "5000", disagreeing with the "5,000" the
+    // technical findings show on the same report page.
+    expect(r.evidence.join(" ")).toMatch(/5,000 extracted characters/);
+    expect(r.evidence.join(" ")).not.toMatch(/\b5000\b/);
     expect(r.evidence.join(" ")).not.toMatch(/symbol-font bullets or dingbats/);
     expect(r.fix?.app).toMatch(/OCR/);
   });
