@@ -1017,6 +1017,17 @@ The matcher needle and positive line for each:
 | `list-labels` | **`main`** | **`matchAny`**, NOT `matchNotScored` | supplementary.ts:205 begins `${withoutLabels} list(s) have no <Lbl>…` — no not-scored prefix at all, so it falls through to `main`. `matchNotScored` would never find it. |
 | `raw-url-link-text` (PDF) | **`main`** | **`matchAny`**, NOT `matchNotScored` | pdf.ts:1995 begins `${rawUrls.length} link(s) use the raw URL…` — un-prefixed, so `main`. **The Office variants differ**: docx/pptx/xlsx use `"Advisory — not scored against you:"`, which IS prefixed and lands in `notScored`. One implementation does not serve both. |
 
+**COUNTS — `firstNumber` is naive; these are the only safe call sites.** `firstNumber` returns the FIRST digit run anywhere in the string, with no semantics. It is SAFE on the lines below only because the not-scored prefixes contain no digits and the count leads the sentence. Verified 2026-08-30:
+
+| Line | Safe? | Note |
+|---|---|---|
+| pdf.ts:288 fonts, :893 generic `<H>`, :908 gaps, :920 sound-order, :1473 bookmarks, :1701 `/Headers`, :2290 reading order | ✅ safe | first digit run IS the count (`2.1` in the bookmarks line comes after the page count) |
+| pdf.ts:1692 `/Scope` | ⚠️ **two** counts | `${cells} header cell(s) across ${n} table(s)` — `firstNumber` returns only the cells. Match both with a targeted regex at the call site. |
+| pdf.ts:1952 links | ⚠️ **two** counts | `${needsFix} of ${total} link(s)` — same treatment. |
+| pdf.ts:441 DisplayDocTitle, :833 generic-only, :1755 nested tables, :2204 flat tree | 🚫 **never call `firstNumber`** | these carry NO count. :441 ends "(clause 7.1)" and would render **7** as if it were a count. These practices state their evidence in words, not numbers. |
+
+Where a count cannot be read, write the sentence countless ("This document contains merged or split table cells") rather than guessing — the project's standing rule is that every number is computed or the copy is countless.
+
 Every other PDF practice in the table above reads `notScored` via `matchNotScored` — each confirmed un-indented and prefixed at its source line. Re-verify any needle you are unsure of with `sed -n '<line>p' packages/analyzer/src/scoring/pdf.ts | cat -A | head -1` (a leading `  ` means signals).
 
 - [ ] **Step 7: Run the whole PDF suite**
