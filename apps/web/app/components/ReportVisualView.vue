@@ -54,6 +54,7 @@
         :conformance="result.conformance"
         :pdf-ua-verdict="result.pdfUaVerdict"
         :categories="displayedCategories"
+        :result="result"
         class="mb-6"
         @show-evidence="revealEvidence"
       />

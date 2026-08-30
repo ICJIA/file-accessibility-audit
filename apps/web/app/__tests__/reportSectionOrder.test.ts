@@ -136,3 +136,49 @@ describe("TechnicalReport.vue — informational panels stay below blocking info"
     expect(at(src, "PdfUaVerdict")).toBeLessThan(at(src, "MethodologyCard"));
   });
 });
+
+describe("Best Practices placement (2026-08-30)", () => {
+  it("sits between IssuesSummary and ManualReviewCard in both Detailed views", () => {
+    for (const page of ["index.vue", "report/[id].vue"]) {
+      const src = pageSource(page);
+      const issues = at(src, "IssuesSummary");
+      const bp = at(src, "BestPracticesSection");
+      const manual = at(src, "ManualReviewCard");
+      expect(issues, page).toBeLessThan(bp);
+      expect(bp, page).toBeLessThan(manual);
+    }
+  });
+
+  it("stays above the informational PDF/UA panels — the blocking-first invariant", () => {
+    for (const page of ["index.vue", "report/[id].vue"]) {
+      const src = pageSource(page);
+      expect(at(src, "BestPracticesSection"), page).toBeLessThan(at(src, "PdfUaVerdict"));
+    }
+  });
+
+  it("renders ONCE per view — never via ReportContent, which TechnicalReport embeds", () => {
+    // ReportContent is rendered inside TechnicalReport, which is inside
+    // ReportVisualView. A section placed there would appear twice on one
+    // page in the Visual view.
+    expect(componentSource("ReportContent.vue")).not.toContain("BestPracticesSection");
+    const visual = componentSource("ReportVisualView.vue");
+    expect(visual.match(/<BestPracticesSection/g) ?? []).toHaveLength(0);
+    // Bounded to the ActionPlan tag itself (stops at its own self-closing
+    // `/>`) — CORRECTED (Task 9 sabotage check): an unbounded lazy
+    // `/<ActionPlan[\s\S]*?:result="result"/` lazily matches PAST ActionPlan
+    // into PrintPlanButton's own :result a few lines below, so it kept
+    // passing even with :result deleted from ActionPlan — the exact
+    // silent-gate failure this suite's "gates must be provable" rule warns
+    // about. Every attribute on this tag is a plain identifier/expression
+    // with no literal `>`, so `[^>]*` cannot itself run past the tag close.
+    const actionPlanTag = visual.match(/<ActionPlan\b[^>]*\/>/)?.[0] ?? "";
+    expect(actionPlanTag, "ActionPlan tag not found in ReportVisualView.vue").not.toBe("");
+    expect(actionPlanTag).toContain(':result="result"');
+  });
+
+  it("keeps ReportContent's per-category not-scored tier — it is card detail, not the scorecard", () => {
+    // Spec §6: the two serve different readers. Removing TIER 2 would strip
+    // the not-scored items out of the per-category cards entirely.
+    expect(componentSource("ReportContent.vue")).toContain('data-testid="not-scored-tier"');
+  });
+});
