@@ -1287,12 +1287,16 @@ Reviewed before every release, with periodic standalone comprehensive audits. Mo
 
 Entries marked **(entry recorded 2026-08-08)** were reconstructed from that release's own changelog rather than written on the day. 29 releases — overwhelmingly small follow-up corrections — had been left out of this list while the change log and § 10 carried them; the backfill closed the gap and the test above prevents it reopening. The marker stays because a compliance record that quietly backdates itself is worth less than one that says which of its entries were written after the fact.
 
+### v1.143.0 — 2026-08-30 · Best practices section: your document's own evidence, through the same escaping every finding already used (no new attack surface)
+
+The new report section (38 non-scored best practices across PDF, Word, PowerPoint, and Excel, each row carrying this document's own evidence) opens no new trust boundary. Every interpolated value in the printable plan passes through the same `escapeHtml` helper already used for scored findings; every link — the catalog's own and any built from document content — passes through `safeHttpUrl` before it can render, and an unparseable one is dropped rather than shown broken. The catalog's own copy (labels, descriptions, fix routes) is authored in this repository, never user-supplied. `evaluateBestPractices`, which runs during `/report/[id]`'s server-side render of stored JSON, narrows every field it reads — file type, category id, page count — before use, and returns nothing rather than throwing on a shape it does not recognize. Also fixed: six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them; the check that separates them recognizes all three of the analyzer's not-scored prefixes now, not two. Tests 3,302.
+
+<details>
+<summary><strong>Earlier per-release reviews</strong> (v1.142.0 → v1.33.0) — click to expand</summary>
+
 ### v1.142.0 — 2026-08-29 · Red/blue audit of the day's thirty releases: no findings, no new attack surface (documented)
 
 A requested red/blue security audit of everything shipped on 2026-08-29 (75 files, +4,369/−881 across v1.130.0 → v1.141.3), fully documented in `docs/security-audit-2026-08-29-legal-only-sweep.md`. **Zero critical/high/medium findings; zero new attack surface** — no new routes, storage, input parsers, outbound requests, or `v-html`. The three mechanical red-sweep hits verified safe (a dev-only qpdf round-trip with array args on self-built input); the newly rendered veraPDF error field is fixed-literal-only; the v-html'd trust body's data fields are escaped. Also: "good twins" explained in plain language on the trust page. Tests 3,011.
-
-<details>
-<summary><strong>Earlier per-release reviews</strong> (v1.141.3 → v1.33.0) — click to expand</summary>
 
 ### v1.141.3 — 2026-08-29 · The last staled count, and the guard that now catches its class (no new attack surface)
 

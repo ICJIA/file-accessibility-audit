@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project follows [Semantic Versioning](https://semver.org/). Tags and releases are published on [GitHub](https://github.com/ICJIA/file-accessibility-audit/releases).
 
+## [1.143.0] - 2026-08-30
+
+### Added — a Best practices section, with your document's own evidence
+
+- **A new section now sits between the numbered action plan and "Above and beyond,"** in the Visual view, the Detailed view, shared reports, and the printable plan. It lists every non-scored best practice for the file's format — 38 in all, across PDF, Word, PowerPoint, and Excel — and for each one shows whether **this** document meets it, the evidence found in the document itself, both ways to fix it (in the source file, and in the finished file), and a link to learn more. Nothing in the section is scored: a "worth doing" row is never a failure, and the section's own heading says so.
+- **The point is proven in the test corpus, not just claimed in copy.** Three new documents — a PDF, a Word document, and an Excel workbook — were built to score completely clean under WCAG 2.1 while still carrying real best-practice work, and each one does: 100/A, zero conformance failures, and best-practice rows the new section reports anyway. All three are CI-gated so that can never quietly stop being true. A document can pass the law outright and still have work worth doing.
+
+### Changed
+
+- **"Above and beyond" narrows to what only veraPDF can say.** Retitled "Above and beyond — veraPDF's verdict," it no longer repeats items the new Best practices section already covers in more depth, and its now-duplicated "BEST PRACTICE — NOT SCORED" label is gone — the new section's own heading already says "not scored."
+
+### Fixed
+
+- **Six advisory findings for Word and Excel documents were rendering under the heading that says the score measures them.** The check that separates scored findings from "Note — not scored" ones recognized only two of the three prefixes the analyzer actually writes; it now recognizes all three, so those six lines sit where their own label says they belong.
+
+### Notes
+
+- Tests 3,302 (API 1,624 · Web 1,629 · CLI 49). Traps 127 (110 PDF + 17 Office). No scores moved — this release adds no traps and narrows no scoring rule.
+
+<details>
+<summary><strong>v1.142.0 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
+
 ## [1.142.0] - 2026-08-29
 
 ### Security — red/blue audit of the entire day's changes (v1.130.0 → v1.141.3)
@@ -13,9 +35,6 @@ This project follows [Semantic Versioning](https://semver.org/). Tags and releas
 ### Changed
 
 - **"Good twins" explained for non-technical readers** (user-caught jargon): the trust page now says *"for each flawed file, a matching corrected copy — the same document with the mistake fixed — that the checker must NOT flag,"* and the pair rule reads *"the broken version may never outscore the corrected one."* The dated announcement's "done-right twins" phrasing gets the same treatment.
-
-<details>
-<summary><strong>v1.141.3 → v1.88.0</strong> (2026-08-29 → 2026-08-22) — click to expand</summary>
 
 ## [1.141.3] - 2026-08-29
 

@@ -252,6 +252,16 @@ export const ANNOUNCEMENT_BANNER_SENTENCES = 4;
 
 export const ANNOUNCEMENTS = [
   {
+    id: "best-practices-section-2026-08-30",
+    badge: "New",
+    text: "Reports now include a Best practices section between the action plan and Above and beyond, in every view: the visual report, the detailed report, a shared report, and the printout. It lists every non-scored best practice for your file's format — 38 in all, across PDF, Word, PowerPoint, and Excel — and for each one shows whether your document meets it, the evidence found in your document itself, both ways to fix it, and a link to learn more. None of it touches your score: a row that says work is worth doing is never a failure. Three new test documents prove the point rather than just claim it — a PDF, a Word document, and an Excel workbook that each pass WCAG 2.1 completely, score 100/A, and still carry real best-practice work for the new section to report. Above and beyond now shows only what veraPDF itself found, and six advisory findings for Word and Excel documents that were rendering under the wrong heading now render under the right one.",
+    linkText: "How this app is tested",
+    linkTo: "/trust#all-tests",
+    linkExternal: true,
+    date: "August 30, 2026",
+    requiresWcagVersion: null as "2.1" | "2.2" | null,
+  },
+  {
     id: "legal-only-scoring-2026-08-29",
     badge: "Changed",
     text: "Scores now measure WCAG 2.1 — and nothing else. Every check in the scoring engine was audited against one rule: a deduction must correspond to a failing WCAG 2.1 A/AA criterion the report can name, or it may not touch your grade. Fifteen checks that measured best practices rather than the law — bookmarks, reading-order heuristics, heading-level conventions, link wording, slide titles, sheet names, and more — now appear as clearly labelled advisories that never affect the score, while confirmed legal failures gained explicit citations they were missing (untagged content, missing headings in long documents, wrong or unusable language declarations, filename-as-title). Most documents will score the same or higher on re-analysis; none score lower. A new automated gate re-verifies the rule on every change: every point lost must name the law it broke.",
