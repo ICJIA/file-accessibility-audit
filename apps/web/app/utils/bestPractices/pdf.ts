@@ -170,7 +170,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} heading(s) in this document use the generic tag instead of a numbered one, alongside numbered headings elsewhere.`
+              ? `${count} heading${count === 1 ? "" : "s"} in this document ${count === 1 ? "uses" : "use"} the generic tag instead of a numbered one, alongside numbered headings elsewhere.`
               : "This document mixes generic heading tags with numbered ones (H1–H6).",
             "Wherever a generic tag sits, the level a screen reader would announce is missing.",
           ],
@@ -468,7 +468,7 @@ export const PDF_PRACTICES: BestPractice[] = [
         return {
           status: "not-applicable",
           evidence: [
-            `This document has ${ctx.pageCount} page(s) — too short for bookmarks to matter.`,
+            `This document has ${ctx.pageCount} page${ctx.pageCount === 1 ? "" : "s"} — too short for bookmarks to matter.`,
           ],
         };
       }
@@ -524,7 +524,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} font(s) that display visible text in this document are not embedded.`
+              ? `${count} font${count === 1 ? "" : "s"} that ${count === 1 ? "displays" : "display"} visible text in this document ${count === 1 ? "is" : "are"} not embedded.`
               : "Some fonts that display visible text in this document are not embedded.",
           ],
           block: blockFrom(ctx, "Font Embedding", "Fonts used in this document"),
@@ -626,7 +626,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             m
-              ? `${m[1]} header cell(s) across ${m[2]} table(s) have no /Scope attribute.`
+              ? `${m[1]} header cell${m[1] === "1" ? "" : "s"} across ${m[2]} table${m[2] === "1" ? "" : "s"} ${m[1] === "1" ? "has" : "have"} no /Scope attribute.`
               : "Some header cells in this document's tables have no /Scope attribute.",
             "Each of those tables has headers along a single edge with nothing spanned, so the relationship is already clear without it.",
           ],
@@ -682,7 +682,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} table(s) in this document associate headers with data cells using /Headers, without also setting /Scope.`
+              ? `${count} table${count === 1 ? "" : "s"} in this document ${count === 1 ? "associates" : "associate"} headers with data cells using /Headers, without also setting /Scope.`
               : "Some tables in this document associate headers using /Headers, without also setting /Scope.",
             "That is complete and spec-correct on its own — adding /Scope as well is optional extra insurance.",
           ],
@@ -781,7 +781,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             m
-              ? `${m[1]} of ${m[2]} link(s) in this document use non-descriptive text — empty, a vague phrase, or too short to mean anything on its own.`
+              ? `${m[1]} of ${m[2]} link${m[2] === "1" ? "" : "s"} in this document ${m[1] === "1" ? "uses" : "use"} non-descriptive text — empty, a vague phrase, or too short to mean anything on its own.`
               : "Some links in this document use non-descriptive text.",
           ],
           block: blockFrom(
@@ -833,7 +833,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} link(s) in this document use the raw web address as their visible text.`
+              ? `${count} link${count === 1 ? "" : "s"} in this document ${count === 1 ? "uses" : "use"} the raw web address as ${count === 1 ? "its" : "their"} visible text.`
               : "Some links in this document use the raw web address as their visible text.",
             "This already satisfies the destination-is-determinable rule — a descriptive label is a readability nicety, not a fix for a failure.",
           ],
@@ -903,7 +903,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "met",
           evidence: [
             depth !== null
-              ? `This document's tag structure is nested ${depth} level(s) deep.`
+              ? `This document's tag structure is nested ${depth} level${depth === 1 ? "" : "s"} deep.`
               : "This document's tag structure is genuinely nested, not flat.",
           ],
         };
@@ -941,7 +941,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} extracted character(s) in this document cannot be mapped to readable text.`
+              ? `${count} extracted character${count === 1 ? "" : "s"} in this document cannot be mapped to readable text.`
               : "Some extracted characters in this document cannot be mapped to readable text.",
             severe
               ? "This is enough of the document's text that some of it may not reliably be read aloud or found by search, whatever the tagging says."
@@ -988,7 +988,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} visible character(s) in this document sit outside the tag structure.`
+              ? `${count} visible character${count === 1 ? "" : "s"} in this document ${count === 1 ? "sits" : "sit"} outside the tag structure.`
               : "A small amount of visible text in this document sits outside the tag structure.",
             severe
               ? "That is enough of the page's text that a screen reader following the tags would miss a meaningful amount of it."
@@ -1050,7 +1050,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           status: "not-met",
           evidence: [
             count !== null
-              ? `${count} list(s) in this document have no <Lbl> (bullet/number) element on their items.`
+              ? `${count} list${count === 1 ? "" : "s"} in this document ${count === 1 ? "has" : "have"} no <Lbl> (bullet/number) element on ${count === 1 ? "its" : "their"} items.`
               : "Some lists in this document have no <Lbl> (bullet/number) element on their items.",
             "This is optional under ISO 32000 and does not affect the score — adding it helps a screen reader announce each item's marker.",
           ],
@@ -1104,14 +1104,14 @@ export const PDF_PRACTICES: BestPractice[] = [
         if (missing) {
           evidence.push(
             missingCount !== null
-              ? `${missingCount} note(s) in this document have no /ID.`
+              ? `${missingCount} note${missingCount === 1 ? "" : "s"} in this document ${missingCount === 1 ? "has" : "have"} no /ID.`
               : "Some notes in this document have no /ID.",
           );
         }
         if (dup) {
           evidence.push(
             dupCount !== null
-              ? `${dupCount} note(s) reuse another note's /ID.`
+              ? `${dupCount} note${dupCount === 1 ? "" : "s"} reuse${dupCount === 1 ? "s" : ""} another note's /ID.`
               : "Some notes in this document reuse another note's /ID.",
           );
         }

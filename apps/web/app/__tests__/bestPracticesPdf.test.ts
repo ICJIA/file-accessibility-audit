@@ -439,6 +439,14 @@ describe("bookmarks", () => {
   it("is NOT APPLICABLE for a short document, using pageCount structurally rather than a string match", () => {
     const r = run("bookmarks", [], 5);
     expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/5 pages/);
+  });
+
+  it("is NOT APPLICABLE for a 1-page document, pluralized correctly for exactly one page", () => {
+    const r = run("bookmarks", [], 1);
+    expect(r.status).toBe("not-applicable");
+    expect(r.evidence.join(" ")).toMatch(/1 page\b/);
+    expect(r.evidence.join(" ")).not.toMatch(/1 pages/);
   });
 
   it("is NOT CHECKED — not NOT APPLICABLE — at pageCount 0: that is a missing field defaulting to 0, not a real 0-page document", () => {
@@ -567,7 +575,7 @@ describe("table-scope-simple", () => {
   it("is NOT MET when simple tables are missing /Scope, alongside the coexisting MET line", () => {
     const r = run("table-scope-simple", [SIMPLE_ADVISORY, ASSOC_LINE]);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/4 header cell\(s\) across 2 table\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/4 header cells across 2 tables/);
   });
 
   it("is MET when every <TH> cell carries a Scope attribute", () => {
@@ -653,7 +661,7 @@ describe("descriptive-link-text", () => {
   it("is NOT MET when some links use non-descriptive text", () => {
     const r = run("descriptive-link-text", [NON_DESCRIPTIVE_ADVISORY, ...NON_DESCRIPTIVE_GROUP]);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/3 of 12 link\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/3 of 12 links/);
     expect(r.block?.lines.join(" ")).toMatch(/click here/);
   });
 
@@ -688,7 +696,7 @@ describe("raw-url-link-text", () => {
   it("is NOT MET when links use their raw web address as visible text (un-prefixed in `main`, not `notScored`)", () => {
     const r = run("raw-url-link-text", RAW_URL_ITEMS);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/2 link\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/2 links/);
   });
 
   it("is MET when every link uses descriptive text", () => {
@@ -826,7 +834,7 @@ describe("list-labels", () => {
   it("is NOT MET when lists have no <Lbl> element on their items (un-prefixed, lands in `main`) — the fixture keeps the coexisting witness so a reorder fails", () => {
     const r = run("list-labels", LIST_GROUP);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/2 list\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/2 lists/);
   });
 
   // CORRECTED AGAIN (fix round 3): round 2's "witness present AND no
@@ -923,16 +931,18 @@ describe("footnote-ids", () => {
     "  All notes carry a unique /ID — assistive technology can link each reference to its note (Matterhorn 19-003/19-004)",
   ];
 
-  it("is NOT MET when notes have no /ID", () => {
+  it("is NOT MET when notes have no /ID, pluralized correctly for more than one", () => {
     const r = run("footnote-ids", MISSING_GROUP);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/2 note\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/2 notes in this document have no \/ID/);
+    expect(r.evidence.join(" ")).not.toMatch(/2 note in|2 note has/);
   });
 
-  it("is NOT MET when notes reuse another note's /ID", () => {
+  it("is NOT MET when notes reuse another note's /ID, pluralized correctly for exactly one", () => {
     const r = run("footnote-ids", DUP_GROUP);
     expect(r.status).toBe("not-met");
-    expect(r.evidence.join(" ")).toMatch(/1 note\(s\)/);
+    expect(r.evidence.join(" ")).toMatch(/1 note reuses another note's \/ID/);
+    expect(r.evidence.join(" ")).not.toMatch(/1 notes|1 note reuse /);
   });
 
   it("is MET when every note carries a unique /ID", () => {
