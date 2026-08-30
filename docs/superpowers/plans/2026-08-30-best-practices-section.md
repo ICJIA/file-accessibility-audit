@@ -1733,6 +1733,14 @@ full — the rest of the template follows from the requirements below it.
 </template>
 ```
 
+**FOUR PRACTICES CAN NEVER REPORT MET — the summary must not read as four failures.** `heading-content`, `single-h1`, `character-mapping` and `content-in-tag-tree` have no MET branch at all, because the analyzer emits no positive line for them: when they are fine it simply says nothing. Manufacturing a pass from that silence is the one thing this catalog exists to prevent, so those rows land on NOT CHECKED for a flawless document.
+
+Consequence: **a perfect PDF shows `15 met · 0 not met · 4 not checked`**, never `19 met`. Design for that, or the section reads as if a clean document still has four problems.
+
+- The summary chips must never imply the not-checked rows are failures. Give NOT CHECKED a neutral tone — muted or amber, never red — and place it last.
+- Where a practice can never report MET, its NOT CHECKED row must say so plainly rather than leaving the reader to guess: something like "This checker cannot confirm this one automatically — the analysis only reports it when something looks wrong, so no news is good news here. A person can confirm it in a minute."
+- Do NOT add a "N of 19" fraction anywhere. A denominator invites the reader to treat the four as a shortfall, and the project's standing rule is that any number out of a total beside a status is read AS a grade.
+
 Requirements for the rest, all asserted by the tests above:
 
 - Root `<section data-testid="best-practices" aria-labelledby="best-practices-title">`, rendered only when `rows.length > 0`.
