@@ -29,6 +29,7 @@ import { safeHttpUrl, wcagSlugFor } from "@file-audit/shared";
 import type { PlanStep } from "~/utils/actionPlan";
 import type { ManualCheck } from "~/utils/manualReview";
 import type { BestPracticeStatus, EvaluatedPractice } from "~/utils/bestPractices";
+import { safeLinks } from "~/utils/bestPractices/links";
 
 export interface PrintablePlanOptions {
   filename: string;
@@ -190,8 +191,22 @@ function isPdfPractice(practice: EvaluatedPractice["practice"]): boolean {
  *  the person reading it may not be the one who generated it. Every
  *  document-derived value (evidence, the heading/link/font census block)
  *  passes escapeHtml; the catalog's own copy (label/description/why) is
- *  static, but is escaped too rather than trusted as a special case. */
-function renderBestPractice(r: EvaluatedPractice): string {
+ *  static, but is escaped too rather than trusted as a special case.
+ *
+ *  `understandingUrl` resolves each practice's `wcagSlugs` the same way
+ *  BestPracticesSection.vue's practiceLinks() does on screen — those slugs
+ *  are version-aware and can only be turned into a URL by the caller
+ *  (useWcag() lives behind runtime config, unreachable from this
+ *  module-scope catalog). Matters MORE on paper than on screen: the print
+ *  stylesheet appends "(href)" after every link so it can be typed from the
+ *  page, so a link this function drops is unrecoverable in a way a missing
+ *  on-screen link is not. Absent (no resolver wired — some tests, possibly
+ *  the remediation page), wcagSlugs links are skipped entirely rather than
+ *  rendering a broken href. */
+function renderBestPractice(
+  r: EvaluatedPractice,
+  understandingUrl?: (slug: string) => string,
+): string {
   const isPdf = isPdfPractice(r.practice);
   const evidence = r.evidence.length
     ? `<p class="bp-doc"><strong>Your document:</strong> ${r.evidence.map(escapeHtml).join(" ")}</p>`
@@ -212,15 +227,18 @@ function renderBestPractice(r: EvaluatedPractice): string {
         ? `<p class="bp-fix"><strong>In the PDF (Acrobat):</strong> ${escapeHtml(r.fix.app)}</p>`
         : `<p class="bp-fix">${escapeHtml(r.fix.app)}</p>`)
     : "";
-  const links = r.practice.links.length
+  // wcagSlugs concatenated onto the practice's own links and run through
+  // safeLinks TOGETHER, exactly as BestPracticesSection.vue does — a link
+  // is the one thing on the page a reader is invited to click (or, here,
+  // type out by hand), and an entry whose URL fails safeHttpUrl is DROPPED
+  // rather than downgraded to plain text.
+  const wcagLinks = understandingUrl
+    ? (r.practice.wcagSlugs ?? []).map((s) => ({ label: s.label, url: understandingUrl(s.slug) }))
+    : [];
+  const allLinks = safeLinks([...r.practice.links, ...wcagLinks]);
+  const links = allLinks.length
     ? `<p class="bp-links">` +
-      r.practice.links
-        .map((l) => {
-          const safe = safeHttpUrl(l.url);
-          const label = escapeHtml(l.label);
-          return safe ? `<a href="${escapeHtml(safe)}">${label}</a>` : label;
-        })
-        .join(" · ") +
+      allLinks.map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.label)}</a>`).join(" · ") +
       `</p>`
     : "";
   return (
@@ -279,7 +297,7 @@ export function buildPrintablePlan(o: PrintablePlanOptions): string {
     ? `<h2>Best practices — not scored</h2>` +
       `<p class="sub">None of this affected the grade. The fixes above are everything WCAG 2.1 ` +
       `asks of this document; everything here is optional work that helps real readers.</p>` +
-      `<ul class="bp">${(o.bestPractices ?? []).map(renderBestPractice).join("")}</ul>`
+      `<ul class="bp">${(o.bestPractices ?? []).map((r) => renderBestPractice(r, o.understandingUrl)).join("")}</ul>`
     : "";
 
   const hasCaution = (o.manualChecks ?? []).some((c) => c.tone === "caution");

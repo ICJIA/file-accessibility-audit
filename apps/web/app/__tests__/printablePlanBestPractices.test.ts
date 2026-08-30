@@ -78,3 +78,39 @@ describe("printable plan — best practices", () => {
     expect(buildPrintablePlan({ filename: "x.pdf", steps: [] })).not.toContain("Best practices");
   });
 });
+
+describe("printable plan — best practices' wcagSlugs links", () => {
+  // "Bookmarks for navigation" carries no static `links`, only a `wcagSlugs`
+  // citation (WCAG 2.4.5) — isolating it from the heading practices' own
+  // matterhornLink/techniqueLink entries above.
+  const bookmarksRows = () =>
+    evaluateBestPractices({
+      fileType: "pdf",
+      pageCount: 40,
+      categories: [{ id: "bookmarks", findings: [] }],
+    });
+
+  it("resolves a wcagSlugs practice's Understanding link when understandingUrl is supplied", () => {
+    const html = buildPrintablePlan({
+      filename: "report.pdf",
+      steps: [],
+      bestPractices: bookmarksRows(),
+      understandingUrl: (slug) => `https://www.w3.org/WAI/WCAG22/Understanding/${slug}.html`,
+    });
+    expect(html).toContain('href="https://www.w3.org/WAI/WCAG22/Understanding/multiple-ways.html"');
+    expect(html).toContain("WCAG 2.4.5: Multiple Ways");
+  });
+
+  it("renders no broken link — or the bare label — when understandingUrl is not supplied", () => {
+    const html = buildPrintablePlan({
+      filename: "report.pdf",
+      steps: [],
+      bestPractices: bookmarksRows(),
+    });
+    // Dropped entirely, not downgraded to plain text: a link on paper is
+    // typed from the printed "(href)", so a label with no href would read
+    // as a promise the page cannot keep.
+    expect(html).not.toContain("WCAG 2.4.5: Multiple Ways");
+    expect(html).not.toMatch(/href="[^"]*undefined/);
+  });
+});
