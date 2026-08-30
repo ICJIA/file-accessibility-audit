@@ -829,14 +829,16 @@ describe("list-labels", () => {
     expect(r.evidence.join(" ")).toMatch(/2 list\(s\)/);
   });
 
-  // CORRECTED (fix round 2): list-labels DOES have a witness after all —
-  // supplementary.ts:184-186 pushes "N list(s) detected with M total
-  // item(s)" unconditionally whenever qpdf.lists.length > 0, un-indented
-  // (lands in `main`, matchMain finds it), before the <Lbl> advisory. Not
-  // "All lists are well-formed (each <LI> has an <LBody>)" — that is a
-  // different property (<LBody>, not <Lbl>) and would report MET only for
-  // documents well-formed in an unrelated respect.
-  it("is MET when every list carries its own <Lbl> marker (the witness alone, no <Lbl> advisory)", () => {
+  // CORRECTED AGAIN (fix round 3): round 2's "witness present AND no
+  // advisory" was unsound — the <Lbl> advisory (supplementary.ts:204-206)
+  // is nested inside `if (wellFormed === qpdf.lists.length)` (:200), a
+  // condition about <LBody>, a DIFFERENT property from <Lbl>. A malformed
+  // list (missing <LBody>) that also lacks <Lbl> takes the sibling `else`
+  // branch and never emits the advisory — round 2's code reported that
+  // document MET. The sound signal is the PER-LIST lines themselves
+  // (`  List N: … | <Lbl> ✓/✗ | …`), which record real <Lbl> status
+  // independent of <LBody> well-formedness.
+  it("is MET when every list's own line shows <Lbl> ✓ (read from signalLines, not a top-level witness)", () => {
     const r = run("list-labels", [
       "--- List Structure Analysis ---",
       "3 list(s) detected with 14 total item(s)",
@@ -848,10 +850,36 @@ describe("list-labels", () => {
     expect(r.status).toBe("met");
   });
 
-  it("does not report MET from a zero-count witness — belt-and-braces against a forged report (the real analyzer's own qpdf.lists.length > 0 guard never emits this shape)", () => {
+  // THE CRITICAL BUG, PINNED: reproduces the coordinator's exact scenario —
+  // a malformed list (missing <LBody>) whose items ALSO lack <Lbl>. Under
+  // round 2's code this returned MET with evidence claiming "every item
+  // carries its own <Lbl> marker" — a fabricated document fact, reachable
+  // on an ordinary export, not just a forged report. Must never be MET.
+  it("does not fabricate MET for a malformed list that ALSO lacks <Lbl> — the advisory line the old code relied on is never emitted here", () => {
     const r = run("list-labels", [
       "--- List Structure Analysis ---",
-      "0 list(s) detected with 0 total item(s)",
+      "1 list(s) detected with 5 total item(s)",
+      "  List: 5 <LI> | <Lbl> ✗ | <LBody> ✗ | incomplete structure",
+      "1 list(s) have items missing <LBody> elements — screen readers may not announce list item content correctly",
+      "Fix: In Adobe Acrobat, expand each <L> tag in the Tags panel → ensure each <LI> contains an <LBody> (text content); <Lbl> (bullet/number) is recommended but optional",
+    ]);
+    expect(r.status).not.toBe("met");
+  });
+
+  it("does not report MET when the per-list detail is missing — a top-level census line alone proves nothing about <Lbl>", () => {
+    const r = run("list-labels", [
+      "--- List Structure Analysis ---",
+      "3 list(s) detected with 14 total item(s)",
+    ]);
+    expect(r.status).not.toBe("met");
+  });
+
+  it("does not report MET when only SOME lists show <Lbl> ✓ — one unlabelled list is enough to withhold MET", () => {
+    const r = run("list-labels", [
+      "--- List Structure Analysis ---",
+      "2 list(s) detected with 9 total item(s)",
+      "  List 1: 5 <LI> | <Lbl> ✓ | <LBody> ✓ | well-formed",
+      "  List 2: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
     ]);
     expect(r.status).not.toBe("met");
   });

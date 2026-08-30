@@ -274,6 +274,15 @@ body {
   .bp-body {
     display: block !important;
   }
+  /* The disclosure header carries the practice's name and status — hiding
+     it (the blanket `button` rule above) leaves an anonymous body: the
+     evidence and fix steps print with nothing saying which practice they
+     belong to or what its status is. Must come AFTER that blanket hide.
+     flex, not block: the header lays its icon/label/pill out in a row —
+     block would stack them vertically on paper. */
+  button.bp-row-header {
+    display: flex !important;
+  }
   .action-plan li,
   .category-bars li {
     break-inside: avoid;

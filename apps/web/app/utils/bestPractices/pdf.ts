@@ -17,7 +17,6 @@
  */
 import {
   matchAny,
-  matchMain,
   matchNotScored,
   signalLines,
   firstNumber,
@@ -1027,20 +1026,26 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["This document has no tagged lists, so there are no list labels to check."],
         };
       }
-      // ORDER IS LOAD-BEARING: supplementary.ts:184-186 pushes the census
-      // witness ("N list(s) detected with M total item(s)") unconditionally
-      // whenever qpdf.lists.length > 0 — before the per-list items (:198,
-      // indented, so signalLines/List Structure Analysis sees them, not
-      // matchMain) and before the <Lbl> advisory (:204-205) even run. A
-      // document with unlabelled lists therefore carries BOTH the witness
-      // and the advisory in the same findings array — the advisory check
-      // must run first, or such a document would read MET here.
+      // NOT a witness+silence inference (round 2 tried that and was wrong
+      // — see task-7-report.md's fix-round-3 notes). The <Lbl> advisory
+      // (supplementary.ts:204-206, "N list(s) have no <Lbl>…") is nested
+      // INSIDE `if (wellFormed === qpdf.lists.length)` (:200) — a condition
+      // about <LBody>, a different property from <Lbl> entirely
+      // (qpdfService.ts:1561's own comment: "<Lbl> is deliberately NOT
+      // required" for well-formedness). A document with a MALFORMED list
+      // (missing <LBody>) that ALSO lacks <Lbl> takes the sibling `else`
+      // branch (:207) and never emits the advisory at all — so "witness
+      // present AND no advisory" is unsound here: it would report MET for
+      // that document. The only sound signal is the PER-LIST lines
+      // themselves (`  List N: … | <Lbl> ✓/✗ | …`, supplementary.ts:198),
+      // which record each list's real <Lbl> status independent of <LBody>
+      // well-formedness and independent of whether the summary advisory
+      // fired. Reusing the exact lines the NOT MET branch below already
+      // reads off signalLines, not a separate top-level match.
+      const perList = signalLines(ctx, "List Structure Analysis").filter((l) => /^List\b/.test(l));
       const advisory = matchAny(ctx, "have no <lbl>");
       if (advisory) {
         const count = firstNumber(advisory);
-        const perList = signalLines(ctx, "List Structure Analysis").filter((l) =>
-          /^List\b/.test(l),
-        );
         return {
           status: "not-met",
           evidence: [
@@ -1057,23 +1062,17 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      // The witness itself — NOT "All lists are well-formed (each <LI> has
-      // an <LBody>)" (supplementary.ts:201), which is about <LBody>, a
-      // different property from <Lbl>; gating on it would report MET only
-      // for documents that happen to be well-formed in that unrelated
-      // respect. GATE, same reason as xlsx-defined-tables (office.ts): the
-      // witness carries its own count, so require it to be > 0 rather than
-      // trusting presence alone — belt-and-braces against a forged report
-      // whose findings claim a witness with a zero count, something the
-      // real analyzer's own `qpdf.lists.length > 0` guard never emits, but
-      // /report/[id] renders attacker-controlled stored JSON.
-      const witness = matchMain(ctx, "list(s) detected");
-      const count = firstNumber(witness);
-      if (witness && count !== null && count > 0) {
+      // hasLabels itself is an ANY-quantifier per list (qpdfService.ts
+      // :1524-1526 sets it true the moment ONE <LI> in the list has a
+      // <Lbl> child) — so even a genuine "<Lbl> ✓" line does not mean
+      // every item in that list is labelled, only that the list has at
+      // least one labelled item. The evidence text below is scoped to
+      // that, not "every item".
+      if (perList.length > 0 && perList.every((l) => l.includes("<Lbl> ✓"))) {
         return {
           status: "met",
           evidence: [
-            "This document's lists were checked, and every item carries its own <Lbl> marker.",
+            "This document's lists were checked, and each one uses <Lbl> (bullet/number) elements for its items.",
           ],
         };
       }

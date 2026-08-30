@@ -905,11 +905,27 @@ export const OFFICE_PRACTICES: BestPractice[] = [
           "not-run",
         );
       }
-      if (matchNotScored(ctx, "sits outside the defined table")) {
+      // FIX (audit sweep, same bug class as list-labels): xlsx.ts:41-53 is
+      // an if/else-if — "no defined Excel Table anywhere" (advisory A, the
+      // tables.length===0 case) and "sits outside the defined table(s)"
+      // (advisory B, tables exist but some data isn't in one) never
+      // coexist, and only advisory B was matched here. A workbook with
+      // ZERO defined tables anywhere fires advisory A, not B — this
+      // practice's own matcher found nothing, fell through to the witness
+      // check below, and reported MET ("none has sizable data sitting
+      // outside a defined Table") for a workbook where trivially ALL of
+      // it does, because there is nowhere else for it to sit. Advisory A
+      // is the tables=0 special case of the exact same fact this practice
+      // measures, so it is matched here too.
+      const noTablesAtAll = matchNotScored(ctx, "no defined excel table anywhere");
+      const someOutside = matchNotScored(ctx, "sits outside the defined table");
+      if (noTablesAtAll || someOutside) {
         return {
           status: "not-met",
           evidence: [
-            "This workbook has data sitting outside its defined tables, as plain cell ranges.",
+            noTablesAtAll
+              ? "This workbook has no defined Excel Table anywhere, so its sizable data sits entirely outside one, as plain cell ranges."
+              : "This workbook has data sitting outside its defined tables, as plain cell ranges.",
             "A screen reader can announce column headers while moving across a defined Table, but not across a plain range.",
           ],
           fix: {
@@ -926,15 +942,14 @@ export const OFFICE_PRACTICES: BestPractice[] = [
         };
       }
       // ORDER IS LOAD-BEARING: xlsx.ts:207's witness is pushed unconditionally
-      // whenever the early return is not taken, before the data-outside-
-      // tables check (:225-238) even runs. The advisory check above must
-      // win. Unlike xlsx-defined-tables, this practice's concern (is data
-      // sitting OUTSIDE a table) is orthogonal to the witness's own numeric
-      // value — the evidence copy below deliberately mirrors the code's own
-      // definition (pivot sheets are excluded from this specific check by
-      // design, so "no data sits outside a defined Table" is accurate
-      // exactly whenever the advisory is silent, regardless of how many
-      // defined tables exist).
+      // whenever the early return is not taken, before either advisory check
+      // (:225-238) even runs. Both advisory checks above must win. With the
+      // tables=0 case now caught above, the only way to reach this point
+      // with a.tables.length === 0 is the pivot-only-workbook case (pivot
+      // sheets are excluded from `datafulWithoutTable` by design, xlsx.ts
+      // :222-224) — where MET is still accurate, because this practice's
+      // concern (non-pivot data outside a table) has no non-pivot data to
+      // be wrong about.
       if (matchMain(ctx, "defined table(s) found")) {
         return {
           status: "met",

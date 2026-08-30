@@ -631,12 +631,35 @@ describe("xlsx-data-outside-tables", () => {
     expect(run("xlsx-data-outside-tables", [XLSX_NO_DATA]).status).toBe("not-applicable");
   });
 
-  it("does not false-trigger on the sibling 'no defined table anywhere' line", () => {
-    expect(run("xlsx-data-outside-tables", [XLSX_NO_DEFINED_TABLE]).status).toBe("not-checked");
+  // CORRECTED (audit sweep, same bug class as list-labels): this test used
+  // to be named "does not false-trigger on the sibling 'no defined table
+  // anywhere' line" and expected NOT CHECKED. That line is the tables=0
+  // special case of the EXACT fact this practice measures — when there are
+  // no defined tables anywhere, all sizable non-pivot data trivially sits
+  // "outside" one. Not matching it meant the unconditional witness alone
+  // satisfied the MET check below for a workbook with ZERO defined tables:
+  // reproduced with [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE], which
+  // returned MET, claiming "none has sizable data sitting outside a defined
+  // Table," before this fix.
+  it("is NOT MET when there are zero defined tables anywhere — the tables=0 special case of the same fact this practice measures", () => {
+    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_NO_DEFINED_TABLE]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/no defined Excel Table anywhere/);
   });
 
-  it("is MET when the witness is present with no data-outside-tables advisory — unlike xlsx-defined-tables, this concern is orthogonal to the witness's own count, so no extra gate is needed", () => {
+  it("is MET when the witness is present with no data-outside-tables advisory and at least one table exists", () => {
     expect(run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS]).status).toBe("met");
+  });
+
+  // UNLIKE xlsx-defined-tables' own pivot-only test (which expects NOT
+  // CHECKED — its concern, "does at least one table exist," is genuinely
+  // unconfirmed here): MET is still correct for THIS practice on a
+  // pivot-only workbook, because its concern (non-pivot data sitting
+  // outside a table) has no non-pivot data to be wrong about, whether or
+  // not a defined table exists.
+  it("is MET for a pivot-only workbook — no non-pivot data exists to sit outside a table either way", () => {
+    const r = run("xlsx-data-outside-tables", [XLSX_TABLE_WITNESS_ZERO, XLSX_PIVOT_ONLY_WORKBOOK]);
+    expect(r.status).toBe("met");
   });
 
   it("is NOT CHECKED when the analyzer said nothing either way (no witness present)", () => {

@@ -2,21 +2,27 @@
      The Best Practices scorecard — the surface for the catalog built in
      Tasks 2-6 (~/utils/bestPractices). Renders one row per practice that
      applies to this document's format, already evaluated. Sits directly
-     above ActionPlan's own "Above and beyond" group and shares its visual
-     language on purpose (sky palette, "BEST PRACTICE — NOT SCORED" chip):
-     same doctrine, same tier, same non-obligation, read as a sibling.
+     above ActionPlan's own "Above and beyond" group and shares its sky
+     visual language on purpose (the icon, the card border/background):
+     same doctrine, same tier, same non-obligation, read as a sibling. Its
+     own "BEST PRACTICE — NOT SCORED" chip was dropped (fix round 1) as a
+     duplicate of what the h2 below already says.
 
      NOTHING HERE IS SCORED, and NOT MET reads as WORTH DOING, never a
      failure — see ~/utils/bestPractices/types.ts's own doctrine comment.
      Two catalog facts drive the copy below rather than a fifth status:
 
-       - Three practices (docx-layout-grids, xlsx-pivot-tables,
-         xlsx-merged-cells) can never reach MET — they mean "a person
-         should look", and their own fix.source text already says so
-         ("No structural fix applies…", "Review… manually"). Rendered
-         generically like any other fix, not hardcoded by id: the catalog
-         already carries this in evidence/why/fix, so the section never
-         has to know which three they are.
+       - CORRECTED (fix round 3, audit sweep): the original design brief
+         claimed three practices (docx-layout-grids, xlsx-pivot-tables,
+         xlsx-merged-cells) can never reach MET. Read directly: all three
+         have live, reachable MET branches and correctly report it on a
+         clean document — that claim was never true of the actual catalog
+         code. It never had to be, either: this component renders
+         fix.source/fix.app generically for any NOT MET row regardless, so
+         whatever nuance one practice's fix carries — a real structural
+         action, or (xlsx-pivot-tables) "No structural fix applies… review
+         manually" — already comes through from the catalog text itself,
+         with nothing hardcoded by id.
        - Four practices (heading-content, single-h1, character-mapping,
          content-in-tag-tree) have no MET branch in the catalog at all — the
          analyzer only speaks up when something looks wrong, so a flawless
@@ -59,11 +65,16 @@
     <!-- Deliberately NOT the beyond-group's own intro (ActionPlan.vue) —
          that block sits inches below this one on the page and opens with
          near the same sentence. This paragraph says what THIS section adds
-         instead of restating that framing: a status and this document's own
-         evidence, practice by practice. -->
+         instead of restating that framing.
+
+         CORRECTED (fix round 3): the first draft said "was checked against
+         this document" — a universal claim sitting directly above a NOT
+         CHECKED chip and rows admitting a check has no data at all
+         (row.reason === "not-run"). Say what is structurally true of every
+         row (it carries a status and this document's own evidence, whatever
+         that status is) rather than a claim about what happened. -->
     <p class="text-sm text-[var(--text-muted)] mt-2.5 leading-relaxed">
-      Every practice below was checked against this document specifically — its own status, and its
-      own evidence, for each one.
+      Each practice below carries its own status and this document's own evidence.
       <strong class="font-semibold text-[var(--text-secondary)]"
         >None of this affected your grade.</strong
       >
@@ -90,7 +101,7 @@
       >
         <button
           type="button"
-          class="w-full flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
+          class="bp-row-header w-full flex items-center gap-2 text-left px-3 py-2.5 cursor-pointer"
           :aria-expanded="open.has(row.practice.id) ? 'true' : 'false'"
           :aria-controls="`bp-body-${row.practice.id}`"
           @click="toggle(row.practice.id)"

@@ -201,6 +201,15 @@ describe("BestPracticesSection", () => {
     }
   });
 
+  it("the intro never claims every check ran — it sits above rows admitting they have no data", () => {
+    // Fix round 3: the intro used to say "was checked against this
+    // document" — a universal claim directly above a NOT CHECKED chip and
+    // rows saying a check has no data at all (reason: "not-run").
+    const html = mountSection(pdfResult).html();
+    expect(html).not.toMatch(/was checked against this document/i);
+    expect(html).toMatch(/none of this affected your grade/i);
+  });
+
   it("distinguishes a not-run NOT CHECKED row from a silent one — no false reassurance", () => {
     // table-scope-simple's category (table_markup) is absent from pdfResult
     // — its detect() hits categoryAbsent() and must not claim the check ran
@@ -268,6 +277,15 @@ describe("BestPracticesSection", () => {
     const w = mountSection(pdfResult);
     const body = w.find("#bp-body-heading-level-order");
     expect(body.classes()).toContain("bp-body");
+  });
+
+  it("the row header button carries the bp-row-header class main.css force-shows at print", () => {
+    // main.css:227 hides every <button> at print; without this class (and
+    // the paired rule after it) a printed report shows 19 anonymous
+    // bodies — evidence and fix steps with no practice name and no status.
+    const w = mountSection(pdfResult);
+    const btn = w.find('[data-practice="heading-level-order"] button');
+    expect(btn.classes()).toContain("bp-row-header");
   });
 
   // The headline invariant. CORRECTED in fix round 2: list-labels was
