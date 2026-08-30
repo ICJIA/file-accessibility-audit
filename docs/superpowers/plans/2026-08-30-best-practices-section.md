@@ -666,7 +666,7 @@ import type { BestPracticeLink } from "./types";
 /** The PDF Association's Matterhorn Protocol landing page. Checkpoints are
  *  not separately addressable, so every checkpoint links here and carries its
  *  number and name in the label. */
-const MATTERHORN_URL = "https://pdfa.org/resource/matterhorn-protocol/";
+const MATTERHORN_URL = "https://pdfa.org/resource/the-matterhorn-protocol/";
 
 /** W3C techniques are filed by their letter prefix: G=general, PDF=pdf,
  *  H=html, F=failures. Only G and PDF are cited by this catalog. */
