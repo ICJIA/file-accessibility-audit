@@ -446,6 +446,14 @@ describe("the beyond group carries veraPDF's verdict in full (v1.133.0)", () => 
     expect(w.find('[data-testid="plan-vera-detail"]').text()).toMatch(
       /could not complete[^]*JVM timed out/,
     );
+    // The group's own intro promises "every rule it failed... and how many
+    // times it occurs" — which is false on this exact path (nothing failed,
+    // nothing to count; the check simply didn't finish). The intro's own
+    // "or, if it could not finish, that it says so" clause is what keeps
+    // that promise honest here (fix round 1, 2026-08-30).
+    expect(w.find('[data-testid="plan-beyond-group"]').text()).toMatch(
+      /if it could not finish, that it says so/,
+    );
   });
   // The "carries the optional-fix line with its unscored finding (partition
   // parity)" test that used to live here mounted with `categories` alone
@@ -705,5 +713,48 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     const w = mountPlanWithResult(SCOPE_RESULT);
     expect(w.find('[data-testid="best-practices"]').exists()).toBe(true);
     expect(w.findAll(".plan-step-body")).toHaveLength(1); // === [step].length
+  });
+
+  it("keeps the beyond group's heading at h2 — a peer tier, not a subsection of Best Practices", () => {
+    // Both blocks sit inside <section id="action-plan">, so a flat heading
+    // outline (how a screen-reader user navigates) would nest this under
+    // Best Practices' own h2 if it were still an h3 — no level skipped, but
+    // wrongly subordinate. The plan, Best Practices, and this card are
+    // three peer tiers.
+    const w = mountPlanWithResult(SCOPE_RESULT);
+    expect(w.find('[data-testid="plan-beyond-group"] h2').exists()).toBe(true);
+    expect(w.find('[data-testid="plan-beyond-group"] h3').exists()).toBe(false);
+  });
+
+  it("pins the beyond group's own heading text and intro — the two copy changes this task exists for", () => {
+    // Nothing previously asserted the rendered heading or intro text
+    // directly: `expect(beyond.text()).toMatch(/veraPDF/)` (above) is
+    // satisfied by the intro paragraph and by plan-vera-detail regardless
+    // of the heading, so reverting the heading to its old, now-false
+    // wording ("Above and beyond — not required by WCAG 2.1") would have
+    // kept the suite green. Pin both directly.
+    const w = mountPlanWithResult(SCOPE_RESULT);
+    expect(w.find('[data-testid="plan-beyond-group"] h2').text()).toBe(
+      "Above and beyond — veraPDF's verdict",
+    );
+    expect(w.find('[data-testid="plan-beyond-group"]').text()).toMatch(
+      /independent PDF\/UA validator, built by the PDF Association/,
+    );
+  });
+
+  it("keeps the seam off a report with nothing below it", () => {
+    // A legacy or forged stored report can carry categories with a
+    // missing/unrecognized fileType — evaluateBestPractices returns []
+    // for it (gates on fileType), so BestPracticesSection renders nothing.
+    // With no pdfUaVerdict either, the beyond group also stays hidden. The
+    // seam must not draw "Everything the law requires is above ↑" over
+    // empty space.
+    const w = mountPlanWithResult({
+      pageCount: 1,
+      categories: [{ id: "table_markup", label: "Table Markup", findings: [] }],
+    });
+    expect(w.find('[data-testid="best-practices"]').exists()).toBe(false);
+    expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
+    expect(w.text()).not.toMatch(/Everything the law requires is above/);
   });
 });

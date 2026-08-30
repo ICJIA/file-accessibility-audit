@@ -210,9 +210,13 @@
          Kept out of the numbered steps on purpose: a number in this plan
          means a WCAG 2.1 obligation. The seam used to live inside the
          beyond group alone; now it introduces both non-required tiers
-         (2026-08-30). -->
+         (2026-08-30). Gated on hasBestPractices, not the looser `result`
+         (fix round 1, 2026-08-30) — `result` is truthy for any report
+         object, including one with categories but a missing/unrecognized
+         fileType, which BestPracticesSection would silently render nothing
+         for; the seam must not draw a rule over empty space. -->
     <div
-      v-if="result || showBeyondGroup"
+      v-if="hasBestPractices || showBeyondGroup"
       class="flex items-center gap-3 mt-8 mb-4"
       aria-hidden="true"
     >
@@ -235,21 +239,32 @@
       <div class="rounded-2xl border-2 border-sky-500/40 bg-sky-500/5 px-5 sm:px-6 py-5">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span aria-hidden="true" class="text-2xl leading-none text-sky-400">○</span>
-          <h3 class="text-lg sm:text-xl font-bold text-[var(--text-heading)] m-0">
+          <!-- h2, not h3 (fix round 1, 2026-08-30): the plan, Best Practices,
+               and this card are three peer tiers, not a subsection of Best
+               Practices — a flat heading outline is how a screen-reader user
+               navigates, and nesting this under Best Practices' own h2 misled
+               that navigation even though no level was skipped. -->
+          <h2 class="text-lg sm:text-xl font-bold text-[var(--text-heading)] m-0">
             Above and beyond — veraPDF's verdict
-          </h3>
+          </h2>
         </div>
         <p class="text-sm text-[var(--text-muted)] mt-2.5 leading-relaxed">
           veraPDF is an independent PDF/UA validator, built by the PDF Association and not by us.
-          What follows is its verdict on this document, in its own words — every rule it failed, the
-          ISO 14289 clause behind it, and how many times it occurs.
+          What follows is its verdict on this document, in its own words: every rule it failed, the
+          ISO 14289 clause behind it, and how many times it occurs — or, if it could not finish,
+          that it says so.
           <strong class="font-semibold text-[var(--text-secondary)]"
             >None of it affected your grade.</strong
           >
         </p>
 
         <!-- The numbers at a glance, infographic-style: what is optional here,
-             and the referee's own totals. -->
+             and the referee's own totals. This card only renders at all when
+             showBeyondGroup is true, which requires `error || passed ===
+             false` — so a "veraPDF: ✓ clean" chip for `passed === true` can
+             never be reached (fix round 1, 2026-08-30: was dead code,
+             deleted). Do not re-add it without widening showBeyondGroup
+             first, or it stays unreachable. -->
         <div class="mt-3.5 flex flex-wrap gap-2" data-testid="beyond-stat-chips">
           <span
             class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
@@ -270,12 +285,6 @@
             }}</span>
             rules
           </span>
-          <span
-            v-else-if="pdfUaVerdict?.available && pdfUaVerdict.passed"
-            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-[var(--text-secondary)]"
-          >
-            veraPDF: <span class="text-sky-400 font-bold">✓</span> no machine-checkable failures
-          </span>
         </div>
 
         <!-- veraPDF's verdict, verbatim and in full. The referee's words, not
@@ -291,12 +300,13 @@
               >— the PDF Association's own PDF/UA validator, run on this document</span
             >
           </p>
+          <!-- No "passed === true" branch here (fix round 1, 2026-08-30: was
+               dead code, deleted) — this whole card only renders when
+               showBeyondGroup is true, which requires `error || passed ===
+               false`, so by the time we reach this template, a non-error
+               path is always a failing one. -->
           <p v-if="pdfUaVerdict.error" class="text-xs text-[var(--status-warning-orange)] mt-1.5">
             veraPDF could not complete its check: {{ pdfUaVerdict.error }}
-          </p>
-          <p v-else-if="pdfUaVerdict.passed" class="text-xs text-[var(--text-secondary)] mt-1.5">
-            <span aria-hidden="true">✓</span> veraPDF found no machine-checkable PDF/UA failures in
-            this document.
           </p>
           <template v-else>
             <p class="text-xs text-[var(--text-muted)] mt-1">
@@ -392,6 +402,7 @@ import { pdfUaFailuresByCategory, type PdfUaFailureLike } from "./pdfUaCategory"
 import { pdfUaFixRoutes } from "./pdfUaFixHint";
 import { FIX_STEPS_VERSION_NOTE } from "~/utils/fixStepVersions";
 import BestPracticesSection from "~/components/BestPracticesSection.vue";
+import { evaluateBestPractices } from "~/utils/bestPractices";
 import type { ConformanceVerdict } from "~/utils/exportFormats/shared";
 
 const props = defineProps<{
@@ -418,6 +429,14 @@ const props = defineProps<{
    *  stored JSON — and self-hides when it has nothing to show. */
   result?: unknown;
 }>();
+
+/** Whether BestPracticesSection will actually render a row below — the same
+ *  test it uses internally, called here too so the seam (which introduces
+ *  it) can know before it does (fix round 1, 2026-08-30). `result` alone is
+ *  not enough: it is truthy for any report object, including one with
+ *  categories but a missing/unrecognized fileType, for which
+ *  evaluateBestPractices returns nothing and the section renders nothing. */
+const hasBestPractices = computed(() => evaluateBestPractices(props.result).length > 0);
 
 /** Every failing veraPDF rule, largest count first — the referee's full list,
  *  not our summary of it. */
