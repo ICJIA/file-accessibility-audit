@@ -686,4 +686,18 @@ describe("the plan's two tiers after the best-practices split (2026-08-30)", () 
     const w = mountPlanWithResult({ ...SCOPE_RESULT, pdfUaVerdict: null });
     expect(w.find('[data-testid="plan-beyond-group"]').exists()).toBe(false);
   });
+
+  it("never turns an unscored finding into a numbered step — a number in this plan means a WCAG 2.1 obligation", () => {
+    // SCOPE_RESULT pairs exactly one scored step (`step`) with an unscored
+    // /Scope finding that (per the first test above) makes the Best
+    // Practices section render rows in the same mount. The count of
+    // numbered steps must track `steps.length` only, and must never grow
+    // because best-practices rows exist alongside it — that is the whole
+    // premise the two-tier split rests on, and the kind of thing a future
+    // refactor (folding a best-practices row into the plan's step list)
+    // would break silently if nothing pinned it.
+    const w = mountPlanWithResult(SCOPE_RESULT);
+    expect(w.find('[data-testid="best-practices"]').exists()).toBe(true);
+    expect(w.findAll(".plan-step-body")).toHaveLength(1); // === [step].length
+  });
 });
