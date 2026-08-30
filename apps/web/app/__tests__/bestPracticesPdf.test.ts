@@ -1,5 +1,8 @@
 /**
- * The PDF catalog, one describe per practice, four statuses each.
+ * The PDF catalog, one describe per practice, four statuses each (or fewer,
+ * where the analyzer itself never emits a line for that status — see the
+ * notes on single-h1, font-embedding's exempt case, and the several
+ * advisory-only practices below).
  *
  * THE RULE THIS FILE EXISTS TO ENFORCE: an empty or unrecognised findings
  * list yields NOT CHECKED, never MET. The section renders every practice
@@ -9,6 +12,14 @@
  * Every fixture string below is copied VERBATIM from packages/analyzer. If a
  * test here fails after an analyzer change, the catalog's matcher is stale —
  * fix the matcher, do not loosen the test.
+ *
+ * Several fixtures deliberately include a "positive" line ALONGSIDE the
+ * advisory/failure line being tested, because the analyzer pushes that
+ * positive line unconditionally — it sits after the advisory with no early
+ * return in between, so a real document carries both. A fixture that
+ * omitted the positive line would not prove the detect() checks its NOT MET
+ * / NOT APPLICABLE condition BEFORE its MET condition, which is exactly the
+ * class of bug this file is designed to catch.
  */
 import { describe, it, expect } from "vitest";
 import { PDF_PRACTICES } from "../utils/bestPractices/pdf";
@@ -34,10 +45,15 @@ const HEADING_TREE_GROUP = [
   "  Heading hierarchy skip: H3 → H5 (skipped H4)",
 ];
 const HEADING_OK = "Found 6 heading tags with logical hierarchy";
+const NO_HEADINGS = "No heading tags found in the document structure";
 
 describe("heading-level-order", () => {
   it("is NOT MET and shows the document's own heading sequence and each skip", () => {
-    const r = run("heading-level-order", [HEADING_GAPS, ...HEADING_TREE_GROUP]);
+    // HEADING_OK is included: pdf.ts:924 pushes it unconditionally, so a
+    // real gapped document's findings carry it too (see FIX 1 in the task
+    // report — this fixture used to omit it, which let a branch-order bug
+    // pass unnoticed).
+    const r = run("heading-level-order", [HEADING_GAPS, ...HEADING_TREE_GROUP, HEADING_OK]);
     expect(r.status).toBe("not-met");
     // The specific thing an author asked to see.
     expect(r.block?.lines).toContain("H1 → H2 → H1 → H1 → H3 → H5");
@@ -54,7 +70,7 @@ describe("heading-level-order", () => {
   });
 
   it("is NOT APPLICABLE when the document has no headings at all", () => {
-    const r = run("heading-level-order", ["No heading tags found in the document structure"]);
+    const r = run("heading-level-order", [NO_HEADINGS]);
     expect(r.status).toBe("not-applicable");
   });
 
@@ -66,7 +82,560 @@ describe("heading-level-order", () => {
   });
 });
 
+describe("heading-convention", () => {
+  const MIXED =
+    "PDF/UA only — not scored: 3 generic <H> heading(s) appear alongside the numbered <H1>–<H6> headings. PDF/UA prohibits mixing the two conventions in one document (Matterhorn 14-002); WCAG 2.1 does not — your grade is not affected — but screen-reader users lose their depth in an otherwise numbered outline where those headings sit.";
+  const ALL_GENERIC =
+    "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.";
+
+  it("is NOT MET when generic and numbered headings are mixed, alongside the unconditional MET line", () => {
+    // pdf.ts pushes "Found N heading tags with logical hierarchy"
+    // unconditionally once levels are computed — including when the mixed-
+    // convention advisory also fired. The mixed check must win.
+    const r = run("heading-convention", [MIXED, HEADING_OK]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/3 heading/);
+  });
+
+  it("is MET when the analyzer says the hierarchy is sound (one convention throughout)", () => {
+    expect(run("heading-convention", [HEADING_OK]).status).toBe("met");
+  });
+
+  it("is NOT APPLICABLE when the document has no headings at all", () => {
+    expect(run("heading-convention", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED when every heading is generic — a different practice's concern", () => {
+    // All-generic is mutually exclusive with the mixed-convention check (the
+    // analyzer returns before computing genericHCount at all), and it is
+    // not what this practice's own needle matches — heading-numbered-levels
+    // covers that case instead.
+    expect(run("heading-convention", [ALL_GENERIC]).status).toBe("not-checked");
+    expect(run("heading-convention", []).status).toBe("not-checked");
+  });
+});
+
+describe("heading-numbered-levels", () => {
+  const ALL_GENERIC =
+    "PDF/UA only — not scored: only generic <H> tags were found (not H1–H6). The headings are identifiable to assistive technology, but they carry no level, so the outline has no depth. WCAG 2.1 does not require numbered levels — your grade is not affected — but PDF/UA (clause 7.4) does.";
+
+  it("is NOT MET when every heading is generic", () => {
+    // No coexistence hazard to guard: the analyzer RETURNS immediately
+    // after this advisory, so "logical hierarchy" never appears alongside
+    // it — unlike the other heading practices.
+    const r = run("heading-numbered-levels", [ALL_GENERIC]);
+    expect(r.status).toBe("not-met");
+  });
+
+  it("is MET when the analyzer says the hierarchy is sound (numbered levels present)", () => {
+    expect(run("heading-numbered-levels", [HEADING_OK]).status).toBe("met");
+  });
+
+  it("is NOT APPLICABLE when the document has no headings at all", () => {
+    expect(run("heading-numbered-levels", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("heading-numbered-levels", []).status).toBe("not-checked");
+  });
+});
+
+describe("heading-content", () => {
+  const CONTENT_ADVISORY =
+    "Advisory — not scored: found 6 heading tags in a sound level order, but some of them may not read as headings — review the outline above by hand. Heuristic judgment only; your grade is not affected.";
+  const CONTENT_GROUP = [
+    "--- Do the Headings Read Like Headings? ---",
+    "  2 heading tag(s) carry no text at all — a screen-reader user who jumps to one lands on silence.",
+    "  4 of 6 heading tag(s) (67%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.",
+  ];
+
+  it("is NOT MET and surfaces the census detail, alongside the unconditional MET line", () => {
+    const r = run("heading-content", [CONTENT_ADVISORY, ...CONTENT_GROUP, HEADING_OK]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2 heading tag\(s\) carry no text/);
+    expect(r.evidence.join(" ")).toMatch(/4 of 6 heading tag\(s\)/);
+  });
+
+  it("is MET when the analyzer says the hierarchy is sound and raises no content concern", () => {
+    expect(run("heading-content", [HEADING_OK]).status).toBe("met");
+  });
+
+  it("is NOT APPLICABLE when the document has no headings at all", () => {
+    expect(run("heading-content", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("heading-content", []).status).toBe("not-checked");
+  });
+});
+
+describe("single-h1", () => {
+  const H1_MULTI =
+    "Found 3 H1 headings. No WCAG criterion requires a single H1, so this does not affect the score — but many style guides recommend one top-level heading (the document title), with sections demoted to H2 and below, so the outline has a single root.";
+
+  it("is NOT MET when more than one H1 is present, alongside the unconditional hierarchy line", () => {
+    const r = run("single-h1", [H1_MULTI, HEADING_OK]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/3 H1/);
+    // Deliberately no standard/Matterhorn citation — a style convention.
+    expect(practice("single-h1").standard).toBeUndefined();
+    expect(practice("single-h1").links).toEqual([]);
+  });
+
+  it("is NOT APPLICABLE when the document has no headings at all", () => {
+    expect(run("single-h1", [NO_HEADINGS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED — never MET — for a document the analyzer never flagged, even a clean one", () => {
+    // The analyzer is silent whenever h1Count <= 1: there is no dedicated
+    // "exactly one H1" line to hang a MET status on, so this practice never
+    // reports MET, only NOT MET / NOT APPLICABLE / NOT CHECKED. Inferring a
+    // pass from the unrelated "logical hierarchy" line would be exactly
+    // the kind of leap this catalog exists to avoid.
+    expect(run("single-h1", [HEADING_OK]).status).toBe("not-checked");
+    expect(run("single-h1", []).status).toBe("not-checked");
+  });
+});
+
+describe("reading-order-fidelity", () => {
+  const FIDELITY_LINE = "Reading-order fidelity: 62% (8 of 10 page(s) compared)";
+  const FORM_LINE =
+    "Not scored for this document: it is a form (4 field(s)). In a form the two orders are expected to disagree — field captions and widgets are painted in a later pass, so a correctly tagged form, whose tags sit in logical reading position rather than paint position, would score worst. Measuring it here would punish the right answer.";
+  const DRIFT_LINE =
+    "Advisory — not scored: the tagged order agreed with the content stream's draw order on 62% of comparable content. Divergence is not automatically wrong — remediated documents re-order tags away from a bad draw order on purpose — so this cannot be scored automatically and your grade is not affected. Verify with a screen reader or Acrobat's Order panel which side reflects the true reading sequence.";
+  const NO_DATA_LINE =
+    "Automated reading-order verification could not be performed: the structure tree and content-stream MCID sequences did not overlap sufficiently for a meaningful comparison.";
+
+  it("is NOT APPLICABLE for a form, even though the unconditional percentage line is also present", () => {
+    // pdf.ts pushes the percentage line BEFORE the form check, with no
+    // return in between — a three-way order hazard. The form check must
+    // win over treating the percentage as a pass.
+    const r = run("reading-order-fidelity", [FIDELITY_LINE, FORM_LINE]);
+    expect(r.status).toBe("not-applicable");
+  });
+
+  it("is NOT MET when the tagged order diverges, even though the unconditional percentage line is also present", () => {
+    const r = run("reading-order-fidelity", [FIDELITY_LINE, DRIFT_LINE]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/62%/);
+  });
+
+  it("is MET when the percentage line appears with neither the form nor the drift advisory", () => {
+    expect(run("reading-order-fidelity", [FIDELITY_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED — not NOT APPLICABLE — when the comparison could not be performed at all", () => {
+    expect(run("reading-order-fidelity", [NO_DATA_LINE]).status).toBe("not-checked");
+    expect(run("reading-order-fidelity", []).status).toBe("not-checked");
+  });
+
+  it("cites WCAG 1.3.2 via wcagSlugs", () => {
+    expect(practice("reading-order-fidelity").wcagSlugs).toEqual([
+      { slug: "meaningful-sequence", label: "WCAG 1.3.2: Meaningful Sequence" },
+    ]);
+  });
+});
+
+describe("bookmarks", () => {
+  const MISSING_LINE =
+    "Advisory — not scored: this document has 24 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected — but Adobe Acrobat's own checker flags long documents without them, and they remain the fastest way for every reader, screen-reader users included, to move around a long PDF.";
+  const FOUND_LINE = "12 bookmark(s) found";
+  const OUTLINE_GROUP = [
+    "--- Bookmark Outline ---",
+    "  Introduction",
+    "  Chapter 1",
+    "  Chapter 2",
+  ];
+
+  it("is NOT APPLICABLE for a short document, using pageCount structurally rather than a string match", () => {
+    const r = run("bookmarks", [], 5);
+    expect(r.status).toBe("not-applicable");
+  });
+
+  it("is NOT MET for a long document with no bookmarks", () => {
+    const r = run("bookmarks", [MISSING_LINE], 24);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/24-page/);
+  });
+
+  it("is MET and lists the document's own bookmark titles", () => {
+    const r = run("bookmarks", [FOUND_LINE, ...OUTLINE_GROUP], 24);
+    expect(r.status).toBe("met");
+    expect(r.block?.lines).toEqual(["Introduction", "Chapter 1", "Chapter 2"]);
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("bookmarks", [], 24).status).toBe("not-checked");
+  });
+
+  it("cites WCAG 2.4.5 via wcagSlugs", () => {
+    expect(practice("bookmarks").wcagSlugs).toEqual([
+      { slug: "multiple-ways", label: "WCAG 2.4.5: Multiple Ways" },
+    ]);
+  });
+});
+
+describe("font-embedding", () => {
+  const FONT_GROUP = [
+    "--- Font Embedding ---",
+    "  3 font(s) found: 1 embedded, 2 not embedded",
+    "  Arial-Bold — embedded",
+    "  Wingdings — NOT embedded",
+  ];
+  const NOT_MET_LINE =
+    "PDF/UA only — not scored: 2 non-embedded font(s) may cause garbled text on systems without these fonts: Wingdings, Symbol. No WCAG success criterion requires font embedding — a substituted font still renders and still reads aloud — so this does not affect your grade. PDF/UA (ISO 14289, clause 7.21) does require it.";
+  const MET_LINE =
+    "All fonts are embedded — text will render correctly regardless of the user's installed fonts";
+  const EXEMPT_LINE =
+    "All fonts used to display text are embedded. 2 font entries (Wingdings, Symbol) are not embedded but never display visible text — typically leftover whitespace runs from the source word processor — so they cannot affect how the document renders or reads.";
+
+  it("is NOT MET when a font that displays visible text is not embedded", () => {
+    const r = run("font-embedding", [...FONT_GROUP, NOT_MET_LINE]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2 font/);
+    expect(r.block?.lines).toContain("3 font(s) found: 1 embedded, 2 not embedded");
+  });
+
+  it("is MET when every font is embedded", () => {
+    expect(run("font-embedding", [MET_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED for the exempt case (non-embedded fonts that never paint visible text)", () => {
+    // Documented gap: the brief gives no needle for this third analyzer
+    // branch (harmless non-embedded fonts). NOT CHECKED is the safe,
+    // honest default rather than inventing an unreviewed needle — see the
+    // task report.
+    expect(run("font-embedding", [EXEMPT_LINE]).status).toBe("not-checked");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("font-embedding", []).status).toBe("not-checked");
+  });
+});
+
+describe("display-doc-title", () => {
+  const OFF_LINE =
+    "PDF/UA only — not scored: the title is set, but the DisplayDocTitle viewer preference is off, so viewers show the FILENAME in the title bar instead of this title. WCAG 2.1 asks for a describing title, which this document has — your grade is not affected. PDF/UA (clause 7.1) requires the flag as well.";
+  const ON_LINE =
+    'Document title: "2024 Annual Report" (shown by viewers — DisplayDocTitle is set)';
+  const NO_TITLE_LINE = "No document title found in metadata";
+  const FILENAME_TITLE_LINE = 'Document title: "report_final_v2"';
+
+  it("is NOT MET when the title is set but DisplayDocTitle is off", () => {
+    expect(run("display-doc-title", [OFF_LINE]).status).toBe("not-met");
+  });
+
+  it("is MET when DisplayDocTitle is set", () => {
+    expect(run("display-doc-title", [ON_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED — never MET — for a document with no title at all", () => {
+    // A bare "title" needle would match this line too ("No document TITLE
+    // found…") and misreport a titleless document as passing. This is why
+    // the MET needle here is the narrower "displaydoctitle is set" — see
+    // the task report for the brief/source mismatch this fixture pins.
+    expect(run("display-doc-title", [NO_TITLE_LINE]).status).toBe("not-checked");
+  });
+
+  it("is NOT CHECKED for a filename-like title — also contains the word 'title'", () => {
+    expect(run("display-doc-title", [FILENAME_TITLE_LINE]).status).toBe("not-checked");
+  });
+});
+
+describe("table-scope-simple", () => {
+  const NO_TABLES = "No tables detected in this document — this category does not affect the score";
+  const SIMPLE_ADVISORY =
+    "PDF/UA only — not scored: 4 header cell(s) across 2 table(s) have no /Scope. Each of those tables has its headers along a single edge with nothing spanned, so the header-to-data relationship is already determinable and WCAG 1.3.1 is satisfied — your grade is not affected. PDF/UA (ISO 14289) asks for /Scope regardless, so setting it is worth doing if you are aiming at PDF/UA conformance as well as the law.";
+  // The MET line that actually coexists with SIMPLE_ADVISORY: scopeOnly is
+  // forced false whenever any table lacks /Scope, so the /Headers-or-Scope
+  // variant appears, never the "All <TH>… Scope" variant.
+  const ASSOC_LINE =
+    "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)";
+  const ALL_TH_LINE = "All <TH> cells have Scope attributes (/Column, /Row, or /Both)";
+
+  it("is NOT APPLICABLE when the document has no tables", () => {
+    expect(run("table-scope-simple", [NO_TABLES]).status).toBe("not-applicable");
+  });
+
+  it("is NOT MET when simple tables are missing /Scope, alongside the coexisting MET line", () => {
+    const r = run("table-scope-simple", [SIMPLE_ADVISORY, ASSOC_LINE]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/4 header cell\(s\) across 2 table\(s\)/);
+  });
+
+  it("is MET when every <TH> cell carries a Scope attribute", () => {
+    expect(run("table-scope-simple", [ALL_TH_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("table-scope-simple", []).status).toBe("not-checked");
+  });
+});
+
+describe("table-scope-with-headers", () => {
+  const NO_TABLES = "No tables detected in this document — this category does not affect the score";
+  const HEADERS_ONLY_ADVISORY =
+    "Advisory — not scored: 2 table(s) rely on /Headers associations without /Scope on the <TH> cells. That is complete and spec-correct; adding Scope as well is belt-and-braces for viewers with partial /Headers support.";
+  const ASSOC_LINE =
+    "All tables associate data cells with headers (via /Scope or the explicit /Headers attribute)";
+
+  it("is NOT APPLICABLE when the document has no tables", () => {
+    expect(run("table-scope-with-headers", [NO_TABLES]).status).toBe("not-applicable");
+  });
+
+  it("is NOT MET when tables use /Headers without /Scope, alongside the unconditional MET line it forces", () => {
+    // ORDER HAZARD: this advisory only fires when scopeOnly is false, which
+    // is exactly what makes the ASSOC_LINE (this practice's own MET text)
+    // appear in the same findings array. The advisory check must win.
+    const r = run("table-scope-with-headers", [HEADERS_ONLY_ADVISORY, ASSOC_LINE]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2 table/);
+  });
+
+  it("is MET when tables associate headers via /Scope or /Headers, with no /Headers-only advisory", () => {
+    expect(run("table-scope-with-headers", [ASSOC_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("table-scope-with-headers", []).status).toBe("not-checked");
+  });
+});
+
+describe("nested-tables", () => {
+  const NO_TABLES = "No tables detected in this document — this category does not affect the score";
+  const NESTED_ADVISORY =
+    "PDF/UA only — not scored: a nested table is not a WCAG failure — properly tagged, its relationships are still determinable — so this does not affect your grade. It is, however, genuinely hard to navigate by keyboard and by screen reader.";
+  const NO_NESTED_LINE = "No nested tables detected";
+
+  it("is NOT APPLICABLE when the document has no tables", () => {
+    expect(run("nested-tables", [NO_TABLES]).status).toBe("not-applicable");
+  });
+
+  it("is NOT MET when a table contains another table nested inside it", () => {
+    expect(run("nested-tables", [NESTED_ADVISORY]).status).toBe("not-met");
+  });
+
+  it("is MET using the analyzer's own dedicated line — not the unrelated row-structure line", () => {
+    expect(run("nested-tables", [NO_NESTED_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("nested-tables", []).status).toBe("not-checked");
+  });
+});
+
+describe("descriptive-link-text", () => {
+  const NO_LINKS = "No links found in this document — this category does not affect the score";
+  const NON_DESCRIPTIVE_ADVISORY =
+    'Advisory — not scored: 3 of 12 link(s) use non-descriptive text — empty, a vague phrase such as "click here" / "read more", or too short to mean anything on its own. WCAG 2.4.4 (Level A) allows a link\'s purpose to come from the sentence around it, which no automated check can weigh — judging the text alone is a AAA rule (2.4.9) — so your grade is not affected. Descriptive link text is still kinder to screen-reader users, who often pull up links as a bare list.';
+  const NON_DESCRIPTIVE_GROUP = [
+    "--- Links With Non-Descriptive Text ---",
+    '  "click here" (page 2) — vague phrase → https://example.org/report',
+  ];
+  const ALL_DESCRIPTIVE_LINE = "All 12 link(s) use descriptive text";
+
+  it("is NOT APPLICABLE when the document has no links", () => {
+    expect(run("descriptive-link-text", [NO_LINKS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT MET when some links use non-descriptive text", () => {
+    const r = run("descriptive-link-text", [NON_DESCRIPTIVE_ADVISORY, ...NON_DESCRIPTIVE_GROUP]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/3 of 12 link\(s\)/);
+    expect(r.block?.lines.join(" ")).toMatch(/click here/);
+  });
+
+  it("is MET when every link uses descriptive text", () => {
+    expect(run("descriptive-link-text", [ALL_DESCRIPTIVE_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("descriptive-link-text", []).status).toBe("not-checked");
+  });
+
+  it("cites WCAG 2.4.9 via wcagSlugs", () => {
+    expect(practice("descriptive-link-text").wcagSlugs).toEqual([
+      { slug: "link-purpose-link-only", label: "WCAG 2.4.9: Link Purpose (Link Only)" },
+    ]);
+  });
+});
+
+describe("raw-url-link-text", () => {
+  const NO_LINKS = "No links found in this document — this category does not affect the score";
+  const RAW_URL_ITEMS = [
+    "--- Raw URL Link Text (advisory — not penalized) ---",
+    "2 link(s) use the raw URL as their visible text. This satisfies WCAG 2.4.4 (the destination is determinable) and is not scored against you, but a descriptive label reads better in a screen reader's list of links.",
+    '  "https://example.org/reports/q3.pdf" (page 4) → https://example.org/reports/q3.pdf',
+  ];
+  const ALL_DESCRIPTIVE_LINE = "All 12 link(s) use descriptive text";
+
+  it("is NOT APPLICABLE when the document has no links", () => {
+    expect(run("raw-url-link-text", [NO_LINKS]).status).toBe("not-applicable");
+  });
+
+  it("is NOT MET when links use their raw web address as visible text (un-prefixed in `main`, not `notScored`)", () => {
+    const r = run("raw-url-link-text", RAW_URL_ITEMS);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2 link\(s\)/);
+  });
+
+  it("is MET when every link uses descriptive text", () => {
+    expect(run("raw-url-link-text", [ALL_DESCRIPTIVE_LINE]).status).toBe("met");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("raw-url-link-text", []).status).toBe("not-checked");
+  });
+});
+
+describe("nested-structure-tree", () => {
+  const FLAT_ADVISORY =
+    "Advisory — not scored: the structure tree is flat (no meaningful nesting) — the document has tags in a single sequence rather than a nested hierarchy of sections. That sequence still gives assistive technology a reading order, so your grade is not affected, but nesting makes long documents far easier to navigate.";
+  const DEPTH_FLAT = "Structure tree depth: 1 level(s)";
+  const DEPTH_DEEP = "Structure tree depth: 7 level(s)";
+
+  it("is NOT MET for a flat tree, even though the unconditional depth line is also present", () => {
+    // ORDER HAZARD: the depth line is pushed before the flatness check,
+    // with no return in between — a flat tree's findings contain both.
+    const r = run("nested-structure-tree", [DEPTH_FLAT, FLAT_ADVISORY]);
+    expect(r.status).toBe("not-met");
+  });
+
+  it("is MET when the tree is genuinely nested", () => {
+    const r = run("nested-structure-tree", [DEPTH_DEEP]);
+    expect(r.status).toBe("met");
+    expect(r.evidence.join(" ")).toMatch(/7/);
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("nested-structure-tree", []).status).toBe("not-checked");
+  });
+});
+
+describe("character-mapping", () => {
+  const GROUP_HEADER = "--- Character Mapping (Matterhorn 10) ---";
+  const LARGE_COUNT_LINE =
+    "  150 extracted character(s) cannot be mapped to readable text (8% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.";
+  const LARGE_ADVISORY_UNINDENTED =
+    "Advisory — not scored: a count this size is often symbol-font bullets or dingbats, which read as decoration — your grade is not affected. Verify the affected passages read correctly with a screen reader; if they are real words, re-export from the source application.";
+  const SMALL_COUNT_LINE =
+    "  8 extracted character(s) cannot be mapped to readable text (1% of the text layer) — the glyphs paint on screen, but they extract as private-use symbols a screen reader cannot pronounce.";
+  const SMALL_ADVISORY_INDENTED =
+    "  Advisory — not scored: a count this small is usually symbol-font bullets or dingbats, which read as decoration. No action needed unless real words are affected.";
+
+  it("is NOT MET for the large-count variant (un-indented — lands in notScored)", () => {
+    const r = run("character-mapping", [GROUP_HEADER, LARGE_COUNT_LINE, LARGE_ADVISORY_UNINDENTED]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/150/);
+  });
+
+  it("is NOT MET for the small-count variant too (indented — lands in signals, not notScored)", () => {
+    // Proves the dual-variant check: matchNotScored alone would miss this.
+    const r = run("character-mapping", [GROUP_HEADER, SMALL_COUNT_LINE, SMALL_ADVISORY_INDENTED]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/8/);
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no MET/NOT APPLICABLE line exists)", () => {
+    expect(run("character-mapping", []).status).toBe("not-checked");
+  });
+});
+
+describe("content-in-tag-tree", () => {
+  const GROUP_HEADER = "--- Content Outside the Tag Structure (Matterhorn 01) ---";
+  const COUNT_LINE =
+    "  40 visible character(s) — 3% of the page text — are painted outside the tagged content (page 2). They are neither in the reading order nor marked as decorative artifacts, so a screen reader following the tags never encounters them.";
+  const ADVISORY_INDENTED =
+    "  Advisory — not scored: an amount this small is often stray export residue. Verify the named pages when convenient.";
+
+  it("is NOT MET when visible text sits outside the tag structure", () => {
+    const r = run("content-in-tag-tree", [GROUP_HEADER, COUNT_LINE, ADVISORY_INDENTED]);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/40/);
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no MET/NOT APPLICABLE line exists)", () => {
+    expect(run("content-in-tag-tree", []).status).toBe("not-checked");
+  });
+});
+
+describe("list-labels", () => {
+  const LIST_GROUP = [
+    "--- List Structure Analysis ---",
+    "3 list(s) detected with 14 total item(s)",
+    "  List 1: 5 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+    "  List 2: 4 <LI> | <Lbl> ✗ | <LBody> ✓ | well-formed",
+    "  List 3: 5 <LI> | <Lbl> ✓ | <LBody> ✓ | well-formed",
+    "All lists are well-formed (each <LI> has an <LBody>)",
+    "2 list(s) have no <Lbl> (bullet/number) elements — optional per ISO 32000 and not penalized, but adding <Lbl> helps screen readers announce each item's marker",
+  ];
+
+  it("is NOT MET when lists have no <Lbl> element on their items (un-prefixed, lands in `main`)", () => {
+    const r = run("list-labels", LIST_GROUP);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2 list\(s\)/);
+  });
+
+  it("is NOT APPLICABLE when the category itself is absent from the report", () => {
+    const ctx = buildContext(null, "pdf", 10);
+    expect(practice("list-labels").detect(ctx).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way (no MET line exists)", () => {
+    expect(run("list-labels", []).status).toBe("not-checked");
+  });
+});
+
+describe("footnote-ids", () => {
+  const MISSING_GROUP = [
+    "--- Footnotes & Endnotes (<Note>) ---",
+    "4 <Note> tag(s) detected (footnotes, endnotes, or labeled notes)",
+    "  Advisory — not scored: 2 note(s) have no /ID (Matterhorn 19-003). PDF/UA requires one so assistive technology can link the in-text reference to its note; Word footnote exports commonly omit it.",
+    "  Fix: In Adobe Acrobat's Tags panel, select each <Note> tag → Properties → set a unique ID (remediation tools and re-exporting from current Word versions also repair this).",
+  ];
+  const DUP_GROUP = [
+    "--- Footnotes & Endnotes (<Note>) ---",
+    "3 <Note> tag(s) detected (footnotes, endnotes, or labeled notes)",
+    "  Advisory — not scored: 1 note(s) reuse another note's /ID (Matterhorn 19-004) — IDs must be unique within the document.",
+    "  Fix: In Adobe Acrobat's Tags panel, select each <Note> tag → Properties → set a unique ID (remediation tools and re-exporting from current Word versions also repair this).",
+  ];
+  const OK_GROUP = [
+    "--- Footnotes & Endnotes (<Note>) ---",
+    "5 <Note> tag(s) detected (footnotes, endnotes, or labeled notes)",
+    "  All notes carry a unique /ID — assistive technology can link each reference to its note (Matterhorn 19-003/19-004)",
+  ];
+
+  it("is NOT MET when notes have no /ID", () => {
+    const r = run("footnote-ids", MISSING_GROUP);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/2 note\(s\)/);
+  });
+
+  it("is NOT MET when notes reuse another note's /ID", () => {
+    const r = run("footnote-ids", DUP_GROUP);
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/1 note\(s\)/);
+  });
+
+  it("is MET when every note carries a unique /ID", () => {
+    expect(run("footnote-ids", OK_GROUP).status).toBe("met");
+  });
+
+  it("is NOT APPLICABLE when the category itself is absent from the report", () => {
+    const ctx = buildContext(null, "pdf", 10);
+    expect(practice("footnote-ids").detect(ctx).status).toBe("not-applicable");
+  });
+
+  it("is NOT CHECKED when the analyzer said nothing either way", () => {
+    expect(run("footnote-ids", []).status).toBe("not-checked");
+  });
+});
+
 describe("every PDF practice", () => {
+  it("has exactly the 19 catalogued practices", () => {
+    expect(PDF_PRACTICES.length).toBe(19);
+  });
+
   it("returns NOT CHECKED for an empty document — silence is never a pass", () => {
     for (const p of PDF_PRACTICES) {
       const r = p.detect(buildContext({ findings: [] }, "pdf", 0));
@@ -96,5 +665,28 @@ describe("every PDF practice", () => {
       expect(copy, p.id).not.toMatch(/required by law/i);
       expect(copy, p.id).not.toMatch(/\bstrong\b/i);
     }
+  });
+
+  it("uses only valid PDF category ids", () => {
+    const valid = new Set([
+      "alt_text",
+      "bookmarks",
+      "color_contrast",
+      "form_accessibility",
+      "heading_structure",
+      "link_quality",
+      "reading_order",
+      "table_markup",
+      "text_extractability",
+      "title_language",
+    ]);
+    for (const p of PDF_PRACTICES) {
+      expect(valid.has(p.categoryId), `${p.id} categoryId "${p.categoryId}"`).toBe(true);
+    }
+  });
+
+  it("populates wcagSlugs on at least one practice, so the field cannot silently rot", () => {
+    const withSlugs = PDF_PRACTICES.filter((p) => (p.wcagSlugs?.length ?? 0) > 0);
+    expect(withSlugs.length).toBeGreaterThan(0);
   });
 });
