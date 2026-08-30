@@ -47,6 +47,16 @@ export interface BestPracticeResult {
   /** Both routes, always — the person reading may not be the person who
    *  chose whether to fix the source file or the export. */
   fix?: { source: string; app: string };
+  /** Only meaningful when status is "not-checked" — WHY there is nothing to
+   *  report, so a reader is never told "silence is fine" when the check
+   *  never ran at all. "silent" = the category was present and the check
+   *  ran, but the analyzer had nothing to say (the common case — most
+   *  detect()s emit no dedicated positive line, so absence of a finding is
+   *  genuinely ambiguous, not evidence of a pass). "not-run" = the whole
+   *  category is absent from this report, so the check itself never ran —
+   *  there was no silence to interpret. Omitted (undefined) means "silent";
+   *  only a categoryAbsent() branch sets "not-run" explicitly. */
+  reason?: "silent" | "not-run";
 }
 
 export interface DetectContext {

@@ -262,9 +262,16 @@ body {
     font-size: 0.85em;
     color: #555555;
   }
-  /* Visual report view: a printed/PDF'd report must show everything. */
+  /* Visual report view: a printed/PDF'd report must show everything.
+     .bp-body: BestPracticesSection.vue's disclosure bodies — collapsed by
+     default, and print has no JS to expand them first (unlike the HTML
+     export path, useReportExport.ts, which clicks every collapsed
+     aria-controls target before serializing). Without this, Save-as-PDF
+     showed 19 header rows and nothing else: no description, no evidence,
+     no fix, no links. */
   .tech-report-body,
-  .plan-step-body {
+  .plan-step-body,
+  .bp-body {
     display: block !important;
   }
   .action-plan li,

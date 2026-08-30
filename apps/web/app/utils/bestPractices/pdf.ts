@@ -60,9 +60,10 @@ function headingTreeBlock(ctx: DetectContext) {
   return flow ? { caption: "Your heading order, in document order", lines: [flow] } : undefined;
 }
 
-const notChecked = (why: string): BestPracticeResult => ({
+const notChecked = (why: string, reason?: "silent" | "not-run"): BestPracticeResult => ({
   status: "not-checked",
   evidence: [why],
+  reason,
 });
 
 /** NOT CHECKED when the whole category is absent from this report — a
@@ -610,7 +611,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: links(matterhornLink("15")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       if (matchAny(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
@@ -656,7 +660,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: links(matterhornLink("15")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       if (matchAny(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
@@ -709,7 +716,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: links(matterhornLink("15")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       if (matchAny(ctx, "no tables detected in this document")) {
         return { status: "not-applicable", evidence: ["This document has no tables."] };
@@ -756,7 +766,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no link-quality data for this document.");
+        return notChecked(
+          "This report contains no link-quality data for this document.",
+          "not-run",
+        );
       }
       if (matchAny(ctx, "no links found in this document")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
@@ -803,7 +816,10 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no link-quality data for this document.");
+        return notChecked(
+          "This report contains no link-quality data for this document.",
+          "not-run",
+        );
       }
       if (matchAny(ctx, "no links found in this document")) {
         return { status: "not-applicable", evidence: ["This document has no links."] };
@@ -1002,7 +1018,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: links(matterhornLink("16")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report has no reading-order data for this document.");
+        return notChecked("This report has no reading-order data for this document.", "not-run");
       }
       if (matchAny(ctx, "no tagged lists detected")) {
         return {
@@ -1047,7 +1063,7 @@ export const PDF_PRACTICES: BestPractice[] = [
     links: links(matterhornLink("19")),
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report has no reading-order data for this document.");
+        return notChecked("This report has no reading-order data for this document.", "not-run");
       }
       const notes = signalLines(ctx, "Footnotes");
       const missing = notes.find((l) => l.toLowerCase().includes("note(s) have no /id"));

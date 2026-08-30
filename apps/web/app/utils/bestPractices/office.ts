@@ -64,9 +64,10 @@ import {
   type DetectContext,
 } from "./types";
 
-const notChecked = (why: string): BestPracticeResult => ({
+const notChecked = (why: string, reason?: "silent" | "not-run"): BestPracticeResult => ({
   status: "not-checked",
   evidence: [why],
+  reason,
 });
 
 /** NOT CHECKED when the whole category is absent from this report — a
@@ -99,7 +100,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no heading-structure data for this document.");
+        return notChecked(
+          "This report contains no heading-structure data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "the first heading is heading");
       if (line) {
@@ -150,7 +154,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no heading-structure data for this document.");
+        return notChecked(
+          "This report contains no heading-structure data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "skip a heading level");
       if (line) {
@@ -203,7 +210,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no heading-structure data for this document.");
+        return notChecked(
+          "This report contains no heading-structure data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "empty heading-styled paragraph");
       if (line) {
@@ -305,7 +315,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "bare grid");
       if (line) {
@@ -353,7 +366,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       if (matchNotScored(ctx, "nested tables were found")) {
         return {
@@ -408,7 +424,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
       // claim about the DOCUMENT this report never actually made. See
       // pdf.ts's categoryAbsent() doctrine comment.
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "merged cell(s) across the table");
       if (line) {
@@ -459,7 +478,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this document.");
+        return notChecked(
+          "This report contains no table-markup data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "entirely empty table row");
       if (line) {
@@ -506,7 +528,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no link-quality data for this document.");
+        return notChecked(
+          "This report contains no link-quality data for this document.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "raw url as their visible text");
       if (line) {
@@ -562,7 +587,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no slide-title data for this presentation.");
+        return notChecked(
+          "This report contains no slide-title data for this presentation.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "no title placeholder");
       if (line) {
@@ -624,7 +652,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no slide-title data for this presentation.");
+        return notChecked(
+          "This report contains no slide-title data for this presentation.",
+          "not-run",
+        );
       }
       // pptx.ts:168 is pushed once PER duplicate-title group (mirrors
       // xlsx.ts:171's per-sheet push) — matchNotScored would return only the
@@ -685,7 +716,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no link-quality data for this presentation.");
+        return notChecked(
+          "This report contains no link-quality data for this presentation.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "raw url as their visible text");
       if (line) {
@@ -741,7 +775,7 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no sheet-name data for this workbook.");
+        return notChecked("This report contains no sheet-name data for this workbook.", "not-run");
       }
       // xlsx.ts:171 is pushed once PER default-named sheet — matchNotScored
       // would return only the first. Collect every match, and never call
@@ -793,7 +827,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this workbook.");
+        return notChecked(
+          "This report contains no table-markup data for this workbook.",
+          "not-run",
+        );
       }
       if (matchNotScored(ctx, "no defined excel table anywhere")) {
         return {
@@ -863,7 +900,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this workbook.");
+        return notChecked(
+          "This report contains no table-markup data for this workbook.",
+          "not-run",
+        );
       }
       if (matchNotScored(ctx, "sits outside the defined table")) {
         return {
@@ -919,7 +959,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this workbook.");
+        return notChecked(
+          "This report contains no table-markup data for this workbook.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "contain pivot tables");
       if (line) {
@@ -973,7 +1016,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this workbook.");
+        return notChecked(
+          "This report contains no table-markup data for this workbook.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "data begins at row");
       if (line) {
@@ -1034,7 +1080,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no table-markup data for this workbook.");
+        return notChecked(
+          "This report contains no table-markup data for this workbook.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "contain merged cells");
       if (line) {
@@ -1091,7 +1140,10 @@ export const OFFICE_PRACTICES: BestPractice[] = [
     links: [],
     detect(ctx) {
       if (categoryAbsent(ctx)) {
-        return notChecked("This report contains no link-quality data for this workbook.");
+        return notChecked(
+          "This report contains no link-quality data for this workbook.",
+          "not-run",
+        );
       }
       const line = matchNotScored(ctx, "raw url as their visible text");
       if (line) {

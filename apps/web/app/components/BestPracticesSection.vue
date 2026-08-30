@@ -17,14 +17,20 @@
          generically like any other fix, not hardcoded by id: the catalog
          already carries this in evidence/why/fix, so the section never
          has to know which three they are.
-       - Four practices (heading-content, single-h1, character-mapping,
-         content-in-tag-tree) have no MET branch in the catalog at all —
-         the analyzer only speaks up when something looks wrong, so a
-         flawless document lands them on NOT CHECKED. A perfect PDF reads
-         "15 met · 0 not met · 4 not checked", never "19 met". The
-         NOT CHECKED body carries a plain reassurance line for exactly
-         this reason, and NEVER a "N of 19" fraction anywhere — a
+       - Several practices (heading-content, single-h1, character-mapping,
+         content-in-tag-tree, list-labels — five, not the four the product's
+         own doctrine text currently claims; see task-7-report.md's fix-round
+         notes) have no MET branch in the catalog at all — the analyzer only
+         speaks up when something looks wrong, so a flawless document lands
+         them on NOT CHECKED. NEVER a "N of 19" fraction anywhere — a
          denominator beside a status is read as a grade in this product.
+       - A NOT CHECKED row is not one thing: `result.reason` (types.ts)
+         tells "silent" (the check ran, found nothing to say — the analyzer
+         genuinely only speaks up on trouble) from "not-run" (the category
+         itself is absent from this report, so the check never ran at all —
+         there was no silence to interpret). Conflating the two told a
+         reader "silence is fine" on a row that was never examined; the two
+         reassurance strings below must never merge back into one.
 
      Self-hides entirely when evaluateBestPractices() returns nothing (a
      page-audit row with no categories, an unrecognized format, or a
@@ -45,16 +51,16 @@
       >
         Best practices — not scored
       </h2>
-      <span
-        class="text-[11px] font-bold px-2.5 py-1 rounded-full border border-sky-500/50 text-sky-400 whitespace-nowrap tracking-wide"
-        >BEST PRACTICE — NOT SCORED</span
-      >
     </div>
 
+    <!-- Deliberately NOT the beyond-group's own intro (ActionPlan.vue) —
+         that block sits inches below this one on the page and opens with
+         near the same sentence. This paragraph says what THIS section adds
+         instead of restating that framing: a status and this document's own
+         evidence, practice by practice. -->
     <p class="text-sm text-[var(--text-muted)] mt-2.5 leading-relaxed">
-      The numbered fixes above are everything WCAG 2.1 — the standard Illinois (IITAA) and federal
-      law (ADA Title II) require — asks of this document. Everything here is optional work that
-      helps real readers.
+      Every practice below was checked against this document specifically — its own status, and its
+      own evidence, for each one.
       <strong class="font-semibold text-[var(--text-secondary)]"
         >None of this affected your grade.</strong
       >
@@ -107,7 +113,7 @@
         <div
           v-show="open.has(row.practice.id)"
           :id="`bp-body-${row.practice.id}`"
-          class="px-3 pb-3 space-y-2"
+          class="bp-body px-3 pb-3 space-y-2"
         >
           <!-- What this is / Your document / Why it matters / Does this affect
                my grade? / How to fix / Read more — in that order. The evidence
@@ -138,16 +144,29 @@
                 <span>{{ line }}</span>
               </li>
             </ul>
-            <!-- Only these rows ever have no positive branch to begin with —
-                 the reassurance is about the CHECK, never about the document,
-                 so it never implies a problem exists. -->
+            <!-- Two DIFFERENT reasons look identical from the outside, so
+                 they get two different sentences (row.reason, types.ts):
+                 "silent" is the check running and finding nothing to flag —
+                 reassuring, because staying quiet is how this catalog
+                 reports "fine". "not-run" is the category being absent from
+                 this report — there was no silence to interpret, and saying
+                 otherwise would contradict this feature's own "silence is
+                 never a pass" doctrine one line under the evidence that
+                 proves it. -->
             <p
-              v-if="row.status === 'not-checked'"
+              v-if="row.status === 'not-checked' && row.reason !== 'not-run'"
               class="text-sm text-[var(--text-secondary)] mt-1.5"
             >
               This checker did not confirm this one either way — it only speaks up when something
               looks wrong, so staying silent here is not a sign of trouble. A person can typically
-              confirm it in a minute by looking directly.
+              confirm it in a minute.
+            </p>
+            <p
+              v-else-if="row.status === 'not-checked'"
+              class="text-sm text-[var(--text-secondary)] mt-1.5"
+            >
+              This report has no data for this check on this document, so it was not looked at
+              either way.
             </p>
             <p v-if="row.block" class="text-[11px] text-[var(--text-muted)] mt-2 mb-1">
               {{ row.block.caption }}
@@ -185,16 +204,32 @@
               How to fix
             </p>
             <p class="text-sm text-[var(--text-secondary)] mt-1">
-              <span class="font-semibold text-[var(--text-heading)]">In the source file:</span
+              <span class="font-semibold text-[var(--text-heading)]">{{
+                sourceFixLabel(row.practice)
+              }}</span
               >{{ " " }}{{ row.fix.source }}
             </p>
-            <p class="text-sm text-[var(--text-secondary)] mt-1.5">
-              <span class="font-semibold text-[var(--text-heading)]">In the exported file:</span
+            <!-- PDF: a second labelled route — Office documents have no
+                 exported-file editing tool, so OFFICE_FIX_APP (office.ts) is
+                 a re-export reminder, not a second route, and a heading
+                 above it once contradicted its own sentence ("fixed at the
+                 source, not after export"). Same information, no heading. -->
+            <p
+              v-if="isPdfPractice(row.practice)"
+              class="text-sm text-[var(--text-secondary)] mt-1.5"
+            >
+              <span class="font-semibold text-[var(--text-heading)]"
+                >In the exported PDF (Acrobat):</span
               >{{ " " }}{{ row.fix.app }}
             </p>
+            <p v-else class="text-xs text-[var(--text-muted)] mt-1.5">{{ row.fix.app }}</p>
           </div>
 
-          <div v-if="practiceLinks(row.practice).length">
+          <!-- standard and links are independent facts about the practice —
+               a practice can carry a citation with no links (display-doc-title:
+               "PDF/UA (ISO 14289) clause 7.1", links: []), so each is its own
+               guard rather than the citation nesting inside the links check. -->
+          <div v-if="row.practice.standard || row.links.length">
             <p
               class="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide m-0"
             >
@@ -206,8 +241,8 @@
             >
               {{ row.practice.standard }}
             </p>
-            <ul class="mt-1 space-y-1 list-none p-0 m-0">
-              <li v-for="link in practiceLinks(row.practice)" :key="link.url" class="text-sm">
+            <ul v-if="row.links.length" class="mt-1 space-y-1 list-none p-0 m-0">
+              <li v-for="link in row.links" :key="link.url" class="text-sm">
                 <a
                   :href="link.url"
                   target="_blank"
@@ -254,10 +289,20 @@ const STATUS_ORDER: Record<BestPracticeStatus, number> = {
   "not-checked": 3,
 };
 
-const rows = computed<EvaluatedPractice[]>(() =>
-  [...evaluateBestPractices(props.result)].sort(
-    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
-  ),
+/** A row plus its fully-resolved link list, computed once per row per
+ *  re-evaluation rather than twice per render from the template (once for
+ *  the "is there anything to show" guard, once for the v-for) — each call
+ *  re-parses every URL through safeHttpUrl, so doing it here instead of
+ *  inline also removes a template-only path where the "Read more" guard
+ *  and the list it guards could independently drift apart. */
+interface DisplayRow extends EvaluatedPractice {
+  links: BestPracticeLink[];
+}
+
+const rows = computed<DisplayRow[]>(() =>
+  [...evaluateBestPractices(props.result)]
+    .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+    .map((r) => ({ ...r, links: practiceLinks(r.practice) })),
 );
 
 const summary = computed(() => summarizeBestPractices(rows.value));
@@ -334,5 +379,19 @@ function practiceLinks(practice: BestPractice): BestPracticeLink[] {
     url: wcag.understandingUrl(s.slug),
   }));
   return safeLinks([...practice.links, ...wcagLinks]);
+}
+
+// Each catalog practice belongs to exactly one format family (pdf, or one of
+// docx/pptx/xlsx) — never both — so this single check is enough to pick the
+// right fix-route labels. PDF has a real second tool (Acrobat editing the
+// exported file); Office documents do not, so their fix.app is a re-export
+// reminder rather than a second labelled route — see the template.
+function isPdfPractice(practice: BestPractice): boolean {
+  return practice.formats.includes("pdf");
+}
+function sourceFixLabel(practice: BestPractice): string {
+  return isPdfPractice(practice)
+    ? "In the source file (Word, InDesign):"
+    : "In the source file (Word, PowerPoint, Excel):";
 }
 </script>
