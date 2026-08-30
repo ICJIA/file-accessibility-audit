@@ -286,16 +286,32 @@ export const PDF_PRACTICES: BestPractice[] = [
     why: "Someone navigating by heading lands on whatever the tag contains. A heading tag with no text is silence; one holding a paragraph reads as a wall of words that says nothing about where they are.",
     links: [],
     detect(ctx) {
-      // ORDER IS LOAD-BEARING: this advisory (pdf.ts:920, via
-      // findings.unshift) sits in the same branch that unconditionally
-      // pushes "Found N heading tags with logical hierarchy" (pdf.ts:924)
-      // — no return in between, so a document with unreadable heading
-      // content carries BOTH lines. The content check must run first.
-      const unusable = matchNotScored(ctx, "may not read as headings");
-      if (unusable) {
-        const details = signalLines(ctx, "Do the Headings Read Like Headings").filter((l) =>
-          /^\d/.test(l),
-        );
+      // CORRECTED (round 2): this practice has NO positive analyzer line,
+      // and cannot have one. "--- Do the Headings Read Like Headings? ---"
+      // (analyzer :695) is pushed ONLY on the line AFTER
+      // `if (!census || census.unusable === 0) return { score: 100,
+      // findings: [] }` (:693) — so the group's presence REQUIRES
+      // census.unusable > 0. A genuinely clean document takes the exact
+      // same early return as a null census and never reaches the group at
+      // all, so "group present" can never mean "content is fine" — it can
+      // only mean "the census found at least one heading that does not
+      // read as one", whether or not there were enough of them
+      // (HEADING_MIN_UNUSABLE = 3) to move the score. Follow single-h1's
+      // pattern: no MET branch, ever.
+      //
+      // Key NOT MET off the group's own count lines (the same `details`
+      // this practice already surfaces as evidence) rather than the "may
+      // not read as headings" advisory: that advisory is added only when
+      // contentVerdict.score < 100 (:915), so a document with real but
+      // too-few-to-score bad headings — 3 empty headings out of 40, say —
+      // carried the count lines without ever tripping the advisory, and a
+      // matcher keyed on the advisory text alone missed it. This is the
+      // same band-coverage rekey already applied to character-mapping and
+      // content-in-tag-tree.
+      const details = signalLines(ctx, "Do the Headings Read Like Headings").filter((l) =>
+        /^\d/.test(l),
+      );
+      if (details.length > 0) {
         return {
           status: "not-met",
           evidence: [
@@ -309,24 +325,6 @@ export const PDF_PRACTICES: BestPractice[] = [
           },
         };
       }
-      // CRITICAL: this practice has NO positive analyzer line of its own.
-      // "heading tags with logical hierarchy" (pdf.ts:924) is about LEVELS,
-      // not content, and is pushed unconditionally — including when the
-      // content census never ran at all. A null census (pdfjs resolved no
-      // heading text) and a genuinely clean one produce the IDENTICAL empty
-      // findings (analyzer :693: `if (!census || census.unusable === 0)
-      // return { score: 100, findings: [] }`), so nothing in the stored
-      // findings distinguishes "we could not look" from "we looked and it
-      // is fine". The group's own presence is the only safe signal: it is
-      // pushed only when census is non-null (a null census returns before
-      // the group's header line is ever reached), so seeing it — with no
-      // advisory, already ruled out above — is real evidence the census ran.
-      if (signalLines(ctx, "Do the Headings Read Like Headings").length > 0) {
-        return {
-          status: "met",
-          evidence: ["The heading tags in this document hold short, heading-like text."],
-        };
-      }
       if (matchAny(ctx, "no heading tags") || matchAny(ctx, "no headings were found")) {
         // Two distinct analyzer N/A lines for the SAME underlying fact
         // (no headings at all): "No heading tags found in the document
@@ -338,9 +336,7 @@ export const PDF_PRACTICES: BestPractice[] = [
           evidence: ["This document has no heading tags, so there is no content to check."],
         };
       }
-      return notChecked(
-        "This report contains no finding about whether this document's heading content reads as headings.",
-      );
+      return notChecked("This report contains no finding about heading content for this document.");
     },
   },
   {

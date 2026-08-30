@@ -80,8 +80,12 @@ const NOT_MET_TRIGGERS: Record<string, { findings: string[]; pageCount?: number 
     ],
   },
   "heading-content": {
+    // Round 2: the advisory alone no longer reaches NOT MET — the gate is
+    // the group's count lines now, so the trigger needs the group itself.
     findings: [
-      "Advisory — not scored: found 6 heading tags in a sound level order, but some of them may not read as headings — review the outline above by hand. Heuristic judgment only; your grade is not affected.",
+      "--- Do the Headings Read Like Headings? ---",
+      "  2 heading tag(s) carry no text at all — a screen-reader user who jumps to one lands on silence.",
+      "  4 of 6 heading tag(s) (67%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.",
     ],
   },
   "single-h1": {
@@ -305,20 +309,27 @@ describe("heading-content", () => {
     expect(run("heading-content", [HEADING_OK]).status).toBe("not-checked");
   });
 
-  it("is MET only when the content census demonstrably ran and raised nothing — the group's own presence, not the hierarchy line, is the evidence", () => {
-    // Below HEADING_MIN_UNUSABLE (3): the census found one fragment, but
-    // pdf.ts's own threshold says that's too few to call a pattern, so no
-    // "may not read as headings" advisory is added — yet the group's
-    // header line proves the census is non-null (a null census returns
-    // empty findings before that header is ever pushed). That presence is
-    // the only positive signal this practice has.
+  it("is NOT MET even when the census stayed BELOW the scoring threshold — 'not scored' is not 'clean'", () => {
+    // Round-1 correction: the group ("--- Do the Headings Read Like
+    // Headings? ---", analyzer :695) is pushed ONLY on the line AFTER
+    // `if (!census || census.unusable === 0) return { score: 100,
+    // findings: [] }` (:693) — so its presence requires unusable > 0. It
+    // can NEVER mean "content is fine"; it can only mean "the census found
+    // at least one problem", whether or not HEADING_MIN_UNUSABLE (3) was
+    // met for scoring purposes. This fixture — one fragment, below the
+    // threshold — still has a genuinely bad heading in it. Reporting MET
+    // here (as this test wrongly asserted before this fix) would have
+    // shown a green row directly contradicted by the fragment line sitting
+    // right next to it in the same report.
     const r = run("heading-content", [
       "--- Do the Headings Read Like Headings? ---",
       '  1 heading tag(s) hold a fragment rather than a heading — the tag caught part of a sentence, often cut off mid-word: "property crime a".',
       "  5 of 6 heading tag(s) (83%) read as real headings. Navigating this document by heading — which is how most screen-reader users move through a long report — mostly lands on blanks and half-sentences.",
       HEADING_OK,
     ]);
-    expect(r.status).toBe("met");
+    expect(r.status).toBe("not-met");
+    expect(r.evidence.join(" ")).toMatch(/1 heading tag\(s\) hold a fragment/);
+    expect(r.evidence.join(" ")).toMatch(/5 of 6 heading tag\(s\)/);
   });
 
   it("is NOT APPLICABLE when the document has no headings at all", () => {
@@ -923,14 +934,25 @@ describe("every PDF practice", () => {
   it("has no forbidden phrasing in evidence or fix text either — most user-facing sentences live there, not in the static copy", () => {
     // The static-field sweep above cannot see evidence/fix: those are
     // produced by detect(), not stored as plain strings. Run each practice
-    // against a fixture built to reach its richest branch (usually NOT
-    // MET) and sweep that output too.
+    // against a fixture built to reach its richest branch (NOT MET) and
+    // sweep that output too. A gate that has only ever passed proves
+    // nothing (project rule) — so this asserts the fixture actually LANDS
+    // on not-met (a fixture that drifted to not-checked would otherwise
+    // make the phrasing check pass vacuously) and fails loudly, rather
+    // than silently skipping, if a future 20th practice has no entry here.
     for (const p of PDF_PRACTICES) {
       const trigger = NOT_MET_TRIGGERS[p.id];
-      if (!trigger) continue; // every practice below has one; see the map
+      expect(
+        trigger,
+        `no NOT_MET_TRIGGERS entry for "${p.id}" — every practice needs one, or this sweep silently skips it`,
+      ).toBeDefined();
       const r = p.detect(
-        buildContext({ findings: trigger.findings }, "pdf", trigger.pageCount ?? 10),
+        buildContext({ findings: trigger!.findings }, "pdf", trigger!.pageCount ?? 10),
       );
+      expect(
+        r.status,
+        `${p.id}'s NOT_MET_TRIGGERS fixture did not reach not-met (got "${r.status}") — update the trigger, or this sweep proves nothing for this practice`,
+      ).toBe("not-met");
       const copy = `${r.evidence.join(" ")} ${r.fix?.source ?? ""} ${r.fix?.app ?? ""}`;
       expect(copy, p.id).not.toMatch(/required by law/i);
       expect(copy, p.id).not.toMatch(/\bstrong\w*/i);
