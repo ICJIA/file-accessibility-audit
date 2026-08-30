@@ -1424,6 +1424,76 @@ pnpm --filter web test -- app/__tests__/bestPracticesCore.test.ts -t "evaluateBe
 
 Expected: FAIL — module not found.
 
+**REQUIRED ADDITIONAL TEST — the feature's central claim.** The whole point of this section is that a document can satisfy WCAG 2.1 and still have work worth doing. Prove it here, at the level where a whole report is evaluated:
+
+```ts
+describe("a document that PASSES WCAG still has best practices to meet", () => {
+  // A report with NO failing WCAG criterion — the grade is A, the score is
+  // 100, conformance.failures is empty — that nonetheless carries several
+  // not-scored advisories. This is the exact shape the section exists for.
+  const wcagCleanButImperfect = {
+    fileType: "pdf",
+    pageCount: 40,
+    overallScore: 100,
+    grade: "A",
+    conformance: { failures: [], notAssessed: [] },
+    categories: [
+      {
+        id: "heading_structure",
+        label: "Heading Structure",
+        score: 100,
+        grade: "A",
+        severity: "No issues found",
+        findings: [
+          "PDF/UA only — not scored: found 6 heading tags, but the level order has gaps — skipping levels (H1 → H3) is a PDF/UA / best-practice concern (Matterhorn 13-004), not a WCAG 2.1 failure, so your grade is not affected.",
+          "--- Heading Tree ---",
+          "  H1 → H2 → H1 → H1 → H3 → H5",
+          "--- Heading Outline ---",
+          "  Heading hierarchy skip: H1 → H3 (skipped H2)",
+          "Found 6 heading tags with logical hierarchy",
+        ],
+      },
+      {
+        id: "bookmarks",
+        label: "Bookmarks",
+        score: 100,
+        grade: "A",
+        severity: "No issues found",
+        findings: [
+          "Advisory — not scored: this document has 40 pages and no bookmarks. No WCAG 2.1 criterion requires bookmarks in a single document (2.4.5 Multiple Ways applies to sets of pages), so your grade is not affected.",
+        ],
+      },
+    ],
+  };
+
+  it("reports unmet best practices even though no WCAG criterion is failing", () => {
+    const rows = evaluateBestPractices(wcagCleanButImperfect);
+    const notMet = rows.filter((r) => r.status === "not-met");
+    expect(notMet.length).toBeGreaterThan(0);
+    expect(notMet.map((r) => r.practice.id)).toContain("heading-level-order");
+    expect(notMet.map((r) => r.practice.id)).toContain("bookmarks");
+  });
+
+  it("carries the document's own evidence on each unmet row", () => {
+    const rows = evaluateBestPractices(wcagCleanButImperfect);
+    const order = rows.find((r) => r.practice.id === "heading-level-order");
+    expect(order?.block?.lines.join(" ")).toContain("H1 → H2 → H1 → H1 → H3 → H5");
+    expect(order?.evidence.join(" ")).toMatch(/H1 → H3 \(skipped H2\)/);
+  });
+
+  it("never marks an unmet best practice as a WCAG obligation", () => {
+    const rows = evaluateBestPractices(wcagCleanButImperfect);
+    for (const r of rows) {
+      const copy = `${r.practice.label} ${r.practice.description} ${r.practice.why} ${r.evidence.join(" ")}`;
+      expect(copy, r.practice.id).not.toMatch(/required by law/i);
+      expect(copy, r.practice.id).not.toMatch(/WCAG 2\.1 failure/i);
+    }
+  });
+});
+```
+
+Write the equivalent for a WCAG-clean **Word** report (skipped heading levels plus merged cells, both advisory-only) so the claim is proven for the Office half too.
+
 - [ ] **Step 3: Write the implementation**
 
 Create `apps/web/app/utils/bestPractices/index.ts`:
@@ -2381,3 +2451,120 @@ pnpm prod-sentinels
 ```
 
 must run — after every deploy, without exception.
+
+
+---
+
+### Task 12: Corpus traps — WCAG-clean documents that still have best practices to meet
+
+The feature's central claim is that a document can satisfy WCAG 2.1 and still have work worth doing. Task 6 proves that at the report level with fixtures. This task proves it against **real files the analyzer actually parses**, in the project's own CI-gated corpus, so the claim cannot quietly stop being true.
+
+**Files:**
+- Modify: `scripts/synthetic-controls.ts` (new `SAMPLES` entries)
+- Modify: `scripts/synthetic-office-controls.ts` (new entries)
+- Regenerated: `scripts/trap-manifest.json`, `scripts/trap-manifest-office.json`
+- Re-blessed: `scripts/score-ledger.json`
+- Updated: `scripts/brief-stats.json`
+- Verify: the /trust trap modal via `pnpm build-brief`
+
+**Interfaces:** none exported. A `Sample` is `{ file, truth, build: () => Buffer, check: (r: AnalysisResult) => string | null }`; `check` returns `null` to pass or a message to fail, and an `"OBSERVE:"` prefix records behavior without failing the run.
+
+- [ ] **Step 1: Add the PDF trap**
+
+Append to `SAMPLES` in `scripts/synthetic-controls.ts`. Model it on `synthetic-01-well-built.pdf`, which is already a conformance-clean document — this one is that document plus best-practice debt:
+
+```ts
+{
+  file: "synthetic-wcag-clean-bp-debt.pdf",
+  truth:
+    "A document can satisfy WCAG 2.1 completely and still carry best-practice work. This one is tagged, titled, language-tagged, every figure has alt text, and no WCAG criterion fails — so it must score in the A band with no Critical or Moderate category. It nonetheless skips a heading level (H1 -> H3), runs to enough pages to want bookmarks and has none, and leaves DisplayDocTitle off. None of those is a WCAG 2.1 failure, so none may move the score; all three must be reported as not-scored advisories.",
+  build: () => { /* … */ },
+  check: (r) => {
+    const bad = r.categories.filter((c) => c.severity === "Critical" || c.severity === "Moderate");
+    if (bad.length) return `WCAG-clean document accused of ${bad.map((c) => `${c.id}(${c.severity})`).join(", ")}`;
+    if (r.overallScore < 89) return `score ${r.overallScore} < 89 — best-practice debt must not move the grade`;
+    if ((r.conformance?.failures ?? []).length) {
+      return `conformance failures present: ${(r.conformance?.failures ?? []).map((f) => f.sc).join(", ")}`;
+    }
+    const notScored = r.categories
+      .flatMap((c) => c.findings)
+      .filter((f) => /^(pdf\/ua only|advisory|note) — not scored/i.test(f.trim()));
+    if (notScored.length < 3) {
+      return `expected at least 3 not-scored advisories, found ${notScored.length}`;
+    }
+    const all = notScored.join("\n").toLowerCase();
+    for (const needle of ["level order has gaps", "no bookmarks", "displaydoctitle"]) {
+      if (!all.includes(needle)) return `missing the designed advisory: ${needle}`;
+    }
+    return null;
+  },
+},
+```
+
+The build must produce a document that is genuinely WCAG-clean: tagged, `/MarkInfo << /Marked true >>`, `/Lang (en-US)`, a real `/Title`, alt text on every figure, and a valid struct tree — then introduce ONLY the three best-practice defects. Reuse the helpers already in the file (`buildPdf`, `stream`, `FONT`, `GRAY_IMG`, `LONG`).
+
+⚠️ **`LONG()` exists because pdf.js silently truncates a single unbroken `Tj` run wider than the page (~112 chars at 11pt).** Paint line by line; a hand-built fixture that ignores this fails for a reason that has nothing to do with the trap.
+
+Page count must clear `ANALYSIS.BOOKMARKS_PAGE_THRESHOLD` (10) or the bookmarks advisory never fires.
+
+- [ ] **Step 2: Run it and confirm the designed truth holds**
+
+```bash
+pnpm synthetic-controls
+```
+
+Expected: every sample holds, including the new one, and `trap-manifest.json` is rewritten with the new entry. **If it fails, suspect the FIXTURE before the app** — on this project that instinct has been right every time so far.
+
+- [ ] **Step 3: Add the Office traps**
+
+Append to `scripts/synthetic-office-controls.ts`: one Word document and one Excel workbook that are each WCAG-clean but carry advisory-only debt — for Word, a skipped heading level plus merged table cells; for Excel, default sheet names (`Sheet1`) plus data laid out as plain ranges rather than defined Tables. Same `check` doctrine: no Critical/Moderate category, no conformance failure, and the designed advisories present.
+
+```bash
+pnpm synthetic-office-controls
+```
+
+- [ ] **Step 4: Re-bless the score ledger IN THE SAME COMMIT**
+
+New corpus files add ledger rows, and the gate fails until a human re-blesses.
+
+```bash
+pnpm score-ledger          # expect: FAIL, naming the new unblessed rows
+pnpm score-ledger --bless  # re-record
+pnpm score-ledger          # expect: PASS
+```
+
+Read the diff on `scripts/score-ledger.json` before committing and confirm **only the new rows appear** — a blessing that moves an existing row is a scoring regression hiding inside a corpus change, and this gate exists precisely to catch that.
+
+- [ ] **Step 5: Update the trap counts and rebuild the brief**
+
+The trap totals are computed from both manifests and surface on the /trust page. Update `scripts/brief-stats.json`, then:
+
+```bash
+pnpm build-brief
+```
+
+Expected: exit 0. The banned-pattern guard fails on any hardcoded count — every figure must be placeholder-driven or the copy countless.
+
+- [ ] **Step 6: Full verification**
+
+```bash
+pnpm --filter web test && pnpm typecheck && pnpm lint && pnpm format:check
+pnpm synthetic-controls && pnpm synthetic-office-controls && pnpm score-ledger && pnpm resave-invariance
+```
+
+All must pass. `trustPage.test` pins the trap-card count, so it fails until `brief-stats.json` matches the manifests.
+
+- [ ] **Step 7: Commit — corpus, manifests, and ledger together**
+
+```bash
+git add scripts/synthetic-controls.ts scripts/synthetic-office-controls.ts \
+        scripts/trap-manifest.json scripts/trap-manifest-office.json \
+        scripts/score-ledger.json scripts/brief-stats.json controls/
+git commit -m "test(corpus): traps proving a WCAG-clean document still has best practices to meet
+
+Three new controls that pass WCAG 2.1 completely — no failing criterion, no
+Critical or Moderate category — while carrying skipped heading levels, absent
+bookmarks, DisplayDocTitle off, merged cells, and undefined Excel tables. Each
+must be reported and none may move the score. Ledger re-blessed in the same
+commit; only the new rows move."
+```
